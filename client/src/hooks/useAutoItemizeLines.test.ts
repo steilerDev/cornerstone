@@ -862,4 +862,232 @@ describe('useAutoItemizeLines', () => {
       expect(onFieldsEdited).toHaveBeenCalled();
     });
   });
+
+  // ─── Issue #2158: invoice-level default budget source ──────────────────────
+
+  describe('defaultBudgetSourceId (#2158)', () => {
+    const THREE_SOURCES = [
+      { id: 'src-disc', name: 'Discretionary', isDiscretionary: true },
+      { id: 'src-loan', name: 'Bank Loan', isDiscretionary: false },
+      { id: 'src-sav', name: 'Savings', isDiscretionary: false },
+    ];
+
+    function queueDraftFor(
+      result: {
+        current: {
+          setLines: (l: unknown[]) => void;
+          handlers: Record<string, (...args: string[]) => void>;
+        };
+      },
+      line: unknown,
+    ) {
+      act(() => {
+        result.current.setLines([line]);
+        result.current.handlers.onAssign!('r1');
+      });
+      act(() => {
+        result.current.handlers.onQueueNewBudgetLine!();
+      });
+    }
+
+    it('queued draft uses the default when set, ahead of the row source', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
+      );
+
+      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('queued draft falls back to the row source when the default is null', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: null })),
+      );
+
+      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
+        'src-loan',
+      );
+    });
+
+    it('queued draft falls back to the discretionary source when default and row source are absent', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+
+      queueDraftFor(result, makeLine({ budgetSourceId: null }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
+        'src-disc',
+      );
+    });
+
+    it('queued draft source is empty when there is no default, row source or discretionary source', () => {
+      mockPickerStateOverride = {
+        budgetSources: [{ id: 'src-loan', name: 'Bank Loan', isDiscretionary: false }],
+      };
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+
+      queueDraftFor(result, makeLine({ budgetSourceId: null }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('');
+    });
+
+    it('the stable handler sees a default that changed between renders', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result, rerender } = renderHook(
+        (props: { defaultBudgetSourceId: string | null }) =>
+          useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: props.defaultBudgetSourceId })),
+        { initialProps: { defaultBudgetSourceId: null as string | null } },
+      );
+
+      act(() => {
+        result.current.setLines([makeLine({ budgetSourceId: 'src-loan' })]);
+        result.current.handlers.onAssign('r1');
+      });
+      const staleHandler = result.current.handlers.onQueueNewBudgetLine;
+      rerender({ defaultBudgetSourceId: 'src-sav' });
+
+      act(() => {
+        staleHandler();
+      });
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('merged line takes the default when set', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
+      );
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
+          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('merged line keeps the first source line source when no default is set', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
+          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.lines[0]?.budgetSourceId).toBe('src-loan');
+    });
+  });
+
+  describe('onSelectBudgetLine mirrors source and category (#2158)', () => {
+    // The mocked picker returns a fresh budgetSources array per render unless one is injected;
+    // the hook's "re-default missing source" effect would then re-fire after every render and
+    // mask the null this test asserts. A stable reference mirrors the real picker state.
+    const STABLE_SOURCES = [{ id: 'src-1', name: 'Main', isDiscretionary: true }];
+
+    function link(budgetLine: Record<string, unknown>, initial: Record<string, unknown> = {}) {
+      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
+      const hook = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        hook.result.current.setLines([
+          makeLine({
+            budgetSourceId: 'src-extracted',
+            budgetCategoryId: 'cat-extracted',
+            ...initial,
+          }),
+        ]);
+        hook.result.current.handlers.onAssign('r1');
+      });
+      act(() => {
+        hook.result.current.handlers.onSelectBudgetLine(budgetLine);
+      });
+      return hook.result.current.lines[0];
+    }
+
+    it('copies the linked line source and category ids onto the row', () => {
+      const line = link({
+        id: 'wib-1',
+        workItemId: 'wi-1',
+        description: 'Linked',
+        budgetSource: { id: 'src-linked', name: 'Linked source' },
+        budgetCategory: { id: 'cat-linked', name: 'Linked category' },
+      });
+
+      expect(line?.budgetSourceId).toBe('src-linked');
+      expect(line?.budgetCategoryId).toBe('cat-linked');
+      expect(line?.assignedBudgetLineId).toBe('wib-1');
+    });
+
+    it('sets source and category to null when the linked line has none', () => {
+      const line = link({
+        id: 'hib-1',
+        householdItemId: 'hi-1',
+        description: 'Linked HI',
+        budgetSource: null,
+        budgetCategory: null,
+      });
+
+      expect(line?.budgetSourceId).toBeNull();
+      expect(line?.budgetCategoryId).toBeNull();
+      expect(line?.assignedBudgetLineType).toBe('household_item');
+    });
+
+    it('re-default effect leaves a linked row with a null source alone but fills an unlinked one', () => {
+      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
+      const { result, rerender } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1' }),
+          makeLine({ rowId: 'r2', budgetSourceId: null }),
+        ]);
+        result.current.handlers.onAssign('r1');
+      });
+      act(() => {
+        result.current.handlers.onSelectBudgetLine({
+          id: 'hib-1',
+          householdItemId: 'hi-1',
+          description: 'Linked HI',
+          budgetSource: null,
+          budgetCategory: null,
+        });
+      });
+      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
+      expect(result.current.lines[1]?.budgetSourceId).toBeNull();
+
+      // A new sources array identity re-runs the re-default effect.
+      mockPickerStateOverride = {
+        budgetSources: [{ id: 'src-first', name: 'First', isDiscretionary: false }],
+      };
+      rerender();
+
+      expect(result.current.lines[0]?.assignedBudgetLineId).toBe('hib-1');
+      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
+      expect(result.current.lines[1]?.budgetSourceId).toBe('src-first');
+    });
+  });
 });

@@ -54,6 +54,11 @@ export function mergeMaterializedLines(
  *
  * Metadata (description, confidence, category, source, vendor) comes from the
  * inline draft form the user filled in.
+ *
+ * The converted assign-existing row mirrors the persisted line as returned by the
+ * server (`created.budgetSource?.id`, `created.budgetCategory?.id`; the server may
+ * coerce fields, e.g. household-item category) so the downstream assign-existing
+ * commit does not overwrite the persisted values (#2158).
  */
 export async function materializeInlineDrafts(
   workingLines: LineWithInclude[],
@@ -113,6 +118,8 @@ export async function materializeInlineDrafts(
         assignedBudgetLineId: created.id,
         assignedBudgetLineType: line.assignedItemType,
         totalAmount: netBase, // live amount
+        budgetSourceId: created.budgetSource?.id ?? null,
+        budgetCategoryId: created.budgetCategory?.id ?? null,
         includesVat: line.includesVat, // live VAT flag
         inlineCreatedBudgetLineDraft: undefined,
         inlineHideConfidence: undefined,
@@ -129,4 +136,42 @@ export async function materializeInlineDrafts(
   }
 
   return { ok: true, lines: result };
+}
+
+/**
+ * True when the row will create a NEW budget line (i.e. it is not linked to an
+ * existing budget line). Rows linked via assign-existing are not "new" (#2158).
+ */
+export function isNewBudgetLineRow(line: LineWithInclude): boolean {
+  return !line.assignedBudgetLineId;
+}
+
+/**
+ * Apply a default budget source to every row that creates a new budget line
+ * (#2158, Option A). Pure and non-mutating: rows linked to an existing budget
+ * line are returned unchanged (same reference); all other rows (included or
+ * excluded, including pending/error merge rows) get `budgetSourceId = sourceId`.
+ * Queued inline drafts and nested merge source lines that are themselves new
+ * rows are updated likewise.
+ */
+export function applyBudgetSourceToNewLines(
+  lines: LineWithInclude[],
+  sourceId: string,
+): LineWithInclude[] {
+  return lines.map((line) => {
+    if (!isNewBudgetLineRow(line)) return line;
+    const next: LineWithInclude = { ...line, budgetSourceId: sourceId };
+    if (line.inlineCreatedBudgetLineDraft) {
+      next.inlineCreatedBudgetLineDraft = {
+        ...line.inlineCreatedBudgetLineDraft,
+        budgetSourceId: sourceId,
+      };
+    }
+    if (line.mergeSourceLines) {
+      next.mergeSourceLines = line.mergeSourceLines.map((src) =>
+        isNewBudgetLineRow(src) ? { ...src, budgetSourceId: sourceId } : src,
+      );
+    }
+    return next;
+  });
 }

@@ -433,3 +433,180 @@ describe('mergeMaterializedLines', () => {
     expect(result).toEqual(allLines);
   });
 });
+
+// ─── Issue #2158: materialized rows mirror the created line's source/category ──
+
+describe('materializeInlineDrafts — source/category mirroring (#2158)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let materializeInlineDrafts: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockCreateWorkItem.mockResolvedValue(makeCreatedBudgetLine('new-wib-1'));
+    ({ materializeInlineDrafts } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it("mirrors the created line's source and category (not the draft's) onto the converted row", async () => {
+    const line = makeDraftLine({ budgetSourceId: 'src-row', budgetCategoryId: 'cat-row' });
+    line.inlineCreatedBudgetLineDraft.budgetSourceId = 'src-draft';
+    line.inlineCreatedBudgetLineDraft.budgetCategoryId = 'cat-draft';
+    mockCreateWorkItem.mockResolvedValue({
+      ...makeCreatedBudgetLine('new-wib-1'),
+      budgetSource: { id: 'src-created', name: 'Created source' },
+      budgetCategory: { id: 'cat-created', name: 'Created category', translationKey: null },
+    });
+
+    const result = await materializeInlineDrafts(
+      [line],
+      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
+      i18n,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.lines[0].assignedBudgetLineId).toBe('new-wib-1');
+    expect(result.lines[0].budgetSourceId).toBe('src-created');
+    expect(result.lines[0].budgetCategoryId).toBe('cat-created');
+  });
+
+  it('household item: row takes the server-assigned category even though the draft category was empty', async () => {
+    const line = makeDraftLine({
+      assignedItemId: 'hi-1',
+      assignedItemType: 'household_item',
+      budgetCategoryId: 'cat-row',
+    });
+    line.inlineCreatedBudgetLineDraft.budgetCategoryId = '';
+    mockCreateHouseholdItem.mockResolvedValue({
+      ...makeCreatedBudgetLine('new-hib-1'),
+      budgetCategory: {
+        id: 'bc-household-items',
+        name: 'Household Items',
+        translationKey: null,
+      },
+    });
+
+    const result = await materializeInlineDrafts(
+      [line],
+      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
+      i18n,
+    );
+
+    expect(result.ok).toBe(true);
+    expect(result.lines[0].assignedBudgetLineId).toBe('new-hib-1');
+    expect(result.lines[0].budgetCategoryId).toBe('bc-household-items');
+  });
+
+  it('sets source and category to null when the created line has none', async () => {
+    const line = makeDraftLine();
+    mockCreateWorkItem.mockResolvedValue({
+      ...makeCreatedBudgetLine('new-wib-1'),
+      budgetSource: null,
+      budgetCategory: null,
+    });
+
+    const result = await materializeInlineDrafts(
+      [line],
+      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
+      i18n,
+    );
+
+    expect(result.lines[0].budgetSourceId).toBeNull();
+    expect(result.lines[0].budgetCategoryId).toBeNull();
+  });
+});
+
+// ─── isNewBudgetLineRow / applyBudgetSourceToNewLines (#2158) ──────────────────
+
+describe('isNewBudgetLineRow', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let isNewBudgetLineRow: any;
+
+  beforeEach(async () => {
+    ({ isNewBudgetLineRow } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it('is true for a row without an assigned budget line', () => {
+    expect(isNewBudgetLineRow(makeLine())).toBe(true);
+  });
+
+  it('is true for a row with only an inline draft queued', () => {
+    expect(isNewBudgetLineRow(makeDraftLine())).toBe(true);
+  });
+
+  it('is false for a row linked to an existing budget line', () => {
+    expect(isNewBudgetLineRow(makeLine({ assignedBudgetLineId: 'bl-1' }))).toBe(false);
+  });
+});
+
+describe('applyBudgetSourceToNewLines', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let applyBudgetSourceToNewLines: any;
+
+  beforeEach(async () => {
+    ({ applyBudgetSourceToNewLines } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it('returns linked rows by reference and updates all other rows, including excluded ones', () => {
+    const linked = makeLine({
+      rowId: 'linked',
+      assignedBudgetLineId: 'bl-1',
+      budgetSourceId: 'src-x',
+    });
+    const excluded = makeLine({ rowId: 'excluded', included: false, budgetSourceId: 'src-a' });
+    const plain = makeLine({ rowId: 'plain', budgetSourceId: 'src-b' });
+
+    const result = applyBudgetSourceToNewLines([linked, excluded, plain], 'src-new');
+
+    expect(result[0]).toBe(linked);
+    expect(result[0].budgetSourceId).toBe('src-x');
+    expect(result[1].budgetSourceId).toBe('src-new');
+    expect(result[1].included).toBe(false);
+    expect(result[2].budgetSourceId).toBe('src-new');
+  });
+
+  it('updates the queued inline draft source alongside the row source', () => {
+    const drafted = makeDraftLine({ rowId: 'drafted', budgetSourceId: 'src-a' });
+
+    const result = applyBudgetSourceToNewLines([drafted], 'src-new');
+
+    expect(result[0].budgetSourceId).toBe('src-new');
+    expect(result[0].inlineCreatedBudgetLineDraft.budgetSourceId).toBe('src-new');
+    expect(result[0].inlineCreatedBudgetLineDraft.description).toBe('Draft desc');
+  });
+
+  it('updates nested merge source lines that are new rows and keeps linked ones untouched', () => {
+    const nestedNew = makeLine({ rowId: 'n1', budgetSourceId: 'src-a' });
+    const nestedLinked = makeLine({
+      rowId: 'n2',
+      assignedBudgetLineId: 'bl-2',
+      budgetSourceId: 'src-y',
+    });
+    const merged = makeLine({
+      rowId: 'merged',
+      mergeStatus: 'error',
+      mergeSourceLines: [nestedNew, nestedLinked],
+    });
+
+    const result = applyBudgetSourceToNewLines([merged], 'src-new');
+
+    expect(result[0].budgetSourceId).toBe('src-new');
+    expect(result[0].mergeSourceLines[0].budgetSourceId).toBe('src-new');
+    expect(result[0].mergeSourceLines[1]).toBe(nestedLinked);
+  });
+
+  it('does not mutate the input rows, drafts or nested merge lines', () => {
+    const drafted = makeDraftLine({ rowId: 'drafted', budgetSourceId: 'src-a' });
+    const nested = makeLine({ rowId: 'n1', budgetSourceId: 'src-a' });
+    const merged = makeLine({ rowId: 'merged', mergeSourceLines: [nested] });
+    const input = [drafted, merged];
+    const snapshot = JSON.parse(JSON.stringify(input));
+
+    const result = applyBudgetSourceToNewLines(input, 'src-new');
+
+    expect(result).not.toBe(input);
+    expect(JSON.parse(JSON.stringify(input))).toEqual(snapshot);
+  });
+
+  it('returns an empty array for no rows', () => {
+    expect(applyBudgetSourceToNewLines([], 'src-new')).toEqual([]);
+  });
+});
