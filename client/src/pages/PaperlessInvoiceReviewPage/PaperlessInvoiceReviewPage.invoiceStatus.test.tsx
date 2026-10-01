@@ -220,7 +220,14 @@ let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
 // ─── Setup / Teardown ─────────────────────────────────────────────────────────
 
+const originalFetch = globalThis.fetch;
+let mockFetch: jest.Mock<typeof fetch>;
+
 beforeEach(async () => {
+  // Every API the page uses is module-mocked; any real fetch is an unmocked dependency.
+  mockFetch = jest.fn<typeof fetch>(() => Promise.reject(new Error('unmocked fetch')));
+  globalThis.fetch = mockFetch;
+
   ({ PaperlessInvoiceReviewPage } =
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PaperlessInvoiceReviewPageModule);
   ({ LocaleProvider } =
@@ -242,6 +249,9 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  const fetchCalls = mockFetch.mock.calls.length;
+  globalThis.fetch = originalFetch;
+  expect(fetchCalls).toBe(0);
   jest.useRealTimers();
   jest.restoreAllMocks();
   document.body.innerHTML = '';
