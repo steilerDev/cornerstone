@@ -68,12 +68,17 @@ describe('Household Item Service - Total Actual Amount', () => {
   }
 
   function createTestHouseholdItem(name: string, userId: string): string {
-    const result = householdItemService.createHouseholdItem(db, userId, {
-      name,
-      vendorId: undefined,
-      earliestDeliveryDate: undefined,
-      latestDeliveryDate: undefined,
-    });
+    const result = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name,
+        vendorId: undefined,
+        earliestDeliveryDate: undefined,
+        latestDeliveryDate: undefined,
+      },
+      0.19,
+    );
     return result.id;
   }
 
@@ -118,7 +123,7 @@ describe('Household Item Service - Total Actual Amount', () => {
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
       createTestHouseholdItemBudget(householdItemId, 5000);
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       expect(detail.budgetSummary.totalActual).toBe(0);
     });
@@ -150,7 +155,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       expect(detail.budgetSummary.totalActual).toBe(2500);
     });
@@ -226,7 +231,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       // totalActual = SUM of itemized_amounts across all budget lines for this household item
       expect(detail.budgetSummary.totalActual).toBe(6000); // 2000 + 1500 + 2500
@@ -303,7 +308,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       // totalActual = sum of all itemized_amounts for this household item: 1500 + 1000 + 500 = 3000
       expect(detail.budgetSummary.totalActual).toBe(3000);
@@ -360,11 +365,11 @@ describe('Household Item Service - Total Actual Amount', () => {
         .run();
 
       // Check item 1
-      const detail1 = householdItemService.getHouseholdItemById(db, householdItem1Id);
+      const detail1 = householdItemService.getHouseholdItemById(db, householdItem1Id, 0.19);
       expect(detail1.budgetSummary.totalActual).toBe(2000);
 
       // Check item 2
-      const detail2 = householdItemService.getHouseholdItemById(db, householdItem2Id);
+      const detail2 = householdItemService.getHouseholdItemById(db, householdItem2Id, 0.19);
       expect(detail2.budgetSummary.totalActual).toBe(1500);
     });
 
@@ -396,7 +401,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         .run();
 
       // Verify totalActual includes only the household item invoice
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
       expect(detail.budgetSummary.totalActual).toBe(2000);
     });
 
@@ -449,7 +454,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       // 2345.67 + 1234.33 = 3580.00
       expect(detail.budgetSummary.totalActual).toBeCloseTo(3580, 2);
@@ -486,7 +491,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       expect(detail.budgetSummary.totalPlanned).toBe(5000);
       expect(detail.budgetSummary.totalActual).toBe(2500);
@@ -520,7 +525,7 @@ describe('Household Item Service - Total Actual Amount', () => {
         })
         .run();
 
-      const detail = householdItemService.getHouseholdItemById(db, householdItemId);
+      const detail = householdItemService.getHouseholdItemById(db, householdItemId, 0.19);
 
       expect(detail.budgetSummary).toHaveProperty('totalPlanned');
       expect(detail.budgetSummary).toHaveProperty('totalActual');

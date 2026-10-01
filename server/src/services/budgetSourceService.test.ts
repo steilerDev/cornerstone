@@ -2849,6 +2849,47 @@ describe('Budget Source Service', () => {
       expect(result.projectedMaxAmount).toBe(90);
     });
 
+    it.each([
+      [0.19, 119],
+      [0.2, 120],
+    ])(
+      'usedAmount and availableAmount gross up a net non-invoiced line at vatRate=%s (used %s)',
+      (vatRate, gross) => {
+        const sourceId = newSource(`Used net ${vatRate}`);
+        insertLine('work_item', sourceId, 100, false);
+        insertLine('household_item', sourceId, 100, false);
+
+        const result = budgetSourceService.getBudgetSourceById(db, sourceId, vatRate);
+
+        expect(result.usedAmount).toBeCloseTo(gross * 2, 5);
+        expect(result.availableAmount).toBeCloseTo(100000 - gross * 2, 5);
+      },
+    );
+
+    it('usedAmount leaves gross-stored lines unchanged and uses the itemized sum for invoiced net lines', () => {
+      const sourceId = newSource('Used mixed');
+      insertLine('work_item', sourceId, 100, true);
+      const invoicedNet = insertLine('work_item', sourceId, 100, false);
+      insertClaimedInvoice(invoicedNet, 90);
+
+      const result = budgetSourceService.getBudgetSourceById(db, sourceId, 0.2);
+
+      // 100 (gross, as-is) + 90 (invoiced itemized amount, not 120)
+      expect(result.usedAmount).toBeCloseTo(190, 5);
+      expect(result.availableAmount).toBeCloseTo(100000 - 190, 5);
+    });
+
+    it('listBudgetSources reports the same VAT-effective usedAmount as getBudgetSourceById', () => {
+      const sourceId = newSource('Used list');
+      insertLine('work_item', sourceId, 100, false);
+
+      const listed = budgetSourceService.listBudgetSources(db, 0.2).find((s) => s.id === sourceId)!;
+      const single = budgetSourceService.getBudgetSourceById(db, sourceId, 0.2);
+
+      expect(listed.usedAmount).toBeCloseTo(120, 5);
+      expect(listed.usedAmount).toBeCloseTo(single.usedAmount, 5);
+    });
+
     it('createBudgetSource and updateBudgetSource return amounts computed with the supplied vatRate', () => {
       const created = budgetSourceService.createBudgetSource(
         db,

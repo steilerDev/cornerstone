@@ -73,12 +73,17 @@ describe('Invoice Service - Household Item Budget Linking', () => {
   }
 
   function createTestHouseholdItem(name: string, userId: string): string {
-    const result = householdItemService.createHouseholdItem(db, userId, {
-      name,
-      vendorId: undefined,
-      earliestDeliveryDate: undefined,
-      latestDeliveryDate: undefined,
-    });
+    const result = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name,
+        vendorId: undefined,
+        earliestDeliveryDate: undefined,
+        latestDeliveryDate: undefined,
+      },
+      0.19,
+    );
     return result.id;
   }
 

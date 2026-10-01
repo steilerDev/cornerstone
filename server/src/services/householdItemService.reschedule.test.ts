@@ -104,15 +104,25 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it('updating earliestDeliveryDate triggers reschedule — targetDeliveryDate is updated', () => {
     // Given: A household item with no delivery constraint
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Kitchen Refrigerator',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Kitchen Refrigerator',
+      },
+      0.19,
+    );
     expect(item.targetDeliveryDate).toBeNull();
 
     // When: Setting earliestDeliveryDate to a future date
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      earliestDeliveryDate: '2030-01-01',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        earliestDeliveryDate: '2030-01-01',
+      },
+      0.19,
+    );
 
     // Then: targetDeliveryDate is set to the constraint date (no deps, no floor hit)
     expect(updated.targetDeliveryDate).toBe('2030-01-01');
@@ -127,19 +137,29 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     // Note: createHouseholdItem does NOT call autoReschedule, so targetDeliveryDate
     // is null immediately after creation. A subsequent scheduling-field update triggers it.
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Living Room Sofa',
-      earliestDeliveryDate: '2030-01-01',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Living Room Sofa',
+        earliestDeliveryDate: '2030-01-01',
+      },
+      0.19,
+    );
     // targetDeliveryDate is null right after creation (no reschedule on create)
     expect(item.targetDeliveryDate).toBeNull();
 
     // When: Updating with latestDeliveryDate (a scheduling-relevant field) — triggers reschedule
     let updated: ReturnType<typeof householdItemService.updateHouseholdItem> | undefined;
     expect(() => {
-      updated = householdItemService.updateHouseholdItem(db, item.id, {
-        latestDeliveryDate: '2030-06-01',
-      });
+      updated = householdItemService.updateHouseholdItem(
+        db,
+        item.id,
+        {
+          latestDeliveryDate: '2030-06-01',
+        },
+        0.19,
+      );
     }).not.toThrow();
 
     // Then: Returns valid HouseholdItemDetail with correct fields
@@ -158,17 +178,27 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     // Given: A household item with earliestDeliveryDate in the past.
     // createHouseholdItem does NOT call autoReschedule, so targetDeliveryDate is null.
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Bathroom Tiles',
-      earliestDeliveryDate: '2020-01-01',
-      status: 'planned',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Bathroom Tiles',
+        earliestDeliveryDate: '2020-01-01',
+        status: 'planned',
+      },
+      0.19,
+    );
     expect(item.targetDeliveryDate).toBeNull();
 
     // When: Updating with status: 'planned' (a scheduling-relevant field) — triggers reschedule
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      status: 'planned',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        status: 'planned',
+      },
+      0.19,
+    );
 
     // Then: autoReschedule ran and computed targetDeliveryDate.
     //
@@ -189,17 +219,27 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     // Given: A household item with a future earliestDeliveryDate.
     // createHouseholdItem does NOT call autoReschedule, so targetDeliveryDate starts null.
     const userId = createTestUser();
-    const hi = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Delayed Bathroom Tiles',
-      earliestDeliveryDate: '2030-05-15',
-      status: 'purchased',
-    });
+    const hi = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Delayed Bathroom Tiles',
+        earliestDeliveryDate: '2030-05-15',
+        status: 'purchased',
+      },
+      0.19,
+    );
     expect(hi.targetDeliveryDate).toBeNull();
 
     // When: Updating status (a scheduling-relevant field) — triggers reschedule
-    const updated = householdItemService.updateHouseholdItem(db, hi.id, {
-      status: 'scheduled',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      hi.id,
+      {
+        status: 'scheduled',
+      },
+      0.19,
+    );
 
     // Then: autoReschedule ran and set targetDeliveryDate from the earliestDeliveryDate constraint
     expect(updated.targetDeliveryDate).toBe('2030-05-15');
@@ -213,15 +253,25 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it('updating actualDeliveryDate triggers reschedule — actualDeliveryDate overrides CPM', () => {
     // Given: A household item with a future earliestDeliveryDate
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Master Bedroom Bed Frame',
-      earliestDeliveryDate: '2030-01-01',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Master Bedroom Bed Frame',
+        earliestDeliveryDate: '2030-01-01',
+      },
+      0.19,
+    );
 
     // When: Setting actualDeliveryDate to a specific date in the past
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      actualDeliveryDate: '2026-04-01',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        actualDeliveryDate: '2026-04-01',
+      },
+      0.19,
+    );
 
     // Then: targetDeliveryDate reflects the actualDeliveryDate (overrides CPM)
     expect(updated.targetDeliveryDate).toBe('2026-04-01');
@@ -236,17 +286,27 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it("updating status to 'arrived' auto-sets actualDeliveryDate to today and triggers reschedule", () => {
     // Given: A household item with a future earliestDeliveryDate but no actualDeliveryDate
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Dining Table',
-      earliestDeliveryDate: '2030-01-01',
-      status: 'scheduled',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Dining Table',
+        earliestDeliveryDate: '2030-01-01',
+        status: 'scheduled',
+      },
+      0.19,
+    );
     expect(item.actualDeliveryDate).toBeNull();
 
     // When: Updating status to 'arrived' (no explicit actualDeliveryDate in payload)
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      status: 'arrived',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        status: 'arrived',
+      },
+      0.19,
+    );
 
     // Then: actualDeliveryDate is auto-set to today
     expect(updated.actualDeliveryDate).toBe(TODAY);
@@ -263,22 +323,37 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it('updating a non-scheduling field does not change targetDeliveryDate', () => {
     // Given: A household item with earliestDeliveryDate that triggers a computed target
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Office Chair',
-      earliestDeliveryDate: '2030-01-01',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Office Chair',
+        earliestDeliveryDate: '2030-01-01',
+      },
+      0.19,
+    );
 
     // First trigger reschedule so targetDeliveryDate is set
-    const afterSchedule = householdItemService.updateHouseholdItem(db, item.id, {
-      earliestDeliveryDate: '2030-01-01',
-    });
+    const afterSchedule = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        earliestDeliveryDate: '2030-01-01',
+      },
+      0.19,
+    );
     const initialTargetDate = afterSchedule.targetDeliveryDate;
     expect(initialTargetDate).toBe('2030-01-01');
 
     // When: Updating only a non-scheduling field (name)
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      name: 'Ergonomic Office Chair',
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        name: 'Ergonomic Office Chair',
+      },
+      0.19,
+    );
 
     // Then: targetDeliveryDate is unchanged
     expect(updated.targetDeliveryDate).toBe(initialTargetDate);
@@ -308,14 +383,24 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
     const wiId = insertWorkItem(userId, { endDate: '2030-03-01' });
 
     // Create HI-A (independent — just to confirm it is also rescheduled)
-    const hiA = householdItemService.createHouseholdItem(db, userId, {
-      name: 'HI-A: Kitchen Tiles',
-    });
+    const hiA = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'HI-A: Kitchen Tiles',
+      },
+      0.19,
+    );
 
     // Create HI-B with a finish_to_start dep on wiId
-    const hiB = householdItemService.createHouseholdItem(db, userId, {
-      name: 'HI-B: Kitchen Cabinets',
-    });
+    const hiB = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'HI-B: Kitchen Cabinets',
+      },
+      0.19,
+    );
     db.insert(schema.householdItemDeps)
       .values({
         householdItemId: hiB.id,
@@ -325,12 +410,17 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
       .run();
 
     // When: Updating HI-A with a new earliestDeliveryDate (triggers autoReschedule)
-    householdItemService.updateHouseholdItem(db, hiA.id, {
-      earliestDeliveryDate: '2030-03-01',
-    });
+    householdItemService.updateHouseholdItem(
+      db,
+      hiA.id,
+      {
+        earliestDeliveryDate: '2030-03-01',
+      },
+      0.19,
+    );
 
     // Then: HI-B's targetDeliveryDate is updated to reflect WI-A's end date
-    const hiBAfter = householdItemService.getHouseholdItemById(db, hiB.id);
+    const hiBAfter = householdItemService.getHouseholdItemById(db, hiB.id, 0.19);
     // HI-B depends on WI-A with endDate '2030-03-01'
     // autoReschedule computes HI-B.targetDeliveryDate >= '2030-03-01'
     expect(hiBAfter.targetDeliveryDate).not.toBeNull();
@@ -344,17 +434,27 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it('updating only latestDeliveryDate on an unconstrained HI still triggers reschedule without error', () => {
     // Given: A household item with no delivery constraints at all
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Guest Room Bed',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Guest Room Bed',
+      },
+      0.19,
+    );
     expect(item.targetDeliveryDate).toBeNull();
 
     // When: Setting only latestDeliveryDate
     let result: ReturnType<typeof householdItemService.updateHouseholdItem> | undefined;
     expect(() => {
-      result = householdItemService.updateHouseholdItem(db, item.id, {
-        latestDeliveryDate: '2030-12-31',
-      });
+      result = householdItemService.updateHouseholdItem(
+        db,
+        item.id,
+        {
+          latestDeliveryDate: '2030-12-31',
+        },
+        0.19,
+      );
     }).not.toThrow();
 
     // Then: Valid response returned; item has no earliestDeliveryDate so
@@ -371,21 +471,36 @@ describe('householdItemService — reschedule on constraint change (bug #482)', 
   it('clearing earliestDeliveryDate to null triggers reschedule — targetDeliveryDate becomes null', () => {
     // Given: A household item with earliestDeliveryDate set
     const userId = createTestUser();
-    const item = householdItemService.createHouseholdItem(db, userId, {
-      name: 'Patio Furniture Set',
-      earliestDeliveryDate: '2030-06-01',
-    });
+    const item = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name: 'Patio Furniture Set',
+        earliestDeliveryDate: '2030-06-01',
+      },
+      0.19,
+    );
 
     // First trigger reschedule so targetDeliveryDate is set
-    const afterSet = householdItemService.updateHouseholdItem(db, item.id, {
-      earliestDeliveryDate: '2030-06-01',
-    });
+    const afterSet = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        earliestDeliveryDate: '2030-06-01',
+      },
+      0.19,
+    );
     expect(afterSet.targetDeliveryDate).toBe('2030-06-01');
 
     // When: Clearing earliestDeliveryDate
-    const updated = householdItemService.updateHouseholdItem(db, item.id, {
-      earliestDeliveryDate: null,
-    });
+    const updated = householdItemService.updateHouseholdItem(
+      db,
+      item.id,
+      {
+        earliestDeliveryDate: null,
+      },
+      0.19,
+    );
 
     // Then: targetDeliveryDate is null (no constraints, no deps)
     expect(updated.earliestDeliveryDate).toBeNull();

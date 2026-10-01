@@ -110,19 +110,33 @@ function toBudgetSource(
 
 /**
  * Compute the used amount for a budget source.
- * For invoiced lines uses the actual itemized amount; for non-invoiced lines uses planned_amount.
+ * For invoiced lines uses the actual itemized amount; for non-invoiced lines uses the VAT-effective
+ * planned amount (net lines, includes_vat = 0, are grossed up by (1 + vatRate), rounded to cents
+ * exactly like effectivePlannedAmount()).
+ *
+ * @param vatRate - Configured VAT rate (config.vatRate)
  * Returns 0 if no budget lines reference this source.
  */
-function computeUsedAmount(db: DbType, sourceId: string): number {
+function computeUsedAmount(db: DbType, sourceId: string, vatRate: number): number {
   const result = db.get<{ total: number }>(
     sql`SELECT COALESCE(SUM(effective_amount), 0) AS total
     FROM (
-      SELECT COALESCE(ibl.itemized_amount, wib.planned_amount) AS effective_amount
+      SELECT COALESCE(
+        ibl.itemized_amount,
+        CASE WHEN wib.includes_vat = 0
+          THEN ROUND(wib.planned_amount * (1 + ${vatRate}) * 100) / 100.0
+          ELSE wib.planned_amount END
+      ) AS effective_amount
       FROM ${workItemBudgets} wib
       LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.work_item_budget_id = wib.id
       WHERE wib.budget_source_id = ${sourceId}
       UNION ALL
-      SELECT COALESCE(ibl.itemized_amount, hib.planned_amount) AS effective_amount
+      SELECT COALESCE(
+        ibl.itemized_amount,
+        CASE WHEN hib.includes_vat = 0
+          THEN ROUND(hib.planned_amount * (1 + ${vatRate}) * 100) / 100.0
+          ELSE hib.planned_amount END
+      ) AS effective_amount
       FROM ${householdItemBudgets} hib
       LEFT JOIN ${invoiceBudgetLines} ibl ON ibl.household_item_budget_id = hib.id
       WHERE hib.budget_source_id = ${sourceId}
@@ -514,7 +528,7 @@ function getSourceAmounts(
   projectedMinAmount: number;
   projectedMaxAmount: number;
 } {
-  const usedAmount = computeUsedAmount(db, row.id);
+  const usedAmount = computeUsedAmount(db, row.id, vatRate);
   const projectedAmount = computeProjectedAmount(db, row.id, vatRate);
   const projectedRange = computeProjectedRange(db, row.id, vatRate);
 

@@ -31,6 +31,7 @@ export default async function householdItemSubsidyPaybackRoutes(fastify: Fastify
       const result = householdItemSubsidyPaybackService.getHouseholdItemSubsidyPayback(
         fastify.db,
         request.params.householdItemId,
+        fastify.config.vatRate,
       );
       return reply.status(200).send(result);
     },

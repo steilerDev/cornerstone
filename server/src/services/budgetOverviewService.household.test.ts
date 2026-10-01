@@ -69,12 +69,17 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
   }
 
   function createTestHouseholdItem(name: string, userId: string): string {
-    const result = householdItemService.createHouseholdItem(db, userId, {
-      name,
-      vendorId: undefined,
-      earliestDeliveryDate: undefined,
-      latestDeliveryDate: undefined,
-    });
+    const result = householdItemService.createHouseholdItem(
+      db,
+      userId,
+      {
+        name,
+        vendorId: undefined,
+        earliestDeliveryDate: undefined,
+        latestDeliveryDate: undefined,
+      },
+      0.19,
+    );
     return result.id;
   }
 

@@ -150,13 +150,13 @@ describe('householdItemSubsidyPaybackService', () => {
   describe('error cases', () => {
     it('throws NotFoundError when household item does not exist', () => {
       expect(() => {
-        getHouseholdItemSubsidyPayback(db, 'non-existent-hi');
+        getHouseholdItemSubsidyPayback(db, 'non-existent-hi', 0.19);
       }).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError with message "Household item not found"', () => {
       expect(() => {
-        getHouseholdItemSubsidyPayback(db, 'non-existent-hi');
+        getHouseholdItemSubsidyPayback(db, 'non-existent-hi', 0.19);
       }).toThrow('Household item not found');
     });
   });
@@ -166,7 +166,7 @@ describe('householdItemSubsidyPaybackService', () => {
   describe('no linked subsidies', () => {
     it('returns householdItemId, minTotalPayback 0, maxTotalPayback 0 and empty subsidies array', () => {
       const hiId = insertHouseholdItem();
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.householdItemId).toBe(hiId);
       expect(result.minTotalPayback).toBe(0);
@@ -183,7 +183,7 @@ describe('householdItemSubsidyPaybackService', () => {
       });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -200,7 +200,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // min: 1000 * 0.80 * 10% = 80, max: 1000 * 1.20 * 10% = 120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -219,7 +219,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // min: 1000 * 0.90 * 10% = 90, max: 1000 * 1.10 * 10% = 110
       expect(result.minTotalPayback).toBeCloseTo(90);
@@ -232,7 +232,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // min: 1000 * 0.95 * 10% = 95, max: 1000 * 1.05 * 10% = 105
       expect(result.minTotalPayback).toBeCloseTo(95);
@@ -245,7 +245,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // margin = 0: min = max = 1000 * 10% = 100
       expect(result.minTotalPayback).toBeCloseTo(100);
@@ -266,7 +266,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // totals: min=85, max=115
       expect(result.minTotalPayback).toBeCloseTo(85);
@@ -281,7 +281,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 20 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // own_estimate ±20%: min=1000*0.8*20%=160, max=1000*1.2*20%=240
       // These are NOT collapsed to an actual cost even if invoices existed (supportsInvoices=false)
@@ -299,7 +299,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // own_estimate ±20%: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -330,7 +330,7 @@ describe('householdItemSubsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // Only cat1 line: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -359,7 +359,7 @@ describe('householdItemSubsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       // Only cat1 line: min=500*0.8*10%=40, max=500*1.2*10%=60
       expect(result.minTotalPayback).toBeCloseTo(40);
@@ -381,7 +381,7 @@ describe('householdItemSubsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -394,7 +394,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 15 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -411,7 +411,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(5000);
       expect(result.maxTotalPayback).toBe(5000);
@@ -424,7 +424,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 2000 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(2000);
       expect(result.maxTotalPayback).toBe(2000);
@@ -440,7 +440,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBe(3000);
       expect(result.maxTotalPayback).toBe(3000);
@@ -461,7 +461,7 @@ describe('householdItemSubsidyPaybackService', () => {
       linkSubsidyToHouseholdItem(hiId, sp1);
       linkSubsidyToHouseholdItem(hiId, sp2);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBeCloseTo(580); // 80 + 500
       expect(result.maxTotalPayback).toBeCloseTo(620); // 120 + 500
@@ -487,7 +487,7 @@ describe('householdItemSubsidyPaybackService', () => {
       linkSubsidyToHouseholdItem(hiId, sp1);
       linkSubsidyToHouseholdItem(hiId, sp2);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.minTotalPayback).toBeCloseTo(80);
       expect(result.maxTotalPayback).toBeCloseTo(120);
@@ -508,7 +508,7 @@ describe('householdItemSubsidyPaybackService', () => {
         linkSubsidyToHouseholdItem(hiId, sp);
       }
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.subsidies).toHaveLength(4);
       expect(result.minTotalPayback).toBe(400);
@@ -524,7 +524,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram();
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       expect(result.householdItemId).toBe(hiId);
     });
@@ -539,7 +539,7 @@ describe('householdItemSubsidyPaybackService', () => {
       });
       linkSubsidyToHouseholdItem(hiId, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId);
+      const result = getHouseholdItemSubsidyPayback(db, hiId, 0.19);
 
       const entry = result.subsidies[0]!;
       expect(entry.subsidyProgramId).toBe(subsidyId);
@@ -562,7 +562,7 @@ describe('householdItemSubsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToHouseholdItem(hiId1, subsidyId);
 
-      const result = getHouseholdItemSubsidyPayback(db, hiId1);
+      const result = getHouseholdItemSubsidyPayback(db, hiId1, 0.19);
 
       // invoice confidence: margin=0, so min=max=1000*10%=100
       expect(result.minTotalPayback).toBeCloseTo(100);

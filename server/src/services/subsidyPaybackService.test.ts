@@ -193,13 +193,13 @@ describe('subsidyPaybackService', () => {
   describe('error cases', () => {
     it('throws NotFoundError when work item does not exist', () => {
       expect(() => {
-        getWorkItemSubsidyPayback(db, 'non-existent-wi');
+        getWorkItemSubsidyPayback(db, 'non-existent-wi', 0.19);
       }).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError with message "Work item not found"', () => {
       expect(() => {
-        getWorkItemSubsidyPayback(db, 'non-existent-wi');
+        getWorkItemSubsidyPayback(db, 'non-existent-wi', 0.19);
       }).toThrow('Work item not found');
     });
   });
@@ -209,7 +209,7 @@ describe('subsidyPaybackService', () => {
   describe('no linked subsidies', () => {
     it('returns minTotalPayback 0, maxTotalPayback 0 and empty subsidies array when no subsidies are linked', () => {
       const workItemId = insertWorkItem();
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.workItemId).toBe(workItemId);
       expect(result.minTotalPayback).toBe(0);
@@ -226,7 +226,7 @@ describe('subsidyPaybackService', () => {
       });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -243,7 +243,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // min: 1000 * 0.80 * 10% = 80, max: 1000 * 1.20 * 10% = 120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -258,7 +258,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // min: 1000 * 0.90 * 10% = 90, max: 1000 * 1.10 * 10% = 110
       expect(result.minTotalPayback).toBeCloseTo(90);
@@ -271,7 +271,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // min: 1000 * 0.95 * 10% = 95, max: 1000 * 1.05 * 10% = 105
       expect(result.minTotalPayback).toBeCloseTo(95);
@@ -284,7 +284,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // margin = 0: min = max = 1000 * 10% = 100
       expect(result.minTotalPayback).toBeCloseTo(100);
@@ -301,7 +301,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // own_estimate line: min=500*0.8*0.1=40, max=500*1.2*0.1=60
       // professional_estimate line: min=500*0.9*0.1=45, max=500*1.1*0.1=55
@@ -326,7 +326,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // Actual cost 800, no margin: min = max = 800 * 10% = 80
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -355,7 +355,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // Both lines are invoiced: actual cost = 600 + 400 = 1000, no margin
       // 1000 × 10% = 100
@@ -378,7 +378,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // Invoiced: min=max=500*10%=50
       // Non-invoiced (own_estimate ±20%): min=1000*0.8*10%=80, max=1000*1.2*10%=120
@@ -397,7 +397,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // own_estimate ±20%: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -428,7 +428,7 @@ describe('subsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // Only cat1 line: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result.minTotalPayback).toBeCloseTo(80);
@@ -457,7 +457,7 @@ describe('subsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       // Only cat1 line: min=500*0.8*10%=40, max=500*1.2*10%=60
       expect(result.minTotalPayback).toBeCloseTo(40);
@@ -479,7 +479,7 @@ describe('subsidyPaybackService', () => {
       linkCategoryToSubsidy(subsidyId, cat1);
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -492,7 +492,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 15 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(0);
       expect(result.maxTotalPayback).toBe(0);
@@ -509,7 +509,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(5000);
       expect(result.maxTotalPayback).toBe(5000);
@@ -522,7 +522,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 2000 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(2000);
       expect(result.maxTotalPayback).toBe(2000);
@@ -534,7 +534,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 3000 });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBe(3000);
       expect(result.maxTotalPayback).toBe(3000);
@@ -555,7 +555,7 @@ describe('subsidyPaybackService', () => {
       linkSubsidyToWorkItem(workItemId, sp1);
       linkSubsidyToWorkItem(workItemId, sp2);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBeCloseTo(580); // 80 + 500
       expect(result.maxTotalPayback).toBeCloseTo(620); // 120 + 500
@@ -581,7 +581,7 @@ describe('subsidyPaybackService', () => {
       linkSubsidyToWorkItem(workItemId, sp1);
       linkSubsidyToWorkItem(workItemId, sp2);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.minTotalPayback).toBeCloseTo(80);
       expect(result.maxTotalPayback).toBeCloseTo(120);
@@ -602,7 +602,7 @@ describe('subsidyPaybackService', () => {
         linkSubsidyToWorkItem(workItemId, sp);
       }
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.subsidies).toHaveLength(4);
       expect(result.minTotalPayback).toBe(400);
@@ -618,7 +618,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram();
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       expect(result.workItemId).toBe(workItemId);
     });
@@ -633,7 +633,7 @@ describe('subsidyPaybackService', () => {
       });
       linkSubsidyToWorkItem(workItemId, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId);
+      const result = getWorkItemSubsidyPayback(db, workItemId, 0.19);
 
       const entry = result.subsidies[0]!;
       expect(entry.subsidyProgramId).toBe(subsidyId);
@@ -656,7 +656,7 @@ describe('subsidyPaybackService', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkSubsidyToWorkItem(workItemId1, subsidyId);
 
-      const result = getWorkItemSubsidyPayback(db, workItemId1);
+      const result = getWorkItemSubsidyPayback(db, workItemId1, 0.19);
 
       // invoice confidence: margin=0, so min=max=1000*10%=100
       expect(result.minTotalPayback).toBeCloseTo(100);

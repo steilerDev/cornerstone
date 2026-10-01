@@ -203,4 +203,193 @@ describe('VAT_RATE is honored by budget routes', () => {
     expect(response.statusCode).toBe(201);
     expect(response.json<Json>().budgetSource.projectedAmount).toBe(0);
   });
+
+  it('GET /api/budget-sources/:id reports a VAT-effective usedAmount for a net non-invoiced line', async () => {
+    await startApp('0.2');
+    const cookie = await createCookie();
+    const sourceId = insertNetLine('invoice');
+
+    const response = await app.inject({
+      method: 'GET',
+      url: `/api/budget-sources/${sourceId}`,
+      headers: { cookie },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const { budgetSource } = response.json<Json>();
+    expect(budgetSource.usedAmount).toBeCloseTo(120, 5);
+    expect(budgetSource.availableAmount).toBeCloseTo(100000 - 120, 5);
+  });
+
+  describe('subsidy payback and household item endpoints', () => {
+    /** Inserts a household item with one NET line (100, own_estimate) and a 10% subsidy. */
+    function insertNetHouseholdItem(): string {
+      const now = new Date().toISOString();
+      const hiId = `hi-vat-route-${idCounter++}`;
+      app.db
+        .insert(schema.householdItems)
+        .values({
+          id: hiId,
+          name: 'VAT Route HI',
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.householdItemBudgets)
+        .values({
+          id: `hib-vat-route-${idCounter++}`,
+          householdItemId: hiId,
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          includesVat: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const subsidyId = `sp-vat-route-${idCounter++}`;
+      app.db
+        .insert(schema.subsidyPrograms)
+        .values({
+          id: subsidyId,
+          name: 'Ten percent',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'eligible',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.householdItemSubsidies)
+        .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
+        .run();
+      return hiId;
+    }
+
+    function insertNetWorkItemWithSubsidy(): string {
+      const now = new Date().toISOString();
+      const wiId = `wi-vat-route-sub-${idCounter++}`;
+      app.db
+        .insert(schema.workItems)
+        .values({
+          id: wiId,
+          title: 'Sub WI',
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.workItemBudgets)
+        .values({
+          id: `wib-vat-route-sub-${idCounter++}`,
+          workItemId: wiId,
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          includesVat: false,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const subsidyId = `sp-vat-route-wi-${idCounter++}`;
+      app.db
+        .insert(schema.subsidyPrograms)
+        .values({
+          id: subsidyId,
+          name: 'Ten percent WI',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          applicationStatus: 'eligible',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      app.db
+        .insert(schema.workItemSubsidies)
+        .values({ workItemId: wiId, subsidyProgramId: subsidyId })
+        .run();
+      return wiId;
+    }
+
+    it.each([
+      ['0.2', 9.6, 14.4],
+      [undefined, 9.52, 14.28],
+    ])(
+      'GET work-item and household-item subsidy-payback use VAT_RATE=%s (min %s, max %s)',
+      async (vatRate, min, max) => {
+        await startApp(vatRate);
+        const cookie = await createCookie();
+        const wiId = insertNetWorkItemWithSubsidy();
+        const hiId = insertNetHouseholdItem();
+
+        const wi = await app.inject({
+          method: 'GET',
+          url: `/api/work-items/${wiId}/subsidy-payback`,
+          headers: { cookie },
+        });
+        const hi = await app.inject({
+          method: 'GET',
+          url: `/api/household-items/${hiId}/subsidy-payback`,
+          headers: { cookie },
+        });
+
+        expect(wi.statusCode).toBe(200);
+        expect(hi.statusCode).toBe(200);
+        for (const body of [wi.json<Json>(), hi.json<Json>()]) {
+          const payback = body.subsidyPayback ?? body;
+          expect(payback.minTotalPayback).toBeCloseTo(min, 5);
+          expect(payback.maxTotalPayback).toBeCloseTo(max, 5);
+        }
+      },
+    );
+
+    it.each([
+      ['0.2', 120],
+      [undefined, 119],
+    ])(
+      'GET /api/household-items (list, filter, detail) is VAT-effective at VAT_RATE=%s (net 100 -> %s)',
+      async (vatRate, gross) => {
+        await startApp(vatRate);
+        const cookie = await createCookie();
+        const hiId = insertNetHouseholdItem();
+
+        const list = await app.inject({
+          method: 'GET',
+          url: '/api/household-items',
+          headers: { cookie },
+        });
+        expect(list.statusCode).toBe(200);
+        const listBody = list.json<Json>();
+        expect(listBody.items[0].totalPlannedAmount).toBeCloseTo(gross, 5);
+        expect(listBody.items[0].budgetSummary.subsidyReduction).toBeCloseTo(gross * 0.1, 5);
+        expect(listBody.filterMeta.plannedCost.max).toBeCloseTo(gross, 5);
+
+        const included = await app.inject({
+          method: 'GET',
+          url: `/api/household-items?plannedCostMin=${gross}`,
+          headers: { cookie },
+        });
+        expect(included.json<Json>().items).toHaveLength(1);
+
+        const excluded = await app.inject({
+          method: 'GET',
+          url: `/api/household-items?plannedCostMin=${gross + 0.01}`,
+          headers: { cookie },
+        });
+        expect(excluded.json<Json>().items).toHaveLength(0);
+
+        const detail = await app.inject({
+          method: 'GET',
+          url: `/api/household-items/${hiId}`,
+          headers: { cookie },
+        });
+        expect(detail.statusCode).toBe(200);
+        const body = detail.json<Json>();
+        expect((body.householdItem ?? body).totalPlannedAmount).toBeCloseTo(gross, 5);
+      },
+    );
+  });
 });

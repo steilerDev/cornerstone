@@ -176,7 +176,12 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     const data = request.body as CreateHouseholdItemRequest;
 
-    const result = householdItemService.createHouseholdItem(fastify.db, request.user.id, data);
+    const result = householdItemService.createHouseholdItem(
+      fastify.db,
+      request.user.id,
+      data,
+      fastify.config.vatRate,
+    );
 
     return reply.status(201).send({ householdItem: result });
   });
@@ -194,7 +199,11 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     const query = request.query as HouseholdItemListQuery;
 
-    const result = householdItemService.listHouseholdItems(fastify.db, query);
+    const result = householdItemService.listHouseholdItems(
+      fastify.db,
+      query,
+      fastify.config.vatRate,
+    );
 
     return reply.status(200).send(result);
   });
@@ -212,7 +221,11 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
 
     const { id } = request.params as { id: string };
 
-    const householdItem = householdItemService.getHouseholdItemById(fastify.db, id);
+    const householdItem = householdItemService.getHouseholdItemById(
+      fastify.db,
+      id,
+      fastify.config.vatRate,
+    );
 
     return reply.status(200).send({ householdItem });
   });
@@ -231,7 +244,12 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const data = request.body as UpdateHouseholdItemRequest;
 
-    const householdItem = householdItemService.updateHouseholdItem(fastify.db, id, data);
+    const householdItem = householdItemService.updateHouseholdItem(
+      fastify.db,
+      id,
+      data,
+      fastify.config.vatRate,
+    );
 
     return reply.status(200).send({ householdItem });
   });

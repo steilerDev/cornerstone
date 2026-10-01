@@ -443,7 +443,7 @@ describe('Household Item Routes', () => {
         'password',
       );
       for (let i = 1; i <= 3; i++) {
-        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` });
+        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` }, 0.19);
       }
 
       // When: Listing household items
@@ -502,7 +502,7 @@ describe('Household Item Routes', () => {
         'password',
       );
       for (let i = 1; i <= 10; i++) {
-        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` });
+        householdItemService.createHouseholdItem(app.db, userId, { name: `Item ${i}` }, 0.19);
       }
 
       // When: Requesting page 2 with pageSize 4
@@ -532,14 +532,24 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Sofa',
-        category: 'hic-furniture',
-      });
-      householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Dishwasher',
-        category: 'hic-appliances',
-      });
+      householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Sofa',
+          category: 'hic-furniture',
+        },
+        0.19,
+      );
+      householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Dishwasher',
+          category: 'hic-appliances',
+        },
+        0.19,
+      );
 
       // When: Filtering by category
       const response = await app.inject({
@@ -562,14 +572,24 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Item A',
-        status: 'planned',
-      });
-      householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Item B',
-        status: 'arrived',
-      });
+      householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Item A',
+          status: 'planned',
+        },
+        0.19,
+      );
+      householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Item B',
+          status: 'arrived',
+        },
+        0.19,
+      );
 
       // When: Filtering by arrived
       const response = await app.inject({
@@ -592,8 +612,8 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      householdItemService.createHouseholdItem(app.db, userId, { name: 'Coffee Table' });
-      householdItemService.createHouseholdItem(app.db, userId, { name: 'Dining Chair' });
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Coffee Table' }, 0.19);
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Dining Chair' }, 0.19);
 
       // When: Searching
       const response = await app.inject({
@@ -665,8 +685,8 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      householdItemService.createHouseholdItem(app.db, userId, { name: 'Zebra Chair' });
-      householdItemService.createHouseholdItem(app.db, userId, { name: 'Apple Lamp' });
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Zebra Chair' }, 0.19);
+      householdItemService.createHouseholdItem(app.db, userId, { name: 'Apple Lamp' }, 0.19);
 
       // When: Sorting by name asc
       const response = await app.inject({
@@ -695,10 +715,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Bookshelf',
-        category: 'hic-furniture',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Bookshelf',
+          category: 'hic-furniture',
+        },
+        0.19,
+      );
 
       // When: Getting by ID
       const response = await app.inject({
@@ -758,9 +783,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Test Item',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Test Item',
+        },
+        0.19,
+      );
 
       // When: Getting by ID
       const response = await app.inject({
@@ -782,9 +812,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Dresser',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Dresser',
+        },
+        0.19,
+      );
 
       // When: Getting by ID
       const response = await app.inject({
@@ -814,10 +849,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Original Name',
-        status: 'planned',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Original Name',
+          status: 'planned',
+        },
+        0.19,
+      );
 
       // When: Updating status
       const response = await app.inject({
@@ -842,9 +882,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Old Name',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Old Name',
+        },
+        0.19,
+      );
 
       // When: Updating name
       const response = await app.inject({
@@ -869,10 +914,15 @@ describe('Household Item Routes', () => {
         'password',
       );
       const areaId = insertTestArea('Living Room');
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Lamp',
-        areaId,
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Lamp',
+          areaId,
+        },
+        0.19,
+      );
       expect(created.area?.id).toBe(areaId);
 
       // When: Clearing the area
@@ -915,7 +965,12 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, { name: 'Chair' });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Chair' },
+        0.19,
+      );
 
       // When: Sending empty body
       const response = await app.inject({
@@ -938,7 +993,12 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Lamp' },
+        0.19,
+      );
 
       // When: Setting invalid category
       const response = await app.inject({
@@ -961,9 +1021,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Fridge',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Fridge',
+        },
+        0.19,
+      );
 
       // When: Setting non-existent vendor
       const response = await app.inject({
@@ -1001,9 +1066,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Lamp',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Lamp',
+        },
+        0.19,
+      );
 
       // When: Updating
       const response = await app.inject({
@@ -1032,10 +1102,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Dining Table',
-        status: 'planned',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Dining Table',
+          status: 'planned',
+        },
+        0.19,
+      );
       expect(created.actualDeliveryDate).toBeNull();
 
       // When: Updating status to 'arrived'
@@ -1061,10 +1136,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Kitchen Table',
-        status: 'purchased',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Kitchen Table',
+          status: 'purchased',
+        },
+        0.19,
+      );
       // PATCH to set actualDeliveryDate
       await app.inject({
         method: 'PATCH',
@@ -1095,10 +1175,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Office Desk',
-        status: 'purchased',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Office Desk',
+          status: 'purchased',
+        },
+        0.19,
+      );
 
       // When: Updating with status 'arrived' and explicit actualDeliveryDate
       const response = await app.inject({
@@ -1122,10 +1207,15 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Bookshelf',
-        status: 'planned',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Bookshelf',
+          status: 'planned',
+        },
+        0.19,
+      );
       expect(created.actualDeliveryDate).toBeNull();
 
       // When: Updating status to 'purchased' (not 'arrived')
@@ -1156,9 +1246,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Old Couch',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Old Couch',
+        },
+        0.19,
+      );
 
       // When: Deleting it
       const response = await app.inject({
@@ -1179,9 +1274,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Deletable Lamp',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Deletable Lamp',
+        },
+        0.19,
+      );
 
       // When: Deleting then trying to get it
       await app.inject({
@@ -1239,9 +1339,14 @@ describe('Household Item Routes', () => {
         'password',
         'member',
       );
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Member Item',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Member Item',
+        },
+        0.19,
+      );
 
       // When: Member deletes their item
       const response = await app.inject({
@@ -1261,12 +1366,22 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item1 = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Keep This',
-      });
-      const item2 = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Delete This',
-      });
+      const item1 = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Keep This',
+        },
+        0.19,
+      );
+      const item2 = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Delete This',
+        },
+        0.19,
+      );
 
       // When: Deleting item2 and listing
       await app.inject({
@@ -1303,9 +1418,14 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Standalone Item',
-      });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Standalone Item',
+        },
+        0.19,
+      );
 
       // When: Fetching dependencies
       const response = await app.inject({
@@ -1347,7 +1467,7 @@ describe('Household Item Routes', () => {
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Foundation Work',
       });
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sofa' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sofa' }, 0.19);
 
       // Create a dependency via POST
       await app.inject({
@@ -1407,9 +1527,14 @@ describe('Household Item Routes', () => {
       const workItem = workItemService.createWorkItem(app.db, userId, {
         title: 'Framing Work',
       });
-      const item = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Living Room Set',
-      });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Living Room Set',
+        },
+        0.19,
+      );
 
       // When: Creating a dependency
       const response = await app.inject({
@@ -1451,7 +1576,12 @@ describe('Household Item Routes', () => {
         { title: 'Framing Complete', targetDate: '2026-07-01' },
         userId,
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Bookcase' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Bookcase' },
+        0.19,
+      );
 
       // When: Creating a milestone dependency
       const response = await app.inject({
@@ -1486,7 +1616,12 @@ describe('Household Item Routes', () => {
         'password',
       );
       const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Electrical' });
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Chandelier' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Chandelier' },
+        0.19,
+      );
 
       // When: Creating a dependency with extra fields (backwards compat)
       const response = await app.inject({
@@ -1517,7 +1652,7 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' }, 0.19);
 
       // When: Creating dependency without predecessorType
       const response = await app.inject({
@@ -1538,7 +1673,7 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Lamp' }, 0.19);
 
       // When: Creating dependency without predecessorId
       const response = await app.inject({
@@ -1582,7 +1717,7 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Rug' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Rug' }, 0.19);
 
       // When: Creating dependency for non-existent work item
       const response = await app.inject({
@@ -1606,7 +1741,12 @@ describe('Household Item Routes', () => {
         'password',
       );
       const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Foundation' });
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Cabinet' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Cabinet' },
+        0.19,
+      );
 
       const payload = { predecessorType: 'work_item', predecessorId: workItem.id };
 
@@ -1656,7 +1796,12 @@ describe('Household Item Routes', () => {
         'password',
       );
       const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Plumbing' });
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Bathtub' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Bathtub' },
+        0.19,
+      );
 
       // Create the dependency first
       await app.inject({
@@ -1694,7 +1839,7 @@ describe('Household Item Routes', () => {
         'password',
       );
       const workItem = workItemService.createWorkItem(app.db, userId, { title: 'Work' });
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sink' });
+      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Sink' }, 0.19);
 
       // When: Trying to delete a non-existent dep
       const response = await app.inject({
@@ -1745,7 +1890,12 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Dresser' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Dresser' },
+        0.19,
+      );
 
       // When: Calling the old work-items endpoint
       const response = await app.inject({
@@ -1765,7 +1915,12 @@ describe('Household Item Routes', () => {
         'User',
         'password',
       );
-      const item = householdItemService.createHouseholdItem(app.db, userId, { name: 'Nightstand' });
+      const item = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        { name: 'Nightstand' },
+        0.19,
+      );
 
       // When: Calling the old POST work-items endpoint
       const response = await app.inject({
