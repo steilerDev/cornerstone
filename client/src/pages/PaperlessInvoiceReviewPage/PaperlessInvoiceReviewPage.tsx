@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
 import type {
   ExtractedLine,
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
   Vendor,
+  InvoiceStatus,
 } from '@cornerstone/shared';
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
@@ -20,6 +22,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
@@ -46,6 +49,7 @@ interface MetadataEdits {
   date: string;
   dueDate: string | null;
   notes: string | null;
+  status: InvoiceStatus;
 }
 
 interface LocationState {
@@ -87,6 +91,7 @@ export function PaperlessInvoiceReviewPage() {
     date: '',
     dueDate: null,
     notes: null,
+    status: 'pending',
   });
 
   // Vendor selection
@@ -195,13 +200,14 @@ export function PaperlessInvoiceReviewPage() {
           0,
         );
 
-        setMetadataEdits({
+        setMetadataEdits((prev) => ({
+          ...prev,
           invoiceNumber: previewResult.extractedInvoiceNumber ?? null,
           amount: computedTotal > 0 ? String(computedTotal) : '',
           date: previewResult.extractedInvoiceDate ?? new Date().toISOString().split('T')[0] ?? '',
           dueDate: previewResult.extractedDueDate ?? null,
           notes: previewResult.extractedNotes ?? null,
-        });
+        }));
 
         setPageStatus('ready');
       } catch (err) {
@@ -293,7 +299,7 @@ export function PaperlessInvoiceReviewPage() {
         amount: parseFloat(metadataEdits.amount) || 0,
         date: metadataEdits.date,
         dueDate: metadataEdits.dueDate ?? null,
-        status: 'pending',
+        status: metadataEdits.status,
         notes: metadataEdits.notes ?? null,
       };
 
@@ -362,6 +368,8 @@ export function PaperlessInvoiceReviewPage() {
   if (!documentId) {
     return <div>{t('autoItemize.error')}</div>;
   }
+
+  const isSaving = pageStatus === 'saving';
 
   if (pageStatus === 'loading') {
     return (
@@ -507,6 +515,7 @@ export function PaperlessInvoiceReviewPage() {
                       }))
                     }
                     placeholder={t('autoItemize.invoiceNumberPlaceholder')}
+                    disabled={isSaving}
                   />
                 </div>
               </div>
@@ -525,6 +534,7 @@ export function PaperlessInvoiceReviewPage() {
                       setMetadataEdits((prev) => ({ ...prev, amount: e.target.value }))
                     }
                     placeholder="0.00"
+                    disabled={isSaving}
                   />
                 </div>
               </div>
@@ -537,6 +547,7 @@ export function PaperlessInvoiceReviewPage() {
                     id="date"
                     type="date"
                     value={metadataEdits.date}
+                    disabled={isSaving}
                     onChange={(e) =>
                       setMetadataEdits((prev) => ({ ...prev, date: e.target.value }))
                     }
@@ -552,10 +563,35 @@ export function PaperlessInvoiceReviewPage() {
                     id="due-date"
                     type="date"
                     value={metadataEdits.dueDate ?? ''}
+                    disabled={isSaving}
                     onChange={(e) =>
                       setMetadataEdits((prev) => ({ ...prev, dueDate: e.target.value || null }))
                     }
                   />
+                </div>
+              </div>
+              <div className={styles.fieldRow}>
+                <label htmlFor="invoice-status" className={styles.label}>
+                  {t('autoItemize.status')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <select
+                    id="invoice-status"
+                    value={metadataEdits.status}
+                    disabled={isSaving}
+                    onChange={(e) =>
+                      setMetadataEdits((prev) => ({
+                        ...prev,
+                        status: e.target.value as InvoiceStatus,
+                      }))
+                    }
+                  >
+                    {INVOICE_STATUSES.map((s) => (
+                      <option key={s} value={s}>
+                        {t(I18N_UNION_KEYS.invoiceStatus.key(s))}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
               <div className={styles.fieldRow}>
@@ -571,6 +607,7 @@ export function PaperlessInvoiceReviewPage() {
                     }
                     placeholder={t('autoItemize.notesPlaceholder')}
                     rows={3}
+                    disabled={isSaving}
                   />
                 </div>
               </div>

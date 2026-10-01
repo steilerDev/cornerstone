@@ -201,7 +201,7 @@
         "none": "Nicht abgerechnet",
         "pending": "Ausstehend",
         "paid": "Bezahlt",
-        "claimed": "Beantragt",
+        "claimed": "Eingereicht",
         "quotation": "Angebot"
       },
       "categoryVendorSeparator": " · ",
@@ -856,7 +856,7 @@
     },
     "statusLabels": {
       "eligible": "Berechtigt",
-      "applied": "Eingereicht",
+      "applied": "Beantragt",
       "approved": "Genehmigt",
       "received": "Erhalten",
       "rejected": "Abgelehnt"

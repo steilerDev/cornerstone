@@ -821,7 +821,13 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
         (resp) => resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
       );
       await reviewPage.confirm();
-      await commitResponsePromise;
+      const commitResponse = await commitResponsePromise;
+
+      // Default status (untouched Status select) must be sent as 'pending'.
+      const commitBody = commitResponse.request().postDataJSON() as {
+        invoice: { status?: string };
+      };
+      expect(commitBody.invoice.status).toBe('pending');
 
       // Step 6: Should navigate to the created invoice detail page.
       await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
@@ -832,6 +838,66 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       // it requires the API response data to be present in the DOM, not just the element to
       // exist. The test also verifies the correct invoice landed on screen.
       await expect(page.getByRole('heading', { level: 1, name: '#INV-2026-001' })).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 7b — Status select (Story #2154)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 7b — Invoice status select on review page', () => {
+  test('Status defaults to pending; choosing paid is sent as invoice.status in the commit body', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+
+    let vendorId = '';
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF Status Co`);
+
+      const catResp = await page.request.get(API.budgetCategories);
+      expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+      const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+      const firstCatId = catBody.categories[0]?.id ?? null;
+      expect(firstCatId, 'Expected at least one budget category').not.toBeNull();
+      const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
+        ...l,
+        budgetCategoryId: firstCatId,
+      }));
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
+      await mockCommit(page, { invoiceId: `mock-inv-${testPrefix}-status` });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      await expect(reviewPage.statusSelect).toBeVisible();
+      await expect(reviewPage.statusSelect).toHaveValue('pending');
+
+      // Keyboard-driven selection (focus, then selectOption)
+      await reviewPage.statusSelect.focus();
+      await reviewPage.statusSelect.selectOption('paid');
+      await expect(reviewPage.statusSelect).toHaveValue('paid');
+
+      await reviewPage.setVendor(`${testPrefix} PF Status Co`);
+
+      const commitRequestPromise = page.waitForRequest(
+        (req) => req.url().includes('/auto-itemize/commit') && req.method() === 'POST',
+      );
+      await reviewPage.confirm();
+      const commitRequest = await commitRequestPromise;
+
+      const body = commitRequest.postDataJSON() as { invoice: { status?: string } };
+      expect(body.invoice.status).toBe('paid');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

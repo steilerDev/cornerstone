@@ -2808,6 +2808,30 @@ describe('invoiceAutoItemizeService', () => {
       expect(link!.attachmentType).toBe('invoice');
     });
 
+    // Story #2154: invoice.status from the review page is persisted; omitted => 'pending'.
+    it.each([
+      ['quotation', 'quotation'],
+      [undefined, 'pending'],
+    ] as const)('persists invoice.status %s as %s', async (status, expected) => {
+      const vendorId = insertVendor(db, `Status Vendor ${String(status)}`);
+      const config = makeConfig();
+
+      const result = (await commitAutoItemizeCreate(db, config, 'user-1', {
+        paperlessDocumentId: 77,
+        vendorId,
+        invoice: { amount: 200, date: '2026-03-01', ...(status ? { status } : {}) },
+        lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }] as never,
+      })) as { invoice: { id: string } };
+
+      const row = db
+        .select()
+        .from(schema.invoices)
+        .all()
+        .find((r) => r.id === result.invoice.id);
+      expect(row).toBeDefined();
+      expect(row!.status).toBe(expected);
+    });
+
     it('throws NotFoundError (vendor not found) when vendorId does not exist', async () => {
       const config = makeConfig();
 
