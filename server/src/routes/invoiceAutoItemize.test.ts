@@ -1473,6 +1473,44 @@ describe('POST /api/invoices/auto-itemize/preview', () => {
     void vendorId;
   });
 
+  it('passes extractedVendorName through in the preview body (Story #2148)', async () => {
+    const { cookie } = await createUserSession1679(app, 'preview-vn@test.com', 'PreviewVn', 'pass');
+
+    mockFetch
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_DOC_RESPONSE))
+      .mockResolvedValueOnce(makeFetchResponse(PAPERLESS_TAGS_RESPONSE))
+      .mockResolvedValueOnce(
+        makeFetchResponse({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  vendorName: 'Neue Firma',
+                  chosenVendorName: null,
+                  lines: [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }],
+                }),
+              },
+            },
+          ],
+        }),
+      );
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/preview',
+      headers: { cookie },
+      payload: { paperlessDocumentId: 42 },
+    });
+
+    expect(response.statusCode).toBe(200);
+    const body = response.json<{
+      extractedVendorName?: string;
+      suggestedVendorId: string | null;
+    }>();
+    expect(body.extractedVendorName).toBe('Neue Firma');
+    expect(body.suggestedVendorId).toBeNull();
+  });
+
   it('returns 503 LLM_NOT_CONFIGURED when LLM is not configured', async () => {
     // Rebuild app without LLM env vars
     await app.close();

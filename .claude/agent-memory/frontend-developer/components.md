@@ -95,3 +95,10 @@ Test fix: When sentence builder adds duplicate text (title in h1 AND slot2), use
 ## Lost `patterns.md` (dangling reference removed 2026-08-01)
 
 MEMORY.md previously pointed at a `patterns.md` file that no longer exists in this directory. It reportedly covered: keyboard shortcuts hook, color contrast calculation (WCAG), dropdown click-outside handler, modal overlay pattern, inline item editing, API client full API, auth form pattern, URL state management with useSearchParams, debounced search input, responsive table/card layout, pagination with smart page numbers, React.lazy / code splitting, complex detail page data loading. If any of those patterns are needed, rediscover them from the current code (they are all implemented somewhere in `client/src/`).
+
+## VendorCreateModal + SearchPicker createAction (#2148)
+
+- `components/VendorCreateModal` is the shared create-vendor modal (props: initialName, onCreated, onClose; mount conditionally). Used by VendorsPage and PaperlessInvoiceReviewPage.
+- `SearchPicker` props `createAction` ({getLabel, onCreate: Promise<T|null>}) renders a sticky last "create" option; `inputAriaProps` forwards aria-required/invalid/describedby to the input (hyphenated props passed directly were silently dropped).
+- `Modal` accepts `initialFocusRef` (child autoFocus is overridden by Modal mount effect).
+- SearchPicker supports arrow-key navigation (input ArrowDown/Up enter the list; list Up/Down/Home/End/Escape; Escape returns focus to the input).
