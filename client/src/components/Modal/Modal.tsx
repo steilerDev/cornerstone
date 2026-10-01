@@ -10,6 +10,8 @@ export interface ModalProps {
   children: React.ReactNode;
   footer?: React.ReactNode;
   className?: string;
+  /** Element to focus on mount instead of the first focusable element. */
+  initialFocusRef?: React.RefObject<HTMLElement | null>;
 }
 
 function getFocusableElements(container: HTMLElement): HTMLElement[] {
@@ -20,7 +22,14 @@ function getFocusableElements(container: HTMLElement): HTMLElement[] {
   ).filter((el) => !el.hasAttribute('disabled'));
 }
 
-export function Modal({ title, onClose, children, footer, className }: ModalProps) {
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  className,
+  initialFocusRef,
+}: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const { t } = useTranslation('common');
@@ -39,10 +48,15 @@ export function Modal({ title, onClose, children, footer, className }: ModalProp
 
   // Focus management: focus first focusable element on mount
   useEffect(() => {
+    if (initialFocusRef?.current) {
+      initialFocusRef.current.focus();
+      return;
+    }
     if (contentRef.current) {
       const [firstFocusable] = getFocusableElements(contentRef.current);
       firstFocusable?.focus();
     }
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only: initial focus must not re-run when the ref prop identity changes
   }, []);
 
   // Focus trap: cycle Tab/Shift+Tab within the modal content

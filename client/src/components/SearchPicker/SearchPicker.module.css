@@ -200,3 +200,38 @@
     max-height: 250px;
   }
 }
+
+/* ---- Create action row ---- */
+
+.createOption {
+  position: sticky;
+  bottom: 0;
+  min-height: 44px;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+}
+
+.createOption:first-child {
+  border-top: none;
+}
+
+.createOption:hover {
+  background: var(--color-bg-tertiary);
+}
+
+.createOptionIcon {
+  flex-shrink: 0;
+  color: var(--color-primary);
+  font-weight: var(--font-weight-semibold);
+}
+
+.createOptionLabel {
+  color: var(--color-text-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resultOption {
+    transition: none;
+  }
+}

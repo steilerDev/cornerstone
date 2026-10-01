@@ -2,6 +2,10 @@
 
 > Gotchas specific to running tests inside a git worktree in this sandbox (ARM64 crashes, @cornerstone/shared symlink issues, definitive jest invocation pattern, schema quirks). Not dated — update in place.
 
+### If the worktree has no node_modules (resolution falls through to the base checkout's stale `shared/dist`)
+
+Two cases exist: worktrees with REAL per-worktree `node_modules` (see the next section — run jest normally) and worktrees without any (this case). When there are none, new `shared/src/types` fields are invisible to ts-jest and server tests may also hit TS1343. Use a throwaway `/tmp/jest.qa.config.cjs` (rootDir = worktree; `moduleNameMapper` `^@cornerstone/shared$` -> `<rootDir>/shared/src/index.ts` in both projects; server project `diagnostics: false`, tsconfig `module: ESNext, moduleResolution: bundler`) run with `NODE_OPTIONS=--experimental-vm-modules npx jest -c /tmp/jest.qa.config.cjs <files>`. Worktree-isolated sessions refuse compound/piped git commands; run git commands singly (create config and wrapper scripts with Write, then run plain commands). `tsc --noEmit` errors about new shared fields are spurious (stale dist); CI is authoritative.
+
 ## 2026-09-07 update: current sandbox generation has REAL per-worktree node_modules — the ARM64/symlink notes below are from an older infra generation
 
 Directly observed on Issue #2056 (jest 30.5.0 fix): this worktree had its own full, independently

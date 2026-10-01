@@ -74,6 +74,9 @@ export interface AutoItemizePreviewResponse {
   lines: ExtractedLine[];
   /** The app vendor id the LLM matched. null when no exact match. */
   suggestedVendorId: string | null;
+  /** Issuer name as printed on the document (max 200 chars), present only when extracted.
+   *  Independent of suggestedVendorId. Story #2148. */
+  extractedVendorName?: string;
   extractedInvoiceNumber?: string;
   extractedInvoiceDate?: string;
   extractedDueDate?: string;

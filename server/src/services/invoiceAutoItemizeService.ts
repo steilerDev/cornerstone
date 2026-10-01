@@ -43,6 +43,7 @@ import type {
   InvoiceBudgetLineListDetailResponse,
   InvoicePatchForAutoItemize,
   AutoItemizeDryRunResponse,
+  AutoItemizePreviewResponse,
   AutoItemizeWarning,
   InvoiceStatus,
   MergeLinesRequest,
@@ -557,6 +558,7 @@ interface ExtractionCoreResult {
   extractedDueDate?: string;
   extractedInvoiceNumber?: string;
   extractedNotes?: string;
+  extractedVendorName?: string;
   chosenVendorName?: string | null;
 }
 
@@ -608,6 +610,7 @@ async function runExtractionCore(
     ...(result.dueDate !== undefined ? { extractedDueDate: result.dueDate } : {}),
     ...(result.invoiceNumber !== undefined ? { extractedInvoiceNumber: result.invoiceNumber } : {}),
     ...(result.notes !== undefined ? { extractedNotes: result.notes } : {}),
+    ...(result.vendorName !== undefined ? { extractedVendorName: result.vendorName } : {}),
     ...(result.chosenVendorName !== undefined ? { chosenVendorName: result.chosenVendorName } : {}),
   };
 }
@@ -622,7 +625,8 @@ async function runExtractionCore(
  * @param config - Application config
  * @param body - Request body with paperlessDocumentId and locale
  * @param paperlessAuth - Paperless authentication
- * @returns Preview response with lines, suggested vendor ID, and optional metadata
+ * @returns Preview response with lines, suggested vendor ID, extractedVendorName (issuer name as
+ *   printed, independent of the match; Story #2148), and optional metadata
  * @throws NotFoundError if document not found
  * @throws Various extraction errors from LLM provider
  */
@@ -631,7 +635,7 @@ export async function previewAutoItemize(
   config: AppConfig,
   body: { paperlessDocumentId: number; locale?: string },
   paperlessAuth: { url: string; apiToken: string },
-) {
+): Promise<AutoItemizePreviewResponse> {
   // Load all vendors for injection into LLM prompt
   const allVendors = db.select({ id: vendors.id, name: vendors.name }).from(vendors).all();
 
@@ -662,9 +666,12 @@ export async function previewAutoItemize(
     suggestedVendorId = match?.id ?? null;
   }
 
+  const extractedVendorName = result.extractedVendorName ?? (result.chosenVendorName || undefined);
+
   return {
     lines: result.lines,
     suggestedVendorId,
+    ...(extractedVendorName ? { extractedVendorName } : {}),
     ...(result.extractedInvoiceNumber !== undefined
       ? { extractedInvoiceNumber: result.extractedInvoiceNumber }
       : {}),
