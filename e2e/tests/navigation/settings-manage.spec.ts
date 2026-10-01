@@ -28,9 +28,10 @@
  * (unlike Areas/Trades/HI-Categories, which are independently-named per-test entities).
  * Mutating tests snapshot the pre-test values via GET and restore them via PATCH in a
  * `finally` block, and the whole "Household tab — settings persistence" describe block
- * runs in serial mode (test.describe.configure({ mode: 'serial' })) so two singleton
- * mutations never race across parallel workers — the same pattern already used for
- * other singleton state in e2e/tests/profile/update-display-name.spec.ts.
+ * runs in serial mode (test.describe.configure({ mode: 'serial' })) for in-project ordering,
+ * and holds the Playwright `lock: 'household-settings'` — the cross-project/cross-worker
+ * guard that serial mode never provided (serial does not stop the desktop/tablet/mobile
+ * projects racing on the same singleton row).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -319,163 +320,167 @@ test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
 // in budget-sources.spec.ts (also a global singleton mutated by tests).
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Household tab — settings persistence', { tag: '@responsive' }, () => {
-  // /api/settings is a global singleton — multiple tests in this block PATCH it.
-  // With fullyParallel:true, Playwright can otherwise schedule two of these tests on
-  // separate workers at the same time, racing on the same row. Force serial execution
-  // within this describe (same mitigation used for other singleton-mutating specs,
-  // e.g. profile/update-display-name.spec.ts).
-  test.describe.configure({ mode: 'serial' });
+test.describe(
+  'Household tab — settings persistence',
+  { tag: '@responsive', lock: 'household-settings' },
+  () => {
+    // /api/settings is a global singleton — multiple tests in this block PATCH it.
+    // Serial mode only orders tests within one project's worker; it does NOT stop the
+    // desktop/tablet/mobile projects (or the other worker) from running this block
+    // concurrently. The `household-settings` lock is the cross-project/cross-worker guard:
+    // tests sharing a lock never run concurrently across files, workers and projects.
+    test.describe.configure({ mode: 'serial' });
 
-  test('Fill name and address, save, reload — values persist', async ({ page, testPrefix }) => {
-    const original = await fetchHouseholdSettingsViaApi(page);
-    const name = `${testPrefix} Household`;
-    const address = `${testPrefix} 123 Main Street, Springfield`;
+    test('Fill name and address, save, reload — values persist', async ({ page, testPrefix }) => {
+      const original = await fetchHouseholdSettingsViaApi(page);
+      const name = `${testPrefix} Household`;
+      const address = `${testPrefix} 123 Main Street, Springfield`;
 
-    try {
+      try {
+        await page.goto(`${MANAGE_ROUTE}?tab=household`);
+        const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+          state: 'visible',
+        });
+
+        const nameInput = panel.locator('#householdName');
+        const addressInput = panel.locator('#householdAddress');
+        await nameInput.fill(name);
+        await addressInput.fill(address);
+
+        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+        await expect(saveButton).toBeEnabled();
+
+        const responsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/settings') &&
+            resp.request().method() === 'PATCH' &&
+            resp.status() === 200,
+        );
+        await saveButton.click();
+        await responsePromise;
+
+        // Success banner appears
+        const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+        await expect(successBanner).toBeVisible();
+
+        // Save button becomes disabled again once saved values match the form (no longer dirty)
+        await expect(saveButton).toBeDisabled();
+
+        // Reload the page — values must persist (re-fetched from the server)
+        await page.reload();
+        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+          state: 'visible',
+        });
+        await expect(page.locator('#householdName')).toHaveValue(name);
+        await expect(page.locator('#householdAddress')).toHaveValue(address);
+      } finally {
+        await patchHouseholdSettingsViaApi(page, original);
+      }
+    });
+
+    test('Clear both fields, save, reload — values are empty', async ({ page, testPrefix }) => {
+      const original = await fetchHouseholdSettingsViaApi(page);
+
+      try {
+        // Seed non-empty values first so clearing has an observable effect
+        await patchHouseholdSettingsViaApi(page, {
+          householdName: `${testPrefix} Pre-clear Name`,
+          householdAddress: `${testPrefix} Pre-clear Address`,
+        });
+
+        await page.goto(`${MANAGE_ROUTE}?tab=household`);
+        const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
+        const nameInput = panel.locator('#householdName');
+        const addressInput = panel.locator('#householdAddress');
+        await expect(nameInput).toHaveValue(`${testPrefix} Pre-clear Name`);
+
+        await nameInput.fill('');
+        await addressInput.fill('');
+
+        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+        const responsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/settings') &&
+            resp.request().method() === 'PATCH' &&
+            resp.status() === 200,
+        );
+        await saveButton.click();
+        await responsePromise;
+
+        const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+        await expect(successBanner).toBeVisible();
+
+        // Reload — both fields must be empty
+        await page.reload();
+        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
+          state: 'visible',
+        });
+        await expect(page.locator('#householdName')).toHaveValue('');
+        await expect(page.locator('#householdAddress')).toHaveValue('');
+      } finally {
+        await patchHouseholdSettingsViaApi(page, original);
+      }
+    });
+
+    test('Save button is disabled until a field is edited (dirty-gated)', async ({ page }) => {
       await page.goto(`${MANAGE_ROUTE}?tab=household`);
       const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
       await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
         state: 'visible',
       });
 
-      const nameInput = panel.locator('#householdName');
-      const addressInput = panel.locator('#householdAddress');
-      await nameInput.fill(name);
-      await addressInput.fill(address);
-
       const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-      await expect(saveButton).toBeEnabled();
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/settings') &&
-          resp.request().method() === 'PATCH' &&
-          resp.status() === 200,
-      );
-      await saveButton.click();
-      await responsePromise;
-
-      // Success banner appears
-      const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
-      await expect(successBanner).toBeVisible();
-
-      // Save button becomes disabled again once saved values match the form (no longer dirty)
+      // No edits yet — form matches saved state, button disabled
       await expect(saveButton).toBeDisabled();
 
-      // Reload the page — values must persist (re-fetched from the server)
-      await page.reload();
-      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-        state: 'visible',
-      });
-      await expect(page.locator('#householdName')).toHaveValue(name);
-      await expect(page.locator('#householdAddress')).toHaveValue(address);
-    } finally {
-      await patchHouseholdSettingsViaApi(page, original);
-    }
-  });
+      // Edit the name field — button becomes enabled
+      await panel.locator('#householdName').fill('Temporary Dirty Value');
+      await expect(saveButton).toBeEnabled();
+    });
 
-  test('Clear both fields, save, reload — values are empty', async ({ page, testPrefix }) => {
-    const original = await fetchHouseholdSettingsViaApi(page);
-
-    try {
-      // Seed non-empty values first so clearing has an observable effect
-      await patchHouseholdSettingsViaApi(page, {
-        householdName: `${testPrefix} Pre-clear Name`,
-        householdAddress: `${testPrefix} Pre-clear Address`,
-      });
-
+    test('Save failure shows an error banner and keeps the entered values', async ({
+      page,
+      testPrefix,
+    }) => {
       await page.goto(`${MANAGE_ROUTE}?tab=household`);
       const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-      const nameInput = panel.locator('#householdName');
-      const addressInput = panel.locator('#householdAddress');
-      await expect(nameInput).toHaveValue(`${testPrefix} Pre-clear Name`);
-
-      await nameInput.fill('');
-      await addressInput.fill('');
-
-      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/settings') &&
-          resp.request().method() === 'PATCH' &&
-          resp.status() === 200,
-      );
-      await saveButton.click();
-      await responsePromise;
-
-      const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
-      await expect(successBanner).toBeVisible();
-
-      // Reload — both fields must be empty
-      await page.reload();
       await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
         state: 'visible',
       });
-      await expect(page.locator('#householdName')).toHaveValue('');
-      await expect(page.locator('#householdAddress')).toHaveValue('');
-    } finally {
-      await patchHouseholdSettingsViaApi(page, original);
-    }
-  });
 
-  test('Save button is disabled until a field is edited (dirty-gated)', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=household`);
-    const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-    await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-      state: 'visible',
+      try {
+        await page.route('**/api/settings', async (route) => {
+          if (route.request().method() === 'PATCH') {
+            await route.fulfill({
+              status: 500,
+              contentType: 'application/json',
+              body: JSON.stringify({
+                error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+              }),
+            });
+          } else {
+            await route.continue();
+          }
+        });
+
+        const failName = `${testPrefix} Should Not Persist`;
+        await panel.locator('#householdName').fill(failName);
+
+        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+        await saveButton.click();
+
+        const errorBanner = panel.locator('[class*="errorBanner"][role="alert"]');
+        await expect(errorBanner).toBeVisible();
+
+        // The entered value remains in the input (not reset on failure)
+        await expect(panel.locator('#householdName')).toHaveValue(failName);
+      } finally {
+        await page.unroute('**/api/settings');
+      }
     });
-
-    const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-    // No edits yet — form matches saved state, button disabled
-    await expect(saveButton).toBeDisabled();
-
-    // Edit the name field — button becomes enabled
-    await panel.locator('#householdName').fill('Temporary Dirty Value');
-    await expect(saveButton).toBeEnabled();
-  });
-
-  test('Save failure shows an error banner and keeps the entered values', async ({
-    page,
-    testPrefix,
-  }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=household`);
-    const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-    await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-      state: 'visible',
-    });
-
-    try {
-      await page.route('**/api/settings', async (route) => {
-        if (route.request().method() === 'PATCH') {
-          await route.fulfill({
-            status: 500,
-            contentType: 'application/json',
-            body: JSON.stringify({
-              error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
-            }),
-          });
-        } else {
-          await route.continue();
-        }
-      });
-
-      const failName = `${testPrefix} Should Not Persist`;
-      await panel.locator('#householdName').fill(failName);
-
-      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-      await saveButton.click();
-
-      const errorBanner = panel.locator('[class*="errorBanner"][role="alert"]');
-      await expect(errorBanner).toBeVisible();
-
-      // The entered value remains in the input (not reset on failure)
-      await expect(panel.locator('#householdName')).toHaveValue(failName);
-    } finally {
-      await page.unroute('**/api/settings');
-    }
-  });
-});
+  },
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Areas tab: CRUD

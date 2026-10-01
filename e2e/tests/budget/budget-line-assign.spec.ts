@@ -186,21 +186,14 @@ async function openBudgetLineMenu(
   page: Page,
   section: ReturnType<typeof page.locator>,
 ): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="true"]').filter({ visible: true }).first();
+  const trigger = section.locator('button[aria-haspopup="true"]').visible().first();
   await trigger.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
   await trigger.click();
-  await page
-    .locator('[role="menu"]')
-    .filter({ visible: true })
-    .first()
-    .waitFor({ state: 'visible' });
+  await page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
 }
 
 async function clickMenuItemByText(page: Page, text: string | RegExp): Promise<void> {
-  const item = page
-    .locator('[role="menuitem"]')
-    .filter({ visible: true })
-    .filter({ hasText: text });
+  const item = page.locator('[role="menuitem"]').visible().filter({ hasText: text });
   await item.first().click({ force: true });
 }
 

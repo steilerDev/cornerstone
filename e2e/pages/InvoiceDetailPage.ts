@@ -753,10 +753,8 @@ export class InvoiceDetailPage {
     // bare locator's .first() would resolve to DOM order (table before card), which is
     // the WRONG element whenever the mobile card is the visible one. Pre-filter to
     // visible so .first() always resolves to the currently-rendered layout.
-    this.refundBadge = this.depositsSection.locator('[class*="refund"]').filter({ visible: true });
-    this.refundAmountNegative = this.depositsSection
-      .locator('[class*="amountNegative"]')
-      .filter({ visible: true });
+    this.refundBadge = this.depositsSection.locator('[class*="refund"]').visible();
+    this.refundAmountNegative = this.depositsSection.locator('[class*="amountNegative"]').visible();
 
     // Save button in add/edit deposit modal — stable data-testid added in #1407
     this.depositModalSave = page.getByTestId('deposit-modal-save');
@@ -1171,30 +1169,23 @@ export class InvoiceDetailPage {
     if (depositDescription !== undefined) {
       // The aria-label contains the description verbatim — use substring match
       // aria-label format: "Deposit actions for {description}"
-      // .filter({ visible: true }) is required on mobile: the desktop table rows are hidden
+      // .visible() is required on mobile: the desktop table rows are hidden
       // but their overflow buttons remain in the DOM, so .first() without the filter picks
       // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
         .locator(
           `button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
         )
-        .filter({ visible: true })
+        .visible()
         .first();
     } else {
-      menuButton = this.depositsSection
-        .locator('button[aria-haspopup="true"]')
-        .filter({ visible: true })
-        .first();
+      menuButton = this.depositsSection.locator('button[aria-haspopup="true"]').visible().first();
     }
 
     await menuButton.click();
     // Wait for menu to appear. The desktop table (display:none on mobile) keeps its
     // [role="menu"] in the DOM, so filter to visible before resolving .first().
-    await this.page
-      .locator('[role="menu"]')
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: 'visible' });
+    await this.page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
   }
 
   /**
@@ -1204,10 +1195,7 @@ export class InvoiceDetailPage {
     // Mobile/tablet hide the desktop table via CSS but keep its [role="menuitem"]
     // nodes in the DOM. Filter to visible elements so .first() picks the visible
     // menu item (not the hidden table duplicate).
-    const menuItem = this.page
-      .locator('[role="menuitem"]')
-      .filter({ visible: true })
-      .filter({ hasText: label });
+    const menuItem = this.page.locator('[role="menuitem"]').visible().filter({ hasText: label });
     await menuItem.first().click();
   }
 
@@ -1359,21 +1347,14 @@ export class InvoiceDetailPage {
         .locator(
           `button[aria-haspopup="true"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
         )
-        .filter({ visible: true })
+        .visible()
         .first();
     } else {
-      trigger = this.budgetLinesSection
-        .locator('button[aria-haspopup="true"]')
-        .filter({ visible: true })
-        .first();
+      trigger = this.budgetLinesSection.locator('button[aria-haspopup="true"]').visible().first();
     }
     await trigger.click();
     // Portal renders menu at document.body level
-    await this.page
-      .locator('[role="menu"]')
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: 'visible' });
+    await this.page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
   }
 
   /**
@@ -1381,10 +1362,7 @@ export class InvoiceDetailPage {
    * line OverflowMenu.
    */
   async clickBudgetLineMenuItem(label: string | RegExp): Promise<void> {
-    const menuItem = this.page
-      .locator('[role="menuitem"]')
-      .filter({ visible: true })
-      .filter({ hasText: label });
+    const menuItem = this.page.locator('[role="menuitem"]').visible().filter({ hasText: label });
     await menuItem.first().click();
   }
 

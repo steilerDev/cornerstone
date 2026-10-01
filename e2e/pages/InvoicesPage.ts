@@ -578,12 +578,12 @@ export class InvoicesPage {
   /**
    * Currently-VISIBLE child `<tr>` elements inside an invoice's row group,
    * excluding the parent row itself. Child rows stay in the DOM at all times and
-   * toggle via the `hidden` attribute (never unmounted) — `:visible` reflects that
-   * correctly since nothing overrides the browser's default `[hidden] { display:
+   * toggle via the `hidden` attribute (never unmounted) — `locator.visible()` reflects
+   * that correctly since nothing overrides the browser's default `[hidden] { display:
    * none }` behavior in this codebase's CSS.
    */
   childRows(invoiceId: string): Locator {
-    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]:visible');
+    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]').visible();
   }
 
   /** Desktop table-row "Overdue"/"Deposit overdue" flag badge on an invoice's parent row. */
