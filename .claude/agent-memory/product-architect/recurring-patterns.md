@@ -1809,3 +1809,19 @@ tests, while the PR's own service test admitted "not testable: status is NOT NUL
 a legacy-row branch, check the column's migration. If the column is NOT NULL, make the parameter
 required: an optional parameter lets a future caller that forgets the field compile cleanly and
 silently fail closed, so the "defensive" widening is actually a forcing function removed.
+
+## Split-off test files inherit the sibling suite's dead scaffolding (PR #2156, 2026-10-01)
+
+When a story adds a `Page.<feature>.test.tsx` next to an existing page suite, the author copies the
+whole mock preamble. Grep each named spy/override/fixture for usage count (`grep -c`); declared+reset
+only = dead. The `makeFetchStub` "when unstable_mockModule is NOT intercepted" fallback is the worst
+of it: unreachable in CI, and if reached it masks the mock failure with plausible data. Also flag
+`getByRole` helpers that fall back to the raw i18n key — dead once any assertion relies on resolved text.
+Round 2 of #2156 found the same raw-key and never-matching branches in the `waitForReady` loading
+check (`/extractionStarted/i`, `/Extracting/i`), which I had missed in round 1. Sweep **every**
+`queryAllByText`/`queryByRole` regex in a copied helper against `en/<ns>.json`, not only the
+button lookup. A raw-key regex in a _negative_ assertion is the worst variant: it can never fail.
+When a raw-key/fallback lookup is removed, sweep the **same** pass for the guards that hid it:
+`if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
+`if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
+assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).

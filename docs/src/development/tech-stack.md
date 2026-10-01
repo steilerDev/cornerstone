@@ -16,9 +16,9 @@ title: Tech Stack
 | ORM | [Drizzle ORM](https://orm.drizzle.team/) | 0.45.x |
 | Bundler | [Webpack](https://webpack.js.org/) | 5.x |
 | Styling | CSS Modules | -- |
-| Testing | [Jest](https://jestjs.io/) (unit/integration), [Playwright](https://playwright.dev/) (E2E) | 30.x / 1.58.x |
-| Language | [TypeScript](https://www.typescriptlang.org/) | ~5.9 |
-| Runtime | [Node.js](https://nodejs.org/) | 24 LTS |
+| Testing | [Jest](https://jestjs.io/) (unit/integration), [Playwright](https://playwright.dev/) (E2E) | 30.x / 1.63.x |
+| Language | [TypeScript](https://www.typescriptlang.org/) | ~6.0 |
+| Runtime | [Node.js](https://nodejs.org/) | 24 LTS (>= 24.11) |
 | Container | Docker (Alpine) | -- |
 | Monorepo | npm workspaces | -- |
 

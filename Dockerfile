@@ -34,7 +34,8 @@ COPY client/package.json client/
 # Install all dependencies, skipping postinstall scripts. This avoids
 # compiling better-sqlite3 (the only native addon) — it's not needed for
 # any build step (tsc/webpack produce platform-independent output).
-RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts
+# --engine-strict enforces the root `engines` Node floor (>=24.11.0, from Babel 8).
+RUN --mount=type=cache,target=/root/.npm npm ci --ignore-scripts --engine-strict
 
 # Stamp the release version into package.json (webpack's DefinePlugin reads
 # this to embed __APP_VERSION__ in the client bundle).
@@ -80,7 +81,8 @@ COPY docs/package.json docs/
 # node-gyp still needs python3 just to evaluate gyp. Skipping scripts keeps this
 # image toolchain-free; better-sqlite3 resolves prebuilds/<platform>-<arch>.node
 # at require() time, so no install-time step is needed.
-RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts
+# --engine-strict enforces the root `engines` Node floor (>=24.11.0, from Babel 8).
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev --ignore-scripts --engine-strict
 
 # Fail the build loudly if better-sqlite3 has no prebuilt binary for this
 # target. Without this, a missing prebuild would surface as a runtime crash in

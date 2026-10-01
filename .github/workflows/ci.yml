@@ -56,9 +56,9 @@ jobs:
         id: install
         run: npm ci
 
-      - name: Check single konva version
+      - name: Check single konva/webpack version
         if: needs.detect-changes.outputs.app == 'true'
-        run: bash scripts/check-single-dep-version.sh konva
+        run: bash scripts/check-single-dep-version.sh konva webpack
 
       - name: Verify dependency signatures
         if: needs.detect-changes.outputs.app == 'true'
