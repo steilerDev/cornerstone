@@ -13,7 +13,11 @@
 #   - exits 0 with a confirmation line when exactly one version (or zero, for a
 #     package that does not resolve at all) is present
 #   - records a failure and prints an error block (the resolved versions plus a
-#     remediation hint) when more than one version resolves
+#     remediation hint) when more than one version resolves. The hint is the
+#     root-anchor fix (align root devDependency with the workspace pin) when the
+#     package is a root hoisting anchor, and an "overrides" pin otherwise.
+#
+# Run from the repository root (it reads ./package.json and the workspaces').
 #
 # Exits 1 if any named package resolves to more than one version.
 
@@ -85,10 +89,48 @@ EOF
     done <<< "$VERSIONS"
     echo "" >&2
     echo "  Multiple copies of the same package can cause duplicate type" >&2
-    echo "  definitions and runtime type-collision bugs. Pin a single version" >&2
-    echo "  by adding an entry to the \"overrides\" block in the root" >&2
-    echo "  package.json, for example:" >&2
-    echo "    \"overrides\": { \"$PKG\": \"<exact-version>\" }" >&2
+    echo "  definitions and runtime type-collision bugs." >&2
+    echo "" >&2
+    # A root hoisting anchor (CLAUDE.md > Dependency Policy) is a package that the
+    # root package.json declares as a devDependency AND a workspace declares too.
+    # It is fixed by aligning the two pins, never by an override: Dependabot does
+    # not move override pins, so an override becomes a third, silently stale pin.
+    # Prints "<root-spec>\t<workspace>=<spec> ..." for an anchor, nothing otherwise.
+    ANCHOR=$(node --input-type=module - "$PKG" <<'EOF'
+import { readFileSync } from 'fs';
+
+const target = process.argv[2];
+const read = (p) => JSON.parse(readFileSync(p, 'utf8'));
+const root = read('package.json');
+const rootSpec = root.devDependencies?.[target];
+if (rootSpec) {
+  const pins = [];
+  for (const ws of root.workspaces ?? []) {
+    let pkg;
+    try {
+      pkg = read(`${ws}/package.json`);
+    } catch {
+      continue;
+    }
+    const spec = pkg.dependencies?.[target] ?? pkg.devDependencies?.[target];
+    if (spec) pins.push(`${ws}=${spec}`);
+  }
+  if (pins.length > 0) process.stdout.write(`${rootSpec}\t${pins.join(' ')}`);
+}
+EOF
+)
+    if [[ -n "$ANCHOR" ]]; then
+      echo "  '$PKG' is a root hoisting anchor (CLAUDE.md > Dependency Policy >" >&2
+      echo "  Root hoisting anchors). Set the root package.json devDependency to" >&2
+      echo "  the workspace's exact version, then run a full 'npm install'." >&2
+      echo "  Do NOT add an \"overrides\" entry: Dependabot never moves override pins." >&2
+      echo "    root devDependencies: \"$PKG\": \"${ANCHOR%%$'\t'*}\"" >&2
+      echo "    workspace pins:       ${ANCHOR#*$'\t'}" >&2
+    else
+      echo "  Pin a single version by adding an entry to the \"overrides\" block" >&2
+      echo "  in the root package.json, for example:" >&2
+      echo "    \"overrides\": { \"$PKG\": \"<exact-version>\" }" >&2
+    fi
     echo "" >&2
     FAILED=1
   fi
