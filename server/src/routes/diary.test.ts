@@ -940,6 +940,8 @@ describe('Diary Routes', () => {
       ['bad signedAt', { signedAt: 'nope' }],
       ['signedAt with trailing junk', { signedAt: '2026-01-01T10:00:00.000Zjunk' }],
       ['date-only signedAt', { signedAt: '2026-01-01' }],
+      ['impossible calendar signedAt (Feb 30)', { signedAt: '2026-02-30T00:00Z' }],
+      ['hour-24 signedAt', { signedAt: '2026-01-01T24:00Z' }],
       ['65-char signedAt', { signedAt: '2026-01-01T10:00:00.000Z'.padEnd(65, '0') }],
     ];
 

@@ -1811,6 +1811,27 @@ describe('diaryService', () => {
       });
 
       it.each([
+        ['an impossible day (Feb 30)', '2026-02-30T00:00Z'],
+        ['an impossible month (13)', '2026-13-01T00:00Z'],
+        ['hour 24', '2026-01-01T24:00Z'],
+        ['minute 60', '2026-01-01T10:60Z'],
+        ['second 60', '2026-01-01T10:00:60Z'],
+        ['an offset hour of 24', '2026-01-01T10:00+24:00'],
+        ['an offset minute of 60', '2026-01-01T10:00+01:60'],
+        ['Feb 29 in a non-leap year', '2026-02-29T00:00Z'],
+        ['day 00', '2026-01-00T00:00Z'],
+      ])('rejects signedAt with %s', (_l, bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it.each([
+        ['a leap day', '2024-02-29T00:00Z'],
+        ['max time with +14:00 offset', '2026-01-01T23:59:59.999+14:00'],
+      ])('accepts signedAt with %s', (_l, ok) => {
+        expect(create(entryType, extra, [{ ...base, signedAt: ok }]).isSigned).toBe(true);
+      });
+
+      it.each([
         ['an offset timestamp', '2026-01-01T10:00:00.000+02:00'],
         ['a no-seconds UTC timestamp', '2026-01-01T10:00Z'],
         ['a no-seconds offset timestamp', '2026-01-01T10:00-05:30'],

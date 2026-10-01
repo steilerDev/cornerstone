@@ -68,6 +68,28 @@ import { toAreaSummary } from './shared/converters.js';
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
+ * Rejects values that match SIGNED_AT_PATTERN but contain impossible components
+ * (e.g. 2026-02-30, hour 25) which Date.parse would silently roll over.
+ */
+function hasValidCalendarComponents(signedAt: string): boolean {
+  const [datePart, rest] = signedAt.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const [, hh, mm, ss, offH, offM] = rest.match(
+    /^(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/,
+  )!;
+  return (
+    month >= 1 &&
+    month <= 12 &&
+    new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day &&
+    Number(hh) <= 23 &&
+    Number(mm) <= 59 &&
+    Number(ss ?? 0) <= 59 &&
+    Number(offH ?? 0) <= 23 &&
+    Number(offM ?? 0) <= 59
+  );
+}
+
+/**
  * Validate a metadata signatures array (daily_log, site_visit, issue).
  * @throws InvalidMetadataError if malformed
  */
@@ -121,7 +143,8 @@ function validateSignatures(entryType: string, signatures: unknown): void {
       if (
         sig.signedAt.length > MAX_SIGNED_AT_LENGTH ||
         !SIGNED_AT_PATTERN.test(sig.signedAt) ||
-        Number.isNaN(Date.parse(sig.signedAt))
+        Number.isNaN(Date.parse(sig.signedAt)) ||
+        !hasValidCalendarComponents(sig.signedAt)
       ) {
         throw new InvalidMetadataError(
           `${entryType} signature entry signedAt must be a valid date`,
