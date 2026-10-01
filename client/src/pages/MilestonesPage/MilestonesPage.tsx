@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { Modal } from '../../components/Modal/Modal.js';
@@ -303,14 +305,14 @@ export function MilestonesPage() {
   }, [activeMenuId]);
 
   // Render actions menu
-  const renderActions = (milestone: MilestoneSummary) => (
+  const renderActions = (milestone: MilestoneSummary, surface: DataTableSurface) => (
     <div className={styles.actionsMenu}>
       <button
         type="button"
         className={styles.menuButton}
         onClick={() => setActiveMenuId(activeMenuId === milestone.id ? null : milestone.id)}
         aria-label={t('milestones.menu.actions')}
-        data-testid={`milestone-menu-button-${milestone.id}`}
+        data-testid={dataTableTestId('milestone-menu-button', milestone.id, surface)}
       >
         ⋮
       </button>
@@ -320,7 +322,7 @@ export function MilestonesPage() {
             type="button"
             className={styles.menuItem}
             onClick={() => navigate(`/project/milestones/${milestone.id}`)}
-            data-testid={`milestone-edit-${milestone.id}`}
+            data-testid={dataTableTestId('milestone-edit', milestone.id, surface)}
           >
             {t('milestones.menu.edit')}
           </button>
@@ -328,7 +330,7 @@ export function MilestonesPage() {
             type="button"
             className={`${styles.menuItem} ${styles.menuItemDanger}`}
             onClick={() => handleDeleteClick(milestone)}
-            data-testid={`milestone-delete-${milestone.id}`}
+            data-testid={dataTableTestId('milestone-delete', milestone.id, surface)}
           >
             {t('milestones.menu.delete')}
           </button>

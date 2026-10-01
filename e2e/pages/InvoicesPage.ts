@@ -62,8 +62,13 @@
  * - Status badges use data-testid="invoice-status-{id}" (desktop table) /
  *   "invoice-status-mobile-{id}" (mobile card) — same dual-DOM pattern as the
  *   invoice-overdue/invoice-container flag badges and the deposit-status/deposit-overdue badges
- * - Actions menu button: data-testid="invoice-menu-button-{id}"
- * - View button in dropdown: data-testid="invoice-view-{id}"
+ * - Actions menu button: data-testid="invoice-menu-button-{id}" (desktop table) /
+ *   "invoice-menu-button-mobile-{id}" (mobile card)
+ * - View button in dropdown: data-testid="invoice-view-{id}" (desktop table) /
+ *   "invoice-view-mobile-{id}" (mobile card)
+ * - Dual-DOM testid convention: DataTable builds surface-scoped ids via
+ *   dataTableTestId(prefix, id, surface) — desktop keeps `<prefix>-<id>`, mobile cards
+ *   insert `mobile` (`<prefix>-mobile-<id>`). See wiki Architecture > Frontend Conventions.
  * - Create form is in a Modal component (uses the shared Modal component)
  */
 

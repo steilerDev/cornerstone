@@ -10,6 +10,7 @@ import type {
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
 import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
+import { useInfiniteScrollAnnouncements } from '../../hooks/useInfiniteScrollAnnouncements.js';
 import { DiaryFilterBar } from '../../components/diary/DiaryFilterBar/DiaryFilterBar.js';
 import { DiaryDateGroup } from '../../components/diary/DiaryDateGroup/DiaryDateGroup.js';
 import { InfiniteScrollFooter } from '../../components/InfiniteScrollFooter/InfiniteScrollFooter.js';
@@ -53,7 +54,6 @@ export default function DiaryPage() {
   const statusFilter = (searchParams.get('status') as DiaryEntryStatus | null) || null;
 
   const [searchInput, setSearchInput] = useState(searchQuery);
-  const announcementRef = useRef<HTMLDivElement>(null);
 
   // Debounced search with URL sync
   const debouncedSearchInput = useDebounce(searchInput, 300);
@@ -124,7 +124,6 @@ export default function DiaryPage() {
     items: entries,
     status,
     hasMore,
-    lastBatchCount,
     fetchSequence,
     sentinelRef,
     loadMore,
@@ -138,6 +137,20 @@ export default function DiaryPage() {
     },
     onPageFailed: (_err, page) => {
       if (page === 1) setFirstBatchFailed(true);
+    },
+  });
+
+  const announcementRef = useInfiniteScrollAnnouncements({
+    fetchSequence,
+    status,
+    hasMore,
+    items: entries,
+    getKey: (e) => e.id,
+    labels: {
+      initialLoad: (count) => t('infiniteScroll.initialLoadAnnouncement', { count }),
+      batchAppended: (count) => t('infiniteScroll.batchAppendedAnnouncement', { count }),
+      batchAppendedAndEnd: (count) =>
+        t('infiniteScroll.batchAppendedAndEndAnnouncement', { count }),
     },
   });
 
@@ -163,23 +176,6 @@ export default function DiaryPage() {
     }
     focusEmptyStateAfterRetryRef.current = false;
   }, [status, entries.length]);
-
-  useEffect(() => {
-    if (fetchSequence === 0 || !announcementRef.current) return;
-    if (fetchSequence === 1) {
-      announcementRef.current.textContent = t('infiniteScroll.initialLoadAnnouncement', {
-        count: lastBatchCount,
-      });
-    } else if (!hasMore) {
-      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAndEndAnnouncement', {
-        count: lastBatchCount,
-      });
-    } else {
-      announcementRef.current.textContent = t('infiniteScroll.batchAppendedAnnouncement', {
-        count: lastBatchCount,
-      });
-    }
-  }, [fetchSequence, hasMore, lastBatchCount, t]);
 
   const groupedEntries = useMemo(() => {
     const grouped: GroupedEntries = {};
@@ -330,13 +326,7 @@ export default function DiaryPage() {
       )}
 
       {/* Live region for announcements */}
-      <div
-        ref={announcementRef}
-        className={styles.liveRegion}
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      />
+      <div ref={announcementRef} className={styles.liveRegion} role="status" aria-atomic="true" />
 
       {(entries.length > 0 || firstBatchFailed) && (
         <InfiniteScrollFooter

@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -409,14 +411,14 @@ export function HouseholdItemsPage() {
   }, [activeMenuId]);
 
   // Render actions menu
-  const renderActions = (item: HouseholdItemSummary) => (
+  const renderActions = (item: HouseholdItemSummary, surface: DataTableSurface) => (
     <div className={styles.actionsMenu}>
       <button
         type="button"
         className={styles.menuButton}
         onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
         aria-label={t('menu.actions', { name: item.name })}
-        data-testid={`hi-menu-button-${item.id}`}
+        data-testid={dataTableTestId('hi-menu-button', item.id, surface)}
       >
         ⋮
       </button>
@@ -429,7 +431,7 @@ export function HouseholdItemsPage() {
               navigate(`/project/household-items/${item.id}`);
               setActiveMenuId(null);
             }}
-            data-testid={`hi-view-${item.id}`}
+            data-testid={dataTableTestId('hi-view', item.id, surface)}
           >
             {t('menu.edit')}
           </button>
@@ -440,7 +442,7 @@ export function HouseholdItemsPage() {
               openDeleteConfirm(item);
               setActiveMenuId(null);
             }}
-            data-testid={`hi-delete-${item.id}`}
+            data-testid={dataTableTestId('hi-delete', item.id, surface)}
           >
             {t('menu.delete')}
           </button>

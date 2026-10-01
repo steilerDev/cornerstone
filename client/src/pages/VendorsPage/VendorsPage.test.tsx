@@ -16,6 +16,7 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { Vendor } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -495,7 +496,7 @@ describe('VendorsPage', () => {
 
       // DataTable renders actions in both table rows and mobile cards — use getAllByTestId.
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
     });
 
@@ -506,13 +507,34 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
 
       // Click the first menu button (table row)
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
 
-      expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('vendor-delete-vendor-1')).toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
+      mockFetchVendors.mockResolvedValueOnce(
+        defaultFetchResponse([
+          makeVendor({ id: 'vendor-1', name: 'Acme Construction' }),
+          makeVendor({ id: 'vendor-2', name: 'Beta Builders' }),
+        ]),
+      );
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('vendor-menu-button-mobile-vendor-1')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+
+      expect(screen.getByTestId('vendor-view-vendor-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
 
     it('vendor name link points to /settings/vendors/:id', async () => {
@@ -538,13 +560,13 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
 
       // vendor-view-vendor-1 button calls navigate('/settings/vendors/vendor-1')
-      expect(screen.getAllByTestId('vendor-view-vendor-1').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('vendor-view-vendor-1')).toBeInTheDocument();
     });
 
     it('opens delete confirmation modal when delete action is clicked', async () => {
@@ -554,11 +576,11 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
       // Delete modal should show vendor name
       await waitFor(() => {
@@ -577,17 +599,17 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
 
       // Open menu -> click delete
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
       // Find and click the confirm delete button
       await waitFor(() => {
         // After modal opens, the delete button from menu is still present in the table row
-        expect(screen.getAllByTestId('vendor-delete-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-delete-vendor-1')).toBeInTheDocument();
       });
     });
 
@@ -603,11 +625,11 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('vendor-menu-button-vendor-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('vendor-menu-button-vendor-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('vendor-delete-vendor-1')[0]!);
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
       // The delete modal should be visible now — verify by vendor name in the modal
       await waitFor(() => {

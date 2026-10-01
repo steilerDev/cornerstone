@@ -437,6 +437,21 @@ describe('DiaryPage', () => {
       expect(screen.getByTestId('diary-load-more-button')).toBeInTheDocument();
     });
 
+    it('exposes the announcement status region without an explicit aria-live (role=status is implicitly polite)', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce({
+        items: [makeSummary('al-1')],
+        pagination: { page: 1, pageSize: 25, totalPages: 3, totalItems: 60 },
+      });
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('diary-card-al-1')).toBeInTheDocument();
+      });
+      const status = screen.getByRole('status');
+      expect(status).toHaveAttribute('aria-atomic', 'true');
+      expect(status).not.toHaveAttribute('aria-live');
+    });
+
     it('does not render the load-more button and shows the end-of-list row when there is only one page', async () => {
       mockListDiaryEntries.mockResolvedValueOnce(makeListResponse([makeSummary('de-1')], 1));
       renderPage();

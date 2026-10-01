@@ -12,6 +12,7 @@ import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared'
 import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -663,11 +664,12 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
-      // DataTable renders renderActions in both table and mobile card — use getAllByTestId
+      // DataTable renders renderActions in both table and mobile card; the ids are disjoint
+      // (`invoice-menu-button-<id>` vs `invoice-menu-button-mobile-<id>`), so getByTestId is safe.
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
       });
-      expect(screen.getAllByTestId('invoice-menu-button-inv-002')[0]!).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-menu-button-inv-002')).toBeInTheDocument();
     });
 
     it('shows view option in dropdown when menu opened', async () => {
@@ -677,12 +679,29 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
       });
 
-      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!);
+      await user.click(screen.getByTestId('invoice-menu-button-inv-001'));
 
-      expect(screen.getAllByTestId('invoice-view-inv-001')[0]!).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
+      const user = userEvent.setup();
+      mockFetchAllInvoices.mockResolvedValueOnce(populatedResponse);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('invoice-menu-button-mobile-inv-001')).toBeInTheDocument();
+
+      await user.click(screen.getByTestId('invoice-menu-button-inv-001'));
+
+      expect(screen.getByTestId('invoice-view-inv-001')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
 
     it('navigates to invoice detail on view click', async () => {
@@ -692,11 +711,11 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
       });
 
-      await user.click(screen.getAllByTestId('invoice-menu-button-inv-001')[0]!);
-      await user.click(screen.getAllByTestId('invoice-view-inv-001')[0]!);
+      await user.click(screen.getByTestId('invoice-menu-button-inv-001'));
+      await user.click(screen.getByTestId('invoice-view-inv-001'));
 
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices/inv-001');
@@ -1368,20 +1387,16 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-status-inv-001')[0]).toBeInTheDocument();
+        expect(screen.getByTestId('invoice-status-inv-001')).toBeInTheDocument();
       });
 
-      const badges = screen.getAllByTestId('invoice-status-inv-001');
-      for (const badge of badges) {
-        expect(badge.className).toContain('pending');
-        expect(badge.className).not.toContain('undefined');
-      }
+      const badge = screen.getByTestId('invoice-status-inv-001');
+      expect(badge.className).toContain('pending');
+      expect(badge.className).not.toContain('undefined');
 
-      const paidBadges = screen.getAllByTestId('invoice-status-inv-002');
-      for (const badge of paidBadges) {
-        expect(badge.className).toContain('paid');
-        expect(badge.className).not.toContain('undefined');
-      }
+      const paidBadge = screen.getByTestId('invoice-status-inv-002');
+      expect(paidBadge.className).toContain('paid');
+      expect(paidBadge.className).not.toContain('undefined');
     });
   });
 
@@ -1402,7 +1417,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-status-inv-001').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('invoice-status-inv-001')).toBeInTheDocument();
       });
 
       const desktopBadges = screen.getAllByTestId('invoice-status-inv-001');

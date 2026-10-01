@@ -17,6 +17,8 @@ import type {
   ExpandableRowsConfig,
 } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -84,15 +86,12 @@ function calculateRemaining(invoice: Invoice): number {
 
 /**
  * Invoice # cell: link plus overdue/deposit-overdue and container-only flag badges.
- * Shared between the desktop `render` and mobile `renderCard` paths — DataTable mounts
- * both the desktop table and the mobile cards simultaneously (CSS hides whichever
- * doesn't apply), so identical testids on both would create duplicate DOM nodes and
- * break Playwright's strict-mode single-element locators. `idSuffix` disambiguates:
- * '' for desktop, '-mobile' for the card-rendered instance.
+ * Used by the column's single `render`; `surface` is passed through to `dataTableTestId()`
+ * so the always-mounted desktop table and mobile cards get distinct testids.
  */
 function renderInvoiceNumberCell(
   inv: Invoice,
-  idSuffix: '' | '-mobile',
+  surface: DataTableSurface,
   openOnly: boolean,
   today: string,
   flagVariants: BadgeVariantMap,
@@ -115,14 +114,14 @@ function renderInvoiceNumberCell(
         <Badge
           variants={flagVariants}
           value={isInvoiceOverdue(inv, today) ? 'overdue' : 'depositOverdue'}
-          testId={`invoice-overdue${idSuffix}-${inv.id}`}
+          testId={dataTableTestId('invoice-overdue', inv.id, surface)}
         />
       )}
       {openOnly && isContainerOnly(inv) && (
         <Badge
           variants={flagVariants}
           value="containerOnly"
-          testId={`invoice-container${idSuffix}-${inv.id}`}
+          testId={dataTableTestId('invoice-container', inv.id, surface)}
         />
       )}
     </span>
@@ -497,8 +496,8 @@ export function InvoicesPage() {
         label: t('invoices.tableHeaders.invoiceNumber')!,
         sortable: false,
         defaultVisible: true,
-        render: (inv) => renderInvoiceNumberCell(inv, '', openOnly, today, flagVariants),
-        renderCard: (inv) => renderInvoiceNumberCell(inv, '-mobile', openOnly, today, flagVariants),
+        render: (inv, surface) =>
+          renderInvoiceNumberCell(inv, surface, openOnly, today, flagVariants),
       },
       {
         key: 'vendor',
@@ -594,18 +593,11 @@ export function InvoicesPage() {
           { value: 'claimed', label: t('invoices.statusLabels.claimed') },
           { value: 'quotation', label: t('invoices.statusLabels.quotation') },
         ],
-        render: (inv) => (
+        render: (inv, surface) => (
           <Badge
             variants={invoiceStatusVariants}
             value={inv.status}
-            testId={`invoice-status-${inv.id}`}
-          />
-        ),
-        renderCard: (inv) => (
-          <Badge
-            variants={invoiceStatusVariants}
-            value={inv.status}
-            testId={`invoice-status-mobile-${inv.id}`}
+            testId={dataTableTestId('invoice-status', inv.id, surface)}
           />
         ),
       },
@@ -795,7 +787,7 @@ export function InvoicesPage() {
   ]);
 
   // Render actions menu
-  const renderActions = (invoice: Invoice) => (
+  const renderActions = (invoice: Invoice, surface: DataTableSurface) => (
     <div className={styles.actionsMenu}>
       <button
         type="button"
@@ -804,7 +796,7 @@ export function InvoicesPage() {
         aria-label={t('invoices.actions.menuAriaLabel', {
           number: invoice.invoiceNumber || 'Invoice',
         })}
-        data-testid={`invoice-menu-button-${invoice.id}`}
+        data-testid={dataTableTestId('invoice-menu-button', invoice.id, surface)}
       >
         ⋮
       </button>
@@ -817,7 +809,7 @@ export function InvoicesPage() {
               navigate(`/budget/invoices/${invoice.id}`);
               setActiveMenuId(null);
             }}
-            data-testid={`invoice-view-${invoice.id}`}
+            data-testid={dataTableTestId('invoice-view', invoice.id, surface)}
           >
             {t('invoices.buttons.view')}
           </button>

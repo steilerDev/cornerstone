@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { WorkItemSummary } from '@cornerstone/shared';
@@ -11,6 +11,7 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as WorkItemsPageTypes from './WorkItemsPage.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
@@ -260,6 +261,28 @@ describe('WorkItemsPage', () => {
   });
 
   // ── Multiple items — each gets its own breadcrumb ─────────────────────────
+
+  describe('DataTable dual-mount testids (#2069)', () => {
+    it('keeps every data-testid unique with the table and mobile cards mounted together, even with a row menu open', async () => {
+      const items = [
+        makeWorkItemSummary({ id: 'wi-1', title: 'Item A' }),
+        makeWorkItemSummary({ id: 'wi-2', title: 'Item B' }),
+      ];
+      mockListWorkItems.mockResolvedValue(makeListResponse(items));
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('wi-menu-button-wi-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('wi-menu-button-mobile-wi-1')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('wi-menu-button-wi-1'));
+
+      expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+  });
 
   describe('multiple work items with different area states', () => {
     it('renders breadcrumb per item independently', async () => {

@@ -17,6 +17,7 @@ import type { Invoice, InvoiceDeposit, InvoiceListPaginatedResponse } from '@cor
 import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -510,15 +511,34 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       await user.click(collapseButtons[0]!);
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('invoice-overdue-inv-a')[0]).toHaveTextContent(
-          'Deposit overdue',
-        );
+        expect(screen.getByTestId('invoice-overdue-inv-a')).toHaveTextContent('Deposit overdue');
       });
-      expect(screen.getAllByTestId('invoice-overdue-inv-g')[0]).toHaveTextContent('Overdue');
+      expect(screen.getByTestId('invoice-overdue-inv-g')).toHaveTextContent('Overdue');
 
       // Both invoices keep their real 'pending' status badge alongside the chip.
-      expect(screen.getAllByTestId('invoice-status-inv-a')[0]).toHaveTextContent('Pending');
-      expect(screen.getAllByTestId('invoice-status-inv-g')[0]).toHaveTextContent('Pending');
+      expect(screen.getByTestId('invoice-status-inv-a')).toHaveTextContent('Pending');
+      expect(screen.getByTestId('invoice-status-inv-g')).toHaveTextContent('Pending');
+    });
+  });
+
+  // ─── DataTable dual-mount testid uniqueness (#2069) ─────────────────────────
+
+  describe('dual-mount testid uniqueness', () => {
+    it('keeps every data-testid unique across the table and mobile cards in open-items mode with deposits, flags and an open row menu', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA, invC, invG]));
+      const { container } = renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-A').length).toBeGreaterThan(0));
+
+      expect(findDuplicateTestIds(container)).toEqual([]);
+      expect(screen.getByTestId('invoice-status-mobile-inv-a')).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-overdue-mobile-inv-g')).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-container-mobile-inv-c')).toBeInTheDocument();
+
+      const user = userEvent.setup();
+      await user.click(screen.getByTestId('invoice-menu-button-inv-a'));
+      expect(screen.getByTestId('invoice-view-inv-a')).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-menu-button-mobile-inv-a')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
   });
 
@@ -530,10 +550,8 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       renderPageAt('/budget/invoices?openOnly=true');
       await waitFor(() => expect(screen.getAllByText('INV-C').length).toBeGreaterThan(0));
 
-      expect(screen.getAllByTestId('invoice-status-inv-c')[0]).toHaveTextContent('Quotation');
-      expect(screen.getAllByTestId('invoice-container-inv-c')[0]).toHaveTextContent(
-        'Deposits only',
-      );
+      expect(screen.getByTestId('invoice-status-inv-c')).toHaveTextContent('Quotation');
+      expect(screen.getByTestId('invoice-container-inv-c')).toHaveTextContent('Deposits only');
     });
   });
 
@@ -572,12 +590,10 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       expect(desktopContainer[0]).not.toBe(mobileContainer[0]);
     });
 
-    it('the status badge (unconditional renderCard override) renders exactly one desktop-testid and one distinct mobile-testid element', async () => {
+    it('the status badge (single surface-aware render) renders exactly one desktop-testid and one distinct mobile-testid element', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA]));
       renderPageAt('/budget/invoices?openOnly=true');
-      await waitFor(() =>
-        expect(screen.getAllByTestId('invoice-status-inv-a').length).toBeGreaterThan(0),
-      );
+      await waitFor(() => expect(screen.getByTestId('invoice-status-inv-a')).toBeInTheDocument());
 
       const desktopStatus = screen.getAllByTestId('invoice-status-inv-a');
       const mobileStatus = screen.getAllByTestId('invoice-status-mobile-inv-a');
@@ -593,11 +609,9 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
     it('the status badge className resolves a real class ("pending"), never leaves the literal "undefined"', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA]));
       renderPageAt('/budget/invoices?openOnly=true');
-      await waitFor(() =>
-        expect(screen.getAllByTestId('invoice-status-inv-a').length).toBeGreaterThan(0),
-      );
+      await waitFor(() => expect(screen.getByTestId('invoice-status-inv-a')).toBeInTheDocument());
 
-      const badge = screen.getAllByTestId('invoice-status-inv-a')[0]!;
+      const badge = screen.getByTestId('invoice-status-inv-a');
       expect(badge.className).toContain('pending');
       expect(badge.className).not.toMatch(/\bundefined\b/);
     });

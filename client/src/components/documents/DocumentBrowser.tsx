@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import type { PaperlessDocumentSearchResult } from '@cornerstone/shared';
 import { usePaperless } from '../../hooks/usePaperless.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
+import { useInfiniteScrollAnnouncements } from '../../hooks/useInfiniteScrollAnnouncements.js';
 import { DocumentCard } from './DocumentCard.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
 import { DocumentSkeleton } from './DocumentSkeleton.js';
@@ -101,53 +102,22 @@ export function DocumentBrowser({
 
   // Screen-reader announcements. Counts newly VISIBLE documents (not raw batch size) so hidden
   // linked documents are not announced.
-  const announcementRef = useRef<HTMLDivElement | null>(null);
-  const announcedSeqRef = useRef(0);
-  const knownRawIdsRef = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    const node = announcementRef.current;
-    if (!node) return;
-    const { fetchSequence, listStatus, hasMore, documents } = hook;
-    if (fetchSequence === 0) {
-      announcedSeqRef.current = 0;
-      return;
-    }
-    if (listStatus === 'loading') {
-      node.textContent = t('browser.infiniteScroll.loadingMore');
-      return;
-    }
-    if (fetchSequence === announcedSeqRef.current) return;
-    if (fetchSequence === 1) knownRawIdsRef.current.clear();
-    const known = knownRawIdsRef.current;
-    const newVisible = documents.filter(
-      (d) => !known.has(d.id) && (!hideLinked || !linkedIdSet.has(d.id)),
-    ).length;
-    for (const d of documents) known.add(d.id);
-    if (fetchSequence === 1 && visibleDocuments.length > 0) {
-      node.textContent = t('browser.infiniteScroll.initialLoadAnnouncement', {
-        count: visibleDocuments.length,
-      });
-    } else if (newVisible > 0) {
-      node.textContent = t(
-        hasMore
-          ? 'browser.infiniteScroll.batchAppendedAnnouncement'
-          : 'browser.infiniteScroll.batchAppendedAndEndAnnouncement',
-        { count: newVisible },
-      );
-    } else if (!hasMore) {
-      node.textContent = t('browser.infiniteScroll.endOfListAnnouncement');
-    }
-    announcedSeqRef.current = fetchSequence;
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- keyed on fetch progress; visible-list values are read at that moment
-  }, [
-    hook.fetchSequence,
-    hook.listStatus,
-    hook.hasMore,
-    hook.documents,
-    hideLinked,
-    linkedIdSet,
-    t,
-  ]);
+  const announcementRef = useInfiniteScrollAnnouncements({
+    fetchSequence: hook.fetchSequence,
+    status: hook.listStatus,
+    hasMore: hook.hasMore,
+    items: hook.documents,
+    getKey: (d) => d.id,
+    isCounted: hideLinked ? (d) => !linkedIdSet.has(d.id) : undefined,
+    labels: {
+      loading: () => t('browser.infiniteScroll.loadingMore'),
+      initialLoad: (count) => t('browser.infiniteScroll.initialLoadAnnouncement', { count }),
+      batchAppended: (count) => t('browser.infiniteScroll.batchAppendedAnnouncement', { count }),
+      batchAppendedAndEnd: (count) =>
+        t('browser.infiniteScroll.batchAppendedAndEndAnnouncement', { count }),
+      endOfList: () => t('browser.infiniteScroll.endOfListAnnouncement'),
+    },
+  });
 
   const handleCardSelect = (doc: PaperlessDocumentSearchResult) => {
     if (onSelect) {
