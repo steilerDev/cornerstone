@@ -360,6 +360,14 @@ export class AutoItemizePage {
   }
 
   /**
+   * Step 2 empty state: t('invoiceDetail.budgetLines.picker.noUnlinkedLines')
+   * = "No unlinked budget lines for this item."
+   */
+  pickerEmptyState(): Locator {
+    return this.pickerStep2Modal().getByText(/No unlinked budget lines for this item/i);
+  }
+
+  /**
    * Returns a budget line row button in step 2 of the picker modal.
    * Each unlinked budget line is rendered as <button class*="pickerBudgetLineRow">.
    * @param nameOrIndex - 0-based row index OR a string/RegExp to match by visible text

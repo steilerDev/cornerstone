@@ -1330,3 +1330,152 @@ describe('useAutoItemizeLines — link existing keeps the line unchanged (#2149)
     expect(result.current.lines[0].linkedItemizedAmount).toBe(77);
   });
 });
+
+describe('useAutoItemizeLines — a budget line is never linked twice (picker exclusion)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let useAutoItemizeLines: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockPickerStateOverride = {};
+    capturedOnLineCreated = null;
+    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+  });
+
+  function makeBudgetLine(id: string) {
+    return {
+      id,
+      workItemId: 'wi-1',
+      description: `Desc ${id}`,
+      plannedAmount: 5000,
+      includesVat: true,
+      invoiceLink: null,
+      budgetCategory: null,
+      budgetSource: null,
+    };
+  }
+
+  const lineA = makeBudgetLine('wib-A');
+  const lineB = makeBudgetLine('wib-B');
+
+  function offeredIds(result: {
+    current: { picker: { pickerState: { budgetLines: Array<{ id: string }> } } };
+  }): string[] {
+    return result.current.picker.pickerState.budgetLines.map((bl) => bl.id);
+  }
+
+  function setupTwoRows() {
+    mockPickerStateOverride = { budgetLines: [lineA, lineB] };
+    const hook = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      hook.result.current.setLines([makeLine({ rowId: 'row0' }), makeLine({ rowId: 'row1' })]);
+    });
+    return hook;
+  }
+
+  function assign(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result: { current: any },
+    rowId: string,
+    line: unknown,
+  ) {
+    act(() => {
+      result.current.handlers.onAssign(rowId);
+    });
+    act(() => {
+      result.current.handlers.onSelectBudgetLine(line);
+    });
+  }
+
+  it('offers every line when no other row has an assignment', () => {
+    const { result } = setupTwoRows();
+
+    act(() => {
+      result.current.handlers.onAssign('row0');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('hides a line already assigned to another row when the picker opens for a different row', () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A']);
+  });
+
+  it("keeps the active row's own line visible so Change can re-select it", () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+
+    act(() => {
+      result.current.handlers.onAssign('row0');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('offers a line again after the row that held it is cleared', () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+    expect(offeredIds(result)).toEqual(['wib-A']);
+
+    act(() => {
+      result.current.handlers.onClearAssign('row0');
+    });
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('does not hide a line of the other family that merely shares the id string', () => {
+    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({
+          rowId: 'row0',
+          assignedBudgetLineId: 'wib-B',
+          assignedBudgetLineType: 'work_item',
+        }),
+        makeLine({ rowId: 'row1' }),
+      ]);
+    });
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('hides a household_item line when it is assigned to another row with the household_item type', () => {
+    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({
+          rowId: 'row0',
+          assignedBudgetLineId: 'wib-B',
+          assignedBudgetLineType: 'household_item',
+        }),
+        makeLine({ rowId: 'row1' }),
+      ]);
+    });
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A']);
+  });
+});

@@ -14,6 +14,8 @@
  *      junction created.
  *   5. Responsive + dark mode: read-only values visible, stacked on mobile, no horizontal
  *      overflow.
+ *   6. A budget line is never linked twice: the picker hides lines linked to another invoice
+ *      and lines already chosen by another row of the same draft (empty state when none left).
  *
  * Mocking strategy: dry-run/preview extraction, config and Paperless document are mocked;
  * the commit always goes to the real server so DB state can be asserted via the API, except
@@ -182,14 +184,19 @@ function extractedLine(opts: { description: string; categoryId: string }) {
 }
 
 /** Mock only the dry run; the commit (dryRun: false) continues to the real server. */
-async function mockDryRun(page: Page, invoiceId: string, line: object): Promise<void> {
+async function mockDryRun(
+  page: Page,
+  invoiceId: string,
+  lineOrLines: object | object[],
+): Promise<void> {
+  const lines = Array.isArray(lineOrLines) ? lineOrLines : [lineOrLines];
   await page.route(`**/api/invoices/${invoiceId}/auto-itemize`, async (route: Route) => {
     const body = route.request().postDataJSON() as { dryRun?: boolean } | null;
     if (body?.dryRun) {
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ lines: [line], warnings: [] }),
+        body: JSON.stringify({ lines, warnings: [] }),
       });
     } else {
       await route.continue();
@@ -836,6 +843,82 @@ test('Scenario 5: linked read-only values are visible, stacked on mobile, withou
     await expect(autoItemizePage.lineLinkedCategory(0)).toHaveText(s.categoryAName);
     await expect(autoItemizePage.lineLinkedPlanned(0)).toBeVisible();
   } finally {
+    await cleanupSeed(page, seed);
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6: a budget line cannot be linked twice
+// ─────────────────────────────────────────────────────────────────────────────
+
+test('Scenario 6: the picker hides budget lines linked to another invoice or already chosen by another row', async ({
+  page,
+  testPrefix,
+}) => {
+  if ((page.viewportSize()?.width ?? 1440) < 600) {
+    test.skip(true, 'Functional test — desktop/tablet only (≥600px)');
+    return;
+  }
+  test.setTimeout(60_000);
+
+  const autoItemizePage = new AutoItemizePage(page);
+  const seed: Partial<Seed> = {};
+  let otherInvoiceId: string | undefined;
+  try {
+    Object.assign(seed, await seedAutoItemize(page, testPrefix, 'LE-S6'));
+    const s = seed as Seed;
+    const docId = 150006;
+
+    // Line A is already linked to a different invoice
+    otherInvoiceId = await createInvoiceViaApi(page, s.vendorId, 500);
+    const linkResp = await page.request.post(`/api/invoices/${otherInvoiceId}/budget-lines`, {
+      data: { workItemBudgetId: s.lineAId, itemizedAmount: 100 },
+    });
+    expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
+
+    await mockConfigEnabled(page);
+    await mockPaperlessDocument(page, docId);
+    await mockDryRun(page, s.invoiceId, [
+      extractedLine({ description: 'Extracted S6 row 0', categoryId: s.categoryBId }),
+      extractedLine({ description: 'Extracted S6 row 1', categoryId: s.categoryBId }),
+    ]);
+
+    await openAutoItemizePage(page, autoItemizePage, s.invoiceId, docId);
+
+    // Row 0: line A (linked elsewhere) is hidden, line B is offered; choose B
+    await autoItemizePage.lineAssignButton(0).click();
+    await expect(autoItemizePage.pickerModal).toBeVisible();
+    await autoItemizePage.pickerWorkItemSearchInput.fill(s.workItemTitle);
+    const option0 = autoItemizePage.pickerPortalDropdown.getByRole('option', {
+      name: escapeRe(s.workItemTitle),
+    });
+    await option0.waitFor({ state: 'visible' });
+    await option0.click();
+    await expect(autoItemizePage.pickerStep2Modal()).toBeVisible();
+    const rowB = autoItemizePage.pickerBudgetLineRow(escapeRe(s.descB));
+    await rowB.waitFor({ state: 'visible' });
+    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descA))).toHaveCount(0);
+    await rowB.click();
+    await expect(autoItemizePage.pickerStep2Modal()).not.toBeVisible();
+    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+
+    // Row 1: A is linked to another invoice, B is chosen by row 0 -> nothing left
+    await autoItemizePage.lineAssignButton(1).click();
+    await expect(autoItemizePage.pickerModal).toBeVisible();
+    await autoItemizePage.pickerWorkItemSearchInput.fill(s.workItemTitle);
+    const option1 = autoItemizePage.pickerPortalDropdown.getByRole('option', {
+      name: escapeRe(s.workItemTitle),
+    });
+    await option1.waitFor({ state: 'visible' });
+    await option1.click();
+    await expect(autoItemizePage.pickerStep2Modal()).toBeVisible();
+    await expect(autoItemizePage.pickerEmptyState()).toBeVisible();
+    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descA))).toHaveCount(0);
+    await expect(autoItemizePage.pickerBudgetLineRow(escapeRe(s.descB))).toHaveCount(0);
+  } finally {
+    if (otherInvoiceId && seed.vendorId) {
+      await deleteInvoiceViaApi(page, seed.vendorId, otherInvoiceId);
+    }
     await cleanupSeed(page, seed);
   }
 });

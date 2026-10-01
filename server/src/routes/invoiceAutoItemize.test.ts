@@ -965,6 +965,128 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
         .get();
       expect(junction?.itemizedAmount).toBe(1100);
     });
+
+    function assignLine(amount: number) {
+      return {
+        description: 'Link',
+        totalAmount: amount,
+        includesVat: true,
+        confidence: 0.9,
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: 'wib-2149',
+        assignedBudgetLineType: 'work_item',
+      };
+    }
+
+    function junctionRows() {
+      return app.db
+        .select()
+        .from(schema.invoiceBudgetLines)
+        .where(eq(schema.invoiceBudgetLines.workItemBudgetId, 'wib-2149'))
+        .all();
+    }
+
+    it('returns 409 BUDGET_LINE_ALREADY_LINKED (duplicate_in_request) when one request assigns the same line twice', async () => {
+      const { cookie } = await createUserWithSession('dup2149@test.com', 'User', 'pass');
+      const { invoiceId } = seedLinkScenario();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [assignLine(300), assignLine(200)],
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(typeof body.error.message).toBe('string');
+      expect(body.error.details).toMatchObject({
+        budgetLineId: 'wib-2149',
+        budgetLineType: 'work_item',
+        reason: 'duplicate_in_request',
+      });
+      expect(junctionRows()).toHaveLength(0);
+    });
+
+    it('returns 409 BUDGET_LINE_ALREADY_LINKED (linked_to_this_invoice) when an append re-links a line already linked to the invoice', async () => {
+      const { cookie } = await createUserWithSession('this2149@test.com', 'User', 'pass');
+      const { invoiceId } = seedLinkScenario();
+      const send = (amount: number) =>
+        app.inject({
+          method: 'POST',
+          url: `/api/invoices/${invoiceId}/auto-itemize`,
+          headers: { cookie },
+          payload: {
+            paperlessDocumentId: 42,
+            mode: 'append',
+            dryRun: false,
+            lines: [assignLine(amount)],
+          },
+        });
+
+      expect((await send(300)).statusCode).toBe(200);
+      const response = await send(200);
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(body.error.details).toMatchObject({
+        budgetLineId: 'wib-2149',
+        reason: 'linked_to_this_invoice',
+      });
+      const rows = junctionRows();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]!.itemizedAmount).toBe(300);
+    });
+
+    it('returns 409 BUDGET_LINE_ALREADY_LINKED (linked_to_other_invoice) when the line is linked to a different invoice', async () => {
+      const { cookie } = await createUserWithSession('other2149@test.com', 'User', 'pass');
+      const { invoiceId } = seedLinkScenario();
+      const otherInvoiceId = createTestInvoice(createTestVendor('Other Vendor'), 5000);
+      const t = '2026-01-01T00:00:00.000Z';
+      app.db
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id: 'ibl-other-2149',
+          invoiceId: otherInvoiceId,
+          workItemBudgetId: 'wib-2149',
+          householdItemBudgetId: null,
+          itemizedAmount: 700,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'replace',
+          dryRun: false,
+          lines: [assignLine(300)],
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(body.error.details).toMatchObject({
+        budgetLineId: 'wib-2149',
+        budgetLineType: 'work_item',
+        reason: 'linked_to_other_invoice',
+      });
+      const rows = junctionRows();
+      expect(rows).toHaveLength(1);
+      expect(rows[0]).toMatchObject({ id: 'ibl-other-2149', itemizedAmount: 700 });
+    });
   });
 
   // ─── invoicePatch schema validation (Story #1564) ────────────────────────────
@@ -1846,6 +1968,128 @@ describe('POST /api/invoices/auto-itemize/commit', () => {
     expect(response.statusCode).toBe(400);
     const body = response.json<{ error: { code: string } }>();
     expect(body.error.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
+  });
+
+  describe('409 BUDGET_LINE_ALREADY_LINKED', () => {
+    function seedBudgetLine(): string {
+      const t = '2026-01-01T00:00:00.000Z';
+      app.db
+        .insert(schema.workItemBudgets)
+        .values({
+          id: 'wib-commit-409',
+          workItemId: null,
+          description: 'Existing',
+          plannedAmount: 5000,
+          confidence: 'quote',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          includesVat: true,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+      return 'wib-commit-409';
+    }
+
+    function assignLine(lineId: string, amount: number) {
+      return {
+        description: 'Link',
+        totalAmount: amount,
+        includesVat: true,
+        confidence: 0.9,
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: lineId,
+        assignedBudgetLineType: 'work_item',
+      };
+    }
+
+    it('returns 409 (linked_to_other_invoice) when the line is linked to another invoice; nothing is created', async () => {
+      const { cookie } = await createUserSession1679(app, 'c409a@test.com', 'C409a', 'pass');
+      const vendorId = createTestVendorForApp(app, 'C409 Vendor');
+      const lineId = seedBudgetLine();
+      const t = '2026-01-01T00:00:00.000Z';
+      app.db
+        .insert(schema.invoices)
+        .values({
+          id: 'inv-other-409',
+          vendorId,
+          invoiceNumber: null,
+          amount: 5000,
+          date: '2026-03-01',
+          dueDate: null,
+          status: 'pending',
+          notes: null,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+      app.db
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id: 'ibl-other-409',
+          invoiceId: 'inv-other-409',
+          workItemBudgetId: lineId,
+          householdItemBudgetId: null,
+          itemizedAmount: 700,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/invoices/auto-itemize/commit',
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          vendorId,
+          invoice: { amount: 1000, date: '2026-03-01' },
+          lines: [assignLine(lineId, 300)],
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(typeof body.error.message).toBe('string');
+      expect(body.error.details).toMatchObject({
+        budgetLineId: lineId,
+        budgetLineType: 'work_item',
+        reason: 'linked_to_other_invoice',
+      });
+      expect(app.db.select().from(schema.invoices).all()).toHaveLength(1);
+      expect(app.db.select().from(schema.invoiceBudgetLines).all()).toHaveLength(1);
+    });
+
+    it('returns 409 (duplicate_in_request) when the same line is assigned twice; no invoice is created', async () => {
+      const { cookie } = await createUserSession1679(app, 'c409b@test.com', 'C409b', 'pass');
+      const vendorId = createTestVendorForApp(app, 'C409b Vendor');
+      const lineId = seedBudgetLine();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/invoices/auto-itemize/commit',
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          vendorId,
+          invoice: { amount: 1000, date: '2026-03-01' },
+          lines: [assignLine(lineId, 300), assignLine(lineId, 200)],
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(body.error.details).toMatchObject({
+        budgetLineId: lineId,
+        reason: 'duplicate_in_request',
+      });
+      expect(app.db.select().from(schema.invoices).all()).toHaveLength(0);
+      expect(app.db.select().from(schema.invoiceBudgetLines).all()).toHaveLength(0);
+    });
   });
 
   it('returns 404 NOT_FOUND when vendorId does not exist', async () => {

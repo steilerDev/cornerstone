@@ -1151,6 +1151,30 @@ describe('AutoItemizePage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
     });
+
+    it('shows the translated error banner when Save is rejected with 409 BUDGET_LINE_ALREADY_LINKED', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
+      mockAutoItemize.mockRejectedValueOnce(
+        new MockApiClientError(409, 'BUDGET_LINE_ALREADY_LINKED', 'already linked'),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
+      });
+      expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+    });
   });
 
   describe('Retry success path', () => {

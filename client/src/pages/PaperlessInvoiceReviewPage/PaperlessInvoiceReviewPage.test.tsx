@@ -1348,6 +1348,32 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Back to Invoices/i })).not.toBeInTheDocument();
     });
+
+    it('shows the translated error in the banner when commit is rejected with 409 BUDGET_LINE_ALREADY_LINKED', async () => {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({ suggestedVendorId: 'vendor-1' }),
+      );
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+      mockCommitAutoItemizeCreate.mockRejectedValue(
+        new MockApiClientError(409, 'BUDGET_LINE_ALREADY_LINKED', 'already linked'),
+      );
+
+      renderPage();
+
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await waitFor(() => expect(createBtn).not.toBeDisabled());
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
+      });
+      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
+    });
   });
 
   // ─── 15. PDF iframe present in ready state (QA Spec scenario 12) ─────────────

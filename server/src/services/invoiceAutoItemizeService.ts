@@ -5,6 +5,7 @@
  * - Dry-run: fetches document content, extracts lines via LLM, returns with warnings
  * - Commit: persists auto-extracted lines to invoice_budget_lines and work_item_budgets
  * - Mode 'replace': deletes existing auto-extracted lines before inserting new ones
+ * - An existing budget line can be linked at most once (409 BUDGET_LINE_ALREADY_LINKED)
  */
 
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -25,6 +26,7 @@ import {
   NotFoundError,
   ValidationError,
   ItemizedSumExceedsInvoiceError,
+  BudgetLineAlreadyLinkedError,
 } from '../errors/AppError.js';
 import {
   getProvider,
@@ -120,6 +122,7 @@ function computeWarnings(lines: ExtractedLine[], invoiceTotal: number): AutoItem
  *   - mode 'replace' deletes existing auto-extracted lines (origin='auto') first
  *   - all new lines get: work_item_id=NULL, origin='auto', budget_source_id='discretionary-system',
  *     confidence='invoice', vendor_id=invoice.vendor_id
+ * - An existing budget line can be linked at most once (409 BUDGET_LINE_ALREADY_LINKED)
  */
 export async function autoItemize(
   db: DbType,
@@ -277,6 +280,103 @@ export async function autoItemize(
   );
 }
 
+function isAssignExistingLine(line: ExtractedLine): boolean {
+  return (
+    line.assignmentMode === 'assign-existing' ||
+    (line.assignmentMode === undefined && !!line.assignedBudgetLineId)
+  );
+}
+
+/**
+ * Validate all assign-existing rows up front (before any write) and resolve, per row, the junction
+ * to overwrite (replace mode, line already linked to this invoice) or null (insert a new junction).
+ *
+ * @throws ValidationError if assignedBudgetLineId/Type is missing
+ * @throws NotFoundError if the budget line does not exist
+ * @throws BudgetLineAlreadyLinkedError on duplicate rows, a link to another invoice, or a link to
+ *   this invoice outside replace mode
+ */
+function resolveAssignExistingTargets(
+  db: DbType,
+  invoiceId: string,
+  lines: ExtractedLine[],
+  isReplaceMode: boolean,
+): Map<ExtractedLine, string | null> {
+  const targets = new Map<ExtractedLine, string | null>();
+  const seen = new Set<string>();
+
+  for (const line of lines) {
+    if (!isAssignExistingLine(line)) continue;
+
+    const budgetLineId = line.assignedBudgetLineId;
+    const budgetLineType = line.assignedBudgetLineType;
+    if (!budgetLineId || !budgetLineType) {
+      throw new ValidationError(
+        'assignedBudgetLineId and assignedBudgetLineType are required when assignmentMode is assign-existing',
+      );
+    }
+
+    let exists: { id: string } | undefined;
+    if (budgetLineType === 'work_item') {
+      exists = db
+        .select({ id: workItemBudgets.id })
+        .from(workItemBudgets)
+        .where(eq(workItemBudgets.id, budgetLineId))
+        .get();
+    } else if (budgetLineType === 'household_item') {
+      exists = db
+        .select({ id: householdItemBudgets.id })
+        .from(householdItemBudgets)
+        .where(eq(householdItemBudgets.id, budgetLineId))
+        .get();
+    }
+    if (exists === undefined) {
+      throw new NotFoundError(`Budget line ${budgetLineId} (type: ${budgetLineType}) not found`);
+    }
+
+    const key = `${budgetLineType}:${budgetLineId}`;
+    if (seen.has(key)) {
+      throw new BudgetLineAlreadyLinkedError(
+        `Budget line ${budgetLineId} is assigned more than once in this request`,
+        { budgetLineId, budgetLineType, reason: 'duplicate_in_request' },
+      );
+    }
+    seen.add(key);
+
+    // Unique indexes guarantee at most one junction per budget line, regardless of invoice
+    const existing = db
+      .select({ id: invoiceBudgetLines.id, invoiceId: invoiceBudgetLines.invoiceId })
+      .from(invoiceBudgetLines)
+      .where(
+        budgetLineType === 'work_item'
+          ? eq(invoiceBudgetLines.workItemBudgetId, budgetLineId)
+          : eq(invoiceBudgetLines.householdItemBudgetId, budgetLineId),
+      )
+      .get();
+
+    if (existing && existing.invoiceId !== invoiceId) {
+      throw new BudgetLineAlreadyLinkedError(
+        'Budget line is already linked to a different invoice',
+        {
+          budgetLineId,
+          budgetLineType,
+          reason: 'linked_to_other_invoice',
+        },
+      );
+    }
+    if (existing && !isReplaceMode) {
+      throw new BudgetLineAlreadyLinkedError('Budget line is already linked to this invoice', {
+        budgetLineId,
+        budgetLineType,
+        reason: 'linked_to_this_invoice',
+      });
+    }
+    targets.set(line, existing ? existing.id : null);
+  }
+
+  return targets;
+}
+
 /**
  * Persist extracted lines into invoice_budget_lines (and new work_item_budgets rows for create-new).
  * Assign-existing lines create only the junction row; the existing budget line is never modified.
@@ -289,12 +389,15 @@ export async function autoItemize(
  * @param userId - User ID for createdBy field
  * @param lines - Extracted lines to persist
  * @param effectiveInvoiceAmount - Invoice amount for validation (may differ from original if patched)
- * @param resetPreexistingJunctions - true for 'replace' mode: the first row targeting a junction that
- *   existed before this call overwrites its amount; false (append): amounts accumulate onto it
+ * @param isReplaceMode - true only for auto-itemize mode 'replace': a budget line already linked to
+ *   THIS invoice has its single junction's itemizedAmount overwritten with the row's amount;
+ *   otherwise that case throws 409
  * @returns Object with totalItemized amount for remaining calculation
  * @throws ItemizedSumExceedsInvoiceError if sum of itemized amounts exceeds invoice total
  * @throws NotFoundError if budget line IDs are invalid
  * @throws ValidationError if assignment mode is invalid
+ * @throws BudgetLineAlreadyLinkedError if a budget line is assigned more than once in the request,
+ *   is linked to a different invoice, or is linked to this invoice in non-replace mode
  */
 export function persistLines(
   db: DbType,
@@ -303,11 +406,9 @@ export function persistLines(
   userId: string,
   lines: ExtractedLine[],
   effectiveInvoiceAmount: number,
-  resetPreexistingJunctions = false,
+  isReplaceMode = false,
 ): { totalItemized: number } {
   const now = new Date().toISOString();
-  // Junction rows already written (or reset) during this call; later rows accumulate onto them
-  const touchedJunctionIds = new Set<string>();
 
   // Get the discretionary budget source
   const discretionarySource = db
@@ -319,86 +420,36 @@ export function persistLines(
     throw new Error('Discretionary budget source not found');
   }
 
+  // Validate every assign-existing row before any write happens
+  const assignTargets = resolveAssignExistingTargets(db, invoiceId, lines, isReplaceMode);
+
   let totalItemized = 0;
 
   for (const extractedLine of lines) {
     const invoiceBudgetLineId = randomUUID();
 
     // Determine assignment mode (explicit or inferred from assignedBudgetLineId)
-    const isAssignExisting =
-      extractedLine.assignmentMode === 'assign-existing' ||
-      (extractedLine.assignmentMode === undefined && !!extractedLine.assignedBudgetLineId);
+    const isAssignExisting = isAssignExistingLine(extractedLine);
     const isCreateNew =
       extractedLine.assignmentMode === 'create-new' ||
       (extractedLine.assignmentMode === undefined && !extractedLine.assignedBudgetLineId);
 
     // Case 1: Link an existing budget line — junction row only. The budget line itself is never modified (#2149).
     if (isAssignExisting) {
-      if (!extractedLine.assignedBudgetLineId || !extractedLine.assignedBudgetLineType) {
-        throw new ValidationError(
-          'assignedBudgetLineId and assignedBudgetLineType are required when assignmentMode is assign-existing',
-        );
-      }
-
-      // Look up the budget line in the appropriate table
-      let existingBudgetLine:
-        typeof workItemBudgets.$inferSelect | typeof householdItemBudgets.$inferSelect | undefined =
-        undefined;
-
-      if (extractedLine.assignedBudgetLineType === 'work_item') {
-        existingBudgetLine = db
-          .select()
-          .from(workItemBudgets)
-          .where(eq(workItemBudgets.id, extractedLine.assignedBudgetLineId))
-          .get();
-      } else if (extractedLine.assignedBudgetLineType === 'household_item') {
-        existingBudgetLine = db
-          .select()
-          .from(householdItemBudgets)
-          .where(eq(householdItemBudgets.id, extractedLine.assignedBudgetLineId))
-          .get();
-      }
-
-      if (existingBudgetLine === undefined) {
-        throw new NotFoundError(
-          `Budget line ${extractedLine.assignedBudgetLineId} (type: ${extractedLine.assignedBudgetLineType}) not found`,
-        );
-      }
-
-      // Link via an invoice_budget_lines junction row. If one already exists for this
-      // (invoice, budget line) pair, add this row's amount to it instead of skipping.
-      const existingJunction = db
-        .select()
-        .from(invoiceBudgetLines)
-        .where(
-          and(
-            eq(invoiceBudgetLines.invoiceId, invoiceId),
-            extractedLine.assignedBudgetLineType === 'work_item'
-              ? eq(invoiceBudgetLines.workItemBudgetId, extractedLine.assignedBudgetLineId)
-              : eq(invoiceBudgetLines.householdItemBudgetId, extractedLine.assignedBudgetLineId),
-          ),
-        )
-        .get();
-
       const lineItemizedAmount = effectiveLineAmount({
         amount: extractedLine.totalAmount ?? 0,
         includesVat: extractedLine.includesVat,
       });
 
-      if (existingJunction) {
+      // A budget line is linked at most once: replace mode overwrites the single existing junction
+      const junctionId = assignTargets.get(extractedLine) ?? null;
+
+      if (junctionId) {
         db.update(invoiceBudgetLines)
-          .set({
-            itemizedAmount:
-              resetPreexistingJunctions && !touchedJunctionIds.has(existingJunction.id)
-                ? lineItemizedAmount
-                : existingJunction.itemizedAmount + lineItemizedAmount,
-            updatedAt: now,
-          })
-          .where(eq(invoiceBudgetLines.id, existingJunction.id))
+          .set({ itemizedAmount: lineItemizedAmount, updatedAt: now })
+          .where(eq(invoiceBudgetLines.id, junctionId))
           .run();
-        touchedJunctionIds.add(existingJunction.id);
       } else {
-        touchedJunctionIds.add(invoiceBudgetLineId);
         const workItemBudgetId =
           extractedLine.assignedBudgetLineType === 'work_item'
             ? extractedLine.assignedBudgetLineId
