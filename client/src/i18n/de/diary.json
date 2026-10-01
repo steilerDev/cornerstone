@@ -28,6 +28,7 @@
   },
   "filterBar": {
     "search": "Einträge durchsuchen...",
+    "filtersToggle": "Filter",
     "dateFrom": "Von",
     "dateTo": "Bis",
     "filterMode": "Filter",
@@ -63,6 +64,20 @@
     "budget_breach": "Budgetüberschreitung",
     "auto_reschedule": "Automatische Umplanung",
     "subsidy_status": "Förderprogrammstatus"
+  },
+  "entryTypeChips": {
+    "daily_log": "Tagesprotokoll",
+    "site_visit": "Ortstermin",
+    "delivery": "Lieferung",
+    "issue": "Problem",
+    "general_note": "Notiz",
+    "work_item_status": "Arbeitspaket",
+    "invoice_status": "Rechnung",
+    "invoice_created": "Rechnung erstellt",
+    "milestone_delay": "Meilenstein",
+    "budget_breach": "Budget",
+    "auto_reschedule": "Zeitplan",
+    "subsidy_status": "Förderprogramm"
   },
   "create": {
     "backLink": "← Tagebuch",

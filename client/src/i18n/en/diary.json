@@ -26,7 +26,22 @@
     "batchAppendedAndEndAnnouncement_one": "{{count}} more entry loaded. You've reached the end.",
     "batchAppendedAndEndAnnouncement_other": "{{count}} more entries loaded. You've reached the end."
   },
+  "entryTypeChips": {
+    "daily_log": "Daily Log",
+    "site_visit": "Site Visit",
+    "delivery": "Delivery",
+    "issue": "Issue",
+    "general_note": "Note",
+    "work_item_status": "Work Item",
+    "invoice_status": "Invoice",
+    "invoice_created": "Invoice Created",
+    "milestone_delay": "Milestone",
+    "budget_breach": "Budget",
+    "auto_reschedule": "Schedule",
+    "subsidy_status": "Subsidy"
+  },
   "filterBar": {
+    "filtersToggle": "Filters",
     "search": "Search entries...",
     "dateFrom": "From",
     "dateTo": "To",

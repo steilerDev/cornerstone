@@ -1,6 +1,12 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import {
+  AUTOMATIC_DIARY_ENTRY_TYPES,
+  DIARY_ENTRY_TYPES,
+  MANUAL_DIARY_ENTRY_TYPES,
+} from '@cornerstone/shared';
 import type { DiaryEntryType } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
 
@@ -23,24 +29,6 @@ interface DiaryFilterBarProps {
   onDraftsVisibleChange?: (visible: boolean) => void;
 }
 
-const MANUAL_ENTRY_TYPES: DiaryEntryType[] = [
-  'daily_log',
-  'site_visit',
-  'delivery',
-  'issue',
-  'general_note',
-];
-
-const AUTOMATIC_ENTRY_TYPES: DiaryEntryType[] = [
-  'work_item_status',
-  'invoice_status',
-  'invoice_created',
-  'milestone_delay',
-  'budget_breach',
-  'auto_reschedule',
-  'subsidy_status',
-];
-
 // invoice_created shares the "Invoice" chip with invoice_status
 const GROUPED_TYPES: Record<string, DiaryEntryType[]> = {
   invoice_status: ['invoice_status', 'invoice_created'],
@@ -48,23 +36,6 @@ const GROUPED_TYPES: Record<string, DiaryEntryType[]> = {
 
 // Types to display as chips (invoice_created is hidden — grouped under invoice_status)
 const CHIP_HIDDEN_TYPES: DiaryEntryType[] = ['invoice_created'];
-
-const ALL_ENTRY_TYPES: DiaryEntryType[] = [...MANUAL_ENTRY_TYPES, ...AUTOMATIC_ENTRY_TYPES];
-
-const TYPE_LABELS: Record<DiaryEntryType, string> = {
-  daily_log: 'Daily Log',
-  site_visit: 'Site Visit',
-  delivery: 'Delivery',
-  issue: 'Issue',
-  general_note: 'Note',
-  work_item_status: 'Work Item',
-  invoice_status: 'Invoice',
-  invoice_created: 'Invoice Created',
-  milestone_delay: 'Milestone',
-  budget_breach: 'Budget',
-  auto_reschedule: 'Schedule',
-  subsidy_status: 'Subsidy',
-};
 
 export function DiaryFilterBar({
   searchQuery,
@@ -100,19 +71,19 @@ export function DiaryFilterBar({
   };
 
   // Determine which types to display based on filter mode (hide grouped types like invoice_created)
-  const baseTypes =
+  const baseTypes: readonly DiaryEntryType[] =
     filterMode === 'manual'
-      ? MANUAL_ENTRY_TYPES
+      ? MANUAL_DIARY_ENTRY_TYPES
       : filterMode === 'automatic'
-        ? AUTOMATIC_ENTRY_TYPES
-        : ALL_ENTRY_TYPES;
+        ? AUTOMATIC_DIARY_ENTRY_TYPES
+        : DIARY_ENTRY_TYPES;
   const displayedTypes = baseTypes.filter((t) => !CHIP_HIDDEN_TYPES.includes(t));
 
   const filterCount = [
     searchQuery ? 1 : 0,
     dateFrom ? 1 : 0,
     dateTo ? 1 : 0,
-    activeTypes.length < ALL_ENTRY_TYPES.length && activeTypes.length > 0 ? 1 : 0,
+    activeTypes.length < DIARY_ENTRY_TYPES.length && activeTypes.length > 0 ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
   const mobileToggleClass = [styles.mobileToggle, isMobileOpen && styles.mobileToggleOpen]
@@ -129,7 +100,8 @@ export function DiaryFilterBar({
         aria-label={t('filterBar.toggleFiltersAriaLabel')}
         aria-expanded={isMobileOpen}
       >
-        🔍 Filters {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
+        🔍 {t('filterBar.filtersToggle')}{' '}
+        {filterCount > 0 && <span className={styles.badge}>{filterCount}</span>}
       </button>
 
       {/* Filter content */}
@@ -259,7 +231,7 @@ export function DiaryFilterBar({
                 aria-pressed={activeTypes.includes(type)}
                 data-testid={`type-filter-${type}`}
               >
-                {TYPE_LABELS[type]}
+                {t(I18N_UNION_KEYS.diaryEntryTypeChip.key(type))}
               </button>
             ))}
           </div>
