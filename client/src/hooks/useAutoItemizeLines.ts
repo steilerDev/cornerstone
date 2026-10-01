@@ -10,6 +10,8 @@ import { useBudgetLinePicker } from './useBudgetLinePicker.js';
 import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
 import type { LineWithInclude } from '../components/autoItemize/types.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
+import { toAssignedBudgetLineSnapshot } from '../lib/autoItemizeDraftUtils.js';
+import { effectiveLineAmount } from '../lib/budgetConstants.js';
 import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
 import {
   aggregateMergedLineNumerics,
@@ -119,6 +121,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: line.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: line.description,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(line),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
                 createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
                 inlineHideConfidence: undefined,
@@ -182,7 +188,7 @@ export function useAutoItemizeLines({
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? null : parsed;
             }
-          } else if (field === 'totalAmount') {
+          } else if (field === 'totalAmount' || field === 'linkedItemizedAmount') {
             if (typeof value === 'string') {
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? 0 : parsed;
@@ -228,6 +234,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: budgetLine.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: budgetLine.description ?? null,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(budgetLine),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
               }
             : l,
         ),
@@ -340,6 +350,8 @@ export function useAutoItemizeLines({
               assignedBudgetLineId: undefined,
               assignedBudgetLineType: undefined,
               assignedBudgetLineDescription: undefined,
+              assignedBudgetLineSnapshot: undefined,
+              linkedItemizedAmount: undefined,
               createdFromExtraction: undefined,
               assignedItemId: undefined,
               assignedItemType: undefined,

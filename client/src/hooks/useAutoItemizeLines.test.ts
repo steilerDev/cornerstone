@@ -863,3 +863,211 @@ describe('useAutoItemizeLines', () => {
     });
   });
 });
+
+// ─── #2149 — linked row snapshot + gross itemized amount ────────────────────
+
+describe('useAutoItemizeLines — link existing keeps the line unchanged (#2149)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let useAutoItemizeLines: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockPickerStateOverride = {};
+    capturedOnLineCreated = null;
+    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+  });
+
+  function makeBudgetLine(id: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id,
+      workItemId: 'wi-1',
+      description: `Desc ${id}`,
+      plannedAmount: 5000,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null, color: '#fff' },
+      budgetSource: { id: 'src-9', name: 'Src 9', sourceType: 'savings' },
+      ...overrides,
+    };
+  }
+
+  function select(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result: { current: any },
+    line: unknown,
+  ) {
+    act(() => {
+      result.current.handlers.onAssign('r1');
+    });
+    act(() => {
+      result.current.handlers.onSelectBudgetLine(line);
+    });
+  }
+
+  it('select stores the snapshot and a gross linkedItemizedAmount without mutating extracted fields', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    const original = makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' });
+    act(() => {
+      result.current.setLines([original]);
+    });
+
+    select(result, makeBudgetLine('wib-1'));
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineSnapshot).toEqual({
+      plannedAmount: 5000,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null },
+      budgetSource: { id: 'src-9', name: 'Src 9' },
+    });
+    expect(row.linkedItemizedAmount).toBe(119); // 100 net -> gross
+    expect(row).toMatchObject({
+      totalAmount: 100,
+      includesVat: false,
+      description: 'Extracted',
+      budgetCategoryId: 'cat-1',
+      budgetSourceId: 'src-1',
+      assignedBudgetLineDescription: 'Desc wib-1',
+    });
+  });
+
+  it('select for a gross extracted amount uses it unchanged', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 300, includesVat: true })]);
+    });
+
+    select(result, makeBudgetLine('wib-1'));
+
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(300);
+  });
+
+  it('select treats a missing extracted totalAmount as 0', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: undefined })]);
+    });
+
+    select(result, makeBudgetLine('wib-1', { description: null }));
+
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
+    expect(result.current.lines[0].assignedBudgetLineDescription).toBeNull();
+  });
+
+  it('re-selecting another line keeps the edited itemized amount while the snapshot changes (AC14)', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 100 })]);
+    });
+    select(result, makeBudgetLine('wib-1'));
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '1100');
+    });
+
+    select(
+      result,
+      makeBudgetLine('wib-2', {
+        plannedAmount: 42,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
+      }),
+    );
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineId).toBe('wib-2');
+    expect(row.linkedItemizedAmount).toBe(1100);
+    expect(row.assignedBudgetLineSnapshot).toEqual({
+      plannedAmount: 42,
+      includesVat: true,
+      budgetCategory: null,
+      budgetSource: null,
+    });
+  });
+
+  it('clear resets snapshot and itemized amount; extracted values are intact (AC13)', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' }),
+      ]);
+    });
+    select(result, makeBudgetLine('wib-1'));
+
+    act(() => {
+      result.current.handlers.onClearAssign('r1');
+    });
+
+    expect(result.current.lines[0]).toMatchObject({
+      assignedBudgetLineId: undefined,
+      assignedBudgetLineSnapshot: undefined,
+      linkedItemizedAmount: undefined,
+      totalAmount: 100,
+      includesVat: false,
+      description: 'Extracted',
+      budgetCategoryId: 'cat-1',
+    });
+  });
+
+  it('onLineCreated stores the snapshot and itemized amount for the created line', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 200, includesVat: true })]);
+      result.current.handlers.onAssign('r1');
+    });
+
+    act(() => {
+      capturedOnLineCreated!(makeBudgetLine('created-id', { plannedAmount: 200 }));
+    });
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineSnapshot).toMatchObject({ plannedAmount: 200 });
+    expect(row.linkedItemizedAmount).toBe(200);
+  });
+
+  it('onLineCreated falls back to household_item type and preserves an existing itemized amount', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ linkedItemizedAmount: 55 })]);
+      result.current.handlers.onAssign('r1');
+    });
+
+    act(() => {
+      capturedOnLineCreated!({
+        id: 'hib-1',
+        householdItemId: 'hi-1',
+        description: 'x',
+        plannedAmount: 1,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
+      });
+    });
+
+    expect(result.current.lines[0]).toMatchObject({
+      assignedBudgetLineType: 'household_item',
+      linkedItemizedAmount: 55,
+    });
+  });
+
+  it("onFieldChange('linkedItemizedAmount', string) parses numbers and falls back to 0 for junk", () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine()]);
+    });
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '12.5');
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(12.5);
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 'abc');
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 77);
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(77);
+  });
+});

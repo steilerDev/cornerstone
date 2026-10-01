@@ -326,3 +326,62 @@
   padding-top: var(--spacing-3);
   margin-top: var(--spacing-2);
 }
+
+.cardDescriptionText {
+  flex: 1;
+  margin: 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.linkedLineSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.linkedLineHint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.linkedLineValues {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--spacing-3);
+  margin: 0;
+}
+
+.linkedLineValue {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.linkedItemizedCell {
+  max-width: 50%;
+}
+
+.changeAssignButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+@media (max-width: 600px) {
+  .linkedLineValues {
+    grid-template-columns: 1fr;
+  }
+
+  .linkedItemizedCell {
+    max-width: none;
+  }
+
+  .changeAssignButton {
+    min-height: 44px;
+  }
+}

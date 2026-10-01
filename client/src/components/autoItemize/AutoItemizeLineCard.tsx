@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
@@ -9,10 +9,12 @@ import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizeLineCard.module.css';
+import { effectiveRowAmount } from '../../lib/autoItemizeDraftUtils.js';
 import type { LineWithInclude } from './types.js';
 
 interface AutoItemizeLineCardProps {
   line: LineWithInclude;
+  formatCurrency: (amount: number) => string;
   onToggleInclude: (rowId: string) => void;
   onFieldChange: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
   onAssign: (rowId: string) => void;
@@ -36,6 +38,7 @@ interface AutoItemizeLineCardProps {
 
 export function AutoItemizeLineCard({
   line,
+  formatCurrency,
   onToggleInclude,
   onFieldChange,
   onAssign,
@@ -54,6 +57,37 @@ export function AutoItemizeLineCard({
   selectable = false,
   onToggleSelect,
 }: AutoItemizeLineCardProps) {
+  const isLinked = !!line.assignedBudgetLineId;
+  const snapshot = line.assignedBudgetLineSnapshot;
+  const notSet = t('autoItemize.linkedLineNotSet');
+  const linkedCategory = snapshot?.budgetCategory
+    ? getCategoryDisplayName(
+        tSettings,
+        snapshot.budgetCategory.name,
+        snapshot.budgetCategory.translationKey ?? null,
+      )
+    : notSet;
+  const linkedSource = snapshot?.budgetSource?.name ?? notSet;
+  const linkedPlanned = !snapshot
+    ? notSet
+    : snapshot.includesVat === false
+      ? t('autoItemize.linkedLinePlannedNet', { amount: formatCurrency(snapshot.plannedAmount) })
+      : formatCurrency(snapshot.plannedAmount);
+
+  const assignButtonRef = useRef<HTMLButtonElement>(null);
+  const changeButtonRef = useRef<HTMLButtonElement>(null);
+  const prevLinkedIdRef = useRef(line.assignedBudgetLineId);
+  // The picker modal does not restore focus and the Assign / clear buttons unmount on
+  // toggle, so move focus to the counterpart control when nothing else holds it.
+  useEffect(() => {
+    const prev = prevLinkedIdRef.current;
+    prevLinkedIdRef.current = line.assignedBudgetLineId;
+    if (prev === line.assignedBudgetLineId) return;
+    const active = globalThis.document.activeElement;
+    if (active && active !== globalThis.document.body) return;
+    (line.assignedBudgetLineId ? changeButtonRef : assignButtonRef).current?.focus();
+  }, [line.assignedBudgetLineId]);
+
   const pct = useMemo(() => Math.round(line.confidence * 100), [line.confidence]);
 
   const confidenceLevel = useMemo(() => {
@@ -106,14 +140,20 @@ export function AutoItemizeLineCard({
             />
           </label>
         )}
-        <textarea
-          id={`line-description-${line.rowId}`}
-          className={styles.cardDescriptionInput}
-          value={line.description}
-          rows={2}
-          onChange={(e) => onFieldChange(line.rowId, 'description', e.target.value)}
-          aria-label={t('autoItemize.editDescriptionAriaLabel')}
-        />
+        {isLinked ? (
+          <p className={styles.cardDescriptionText} data-testid="linked-line-description">
+            {line.description || '—'}
+          </p>
+        ) : (
+          <textarea
+            id={`line-description-${line.rowId}`}
+            className={styles.cardDescriptionInput}
+            value={line.description}
+            rows={2}
+            onChange={(e) => onFieldChange(line.rowId, 'description', e.target.value)}
+            aria-label={t('autoItemize.editDescriptionAriaLabel')}
+          />
+        )}
         <span
           role="img"
           className={styles.confidenceDot}
@@ -124,7 +164,7 @@ export function AutoItemizeLineCard({
       </div>
 
       {/* Middle row: metric grid */}
-      {!line.inlineCreatedBudgetLineDraft && (
+      {!isLinked && !line.inlineCreatedBudgetLineDraft && (
         <div className={styles.cardMetricGrid}>
           <div className={styles.cardMetricCell}>
             <span className={styles.cardMetricLabel}>{t('autoItemize.quantity')}</span>
@@ -175,6 +215,51 @@ export function AutoItemizeLineCard({
         </div>
       )}
 
+      {isLinked && (
+        <div className={styles.linkedLineSection} data-testid="linked-line-values">
+          <p className={styles.linkedLineHint}>{t('autoItemize.linkedLineReadOnlyHint')}</p>
+          <dl
+            className={styles.linkedLineValues}
+            aria-label={t('autoItemize.linkedLineValuesLabel')}
+          >
+            <div className={styles.cardMetricCell}>
+              <dt className={styles.cardMetricLabel}>{t('autoItemize.categoryLabel')}</dt>
+              <dd className={styles.linkedLineValue} data-testid="linked-line-category">
+                {linkedCategory}
+              </dd>
+            </div>
+            <div className={styles.cardMetricCell}>
+              <dt className={styles.cardMetricLabel}>{t('autoItemize.fundingSourceLabel')}</dt>
+              <dd className={styles.linkedLineValue} data-testid="linked-line-source">
+                {linkedSource}
+              </dd>
+            </div>
+            <div className={styles.cardMetricCell}>
+              <dt className={styles.cardMetricLabel}>{t('autoItemize.plannedAmountLabel')}</dt>
+              <dd className={styles.linkedLineValue} data-testid="linked-line-planned">
+                {linkedPlanned}
+              </dd>
+            </div>
+          </dl>
+          <div className={`${styles.cardMetricCell} ${styles.linkedItemizedCell}`}>
+            <label htmlFor={`linked-itemized-${line.rowId}`} className={styles.cardMetricLabel}>
+              {t('autoItemize.itemizedAmountLabel')}
+            </label>
+            <input
+              id={`linked-itemized-${line.rowId}`}
+              type="number"
+              step="0.01"
+              min="0"
+              className={styles.cardMetricInput}
+              data-testid="linked-line-itemized-amount"
+              value={line.linkedItemizedAmount ?? effectiveRowAmount(line)}
+              onChange={(e) => onFieldChange(line.rowId, 'linkedItemizedAmount', e.target.value)}
+              aria-label={t('autoItemize.editItemizedAmountAriaLabel')}
+            />
+          </div>
+        </div>
+      )}
+
       {/* Bottom row: include + VAT + assign */}
       <div className={styles.cardBottomRow}>
         <label className={styles.cardIncludeLabel}>
@@ -185,19 +270,22 @@ export function AutoItemizeLineCard({
           />
           {t('autoItemize.included')}
         </label>
-        <label className={styles.cardIncludeLabel}>
-          <input
-            type="checkbox"
-            checked={line.includesVat !== false}
-            onChange={(e) => onFieldChange(line.rowId, 'includesVat', e.target.checked)}
-          />
-          {t('autoItemize.includesVat')}
-        </label>
+        {!isLinked && (
+          <label className={styles.cardIncludeLabel}>
+            <input
+              type="checkbox"
+              checked={line.includesVat !== false}
+              onChange={(e) => onFieldChange(line.rowId, 'includesVat', e.target.checked)}
+            />
+            {t('autoItemize.includesVat')}
+          </label>
+        )}
 
         <div className={styles.cardAssignZone}>
           {!line.assignedBudgetLineId && !line.inlineCreatedBudgetLineDraft ? (
             <button
               type="button"
+              ref={assignButtonRef}
               className={`${sharedStyles.btnPrimaryCompact} ${styles.assignButtonInTable}`}
               onClick={() => onAssign(line.rowId)}
             >
@@ -218,6 +306,15 @@ export function AutoItemizeLineCard({
                   ✕
                 </button>
               </div>
+              <button
+                type="button"
+                ref={changeButtonRef}
+                className={styles.changeAssignButton}
+                onClick={() => onAssign(line.rowId)}
+                aria-label={t('autoItemize.changeAssignmentAriaLabel')}
+              >
+                {t('autoItemize.changeAssignment')}
+              </button>
               {line.createdFromExtraction && (
                 <Badge
                   variants={createdFromExtractionVariants}
@@ -241,7 +338,7 @@ export function AutoItemizeLineCard({
           )}
         </div>
 
-        {!line.inlineCreatedBudgetLineDraft && (
+        {!isLinked && !line.inlineCreatedBudgetLineDraft && (
           <div className={styles.cardBottomRowPickerRow}>
             {/* Category picker */}
             <div className={styles.cardMetricCell}>

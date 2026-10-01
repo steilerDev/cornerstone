@@ -269,7 +269,8 @@ export async function autoItemize(
 }
 
 /**
- * Persist extracted lines into invoice_budget_lines and work_item_budgets.
+ * Persist extracted lines into invoice_budget_lines (and new work_item_budgets rows for create-new).
+ * Assign-existing lines create only the junction row; the existing budget line is never modified.
  * Must be called inside a db.transaction().
  * Extracted from the commit branch of autoItemize() for reuse in EPIC-18 create-on-confirm flow.
  *
@@ -317,7 +318,7 @@ export function persistLines(
       extractedLine.assignmentMode === 'create-new' ||
       (extractedLine.assignmentMode === undefined && !extractedLine.assignedBudgetLineId);
 
-    // Case 1: Pre-existing budget line assignment + field-level update
+    // Case 1: Link an existing budget line — junction row only. The budget line itself is never modified (#2149).
     if (isAssignExisting) {
       if (!extractedLine.assignedBudgetLineId || !extractedLine.assignedBudgetLineType) {
         throw new ValidationError(
@@ -348,85 +349,6 @@ export function persistLines(
         throw new NotFoundError(
           `Budget line ${extractedLine.assignedBudgetLineId} (type: ${extractedLine.assignedBudgetLineType}) not found`,
         );
-      }
-
-      // Build a diff and update only changed fields
-      const updates: Partial<typeof workItemBudgets.$inferInsert> = {};
-      let hasChanges = false;
-
-      if (
-        extractedLine.description &&
-        extractedLine.description !== existingBudgetLine.description
-      ) {
-        updates.description = extractedLine.description;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.quantity !== undefined &&
-        extractedLine.quantity !== existingBudgetLine.quantity
-      ) {
-        updates.quantity = extractedLine.quantity;
-        hasChanges = true;
-      }
-
-      if (extractedLine.unit && extractedLine.unit !== existingBudgetLine.unit) {
-        updates.unit = extractedLine.unit;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.unitPrice !== undefined &&
-        extractedLine.unitPrice !== existingBudgetLine.unitPrice
-      ) {
-        updates.unitPrice = extractedLine.unitPrice;
-        hasChanges = true;
-      }
-
-      if (extractedLine.totalAmount !== existingBudgetLine.plannedAmount) {
-        updates.plannedAmount = extractedLine.totalAmount;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.includesVat !== undefined &&
-        extractedLine.includesVat !== existingBudgetLine.includesVat
-      ) {
-        updates.includesVat = extractedLine.includesVat;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.budgetCategoryId !== undefined &&
-        extractedLine.budgetCategoryId !== existingBudgetLine.budgetCategoryId
-      ) {
-        updates.budgetCategoryId = extractedLine.budgetCategoryId;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.budgetSourceId !== undefined &&
-        extractedLine.budgetSourceId !== existingBudgetLine.budgetSourceId
-      ) {
-        updates.budgetSourceId = extractedLine.budgetSourceId;
-        hasChanges = true;
-      }
-
-      // Always update updatedAt if any field changed
-      if (hasChanges) {
-        updates.updatedAt = now;
-
-        if (extractedLine.assignedBudgetLineType === 'work_item') {
-          db.update(workItemBudgets)
-            .set(updates)
-            .where(eq(workItemBudgets.id, extractedLine.assignedBudgetLineId))
-            .run();
-        } else {
-          db.update(householdItemBudgets)
-            .set(updates as Partial<typeof householdItemBudgets.$inferInsert>)
-            .where(eq(householdItemBudgets.id, extractedLine.assignedBudgetLineId))
-            .run();
-        }
       }
 
       // Create the invoice_budget_lines junction row if it doesn't already exist

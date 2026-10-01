@@ -834,6 +834,139 @@ describe('POST /api/invoices/:invoiceId/auto-itemize', () => {
     });
   });
 
+  // ─── #2149 — assign-existing links only; never mutates the budget line ───────
+
+  describe('200 success — assign-existing leaves the work item budget line unchanged (#2149)', () => {
+    function seedLinkScenario() {
+      const t = '2026-01-01T00:00:00.000Z';
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 5000);
+      linkDocument(invoiceId, 42);
+      app.db
+        .insert(schema.workItems)
+        .values({
+          id: 'wi-2149',
+          title: 'Kitchen',
+          status: 'not_started',
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+      for (const [id, name] of [
+        ['cat-2149-a', 'Cat 2149 A'],
+        ['cat-2149-b', 'Cat 2149 B'],
+      ] as const) {
+        app.db
+          .insert(schema.budgetCategories)
+          .values({ id, name, sortOrder: 0, createdAt: t, updatedAt: t })
+          .run();
+      }
+      for (const [id, name] of [
+        ['src-2149-a', 'Src 2149 A'],
+        ['src-2149-b', 'Src 2149 B'],
+      ] as const) {
+        app.db
+          .insert(schema.budgetSources)
+          .values({
+            id,
+            name,
+            sourceType: 'savings',
+            totalAmount: 100000,
+            createdAt: t,
+            updatedAt: t,
+          })
+          .run();
+      }
+      app.db
+        .insert(schema.workItemBudgets)
+        .values({
+          id: 'wib-2149',
+          workItemId: 'wi-2149',
+          description: 'Original',
+          plannedAmount: 5000,
+          confidence: 'quote',
+          budgetCategoryId: 'cat-2149-a',
+          budgetSourceId: 'src-2149-a',
+          quantity: 2,
+          unit: 'pcs',
+          unitPrice: 2500,
+          includesVat: true,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+      return { invoiceId };
+    }
+
+    it('GET /api/work-items/:id/budgets reports the original category, source and plannedAmount after a commit that carries different extracted values', async () => {
+      const { cookie } = await createUserWithSession('link2149@test.com', 'User', 'pass');
+      const { invoiceId } = seedLinkScenario();
+
+      const commitResponse = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/auto-itemize`,
+        headers: { cookie },
+        payload: {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Different extracted text',
+              quantity: 9,
+              unit: 'm2',
+              unitPrice: 1,
+              totalAmount: 1100,
+              includesVat: true,
+              confidence: 0.9,
+              budgetCategoryId: 'cat-2149-b',
+              budgetSourceId: 'src-2149-b',
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: 'wib-2149',
+              assignedBudgetLineType: 'work_item',
+            },
+          ],
+        },
+      });
+      expect(commitResponse.statusCode).toBe(200);
+
+      const getResponse = await app.inject({
+        method: 'GET',
+        url: '/api/work-items/wi-2149/budgets',
+        headers: { cookie },
+      });
+      expect(getResponse.statusCode).toBe(200);
+      const { budgets } = getResponse.json<{
+        budgets: Array<{
+          id: string;
+          description: string | null;
+          plannedAmount: number;
+          quantity: number | null;
+          budgetCategory: { id: string } | null;
+          budgetSource: { id: string } | null;
+        }>;
+      }>();
+      expect(budgets).toHaveLength(1);
+      expect(budgets[0]).toMatchObject({
+        id: 'wib-2149',
+        description: 'Original',
+        plannedAmount: 5000,
+        quantity: 2,
+      });
+      expect(budgets[0]!.budgetCategory!.id).toBe('cat-2149-a');
+      expect(budgets[0]!.budgetSource!.id).toBe('src-2149-a');
+
+      // The invoice junction row carries the committed itemized amount.
+      const junction = app.db
+        .select()
+        .from(schema.invoiceBudgetLines)
+        .where(eq(schema.invoiceBudgetLines.workItemBudgetId, 'wib-2149'))
+        .get();
+      expect(junction?.itemizedAmount).toBe(1100);
+    });
+  });
+
   // ─── invoicePatch schema validation (Story #1564) ────────────────────────────
 
   describe('400 VALIDATION_ERROR — invoicePatch schema', () => {

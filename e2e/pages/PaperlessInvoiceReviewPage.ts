@@ -399,6 +399,56 @@ export class PaperlessInvoiceReviewPage {
     return this.lineRow(index).locator('[class*="assignButtonInTable"]');
   }
 
+  /** Assigned badge (inner div, excludes the wrapper). */
+  lineAssignedBadge(index: number): Locator {
+    return this.lineRow(index).locator('[class*="assignedBadge"]:not([class*="Wrapper"])');
+  }
+
+  /** "Clear" button inside the assigned badge. */
+  lineClearAssignButton(index: number): Locator {
+    return this.lineAssignedBadge(index).locator('[class*="clearAssignButton"]');
+  }
+
+  /** Budget line row button in step 2 of the picker (by index or visible text). */
+  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator {
+    const rows = this.pickerStep2Modal().locator('[class*="pickerBudgetLineRow"]');
+    return typeof nameOrIndex === 'number'
+      ? rows.nth(nameOrIndex)
+      : rows.filter({ hasText: nameOrIndex });
+  }
+
+  // ─── Linked (assign-existing) read-only rendering (#2149) ──────────────────
+
+  /** Read-only values section shown for a row linked to an existing budget line. */
+  lineLinkedValues(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-values');
+  }
+
+  /** Linked line's ORIGINAL category (read-only). */
+  lineLinkedCategory(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-category');
+  }
+
+  /** Linked line's ORIGINAL funding source (read-only). */
+  lineLinkedSource(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-source');
+  }
+
+  /** Linked line's ORIGINAL planned amount (read-only). */
+  lineLinkedPlanned(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-planned');
+  }
+
+  /** The only editable number input on a linked row: gross invoiced amount. */
+  lineItemizedAmountInput(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-itemized-amount');
+  }
+
+  /** "Change…" button next to the assigned badge on a linked row. */
+  lineChangeAssignButton(index: number): Locator {
+    return this.lineRow(index).getByRole('button', { name: /Change linked budget line/i });
+  }
+
   /**
    * Returns the amber "Creating New" badge for the line at the given 0-based index.
    * Present only when the line has an inlineCreatedBudgetLineDraft queued.

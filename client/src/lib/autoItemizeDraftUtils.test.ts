@@ -433,3 +433,248 @@ describe('mergeMaterializedLines', () => {
     expect(result).toEqual(allLines);
   });
 });
+
+// ─── #2149 — linked (assign-existing) rows ──────────────────────────────────
+
+describe('materializeInlineDrafts — linked snapshot (#2149)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let materializeInlineDrafts: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    ({ materializeInlineDrafts } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it('stores the created line as the snapshot and carries its description', async () => {
+    mockCreateWorkItem.mockResolvedValue({
+      ...makeCreatedBudgetLine('new-wib-1'),
+      description: 'Created desc',
+      plannedAmount: 777,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: 'k9', extra: 'dropped' },
+      budgetSource: { id: 'src-9', name: 'Src 9', extra: 'dropped' },
+    });
+
+    const result = await materializeInlineDrafts(
+      [makeDraftLine()],
+      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
+      i18n,
+    );
+
+    expect(result.lines[0].assignedBudgetLineDescription).toBe('Created desc');
+    expect(result.lines[0].assignedBudgetLineSnapshot).toEqual({
+      plannedAmount: 777,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: 'k9' },
+      budgetSource: { id: 'src-9', name: 'Src 9' },
+    });
+  });
+
+  it('falls back to a null description when the created line has none', async () => {
+    mockCreateWorkItem.mockResolvedValue({
+      ...makeCreatedBudgetLine('new-wib-1'),
+      description: undefined,
+    });
+
+    const result = await materializeInlineDrafts(
+      [makeDraftLine()],
+      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
+      i18n,
+    );
+
+    expect(result.lines[0].assignedBudgetLineDescription).toBeNull();
+  });
+});
+
+describe('toAssignedBudgetLineSnapshot (#2149)', () => {
+  it('maps nullable category/source to null', async () => {
+    const { toAssignedBudgetLineSnapshot } = await import('./autoItemizeDraftUtils.js');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const line: any = {
+      ...makeCreatedBudgetLine('x'),
+      plannedAmount: 12,
+      budgetCategory: null,
+      budgetSource: null,
+    };
+    expect(toAssignedBudgetLineSnapshot(line)).toEqual({
+      plannedAmount: 12,
+      includesVat: true,
+      budgetCategory: null,
+      budgetSource: null,
+    });
+  });
+});
+
+describe('effectiveRowAmount (#2149)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let effectiveRowAmount: any;
+
+  beforeEach(async () => {
+    ({ effectiveRowAmount } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it('linked row uses linkedItemizedAmount verbatim (0 is respected)', () => {
+    expect(
+      effectiveRowAmount(
+        makeLine({ assignedBudgetLineId: 'b1', linkedItemizedAmount: 1100, totalAmount: 100 }),
+      ),
+    ).toBe(1100);
+    expect(
+      effectiveRowAmount(
+        makeLine({ assignedBudgetLineId: 'b1', linkedItemizedAmount: 0, totalAmount: 100 }),
+      ),
+    ).toBe(0);
+  });
+
+  it('linked row without linkedItemizedAmount falls back to the VAT-effective extracted amount', () => {
+    expect(
+      effectiveRowAmount(
+        makeLine({ assignedBudgetLineId: 'b1', totalAmount: 100, includesVat: false }),
+      ),
+    ).toBe(119);
+  });
+
+  it('unlinked row ignores a stray linkedItemizedAmount and uses the VAT-effective amount', () => {
+    expect(effectiveRowAmount(makeLine({ linkedItemizedAmount: 5, totalAmount: 300 }))).toBe(300);
+    expect(effectiveRowAmount(makeLine({ totalAmount: 100, includesVat: false }))).toBe(119);
+  });
+
+  it('treats a missing totalAmount as 0', () => {
+    expect(effectiveRowAmount(makeLine({ totalAmount: undefined }))).toBe(0);
+  });
+});
+
+describe('buildCommitLines (#2149)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let buildCommitLines: any;
+
+  beforeEach(async () => {
+    ({ buildCommitLines } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  const ALLOWED_KEYS = [
+    'assignedBudgetLineId',
+    'assignedBudgetLineType',
+    'assignmentMode',
+    'budgetCategoryId',
+    'budgetSourceId',
+    'confidence',
+    'description',
+    'includesVat',
+    'quantity',
+    'totalAmount',
+    'unit',
+    'unitPrice',
+    'vendorName',
+  ];
+
+  it('maps a create-new row with the extracted values as before', () => {
+    const [out] = buildCommitLines([
+      makeLine({ quantity: 2, unit: 'h', unitPrice: 150, vendorName: 'ACME', includesVat: false }),
+    ]);
+
+    expect(out).toEqual({
+      description: 'Tile work',
+      quantity: 2,
+      unit: 'h',
+      unitPrice: 150,
+      totalAmount: 300,
+      includesVat: false,
+      vendorName: 'ACME',
+      confidence: 0.9,
+      budgetCategoryId: 'cat-1',
+      budgetSourceId: 'src-1',
+      assignmentMode: 'create-new',
+    });
+  });
+
+  it('coerces an empty budgetSourceId on create-new to undefined', () => {
+    const [out] = buildCommitLines([makeLine({ budgetSourceId: '' })]);
+    expect(out.budgetSourceId).toBeUndefined();
+  });
+
+  it('linked row with linkedItemizedAmount commits it verbatim as gross, includesVat true', () => {
+    const [out] = buildCommitLines([
+      makeLine({
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        linkedItemizedAmount: 1100,
+        totalAmount: 100,
+        includesVat: false,
+      }),
+    ]);
+
+    expect(out).toMatchObject({
+      totalAmount: 1100,
+      includesVat: true,
+      assignmentMode: 'assign-existing',
+      assignedBudgetLineId: 'wib-1',
+      assignedBudgetLineType: 'work_item',
+    });
+  });
+
+  it('linked row without linkedItemizedAmount grosses up a net extracted amount (100 net -> 119)', () => {
+    const [out] = buildCommitLines([
+      makeLine({
+        assignedBudgetLineId: 'hib-1',
+        assignedBudgetLineType: 'household_item',
+        totalAmount: 100,
+        includesVat: false,
+      }),
+    ]);
+
+    expect(out.totalAmount).toBe(119);
+    expect(out.includesVat).toBe(true);
+    expect(out.assignedBudgetLineType).toBe('household_item');
+  });
+
+  it('empty extracted description falls back to the assigned line description, then to an em dash', () => {
+    const base = { assignedBudgetLineId: 'wib-1', assignedBudgetLineType: 'work_item' };
+    const [fromAssigned, fromNothing, fromBlankAssigned] = buildCommitLines([
+      makeLine({ ...base, description: '  ', assignedBudgetLineDescription: ' Stored desc ' }),
+      makeLine({ ...base, description: '' }),
+      makeLine({ ...base, description: '', assignedBudgetLineDescription: '   ' }),
+    ]);
+
+    expect(fromAssigned.description).toBe('Stored desc');
+    expect(fromNothing.description).toBe('—');
+    expect(fromBlankAssigned.description).toBe('—');
+  });
+
+  it('keeps a non-empty extracted description on a linked row', () => {
+    const [out] = buildCommitLines([
+      makeLine({
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        assignedBudgetLineDescription: 'Stored',
+      }),
+    ]);
+    expect(out.description).toBe('Tile work');
+  });
+
+  it('emits only schema-allowed keys (no rowId/included/snapshot/etc.) for both modes', () => {
+    const out = buildCommitLines([
+      makeLine(),
+      makeLine({
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        assignedBudgetLineSnapshot: { plannedAmount: 1 },
+        assignedBudgetLineDescription: 'x',
+        linkedItemizedAmount: 5,
+        createdFromExtraction: true,
+      }),
+    ]);
+
+    for (const row of out) {
+      for (const key of Object.keys(row)) {
+        expect(ALLOWED_KEYS).toContain(key);
+      }
+    }
+  });
+
+  it('a row with an id but no type is treated as create-new', () => {
+    const [out] = buildCommitLines([makeLine({ assignedBudgetLineId: 'wib-1' })]);
+    expect(out.assignmentMode).toBe('create-new');
+    expect(out.assignedBudgetLineId).toBeUndefined();
+  });
+});

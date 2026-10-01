@@ -27,13 +27,13 @@ export interface ExtractedLine {
   assignedBudgetLineId?: string;
   /** Discriminator: which budget line FK family the ID refers to. Required when assignedBudgetLineId is set. */
   assignedBudgetLineType?: 'work_item' | 'household_item';
-  /** Assignment intent: 'assign-existing' links/updates an existing line; 'create-new' creates one. If absent, inferred from assignedBudgetLineId presence. */
+  /** Assignment intent: 'assign-existing' links an existing line (junction row only — the budget line is never modified); 'create-new' creates one. If absent, inferred from assignedBudgetLineId presence. */
   assignmentMode?: 'create-new' | 'assign-existing';
-  /** Budget category ID for new budget line (create-new mode). Null = no category. */
+  /** Budget category ID for new budget line (create-new mode). Null = no category. Ignored in assign-existing mode. */
   budgetCategoryId?: string | null;
   /** Raw LLM-extracted category name (e.g. "Materials", "Labor"). Server maps this to budgetCategoryId server-side. */
   category?: string | null;
-  /** Budget source ID for new budget line (create-new mode). Falls back to discretionary if absent. */
+  /** Budget source ID for new budget line (create-new mode). Falls back to discretionary if absent. Ignored in assign-existing mode. */
   budgetSourceId?: string | null;
 }
 
