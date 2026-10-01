@@ -55,6 +55,11 @@ export function buildCoverLetterContent(reportContent: ReportContent): Content[]
     margin: [0, 0, 0, 16],
   });
 
+  // Opening salutation (#2159) — own line between subject and body; 16pt bottom margin mirrors the
+  // subject→opening gap (≈ one blank line at 11pt/1.4, DIN 5008). Plain node: pdfmake 0.3 has no
+  // keepWithNext, and it always lands on page 1 directly above the first body line.
+  content.push({ text: coverLetter.opening, style: 'normal', margin: [0, 0, 0, 16] });
+
   // Body text — split on double newlines so AI-generated paragraphs render with spacing
   const paragraphs = coverLetter.body.split(/\n\n+/).filter(Boolean);
   if (paragraphs.length <= 1) {

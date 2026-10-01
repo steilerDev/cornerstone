@@ -272,6 +272,7 @@ export function buildReportContent(
     });
     const signature = sender.split('\n')[0]?.trim() ?? '';
     const closing = reportT('sourceReports.coverLetter.closing');
+    const opening = reportT('sourceReports.coverLetter.opening');
 
     coverLetter = {
       sender,
@@ -279,6 +280,7 @@ export function buildReportContent(
       dateLine,
       reference: report.source.reference ?? null,
       subject,
+      opening,
       body,
       signature,
       closing,

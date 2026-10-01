@@ -1336,6 +1336,7 @@
         "claim": "We are submitting a claim for invoices totaling {{total}}.",
         "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
       },
+      "opening": "Dear Sir or Madam,",
       "closing": "Sincerely,"
     },
     "editable": {
@@ -1345,6 +1346,7 @@
       "signatureLabel": "Signature",
       "subjectLabel": "Subject",
       "bodyLabel": "Body",
+      "openingLabel": "Opening",
       "closingLabel": "Closing",
       "attachmentsNoteLabel": "Attachments Note",
       "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",

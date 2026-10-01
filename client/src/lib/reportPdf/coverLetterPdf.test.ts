@@ -29,6 +29,7 @@ function makeCoverLetter(
     subject: 'Subject text',
     body: 'Body text',
     signature: 'The Smiths',
+    opening: 'Dear Sir or Madam,',
     closing: 'Sincerely,',
     ...overrides,
   };
@@ -327,5 +328,85 @@ describe('AC7 — label strings come from reportContent.labels, not TFunction (#
         typeof c === 'object' && c !== null && 'text' in c && String(c.text).includes('My Subject'),
     ) as { text: string } | undefined;
     expect(subjectItem?.text).toBe('LABEL-SUBJ-SENTINEL: My Subject');
+  });
+});
+
+describe('buildCoverLetterContent — opening salutation (#2159)', () => {
+  const textOf = (c: unknown): unknown =>
+    typeof c === 'object' && c !== null && 'text' in c ? (c as { text: unknown }).text : undefined;
+
+  it('emits the opening as a plain normal-style node with a 16pt bottom margin', () => {
+    const result = buildCoverLetterContent(makeContent());
+    const opening = result.find((c) => textOf(c) === 'Dear Sir or Madam,');
+    expect(opening).toEqual({ text: 'Dear Sir or Madam,', style: 'normal', margin: [0, 0, 0, 16] });
+  });
+
+  it('places the opening directly after the subject and directly before a single-paragraph body', () => {
+    const result = buildCoverLetterContent(
+      makeContent({ coverLetter: makeCoverLetter({ subject: 'Subj', body: 'Only paragraph' }) }),
+    );
+    const subjectIdx = result.findIndex((c) => textOf(c) === 'Subject: Subj');
+    const openingIdx = result.findIndex((c) => textOf(c) === 'Dear Sir or Madam,');
+    const bodyIdx = result.findIndex((c) => textOf(c) === 'Only paragraph');
+    expect(subjectIdx).toBeGreaterThan(-1);
+    expect(openingIdx).toBe(subjectIdx + 1);
+    expect(bodyIdx).toBe(openingIdx + 1);
+  });
+
+  it('places the opening directly before the first paragraph of a multi-paragraph body', () => {
+    const result = buildCoverLetterContent(
+      makeContent({
+        coverLetter: makeCoverLetter({ subject: 'Subj', body: 'First\n\nSecond\n\nThird' }),
+      }),
+    );
+    const subjectIdx = result.findIndex((c) => textOf(c) === 'Subject: Subj');
+    const openingIdx = result.findIndex((c) => textOf(c) === 'Dear Sir or Madam,');
+    expect(openingIdx).toBe(subjectIdx + 1);
+    expect(textOf(result[openingIdx + 1])).toBe('First');
+    expect(textOf(result[openingIdx + 2])).toBe('Second');
+    expect(textOf(result[openingIdx + 3])).toBe('Third');
+  });
+
+  it('leaves single-paragraph body margin unchanged at [0,0,0,32]', () => {
+    const result = buildCoverLetterContent(
+      makeContent({ coverLetter: makeCoverLetter({ body: 'Only paragraph' }) }),
+    );
+    expect(result.find((c) => textOf(c) === 'Only paragraph')).toEqual({
+      text: 'Only paragraph',
+      style: 'normal',
+      margin: [0, 0, 0, 32],
+    });
+  });
+
+  it('leaves multi-paragraph body margins unchanged (8, 8, 32)', () => {
+    const result = buildCoverLetterContent(
+      makeContent({ coverLetter: makeCoverLetter({ body: 'First\n\nSecond\n\nThird' }) }),
+    );
+    const margins = ['First', 'Second', 'Third'].map(
+      (t) => (result.find((c) => textOf(c) === t) as { margin: number[] }).margin,
+    );
+    expect(margins).toEqual([
+      [0, 0, 0, 8],
+      [0, 0, 0, 8],
+      [0, 0, 0, 32],
+    ]);
+  });
+
+  it('does not set keepWithNext or unbreakable on the opening node', () => {
+    const result = buildCoverLetterContent(makeContent());
+    const opening = result.find((c) => textOf(c) === 'Dear Sir or Madam,') as Record<
+      string,
+      unknown
+    >;
+    expect('keepWithNext' in opening).toBe(false);
+    expect('unbreakable' in opening).toBe(false);
+  });
+
+  it('renders a locale-specific opening verbatim', () => {
+    const result = buildCoverLetterContent(
+      makeContent({ coverLetter: makeCoverLetter({ opening: 'Sehr geehrte Damen und Herren,' }) }),
+    );
+    expect(result.some((c) => textOf(c) === 'Sehr geehrte Damen und Herren,')).toBe(true);
+    expect(result.some((c) => textOf(c) === 'Dear Sir or Madam,')).toBe(false);
   });
 });

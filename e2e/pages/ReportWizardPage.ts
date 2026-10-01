@@ -276,11 +276,12 @@
  * - AC 2.6: once the signature has been explicitly edited, a subsequent SENDER edit no longer
  *   silently recomputes/overwrites it (`applyOverrides.ts`) — an explicit signature override
  *   always wins.
- * - Two read-only chrome rows share a new `.readOnlyField`/`.readOnlyLabel`/`.readOnlyValue`
- *   CSS recipe (label stacked above value, no dedicated locators — read via the letter fields'
- *   surrounding text): the existing Date row (unchanged position, restyled) and a NEW Closing
- *   row inserted between Body and Signature, mirroring the PDF's sender → recipient → date →
- *   reference → subject → body → closing → signature order.
+ * - Read-only chrome rows (Story #2159 added a third, Opening, between Subject and Body; see
+ *   `letterReadOnlyValue`) share a new `.readOnlyField`/`.readOnlyLabel`/`.readOnlyValue`
+ *   CSS recipe (label stacked above value): the existing Date row (unchanged position,
+ *   restyled), Opening (#2159) and a NEW Closing row inserted between Body and Signature,
+ *   mirroring the PDF's sender → recipient → date → reference → subject → opening → body →
+ *   closing → signature order.
  * - The reset button fix (§5: oversized glyph) was CSS-only (`EditableField.module.css` —
  *   `.resetButton svg` sizing + a `:focus-visible` ring) — the `resetButton`/`editedDot`
  *   classNames and DOM structure (`container > [label?, fieldWrapper, resetButton?]`) are
@@ -1081,7 +1082,7 @@ export class ReportWizardPage {
    * Locator for the `ReportContentEditor` container in step 5 — the outermost `<div>` that
    * wraps the entire editor. The container div itself does NOT receive a `lang` attribute;
    * report-language content within it carries `lang` individually (Issue #1910): the
-   * `<thead>`, the two `.readOnlyValue` spans (dateLine, closing), the source-info block,
+   * `<thead>`, the three `.readOnlyValue` spans (dateLine, opening, closing), the source-info block,
    * the summary table, and the footnotes block. EditableField inputs carry `lang` via the
    * `EditableField.lang` prop. UI-chrome elements (reset buttons, sr-only hints, labels)
    * are NOT tagged. Scoped within `[class*="step5Body"]` (step 5's wrapper class in
@@ -1127,6 +1128,21 @@ export class ReportWizardPage {
     return this.coverLetterCard.getByLabel(ReportWizardPage.LETTER_FIELD_LABELS[key], {
       exact: true,
     });
+  }
+
+  /**
+   * The value span of a read-only cover-letter chrome row (Date / Opening / Closing — Story
+   * #2159 added Opening). Scoped to `coverLetterCard`; finds the `.readOnlyField` whose
+   * `.readOnlyLabel` has exactly the given (UI-language) text and returns its `.readOnlyValue`.
+   * The value span carries `lang` = report language.
+   */
+  letterReadOnlyValue(label: 'Date' | 'Opening' | 'Closing'): Locator {
+    return this.coverLetterCard
+      .locator('[class*="readOnlyField"]')
+      .filter({
+        has: this.page.locator('[class*="readOnlyLabel"]').getByText(label, { exact: true }),
+      })
+      .locator('[class*="readOnlyValue"]');
   }
 
   /**

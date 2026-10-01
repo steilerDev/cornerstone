@@ -690,6 +690,20 @@ describe('REPORT_CONTENT_SYSTEM_PROMPT', () => {
       );
     });
   });
+
+  describe('salutation/closing exclusion rule (#2159)', () => {
+    it('tells the model the application prints the salutation above and the closing and signature below the body', () => {
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'The application itself prints the salutation above the letter body (e.g. "Dear Sir or Madam," / "Sehr geehrte Damen und Herren,") and the closing formula and signature below it, so the letter body must NOT contain any greeting or salutation, closing formula (e.g. "Sincerely," / "Mit freundlichen Grüßen"), or signature or name — start directly with the first sentence of the letter\'s content and end with its last sentence.',
+      );
+    });
+
+    it('instructs German bodies to begin lowercase after the comma-terminated salutation, except for nouns and "Sie"', () => {
+      expect(REPORT_CONTENT_SYSTEM_PROMPT).toContain(
+        'In German, the body directly follows the comma-terminated salutation, so begin it with a lowercase letter unless the first word is a noun or the formal pronoun "Sie".',
+      );
+    });
+  });
 });
 
 describe('buildReportContentUserPrompt()', () => {
@@ -941,6 +955,13 @@ describe('buildReportContentUserPrompt()', () => {
       expect(result).toContain('"letterSubject"');
       expect(result).toContain('"letterBody"');
       expect(result).toContain('"descriptions"');
+    });
+
+    it('#2159: describes letterBody as body text only, without salutation, closing formula, or signature', () => {
+      const result = buildReportContentUserPrompt(buildReportContentInput());
+      expect(result).toContain(
+        '"letterBody": formal cover letter body text only, without salutation, closing formula, or signature',
+      );
     });
 
     it('states that all invoices must appear in descriptions', () => {
