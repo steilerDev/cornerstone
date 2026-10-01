@@ -310,3 +310,22 @@ describe('#1959 inline PDF label typography', () => {
     });
   }
 });
+
+describe('#2127 refund net-rule error keys', () => {
+  const keys = ['refundReductionExceedsTotal', 'refundDeleteExceedsTotal'] as const;
+  const bundles = { en: enBudget, de: deBudget } as Record<string, unknown>;
+
+  for (const [locale, bundle] of Object.entries(bundles)) {
+    for (const key of keys) {
+      it(`${locale}: budget invoiceDetail.deposits.errors.${key} exists and keeps {{minimumRefundAmount}}`, () => {
+        const errors = (
+          bundle as {
+            invoiceDetail: { deposits: { errors: Record<string, string> } };
+          }
+        ).invoiceDetail.deposits.errors;
+        expect(typeof errors[key]).toBe('string');
+        expect(errors[key]).toContain('{{minimumRefundAmount}}');
+      });
+    }
+  }
+});

@@ -164,7 +164,15 @@ export function InvoiceDepositFormModal({
     } catch (err) {
       if (err instanceof ApiClientError) {
         const code = err.error.code;
-        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL' && deposit?.entryType === 'refund') {
+          const minimumRefundAmount =
+            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
+          setError(
+            t('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+              minimumRefundAmount: formatCurrency(minimumRefundAmount),
+            }),
+          );
+        } else if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
           const availableHeadroom =
             (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setError(

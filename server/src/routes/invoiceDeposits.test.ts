@@ -1099,4 +1099,87 @@ describe('Invoice Deposit Routes', () => {
       });
     });
   });
+
+  describe('refund decrease/delete net rule (#2127)', () => {
+    async function seed() {
+      const { userId, cookie } = await createUserWithSession(
+        'net2127@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      createTestDeposit(invoiceId, userId, 1000, 'pending', 'deposit');
+      const refundId = createTestDeposit(invoiceId, userId, 300, 'pending', 'refund');
+      createTestDeposit(invoiceId, userId, 300, 'pending', 'deposit');
+      return { userId, cookie, invoiceId, refundId };
+    }
+
+    it('PATCH lowering a refund too far returns 400 with minimumRefundAmount', async () => {
+      const { cookie, invoiceId, refundId } = await seed();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
+        headers: { cookie },
+        payload: { amount: 299.99 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(error.details).toMatchObject({ minimumRefundAmount: 300, requestedAmount: 299.99 });
+    });
+
+    it('DELETE of a refund that would push net above the total returns 400; refund is still listed', async () => {
+      const { cookie, invoiceId, refundId } = await seed();
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(error.details).toMatchObject({ minimumRefundAmount: 300, requestedAmount: 0 });
+
+      const list = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+      });
+      expect(list.statusCode).toBe(200);
+      const body = list.json<{ deposits: Array<{ id: string }> }>();
+      expect(body.deposits.map((d) => d.id)).toContain(refundId);
+    });
+
+    it('DELETE of a refund returns 204 when net stays within the total', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'net2127b@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      createTestDeposit(invoiceId, userId, 600, 'pending', 'deposit');
+      const refundId = createTestDeposit(invoiceId, userId, 100, 'pending', 'refund');
+
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(204);
+      const list = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+      });
+      const body = list.json<{ deposits: Array<{ id: string }> }>();
+      expect(body.deposits.map((d) => d.id)).not.toContain(refundId);
+    });
+  });
 });

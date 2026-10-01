@@ -541,6 +541,66 @@ describe('InvoiceDepositFormModal', () => {
       ).toBeInTheDocument();
     });
 
+    it('#2127: editing a refund maps DEPOSITS_EXCEED_INVOICE_TOTAL to the minimum-refund message, not the headroom copy', async () => {
+      const { onSaved } = await submitWithError(
+        new ApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'x',
+          details: { minimumRefundAmount: 300, availableHeadroom: 999 },
+        }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$300.00',
+          }),
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Available headroom/)).not.toBeInTheDocument();
+      expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('#2127: editing a refund defaults the minimum refund to 0 when details are missing', async () => {
+      await submitWithError(
+        new ApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'x' }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$0.00',
+          }),
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('#2127: editing a deposit-type entry keeps the exceedsTotal headroom mapping', async () => {
+      await submitWithError(
+        new ApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'x',
+          details: { availableHeadroom: 250, minimumRefundAmount: 300 },
+        }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'deposit' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$250.00' }),
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$300.00',
+          }),
+        ),
+      ).not.toBeInTheDocument();
+    });
+
     it('scenario 44: maps REFUND_EXCEEDS_INVOICE with the available headroom', async () => {
       await submitWithError(
         new ApiClientError(400, {
