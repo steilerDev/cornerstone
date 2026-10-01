@@ -1826,6 +1826,7 @@ describe('diaryService', () => {
 
       it.each([
         ['a leap day', '2024-02-29T00:00Z'],
+        ['a leap day in year 0 (no 1900 remap)', '0000-02-29T00:00Z'],
         ['max time with +14:00 offset', '2026-01-01T23:59:59.999+14:00'],
       ])('accepts signedAt with %s', (_l, ok) => {
         expect(create(entryType, extra, [{ ...base, signedAt: ok }]).isSigned).toBe(true);

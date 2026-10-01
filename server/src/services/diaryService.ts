@@ -77,10 +77,14 @@ function hasValidCalendarComponents(signedAt: string): boolean {
   const [, hh, mm, ss, offH, offM] = rest.match(
     /^(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/,
   )!;
+  // setUTCFullYear does not remap years 0-99 to 1900-1999 (unlike Date.UTC)
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
   return (
     month >= 1 &&
     month <= 12 &&
-    new Date(Date.UTC(year, month - 1, day)).getUTCDate() === day &&
+    d.getUTCMonth() === month - 1 &&
+    d.getUTCDate() === day &&
     Number(hh) <= 23 &&
     Number(mm) <= 59 &&
     Number(ss ?? 0) <= 59 &&
