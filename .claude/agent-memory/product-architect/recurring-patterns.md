@@ -1777,3 +1777,14 @@ is E2E Gates' approach: derive the expected result from `detect-changes` outputs
 
 - **Test latest-value refs on the code path that has no dedup.** `useInfiniteScrollAnnouncements` keeps its label and `isCounted` lambdas in render-time refs so that inline lambdas do not re-run the effect. Its two "lambda-only rerender does not re-announce" tests ran outside `status === 'loading'`. There, a re-run effect returns at the `fetchSequence === announcedSeqRef.current` dedup anyway. I put the lambdas back into the dependency array and all 20 tests still passed. The ref mechanism is observable only in the branch the dedup does not cover (the loading branch): set a sentinel and rerender with only a new `labels.loading`, then assert the sentinel survives. General rule: when an effect has an early-return guard, a test of "the effect does not re-run" must reach a branch that sits before or outside that guard. Otherwise it tests the guard.
 - **`identity-obj-proxy` cannot see CSS Modules `composes`.** In Jest, `styles.counterOverLimit` is the bare string `'counterOverLimit'`. In the webpack build, a class with `composes: counter` resolves to both hashes. So `expect(querySelector('.' + styles.counter)).not.toBeInTheDocument()` passes in Jest while being false in production. When a PR introduces `composes`, grep the tests for negative assertions on the composed-in class.
+
+## E2E shared state: `serial` is per-project, restore is not atomic (#2116, PR #2139)
+
+`test.describe.configure({ mode: 'serial' })` orders one project's job only. Under `fullyParallel`, the
+desktop/tablet/mobile projects run the same serial block concurrently, and a `finally` restore races another
+test's snapshot. Playwright 1.63 `{ lock: '<name>' }` is the guard. Locks are unioned per job (one serial
+describe = one job), and they do not span CI shards (each shard has its own containers). ADR-011 now records
+the rule and the lock-name registry (wiki `b9fc2cd`). To audit lock coverage, grep every _reader_ of the
+state, not only the writers. Most `TEST_ADMIN` hits are email-matched or mocked `createdBy` payloads.
+Also: a CLAUDE.md convention whose scope sentence says "different major" is falsified by its own PR's
+follow-up when the trap is any root-slot version mismatch (#2138 is a minor-version case).

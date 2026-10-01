@@ -1045,7 +1045,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
 
       // Count of visible refund rows/cards before the failed attempt — used below to
       // confirm no second row was created.
-      const refundBadgeCountBefore = await detailPage.refundBadge.visible().count();
+      const refundBadgeCountBefore = await detailPage.refundBadge.count();
 
       // Try to add a second refund of 50 (exceeds remaining 30 headroom)
       await detailPage.openAddDepositModal();
@@ -1076,7 +1076,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
       await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
 
       // No second refund row was created — count is unchanged from before the attempt
-      const refundBadgeCountAfter = await detailPage.refundBadge.visible().count();
+      const refundBadgeCountAfter = await detailPage.refundBadge.count();
       expect(refundBadgeCountAfter).toBe(refundBadgeCountBefore);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
