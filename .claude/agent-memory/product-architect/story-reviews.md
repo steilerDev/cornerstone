@@ -1040,3 +1040,8 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
 
 - F1: a prompt-contract change (`letterBody` must exclude salutation/closing/signature) left the API-Contract response _example_ demonstrating the now-forbidden output ("Dear Bank Officer,\n\n..."). When a PR edits an LLM prompt, grep API-Contract for the field's example JSON, not just its table row; also note prompt-only (non-validator) enforcement as best-effort.
 - F2: docs guide `bank-reports.md:55` listed closing as editable (stale since #1909/#1924) and lacked the new read-only opening.
+
+## PR #2167 (#2161 multi-PDF split) round 3, 2026-10-01: VERDICT APPROVE (comment; own-token PR)
+
+- All round-2 findings fixed in dd1abf4: the lazy-load comments now state the real invariant (dynamic `import()` only, so the partial `index.js`/`paperlessApi.js` mocks in the page tests never see `parts.ts` → `attachments.ts` → `getDocumentPreviewUrl`); ADR-034 now covers `docDefinition.ts` (wiki f606537); and the included-invoice path is `ReadonlySet` from end to end.
+- Lesson: a lazy-load comment that gives "chunk splitting/perf" as its reason usually hides the real constraint, which is test-mock isolation. To verify such a claim, trace the transitive static edge to a partially mocked export.
