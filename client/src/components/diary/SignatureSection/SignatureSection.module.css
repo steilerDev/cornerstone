@@ -29,5 +29,5 @@
 .limitHint {
   margin: var(--spacing-2) 0 0;
   font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }

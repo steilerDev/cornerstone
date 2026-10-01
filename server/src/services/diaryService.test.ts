@@ -1798,21 +1798,22 @@ describe('diaryService', () => {
       it.each([
         ['trailing junk after a valid ISO', '2026-01-01T10:00:00.000Zjunk'],
         ['a date-only value', '2026-01-01'],
-        ['a 65-character string', '2026-01-01T10:00:00.000Z' + ' '.repeat(41)],
+        ['leading whitespace', ' 2026-01-01T10:00:00.000Z'],
+        ['a very long trailing suffix', '2026-01-01T10:00:00.000Z' + ' '.repeat(60)],
         ['a missing timezone', '2026-01-01T10:00:00'],
       ])('rejects signedAt with %s', (_l, bad) =>
         reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
       );
 
-      it('rejects a 65-character signedAt even when the prefix is a valid ISO', () => {
-        const bad = '2026-01-01T10:00:00.000Z'.padEnd(65, '0');
-        expect(bad).toHaveLength(65);
-        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`);
-      });
-
       it.each([
         ['an impossible day (Feb 30)', '2026-02-30T00:00Z'],
         ['an impossible month (13)', '2026-13-01T00:00Z'],
+        ['month 00', '2026-00-10T00:00Z'],
+        ['day 31 in a 30-day month', '2026-04-31T00:00Z'],
+        ['hour 25', '2026-01-01T25:00Z'],
+        ['second 99', '2026-01-01T10:00:99Z'],
+        ['a negative offset hour of 24', '2026-01-01T10:00-24:00'],
+        ['a negative offset minute of 60', '2026-01-01T10:00-01:60'],
         ['hour 24', '2026-01-01T24:00Z'],
         ['minute 60', '2026-01-01T10:60Z'],
         ['second 60', '2026-01-01T10:00:60Z'],

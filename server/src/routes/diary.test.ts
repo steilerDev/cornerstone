@@ -17,6 +17,7 @@ import { diaryEntries } from '../db/schema.js';
 import type {
   DiaryEntrySummary,
   DiaryEntryDetail,
+  DiarySignatureEntry,
   ApiErrorResponse,
   CreateDiaryEntryRequest,
   PromoteDiaryEntryRequest,
@@ -942,7 +943,10 @@ describe('Diary Routes', () => {
       ['date-only signedAt', { signedAt: '2026-01-01' }],
       ['impossible calendar signedAt (Feb 30)', { signedAt: '2026-02-30T00:00Z' }],
       ['hour-24 signedAt', { signedAt: '2026-01-01T24:00Z' }],
-      ['65-char signedAt', { signedAt: '2026-01-01T10:00:00.000Z'.padEnd(65, '0') }],
+      [
+        'signedAt with a long trailing suffix',
+        { signedAt: `2026-01-01T10:00:00.000Z${' '.repeat(60)}` },
+      ],
     ];
 
     describe.each(types)('%s', (entryType, extra) => {
@@ -986,8 +990,10 @@ describe('Diary Routes', () => {
           },
         });
         expect(response.statusCode).toBe(201);
-        const m = response.json<{ entry?: unknown }>();
-        expect(JSON.stringify(m)).toContain('"signerName":"Alice"');
+        const body = response.json<DiaryEntryDetail>();
+        const signatures = (body.metadata as { signatures: DiarySignatureEntry[] }).signatures;
+        expect(signatures[0].signerName).toBe('Alice');
+        expect(signatures[0].signedAt).toBe('2026-01-01T10:00+02:00');
       });
 
       it('rejects 11 signatures and accepts 10', async () => {

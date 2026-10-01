@@ -58,7 +58,6 @@ import {
   MAX_SIGNATURES_PER_ENTRY,
   MAX_SIGNER_NAME_LENGTH,
   MAX_SIGNATURE_DATA_URL_LENGTH,
-  MAX_SIGNED_AT_LENGTH,
   SIGNATURE_DATA_URL_PATTERN,
   SIGNED_AT_PATTERN,
 } from '@cornerstone/shared';
@@ -69,32 +68,34 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
 /**
  * Rejects values that match SIGNED_AT_PATTERN but contain impossible components
- * (e.g. 2026-02-30, hour 25) which Date.parse would silently roll over.
+ * (e.g. 2026-02-30, hour 24) which Date.parse would silently roll over.
+ * Takes the match produced by SIGNED_AT_PATTERN so the grammar is defined once.
  */
-function hasValidCalendarComponents(signedAt: string): boolean {
-  const [datePart, rest] = signedAt.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const [, hh, mm, ss, offH, offM] = rest.match(
-    /^(\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?(?:Z|[+-](\d{2}):(\d{2}))$/,
-  )!;
+function hasValidCalendarComponents(match: RegExpMatchArray): boolean {
+  const g = match.groups!;
+  const year = Number(g.year);
+  const month = Number(g.month);
+  const day = Number(g.day);
   // setUTCFullYear does not remap years 0-99 to 1900-1999 (unlike Date.UTC)
   const d = new Date(0);
   d.setUTCFullYear(year, month - 1, day);
+  // The full round-trip rejects out-of-range months and days (they roll over).
   return (
-    month >= 1 &&
-    month <= 12 &&
+    d.getUTCFullYear() === year &&
     d.getUTCMonth() === month - 1 &&
     d.getUTCDate() === day &&
-    Number(hh) <= 23 &&
-    Number(mm) <= 59 &&
-    Number(ss ?? 0) <= 59 &&
-    Number(offH ?? 0) <= 23 &&
-    Number(offM ?? 0) <= 59
+    Number(g.hour) <= 23 &&
+    Number(g.minute) <= 59 &&
+    Number(g.second ?? 0) <= 59 &&
+    Number(g.offsetHour ?? 0) <= 23 &&
+    Number(g.offsetMinute ?? 0) <= 59
   );
 }
 
 /**
  * Validate a metadata signatures array (daily_log, site_visit, issue).
+ * Also normalises in place: each `signerName` is replaced by its trimmed form, so callers
+ * must persist the same object they validated.
  * @throws InvalidMetadataError if malformed
  */
 function validateSignatures(entryType: string, signatures: unknown): void {
@@ -144,12 +145,8 @@ function validateSignatures(entryType: string, signatures: unknown): void {
           `${entryType} signature entry signedAt must be a non-empty string if provided`,
         );
       }
-      if (
-        sig.signedAt.length > MAX_SIGNED_AT_LENGTH ||
-        !SIGNED_AT_PATTERN.test(sig.signedAt) ||
-        Number.isNaN(Date.parse(sig.signedAt)) ||
-        !hasValidCalendarComponents(sig.signedAt)
-      ) {
+      const signedAtMatch = SIGNED_AT_PATTERN.exec(sig.signedAt);
+      if (!signedAtMatch || !hasValidCalendarComponents(signedAtMatch)) {
         throw new InvalidMetadataError(
           `${entryType} signature entry signedAt must be a valid date`,
         );
