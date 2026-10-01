@@ -37,6 +37,11 @@ export interface UseAutoItemizeLinesOptions {
    * Called when merge succeeds (for live region announcements).
    */
   onMergeSuccess?: () => void;
+  /**
+   * Invoice-level default budget source (#2158). When set, newly queued inline
+   * budget lines and merged lines use it instead of the discretionary fallback.
+   */
+  defaultBudgetSourceId?: string | null;
 }
 
 export interface UseAutoItemizeLinesReturn {
@@ -75,6 +80,7 @@ export function useAutoItemizeLines({
   documentSummary,
   onMergeStart,
   onMergeSuccess,
+  defaultBudgetSourceId,
 }: UseAutoItemizeLinesOptions): UseAutoItemizeLinesReturn {
   const [lines, setLines] = useState<LineWithInclude[]>([]);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
@@ -94,6 +100,8 @@ export function useAutoItemizeLines({
   onMergeStartRef.current = onMergeStart;
   const onMergeSuccessRef = useRef(onMergeSuccess);
   onMergeSuccessRef.current = onMergeSuccess;
+  const defaultBudgetSourceIdRef = useRef(defaultBudgetSourceId);
+  defaultBudgetSourceIdRef.current = defaultBudgetSourceId;
 
   // Filled in after picker is created (breaks the circular dep on picker.closePicker /
   // picker.openPicker without needing closePicker in useCallback deps).
@@ -155,10 +163,12 @@ export function useAutoItemizeLines({
     if (!sources || sources.length === 0) return;
     const firstSourceId = sources[0]?.id;
     if (!firstSourceId) return;
-    if (!linesRef.current.some((l) => !l.budgetSourceId)) return;
+    if (!linesRef.current.some((l) => !l.budgetSourceId && !l.assignedBudgetLineId)) return;
     /* eslint-disable @eslint-react/set-state-in-effect */
     setLines((prev) =>
-      prev.map((l) => (l.budgetSourceId ? l : { ...l, budgetSourceId: firstSourceId })),
+      prev.map((l) =>
+        l.budgetSourceId || l.assignedBudgetLineId ? l : { ...l, budgetSourceId: firstSourceId },
+      ),
     );
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [picker.pickerState.budgetSources]);
@@ -249,7 +259,8 @@ export function useAutoItemizeLines({
     const vendors = ps.vendors ?? [];
     const sources = ps.budgetSources ?? [];
     const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
-    const budgetSourceId = row.budgetSourceId ?? discretionaryId ?? '';
+    const budgetSourceId =
+      defaultBudgetSourceIdRef.current || (row.budgetSourceId ?? discretionaryId ?? '');
 
     const vendorId = row.vendorName
       ? (vendors.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ?? null)
@@ -345,6 +356,10 @@ export function useAutoItemizeLines({
               assignedItemType: undefined,
               inlineCreatedBudgetLineDraft: undefined,
               inlineHideConfidence: undefined,
+              // The row becomes a new line again: follow the invoice-wide default (#2158).
+              ...(defaultBudgetSourceIdRef.current
+                ? { budgetSourceId: defaultBudgetSourceIdRef.current }
+                : {}),
             }
           : l,
       ),
@@ -441,6 +456,9 @@ export function useAutoItemizeLines({
 
     const mergedLine: LineWithInclude = {
       ...numerics,
+      ...(defaultBudgetSourceIdRef.current
+        ? { budgetSourceId: defaultBudgetSourceIdRef.current }
+        : {}),
       rowId: newRowId,
       included: true,
       createdFromExtraction: true,

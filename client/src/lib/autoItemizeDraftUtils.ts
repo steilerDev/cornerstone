@@ -130,3 +130,41 @@ export async function materializeInlineDrafts(
 
   return { ok: true, lines: result };
 }
+
+/**
+ * True when the row will create a NEW budget line (i.e. it is not linked to an
+ * existing budget line). Rows linked via assign-existing are not "new" (#2158).
+ */
+export function isNewBudgetLineRow(line: LineWithInclude): boolean {
+  return !line.assignedBudgetLineId;
+}
+
+/**
+ * Apply a default budget source to every row that creates a new budget line
+ * (#2158, Option A). Pure and non-mutating: rows linked to an existing budget
+ * line are returned unchanged (same reference); all other rows (included or
+ * excluded, including pending/error merge rows) get `budgetSourceId = sourceId`.
+ * Queued inline drafts and nested merge source lines that are themselves new
+ * rows are updated likewise.
+ */
+export function applyBudgetSourceToNewLines(
+  lines: LineWithInclude[],
+  sourceId: string,
+): LineWithInclude[] {
+  return lines.map((line) => {
+    if (!isNewBudgetLineRow(line)) return line;
+    const next: LineWithInclude = { ...line, budgetSourceId: sourceId };
+    if (line.inlineCreatedBudgetLineDraft) {
+      next.inlineCreatedBudgetLineDraft = {
+        ...line.inlineCreatedBudgetLineDraft,
+        budgetSourceId: sourceId,
+      };
+    }
+    if (line.mergeSourceLines) {
+      next.mergeSourceLines = line.mergeSourceLines.map((src) =>
+        isNewBudgetLineRow(src) ? { ...src, budgetSourceId: sourceId } : src,
+      );
+    }
+    return next;
+  });
+}
