@@ -9,36 +9,42 @@ The diary supports digital signature capture for accountability and record-keepi
 
 ## Adding Signatures
 
-Diary entries support multiple signers. To add a signature:
+Signatures work on daily log, site visit, and issue entries. To add a signature while editing an entry:
 
-1. Open the diary entry detail page
-2. Click the signature section
-3. Select the signer type:
-   - **User** -- Select an existing Cornerstone user
-   - **Vendor** -- Enter a signatory name (for people who do not have a Cornerstone account)
+1. Open the entry's edit page (a new entry opens there directly)
+2. Click **+ Add Signature**
+3. Choose the signer type:
+   - **Self** -- Your display name is recorded. If your display name is blank, your email address is used instead
+   - **Vendor** -- Pick an existing vendor or enter a new one, then enter the signatory name
 4. Draw the signature on the canvas
-5. Finish the signature by clicking **Save** to finalize it
+5. Click **Accept Signature** to finalize it
 
-You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue.
-
-When selecting a user as the signer, their display name is recorded. If a user's display name is blank, their email address is used as the signer name instead.
+You can use **Clear** to redraw or **Remove Signature** to discard the current signature. You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue.
 
 :::caution Unfinished signatures are blocked
-An unfinished signature (no signer selected or no drawing yet) cannot be saved to the entry. Save is blocked client-side with a clear message next to the field, and autosave continues working in the background. To discard an incomplete signature, click **Remove** to clear it, then save the entry. Server errors appear translated to your configured language.
+An unfinished signature (no signer selected or no drawing yet) cannot be saved to the entry. Save is blocked client-side with a clear message next to the field, and autosave continues working in the background. To discard an incomplete signature, click **Remove Signature** to clear it, then save the entry. Server errors appear translated to your configured language.
 :::
 
 ## Immutability
 
-Once an entry has at least one signature, it becomes **immutable**:
+Signatures lock an entry only when it is **saved**. While an entry is a draft, you can still:
+
+- Edit every field (title, body, weather, etc.)
+- Add, remove, or replace signatures
+- Add, delete, annotate, re-caption, or reorder photos
+- Leave the page and return to continue editing
+
+Once a signed entry is saved, it becomes immutable:
 
 - The **Edit** button is hidden -- the entry can no longer be modified
-- The **photo section** is hidden when there are no existing photos -- no new photos can be added
-- Existing photos remain visible but cannot be removed
+- Signatures cannot be added, removed, or changed
+- Photos cannot be added, deleted, annotated, re-captioned, or reordered
+- The whole entry can still be deleted
 
-This ensures that signed entries serve as reliable records that cannot be altered after the fact.
+This ensures that signed entries serve as reliable records that cannot be altered after being finalized.
 
 :::caution
-Attach all photos and finalize the entry content before collecting signatures. Once signed, the entry is locked.
+Attach all photos and finalize the entry content before saving a signed entry. Once signed and saved, the entry is locked.
 :::
 
 ## Signed Badge

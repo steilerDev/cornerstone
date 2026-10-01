@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryFormProps } from './DiaryEntryForm.js';
 import type React from 'react';
@@ -17,6 +17,16 @@ import { LocaleProvider } from '../../../contexts/LocaleContext.js';
 function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
   return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
 }
+
+// Vendor search for the daily_log SearchPicker.
+const mockFetchVendors = jest.fn<(params?: unknown) => Promise<{ vendors: unknown[] }>>();
+jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
+  createVendor: jest.fn(),
+  updateVendor: jest.fn(),
+  deleteVendor: jest.fn(),
+}));
 
 // DiaryEntryForm has no API deps — import directly after declaring module scope
 let DiaryEntryForm: React.ComponentType<DiaryEntryFormProps>;
@@ -45,6 +55,8 @@ describe('DiaryEntryForm', () => {
       DiaryEntryForm = mod.DiaryEntryForm;
     }
     localStorage.clear();
+    mockFetchVendors.mockReset();
+    mockFetchVendors.mockResolvedValue({ vendors: [{ id: 'v-1', name: 'Acme Concrete' }] });
   });
 
   afterEach(() => {
@@ -846,5 +858,502 @@ describe('DiaryEntryForm', () => {
       const { container } = render(<DiaryEntryForm {...makeProps({ entryType: 'site_visit' })} />);
       expect(container.querySelector('#site-visit-signatures-error')).toBeNull();
     });
+
+    it('renders #issue-signatures-error with role=alert for an issue (#2125)', () => {
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'issue',
+            validationErrors: { issueSignatures: 'Unfinished signature' },
+          })}
+        />,
+      );
+      const el = container.querySelector('#issue-signatures-error');
+      expect(el).not.toBeNull();
+      expect(el).toHaveAttribute('role', 'alert');
+      expect(el).toHaveTextContent('Unfinished signature');
+    });
+
+    it('does not render #issue-signatures-error when there is no error', () => {
+      const { container } = render(<DiaryEntryForm {...makeProps({ entryType: 'issue' })} />);
+      expect(container.querySelector('#issue-signatures-error')).toBeNull();
+    });
+
+    it('does not render #issue-signatures-error for non-issue entry types', () => {
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            validationErrors: { issueSignatures: 'Unfinished signature' },
+          })}
+        />,
+      );
+      expect(container.querySelector('#issue-signatures-error')).toBeNull();
+    });
+  });
+
+  // ─── Whole-file coverage: field handlers, with and without callbacks ────────
+
+  describe('metadata field handlers', () => {
+    type Row = {
+      label: string;
+      props: Partial<DiaryEntryFormProps>;
+      id: string;
+      handler: keyof DiaryEntryFormProps;
+      from: string;
+      to: string;
+      expected: unknown;
+      fromProp: Partial<DiaryEntryFormProps>;
+    };
+    const rows: Row[] = [
+      {
+        label: 'weather',
+        props: { entryType: 'daily_log' },
+        id: 'weather',
+        handler: 'onDailyLogWeatherChange',
+        from: 'sunny',
+        to: 'rainy',
+        expected: 'rainy',
+        fromProp: { dailyLogWeather: 'sunny' },
+      },
+      {
+        label: 'temperature',
+        props: { entryType: 'daily_log' },
+        id: 'temperature',
+        handler: 'onDailyLogTemperatureChange',
+        from: '5',
+        to: '21',
+        expected: 21,
+        fromProp: { dailyLogTemperature: 5 },
+      },
+      {
+        label: 'workers',
+        props: { entryType: 'daily_log' },
+        id: 'workers',
+        handler: 'onDailyLogWorkersChange',
+        from: '3',
+        to: '8',
+        expected: 8,
+        fromProp: { dailyLogWorkers: 3 },
+      },
+      {
+        label: 'work start',
+        props: { entryType: 'daily_log' },
+        id: 'work-start-time',
+        handler: 'onDailyLogWorkStartChange',
+        from: '07:00',
+        to: '08:30',
+        expected: '08:30',
+        fromProp: { dailyLogWorkStart: '07:00' },
+      },
+      {
+        label: 'work end',
+        props: { entryType: 'daily_log' },
+        id: 'work-end-time',
+        handler: 'onDailyLogWorkEndChange',
+        from: '16:00',
+        to: '17:15',
+        expected: '17:15',
+        fromProp: { dailyLogWorkEnd: '16:00' },
+      },
+      {
+        label: 'inspector name',
+        props: { entryType: 'site_visit' },
+        id: 'inspector-name',
+        handler: 'onSiteVisitInspectorNameChange',
+        from: 'Bob',
+        to: 'Carl',
+        expected: 'Carl',
+        fromProp: { siteVisitInspectorName: 'Bob' },
+      },
+      {
+        label: 'inspection outcome',
+        props: { entryType: 'site_visit' },
+        id: 'inspection-outcome',
+        handler: 'onSiteVisitOutcomeChange',
+        from: 'pass',
+        to: 'fail',
+        expected: 'fail',
+        fromProp: { siteVisitOutcome: 'pass' },
+      },
+      {
+        label: 'delivery vendor',
+        props: { entryType: 'delivery' },
+        id: 'vendor',
+        handler: 'onDeliveryVendorChange',
+        from: 'TimberCo',
+        to: 'SteelCo',
+        expected: 'SteelCo',
+        fromProp: { deliveryVendor: 'TimberCo' },
+      },
+      {
+        label: 'severity',
+        props: { entryType: 'issue' },
+        id: 'severity',
+        handler: 'onIssueSeverityChange',
+        from: 'low',
+        to: 'critical',
+        expected: 'critical',
+        fromProp: { issueSeverity: 'low' },
+      },
+      {
+        label: 'resolution status',
+        props: { entryType: 'issue' },
+        id: 'resolution-status',
+        handler: 'onIssueResolutionStatusChange',
+        from: 'open',
+        to: 'resolved',
+        expected: 'resolved',
+        fromProp: { issueResolutionStatus: 'open' },
+      },
+    ];
+
+    it.each(rows)('$label: a new value is passed to the handler as the typed value', (row) => {
+      const handler = jest.fn();
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({ ...row.props, ...row.fromProp, [row.handler]: handler } as never)}
+        />,
+      );
+      fireEvent.change(container.querySelector(`#${row.id}`)!, { target: { value: row.to } });
+      expect(handler).toHaveBeenCalledWith(row.expected);
+    });
+
+    it.each(rows)('$label: clearing the value passes null to the handler', (row) => {
+      const handler = jest.fn();
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({ ...row.props, ...row.fromProp, [row.handler]: handler } as never)}
+        />,
+      );
+      fireEvent.change(container.querySelector(`#${row.id}`)!, { target: { value: '' } });
+      expect(handler).toHaveBeenCalledWith(null);
+    });
+
+    it.each(rows)('$label: changes are ignored safely when no handler is supplied', (row) => {
+      const { container } = render(
+        <DiaryEntryForm {...makeProps({ ...row.props, ...row.fromProp } as never)} />,
+      );
+      const el = container.querySelector(`#${row.id}`) as HTMLInputElement;
+      fireEvent.change(el, { target: { value: row.to } });
+      // Controlled input: with no handler to update the prop, the original value is restored.
+      expect(el.value).toBe(row.from);
+    });
+  });
+
+  describe('delivery materials without handler and edge cases', () => {
+    it('adding a material with no handler leaves the input untouched', async () => {
+      const user = userEvent.setup();
+      render(<DiaryEntryForm {...makeProps({ entryType: 'delivery' })} />);
+      const input = screen.getByPlaceholderText(/add item and press enter/i) as HTMLInputElement;
+      await user.type(input, 'Gravel');
+      await user.click(screen.getByRole('button', { name: /^add/i }));
+      expect(input.value).toBe('Gravel');
+    });
+
+    it('adding a blank material does not call the handler', async () => {
+      const user = userEvent.setup();
+      const onDeliveryMaterialsChange = jest.fn();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'delivery', onDeliveryMaterialsChange })} />,
+      );
+      await user.type(screen.getByPlaceholderText(/add item and press enter/i), '   ');
+      await user.click(screen.getByRole('button', { name: /^add/i }));
+      expect(onDeliveryMaterialsChange).not.toHaveBeenCalled();
+    });
+
+    it('Enter adds the material, trimmed, and appends to the existing list', async () => {
+      const user = userEvent.setup();
+      const onDeliveryMaterialsChange = jest.fn();
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'delivery',
+            deliveryMaterials: ['Oak'],
+            onDeliveryMaterialsChange,
+          })}
+        />,
+      );
+      await user.type(screen.getByPlaceholderText(/add item and press enter/i), '  Pine  {Enter}');
+      expect(onDeliveryMaterialsChange).toHaveBeenCalledWith(['Oak', 'Pine']);
+    });
+
+    it('other keys do not add a material', async () => {
+      const user = userEvent.setup();
+      const onDeliveryMaterialsChange = jest.fn();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'delivery', onDeliveryMaterialsChange })} />,
+      );
+      await user.type(screen.getByPlaceholderText(/add item and press enter/i), 'abc');
+      expect(onDeliveryMaterialsChange).not.toHaveBeenCalled();
+    });
+
+    it('removing one of several materials keeps the rest; removing the last passes null', async () => {
+      const user = userEvent.setup();
+      const onDeliveryMaterialsChange = jest.fn();
+      const { rerender } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'delivery',
+            deliveryMaterials: ['Oak', 'Pine'],
+            onDeliveryMaterialsChange,
+          })}
+        />,
+      );
+      await user.click(screen.getByRole('button', { name: 'Remove Oak' }));
+      expect(onDeliveryMaterialsChange).toHaveBeenLastCalledWith(['Pine']);
+      rerender(
+        <LocaleProvider>
+          <DiaryEntryForm
+            {...makeProps({
+              entryType: 'delivery',
+              deliveryMaterials: ['Pine'],
+              onDeliveryMaterialsChange,
+            })}
+          />
+        </LocaleProvider>,
+      );
+      await user.click(screen.getByRole('button', { name: 'Remove Pine' }));
+      expect(onDeliveryMaterialsChange).toHaveBeenLastCalledWith(null);
+    });
+
+    it('removing a material with no handler does nothing', async () => {
+      const user = userEvent.setup();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'delivery', deliveryMaterials: ['Oak'] })} />,
+      );
+      await user.click(screen.getByRole('button', { name: 'Remove Oak' }));
+      expect(screen.getByText('Oak')).toBeInTheDocument();
+    });
+  });
+
+  describe('daily_log vendor picker and work time', () => {
+    it('selecting a vendor reports its id, and clearing reports null', async () => {
+      const user = userEvent.setup();
+      const onDailyLogVendorIdChange = jest.fn();
+      render(
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogVendorIdChange })} />,
+      );
+      await user.click(document.getElementById('daily-log-vendor')!);
+      await user.click(await screen.findByRole('option', { name: 'Acme Concrete' }));
+      expect(onDailyLogVendorIdChange).toHaveBeenCalledWith('v-1');
+      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }));
+
+      await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
+      expect(onDailyLogVendorIdChange).toHaveBeenLastCalledWith(null);
+    });
+
+    it('selecting a vendor without a handler is a no-op', async () => {
+      const user = userEvent.setup();
+      render(<DiaryEntryForm {...makeProps({ entryType: 'daily_log' })} />);
+      await user.click(document.getElementById('daily-log-vendor')!);
+      await user.click(await screen.findByRole('option', { name: 'Acme Concrete' }));
+      await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+    });
+
+    it('shows the stored vendor name for an existing selection', () => {
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            dailyLogVendorId: 'v-1',
+            dailyLogVendorName: 'Acme Concrete',
+          })}
+        />,
+      );
+      expect(screen.getByText('Acme Concrete')).toBeInTheDocument();
+    });
+
+    it('shows the cross-field work-time error with aria wiring on both time inputs', () => {
+      const { container } = render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'daily_log',
+            validationErrors: { dailyLogWorkTime: 'End before start' },
+          })}
+        />,
+      );
+      for (const id of ['work-start-time', 'work-end-time']) {
+        expect(container.querySelector(`#${id}`)).toHaveAttribute(
+          'aria-describedby',
+          'work-time-error',
+        );
+      }
+    });
+
+    it('calls onFieldBlur when blurring the time, date, title and body inputs', () => {
+      const onFieldBlur = jest.fn();
+      const { container } = render(
+        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onFieldBlur })} />,
+      );
+      for (const id of ['work-start-time', 'work-end-time', 'entry-date', 'title', 'body']) {
+        fireEvent.blur(container.querySelector(`#${id}`)!);
+      }
+      expect(onFieldBlur).toHaveBeenCalledTimes(5);
+    });
+  });
+
+  describe('signature sections per entry type', () => {
+    const complete = {
+      signerName: 'Alice',
+      signerType: 'self' as const,
+      signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const pending = { signerName: '', signerType: 'self' as const, signatureDataUrl: '' };
+    const cases: Array<[string, string, string]> = [
+      ['daily_log', 'dailyLogSignatures', 'onDailyLogSignaturesChange'],
+      ['site_visit', 'siteVisitSignatures', 'onSiteVisitSignaturesChange'],
+      ['issue', 'issueSignatures', 'onIssueSignaturesChange'],
+    ];
+
+    it.each(cases)(
+      '%s: "+ Add Signature" appends a pending self signature named after the user',
+      async (entryType, _p, handlerName) => {
+        const handler = jest.fn();
+        render(
+          <DiaryEntryForm
+            {...makeProps({
+              entryType,
+              currentUserName: 'Alice Builder',
+              [handlerName]: handler,
+            } as never)}
+          />,
+        );
+        await userEvent.setup().click(screen.getByRole('button', { name: '+ Add Signature' }));
+        expect(handler).toHaveBeenCalledWith([
+          { signerName: 'Alice Builder', signerType: 'self', signatureDataUrl: '' },
+        ]);
+      },
+    );
+
+    it.each(cases)(
+      '%s: adding with no current user name and existing signatures keeps them',
+      async (entryType, propName, handlerName) => {
+        const handler = jest.fn();
+        render(
+          <DiaryEntryForm
+            {...makeProps({ entryType, [propName]: [complete], [handlerName]: handler } as never)}
+          />,
+        );
+        await userEvent.setup().click(screen.getByRole('button', { name: '+ Add Signature' }));
+        expect(handler).toHaveBeenCalledWith([
+          complete,
+          { signerName: '', signerType: 'self', signatureDataUrl: '' },
+        ]);
+      },
+    );
+
+    it.each(cases)('%s: adding without a handler is a no-op', async (entryType) => {
+      render(<DiaryEntryForm {...makeProps({ entryType } as never)} />);
+      await userEvent.setup().click(screen.getByRole('button', { name: '+ Add Signature' }));
+      expect(screen.getByRole('button', { name: '+ Add Signature' })).toBeInTheDocument();
+    });
+
+    it.each(cases)(
+      '%s: removing the only signature reports null',
+      async (entryType, propName, handlerName) => {
+        const handler = jest.fn();
+        render(
+          <DiaryEntryForm
+            {...makeProps({ entryType, [propName]: [complete], [handlerName]: handler } as never)}
+          />,
+        );
+        await userEvent.setup().click(screen.getByRole('button', { name: 'Remove Signature' }));
+        expect(handler).toHaveBeenCalledWith(null);
+      },
+    );
+
+    it.each(cases)(
+      '%s: removing one of two signatures keeps the other',
+      async (entryType, propName, handlerName) => {
+        const handler = jest.fn();
+        const second = { ...complete, signerName: 'Bob' };
+        render(
+          <DiaryEntryForm
+            {...makeProps({
+              entryType,
+              [propName]: [complete, second],
+              [handlerName]: handler,
+            } as never)}
+          />,
+        );
+        await userEvent
+          .setup()
+          .click(screen.getAllByRole('button', { name: 'Remove Signature' })[0]!);
+        expect(handler).toHaveBeenCalledWith([second]);
+      },
+    );
+
+    it.each(cases)('%s: removing without a handler is a no-op', async (entryType, propName) => {
+      render(<DiaryEntryForm {...makeProps({ entryType, [propName]: [complete] } as never)} />);
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Remove Signature' }));
+      expect(screen.getByAltText('Signature of Alice')).toBeInTheDocument();
+    });
+
+    it.each(cases)(
+      '%s: a pending self signature is auto-named and reported as an updated array',
+      (entryType, propName, handlerName) => {
+        const handler = jest.fn();
+        render(
+          <DiaryEntryForm
+            {...makeProps({
+              entryType,
+              currentUserName: 'Alice Builder',
+              [propName]: [pending],
+              [handlerName]: handler,
+            } as never)}
+          />,
+        );
+        expect(handler).toHaveBeenCalledWith([{ ...pending, signerName: 'Alice Builder' }]);
+      },
+    );
+
+    it.each(cases)(
+      '%s: auto-naming a pending signature without a handler is harmless',
+      (entryType, propName) => {
+        render(
+          <DiaryEntryForm
+            {...makeProps({
+              entryType,
+              currentUserName: 'Alice Builder',
+              [propName]: [pending],
+            } as never)}
+          />,
+        );
+        expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
+      },
+    );
+  });
+
+  describe('disabled and error wiring across entry types', () => {
+    it.each([
+      ['site_visit', { siteVisitInspectorName: 'inspector name is required' }, 'inspector-name'],
+      ['site_visit', { siteVisitOutcome: 'outcome is required' }, 'inspection-outcome'],
+      ['issue', { issueSeverity: 'sev' }, 'severity'],
+      ['issue', { issueResolutionStatus: 'res' }, 'resolution-status'],
+    ] as const)('%s: %j links the error to the control', (entryType, errors, id) => {
+      const { container } = render(
+        <DiaryEntryForm {...makeProps({ entryType, validationErrors: errors })} />,
+      );
+      const control = container.querySelector(`#${id}`)!;
+      expect(control).toHaveAttribute('aria-invalid', 'true');
+      expect(control.getAttribute('aria-describedby')).toBeTruthy();
+      expect(within(container).getByRole('alert')).toBeInTheDocument();
+    });
+
+    it.each(['daily_log', 'site_visit', 'delivery', 'issue'] as const)(
+      '%s: every metadata control is disabled when the form is disabled',
+      (entryType) => {
+        const { container } = render(
+          <DiaryEntryForm {...makeProps({ entryType, disabled: true })} />,
+        );
+        const controls = container.querySelectorAll(
+          '.metadataSection input, .metadataSection select, .metadataSection button',
+        );
+        expect(controls.length).toBeGreaterThan(0);
+        controls.forEach((c) => expect(c).toBeDisabled());
+      },
+    );
   });
 });

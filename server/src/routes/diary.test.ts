@@ -799,4 +799,119 @@ describe('Diary Routes', () => {
       expect(err.error.code).toBe('ALREADY_SAVED');
     });
   });
+
+  // ─── Signature lock (#2124) and issue signatures (#2125) ───────────────────
+
+  describe('signature lock and issue signatures (#2124, #2125)', () => {
+    const sig = {
+      signerName: 'Alice',
+      signerType: 'self',
+      signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const signedMeta = JSON.stringify({ signatures: [sig] });
+
+    it('PATCH on a signed draft returns 200 (mutation: lock ignores status)', async () => {
+      const { cookie } = await createUserWithSession('lock1@test.com', 'Lock One', 'password');
+      const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { body: 'edited' },
+      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ body: string; isSigned: boolean }>().body).toBe('edited');
+    });
+
+    it('PATCH on a signed saved entry returns 403 IMMUTABLE_ENTRY', async () => {
+      const { cookie } = await createUserWithSession('lock2@test.com', 'Lock Two', 'password');
+      const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { body: 'edited' },
+      });
+      expect(response.statusCode).toBe(403);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('IMMUTABLE_ENTRY');
+    });
+
+    it('promoting a signed draft locks it: subsequent PATCH is 403', async () => {
+      const { cookie } = await createUserWithSession('lock3@test.com', 'Lock Three', 'password');
+      const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+      const promote = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}/promote`,
+        headers: { cookie },
+        payload: {},
+      });
+      expect(promote.statusCode).toBe(200);
+      const patch = await app.inject({
+        method: 'PATCH',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+        payload: { body: 'late edit' },
+      });
+      expect(patch.statusCode).toBe(403);
+    });
+
+    it('POST an issue draft with signatures returns 201 with isSigned true', async () => {
+      const { cookie } = await createUserWithSession('iss1@test.com', 'Issue One', 'password');
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/diary-entries',
+        headers: { cookie },
+        payload: { entryType: 'issue', status: 'draft', metadata: { signatures: [sig] } },
+      });
+      expect(response.statusCode).toBe(201);
+      expect(response.json<{ isSigned: boolean }>().isSigned).toBe(true);
+    });
+
+    it('POST an issue with an invalid signature returns 400 INVALID_METADATA', async () => {
+      const { cookie } = await createUserWithSession('iss2@test.com', 'Issue Two', 'password');
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/diary-entries',
+        headers: { cookie },
+        payload: {
+          entryType: 'issue',
+          status: 'draft',
+          metadata: { signatures: [{ ...sig, signerName: '' }] },
+        },
+      });
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('INVALID_METADATA');
+    });
+
+    it.each(['issue', 'daily_log', 'site_visit'] as const)(
+      'POST %s with a null signature element returns 400 INVALID_METADATA, not 500',
+      async (entryType) => {
+        const { cookie } = await createUserWithSession(
+          `null-${entryType}@test.com`,
+          'Null Sig',
+          'password',
+        );
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/diary-entries',
+          headers: { cookie },
+          payload: { entryType, status: 'draft', metadata: { signatures: [null] } },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.code).toBe('INVALID_METADATA');
+      },
+    );
+
+    it('DELETE of a signed saved entry still returns 204', async () => {
+      const { cookie } = await createUserWithSession('lock4@test.com', 'Lock Four', 'password');
+      const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+      const response = await app.inject({
+        method: 'DELETE',
+        url: `/api/diary-entries/${id}`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(204);
+    });
+  });
 });

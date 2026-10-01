@@ -15,7 +15,9 @@ import type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
   PhotoEntityType,
+  DiaryEntryStatus,
 } from '@cornerstone/shared';
+import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import {
@@ -23,7 +25,7 @@ import {
   UnauthorizedError,
   ValidationError,
   PayloadTooLargeError,
-  ConflictError,
+  ImmutableEntryError,
 } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
@@ -32,15 +34,16 @@ import { diaryEntries } from '../db/schema.js';
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 /**
- * Check if a diary entry is signed (has non-empty signatures array in metadata).
- * Returns true if signed, false if not signed or entry not found.
+ * Check if a diary entry is signature-locked: saved (or legacy null status) with a non-empty
+ * signatures array in metadata. Drafts are never locked (#2124).
+ * Returns false if the entry is not found or its metadata is unparseable.
  */
-function isDiaryEntrySigned(
+function isDiaryEntryLocked(
   db: BetterSQLite3Database<typeof schemaTypes>,
   diaryEntryId: string,
 ): boolean {
   const entry = db
-    .select({ metadata: diaryEntries.metadata })
+    .select({ status: diaryEntries.status, metadata: diaryEntries.metadata })
     .from(diaryEntries)
     .where(eq(diaryEntries.id, diaryEntryId))
     .get();
@@ -49,21 +52,16 @@ function isDiaryEntrySigned(
     return false;
   }
 
-  if (!entry.metadata) {
-    return false;
-  }
-
+  let parsed: unknown;
   try {
-    const metadata = JSON.parse(entry.metadata);
-    return (
-      Boolean(metadata) &&
-      'signatures' in metadata &&
-      Array.isArray(metadata.signatures) &&
-      metadata.signatures.length > 0
-    );
+    parsed = entry.metadata ? JSON.parse(entry.metadata) : null;
   } catch {
     return false;
   }
+  return isDiaryEntrySignatureLocked({
+    isSigned: hasDiarySignatures(parsed),
+    status: entry.status as DiaryEntryStatus | null,
+  });
 }
 
 // ─── JSON schemas ─────────────────────────────────────────────────────────────
@@ -175,7 +173,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *   - entityId: entity ID (UUID)
    *   - caption (optional): photo caption
    *
-   * Returns: 201 with { photo }
+   * Returns: 201 with { photo } or 403 if the diary entry is signed and saved
    */
   fastify.post('/', async (request: FastifyRequest, reply: FastifyReply) => {
     if (!request.user) throw new UnauthorizedError();
@@ -206,6 +204,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
     const caption = captionField?.value ?? undefined;
     const areaId = areaIdField?.value ?? undefined;
     const orientationId = orientationIdField?.value ?? undefined;
+
+    if (entityType === 'diary_entry' && isDiaryEntryLocked(fastify.db, entityId)) {
+      throw new ImmutableEntryError('Signed diary entries cannot be modified');
+    }
 
     // Validate file size against config limit
     const maxFileSizeBytes = fastify.config.photoMaxFileSizeMb * 1024 * 1024;
@@ -372,7 +374,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Request body: { caption?, sortOrder? }
    *
-   * Returns: 200 with { photo } or 404
+   * Returns: 200 with { photo }, 404, or 403 if the diary entry is signed and saved
    */
   fastify.patch(
     '/:id',
@@ -382,6 +384,15 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
       const { id } = request.params as { id: string };
       const updates = request.body as UpdatePhotoRequest;
+
+      const existing = photoService.getPhoto(fastify.db, id);
+      if (!existing) throw new NotFoundError('Photo not found');
+      if (
+        existing.entityType === 'diary_entry' &&
+        isDiaryEntryLocked(fastify.db, existing.entityId)
+      ) {
+        throw new ImmutableEntryError('Signed diary entries cannot be modified');
+      }
 
       const photo = photoService.updatePhoto(fastify.db, id, updates);
       if (!photo) {
@@ -398,7 +409,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    *
    * Request body: { entityType, entityId, photoIds }
    *
-   * Returns: 204 No Content
+   * Returns: 204 No Content, or 403 if the diary entry is signed and saved
    */
   fastify.patch(
     '/reorder',
@@ -407,6 +418,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       if (!request.user) throw new UnauthorizedError();
 
       const { entityType, entityId, photoIds } = request.body as ReorderPhotosRequest;
+
+      if (entityType === 'diary_entry' && isDiaryEntryLocked(fastify.db, entityId)) {
+        throw new ImmutableEntryError('Signed diary entries cannot be modified');
+      }
 
       photoService.reorderPhotos(fastify.db, entityType, entityId, photoIds);
 
@@ -421,7 +436,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * Form field:
    *   - file: the annotated WebP blob
    *
-   * Returns: 200 with { photo } or 400/404/409
+   * Returns: 200 with { photo } or 400/403/404
    */
   fastify.put(
     '/:id/annotation',
@@ -438,8 +453,8 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
       // Block annotation if photo is attached to a signed diary entry
       if (photo.entityType === 'diary_entry') {
-        if (isDiaryEntrySigned(fastify.db, photo.entityId)) {
-          throw new ConflictError('Cannot annotate photos on signed diary entries');
+        if (isDiaryEntryLocked(fastify.db, photo.entityId)) {
+          throw new ImmutableEntryError('Signed diary entries cannot be modified');
         }
       }
 
@@ -475,7 +490,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * DELETE /:id/annotation
    * Clear the annotated image for a photo.
    *
-   * Returns: 204 No Content or 404/409
+   * Returns: 204 No Content or 403/404
    */
   fastify.delete(
     '/:id/annotation',
@@ -492,8 +507,8 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
 
       // Block annotation if photo is attached to a signed diary entry
       if (photo.entityType === 'diary_entry') {
-        if (isDiaryEntrySigned(fastify.db, photo.entityId)) {
-          throw new ConflictError('Cannot remove annotation from photos on signed diary entries');
+        if (isDiaryEntryLocked(fastify.db, photo.entityId)) {
+          throw new ImmutableEntryError('Signed diary entries cannot be modified');
         }
       }
 
@@ -507,7 +522,7 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
    * DELETE /:id
    * Delete a photo and its associated files.
    *
-   * Returns: 204 No Content or 404
+   * Returns: 204 No Content, 404, or 403 if the diary entry is signed and saved
    */
   fastify.delete(
     '/:id',
@@ -520,6 +535,10 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       const photo = photoService.getPhoto(fastify.db, id);
       if (!photo) {
         throw new NotFoundError('Photo not found');
+      }
+
+      if (photo.entityType === 'diary_entry' && isDiaryEntryLocked(fastify.db, photo.entityId)) {
+        throw new ImmutableEntryError('Signed diary entries cannot be modified');
       }
 
       await photoService.deletePhoto(fastify.db, fastify.config.photoStoragePath, id);

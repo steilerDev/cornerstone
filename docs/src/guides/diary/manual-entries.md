@@ -80,10 +80,10 @@ See [Capturing Photos](photo-capture) for the full capture-and-tag flow. Each ph
 - View the original or, if it has been edited, the annotated copy
 - Edit metadata (description, area assignment)
 - [Annotate the photo](photo-annotation) with rectangles, arrows, text, measurements, and other markup
-- Delete the photo (only when the entry is not signed)
+- Delete the photo (only when the entry is not a saved, signed entry)
 
 :::caution
-Once an entry is signed, the photo section is hidden when no photos are attached, and no new photos can be added. Existing photos remain visible but cannot be deleted or annotated. Attach and annotate photos before collecting signatures.
+Once an entry is saved with signatures, the photo section is hidden when no photos are attached, and no new photos can be added. Existing photos remain visible but cannot be deleted or annotated. A signed draft stays editable until saved -- see [Immutability](/guides/diary/signatures#immutability) for details. Attach and annotate photos before saving a signed entry.
 :::
 
 ## Editing Entries
@@ -91,7 +91,7 @@ Once an entry is signed, the photo section is hidden when no photos are attached
 To edit an existing entry, navigate to its detail page and click the **Edit** button. You can update any field including the title, body, weather, and photos.
 
 :::caution
-Signed entries cannot be edited. The edit button is hidden on entries that have signatures. See [Signatures](/guides/diary/signatures) for details on immutability.
+Entries saved with signatures cannot be edited. The edit button is hidden on entries that have signatures. A signed draft stays editable until saved -- see [Immutability](/guides/diary/signatures#immutability) for details.
 :::
 
 ## Delivery Entries

@@ -86,6 +86,7 @@ export interface DeliveryMetadata {
 export interface IssueMetadata {
   severity?: DiaryIssueSeverity | null;
   resolutionStatus?: DiaryIssueResolution | null;
+  signatures?: DiarySignatureEntry[] | null;
 }
 
 /** Metadata for general_note entries (no required fields). */
@@ -166,6 +167,7 @@ export interface DiaryEntrySummary {
   body: string;
   metadata: DiaryEntryMetadata | null;
   isAutomatic: boolean;
+  /** True when metadata.signatures is non-empty (daily_log, site_visit, issue). Immutability applies only when status is 'saved' — see isDiaryEntrySignatureLocked (#2124). */
   isSigned: boolean;
   sourceEntityType: DiarySourceEntityType | null;
   sourceEntityId: string | null;

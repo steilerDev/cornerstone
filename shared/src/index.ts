@@ -432,6 +432,9 @@ export type {
 // Source Report Math
 export { computeIncludedTotal } from './lib/reportMath.js';
 
+// Diary signature lock
+export { hasDiarySignatures, isDiaryEntrySignatureLocked } from './lib/diaryLock.js';
+
 // Source Reports
 export type {
   SourceReportType,

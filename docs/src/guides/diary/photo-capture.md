@@ -58,8 +58,8 @@ Click any photo thumbnail on an entry to open the **photo viewer**, where you ca
 - View the original or, if it has been edited, the annotated copy
 - Edit the photo's description and area
 - [Annotate the photo](photo-annotation) with arrows, rectangles, text, measurements, and other markup
-- Delete the photo (only when the entry is not signed)
+- Delete the photo (only when the entry is not a saved, signed entry)
 
 :::caution
-Once an entry is [signed](signatures), no new photos can be added and existing photos cannot be deleted or annotated. Capture, tag, and annotate your photos before collecting signatures.
+Photos lock once a [signed](signatures) entry is **saved**. On a draft they can still be added, deleted, and annotated. Once saved, no new photos can be added and existing photos cannot be deleted or annotated.
 :::

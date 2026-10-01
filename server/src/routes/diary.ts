@@ -219,7 +219,7 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
    * DELETE /api/diary-entries/:id
    * Delete a diary entry and its associated photos.
    * Auth required: Yes (both admin and member)
-   * Note: Automatic entries cannot be deleted.
+   * Note: automatic entries can be deleted (#808).
    */
   fastify.delete<{ Params: { id: string } }>(
     '/:id',
