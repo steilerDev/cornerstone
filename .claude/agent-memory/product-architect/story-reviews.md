@@ -1029,3 +1029,8 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
 ## PR #2160 (#2158 invoice default budget source), 2026-10-01: VERDICT REQUEST_CHANGES (comment; own-token PR)
 
 - F1: copying a linked record's server values into the row's own editable state (`budgetSourceId`/`budgetCategoryId` on link) destroys the row's pre-link values, so the reversible action (clear the assignment) leaves a create-new row with a null source. The commit then falls back to discretionary instead of the invoice default (AC 5/11). Rule: when a reversible action exists, check that its inverse round-trips. To stop the server changing fields, prefer omitting those fields from the payload over mutating client state. In this case the server skips `undefined`, and #2149 made assign-existing link-only.
+
+## PR #2163 (#2159 claim subject + read-only opening), 2026-10-01: VERDICT REQUEST_CHANGES (comment; own-token PR)
+
+- F1: a prompt-contract change (`letterBody` must exclude salutation/closing/signature) left the API-Contract response *example* demonstrating the now-forbidden output ("Dear Bank Officer,\n\n..."). When a PR edits an LLM prompt, grep API-Contract for the field's example JSON, not just its table row; also note prompt-only (non-validator) enforcement as best-effort.
+- F2: docs guide `bank-reports.md:55` listed closing as editable (stale since #1909/#1924) and lacked the new read-only opening.
