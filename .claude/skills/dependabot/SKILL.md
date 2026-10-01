@@ -32,11 +32,12 @@ Create tasks upfront with `TaskCreate` so progress survives context compression:
 
 1. **Inventory** — fetch open Dependabot PRs and open alerts
 2. **Classify** — correlate alerts with PRs and bucket PRs by CI state
-3. **Process READY PRs** — per-PR sub-tasks added dynamically
-4. **Process FAILING PRs** — per-PR sub-tasks added dynamically
-5. **Process ORPHAN alerts** — per-alert sub-tasks added dynamically
-6. **Implement or report adoption opportunities** — never filed as issues
-7. **Final report**
+3. **Changelog analysis** — tiered changelog/security review of every PR before any merge or fix
+4. **Process READY PRs** — per-PR sub-tasks added dynamically
+5. **Process FAILING PRs** — per-PR sub-tasks added dynamically
+6. **Process ORPHAN alerts** — per-alert sub-tasks added dynamically
+7. **Implement or report adoption opportunities** — never filed as issues
+8. **Final report**
 
 Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
@@ -63,7 +64,7 @@ gh api repos/steilerDev/cornerstone/dependabot/alerts --paginate \
 
 Store both lists — they are your working set for the rest of the run.
 
-If both lists are empty, skip to step 7 and report "Nothing to do."
+If both lists are empty, skip to step 8 and report "Nothing to do."
 
 ### 2. Classify
 
