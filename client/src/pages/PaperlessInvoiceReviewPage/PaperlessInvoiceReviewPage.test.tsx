@@ -1547,7 +1547,6 @@ describe('PaperlessInvoiceReviewPage', () => {
         const hasVendorError =
           screen.queryByRole('alert') !== null ||
           document.querySelector('#vendor-error') !== null ||
-          screen.queryAllByText(/autoItemize.vendorRequired/i).length > 0 ||
           screen.queryAllByText(/vendor.*required/i).length > 0 ||
           screen.queryAllByText(/Vendor.*required/i).length > 0;
 

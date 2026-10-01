@@ -1811,3 +1811,7 @@ Round 2 of #2156 found the same raw-key and never-matching branches in the `wait
 check (`/extractionStarted/i`, `/Extracting/i`), which I had missed in round 1. Sweep **every**
 `queryAllByText`/`queryByRole` regex in a copied helper against `en/<ns>.json`, not only the
 button lookup. A raw-key regex in a _negative_ assertion is the worst variant: it can never fail.
+When a raw-key/fallback lookup is removed, sweep the **same** pass for the guards that hid it:
+`if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
+`if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
+assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).
