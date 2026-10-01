@@ -128,7 +128,7 @@ describe('I18N_UNION_KEYS registry', () => {
     ]);
   });
 
-  it('freezes each key set', () => {
-    expect(Object.isFrozen(I18N_UNION_KEYS.reportTitle)).toBe(true);
+  it.each(Object.entries(I18N_UNION_KEYS))('freezes key set %s', (_name, set) => {
+    expect(Object.isFrozen(set)).toBe(true);
   });
 });
