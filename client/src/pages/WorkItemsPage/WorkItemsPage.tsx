@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -343,14 +345,14 @@ export function WorkItemsPage() {
   }, [activeMenuId]);
 
   // Render actions menu
-  const renderActions = (item: WorkItemSummary) => (
+  const renderActions = (item: WorkItemSummary, surface: DataTableSurface) => (
     <div className={styles.actionsMenu}>
       <button
         type="button"
         className={styles.menuButton}
         onClick={() => setActiveMenuId(activeMenuId === item.id ? null : item.id)}
         aria-label={t('list.actions.actionsMenu')}
-        data-testid={`wi-menu-button-${item.id}`}
+        data-testid={dataTableTestId('wi-menu-button', item.id, surface)}
       >
         ⋮
       </button>
@@ -363,7 +365,7 @@ export function WorkItemsPage() {
               navigate(`/project/work-items/${item.id}`);
               setActiveMenuId(null);
             }}
-            data-testid={`wi-view-${item.id}`}
+            data-testid={dataTableTestId('wi-view', item.id, surface)}
           >
             {t('list.actions.edit')}
           </button>
@@ -374,7 +376,7 @@ export function WorkItemsPage() {
               openDeleteConfirm(item);
               setActiveMenuId(null);
             }}
-            data-testid={`wi-delete-${item.id}`}
+            data-testid={dataTableTestId('wi-delete', item.id, surface)}
           >
             {t('list.actions.delete')}
           </button>

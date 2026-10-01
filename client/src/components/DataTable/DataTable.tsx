@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import type { FilterMeta } from '@cornerstone/shared';
+import type { DataTableSurface } from './dataTableTestId.js';
 import type { SearchPickerProps } from '../SearchPicker/SearchPicker.js';
 import { DataTableHeader } from './DataTableHeader.js';
 import { DataTableRow } from './DataTableRow.js';
@@ -61,7 +62,11 @@ export interface ColumnDef<T> {
   defaultVisible?: boolean;
   /** Raw numeric value for client-side number filtering (when no filterParamKey) */
   getValue?: (item: T) => number;
-  render: (item: T) => ReactNode;
+  /**
+   * `surface` is `'table'` for the desktop row and `'card'` for the mobile card when no
+   * `renderCard` is given. Build any data-testid with `dataTableTestId()`.
+   */
+  render: (item: T, surface: DataTableSurface) => ReactNode;
   renderCard?: (item: T) => ReactNode;
   className?: string;
   headerClassName?: string;
@@ -143,7 +148,11 @@ export interface DataTableProps<T, C = unknown> {
   error?: string | null;
   getRowKey: (item: T) => string;
   onRowClick?: (item: T) => void;
-  renderActions?: (item: T) => ReactNode;
+  /**
+   * `surface` is `'table'` for the desktop row and `'card'` for the mobile card.
+   * Build any data-testid with `dataTableTestId()`.
+   */
+  renderActions?: (item: T, surface: DataTableSurface) => ReactNode;
   tableState: TableState;
   onStateChange: (state: TableState) => void;
   headerContent?: ReactNode;
@@ -505,7 +514,7 @@ export function DataTable<T, C = unknown>({
                     columns={sortedColumns}
                     visibleColumns={effectiveVisibleColumns}
                     onClick={() => onRowClick?.(item)}
-                    renderActions={renderActions ? () => renderActions(item) : undefined}
+                    renderActions={renderActions ? () => renderActions(item, 'table') : undefined}
                     leadingCell={
                       children.length > 0 ? (
                         <button
@@ -556,7 +565,7 @@ export function DataTable<T, C = unknown>({
                   columns={sortedColumns}
                   visibleColumns={effectiveVisibleColumns}
                   onClick={() => onRowClick?.(item)}
-                  renderActions={renderActions ? () => renderActions(item) : undefined}
+                  renderActions={renderActions ? () => renderActions(item, 'table') : undefined}
                 />
               ))}
             </tbody>
@@ -591,7 +600,7 @@ export function DataTable<T, C = unknown>({
                   columns={sortedColumns}
                   visibleColumns={effectiveVisibleColumns}
                   onClick={() => onRowClick?.(item)}
-                  renderActions={renderActions ? () => renderActions(item) : undefined}
+                  renderActions={renderActions ? () => renderActions(item, 'card') : undefined}
                 />
               );
             }
@@ -607,7 +616,7 @@ export function DataTable<T, C = unknown>({
                 columns={sortedColumns}
                 visibleColumns={effectiveVisibleColumns}
                 onClick={() => onRowClick?.(item)}
-                renderActions={renderActions ? () => renderActions(item) : undefined}
+                renderActions={renderActions ? () => renderActions(item, 'card') : undefined}
                 expandButton={
                   children.length > 0 ? (
                     <button

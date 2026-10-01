@@ -463,7 +463,7 @@ Before creating a new UI component, check if an existing shared component can be
 - `Skeleton` — loading placeholder with configurable line count
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
-- `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic.
+- `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic, and the `useInfiniteScrollAnnouncements` hook (`client/src/hooks/`), which owns the live-region announcement bookkeeping.
 
 **Rules:**
 
@@ -473,6 +473,7 @@ Before creating a new UI component, check if an existing shared component can be
 4. New shared components require UX designer visual spec approval
 5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
 6. Stylelint enforces token usage automatically (via `npm run lint` locally and the CI `static-analysis` job's `Stylelint` step; covers `client/src/**/*.css` and `client/src/**/*.module.css`, not `docs/`)
+7. **DataTable testids**: any `data-testid` emitted from `ColumnDef.render` or `renderActions` must be built with `dataTableTestId(prefix, id, surface)` — DataTable mounts the table and the mobile cards simultaneously (see wiki Architecture › Frontend Conventions).
 
 ### Internationalization & Translation
 

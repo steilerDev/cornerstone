@@ -15,6 +15,7 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type { UserResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -266,7 +267,7 @@ describe('UserManagementPage', () => {
 
       // DataTable renders actions in both table rows and mobile cards — use getAllByTestId.
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
     });
   });
@@ -327,13 +328,34 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
 
-      expect(screen.getAllByTestId('user-edit-user-1')[0]!).toBeInTheDocument();
-      expect(screen.getAllByTestId('user-deactivate-user-1')[0]!).toBeInTheDocument();
+      expect(screen.getByTestId('user-edit-user-1')).toBeInTheDocument();
+      expect(screen.getByTestId('user-deactivate-user-1')).toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
+      mockListUsers.mockResolvedValueOnce({
+        users: [
+          makeUser({ id: 'user-1', displayName: 'Alice Admin' }),
+          makeUser({ id: 'user-2', displayName: 'Bob Builder', email: 'bob@example.com' }),
+        ],
+      });
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('user-menu-button-mobile-user-1')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+
+      expect(screen.getByTestId('user-edit-user-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
 
     it('shows edit action disabled for deactivated user', async () => {
@@ -350,12 +372,12 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
 
-      const editBtn = screen.getAllByTestId('user-edit-user-1')[0]!;
+      const editBtn = screen.getByTestId('user-edit-user-1');
       expect(editBtn).toBeDisabled();
     });
 
@@ -373,10 +395,10 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
 
       expect(screen.queryByTestId('user-deactivate-user-1')).not.toBeInTheDocument();
     });
@@ -391,11 +413,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
@@ -410,11 +432,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         const displayNameInput = screen.getByLabelText(/display name/i) as HTMLInputElement;
@@ -432,11 +454,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
@@ -461,11 +483,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
@@ -496,11 +518,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
@@ -536,11 +558,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
@@ -566,11 +588,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-edit-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
 
       await waitFor(() => {
         expect(screen.getByLabelText(/display name/i)).toBeInTheDocument();
@@ -597,11 +619,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-deactivate-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-deactivate-user-1'));
 
       await waitFor(() => {
         // DataTable rows + modal each show Alice Admin — getAllByText handles multiple matches.
@@ -621,11 +643,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-deactivate-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-deactivate-user-1'));
 
       // Find and click the confirm deactivate button
       await waitFor(() => {
@@ -657,11 +679,11 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('user-menu-button-user-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('user-menu-button-user-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('user-deactivate-user-1')[0]!);
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-deactivate-user-1'));
 
       await waitFor(() => {
         const confirmBtns = screen.getAllByRole('button');

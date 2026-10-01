@@ -14,7 +14,7 @@
 import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import { EditableField } from './EditableField.js';
-import type { EditableFieldProps } from './EditableField.js';
+import type { EditableFieldProps, EditableFieldLengthLimit } from './EditableField.js';
 import styles from './EditableField.module.css';
 
 function baseProps() {
@@ -29,17 +29,29 @@ function baseProps() {
   };
 }
 
-// #1941 fixture: a fully-populated maxLength prop set, override individual fields per test.
-function maxLengthProps(overrides: Partial<EditableFieldProps> = {}) {
+// #1941 fixture: a fully-populated lengthLimit prop set; override props / limit fields per test.
+function maxLengthProps(
+  overrides: Partial<EditableFieldProps> = {},
+  limit: Partial<EditableFieldLengthLimit> = {},
+) {
   return {
     ...baseProps(),
-    maxLength: 200,
-    maxLengthHint: 'Maximum 200 characters.',
-    overMaxLengthHint: 'Longer than the recommended limit; shortening it is optional.',
-    maxLengthReachedAnnouncement: 'Maximum length reached.',
+    lengthLimit: {
+      max: 200,
+      hint: 'Maximum 200 characters.',
+      overHint: 'Longer than the recommended limit; shortening it is optional.',
+      reachedAnnouncement: 'Maximum length reached.',
+      ...limit,
+    } as EditableFieldLengthLimit,
     ...overrides,
   };
 }
+
+const limitOf = (max: number): EditableFieldLengthLimit => ({
+  max,
+  hint: `Maximum ${max} characters.`,
+  reachedAnnouncement: 'Maximum length reached.',
+});
 
 describe('EditableField — as="input"', () => {
   it('renders a text input with the given value', () => {
@@ -261,8 +273,7 @@ describe('EditableField — #1941 .metaRow gating: showCounter alone controls wh
       <EditableField
         as="input"
         {...baseProps()}
-        maxLength={200}
-        maxLengthHint="Maximum 200 characters."
+        lengthLimit={limitOf(200)}
         value={'a'.repeat(180)} // >= Math.ceil(200 * 0.9) -> showCounter true
         isEdited={true}
       />,
@@ -392,7 +403,7 @@ describe('EditableField — AC9: maxLength omitted stays unbounded (regression g
     expect(unboundedTextarea.querySelector('textarea')!).not.toHaveAttribute('maxlength');
 
     const { container: bounded } = render(
-      <EditableField as="input" {...baseProps()} maxLength={10} />,
+      <EditableField as="input" {...baseProps()} lengthLimit={limitOf(10)} />,
     );
     expect(bounded.querySelector('input')!).toHaveAttribute('maxlength', '10');
   });
@@ -424,12 +435,16 @@ describe('EditableField — AC9: maxLength omitted stays unbounded (regression g
 
 describe('EditableField — AC1: native maxLength enforcement', () => {
   it('sets the native maxLength attribute to 10 on the input variant', () => {
-    const { container } = render(<EditableField as="input" {...baseProps()} maxLength={10} />);
+    const { container } = render(
+      <EditableField as="input" {...baseProps()} lengthLimit={limitOf(10)} />,
+    );
     expect(container.querySelector('input')!).toHaveAttribute('maxlength', '10');
   });
 
   it('sets the native maxLength attribute to 10 on the textarea variant', () => {
-    const { container } = render(<EditableField as="textarea" {...baseProps()} maxLength={10} />);
+    const { container } = render(
+      <EditableField as="textarea" {...baseProps()} lengthLimit={limitOf(10)} />,
+    );
     expect(container.querySelector('textarea')!).toHaveAttribute('maxlength', '10');
   });
 
@@ -446,7 +461,9 @@ describe('EditableField — AC1: native maxLength enforcement', () => {
   // prove, rather than asserting truncation that would never actually happen at this call site.
   it('fireEvent.change on a maxLength-constrained field still receives the full over-limit string in onChange (jsdom/testing-library do not simulate keystroke-level clamping)', () => {
     const onChange = jest.fn();
-    render(<EditableField as="input" {...baseProps()} maxLength={10} onChange={onChange} />);
+    render(
+      <EditableField as="input" {...baseProps()} lengthLimit={limitOf(10)} onChange={onChange} />,
+    );
     const input = screen.getByDisplayValue('Hello');
     const overLong = 'this value is way over ten characters';
     fireEvent.change(input, { target: { value: overLong } });
@@ -522,7 +539,7 @@ describe('EditableField — AC4: over-limit baseline on load (a derived/baseline
     const { container } = render(
       <EditableField
         as="input"
-        {...maxLengthProps({ overMaxLengthHint: undefined })}
+        {...maxLengthProps({}, { overHint: undefined })}
         value={overLimitValue}
         isEdited={false}
       />,
@@ -554,7 +571,7 @@ describe('EditableField — AC8a: static limitHintId hint is described in both l
 
 describe('EditableField — AC8b: one-shot live announcement arms and re-arms exactly at the limit', () => {
   it('is empty at 4/5, announces the reached-limit text at exactly 5/5, and clears again once the value drops back below the limit', () => {
-    const props = maxLengthProps({ maxLength: 5, value: 'hell' });
+    const props = maxLengthProps({ value: 'hell' }, { max: 5 });
     const { container, rerender } = render(<EditableField as="input" {...props} />);
     const input = container.querySelector('input')!;
     const liveSpan = container.querySelector(`#${input.id}-limit-live`)!;
@@ -571,14 +588,14 @@ describe('EditableField — AC8b: one-shot live announcement arms and re-arms ex
 describe('EditableField — AC8b: no announcement fires on an initial over-limit mount (a standing over-limit state on load is not a live event)', () => {
   it('renders the limitLiveId span empty on first render when the initial value is already over the limit (control: the identical span DOES carry the announcement when mounted exactly at the limit)', () => {
     const { container: overLimit } = render(
-      <EditableField as="input" {...maxLengthProps({ maxLength: 5, value: 'hello world' })} />,
+      <EditableField as="input" {...maxLengthProps({ value: 'hello world' }, { max: 5 })} />,
     );
     const overInput = overLimit.querySelector('input')!;
     const overLiveSpan = overLimit.querySelector(`#${overInput.id}-limit-live`)!;
     expect(overLiveSpan).toHaveTextContent('');
 
     const { container: atLimit } = render(
-      <EditableField as="input" {...maxLengthProps({ maxLength: 5, value: 'hello' })} />,
+      <EditableField as="input" {...maxLengthProps({ value: 'hello' }, { max: 5 })} />,
     );
     const atInput = atLimit.querySelector('input')!;
     const atLiveSpan = atLimit.querySelector(`#${atInput.id}-limit-live`)!;
@@ -649,5 +666,37 @@ describe('EditableField — ariaDescribedBy composition: explicit id-count cover
     expect(input.getAttribute('aria-describedby')).toBe(
       'sender-field-edited-hint sender-field-limit-hint sender-field-limit-live',
     );
+  });
+});
+
+describe('EditableField — #2034 lengthLimit prop contract', () => {
+  it('requires hint and reachedAnnouncement whenever lengthLimit is present, and no longer accepts the legacy flat maxLength prop (compile-time contract)', () => {
+    // The assertions are the @ts-expect-error directives below: tsc fails if either stops erroring.
+    render(
+      <>
+        {/* @ts-expect-error — hint and reachedAnnouncement are required when lengthLimit is present */}
+        <EditableField as="input" {...baseProps()} lengthLimit={{ max: 200 }} />
+        {/* @ts-expect-error — the legacy flat prop no longer exists */}
+        <EditableField as="input" {...baseProps()} maxLength={200} />
+      </>,
+    );
+    // Runtime: the legacy prop is ignored, so no native maxlength is rendered for it.
+    expect(document.querySelectorAll('input[maxlength="200"]')).toHaveLength(1);
+  });
+
+  it('puts max, hint and reachedAnnouncement on the right elements and omits overHint gracefully', () => {
+    const { container } = render(
+      <EditableField
+        as="input"
+        {...baseProps()}
+        id="lim"
+        value={'a'.repeat(200)}
+        lengthLimit={{ max: 200, hint: 'H', reachedAnnouncement: 'R' }}
+      />,
+    );
+    expect(container.querySelector('input')).toHaveAttribute('maxlength', '200');
+    expect(container.querySelector('#lim-limit-hint')).toHaveTextContent('H');
+    expect(container.querySelector('#lim-limit-live')).toHaveTextContent('R');
+    expect(container.querySelector(`.${styles.counter}`)).toHaveTextContent('200/200');
   });
 });

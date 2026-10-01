@@ -39,7 +39,7 @@ export function DataTableCard<T>({
     <div className={styles.cardContent}>
       {visibleCols.map((col) => {
         // Use renderCard if available, otherwise use render
-        const content = col.renderCard ? col.renderCard(item) : col.render(item);
+        const content = col.renderCard ? col.renderCard(item) : col.render(item, 'card');
         if (content === null) return null;
 
         return (
