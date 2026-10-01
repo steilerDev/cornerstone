@@ -218,10 +218,7 @@ export function AutoItemizeLineCard({
       {isLinked && (
         <div className={styles.linkedLineSection} data-testid="linked-line-values">
           <p className={styles.linkedLineHint}>{t('autoItemize.linkedLineReadOnlyHint')}</p>
-          <dl
-            className={styles.linkedLineValues}
-            aria-label={t('autoItemize.linkedLineValuesLabel')}
-          >
+          <dl className={styles.linkedLineValues}>
             <div className={styles.cardMetricCell}>
               <dt className={styles.cardMetricLabel}>{t('autoItemize.categoryLabel')}</dt>
               <dd className={styles.linkedLineValue} data-testid="linked-line-category">
@@ -254,7 +251,6 @@ export function AutoItemizeLineCard({
               data-testid="linked-line-itemized-amount"
               value={line.linkedItemizedAmount ?? effectiveRowAmount(line)}
               onChange={(e) => onFieldChange(line.rowId, 'linkedItemizedAmount', e.target.value)}
-              aria-label={t('autoItemize.editItemizedAmountAriaLabel')}
             />
           </div>
         </div>

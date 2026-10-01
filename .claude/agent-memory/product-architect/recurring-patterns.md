@@ -1799,3 +1799,13 @@ rows therefore never reaches the epsilon branch.
 The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise on the JS side (a
 subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
 boundary branch executes.
+
+## "Idempotent" junction insert = a silent drop of same-batch duplicates (PR #2151, #2149)
+
+`persistLines` does select-then-insert to keep one `invoice_budget_lines` row per `(invoice, budget line)`.
+Inside one transaction the select sees the batch's own earlier insert, so a second extracted line linked
+to the same budget line is skipped. Its amount still counts toward `totalItemized` and the UI total, but
+it is never persisted. "Retry idempotency" is no justification here: a failed save rolls back and leaves
+no junction behind. When a write guard is described as "idempotent", ask which caller actually produces a
+second write. If the only caller is the user, the dedup is data loss. Separate same-call dedup from
+cross-call dedup; the cross-call case is a product decision (add or reject).

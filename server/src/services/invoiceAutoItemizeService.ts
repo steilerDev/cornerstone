@@ -19,7 +19,7 @@ import {
   budgetSources,
   budgetCategories,
 } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
   NotFoundError,
@@ -351,7 +351,8 @@ export function persistLines(
         );
       }
 
-      // Create the invoice_budget_lines junction row if it doesn't already exist
+      // Link via an invoice_budget_lines junction row. If one already exists for this
+      // (invoice, budget line) pair, add this row's amount to it instead of skipping.
       const existingJunction = db
         .select()
         .from(invoiceBudgetLines)
@@ -365,7 +366,20 @@ export function persistLines(
         )
         .get();
 
-      if (!existingJunction) {
+      const lineItemizedAmount = effectiveLineAmount({
+        amount: extractedLine.totalAmount ?? 0,
+        includesVat: extractedLine.includesVat,
+      });
+
+      if (existingJunction) {
+        db.update(invoiceBudgetLines)
+          .set({
+            itemizedAmount: existingJunction.itemizedAmount + lineItemizedAmount,
+            updatedAt: now,
+          })
+          .where(eq(invoiceBudgetLines.id, existingJunction.id))
+          .run();
+      } else {
         const workItemBudgetId =
           extractedLine.assignedBudgetLineType === 'work_item'
             ? extractedLine.assignedBudgetLineId
@@ -381,20 +395,14 @@ export function persistLines(
             invoiceId,
             workItemBudgetId,
             householdItemBudgetId,
-            itemizedAmount: effectiveLineAmount({
-              amount: extractedLine.totalAmount ?? 0,
-              includesVat: extractedLine.includesVat,
-            }),
+            itemizedAmount: lineItemizedAmount,
             createdAt: now,
             updatedAt: now,
           })
           .run();
       }
 
-      totalItemized += effectiveLineAmount({
-        amount: extractedLine.totalAmount ?? 0,
-        includesVat: extractedLine.includesVat,
-      });
+      totalItemized += lineItemizedAmount;
     } else if (isCreateNew) {
       // Case 2: Auto-create a new work_item_budget with per-line category/source
       const workItemBudgetId = randomUUID();
@@ -450,10 +458,17 @@ export function persistLines(
     }
   }
 
-  // Validate Σ itemized ≤ effective invoice.amount
-  if (exceedsAmount(totalItemized, effectiveInvoiceAmount)) {
+  // Validate Σ itemized (all rows stored for the invoice, including this call's additions and
+  // after any 'replace' deletions) ≤ effective invoice.amount
+  const storedTotal = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.invoiceId, invoiceId))
+    .get();
+  const storedItemizedTotal = storedTotal?.total ?? totalItemized;
+  if (exceedsAmount(storedItemizedTotal, effectiveInvoiceAmount)) {
     throw new ItemizedSumExceedsInvoiceError(
-      `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${effectiveInvoiceAmount})`,
+      `Sum of itemized amounts (${storedItemizedTotal}) exceeds invoice total (${effectiveInvoiceAmount})`,
     );
   }
 

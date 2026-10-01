@@ -810,7 +810,7 @@ describe('AutoItemizeLineCard — linked to an existing budget line (#2149)', ()
 
     const input = screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement;
     expect(input.value).toBe('1100');
-    expect(input).toHaveAccessibleName('autoItemize.editItemizedAmountAriaLabel');
+    expect(input).toHaveAccessibleName('autoItemize.itemizedAmountLabel');
 
     fireEvent.change(input, { target: { value: '1250' } });
 
