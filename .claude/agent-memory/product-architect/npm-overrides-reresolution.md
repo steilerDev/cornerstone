@@ -11,7 +11,11 @@ install reports success. Seen 2026-09-30 on fast-uri, ip-address, joi, webpack-d
 unscoped key (`"js-yaml"`) got rewritten.
 
 - **Fix that works:** `npm update <pkg> [<pkg>...]` (only the named packages), then a plain `npm install`,
-  then `npm ls --all | grep -Ei 'invalid|ELSPROBLEM'` must be empty.
+  then the CLAUDE.md residual sweep must print nothing:
+  `npm ls --all 2>&1 | grep -oE '"[^"]+" from [^ ,]+' | sort -u | grep -v 'from node_modules/babel-preset-current-node-syntax/node_modules/@babel/plugin-syntax-'`.
+  Do not use `npm ls --all | grep -Ei 'invalid|ELSPROBLEM'`: since Babel 8 (#1823) it always matches the
+  accepted `invalid: @babel/core@8.x` problem (Jest's 15 `@babel/plugin-syntax-*@7` peers), and `invalid`
+  also false-matches the package name `character-reference-invalid`. `npm ls --all` exits 1 by design now.
 - **Does NOT work:** popping the entries out of `package-lock.json` (+ deleting `node_modules/<pkg>` and
   even `node_modules/.package-lock.json`). npm then silently omits the dependency: no UNMET, no
   invalid, and `require.resolve` fails. The tree is broken but reports clean.
@@ -26,6 +30,8 @@ unscoped key (`"js-yaml"`) got rewritten.
   line count.
 
 **Why:** a spec's "run npm install and verify" step passes its own exit code while leaving the
-vulnerable versions installed. Only the `npm ls` invalid sweep exposes it.
-**How to apply:** use this in any Dependabot/overrides review or remediation. Pair it with dev-team-lead's
+vulnerable versions installed. Only the `npm ls` invalid-edge sweep exposes it.
+**How to apply:** use this in any Dependabot/overrides review or remediation, with the CLAUDE.md
+residual sweep (the `"<range>" from <parent>` grep that excludes `babel-preset-current-node-syntax`)
+as the check, never `npm ls` exit codes. Pair it with dev-team-lead's
 `dependency-overrides-pitfalls.md` (stale unscoped pins, dead keys, bundled deps unoverridable).
