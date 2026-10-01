@@ -1291,9 +1291,6 @@ describe('diaryService', () => {
       expect(getDiaryEntry(db, id).body).toBe('Test body content');
     });
 
-    // NOTE: the legacy null-status case is not testable at the service level:
-    // diary_entries.status is NOT NULL DEFAULT 'saved'. It is covered in diaryLock.test.ts.
-
     it('does not lock an unsigned saved entry', () => {
       const id = insertEntry({ status: 'saved' });
       expect(updateDiaryEntry(db, id, { body: 'fine' }).body).toBe('fine');
@@ -1709,6 +1706,116 @@ describe('diaryService', () => {
       expect(result.title).toBeNull();
       expect(result.metadata).toBeNull();
       expect(result.status).toBe('saved');
+    });
+  });
+
+  describe('signature hardening (data URL, name, date, count)', () => {
+    const PNG =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const MAX = 512 * 1024;
+    const PREFIX = 'data:image/png;base64,';
+    const base = {
+      signerName: 'Alice',
+      signerType: 'self' as const,
+      signatureDataUrl: PNG,
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const types = [
+      ['daily_log', { weather: 'sunny' }],
+      ['site_visit', {}],
+      ['issue', { severity: 'high', resolutionStatus: 'open' }],
+    ] as const;
+
+    const create = (
+      entryType: 'daily_log' | 'site_visit' | 'issue',
+      extra: Record<string, unknown>,
+      signatures: unknown[],
+    ) =>
+      createDiaryEntry(db, testUserId, {
+        entryType,
+        entryDate: '2026-03-14',
+        body: 'x',
+        metadata: { ...extra, signatures } as never,
+      });
+
+    const urlMsg = (t: string) =>
+      `${t} signature entry signatureDataUrl must be a base64 png, jpeg or webp data URL of at most 512 KB`;
+
+    describe.each(types)('%s', (entryType, extra) => {
+      const reject = (sig: Record<string, unknown>, message: string) =>
+        expect(() => create(entryType, extra, [{ ...base, ...sig }])).toThrow(
+          new InvalidMetadataError(message),
+        );
+
+      it.each([
+        ['an https URL', 'https://example.com/sig.png'],
+        ['a javascript: URL', 'javascript:alert(1)'],
+        ['a text/html data URL', 'data:text/html;base64,PGh0bWw+'],
+        ['an svg data URL', 'data:image/svg+xml;base64,PHN2Zz4='],
+        ['a non-base64 png data URL', 'data:image/png;base64,not base64!'],
+        ['an empty payload', 'data:image/png;base64,'],
+      ])('rejects %s', (_l, url) => reject({ signatureDataUrl: url }, urlMsg(entryType)));
+
+      it('rejects a data URL one character over the limit', () => {
+        const over = PREFIX + 'A'.repeat(MAX - PREFIX.length + 1);
+        expect(over.length).toBe(MAX + 1);
+        reject({ signatureDataUrl: over }, urlMsg(entryType));
+      });
+
+      it('accepts a data URL of exactly the limit', () => {
+        const exact = PREFIX + 'A'.repeat(MAX - PREFIX.length);
+        expect(exact.length).toBe(MAX);
+        expect(create(entryType, extra, [{ ...base, signatureDataUrl: exact }]).isSigned).toBe(
+          true,
+        );
+      });
+
+      it.each(['png', 'jpeg', 'webp'])('accepts a valid %s data URL', (fmt) => {
+        const url = `data:image/${fmt};base64,AAAA`;
+        expect(create(entryType, extra, [{ ...base, signatureDataUrl: url }]).isSigned).toBe(true);
+      });
+
+      it('rejects a signerName of 301 characters and accepts 300', () => {
+        reject(
+          { signerName: 'a'.repeat(301) },
+          `${entryType} signature entry signerName must not exceed 300 characters`,
+        );
+        expect(create(entryType, extra, [{ ...base, signerName: 'a'.repeat(300) }]).isSigned).toBe(
+          true,
+        );
+      });
+
+      it('measures the signerName after trimming', () => {
+        expect(
+          create(entryType, extra, [{ ...base, signerName: `  ${'a'.repeat(300)}  ` }]).isSigned,
+        ).toBe(true);
+      });
+
+      it.each([['not a date'], ['2026-13-45T99:99']])('rejects signedAt %j', (bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it('accepts a signature without signedAt', () => {
+        const { signedAt: _omit, ...noDate } = base;
+        expect(create(entryType, extra, [noDate]).isSigned).toBe(true);
+      });
+
+      it('rejects 11 signatures and accepts 10', () => {
+        expect(() =>
+          create(
+            entryType,
+            extra,
+            Array.from({ length: 11 }, () => base),
+          ),
+        ).toThrow(new InvalidMetadataError(`${entryType} signatures must not exceed 10 entries`));
+        expect(
+          create(
+            entryType,
+            extra,
+            Array.from({ length: 10 }, () => base),
+          ).isSigned,
+        ).toBe(true);
+      });
     });
   });
 });

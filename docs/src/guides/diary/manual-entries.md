@@ -91,7 +91,7 @@ Once an entry is saved with signatures, the photo section is hidden when no phot
 To edit an existing entry, navigate to its detail page and click the **Edit** button. You can update any field including the title, body, weather, and photos.
 
 :::caution
-Entries saved with signatures cannot be edited. The edit button is hidden on entries that have signatures. A signed draft stays editable until saved -- see [Immutability](/guides/diary/signatures#immutability) for details.
+Entries saved with signatures cannot be edited. The edit button is hidden on these entries. A signed draft stays editable until saved -- see [Immutability](/guides/diary/signatures#immutability) for details.
 :::
 
 ## Delivery Entries

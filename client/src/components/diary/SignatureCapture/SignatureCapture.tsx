@@ -1,8 +1,12 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
+import { MAX_SIGNER_NAME_LENGTH } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
 import styles from './SignatureCapture.module.css';
+
+/** Max length of a typed vendor name; matches the server's vendor name cap (vendors.ts, maxLength: 200). */
+const MAX_VENDOR_NAME_INPUT_LENGTH = 200;
 
 export interface VendorOption {
   id: string;
@@ -361,6 +365,9 @@ export function SignatureCapture({
     }
   };
 
+  // Composed signerName is `${vendorName} (${signatoryName})`: keep it within the server cap.
+  const signatoryMaxLength = Math.max(1, MAX_SIGNER_NAME_LENGTH - vendorName.length - 3);
+
   const isVendorInfoMissing =
     signerType === 'vendor' && (!vendorName.trim() || !signatoryName.trim());
   const isAcceptDisabled = disabled || !hasStrokes || isVendorInfoMissing;
@@ -463,6 +470,7 @@ export function SignatureCapture({
                   value={vendorName}
                   onChange={(e) => setVendorName(e.target.value)}
                   disabled={disabled}
+                  maxLength={MAX_VENDOR_NAME_INPUT_LENGTH}
                   placeholder={t('signature.vendorNamePlaceholder')}
                 />
               )}
@@ -475,6 +483,7 @@ export function SignatureCapture({
               value={vendorName}
               onChange={(e) => setVendorName(e.target.value)}
               disabled={disabled}
+              maxLength={MAX_VENDOR_NAME_INPUT_LENGTH}
               placeholder={t('signature.vendorNamePlaceholder')}
             />
           )}
@@ -489,6 +498,7 @@ export function SignatureCapture({
             <input
               id="signatory-name"
               type="text"
+              maxLength={signatoryMaxLength}
               className={styles.input}
               value={signatoryName}
               onChange={(e) => setSignatoryName(e.target.value)}

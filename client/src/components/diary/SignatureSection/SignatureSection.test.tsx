@@ -90,6 +90,20 @@ describe('SignatureSection', () => {
       expect(btn.disabled).toBe(true);
     });
 
+    it.each([
+      [9, false],
+      [10, true],
+      [11, true],
+    ])('with %i signatures the button disabled state is %s (cap of 10)', (count, disabled) => {
+      const onAddSignature = jest.fn();
+      const signatures = Array.from({ length: count }, (_, i) => makeSig({ signerName: `S${i}` }));
+      render(<SignatureSection {...makeProps({ signatures, onAddSignature })} />);
+      const btn = screen.getByRole('button', { name: /add signature/i }) as HTMLButtonElement;
+      expect(btn.disabled).toBe(disabled);
+      fireEvent.click(btn);
+      expect(onAddSignature).toHaveBeenCalledTimes(disabled ? 0 : 1);
+    });
+
     it('button is enabled when disabled prop is false (default)', () => {
       render(<SignatureSection {...makeProps({ disabled: false })} />);
       const btn = screen.getByRole('button', { name: /add signature/i }) as HTMLButtonElement;

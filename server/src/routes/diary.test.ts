@@ -914,4 +914,75 @@ describe('Diary Routes', () => {
       expect(response.statusCode).toBe(204);
     });
   });
+
+  describe('signature hardening over HTTP', () => {
+    const PNG = 'data:image/png;base64,iVBORw0KGgo=';
+    const sig = {
+      signerName: 'Alice',
+      signerType: 'self',
+      signatureDataUrl: PNG,
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const types = [
+      ['daily_log', { weather: 'sunny' }],
+      ['site_visit', {}],
+      ['issue', { severity: 'high', resolutionStatus: 'open' }],
+    ] as const;
+    const bads: Array<[string, Record<string, unknown>]> = [
+      ['https URL', { signatureDataUrl: 'https://example.com/s.png' }],
+      ['javascript: URL', { signatureDataUrl: 'javascript:alert(1)' }],
+      ['text/html data URL', { signatureDataUrl: 'data:text/html;base64,PGh0bWw+' }],
+      [
+        'oversized data URL',
+        { signatureDataUrl: 'data:image/png;base64,' + 'A'.repeat(512 * 1024) },
+      ],
+      ['301-char signerName', { signerName: 'a'.repeat(301) }],
+      ['bad signedAt', { signedAt: 'nope' }],
+    ];
+
+    describe.each(types)('%s', (entryType, extra) => {
+      it.each(bads)('rejects %s with 400 INVALID_METADATA', async (_l, override) => {
+        const { cookie } = await createUserWithSession(
+          `h-${entryType}-${Math.random()}@test.com`,
+          'Hard',
+          'password',
+        );
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/diary-entries',
+          headers: { cookie },
+          payload: {
+            entryType,
+            status: 'draft',
+            metadata: { ...extra, signatures: [{ ...sig, ...override }] },
+          },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<ApiErrorResponse>().error.code).toBe('INVALID_METADATA');
+      });
+
+      it('rejects 11 signatures and accepts 10', async () => {
+        const { cookie } = await createUserWithSession(
+          `c-${entryType}-${Math.random()}@test.com`,
+          'Count',
+          'password',
+        );
+        const post = (n: number) =>
+          app.inject({
+            method: 'POST',
+            url: '/api/diary-entries',
+            headers: { cookie },
+            payload: {
+              entryType,
+              status: 'draft',
+              metadata: { ...extra, signatures: Array.from({ length: n }, () => sig) },
+            },
+          });
+        const over = await post(11);
+        expect(over.statusCode).toBe(400);
+        expect(over.json<ApiErrorResponse>().error.code).toBe('INVALID_METADATA');
+        expect((await post(10)).statusCode).toBe(201);
+      });
+    });
+  });
 });

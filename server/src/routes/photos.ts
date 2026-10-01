@@ -15,7 +15,6 @@ import type {
   UpdatePhotoRequest,
   ReorderPhotosRequest,
   PhotoEntityType,
-  DiaryEntryStatus,
 } from '@cornerstone/shared';
 import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
@@ -34,7 +33,7 @@ import { diaryEntries } from '../db/schema.js';
 // ─── Helper functions ─────────────────────────────────────────────────────────
 
 /**
- * Check if a diary entry is signature-locked: saved (or legacy null status) with a non-empty
+ * Check if a diary entry is signature-locked: saved with a non-empty
  * signatures array in metadata. Drafts are never locked (#2124).
  * Returns false if the entry is not found or its metadata is unparseable.
  */
@@ -60,7 +59,7 @@ function isDiaryEntryLocked(
   }
   return isDiaryEntrySignatureLocked({
     isSigned: hasDiarySignatures(parsed),
-    status: entry.status as DiaryEntryStatus | null,
+    status: entry.status,
   });
 }
 

@@ -34,14 +34,6 @@ describe('isDiaryEntrySignatureLocked', () => {
     expect(isDiaryEntrySignatureLocked({ isSigned: true, status: 'saved' })).toBe(true);
   });
 
-  it('locks a signed legacy entry with null status', () => {
-    expect(isDiaryEntrySignatureLocked({ isSigned: true, status: null })).toBe(true);
-  });
-
-  it('locks a signed entry with undefined status', () => {
-    expect(isDiaryEntrySignatureLocked({ isSigned: true })).toBe(true);
-  });
-
   it('does not lock an unsigned saved entry', () => {
     expect(isDiaryEntrySignatureLocked({ isSigned: false, status: 'saved' })).toBe(false);
   });

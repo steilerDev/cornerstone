@@ -434,6 +434,12 @@ export { computeIncludedTotal } from './lib/reportMath.js';
 
 // Diary signature lock
 export { hasDiarySignatures, isDiaryEntrySignatureLocked } from './lib/diaryLock.js';
+export {
+  MAX_SIGNATURES_PER_ENTRY,
+  MAX_SIGNER_NAME_LENGTH,
+  MAX_SIGNATURE_DATA_URL_LENGTH,
+  SIGNATURE_DATA_URL_PATTERN,
+} from './lib/diarySignatures.js';
 
 // Source Reports
 export type {

@@ -10,11 +10,10 @@ export function hasDiarySignatures(metadata: unknown): boolean {
 /**
  * Signature immutability rule (#2124): signatures lock an entry only once it is saved.
  * Drafts stay fully editable (fields, signatures, photos) until promoted.
- * A null/undefined status is a legacy row and counts as saved.
  */
 export function isDiaryEntrySignatureLocked(entry: {
   isSigned: boolean;
-  status?: DiaryEntryStatus | null;
+  status: DiaryEntryStatus;
 }): boolean {
   return entry.isSigned && entry.status !== 'draft';
 }

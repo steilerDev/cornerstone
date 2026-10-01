@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
+import { MAX_SIGNATURES_PER_ENTRY } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
@@ -91,7 +92,7 @@ export function SignatureSection({
         type="button"
         className={shared.btnSecondary}
         onClick={onAddSignature}
-        disabled={disabled}
+        disabled={disabled || (signatures?.length ?? 0) >= MAX_SIGNATURES_PER_ENTRY}
         aria-label={t('signature.addSignature')}
       >
         {t('signature.addSignature')}

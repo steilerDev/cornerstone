@@ -19,7 +19,7 @@ Signatures work on daily log, site visit, and issue entries. To add a signature 
 4. Draw the signature on the canvas
 5. Click **Accept Signature** to finalize it
 
-You can use **Clear** to redraw or **Remove Signature** to discard the current signature. You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue.
+You can use **Clear** to redraw or **Remove Signature** to discard the current signature. You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue. Each entry supports up to 10 signatures, and signer names are limited to 300 characters.
 
 :::caution Unfinished signatures are blocked
 An unfinished signature (no signer selected or no drawing yet) cannot be saved to the entry. Save is blocked client-side with a clear message next to the field, and autosave continues working in the background. To discard an incomplete signature, click **Remove Signature** to clear it, then save the entry. Server errors appear translated to your configured language.

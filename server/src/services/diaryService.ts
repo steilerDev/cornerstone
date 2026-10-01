@@ -52,7 +52,14 @@ import type {
   AreaSummary,
 } from '@cornerstone/shared';
 import type { PaginationMeta } from '@cornerstone/shared';
-import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
+import {
+  hasDiarySignatures,
+  isDiaryEntrySignatureLocked,
+  MAX_SIGNATURES_PER_ENTRY,
+  MAX_SIGNER_NAME_LENGTH,
+  MAX_SIGNATURE_DATA_URL_LENGTH,
+  SIGNATURE_DATA_URL_PATTERN,
+} from '@cornerstone/shared';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 
@@ -67,6 +74,11 @@ function validateSignatures(entryType: string, signatures: unknown): void {
   if (!Array.isArray(signatures)) {
     throw new InvalidMetadataError(`${entryType} signatures must be an array or null`);
   }
+  if (signatures.length > MAX_SIGNATURES_PER_ENTRY) {
+    throw new InvalidMetadataError(
+      `${entryType} signatures must not exceed ${MAX_SIGNATURES_PER_ENTRY} entries`,
+    );
+  }
   for (const raw of signatures) {
     if (typeof raw !== 'object' || raw === null) {
       throw new InvalidMetadataError(`${entryType} signature entry must be an object`);
@@ -74,6 +86,11 @@ function validateSignatures(entryType: string, signatures: unknown): void {
     const sig = raw as Partial<DiarySignatureEntry>;
     if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
       throw new InvalidMetadataError(`${entryType} signature entry must have non-empty signerName`);
+    }
+    if (sig.signerName.trim().length > MAX_SIGNER_NAME_LENGTH) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry signerName must not exceed ${MAX_SIGNER_NAME_LENGTH} characters`,
+      );
     }
     if (!sig.signerType || !['self', 'vendor'].includes(sig.signerType)) {
       throw new InvalidMetadataError(
@@ -86,12 +103,23 @@ function validateSignatures(entryType: string, signatures: unknown): void {
       );
     }
     if (
+      sig.signatureDataUrl.length > MAX_SIGNATURE_DATA_URL_LENGTH ||
+      !SIGNATURE_DATA_URL_PATTERN.test(sig.signatureDataUrl)
+    ) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry signatureDataUrl must be a base64 png, jpeg or webp data URL of at most ${MAX_SIGNATURE_DATA_URL_LENGTH / 1024} KB`,
+      );
+    }
+    if (
       sig.signedAt !== undefined &&
       (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)
     ) {
       throw new InvalidMetadataError(
         `${entryType} signature entry signedAt must be a non-empty string if provided`,
       );
+    }
+    if (sig.signedAt !== undefined && Number.isNaN(Date.parse(sig.signedAt))) {
+      throw new InvalidMetadataError(`${entryType} signature entry signedAt must be a valid date`);
     }
   }
 }
