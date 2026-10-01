@@ -446,7 +446,7 @@ describe('materializeInlineDrafts — source/category mirroring (#2158)', () => 
     ({ materializeInlineDrafts } = await import('./autoItemizeDraftUtils.js'));
   });
 
-  it("mirrors the created line's source and category (not the draft's) onto the converted row", async () => {
+  it("keeps the row's own source and category on the converted row (not the draft's or the created line's)", async () => {
     const line = makeDraftLine({ budgetSourceId: 'src-row', budgetCategoryId: 'cat-row' });
     line.inlineCreatedBudgetLineDraft.budgetSourceId = 'src-draft';
     line.inlineCreatedBudgetLineDraft.budgetCategoryId = 'cat-draft';
@@ -464,24 +464,21 @@ describe('materializeInlineDrafts — source/category mirroring (#2158)', () => 
 
     expect(result.ok).toBe(true);
     expect(result.lines[0].assignedBudgetLineId).toBe('new-wib-1');
-    expect(result.lines[0].budgetSourceId).toBe('src-created');
-    expect(result.lines[0].budgetCategoryId).toBe('cat-created');
+    expect(result.lines[0].budgetSourceId).toBe('src-row');
+    expect(result.lines[0].budgetCategoryId).toBe('cat-row');
   });
 
-  it('household item: row takes the server-assigned category even though the draft category was empty', async () => {
+  it('household item: the converted row keeps its own category, not the server-assigned one', async () => {
     const line = makeDraftLine({
       assignedItemId: 'hi-1',
       assignedItemType: 'household_item',
+      budgetSourceId: 'src-row',
       budgetCategoryId: 'cat-row',
     });
     line.inlineCreatedBudgetLineDraft.budgetCategoryId = '';
     mockCreateHouseholdItem.mockResolvedValue({
       ...makeCreatedBudgetLine('new-hib-1'),
-      budgetCategory: {
-        id: 'bc-household-items',
-        name: 'Household Items',
-        translationKey: null,
-      },
+      budgetCategory: { id: 'bc-household-items', name: 'Household Items', translationKey: null },
     });
 
     const result = await materializeInlineDrafts(
@@ -492,25 +489,8 @@ describe('materializeInlineDrafts — source/category mirroring (#2158)', () => 
 
     expect(result.ok).toBe(true);
     expect(result.lines[0].assignedBudgetLineId).toBe('new-hib-1');
-    expect(result.lines[0].budgetCategoryId).toBe('bc-household-items');
-  });
-
-  it('sets source and category to null when the created line has none', async () => {
-    const line = makeDraftLine();
-    mockCreateWorkItem.mockResolvedValue({
-      ...makeCreatedBudgetLine('new-wib-1'),
-      budgetSource: null,
-      budgetCategory: null,
-    });
-
-    const result = await materializeInlineDrafts(
-      [line],
-      { workItem: mockCreateWorkItem, householdItem: mockCreateHouseholdItem },
-      i18n,
-    );
-
-    expect(result.lines[0].budgetSourceId).toBeNull();
-    expect(result.lines[0].budgetCategoryId).toBeNull();
+    expect(result.lines[0].budgetSourceId).toBe('src-row');
+    expect(result.lines[0].budgetCategoryId).toBe('cat-row');
   });
 });
 

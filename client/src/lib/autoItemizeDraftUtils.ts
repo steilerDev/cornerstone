@@ -54,11 +54,6 @@ export function mergeMaterializedLines(
  *
  * Metadata (description, confidence, category, source, vendor) comes from the
  * inline draft form the user filled in.
- *
- * The converted assign-existing row mirrors the persisted line as returned by the
- * server (`created.budgetSource?.id`, `created.budgetCategory?.id`; the server may
- * coerce fields, e.g. household-item category) so the downstream assign-existing
- * commit does not overwrite the persisted values (#2158).
  */
 export async function materializeInlineDrafts(
   workingLines: LineWithInclude[],
@@ -118,8 +113,6 @@ export async function materializeInlineDrafts(
         assignedBudgetLineId: created.id,
         assignedBudgetLineType: line.assignedItemType,
         totalAmount: netBase, // live amount
-        budgetSourceId: created.budgetSource?.id ?? null,
-        budgetCategoryId: created.budgetCategory?.id ?? null,
         includesVat: line.includesVat, // live VAT flag
         inlineCreatedBudgetLineDraft: undefined,
         inlineHideConfidence: undefined,

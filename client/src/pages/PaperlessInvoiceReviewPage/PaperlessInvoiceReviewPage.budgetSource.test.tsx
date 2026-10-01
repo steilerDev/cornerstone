@@ -99,35 +99,40 @@ const SOURCES = [
 
 let mockPickerStateOverride: Record<string, unknown> = {};
 const mockClosePicker = jest.fn();
+// Captures the hook's onLineCreated so tests can simulate a picker-created budget line.
+let capturedOnLineCreated: ((line: unknown) => void) | null = null;
 
 jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
-  useBudgetLinePicker: () => ({
-    pickerState: {
-      isOpen: false,
-      step: 1,
-      type: null,
-      itemId: null,
-      itemTitle: null,
-      isLoading: false,
-      error: null,
-      budgetLines: [],
-      budgetSources: SOURCES,
-      vendors: [{ id: 'v-builder', name: 'Builder Co', trade: null }],
-      categories: [],
-      showCreateForm: false,
-      createError: null,
-      createForm: undefined,
-      ...mockPickerStateOverride,
-    },
-    openPicker: jest.fn(),
-    closePicker: mockClosePicker,
-    handleSelectItem: jest.fn(),
-    showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    handleCreateBudgetLine: jest.fn(),
-    setPickerState: jest.fn(),
-    initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
-    createBudgetLineButtonRef: { current: null },
-  }),
+  useBudgetLinePicker: (opts: { onLineCreated: (line: unknown) => void }) => {
+    capturedOnLineCreated = opts.onLineCreated;
+    return {
+      pickerState: {
+        isOpen: false,
+        step: 1,
+        type: null,
+        itemId: null,
+        itemTitle: null,
+        isLoading: false,
+        error: null,
+        budgetLines: [],
+        budgetSources: SOURCES,
+        vendors: [{ id: 'v-builder', name: 'Builder Co', trade: null }],
+        categories: [],
+        showCreateForm: false,
+        createError: null,
+        createForm: undefined,
+        ...mockPickerStateOverride,
+      },
+      openPicker: jest.fn(),
+      closePicker: mockClosePicker,
+      handleSelectItem: jest.fn(),
+      showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      handleCreateBudgetLine: jest.fn(),
+      setPickerState: jest.fn(),
+      initializeStaticData: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
+      createBudgetLineButtonRef: { current: null },
+    };
+  },
 }));
 
 // ─── Mock: formatters ─────────────────────────────────────────────────────────
@@ -282,6 +287,7 @@ beforeEach(async () => {
   mockCreateWorkItemBudget.mockReset();
   mockCreateHouseholdItemBudget.mockReset();
   mockClosePicker.mockReset();
+  capturedOnLineCreated = null;
   mockPickerStateOverride = {};
 
   // Safe defaults so tests that don't override still reach ready state
@@ -592,7 +598,7 @@ interface CommitLine {
   assignmentMode: string;
   assignedBudgetLineId?: string;
   budgetSourceId?: string;
-  budgetCategoryId: string | null;
+  budgetCategoryId?: string | null;
 }
 
 async function clickSaveAndGetCommitLines(): Promise<CommitLine[]> {
@@ -701,24 +707,25 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     expect(statusText()).toBe('Budget source "Savings" applied to 4 lines');
   });
 
-  it("AC6: a row linked to an existing budget line keeps that line's source, is not counted, and commits it", async () => {
+  it('AC6: a row linked to an existing budget line is untouched by the default, not counted, and commits no source or category', async () => {
     openPickerForItem([WORK_ITEM_BUDGET_LINE_DISC]);
     setPreviewLines([previewLine('Tiles', 'src-loan'), previewLine('Grout', 'src-loan')]);
     await renderReady();
 
     await linkExistingLine(0, /Existing disc line/);
-    expect(rowSources()).toEqual(['src-disc', 'src-loan']);
+    expect(rowSources()).toEqual(['src-loan', 'src-loan']);
 
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['src-disc', 'src-sav']);
+    expect(rowSources()).toEqual(['src-loan', 'src-sav']);
     expect(statusText()).toBe('Budget source "Savings" applied to 1 line');
 
     const lines = await clickSaveAndGetCommitLines();
     expect(lines.length).toBe(2);
     expect(lines[0]?.assignmentMode).toBe('assign-existing');
     expect(lines[0]?.assignedBudgetLineId).toBe('wib-disc');
-    expect(lines[0]?.budgetSourceId).toBe('src-disc');
+    expect(lines[0]?.budgetSourceId).toBeUndefined();
+    expect(lines[0]?.budgetCategoryId).toBeUndefined();
     expect(lines[1]?.assignmentMode).toBe('create-new');
     expect(lines[1]?.budgetSourceId).toBe('src-sav');
   });
@@ -731,7 +738,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await linkExistingLine(0, /Existing disc line/);
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['src-disc']);
+    expect(rowSources()).toEqual(['src-loan']);
     expect(getTopSelect().value).toBe('src-sav');
     expect(statusText()).toBe('');
   });
@@ -867,11 +874,11 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     expect(lines.length).toBe(1);
     expect(lines[0]?.assignmentMode).toBe('assign-existing');
     expect(lines[0]?.assignedBudgetLineId).toBe('bl-draft');
-    expect(lines[0]?.budgetSourceId).toBe('src-loan');
-    expect(lines[0]?.budgetCategoryId).toBe('bc-draft');
+    expect(lines[0]?.budgetSourceId).toBeUndefined();
+    expect(lines[0]?.budgetCategoryId).toBeUndefined();
   });
 
-  it('household-item inline draft commits the server-assigned household category', async () => {
+  it('household-item inline draft is created with the draft values and commits no source or category', async () => {
     openPickerForItem([], 'household_item');
     mockCreateHouseholdItemBudget.mockResolvedValue({
       id: 'hbl-new',
@@ -900,10 +907,82 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     const lines = await clickSaveAndGetCommitLines();
 
     expect(mockCreateHouseholdItemBudget).toHaveBeenCalledTimes(1);
+    expect(mockCreateHouseholdItemBudget.mock.calls[0]?.[1]).toMatchObject({
+      budgetSourceId: 'src-loan',
+    });
     expect(lines.length).toBe(1);
     expect(lines[0]?.assignmentMode).toBe('assign-existing');
     expect(lines[0]?.assignedBudgetLineId).toBe('hbl-new');
-    expect(lines[0]?.budgetCategoryId).toBe('bc-household-items');
+    expect(lines[0]?.budgetSourceId).toBeUndefined();
+    expect(lines[0]?.budgetCategoryId).toBeUndefined();
+  });
+
+  it('a budget line created through the picker and linked commits no source or category', async () => {
+    openPickerForItem();
+    setPreviewLines([previewLine('Tiles', 'src-loan', { budgetCategoryId: 'bc-row' })]);
+    await renderReady();
+
+    await act(async () => {
+      fireEvent.click(within(getRow(0)).getByRole('button', { name: /Assign…/i }));
+    });
+    expect(capturedOnLineCreated).not.toBeNull();
+    await act(async () => {
+      capturedOnLineCreated?.(makeWorkItemBudgetLine({ id: 'bl-picker', plannedAmount: 100 }));
+    });
+    expect(rowSources()).toEqual(['src-loan']);
+
+    const lines = await clickSaveAndGetCommitLines();
+    expect(lines.length).toBe(1);
+    expect(lines[0]?.assignmentMode).toBe('assign-existing');
+    expect(lines[0]?.assignedBudgetLineId).toBe('bl-picker');
+    expect(lines[0]?.budgetSourceId).toBeUndefined();
+    expect(lines[0]?.budgetCategoryId).toBeUndefined();
+  });
+
+  it('clearing a linked row while a default is set makes it a new line with the default source', async () => {
+    openPickerForItem([
+      { ...WORK_ITEM_BUDGET_LINE_DISC, budgetSource: null, budgetCategory: null },
+    ]);
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
+    await renderReady();
+
+    await linkExistingLine(0, /Existing disc line/);
+    // The default is chosen while the row is linked, so it is skipped by the apply step.
+    await setTopSource('src-sav');
+    expect(rowSources()).toEqual(['src-loan']);
+    expect(statusText()).toBe('');
+
+    await act(async () => {
+      fireEvent.click(
+        within(getRow(0)).getByRole('button', { name: 'Clear budget line assignment' }),
+      );
+    });
+
+    expect(rowSources()).toEqual(['src-sav']);
+    const lines = await clickSaveAndGetCommitLines();
+    expect(lines.length).toBe(1);
+    expect(lines[0]?.assignmentMode).toBe('create-new');
+    expect(lines[0]?.budgetSourceId).toBe('src-sav');
+    expect(lines[0]?.budgetCategoryId).toBe('bc-test');
+  });
+
+  it('clearing a linked row without a default restores its own source on the new line', async () => {
+    openPickerForItem([
+      { ...WORK_ITEM_BUDGET_LINE_DISC, budgetSource: null, budgetCategory: null },
+    ]);
+    setPreviewLines([previewLine('Tiles', 'src-loan')]);
+    await renderReady();
+
+    await linkExistingLine(0, /Existing disc line/);
+    await act(async () => {
+      fireEvent.click(
+        within(getRow(0)).getByRole('button', { name: 'Clear budget line assignment' }),
+      );
+    });
+
+    const lines = await clickSaveAndGetCommitLines();
+    expect(lines[0]?.assignmentMode).toBe('create-new');
+    expect(lines[0]?.budgetSourceId).toBe('src-loan');
   });
 
   it('re-applying a different source with the same line count changes the announcement', async () => {
@@ -933,8 +1012,8 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     expect(getTopSelect().disabled).toBe(true);
   });
 
-  describe('linking an existing budget line mirrors its category', () => {
-    it("commits the linked work-item line's category, not the extracted one", async () => {
+  describe('linking an existing budget line sends no source or category', () => {
+    it("omits the linked work-item line's source and category even though the row has extracted ones", async () => {
       openPickerForItem([WORK_ITEM_BUDGET_LINE_DISC]);
       setPreviewLines([previewLine('Tiles', 'src-loan', { budgetCategoryId: 'bc-row' })]);
       await renderReady();
@@ -944,11 +1023,12 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
       const lines = await clickSaveAndGetCommitLines();
       expect(lines.length).toBe(1);
       expect(lines[0]?.assignmentMode).toBe('assign-existing');
-      expect(lines[0]?.budgetCategoryId).toBe('bc-linked');
-      expect(lines[0]?.budgetSourceId).toBe('src-disc');
+      expect(lines[0]?.assignedBudgetLineId).toBe('wib-disc');
+      expect(lines[0]?.budgetCategoryId).toBeUndefined();
+      expect(lines[0]?.budgetSourceId).toBeUndefined();
     });
 
-    it('commits null category and source for a linked household-item line without them, and is not blocked by category validation', async () => {
+    it('a linked household-item line is not blocked by category validation and sends no source or category', async () => {
       openPickerForItem(
         [
           {
@@ -962,7 +1042,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
         ],
         'household_item',
       );
-      setPreviewLines([previewLine('Sofa', 'src-loan', { budgetCategoryId: 'bc-row' })]);
+      setPreviewLines([previewLine('Sofa', 'src-loan', { budgetCategoryId: null })]);
       await renderReady();
 
       await linkExistingLine(0, /Sofa budget/);
@@ -971,7 +1051,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
       expect(lines.length).toBe(1);
       expect(lines[0]?.assignmentMode).toBe('assign-existing');
       expect(lines[0]?.assignedBudgetLineId).toBe('hbl-1');
-      expect(lines[0]?.budgetCategoryId).toBeNull();
+      expect(lines[0]?.budgetCategoryId).toBeUndefined();
       expect(lines[0]?.budgetSourceId).toBeUndefined();
     });
   });

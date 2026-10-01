@@ -238,10 +238,6 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: budgetLine.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: budgetLine.description ?? null,
-                // Mirror the linked line's persisted source and category so the
-                // assign-existing commit does not overwrite them (#2158).
-                budgetSourceId: budgetLine.budgetSource?.id ?? null,
-                budgetCategoryId: budgetLine.budgetCategory?.id ?? null,
               }
             : l,
         ),
@@ -360,6 +356,10 @@ export function useAutoItemizeLines({
               assignedItemType: undefined,
               inlineCreatedBudgetLineDraft: undefined,
               inlineHideConfidence: undefined,
+              // The row becomes a new line again: follow the invoice-wide default (#2158).
+              ...(defaultBudgetSourceIdRef.current
+                ? { budgetSourceId: defaultBudgetSourceIdRef.current }
+                : {}),
             }
           : l,
       ),

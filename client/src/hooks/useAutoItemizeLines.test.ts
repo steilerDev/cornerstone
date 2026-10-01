@@ -1004,57 +1004,94 @@ describe('useAutoItemizeLines', () => {
     });
   });
 
-  describe('onSelectBudgetLine mirrors source and category (#2158)', () => {
+  describe('linking and clearing an existing budget line (#2158)', () => {
     // The mocked picker returns a fresh budgetSources array per render unless one is injected;
     // the hook's "re-default missing source" effect would then re-fire after every render and
-    // mask the null this test asserts. A stable reference mirrors the real picker state.
+    // mask the values these tests assert. A stable reference mirrors the real picker state.
     const STABLE_SOURCES = [{ id: 'src-1', name: 'Main', isDiscretionary: true }];
 
-    function link(budgetLine: Record<string, unknown>, initial: Record<string, unknown> = {}) {
+    const LINKED_NO_SOURCE = {
+      id: 'hib-1',
+      householdItemId: 'hi-1',
+      description: 'Linked HI',
+      budgetSource: null,
+      budgetCategory: null,
+    };
+
+    function setup(options: Record<string, unknown> = {}) {
       mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
-      const hook = renderHook(() => useAutoItemizeLines(makeOptions()));
+      const hook = renderHook(() => useAutoItemizeLines(makeOptions(options)));
       act(() => {
         hook.result.current.setLines([
-          makeLine({
-            budgetSourceId: 'src-extracted',
-            budgetCategoryId: 'cat-extracted',
-            ...initial,
-          }),
+          makeLine({ budgetSourceId: 'src-extracted', budgetCategoryId: 'cat-extracted' }),
         ]);
         hook.result.current.handlers.onAssign('r1');
       });
-      act(() => {
-        hook.result.current.handlers.onSelectBudgetLine(budgetLine);
-      });
-      return hook.result.current.lines[0];
+      return hook;
     }
 
-    it('copies the linked line source and category ids onto the row', () => {
-      const line = link({
-        id: 'wib-1',
-        workItemId: 'wi-1',
-        description: 'Linked',
-        budgetSource: { id: 'src-linked', name: 'Linked source' },
-        budgetCategory: { id: 'cat-linked', name: 'Linked category' },
+    it('onSelectBudgetLine leaves the row source and category unchanged, even when the linked line differs', () => {
+      const { result } = setup();
+
+      act(() => {
+        result.current.handlers.onSelectBudgetLine({
+          id: 'wib-1',
+          workItemId: 'wi-1',
+          description: 'Linked',
+          budgetSource: { id: 'src-linked', name: 'Linked source' },
+          budgetCategory: { id: 'cat-linked', name: 'Linked category' },
+        });
       });
 
-      expect(line?.budgetSourceId).toBe('src-linked');
-      expect(line?.budgetCategoryId).toBe('cat-linked');
+      const line = result.current.lines[0];
       expect(line?.assignedBudgetLineId).toBe('wib-1');
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
     });
 
-    it('sets source and category to null when the linked line has none', () => {
-      const line = link({
-        id: 'hib-1',
-        householdItemId: 'hi-1',
-        description: 'Linked HI',
-        budgetSource: null,
-        budgetCategory: null,
+    it('onSelectBudgetLine leaves the row source and category unchanged when the linked line has none', () => {
+      const { result } = setup();
+
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
       });
 
-      expect(line?.budgetSourceId).toBeNull();
-      expect(line?.budgetCategoryId).toBeNull();
+      const line = result.current.lines[0];
       expect(line?.assignedBudgetLineType).toBe('household_item');
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('clearing a linked row takes the invoice default source and keeps the category', () => {
+      const { result } = setup({ defaultBudgetSourceId: 'src-default' });
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+
+      act(() => {
+        result.current.handlers.onClearAssign('r1');
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineId).toBeUndefined();
+      expect(line?.budgetSourceId).toBe('src-default');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('clearing a linked row without a default keeps the row pre-link source and category', () => {
+      const { result } = setup();
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+
+      act(() => {
+        result.current.handlers.onClearAssign('r1');
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineId).toBeUndefined();
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
     });
 
     it('re-default effect leaves a linked row with a null source alone but fills an unlinked one', () => {
@@ -1062,19 +1099,13 @@ describe('useAutoItemizeLines', () => {
       const { result, rerender } = renderHook(() => useAutoItemizeLines(makeOptions()));
       act(() => {
         result.current.setLines([
-          makeLine({ rowId: 'r1' }),
+          makeLine({ rowId: 'r1', budgetSourceId: null }),
           makeLine({ rowId: 'r2', budgetSourceId: null }),
         ]);
         result.current.handlers.onAssign('r1');
       });
       act(() => {
-        result.current.handlers.onSelectBudgetLine({
-          id: 'hib-1',
-          householdItemId: 'hi-1',
-          description: 'Linked HI',
-          budgetSource: null,
-          budgetCategory: null,
-        });
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
       });
       expect(result.current.lines[0]?.budgetSourceId).toBeNull();
       expect(result.current.lines[1]?.budgetSourceId).toBeNull();

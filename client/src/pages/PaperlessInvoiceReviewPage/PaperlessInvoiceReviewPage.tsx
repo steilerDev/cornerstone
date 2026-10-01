@@ -318,6 +318,8 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
+      // Linking an existing budget line never modifies it (#2149): for assign-existing
+      // rows, omit budgetCategoryId/budgetSourceId so the server skips them.
       const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
         description: l.description,
         quantity: l.quantity,
@@ -327,8 +329,8 @@ export function PaperlessInvoiceReviewPage() {
         includesVat: l.includesVat,
         vendorName: l.vendorName,
         confidence: l.confidence,
-        budgetCategoryId: l.budgetCategoryId,
-        budgetSourceId: l.budgetSourceId || undefined,
+        budgetCategoryId: l.assignedBudgetLineId ? undefined : l.budgetCategoryId,
+        budgetSourceId: l.assignedBudgetLineId ? undefined : l.budgetSourceId || undefined,
         ...(l.assignedBudgetLineId && l.assignedBudgetLineType
           ? {
               assignedBudgetLineId: l.assignedBudgetLineId,
