@@ -26,6 +26,22 @@ import { createElement } from 'react';
 // ─── Mocks must come before any static imports ────────────────────────────────
 
 // Mock categoryUtils to avoid needing real translation infrastructure in the real AutoItemizeLineCard
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
   getCategoryDisplayName: (_t: unknown, name: string, _translationKey: unknown) => name,
   useCategoryDisplayName: (_name: string, _translationKey: unknown) => _name,

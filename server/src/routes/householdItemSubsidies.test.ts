@@ -66,9 +66,14 @@ describe('Household Item Subsidy Routes', () => {
    * Helper: Create a household item directly in the database.
    */
   function createTestHouseholdItem(name: string, userId: string): { id: string; name: string } {
-    const householdItem = householdItemService.createHouseholdItem(app.db, userId, {
-      name,
-    });
+    const householdItem = householdItemService.createHouseholdItem(
+      app.db,
+      userId,
+      {
+        name,
+      },
+      0.19,
+    );
     return { id: householdItem.id, name: householdItem.name };
   }
 

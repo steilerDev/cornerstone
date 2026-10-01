@@ -54,9 +54,19 @@ jest.unstable_mockModule('./useBudgetLinePicker.js', () => ({
   },
 }));
 
+// Mutable so tests can exercise a non-default VAT rate (read via vatRateRef at call time).
+const mockLocaleValue = {
+  locale: 'en',
+  resolvedLocale: 'en',
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+};
+
 jest.unstable_mockModule('../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: unknown }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
+  useLocale: () => mockLocaleValue,
 }));
 
 // ─── Mock: invoiceAutoItemizeApi (mergeLines) — Story #1797 ───────────────────

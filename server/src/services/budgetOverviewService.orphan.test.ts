@@ -228,13 +228,13 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
     it('getBudgetOverview does not throw when only orphan rows exist', () => {
       insertOrphanWIB(1000);
 
-      expect(() => getBudgetOverview(db)).not.toThrow();
+      expect(() => getBudgetOverview(db, 0.19)).not.toThrow();
     });
 
     it('minPlanned is 0 when only orphan rows exist (no assigned WI budget lines)', () => {
       insertOrphanWIB(1000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // With no assigned lines, minPlanned = 0
       expect(result.minPlanned).toBe(0);
@@ -243,7 +243,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
     it('maxPlanned is 0 when only orphan rows exist', () => {
       insertOrphanWIB(1000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.maxPlanned).toBe(0);
     });
@@ -253,7 +253,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertAssignedWIB(wiId, 500);
       insertOrphanWIB(10000); // orphan with large amount — must NOT affect rollup
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only the assigned 500 should count (with own_estimate margin 0.2)
       // min = 500 * (1 - 0.2) = 400
@@ -265,7 +265,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertAssignedWIB(wiId, 500);
       insertOrphanWIB(10000); // orphan with large amount
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // max = 500 * (1 + 0.2) = 600
       expect(result.maxPlanned).toBe(600);
@@ -278,7 +278,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertOrphanWIB(2000);
       insertOrphanWIB(3000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only the 200 assigned line counts: min = 200 * 0.8 = 160, max = 200 * 1.2 = 240
       expect(result.minPlanned).toBe(160);
@@ -294,7 +294,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       const orphanWibId = insertOrphanWIB(500);
       insertInvoiceLinkedToWIB(orphanWibId, 500, 'paid');
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // actualCost should be 0 because the invoice is linked to an orphan wib
       // (the lineInvoiceRows query uses INNER JOIN so this correctly returns data,
@@ -313,7 +313,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       const orphanWibId = insertOrphanWIB(500);
       insertInvoiceLinkedToWIB(orphanWibId, 500, 'paid');
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only the assigned line (800) should be in minPlanned/maxPlanned
       // Orphan is excluded from the UNION query
@@ -329,7 +329,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertBudgetSource(50000);
       insertOrphanWIB(999999); // Large orphan
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(50000);
     });
@@ -337,7 +337,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
     it('availableFunds is 0 when no budget sources exist, even with orphan rows', () => {
       insertOrphanWIB(1000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(0);
     });
@@ -351,7 +351,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertAssignedWIB(wiId, 1000);
       insertOrphanWIB(500);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result).toHaveProperty('availableFunds');
       expect(result).toHaveProperty('minPlanned');
@@ -367,7 +367,7 @@ describe('budgetOverviewService — orphan budget line exclusion', () => {
       insertAssignedWIB(wi2, 500);
       insertOrphanWIB(9999); // Must not contribute
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // own_estimate margin = 0.2
       // min = (1000 + 500) * 0.8 = 1200

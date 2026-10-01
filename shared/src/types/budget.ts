@@ -117,11 +117,11 @@ export interface BaseBudgetLine {
  * Returns the effective planned amount for display and aggregation.
  * When includesVat is explicitly false, the stored amount is net; multiply by (1 + vatRate).
  * null is treated as true (use as-is).
- * The vatRate parameter defaults to 0.19 (19%) to preserve existing callers that don't pass an explicit rate.
+ * vatRate is required — pass the configured rate (server: config.vatRate; client: useLocale().vatRate).
  */
 export function effectivePlannedAmount(
   line: { plannedAmount: number; includesVat: boolean | null },
-  vatRate: number = 0.19,
+  vatRate: number,
 ): number {
   return line.includesVat === false
     ? Math.round(line.plannedAmount * (1 + vatRate) * 100) / 100
@@ -134,11 +134,11 @@ export function effectivePlannedAmount(
  * undefined/null/true are treated as gross (amount as-is).
  * This mirrors effectivePlannedAmount() but operates on the ExtractedLine shape
  * which uses { amount, includesVat } rather than { plannedAmount, includesVat }.
- * The vatRate parameter defaults to 0.19 (19%) to preserve existing callers that don't pass an explicit rate.
+ * vatRate is required — pass the configured rate (server: config.vatRate; client: useLocale().vatRate).
  */
 export function effectiveLineAmount(
   line: { amount: number; includesVat?: boolean | null },
-  vatRate: number = 0.19,
+  vatRate: number,
 ): number {
   return line.includesVat === false
     ? Math.round(line.amount * (1 + vatRate) * 100) / 100

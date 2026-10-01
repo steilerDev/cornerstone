@@ -266,6 +266,7 @@ export async function autoItemize(
         userId,
         validatedLines,
         effectiveInvoiceAmount,
+        config.vatRate,
         body.mode === 'replace',
       );
 
@@ -389,6 +390,7 @@ function resolveAssignExistingTargets(
  * @param userId - User ID for createdBy field
  * @param lines - Extracted lines to persist
  * @param effectiveInvoiceAmount - Invoice amount for validation (may differ from original if patched)
+ * @param vatRate - Configured VAT rate (config.vatRate) used to gross up net lines
  * @param isReplaceMode - true only for auto-itemize mode 'replace': a budget line already linked to
  *   THIS invoice has its single junction's itemizedAmount overwritten with the row's amount;
  *   otherwise that case throws 409
@@ -406,6 +408,7 @@ export function persistLines(
   userId: string,
   lines: ExtractedLine[],
   effectiveInvoiceAmount: number,
+  vatRate: number,
   isReplaceMode = false,
 ): { totalItemized: number } {
   const now = new Date().toISOString();
@@ -436,10 +439,10 @@ export function persistLines(
 
     // Case 1: Link an existing budget line — junction row only. The budget line itself is never modified (#2149).
     if (isAssignExisting) {
-      const lineItemizedAmount = effectiveLineAmount({
-        amount: extractedLine.totalAmount ?? 0,
-        includesVat: extractedLine.includesVat,
-      });
+      const lineItemizedAmount = effectiveLineAmount(
+        { amount: extractedLine.totalAmount ?? 0, includesVat: extractedLine.includesVat },
+        vatRate,
+      );
 
       // A budget line is linked at most once: replace mode overwrites the single existing junction
       const junctionId = assignTargets.get(extractedLine) ?? null;
@@ -483,6 +486,11 @@ export function persistLines(
           ? extractedLine.budgetSourceId
           : discretionarySource.id;
 
+      const lineItemizedAmount = effectiveLineAmount(
+        { amount: extractedLine.totalAmount ?? 0, includesVat: extractedLine.includesVat },
+        vatRate,
+      );
+
       // Insert work_item_budget with auto origin
       db.insert(workItemBudgets)
         .values({
@@ -512,19 +520,13 @@ export function persistLines(
           invoiceId,
           workItemBudgetId,
           householdItemBudgetId: null,
-          itemizedAmount: effectiveLineAmount({
-            amount: extractedLine.totalAmount ?? 0,
-            includesVat: extractedLine.includesVat,
-          }),
+          itemizedAmount: lineItemizedAmount,
           createdAt: now,
           updatedAt: now,
         })
         .run();
 
-      totalItemized += effectiveLineAmount({
-        amount: extractedLine.totalAmount ?? 0,
-        includesVat: extractedLine.includesVat,
-      });
+      totalItemized += lineItemizedAmount;
     }
   }
 
@@ -790,6 +792,7 @@ export async function commitAutoItemizeCreate(
       userId,
       validatedLines,
       body.invoice.amount,
+      config.vatRate,
     );
 
     // 7. Fetch and return invoice with budget lines

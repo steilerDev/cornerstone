@@ -37,10 +37,11 @@ export interface BudgetTotals {
  * Applies confidence margins to non-invoiced lines to compute min/max range.
  *
  * @param budgetLines - Array of budget line objects
+ * @param vatRate - VAT rate as a fraction (e.g. 0.19), from LocaleContext
  * @returns BudgetTotals object with planned, actual, and range values
  */
-export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals {
-  const totalPlanned = budgetLines.reduce((sum, b) => sum + effectivePlannedAmount(b), 0);
+export function computeBudgetTotals(budgetLines: BaseBudgetLine[], vatRate: number): BudgetTotals {
+  const totalPlanned = budgetLines.reduce((sum, b) => sum + effectivePlannedAmount(b, vatRate), 0);
   const totalActualCost = budgetLines.reduce((sum, b) => sum + b.actualCost, 0);
 
   const totalMinPlanned = budgetLines.reduce((sum, b) => {
@@ -49,7 +50,7 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
       return sum + b.actualCost;
     }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + effectivePlannedAmount(b) * (1 - margin);
+    return sum + effectivePlannedAmount(b, vatRate) * (1 - margin);
   }, 0);
 
   const totalMaxPlanned = budgetLines.reduce((sum, b) => {
@@ -58,7 +59,7 @@ export function computeBudgetTotals(budgetLines: BaseBudgetLine[]): BudgetTotals
       return sum + b.actualCost;
     }
     const margin = CONFIDENCE_MARGINS[b.confidence] ?? 0;
-    return sum + effectivePlannedAmount(b) * (1 + margin);
+    return sum + effectivePlannedAmount(b, vatRate) * (1 + margin);
   }, 0);
 
   const hasPlannedRange = Math.abs(totalMaxPlanned - totalMinPlanned) > 0.01;

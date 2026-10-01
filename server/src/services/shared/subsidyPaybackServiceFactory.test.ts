@@ -259,22 +259,22 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
   describe('error cases', () => {
     it('throws NotFoundError when work item does not exist (supportsInvoices: true)', () => {
       const getPayback = createSubsidyPaybackService(workItemConfig);
-      expect(() => getPayback(db, 'non-existent-wi')).toThrow(NotFoundError);
+      expect(() => getPayback(db, 'non-existent-wi', 0.19)).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError with entityLabel message for work item', () => {
       const getPayback = createSubsidyPaybackService(workItemConfig);
-      expect(() => getPayback(db, 'non-existent-wi')).toThrow('Work item not found');
+      expect(() => getPayback(db, 'non-existent-wi', 0.19)).toThrow('Work item not found');
     });
 
     it('throws NotFoundError when household item does not exist (supportsInvoices: false)', () => {
       const getPayback = createSubsidyPaybackService(householdItemConfig);
-      expect(() => getPayback(db, 'non-existent-hi')).toThrow(NotFoundError);
+      expect(() => getPayback(db, 'non-existent-hi', 0.19)).toThrow(NotFoundError);
     });
 
     it('throws NotFoundError with entityLabel message for household item', () => {
       const getPayback = createSubsidyPaybackService(householdItemConfig);
-      expect(() => getPayback(db, 'non-existent-hi')).toThrow('Household item not found');
+      expect(() => getPayback(db, 'non-existent-hi', 0.19)).toThrow('Household item not found');
     });
   });
 
@@ -285,7 +285,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const getPayback = createSubsidyPaybackService(workItemConfig);
       const workItemId = insertWorkItem();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       expect(result['workItemId']).toBe(workItemId);
       expect(result['minTotalPayback']).toBe(0);
@@ -297,7 +297,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const getPayback = createSubsidyPaybackService(householdItemConfig);
       const hiId = insertHouseholdItem();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       expect(result['householdItemId']).toBe(hiId);
       expect(result['minTotalPayback']).toBe(0);
@@ -315,7 +315,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       expect(result['minTotalPayback']).toBe(0);
       expect(result['maxTotalPayback']).toBe(0);
@@ -332,7 +332,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 100 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       expect(result['workItemId']).toBe(workItemId);
       expect(result['householdItemId']).toBeUndefined();
@@ -346,7 +346,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       expect(result['householdItemId']).toBe(hiId);
       expect(result['workItemId']).toBeUndefined();
@@ -369,7 +369,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // own_estimate ±20%: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result['minTotalPayback']).toBeCloseTo(80);
@@ -389,7 +389,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // min=1000*0.9*10%=90, max=1000*1.1*10%=110
       expect(result['minTotalPayback']).toBeCloseTo(90);
@@ -405,7 +405,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // min=1000*0.95*10%=95, max=1000*1.05*10%=105
       expect(result['minTotalPayback']).toBeCloseTo(95);
@@ -421,7 +421,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // margin=0: min = max = 1000 * 10% = 100
       expect(result['minTotalPayback']).toBeCloseTo(100);
@@ -445,7 +445,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       // Actual cost 800, no margin: min = max = 800 * 10% = 80
       expect(result['minTotalPayback']).toBeCloseTo(80);
@@ -459,7 +459,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       // own_estimate ±20%: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result['minTotalPayback']).toBeCloseTo(80);
@@ -487,7 +487,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as Record<string, unknown>;
+      const result = getPayback(db, workItemId, 0.19) as Record<string, unknown>;
 
       // Both lines invoiced: actual cost = 600 + 400 = 1000, no margin → 1000 × 10% = 100
       expect(result['minTotalPayback']).toBeCloseTo(100);
@@ -504,7 +504,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 5000 });
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: subsidyId }).run();
 
-      const result = getPayback(db, workItemId) as {
+      const result = getPayback(db, workItemId, 0.19) as {
         minTotalPayback: number;
         maxTotalPayback: number;
         subsidies: Array<{ minPayback: number; maxPayback: number }>;
@@ -524,7 +524,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as {
+      const result = getPayback(db, hiId, 0.19) as {
         minTotalPayback: number;
         maxTotalPayback: number;
         subsidies: Array<{ minPayback: number; maxPayback: number }>;
@@ -544,7 +544,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       expect(result['minTotalPayback']).toBe(3000);
       expect(result['maxTotalPayback']).toBe(3000);
@@ -572,7 +572,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: approved }).run();
       db.insert(schema.workItemSubsidies).values({ workItemId, subsidyProgramId: rejected }).run();
 
-      const result = getPayback(db, workItemId) as {
+      const result = getPayback(db, workItemId, 0.19) as {
         subsidies: unknown[];
         minTotalPayback: number;
         maxTotalPayback: number;
@@ -615,7 +615,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // Only cat1 line: min=1000*0.8*10%=80, max=1000*1.2*10%=120
       expect(result['minTotalPayback']).toBeCloseTo(80);
@@ -647,7 +647,7 @@ describe('subsidyPaybackServiceFactory — createSubsidyPaybackService()', () =>
         .values({ householdItemId: hiId, subsidyProgramId: subsidyId })
         .run();
 
-      const result = getPayback(db, hiId) as Record<string, unknown>;
+      const result = getPayback(db, hiId, 0.19) as Record<string, unknown>;
 
       // All lines (invoice margin=0): (1000+500)*10% = 150
       expect(result['minTotalPayback']).toBeCloseTo(150);

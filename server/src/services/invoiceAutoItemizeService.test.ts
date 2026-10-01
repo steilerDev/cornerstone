@@ -1377,8 +1377,8 @@ describe('invoiceAutoItemizeService', () => {
       expect(newWib.plannedAmount).toBe(500);
       // WIB.includesVat reflects the extracted line flag (false = VAT not included)
       expect(newWib.includesVat).toBe(false);
-      // IBL.itemizedAmount is ALWAYS stored GROSS = effectiveLineAmount(500, false)
-      // = round(500 * 1.19 * 100) / 100 = 595
+      // IBL.itemizedAmount is ALWAYS stored GROSS:
+      // effectiveLineAmount(500, false, vatRate 0.19 from makeConfig()) = round(500 * 1.19 * 100) / 100 = 595
       expect(newIbl.itemizedAmount).toBe(595);
     });
 
@@ -2296,6 +2296,7 @@ describe('invoiceAutoItemizeService', () => {
                 divergentLine(type, lineId, catB, srcB, { totalAmount: 200 }),
               ],
               5000,
+              0.19,
             ),
           ),
         );
@@ -2336,6 +2337,7 @@ describe('invoiceAutoItemizeService', () => {
               'user-1',
               [divergentLine(type, lineId, catB, srcB, { totalAmount: 300 })],
               5000,
+              0.19,
             ),
           ),
         );
@@ -2400,7 +2402,7 @@ describe('invoiceAutoItemizeService', () => {
           invoiceAmount = 5000,
         ) {
           db.transaction(() =>
-            persistLines(db, invoiceId, vendorId, 'user-1', lines, invoiceAmount, reset),
+            persistLines(db, invoiceId, vendorId, 'user-1', lines, invoiceAmount, 0.19, reset),
           );
         }
 
@@ -2573,7 +2575,7 @@ describe('invoiceAutoItemizeService', () => {
 
         const err = await captureError(() =>
           db.transaction(() =>
-            persistLines(db, invoiceId, vendorId, 'user-1', [link(600), link(500)], 1000),
+            persistLines(db, invoiceId, vendorId, 'user-1', [link(600), link(500)], 1000, 0.19),
           ),
         );
 
@@ -3106,6 +3108,7 @@ describe('invoiceAutoItemizeService', () => {
           'user-1',
           [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }] as any,
           1000,
+          0.19,
         );
       });
 
@@ -3133,6 +3136,7 @@ describe('invoiceAutoItemizeService', () => {
               { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
             ] as any,
             500,
+            0.19,
           );
         });
       }).toThrow(ItemizedSumExceedsInvoiceError);
@@ -3147,7 +3151,7 @@ describe('invoiceAutoItemizeService', () => {
       const invoiceId = insertInvoice(db, vendorId, 500);
 
       const result = db.transaction(() => {
-        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500);
+        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500, 0.19);
       });
 
       expect(result.totalItemized).toBe(0);
@@ -3500,9 +3504,10 @@ describe('invoiceAutoItemizeService', () => {
 
   // ─── Story #1693 — VAT gross-up: precise itemizedAmount assertions ─────────────────
   // Authoritative contract:
-  //   invoice_budget_lines.itemizedAmount = effectiveLineAmount({ amount: totalAmount, includesVat })
+  //   invoice_budget_lines.itemizedAmount = effectiveLineAmount({ amount: totalAmount, includesVat }, config.vatRate)
   //   = totalAmount when includesVat===true (or undefined/null)
-  //   = round(totalAmount * 1.19 * 100) / 100 when includesVat===false
+  //   = round(totalAmount * (1 + config.vatRate) * 100) / 100 when includesVat===false
+  //     (makeConfig() uses vatRate 0.19 → ×1.19 below)
   //   work_item_budgets.plannedAmount stays NET (never pre-grossed)
 
   describe('VAT gross-up: itemizedAmount precision (Story #1693)', () => {
@@ -3626,7 +3631,7 @@ describe('invoiceAutoItemizeService', () => {
 
       const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
       expect(newIbls).toHaveLength(1);
-      // VAT-excl: effectiveLineAmount(100, false) = round(100 * 1.19 * 100) / 100 = 119
+      // VAT-excl: effectiveLineAmount(100, false, vatRate 0.19 from makeConfig()) = round(100 * 1.19 * 100) / 100 = 119
       expect(newIbls[0]!.itemizedAmount).toBe(119);
     });
 
@@ -3707,7 +3712,7 @@ describe('invoiceAutoItemizeService', () => {
 
       // WIB.plannedAmount stays NET (50) — never grossed up
       expect(newWib.plannedAmount).toBe(50);
-      // IBL itemizedAmount = effectiveLineAmount(50, false) = round(50 * 1.19 * 100) / 100 = 59.5
+      // IBL itemizedAmount = effectiveLineAmount(50, false, vatRate 0.19 from makeConfig()) = round(50 * 1.19 * 100) / 100 = 59.5
       expect(newIbl.itemizedAmount).toBe(59.5);
     });
 
@@ -3931,6 +3936,206 @@ describe('invoiceAutoItemizeService', () => {
     count: 1,
     results: [{ id: 101, name: 'Bau', color: '#b2df8a', document_count: 5 }],
   };
+
+  // ─── Configured VAT rate is threaded through (not hardcoded 0.19) ──────────────
+  // net 100 at VAT_RATE=0.2 → gross 120 (the 0.19 default would give 119).
+
+  describe('configured VAT rate (vatRate=0.2)', () => {
+    function insertNetWib(): string {
+      const id = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id,
+          workItemId: null,
+          description: 'Net existing line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: false,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+      return id;
+    }
+
+    it('persistLines create-new net line (100, includesVat=false) stores itemizedAmount=120 and totalItemized=120', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = db.transaction(() =>
+        persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [
+            { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+          ] as ExtractedLine[],
+          1000,
+          0.2,
+        ),
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.totalItemized).toBe(120);
+    });
+
+    it('persistLines assign-existing net row stores itemizedAmount=120 and totalItemized=120', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      const wibId = insertNetWib();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = db.transaction(() =>
+        persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [
+            {
+              description: 'Net existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: wibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: false,
+            },
+          ] as ExtractedLine[],
+          1000,
+          0.2,
+        ),
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.totalItemized).toBe(120);
+      // The linked budget line itself is never modified.
+      const wib = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get()!;
+      expect(wib.plannedAmount).toBe(100);
+    });
+
+    it('persistLines sum check uses the configured rate: net 100 at 0.2 (=120) exceeds an invoice of 119.5', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 119.5);
+
+      expect(() =>
+        db.transaction(() =>
+          persistLines(
+            db,
+            invoiceId,
+            vendorId,
+            'user-1',
+            [
+              { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+            ] as ExtractedLine[],
+            119.5,
+            0.2,
+          ),
+        ),
+      ).toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('autoItemize with config.vatRate=0.2 persists itemizedAmount=120 for a net create-new line', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        makeConfig({ vatRate: 0.2 }),
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+          ] as ExtractedLine[],
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+    });
+
+    it('autoItemize with config.vatRate=0.2 persists itemizedAmount=120 for an assign-existing net line', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const wibId = insertNetWib();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        makeConfig({ vatRate: 0.2 }),
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Net existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: wibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: false,
+            },
+          ] as ExtractedLine[],
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+    });
+
+    it('commitAutoItemizeCreate with config.vatRate=0.2 persists itemizedAmount=120 and remainingAmount reflects it', async () => {
+      const vendorId = insertVendor(db, 'Rate Vendor');
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = (await commitAutoItemizeCreate(db, makeConfig({ vatRate: 0.2 }), 'user-1', {
+        paperlessDocumentId: 777,
+        vendorId,
+        invoice: { amount: 1000, date: '2026-03-01' },
+        lines: [
+          { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+        ] as ExtractedLine[],
+      })) as { remainingAmount: number };
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.remainingAmount).toBe(880);
+    });
+  });
 
   describe('paperlessMetadata enrichment (Story #1767)', () => {
     it('autoItemize dry-run enriches prompt with correspondent', async () => {

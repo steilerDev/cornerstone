@@ -1839,3 +1839,14 @@ When a raw-key/fallback lookup is removed, sweep the **same** pass for the guard
 `if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
 `if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
 assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).
+
+## Removing a helper's default parameter only finds the helper's callers (PR #2165, 2026-10-01)
+
+Making `vatRate` required on `effectivePlannedAmount`/`effectiveLineAmount` caught every call to the helpers.
+It could not catch the aggregations that never called them: raw `SUM(planned_amount)` in SQL, or
+`line.plannedAmount * margin` in TS. PR #2165 left three of those with VAT ignored: budget-source `usedAmount`
+(`computeUsedAmount`), `subsidyPaybackServiceFactory` (the per-entity payback endpoints), and the
+household-item `totalPlannedAmount`/summary/plannedCost filter.
+**How to apply:** when you review a rate or basis fix that claims to cover "all X math", grep for the
+raw column (`planned_amount`, `plannedAmount \*`) as well as for the helper's name. Then check that two endpoints showing the same
+figure (list vs detail, overview vs per-entity) still agree.

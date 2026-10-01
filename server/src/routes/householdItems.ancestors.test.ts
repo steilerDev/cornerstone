@@ -114,10 +114,15 @@ describe('Household Item Routes — area ancestors', () => {
       const kitchenId = insertTestArea('Kitchen Area', { parentId: floor1Id });
       const pantryId = insertTestArea('Pantry', { parentId: kitchenId });
 
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Pantry Shelf',
-        areaId: pantryId,
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Pantry Shelf',
+          areaId: pantryId,
+        },
+        0.19,
+      );
 
       const response = await app.inject({
         method: 'GET',
@@ -165,10 +170,15 @@ describe('Household Item Routes — area ancestors', () => {
       const rootId = insertTestArea('House');
       const childId = insertTestArea('Living Room', { parentId: rootId });
 
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'Couch',
-        areaId: childId,
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'Couch',
+          areaId: childId,
+        },
+        0.19,
+      );
 
       const response = await app.inject({
         method: 'GET',
@@ -200,9 +210,14 @@ describe('Household Item Routes — area ancestors', () => {
         'password',
       );
 
-      const created = householdItemService.createHouseholdItem(app.db, userId, {
-        name: 'No Area Item',
-      });
+      const created = householdItemService.createHouseholdItem(
+        app.db,
+        userId,
+        {
+          name: 'No Area Item',
+        },
+        0.19,
+      );
 
       const response = await app.inject({
         method: 'GET',

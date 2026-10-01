@@ -448,7 +448,7 @@ describe('getBudgetBreakdown', () => {
 
   describe('empty database', () => {
     it('returns workItems with empty areas and zero totals', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas).toHaveLength(0);
       expect(result.workItems.totals.projectedMin).toBe(0);
@@ -458,7 +458,7 @@ describe('getBudgetBreakdown', () => {
     });
 
     it('returns householdItems with empty areas and zero totals', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas).toHaveLength(0);
       expect(result.householdItems.totals.projectedMin).toBe(0);
@@ -474,7 +474,7 @@ describe('getBudgetBreakdown', () => {
     it('is not included in breakdown areas', () => {
       insertWorkItem({ noBudgetLine: true });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // No budget lines → not in breakdown (Unassigned node only appears if items have budget lines)
       expect(result.workItems.areas).toHaveLength(0);
@@ -487,7 +487,7 @@ describe('getBudgetBreakdown', () => {
     it('sets costDisplay to projected', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // No area → Unassigned bucket at areas[0]
       expect(result.workItems.areas).toHaveLength(1);
@@ -500,7 +500,7 @@ describe('getBudgetBreakdown', () => {
       // own_estimate margin = 0.2 → min = 1000 * 0.8 = 800, max = 1000 * 1.2 = 1200
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(800, 5);
@@ -511,7 +511,7 @@ describe('getBudgetBreakdown', () => {
       // quote margin = 0.05 → min = 2000 * 0.95 = 1900, max = 2000 * 1.05 = 2100
       insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(1900, 5);
@@ -521,7 +521,7 @@ describe('getBudgetBreakdown', () => {
     it('has subsidyPayback of 0 when no subsidy linked', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBe(0);
@@ -530,7 +530,7 @@ describe('getBudgetBreakdown', () => {
     it('has actualCost of 0 when no invoices', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(0);
@@ -539,7 +539,7 @@ describe('getBudgetBreakdown', () => {
     it('has one budget line with hasInvoice=false', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines).toHaveLength(1);
@@ -554,7 +554,7 @@ describe('getBudgetBreakdown', () => {
     it('sets costDisplay to actual', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('actual');
@@ -563,7 +563,7 @@ describe('getBudgetBreakdown', () => {
     it('sets projectedMin and projectedMax equal to actualCost', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(950);
@@ -575,7 +575,7 @@ describe('getBudgetBreakdown', () => {
     it('has budgetLine with hasInvoice=true and correct actualCost', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 750 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.hasInvoice).toBe(true);
@@ -599,7 +599,7 @@ describe('getBudgetBreakdown', () => {
         // No actualCost → not invoiced
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // No area → single Unassigned bucket
       expect(result.workItems.areas).toHaveLength(1);
@@ -622,7 +622,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(900); // only invoiced line
@@ -642,7 +642,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines).toHaveLength(2);
@@ -674,7 +674,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItem({ title: 'Item B', plannedAmount: 2000 });
 
       // Both items have no areaId → both appear in Unassigned bucket
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas.find((a) => a.areaId === null);
       expect(unassigned).toBeDefined();
@@ -687,7 +687,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
       insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Both items have null area → Unassigned bucket
       const unassigned = result.workItems.areas.find((a) => a.areaId === null)!;
@@ -702,7 +702,7 @@ describe('getBudgetBreakdown', () => {
     it('appears under synthetic Unassigned node (areaId=null, name=Unassigned)', () => {
       insertWorkItem({ plannedAmount: 500 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas.find((a) => a.areaId === null);
       expect(unassigned).toBeDefined();
@@ -727,7 +727,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBeCloseTo(120, 5);
@@ -747,7 +747,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(680, 5);
@@ -763,7 +763,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBe(0);
@@ -783,7 +783,7 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas.find((a) => a.areaId === null)!;
       // Item A: payback = 1000*1.2*0.1 = 120; Item B: payback = 2000*1.2*0.1 = 240
@@ -797,7 +797,7 @@ describe('getBudgetBreakdown', () => {
     it('appears in the Unassigned area node (null areaId) when no area assigned', () => {
       insertHouseholdItem({ name: 'Sofa', category: 'hic-furniture', plannedAmount: 800 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // HI has no area → Unassigned bucket
       expect(result.householdItems.areas).toHaveLength(1);
@@ -811,7 +811,7 @@ describe('getBudgetBreakdown', () => {
     it('sets costDisplay to projected when no invoices', () => {
       insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 1200, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('projected');
@@ -821,7 +821,7 @@ describe('getBudgetBreakdown', () => {
       // quote margin = 0.05 → min=1140, max=1260
       insertHouseholdItem({ category: 'hic-appliances', plannedAmount: 1200, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(1200 * 0.95, 5);
@@ -836,7 +836,7 @@ describe('getBudgetBreakdown', () => {
         actualCost: 480,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.costDisplay).toBe('actual');
@@ -851,7 +851,7 @@ describe('getBudgetBreakdown', () => {
       insertHouseholdItem({ category: 'hic-furniture', plannedAmount: 500 });
       insertHouseholdItem({ category: 'hic-electronics', plannedAmount: 300 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Both items have null area → single Unassigned bucket with 2 items
       expect(result.householdItems.areas).toHaveLength(1);
@@ -941,7 +941,7 @@ describe('getBudgetBreakdown', () => {
         })
         .run();
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const areaIds = result.householdItems.areas.map((a) => a.areaId);
       expect(areaIds).toContain(areaIdA);
@@ -957,7 +957,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
       insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sumMax = result.workItems.areas.reduce((acc, a) => acc + a.projectedMax, 0);
       expect(result.workItems.totals.projectedMax).toBeCloseTo(sumMax, 5);
@@ -971,7 +971,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sumMax = result.householdItems.areas.reduce((acc, a) => acc + a.projectedMax, 0);
       expect(result.householdItems.totals.projectedMax).toBeCloseTo(sumMax, 5);
@@ -981,7 +981,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
       insertWorkItem({ plannedAmount: 2000, confidence: 'invoice', actualCost: 1800 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.totals.actualCost).toBe(950 + 1800);
     });
@@ -1003,7 +1003,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkHouseholdItemSubsidy(householdItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBeCloseTo(240, 5);
@@ -1021,7 +1021,7 @@ describe('getBudgetBreakdown', () => {
         confidence: 'own_estimate',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Both items have null areaId → one Unassigned area node each
       expect(result.workItems.areas).toHaveLength(1);
@@ -1046,7 +1046,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       // projectedMin is subsidy-adjusted (680), rawProjectedMin is gross (800)
@@ -1059,7 +1059,7 @@ describe('getBudgetBreakdown', () => {
     it('rawProjectedMin equals projectedMin when no subsidy is linked', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       // No subsidy → raw and adjusted values are identical
@@ -1071,7 +1071,7 @@ describe('getBudgetBreakdown', () => {
       // invoice confidence with actualCost: gross projected = actualCost (no margin)
       insertWorkItem({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.rawProjectedMin).toBeCloseTo(950, 5);
@@ -1094,7 +1094,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(idA, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas[0]!;
       // Item A raw min=800, Item B raw min=1900 → area raw min=2700
@@ -1107,7 +1107,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
       insertWorkItem({ plannedAmount: 2000, confidence: 'quote' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sumRawMin = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMin, 0);
       const sumRawMax = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMax, 0);
@@ -1128,7 +1128,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkHouseholdItemSubsidy(householdItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.rawProjectedMin).toBeCloseTo(1200 * 0.95, 5);
@@ -1153,7 +1153,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
@@ -1173,7 +1173,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       // Both use actualCost=900 → payback = 900 * 0.15 = 135
@@ -1185,7 +1185,7 @@ describe('getBudgetBreakdown', () => {
     it('minSubsidyPayback === 0 when no subsidy is linked', () => {
       insertWorkItem({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBe(0);
@@ -1205,7 +1205,7 @@ describe('getBudgetBreakdown', () => {
       });
       linkHouseholdItemSubsidy(householdItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.minSubsidyPayback).toBeCloseTo(80, 5);
@@ -1227,7 +1227,7 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas[0]!;
       expect(unassigned.minSubsidyPayback).toBeCloseTo(80 + 160, 5);
@@ -1247,7 +1247,7 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sumMinPayback = result.workItems.areas.reduce((acc, a) => acc + a.minSubsidyPayback, 0);
       expect(result.workItems.totals.minSubsidyPayback).toBeCloseTo(sumMinPayback, 5);
@@ -1263,7 +1263,7 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(idA, subsidyId);
       linkWorkItemSubsidy(idB, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const totals = result.workItems.totals;
       const sumRawMin = result.workItems.areas.reduce((acc, a) => acc + a.rawProjectedMin, 0);
@@ -1275,7 +1275,7 @@ describe('getBudgetBreakdown', () => {
     });
 
     it('empty database returns zero rawProjectedMin/Max and minSubsidyPayback in totals', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.totals.rawProjectedMin).toBe(0);
       expect(result.workItems.totals.rawProjectedMax).toBe(0);
@@ -1316,7 +1316,7 @@ describe('getBudgetBreakdown', () => {
         })
         .run();
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.description).toBe('Foundation concrete pour');
@@ -1325,7 +1325,7 @@ describe('getBudgetBreakdown', () => {
     it('has null description when none is set', () => {
       insertWorkItem({ plannedAmount: 500 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.description).toBeNull();
@@ -1343,7 +1343,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines).toHaveLength(1);
@@ -1355,7 +1355,7 @@ describe('getBudgetBreakdown', () => {
     it('sets budgetSourceId to null on work item budget lines when no source is assigned', () => {
       insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.budgetLines[0]!.budgetSourceId).toBeNull();
@@ -1369,7 +1369,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const hiItem = result.householdItems.areas[0]!.items[0]!;
       expect(hiItem.budgetLines).toHaveLength(1);
@@ -1380,7 +1380,7 @@ describe('getBudgetBreakdown', () => {
     it('sets budgetSourceId to null on household item budget lines when no source is assigned', () => {
       insertHouseholdItemWithSource({ plannedAmount: 500, budgetSourceId: null });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const hiItem = result.householdItems.areas[0]!.items[0]!;
       expect(hiItem.budgetLines[0]!.budgetSourceId).toBeNull();
@@ -1395,7 +1395,7 @@ describe('getBudgetBreakdown', () => {
       const sourceId = insertBudgetSource({ name: 'Bank Loan', totalAmount: 150000 });
       insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceId });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const found = result.budgetSources.find((s) => s.id === sourceId);
       expect(found).toBeDefined();
@@ -1414,7 +1414,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -1431,7 +1431,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -1454,7 +1454,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -1478,7 +1478,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -1494,7 +1494,7 @@ describe('getBudgetBreakdown', () => {
       // Insert a WI budget line with NO source
       insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: null });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // budgetSources always contains all configured sources — unused source is still included
       const found = result.budgetSources.find((s) => s.id === unusedSourceId);
@@ -1509,7 +1509,7 @@ describe('getBudgetBreakdown', () => {
     it('returns empty budgetSources array when no budget sources exist in the database', () => {
       insertWorkItem({ plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Filter out discretionary-system (always seeded by migration 0021) and
       // the synthetic 'unassigned' entry (emitted when any lines have budgetSourceId=null)
@@ -1520,7 +1520,7 @@ describe('getBudgetBreakdown', () => {
     });
 
     it('returns empty budgetSources array when no data exists at all', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Filter out discretionary-system which is always seeded by migration 0021
       const userSources = result.budgetSources.filter((s) => s.id !== 'discretionary-system');
@@ -1533,7 +1533,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItemWithSource({ plannedAmount: 1000, budgetSourceId: sourceA });
       insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: sourceB });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Both user-created sources must appear (discretionary-system may also be present)
       const ids = result.budgetSources.map((s) => s.id);
@@ -1553,7 +1553,7 @@ describe('getBudgetBreakdown', () => {
       insertWorkItemWithSource({ plannedAmount: 3000, budgetSourceId: srcB });
       insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: null }); // unassigned
 
-      const result = getBudgetBreakdown(db); // no args
+      const result = getBudgetBreakdown(db, 0.19); // no args
 
       // All 3 work items appear (each in Unassigned area since no area_id)
       expect(result.workItems.areas).toHaveLength(1); // one synthetic Unassigned area
@@ -1570,8 +1570,8 @@ describe('getBudgetBreakdown', () => {
       insertWorkItemWithSource({ plannedAmount: 5000, budgetSourceId: srcA });
       insertWorkItemWithSource({ plannedAmount: 2000, budgetSourceId: null });
 
-      const noArgs = getBudgetBreakdown(db);
-      const emptySet = getBudgetBreakdown(db, new Set());
+      const noArgs = getBudgetBreakdown(db, 0.19);
+      const emptySet = getBudgetBreakdown(db, 0.19, new Set());
 
       expect(emptySet.workItems.totals.rawProjectedMin).toBeCloseTo(
         noArgs.workItems.totals.rawProjectedMin,
@@ -1602,7 +1602,7 @@ describe('getBudgetBreakdown', () => {
       });
 
       // Deselect srcA — only srcB lines should survive
-      const result = getBudgetBreakdown(db, new Set([srcA]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcA]));
 
       // Only srcB WI survives (srcA WI excluded)
       expect(result.workItems.areas).toHaveLength(1);
@@ -1633,7 +1633,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: null,
       }); // unassigned
 
-      const result = getBudgetBreakdown(db, new Set(['unassigned']));
+      const result = getBudgetBreakdown(db, 0.19, new Set(['unassigned']));
 
       // Only srcA WI survives (null-source WI excluded)
       expect(result.workItems.areas).toHaveLength(1);
@@ -1659,8 +1659,8 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: srcA,
       });
 
-      const noFilter = getBudgetBreakdown(db);
-      const withUnknown = getBudgetBreakdown(db, new Set(['unknown-uuid-999']));
+      const noFilter = getBudgetBreakdown(db, 0.19);
+      const withUnknown = getBudgetBreakdown(db, 0.19, new Set(['unknown-uuid-999']));
 
       // Unknown UUID has no effect — response identical to no-filter
       expect(withUnknown.workItems.totals.rawProjectedMin).toBeCloseTo(
@@ -1690,7 +1690,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: srcB,
       });
 
-      const result = getBudgetBreakdown(db, new Set([srcA]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcA]));
 
       // Only srcB WI (5000) survives
       const area = result.workItems.areas[0]!;
@@ -1722,7 +1722,7 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(workItemId, subsidy);
 
       // Deselect srcA — no subsidy-linked lines survive
-      const result = getBudgetBreakdown(db, new Set([srcA]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcA]));
 
       expect(result.subsidyAdjustments).toHaveLength(0);
       expect(result.workItems.areas).toHaveLength(0);
@@ -1752,11 +1752,11 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(wiA, subsidy);
 
       // Deselect srcB — WI-A (and its subsidy) survives
-      const resultSrcBDeselected = getBudgetBreakdown(db, new Set([srcB]));
+      const resultSrcBDeselected = getBudgetBreakdown(db, 0.19, new Set([srcB]));
       expect(resultSrcBDeselected.subsidyAdjustments).toHaveLength(1);
 
       // Deselect srcA — WI-A excluded, subsidy-X should NOT appear in subsidyAdjustments
-      const resultSrcADeselected = getBudgetBreakdown(db, new Set([srcA]));
+      const resultSrcADeselected = getBudgetBreakdown(db, 0.19, new Set([srcA]));
       expect(resultSrcADeselected.subsidyAdjustments).toHaveLength(0);
     });
   });
@@ -1780,7 +1780,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: srcB,
       });
 
-      const result = getBudgetBreakdown(db, new Set([srcA]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcA]));
 
       // Only WI-B's area survives; WI-A is pruned
       expect(result.workItems.areas).toHaveLength(1);
@@ -1814,7 +1814,7 @@ describe('getBudgetBreakdown', () => {
         budgetSourceId: null,
       });
 
-      const result = getBudgetBreakdown(db, new Set([srcA]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcA]));
 
       // budgetSources should have at least 3 entries: srcA, srcB, synthetic unassigned
       // (discretionary-system seeded by migration 0021 may also be present)
@@ -1858,14 +1858,14 @@ describe('getBudgetBreakdown', () => {
       linkWorkItemSubsidy(workItemId, subsidy);
 
       // No filter — srcA line feeds the subsidy engine
-      const noFilter = getBudgetBreakdown(db, new Set());
+      const noFilter = getBudgetBreakdown(db, 0.19, new Set());
       const srcANoFilter = noFilter.budgetSources.find((s) => s.id === srcA);
       expect(srcANoFilter).toBeDefined();
       // subsidyPaybackMax > 0 (20% of max cost = 0.2 × 10000×1.2 = 2400 approx)
       expect(srcANoFilter!.subsidyPaybackMax).toBeGreaterThan(0);
 
       // Deselect srcA — its lines don't feed the filtered engine
-      const srcADeselected = getBudgetBreakdown(db, new Set([srcA]));
+      const srcADeselected = getBudgetBreakdown(db, 0.19, new Set([srcA]));
       const srcAFilteredEntry = srcADeselected.budgetSources.find((s) => s.id === srcA);
       expect(srcAFilteredEntry).toBeDefined();
       // subsidyPaybackMax = 0 (srcA lines excluded from filtered engine run)

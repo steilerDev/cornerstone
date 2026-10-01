@@ -33,15 +33,18 @@ export function toAssignedBudgetLineSnapshot(
 }
 
 /** Amount this row contributes to the itemized total (gross). */
-export function effectiveRowAmount(line: LineWithInclude): number {
+export function effectiveRowAmount(line: LineWithInclude, vatRate: number): number {
   if (line.assignedBudgetLineId && line.linkedItemizedAmount !== undefined) {
     return line.linkedItemizedAmount;
   }
-  return effectiveLineAmount({ amount: line.totalAmount ?? 0, includesVat: line.includesVat });
+  return effectiveLineAmount(
+    { amount: line.totalAmount ?? 0, includesVat: line.includesVat },
+    vatRate,
+  );
 }
 
 /** Builds the commit payload. Explicit field mapping — the server rejects unknown properties. */
-export function buildCommitLines(lines: LineWithInclude[]): ExtractedLine[] {
+export function buildCommitLines(lines: LineWithInclude[], vatRate: number): ExtractedLine[] {
   return lines.map((l) => {
     const base: ExtractedLine = {
       description: l.description,
@@ -64,7 +67,7 @@ export function buildCommitLines(lines: LineWithInclude[]): ExtractedLine[] {
         // Linked rows keep the original budget line's category and source, so send neither.
         budgetCategoryId: undefined,
         budgetSourceId: undefined,
-        totalAmount: effectiveRowAmount(l),
+        totalAmount: effectiveRowAmount(l, vatRate),
         includesVat: true,
         assignedBudgetLineId: l.assignedBudgetLineId,
         assignedBudgetLineType: l.assignedBudgetLineType,

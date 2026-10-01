@@ -53,6 +53,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  */
 export function getBudgetBreakdown(
   db: DbType,
+  vatRate: number,
   deselectedSources: Set<string> = new Set(),
 ): BudgetBreakdown {
   // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
@@ -428,7 +429,10 @@ export function getBudgetBreakdown(
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
   const effective = (l: { plannedAmount: number; includesVat: number | null }): number =>
-    effectivePlannedAmount({ plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 });
+    effectivePlannedAmount(
+      { plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 },
+      vatRate,
+    );
 
   // ── Helper: Compute costDisplay for an entity ──────────────────────────────
   function computeCostDisplay(

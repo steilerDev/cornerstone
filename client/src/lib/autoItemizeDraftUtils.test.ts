@@ -517,11 +517,13 @@ describe('effectiveRowAmount (#2149)', () => {
     expect(
       effectiveRowAmount(
         makeLine({ assignedBudgetLineId: 'b1', linkedItemizedAmount: 1100, totalAmount: 100 }),
+        0.19,
       ),
     ).toBe(1100);
     expect(
       effectiveRowAmount(
         makeLine({ assignedBudgetLineId: 'b1', linkedItemizedAmount: 0, totalAmount: 100 }),
+        0.19,
       ),
     ).toBe(0);
   });
@@ -530,17 +532,20 @@ describe('effectiveRowAmount (#2149)', () => {
     expect(
       effectiveRowAmount(
         makeLine({ assignedBudgetLineId: 'b1', totalAmount: 100, includesVat: false }),
+        0.19,
       ),
     ).toBe(119);
   });
 
   it('unlinked row ignores a stray linkedItemizedAmount and uses the VAT-effective amount', () => {
-    expect(effectiveRowAmount(makeLine({ linkedItemizedAmount: 5, totalAmount: 300 }))).toBe(300);
-    expect(effectiveRowAmount(makeLine({ totalAmount: 100, includesVat: false }))).toBe(119);
+    expect(effectiveRowAmount(makeLine({ linkedItemizedAmount: 5, totalAmount: 300 }), 0.19)).toBe(
+      300,
+    );
+    expect(effectiveRowAmount(makeLine({ totalAmount: 100, includesVat: false }), 0.19)).toBe(119);
   });
 
   it('treats a missing totalAmount as 0', () => {
-    expect(effectiveRowAmount(makeLine({ totalAmount: undefined }))).toBe(0);
+    expect(effectiveRowAmount(makeLine({ totalAmount: undefined }), 0.19)).toBe(0);
   });
 });
 
@@ -569,9 +574,18 @@ describe('buildCommitLines (#2149)', () => {
   ];
 
   it('maps a create-new row with the extracted values as before', () => {
-    const [out] = buildCommitLines([
-      makeLine({ quantity: 2, unit: 'h', unitPrice: 150, vendorName: 'ACME', includesVat: false }),
-    ]);
+    const [out] = buildCommitLines(
+      [
+        makeLine({
+          quantity: 2,
+          unit: 'h',
+          unitPrice: 150,
+          vendorName: 'ACME',
+          includesVat: false,
+        }),
+      ],
+      0.19,
+    );
 
     expect(out).toEqual({
       description: 'Tile work',
@@ -589,20 +603,23 @@ describe('buildCommitLines (#2149)', () => {
   });
 
   it('coerces an empty budgetSourceId on create-new to undefined', () => {
-    const [out] = buildCommitLines([makeLine({ budgetSourceId: '' })]);
+    const [out] = buildCommitLines([makeLine({ budgetSourceId: '' })], 0.19);
     expect(out.budgetSourceId).toBeUndefined();
   });
 
   it('linked row with linkedItemizedAmount commits it verbatim as gross, includesVat true', () => {
-    const [out] = buildCommitLines([
-      makeLine({
-        assignedBudgetLineId: 'wib-1',
-        assignedBudgetLineType: 'work_item',
-        linkedItemizedAmount: 1100,
-        totalAmount: 100,
-        includesVat: false,
-      }),
-    ]);
+    const [out] = buildCommitLines(
+      [
+        makeLine({
+          assignedBudgetLineId: 'wib-1',
+          assignedBudgetLineType: 'work_item',
+          linkedItemizedAmount: 1100,
+          totalAmount: 100,
+          includesVat: false,
+        }),
+      ],
+      0.19,
+    );
 
     expect(out).toMatchObject({
       totalAmount: 1100,
@@ -614,14 +631,17 @@ describe('buildCommitLines (#2149)', () => {
   });
 
   it('linked row without linkedItemizedAmount grosses up a net extracted amount (100 net -> 119)', () => {
-    const [out] = buildCommitLines([
-      makeLine({
-        assignedBudgetLineId: 'hib-1',
-        assignedBudgetLineType: 'household_item',
-        totalAmount: 100,
-        includesVat: false,
-      }),
-    ]);
+    const [out] = buildCommitLines(
+      [
+        makeLine({
+          assignedBudgetLineId: 'hib-1',
+          assignedBudgetLineType: 'household_item',
+          totalAmount: 100,
+          includesVat: false,
+        }),
+      ],
+      0.19,
+    );
 
     expect(out.totalAmount).toBe(119);
     expect(out.includesVat).toBe(true);
@@ -630,11 +650,14 @@ describe('buildCommitLines (#2149)', () => {
 
   it('empty extracted description falls back to the assigned line description, then to an em dash', () => {
     const base = { assignedBudgetLineId: 'wib-1', assignedBudgetLineType: 'work_item' };
-    const [fromAssigned, fromNothing, fromBlankAssigned] = buildCommitLines([
-      makeLine({ ...base, description: '  ', assignedBudgetLineDescription: ' Stored desc ' }),
-      makeLine({ ...base, description: '' }),
-      makeLine({ ...base, description: '', assignedBudgetLineDescription: '   ' }),
-    ]);
+    const [fromAssigned, fromNothing, fromBlankAssigned] = buildCommitLines(
+      [
+        makeLine({ ...base, description: '  ', assignedBudgetLineDescription: ' Stored desc ' }),
+        makeLine({ ...base, description: '' }),
+        makeLine({ ...base, description: '', assignedBudgetLineDescription: '   ' }),
+      ],
+      0.19,
+    );
 
     expect(fromAssigned.description).toBe('Stored desc');
     expect(fromNothing.description).toBe('—');
@@ -642,28 +665,34 @@ describe('buildCommitLines (#2149)', () => {
   });
 
   it('keeps a non-empty extracted description on a linked row', () => {
-    const [out] = buildCommitLines([
-      makeLine({
-        assignedBudgetLineId: 'wib-1',
-        assignedBudgetLineType: 'work_item',
-        assignedBudgetLineDescription: 'Stored',
-      }),
-    ]);
+    const [out] = buildCommitLines(
+      [
+        makeLine({
+          assignedBudgetLineId: 'wib-1',
+          assignedBudgetLineType: 'work_item',
+          assignedBudgetLineDescription: 'Stored',
+        }),
+      ],
+      0.19,
+    );
     expect(out.description).toBe('Tile work');
   });
 
   it('emits only schema-allowed keys (no rowId/included/snapshot/etc.) for both modes', () => {
-    const out = buildCommitLines([
-      makeLine(),
-      makeLine({
-        assignedBudgetLineId: 'wib-1',
-        assignedBudgetLineType: 'work_item',
-        assignedBudgetLineSnapshot: { plannedAmount: 1 },
-        assignedBudgetLineDescription: 'x',
-        linkedItemizedAmount: 5,
-        createdFromExtraction: true,
-      }),
-    ]);
+    const out = buildCommitLines(
+      [
+        makeLine(),
+        makeLine({
+          assignedBudgetLineId: 'wib-1',
+          assignedBudgetLineType: 'work_item',
+          assignedBudgetLineSnapshot: { plannedAmount: 1 },
+          assignedBudgetLineDescription: 'x',
+          linkedItemizedAmount: 5,
+          createdFromExtraction: true,
+        }),
+      ],
+      0.19,
+    );
 
     for (const row of out) {
       for (const key of Object.keys(row)) {
@@ -675,14 +704,17 @@ describe('buildCommitLines (#2149)', () => {
   it.each(['work_item', 'household_item'])(
     'linked %s row commits no budgetSourceId or budgetCategoryId even when the row has both',
     (type) => {
-      const [out] = buildCommitLines([
-        makeLine({
-          budgetSourceId: 'src-row',
-          budgetCategoryId: 'cat-row',
-          assignedBudgetLineId: 'bl-1',
-          assignedBudgetLineType: type,
-        }),
-      ]);
+      const [out] = buildCommitLines(
+        [
+          makeLine({
+            budgetSourceId: 'src-row',
+            budgetCategoryId: 'cat-row',
+            assignedBudgetLineId: 'bl-1',
+            assignedBudgetLineType: type,
+          }),
+        ],
+        0.19,
+      );
 
       expect(out.assignmentMode).toBe('assign-existing');
       expect(out.budgetSourceId).toBeUndefined();
@@ -691,7 +723,7 @@ describe('buildCommitLines (#2149)', () => {
   );
 
   it('a row with an id but no type is treated as create-new', () => {
-    const [out] = buildCommitLines([makeLine({ assignedBudgetLineId: 'wib-1' })]);
+    const [out] = buildCommitLines([makeLine({ assignedBudgetLineId: 'wib-1' })], 0.19);
     expect(out.assignmentMode).toBe('create-new');
     expect(out.assignedBudgetLineId).toBeUndefined();
   });
@@ -851,5 +883,64 @@ describe('applyBudgetSourceToNewLines', () => {
 
   it('returns an empty array for no rows', () => {
     expect(applyBudgetSourceToNewLines([], 'src-new')).toEqual([]);
+  });
+});
+
+describe('effectiveRowAmount / buildCommitLines — configured VAT rate (vatRate=0.2)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let effectiveRowAmount: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let buildCommitLines: any;
+
+  beforeEach(async () => {
+    ({ effectiveRowAmount, buildCommitLines } = await import('./autoItemizeDraftUtils.js'));
+  });
+
+  it('effectiveRowAmount grosses a net row up to 120 at vatRate=0.2', () => {
+    expect(effectiveRowAmount(makeLine({ totalAmount: 100, includesVat: false }), 0.2)).toBe(120);
+  });
+
+  it('effectiveRowAmount grosses up a linked row without linkedItemizedAmount at vatRate=0.2', () => {
+    expect(
+      effectiveRowAmount(
+        makeLine({ assignedBudgetLineId: 'b1', totalAmount: 100, includesVat: false }),
+        0.2,
+      ),
+    ).toBe(120);
+  });
+
+  it('effectiveRowAmount still prefers linkedItemizedAmount verbatim regardless of rate', () => {
+    expect(
+      effectiveRowAmount(
+        makeLine({ assignedBudgetLineId: 'b1', linkedItemizedAmount: 77, totalAmount: 100 }),
+        0.2,
+      ),
+    ).toBe(77);
+  });
+
+  it('buildCommitLines commits a linked net row as gross 120 with includesVat=true', () => {
+    const [out] = buildCommitLines(
+      [
+        makeLine({
+          assignedBudgetLineId: 'wib-1',
+          assignedBudgetLineType: 'work_item',
+          totalAmount: 100,
+          includesVat: false,
+        }),
+      ],
+      0.2,
+    );
+
+    expect(out.totalAmount).toBe(120);
+    expect(out.includesVat).toBe(true);
+    expect(out.assignmentMode).toBe('assign-existing');
+  });
+
+  it('buildCommitLines leaves a create-new net row amount as extracted (server grosses it up)', () => {
+    const [out] = buildCommitLines([makeLine({ totalAmount: 100, includesVat: false })], 0.2);
+
+    expect(out.totalAmount).toBe(100);
+    expect(out.includesVat).toBe(false);
+    expect(out.assignmentMode).toBe('create-new');
   });
 });

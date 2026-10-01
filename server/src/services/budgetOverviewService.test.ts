@@ -293,7 +293,7 @@ describe('getBudgetOverview', () => {
 
   describe('empty database (only seeded categories)', () => {
     it('returns zero for all numeric top-level fields', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(0);
       expect(result.sourceCount).toBe(1); // Discretionary Funding source is always seeded
@@ -304,7 +304,7 @@ describe('getBudgetOverview', () => {
     });
 
     it('returns zero for all remaining perspectives', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.remainingVsMinPlanned).toBe(0);
       expect(result.remainingVsMaxPlanned).toBe(0);
@@ -313,7 +313,7 @@ describe('getBudgetOverview', () => {
     });
 
     it('returns zero for subsidy summary', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBe(0);
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
@@ -327,7 +327,7 @@ describe('getBudgetOverview', () => {
       insertBudgetSource({ totalAmount: 100000, status: 'active' });
       insertBudgetSource({ totalAmount: 50000, status: 'active' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(150000);
       expect(result.sourceCount).toBe(3); // 2 user sources + discretionary
@@ -338,7 +338,7 @@ describe('getBudgetOverview', () => {
       insertBudgetSource({ totalAmount: 50000, status: 'exhausted' });
       insertBudgetSource({ totalAmount: 30000, status: 'closed' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(100000);
       expect(result.sourceCount).toBe(2); // 1 user source + discretionary
@@ -347,7 +347,7 @@ describe('getBudgetOverview', () => {
     it('returns zero when no active sources exist', () => {
       insertBudgetSource({ totalAmount: 50000, status: 'closed' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(0);
       expect(result.sourceCount).toBe(1); // discretionary is always active
@@ -361,7 +361,7 @@ describe('getBudgetOverview', () => {
       // own_estimate margin = 0.20; no invoices → projected = planned range
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // min = 10000 * (1 - 0.20) = 8000
       // max = 10000 * (1 + 0.20) = 12000
@@ -372,7 +372,7 @@ describe('getBudgetOverview', () => {
     it('applies professional_estimate margin of ±10%', () => {
       insertWorkItem({ plannedAmount: 10000, confidence: 'professional_estimate' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(9000, 5);
       expect(result.maxPlanned).toBeCloseTo(11000, 5);
@@ -381,7 +381,7 @@ describe('getBudgetOverview', () => {
     it('applies quote margin of ±5%', () => {
       insertWorkItem({ plannedAmount: 10000, confidence: 'quote' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(9500, 5);
       expect(result.maxPlanned).toBeCloseTo(10500, 5);
@@ -390,7 +390,7 @@ describe('getBudgetOverview', () => {
     it('applies invoice margin of ±0% (no margin)', () => {
       insertWorkItem({ plannedAmount: 10000, confidence: 'invoice' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(10000, 5);
       expect(result.maxPlanned).toBeCloseTo(10000, 5);
@@ -400,7 +400,7 @@ describe('getBudgetOverview', () => {
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate' }); // ±20%: 8000/12000
       insertWorkItem({ plannedAmount: 5000, confidence: 'quote' }); // ±5%: 4750/5250
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(12750, 5); // 8000 + 4750
       expect(result.maxPlanned).toBeCloseTo(17250, 5); // 12000 + 5250
@@ -414,7 +414,7 @@ describe('getBudgetOverview', () => {
       insertWorkItem({ plannedAmount: 10000, actualCost: 8000 });
       insertWorkItem({ plannedAmount: 5000, actualCost: 4500 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBe(12500);
     });
@@ -422,7 +422,7 @@ describe('getBudgetOverview', () => {
     it('sums only paid invoice amounts as actualCostPaid', () => {
       insertWorkItem({ plannedAmount: 10000, actualCost: 8000, actualCostPending: 2000 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBe(10000); // 8000 paid + 2000 pending
       expect(result.actualCostPaid).toBe(8000); // only paid
@@ -479,7 +479,7 @@ describe('getBudgetOverview', () => {
         })
         .run();
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // quotation invoice now counted in actualCost (ADR-029)
       expect(result.actualCost).toBe(3000);
@@ -540,7 +540,7 @@ describe('getBudgetOverview', () => {
         })
         .run();
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBe(9000); // 5000 paid + 4000 quotation
       expect(result.actualCostPaid).toBe(5000); // only the paid invoice
@@ -549,7 +549,7 @@ describe('getBudgetOverview', () => {
     it('returns zero actualCost when no invoices are linked to budget lines', () => {
       insertWorkItem({ plannedAmount: 10000 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBe(0);
       expect(result.actualCostPaid).toBe(0);
@@ -577,7 +577,7 @@ describe('getBudgetOverview', () => {
         })
         .run();
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only the budget-linked invoice should be in actualCost
       expect(result.actualCost).toBe(4000);
@@ -593,7 +593,7 @@ describe('getBudgetOverview', () => {
       // own_estimate (±20%): but line has invoice → min/max all = actualCost = 6000
       insertWorkItem({ plannedAmount: 10000, confidence: 'own_estimate', actualCost: 6000 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.availableFunds).toBe(100000);
       // Line has invoices → min/max planned overridden by actualCost
@@ -613,7 +613,7 @@ describe('getBudgetOverview', () => {
       // invoice confidence = 0% margin; line has an invoice → all values = actualCost = 8000
       insertWorkItem({ plannedAmount: 10000, confidence: 'invoice', actualCost: 8000 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // min/max planned now also overridden by actualCost = 8000
       expect(result.remainingVsMinPlanned).toBe(-3000); // 5000 - 8000
@@ -623,7 +623,7 @@ describe('getBudgetOverview', () => {
     });
 
     it('remaining perspectives are all zero when database is empty', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.remainingVsMinPlanned).toBe(0);
       expect(result.remainingVsMaxPlanned).toBe(0);
@@ -665,7 +665,7 @@ describe('getBudgetOverview', () => {
         applicationStatus: 'rejected',
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.activeSubsidyCount).toBe(4);
     });
@@ -677,7 +677,7 @@ describe('getBudgetOverview', () => {
         applicationStatus: 'rejected',
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.activeSubsidyCount).toBe(0);
     });
@@ -702,7 +702,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Universal subsidy applies: 10000 * 20% = 2000 reduction
       // minPlanned/maxPlanned = raw projected (no subsidy subtraction): invoice confidence min=max=10000
@@ -730,7 +730,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // No reduction — line is in catB but subsidy only covers catA
       expect(result.minPlanned).toBe(10000);
@@ -752,7 +752,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBe(10000);
       expect(result.subsidySummary.totalReductions).toBe(0);
@@ -773,7 +773,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBe(10000);
       expect(result.subsidySummary.totalReductions).toBe(0);
@@ -794,7 +794,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // reduction = 10000 * 0.15 = 1500
       // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000
@@ -833,7 +833,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // 2 matching lines: 3000 / 2 = 1500 per line
       // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
@@ -857,7 +857,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only 1 matching line: 2000 / 1 = 2000 reduction
       // minPlanned = raw projected (no subsidy subtraction): 8000
@@ -880,7 +880,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 500
       expect(result.minPlanned).toBe(500);
@@ -920,7 +920,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only line1 (10000) gets the 10% reduction = 1000
       // minPlanned/maxPlanned = raw projected (no subsidy subtraction): 10000 + 5000 = 15000
@@ -961,7 +961,7 @@ describe('getBudgetOverview', () => {
       linkWorkItemSubsidy(wi1, prog1); // 20000 * 10/100 = 2000
       linkWorkItemSubsidy(wi2, prog2); // 1000 fixed
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(3000, 5);
     });
@@ -982,7 +982,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Universal subsidy applies: 10000 * 25% = 2500
       expect(result.subsidySummary.totalReductions).toBe(2500);
@@ -1012,7 +1012,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, progId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(8000, 5);
       expect(result.maxPlanned).toBeCloseTo(12000, 5);
@@ -1057,7 +1057,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(wi1Id, prog); // applies to wi1 (catA, invoice) => 45000 * 0.1 = 4500 (uses itemized amount, not plannedAmount)
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Available funds
       expect(result.availableFunds).toBe(200000);
@@ -1136,7 +1136,7 @@ describe('getBudgetOverview', () => {
     it('returns zero actualCostClaimed when no claimed invoices exist', () => {
       insertWorkItem({ plannedAmount: 10000, actualCost: 5000 }); // paid invoice only
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(0);
     });
@@ -1146,7 +1146,7 @@ describe('getBudgetOverview', () => {
       const { budgetLineId: bl2 } = insertWorkItem({ plannedAmount: 8000 });
       insertClaimedInvoice(bl2!, 3000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(3000);
     });
@@ -1155,7 +1155,7 @@ describe('getBudgetOverview', () => {
       const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
       insertClaimedInvoice(budgetLineId!, 4000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // claimed is part of actualCostPaid (status IN ('paid', 'claimed'))
       expect(result.actualCostPaid).toBe(4000);
@@ -1169,7 +1169,7 @@ describe('getBudgetOverview', () => {
       insertClaimedInvoice(bl1!, 2500);
       insertClaimedInvoice(bl2!, 1500);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(4000); // 2500 + 1500
     });
@@ -1180,7 +1180,7 @@ describe('getBudgetOverview', () => {
       const { budgetLineId: bl3 } = insertWorkItem({ plannedAmount: 6000 });
       insertClaimedInvoice(bl3!, 1200); // claimed
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // actualCost = 5000 (paid) + 2000 (pending) + 1200 (claimed) = 8200
       expect(result.actualCost).toBe(8200);
@@ -1195,14 +1195,14 @@ describe('getBudgetOverview', () => {
       const { budgetLineId } = insertWorkItem({ plannedAmount: 10000 });
       insertClaimedInvoice(budgetLineId!, 7000);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(7000);
       expect(result.remainingVsActualClaimed).toBe(93000); // 100000 - 7000
     });
 
     it('remainingVsActualClaimed is 0 when no claimed invoices and no funds', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(0);
       expect(result.remainingVsActualClaimed).toBe(0);
@@ -1227,7 +1227,7 @@ describe('getBudgetOverview', () => {
         })
         .run();
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBe(0);
     });
@@ -1239,7 +1239,7 @@ describe('getBudgetOverview', () => {
 
   describe('subsidySummary.minTotalPayback / maxTotalPayback', () => {
     it('returns 0 for minTotalPayback and maxTotalPayback when no subsidies exist', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBe(0);
       expect(result.subsidySummary.maxTotalPayback).toBe(0);
@@ -1249,7 +1249,7 @@ describe('getBudgetOverview', () => {
       // A subsidy program exists but is not linked to any work item
       insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 20 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBe(0);
       expect(result.subsidySummary.maxTotalPayback).toBe(0);
@@ -1264,7 +1264,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBe(0);
       expect(result.subsidySummary.maxTotalPayback).toBe(0);
@@ -1280,7 +1280,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(100);
@@ -1297,7 +1297,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(80);
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(120);
@@ -1311,7 +1311,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBe(3000);
       expect(result.subsidySummary.maxTotalPayback).toBe(3000);
@@ -1360,7 +1360,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Actual cost = 900, 10% → payback = 90 (no range since actual cost is known)
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(90);
@@ -1386,7 +1386,7 @@ describe('getBudgetOverview', () => {
       linkWorkItemSubsidy(wi1, subsidyPct);
       linkWorkItemSubsidy(wi2, subsidyFixed);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(600); // 100 + 500
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(600); // 100 + 500
@@ -1409,7 +1409,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // Only the line with matching category contributes: 10% of 1000 = 100
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(100);
@@ -1431,7 +1431,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(100);
       expect(result.subsidySummary.totalReductions).toBeCloseTo(
@@ -1452,7 +1452,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(5000);
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(5000);
@@ -1471,7 +1471,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(2000);
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(2000);
@@ -1489,7 +1489,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(500);
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(500);
@@ -1516,7 +1516,7 @@ describe('getBudgetOverview', () => {
       linkWorkItemSubsidy(wi1, subsidyA);
       linkWorkItemSubsidy(wi2, subsidyB);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(400); // 100 + 300
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(400);
@@ -1537,7 +1537,7 @@ describe('getBudgetOverview', () => {
       });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(4000);
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(4500);
@@ -1559,7 +1559,7 @@ describe('getBudgetOverview', () => {
 
   describe('remainingVsMinPlannedWithPayback / remainingVsMaxPlannedWithPayback', () => {
     it('returns 0 for both payback-adjusted remaining fields when empty database', () => {
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.remainingVsMinPlannedWithPayback).toBe(0);
       expect(result.remainingVsMaxPlannedWithPayback).toBe(0);
@@ -1578,7 +1578,7 @@ describe('getBudgetOverview', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 200 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.remainingVsMinPlanned).toBeCloseTo(9000);
       expect(result.remainingVsMinPlannedWithPayback).toBeCloseTo(9200); // payback adds on top
@@ -1589,7 +1589,7 @@ describe('getBudgetOverview', () => {
       insertBudgetSource({ totalAmount: 5000 });
       insertWorkItem({ plannedAmount: 2000, confidence: 'invoice' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // No subsidies → payback = 0 → adjusted === non-adjusted
       expect(result.remainingVsMinPlannedWithPayback).toBe(result.remainingVsMinPlanned);
@@ -1708,7 +1708,7 @@ describe('getBudgetOverview', () => {
         deposits: [{ amount: 300, status: 'paid' }],
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBeGreaterThanOrEqual(1000);
       expect(result.actualCostPaid).toBeGreaterThanOrEqual(300);
@@ -1723,7 +1723,7 @@ describe('getBudgetOverview', () => {
         deposits: [{ amount: 400, status: 'claimed' }],
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
     });
@@ -1732,7 +1732,7 @@ describe('getBudgetOverview', () => {
       // No deposits: full invoice amount goes to actualCostPaid
       insertWorkItem({ plannedAmount: 500, actualCost: 500 });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCost).toBeGreaterThanOrEqual(500);
       expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
@@ -1750,7 +1750,7 @@ describe('getBudgetOverview', () => {
         ],
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.actualCostPaid).toBeGreaterThanOrEqual(500);
       expect(result.actualCostClaimed).toBeGreaterThanOrEqual(300);
@@ -1796,7 +1796,7 @@ describe('getBudgetOverview', () => {
         insertDeposit(invoiceId, { amount: 200, status: 'paid' });
       }
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       // ADR-029: quotation included in actualCost
       expect(result.actualCost).toBe(500);
@@ -1847,7 +1847,7 @@ describe('getBudgetOverview', () => {
         insertDeposit(invoiceId, { amount: 600, status: 'claimed' });
         insertDeposit(invoiceId, { amount: 200, status: 'claimed', entryType: 'refund' });
 
-        const result = getBudgetOverview(db);
+        const result = getBudgetOverview(db, 0.19);
         // This test's DB is fresh per-test (beforeEach creates a new in-memory
         // SQLite instance), so the net contribution is exact.
         expect(result.actualCostClaimed).toBeCloseTo(400);
@@ -1862,7 +1862,7 @@ describe('getBudgetOverview', () => {
           deposits: [{ amount: 400, status: 'claimed' }],
         });
 
-        const result = getBudgetOverview(db);
+        const result = getBudgetOverview(db, 0.19);
         expect(result.actualCostClaimed).toBeGreaterThanOrEqual(400);
       });
     });

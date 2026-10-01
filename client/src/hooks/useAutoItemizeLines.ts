@@ -13,6 +13,7 @@ import type { BudgetLineFormState } from './useBudgetSection.js';
 import { toAssignedBudgetLineSnapshot } from '../lib/autoItemizeDraftUtils.js';
 import { effectiveLineAmount } from '../lib/budgetConstants.js';
 import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
+import { useLocale } from '../contexts/LocaleContext.js';
 import {
   aggregateMergedLineNumerics,
   buildAvailableCategories,
@@ -111,6 +112,9 @@ export function useAutoItemizeLines({
   onMergeSuccessRef.current = onMergeSuccess;
   const defaultBudgetSourceIdRef = useRef(defaultBudgetSourceId);
   defaultBudgetSourceIdRef.current = defaultBudgetSourceId;
+  const { vatRate } = useLocale();
+  const vatRateRef = useRef(vatRate);
+  vatRateRef.current = vatRate;
 
   // Filled in after picker is created (breaks the circular dep on picker.closePicker /
   // picker.openPicker without needing closePicker in useCallback deps).
@@ -139,7 +143,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(line),
                 linkedItemizedAmount:
                   l.linkedItemizedAmount ??
-                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+                  effectiveLineAmount(
+                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
+                    vatRateRef.current,
+                  ),
                 createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
                 inlineHideConfidence: undefined,
@@ -274,7 +281,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(budgetLine),
                 linkedItemizedAmount:
                   l.linkedItemizedAmount ??
-                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+                  effectiveLineAmount(
+                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
+                    vatRateRef.current,
+                  ),
               }
             : l,
         ),
@@ -490,7 +500,7 @@ export function useAutoItemizeLines({
 
     onMergeStartRef.current?.(selectedLines.length);
 
-    const numerics = aggregateMergedLineNumerics(selectedLines);
+    const numerics = aggregateMergedLineNumerics(selectedLines, vatRateRef.current);
     const newRowId = `row-merged-${Math.random().toString(36).slice(2, 9)}`;
 
     const mergedLine: LineWithInclude = {

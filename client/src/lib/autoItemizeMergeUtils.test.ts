@@ -34,7 +34,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ totalAmount: 25, includesVat: true }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.totalAmount).toBe(175);
     expect(result.includesVat).toBe(true);
@@ -42,7 +42,7 @@ describe('aggregateMergedLineNumerics()', () => {
 
   it('output includesVat is always true regardless of source lines', () => {
     const lines = [makeLine({ includesVat: false }), makeLine({ includesVat: false })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.includesVat).toBe(true);
   });
 
@@ -58,7 +58,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ totalAmount: 100, includesVat: undefined }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     // Manual fixture: 100 + 119 + 100 = 319
     expect(result.totalAmount).toBe(319);
@@ -67,7 +67,7 @@ describe('aggregateMergedLineNumerics()', () => {
   it('rounds the grossed-up net amount to 2 decimal places before summing', () => {
     // 33.33 * 1.19 = 39.6627 -> rounds to 39.66
     const lines = [makeLine({ totalAmount: 33.33, includesVat: false })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.totalAmount).toBe(39.66);
   });
 
@@ -77,7 +77,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ totalAmount: 0.1, includesVat: true }),
       makeLine({ totalAmount: 0.2, includesVat: true }),
     ];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.totalAmount).toBe(0.3);
   });
 
@@ -90,7 +90,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ quantity: 2, unit: 'STK' }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.quantity).toBe(10);
     expect(result.unit).toBe('Stk'); // unit taken from first line, verbatim
@@ -101,7 +101,7 @@ describe('aggregateMergedLineNumerics()', () => {
   it('leaves quantity and unit undefined when units differ across lines', () => {
     const lines = [makeLine({ quantity: 5, unit: 'kg' }), makeLine({ quantity: 3, unit: 'Stk' })];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.quantity).toBeUndefined();
     expect(result.unit).toBeUndefined();
@@ -115,7 +115,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ quantity: undefined, unit: 'Stk' }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.quantity).toBeUndefined();
     expect(result.unit).toBeUndefined();
@@ -127,7 +127,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ quantity: 3, unit: undefined }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.quantity).toBeUndefined();
     expect(result.unit).toBeUndefined();
@@ -141,7 +141,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ unitPrice: 20, quantity: 3, unit: 'Stk' }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect('unitPrice' in result).toBe(false);
   });
@@ -155,14 +155,14 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ confidence: 0.95 }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.confidence).toBe(0.5);
   });
 
   it('confidence = min works with exactly 2 lines', () => {
     const lines = [makeLine({ confidence: 0.3 }), makeLine({ confidence: 0.8 })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.confidence).toBe(0.3);
   });
 
@@ -175,7 +175,7 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ vendorName: 'builder co' }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.vendorName).toBeDefined();
     expect(result.vendorName?.toLowerCase()).toBe('builder co');
@@ -183,19 +183,19 @@ describe('aggregateMergedLineNumerics()', () => {
 
   it('clears vendorName when vendor names differ', () => {
     const lines = [makeLine({ vendorName: 'Builder Co' }), makeLine({ vendorName: 'Other Co' })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.vendorName).toBeUndefined();
   });
 
   it('clears vendorName when at least one line is missing vendorName', () => {
     const lines = [makeLine({ vendorName: 'Builder Co' }), makeLine({ vendorName: undefined })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.vendorName).toBeUndefined();
   });
 
   it('clears vendorName when all lines are missing vendorName', () => {
     const lines = [makeLine({ vendorName: undefined }), makeLine({ vendorName: undefined })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.vendorName).toBeUndefined();
   });
 
@@ -208,20 +208,20 @@ describe('aggregateMergedLineNumerics()', () => {
       makeLine({ budgetSourceId: 'src-3' }),
     ];
 
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
 
     expect(result.budgetSourceId).toBe('src-1');
   });
 
   it('budgetSourceId is undefined when the first line has no budgetSourceId', () => {
     const lines = [makeLine({ budgetSourceId: undefined }), makeLine({ budgetSourceId: 'src-2' })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.budgetSourceId).toBeUndefined();
   });
 
   it('budgetSourceId is null when the first line explicitly has null', () => {
     const lines = [makeLine({ budgetSourceId: null }), makeLine({ budgetSourceId: 'src-2' })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.budgetSourceId).toBeNull();
   });
 
@@ -229,13 +229,13 @@ describe('aggregateMergedLineNumerics()', () => {
 
   it('handles exactly 2 source lines (the minimum for a merge)', () => {
     const lines = [makeLine({ totalAmount: 10 }), makeLine({ totalAmount: 20 })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.totalAmount).toBe(30);
   });
 
   it('treats a missing totalAmount as 0 when grossing up', () => {
     const lines = [makeLine({ totalAmount: undefined as unknown as number, includesVat: false })];
-    const result = aggregateMergedLineNumerics(lines);
+    const result = aggregateMergedLineNumerics(lines, 0.19);
     expect(result.totalAmount).toBe(0);
   });
 });
@@ -301,5 +301,35 @@ describe('buildAvailableCategories()', () => {
     const result = buildAvailableCategories(lines, []);
 
     expect(result).toEqual(['Zeta', 'Alpha']);
+  });
+});
+
+describe('aggregateMergedLineNumerics() — configured VAT rate (vatRate=0.2)', () => {
+  it('grosses net lines up at the supplied rate (100 net -> 120, not 119)', () => {
+    const result = aggregateMergedLineNumerics(
+      [makeLine({ totalAmount: 100, includesVat: false })],
+      0.2,
+    );
+
+    expect(result.totalAmount).toBe(120);
+  });
+
+  it('sums mixed net and gross lines using the supplied rate', () => {
+    const result = aggregateMergedLineNumerics(
+      [
+        makeLine({ totalAmount: 100, includesVat: false }),
+        makeLine({ totalAmount: 50, includesVat: true }),
+      ],
+      0.2,
+    );
+
+    expect(result.totalAmount).toBe(170);
+  });
+
+  it('gives a different total than the 0.19 rate for the same net input', () => {
+    const lines = [makeLine({ totalAmount: 1000, includesVat: false })];
+
+    expect(aggregateMergedLineNumerics(lines, 0.19).totalAmount).toBe(1190);
+    expect(aggregateMergedLineNumerics(lines, 0.2).totalAmount).toBe(1200);
   });
 });

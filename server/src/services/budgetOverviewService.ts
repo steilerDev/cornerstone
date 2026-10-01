@@ -35,7 +35,7 @@ type DbType = BetterSQLite3Database<typeof schemaTypes>;
  *   Actual Cost     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL)
  *   Actual Paid     = SUM(invoice_budget_lines.itemized_amount WHERE work_item_budget_id IS NOT NULL AND invoices.status IN ('paid', 'claimed'))
  */
-export function getBudgetOverview(db: DbType): BudgetOverview {
+export function getBudgetOverview(db: DbType, vatRate: number): BudgetOverview {
   // ─── Library Adoption Opportunity: SQLite percentile functions ────────────
   //
   // better-sqlite3 12.10.0 (PR #1527) ships SQLite 3.53.1, which exposes
@@ -258,7 +258,10 @@ export function getBudgetOverview(db: DbType): BudgetOverview {
   // VAT helper: convert stored net amount to effective amount if VAT not included
   // SQLite returns 0/1 for boolean, so includesVat === 0 means false (VAT should be applied)
   const effective = (l: { plannedAmount: number; includesVat: number | null }): number =>
-    effectivePlannedAmount({ plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 });
+    effectivePlannedAmount(
+      { plannedAmount: l.plannedAmount, includesVat: l.includesVat !== 0 },
+      vatRate,
+    );
 
   for (const line of budgetLines) {
     const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;

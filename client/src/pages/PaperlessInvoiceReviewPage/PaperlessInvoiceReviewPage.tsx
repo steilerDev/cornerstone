@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import type {
   PaperlessDocumentSearchResult,
@@ -66,6 +67,9 @@ export function PaperlessInvoiceReviewPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { vatRate } = useLocale();
+  const vatRateRef = useRef(vatRate);
+  vatRateRef.current = vatRate;
   const { formatCurrency } = useFormatters();
 
   const state = (location.state || {}) as LocationState;
@@ -212,7 +216,10 @@ export function PaperlessInvoiceReviewPage() {
         const computedTotal = linesWithInclude.reduce(
           (sum, line) =>
             sum +
-            effectiveLineAmount({ amount: line.totalAmount ?? 0, includesVat: line.includesVat }),
+            effectiveLineAmount(
+              { amount: line.totalAmount ?? 0, includesVat: line.includesVat },
+              vatRateRef.current,
+            ),
           0,
         );
 
@@ -319,7 +326,7 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
-      const linesPayload = buildCommitLines(workingLines);
+      const linesPayload = buildCommitLines(workingLines, vatRate);
 
       const result = await commitAutoItemizeCreate({
         paperlessDocumentId: documentId,
@@ -337,12 +344,24 @@ export function PaperlessInvoiceReviewPage() {
       }
       setPageStatus('ready');
     }
-  }, [documentId, document, vendorId, lines, metadataEdits, navigate, setLines, t, tErrors]);
+  }, [
+    documentId,
+    document,
+    vendorId,
+    lines,
+    metadataEdits,
+    navigate,
+    setLines,
+    t,
+    tErrors,
+    vatRate,
+  ]);
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
-    () => lines.filter((l) => l.included).reduce((sum, l) => sum + effectiveRowAmount(l), 0),
-    [lines],
+    () =>
+      lines.filter((l) => l.included).reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0),
+    [lines, vatRate],
   );
 
   const { variance, variancePercent } = useMemo(() => {
