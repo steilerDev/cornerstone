@@ -21,6 +21,12 @@ interface Step5ActionsProps {
   onFinishWithoutMarking?: () => void;
   onUploadPaperless: () => void;
   activeAction: 'preview' | 'download' | 'paperless' | null;
+  /** Number of generated PDF files (multi-PDF split, #2161). Default 1 = unchanged labels. */
+  partCount?: number;
+  /** Number of parts whose last upload failed; > 0 turns "Upload all" into "Retry failed". */
+  retryFailedCount?: number;
+  /** Transfer progress line (e.g. "Uploading 2 of 3…"). */
+  statusMessage?: string | null;
   t: TFunction;
 }
 
@@ -40,9 +46,23 @@ export function Step5Actions({
   onFinishWithoutMarking,
   onUploadPaperless,
   activeAction,
+  partCount = 1,
+  retryFailedCount = 0,
+  statusMessage = null,
   t,
 }: Step5ActionsProps) {
   const isClaim = useCase === 'claim';
+  const isMultiPart = partCount > 1;
+  const isRetry = isMultiPart && retryFailedCount > 0;
+  const downloadLabel = isMultiPart
+    ? t('sourceReports.parts.downloadAll', { count: partCount })
+    : t('sourceReports.download');
+  let uploadLabel = t('sourceReports.uploadPaperless');
+  if (isRetry) {
+    uploadLabel = t('sourceReports.parts.retryFailed', { count: retryFailedCount });
+  } else if (isMultiPart) {
+    uploadLabel = t('sourceReports.parts.uploadAll', { count: partCount });
+  }
 
   return (
     <div className={styles.actionsContainer}>
@@ -62,6 +82,11 @@ export function Step5Actions({
         </div>
       ) : (
         <>
+          {statusMessage && (
+            <p className={styles.transferStatus} role="status" aria-atomic="true">
+              {statusMessage}
+            </p>
+          )}
           <button
             type="button"
             className={sharedStyles.btnSecondary}
@@ -87,7 +112,7 @@ export function Step5Actions({
                 <Spinner size="sm" color="muted" />
               </span>
             )}
-            {t('sourceReports.download')}
+            {downloadLabel}
           </button>
 
           {isClaim && (
@@ -115,7 +140,7 @@ export function Step5Actions({
           {paperlessStatus?.configured && paperlessStatus?.reachable && (
             <button
               type="button"
-              className={sharedStyles.btnSecondary}
+              className={isRetry ? sharedStyles.btnPrimary : sharedStyles.btnSecondary}
               onClick={onUploadPaperless}
               disabled={activeAction !== null}
             >
@@ -124,7 +149,7 @@ export function Step5Actions({
                   <Spinner size="sm" color="muted" />
                 </span>
               )}
-              {t('sourceReports.uploadPaperless')}
+              {uploadLabel}
             </button>
           )}
         </>

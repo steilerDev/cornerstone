@@ -88,4 +88,26 @@ describe('FormError', () => {
       expect(screen.getByText('Please fill in all required fields')).toBeInTheDocument();
     });
   });
+
+  describe('id prop (#2161)', () => {
+    it('applies the id to the root element (banner variant)', () => {
+      const { container } = render(<FormError message="Error" id="my-error" />);
+      expect((container.firstChild as HTMLElement).id).toBe('my-error');
+    });
+
+    it('applies the id to the root element (field variant) so aria-describedby can target it', () => {
+      render(
+        <>
+          <input aria-describedby="field-err" aria-label="amount" />
+          <FormError message="Too small" variant="field" id="field-err" />
+        </>,
+      );
+      expect(screen.getByLabelText('amount')).toHaveAccessibleDescription('Too small');
+    });
+
+    it('renders no id attribute when none is given', () => {
+      const { container } = render(<FormError message="Error" />);
+      expect(container.firstChild).not.toHaveAttribute('id');
+    });
+  });
 });

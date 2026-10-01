@@ -55,6 +55,8 @@ export interface SettingsTier {
   reportLanguageOverride: ResolvedLocale | null;
   attachDocuments: boolean;
   includeCoverLetter: boolean;
+  /** Raw text of the maximum-file-size input (MB). '' = no limit. Survives use-case/source changes (#2161). */
+  maxFileSizeInput: string;
 }
 
 export interface NavTier {
@@ -105,7 +107,12 @@ function freshContentTier(): ContentTier {
 }
 
 function freshSettingsTier(): SettingsTier {
-  return { reportLanguageOverride: null, attachDocuments: true, includeCoverLetter: false };
+  return {
+    reportLanguageOverride: null,
+    attachDocuments: true,
+    includeCoverLetter: false,
+    maxFileSizeInput: '',
+  };
 }
 
 function freshNavTier(): NavTier {
@@ -130,6 +137,7 @@ export type WizardAction =
   | { type: 'SET_REPORT_LANGUAGE'; payload: { lang: ResolvedLocale } }
   | { type: 'SET_ATTACH_DOCUMENTS'; payload: { value: boolean } }
   | { type: 'SET_INCLUDE_COVER_LETTER'; payload: { value: boolean } }
+  | { type: 'SET_MAX_FILE_SIZE'; payload: { value: string } }
   | { type: 'SET_OVERRIDE'; payload: { key: string; value: string } }
   | { type: 'RESET_OVERRIDE'; payload: { key: string } }
   | { type: 'AI_GENERATION_STARTED'; payload: { requestId: string } }
@@ -258,6 +266,8 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       return { ...state, attachDocuments: action.payload.value };
     case 'SET_INCLUDE_COVER_LETTER':
       return { ...state, includeCoverLetter: action.payload.value };
+    case 'SET_MAX_FILE_SIZE':
+      return { ...state, maxFileSizeInput: action.payload.value };
 
     case 'SET_OVERRIDE':
       return {

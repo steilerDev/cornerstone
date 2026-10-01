@@ -76,6 +76,24 @@ export interface ReportContentLabels {
   skipReasonLabels: Record<ReportSkipReason, string>;
 }
 
+/**
+ * Report-language strings for the multi-PDF split (#2161). Functions close over `reportT` inside
+ * `buildReportContent`, so `lib/reportPdf/*` never touches i18n. Present ONLY when
+ * `buildReportContent` is called with `includePartTexts: true`.
+ */
+export interface ReportContentPartTexts {
+  identifier: string;
+  continuationSubject: (part: number, total: number) => string;
+  continuationBody: (part: number, total: number) => string;
+  continuationInvoicesHeading: string;
+  continuationInvoiceLine: (
+    row: Pick<ReportContentRow, 'vendor' | 'invoiceNumber' | 'dateText'>,
+  ) => string;
+  multiPartNotice: (total: number) => string;
+  multiPartNoticeNoLetter: (total: number) => string;
+  paperlessTitle: (baseTitle: string, partLabel: string, total: number) => string;
+}
+
 export interface ReportContent {
   isOverview: boolean;
   isClaim: boolean;
@@ -91,6 +109,7 @@ export interface ReportContent {
   rows: ReportContentRow[];
   summaryRows: ReportContentSummaryRow[];
   footnotes: ReportContentFootnote[];
+  partTexts?: ReportContentPartTexts; // opt-in (#2161)
 }
 
 export type ReportContentOverrides = Record<string, string>;

@@ -329,6 +329,121 @@
   max-width: 50rem;
 }
 
+/* ---- Maximum file size / multi-PDF split (#2161) ---- */
+
+.maxFileSizeBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  padding-left: calc(1.125rem + var(--spacing-2));
+}
+
+.maxFileSizeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.maxFileSizeInputWrap {
+  max-width: 8rem;
+}
+
+.maxFileSizeUnit {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.inputInvalid {
+  border-color: var(--color-danger);
+}
+
+.inputInvalid:focus-visible {
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.sizingCard {
+  composes: settingsCard;
+  align-items: flex-start;
+}
+
+.sizingProgress {
+  width: 100%;
+  accent-color: var(--color-primary);
+}
+
+.failedList {
+  margin: 0;
+  padding-left: var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.transferStatus {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.partsStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+.partsPreparing {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.partsPreparing p {
+  margin: 0;
+}
+
+.partsStale {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.partsStale p {
+  margin: 0;
+}
+
+.partBadgeUploaded {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.partBadgeFailed {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+.partBadgeOverLimit {
+  background-color: var(--color-warning-bg);
+  color: var(--color-warning-text-on-light);
+}
+
+.partSelectRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
+  font-size: var(--font-size-sm);
+}
+
+@media (max-width: 767px) {
+  .maxFileSizeInputWrap input {
+    min-height: 44px;
+  }
+}
+
 /* ---- Responsive ---- */
 
 @media (max-width: 860px) {

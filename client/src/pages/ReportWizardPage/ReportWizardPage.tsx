@@ -14,7 +14,7 @@ import {
   generateReportContent,
 } from '../../lib/sourceReportsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
-import { createFormatters, toBcp47Locale } from '../../lib/formatters.js';
+import { createFormatters, formatFileSizeDecimal, toBcp47Locale } from '../../lib/formatters.js';
 import { applyLineExclusions } from '../../lib/reportExclusions.js';
 import {
   buildReportContent,
@@ -28,6 +28,9 @@ import {
   createPreviewUrl,
   uploadToPaperless,
 } from '../../lib/reportPdf/index.js';
+import { parseMaxFileSizeInput } from '../../lib/reportPdf/partPlan.js';
+import { reportBaseName, partFileName, padPartNumber } from '../../lib/reportPdf/partNaming.js';
+import type { GeneratedReportParts, SkippedDocument } from '../../lib/reportPdf/types.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -45,7 +48,10 @@ import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { Step1UseCase } from './Step1UseCase.js';
 import { Step2Source } from './Step2Source.js';
 import { Step4Settings } from './Step4Settings.js';
+import { Step4SizingPhase } from './Step4SizingPhase.js';
 import { Step5Actions } from './Step5Actions.js';
+import { Step5Parts, type PartUploadStatus, type UploadSummary } from './Step5Parts.js';
+import { useReportParts } from './useReportParts.js';
 import {
   wizardReducer,
   createInitialWizardState,
@@ -59,6 +65,17 @@ import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
 
 type PageStatus = 'loading' | 'ready' | 'error';
+
+/** Delay between consecutive browser downloads of a multi-part report (browsers throttle bursts). */
+export const DOWNLOAD_STAGGER_MS = 400;
+
+interface PartUploadState {
+  result: GeneratedReportParts;
+  statuses: ReadonlyMap<number, PartUploadStatus>;
+  summary: UploadSummary | null;
+}
+
+const NO_UPLOAD_STATUSES: ReadonlyMap<number, PartUploadStatus> = new Map();
 
 export function ReportWizardPage() {
   const { t } = useTranslation('budget');
@@ -91,6 +108,7 @@ export function ReportWizardPage() {
     reportLanguageOverride,
     attachDocuments,
     includeCoverLetter,
+    maxFileSizeInput,
     currentStep,
     maxReachedStep,
     skippedDocuments,
@@ -276,7 +294,7 @@ export function ReportWizardPage() {
       useCase,
       reportT,
       reportFormatters,
-      { includeCoverLetter, household, user },
+      { includeCoverLetter, household, user, includePartTexts: true },
     );
 
     return applyAiContent(derived, aiContent);
@@ -298,6 +316,82 @@ export function ReportWizardPage() {
     if (!baselineContent) return null;
     return applyOverrides(baselineContent, overrides);
   }, [baselineContent, overrides]);
+
+  // --- Maximum file size / multi-PDF split (#2161) ---
+  const limitParse = parseMaxFileSizeInput(maxFileSizeInput);
+  const partsMode = attachDocuments && limitParse.status === 'valid';
+  const limitInvalid = attachDocuments && limitParse.status === 'invalid';
+  const limitBytes = limitParse.status === 'valid' ? limitParse.bytes : null;
+
+  const includedInvoiceIds = useMemo<ReadonlySet<string>>(() => {
+    if (!report) return new Set<string>();
+    const effectiveReport = applyLineExclusions(report, excludedLineIds);
+    return new Set(
+      effectiveReport.invoices
+        .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
+        .map((inv) => inv.invoiceId),
+    );
+  }, [report, excludedLineIds, excludedInvoiceIds]);
+
+  const handlePartsSkipped = useCallback(
+    (skipped: SkippedDocument[]) =>
+      dispatch({ type: 'PDF_GENERATED', payload: { skippedDocuments: skipped } }),
+    [],
+  );
+
+  const {
+    sizing,
+    startSizing,
+    cancelSizing,
+    continueWithoutFailed,
+    partsStatus,
+    result: partsResult,
+    ensureParts,
+  } = useReportParts({
+    enabled: partsMode,
+    limitBytes,
+    report,
+    includedInvoiceIds,
+    content: effectiveContent,
+    hiddenColumns,
+    cacheScope: `${useCase ?? ''}:${sourceId ?? ''}`,
+    onSkipped: handlePartsSkipped,
+  });
+
+  const [reportDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [previewPartIndex, setPreviewPartIndex] = useState(0);
+  const [transferMessage, setTransferMessage] = useState<string | null>(null);
+  const [uploadState, setUploadState] = useState<PartUploadState | null>(null);
+  const partsHeadingRef = useRef<HTMLHeadingElement | null>(null);
+  const retryFetchRef = useRef<HTMLButtonElement | null>(null);
+  const staggerRef = useRef<{ timer: ReturnType<typeof setTimeout> | null; resolve: () => void }>({
+    timer: null,
+    resolve: () => {},
+  });
+
+  const baseName =
+    selectedSource && useCase ? reportBaseName(useCase, selectedSource.name, reportDate) : null;
+
+  const partFileNames = useMemo(() => {
+    if (!partsResult || !baseName) return [];
+    const total = partsResult.parts.length;
+    return partsResult.parts.map((_, i) =>
+      total === 1 ? `${baseName}.pdf` : partFileName(baseName, i + 1, total),
+    );
+  }, [partsResult, baseName]);
+
+  const uploadStatuses =
+    uploadState && uploadState.result === partsResult ? uploadState.statuses : NO_UPLOAD_STATUSES;
+  const uploadSummary =
+    uploadState && uploadState.result === partsResult ? uploadState.summary : null;
+  const retryFailedCount = Array.from(uploadStatuses.values()).filter(
+    (status) => status.state === 'failed',
+  ).length;
+
+  const formatSize = useCallback(
+    (bytes: number) => formatFileSizeDecimal(bytes, toBcp47Locale(resolvedLocale)),
+    [resolvedLocale],
+  );
 
   // Generate PDF from effective content (used by preview, download, paperless)
   const generatePdfFromContent = useCallback(async () => {
@@ -333,7 +427,44 @@ export function ReportWizardPage() {
   ]);
 
   // Handle preview PDF
+  const showPreviewBlob = useCallback((blob: Blob) => {
+    // Revoke old modal URL
+    if (modalPreviewUrlRef.current) {
+      URL.revokeObjectURL(modalPreviewUrlRef.current);
+    }
+    const newUrl = createPreviewUrl(blob);
+    setModalPreviewUrl(newUrl);
+    modalPreviewUrlRef.current = newUrl;
+  }, []);
+
+  // Preview one part of a multi-part report (partsMode only).
+  const previewPartAt = useCallback(
+    async (partIndex: number) => {
+      setActiveAction('preview');
+      setActionError('');
+      setShowPdfPreviewModal(true);
+
+      const parts = await ensureParts();
+      if (!parts || parts.parts.length === 0) {
+        setActionError(t('sourceReports.previewGenerationFailed'));
+        setActiveAction(null);
+        return;
+      }
+      const index = Math.min(partIndex, parts.parts.length - 1);
+      setPreviewPartIndex(index);
+      const previewBlob = parts.parts[index]?.blob;
+      if (previewBlob) showPreviewBlob(previewBlob);
+      setActiveAction(null);
+    },
+    [ensureParts, showPreviewBlob, t],
+  );
+
   const handlePreviewPdf = useCallback(async () => {
+    if (partsMode) {
+      await previewPartAt(0);
+      return;
+    }
+
     setActiveAction('preview');
     setActionError('');
     setShowPdfPreviewModal(true);
@@ -354,7 +485,17 @@ export function ReportWizardPage() {
     setModalPreviewUrl(newUrl);
     modalPreviewUrlRef.current = newUrl;
     setActiveAction(null);
-  }, [generatePdfFromContent, t]);
+  }, [generatePdfFromContent, partsMode, previewPartAt, t]);
+
+  // Resolves after `ms`, or immediately when the page unmounts (see cleanup effect).
+  const waitStagger = useCallback(
+    (ms: number) =>
+      new Promise<void>((resolve) => {
+        staggerRef.current.resolve = resolve;
+        staggerRef.current.timer = setTimeout(resolve, ms);
+      }),
+    [],
+  );
 
   // Handle download
   const handleDownload = useCallback(async () => {
@@ -362,6 +503,28 @@ export function ReportWizardPage() {
 
     setActiveAction('download');
     setActionError('');
+
+    if (partsMode && baseName) {
+      const parts = await ensureParts();
+      if (!parts || parts.parts.length === 0) {
+        showToast('error', t('sourceReports.downloadFailed'));
+        setActiveAction(null);
+        return;
+      }
+      const total = parts.parts.length;
+      if (total === 1) {
+        downloadPdf(parts.parts[0]!.blob, `${baseName}.pdf`);
+      } else {
+        for (const [i, part] of parts.parts.entries()) {
+          setTransferMessage(t('sourceReports.parts.downloading', { current: i + 1, total }));
+          downloadPdf(part.blob, partFileName(baseName, i + 1, total));
+          if (i < total - 1) await waitStagger(DOWNLOAD_STAGGER_MS);
+        }
+        setTransferMessage(null);
+      }
+      setActiveAction(null);
+      return;
+    }
 
     const result = await generatePdfFromContent();
     if (!result) {
@@ -379,7 +542,27 @@ export function ReportWizardPage() {
 
     downloadPdf(result.blob, filename);
     setActiveAction(null);
-  }, [generatePdfFromContent, selectedSource, useCase, t, showToast]);
+  }, [
+    generatePdfFromContent,
+    selectedSource,
+    useCase,
+    t,
+    showToast,
+    partsMode,
+    baseName,
+    ensureParts,
+    waitStagger,
+  ]);
+
+  // Download a single part of a multi-part report
+  const handleDownloadPart = useCallback(
+    (index: number) => {
+      const part = partsResult?.parts[index];
+      const name = partFileNames[index];
+      if (part && name) downloadPdf(part.blob, name);
+    },
+    [partsResult, partFileNames],
+  );
 
   // Handle upload to Paperless
   const handleUploadPaperless = useCallback(async () => {
@@ -387,6 +570,82 @@ export function ReportWizardPage() {
 
     setActiveAction('paperless');
     setActionError('');
+
+    if (partsMode && baseName) {
+      try {
+        const parts = await ensureParts();
+        if (!parts || parts.parts.length === 0) {
+          showToast('error', t('sourceReports.uploadFailed'));
+          return;
+        }
+        const total = parts.parts.length;
+        if (total === 1) {
+          await uploadToPaperless(parts.parts[0]!.blob, baseName);
+          showToast('success', t('sourceReports.uploadSuccess'));
+          return;
+        }
+
+        const texts = effectiveContent?.partTexts;
+        if (!texts) {
+          showToast('error', t('sourceReports.uploadFailed'));
+          return;
+        }
+
+        const previous = uploadState && uploadState.result === parts ? uploadState.statuses : null;
+        const failedIndexes = previous
+          ? Array.from(previous.entries())
+              .filter(([, status]) => status.state === 'failed')
+              .map(([index]) => index)
+          : [];
+        // Retry only failed parts when there are any; otherwise start a fresh round.
+        const targets =
+          failedIndexes.length > 0 ? failedIndexes : parts.parts.map((_, index) => index);
+        const statuses = new Map<number, PartUploadStatus>(
+          failedIndexes.length > 0 ? (previous ?? []) : [],
+        );
+        for (const index of targets) statuses.delete(index);
+        setUploadState({ result: parts, statuses: new Map(statuses), summary: null });
+
+        for (const [k, index] of targets.entries()) {
+          const part = parts.parts[index];
+          if (!part) continue;
+          setTransferMessage(
+            t('sourceReports.parts.uploading', { current: k + 1, total: targets.length }),
+          );
+          const title = texts.paperlessTitle(baseName, padPartNumber(index + 1, total), total);
+          try {
+            await uploadToPaperless(part.blob, title);
+            statuses.set(index, { state: 'uploaded' });
+          } catch (err) {
+            const reason =
+              err instanceof ApiClientError
+                ? translateApiError(err.error.code, tErrors)
+                : t('sourceReports.uploadFailed');
+            statuses.set(index, { state: 'failed', reason });
+          }
+          setUploadState({ result: parts, statuses: new Map(statuses), summary: null });
+        }
+
+        const failed = Array.from(statuses.values()).filter((s) => s.state === 'failed').length;
+        setUploadState({
+          result: parts,
+          statuses: new Map(statuses),
+          summary:
+            failed > 0 ? { kind: 'failure', failed, total } : { kind: 'success', count: total },
+        });
+        requestAnimationFrame(() => partsHeadingRef.current?.focus());
+      } catch (err) {
+        if (err instanceof ApiClientError) {
+          showToast('error', translateApiError(err.error.code, tErrors));
+        } else {
+          showToast('error', t('sourceReports.uploadFailed'));
+        }
+      } finally {
+        setTransferMessage(null);
+        setActiveAction(null);
+      }
+      return;
+    }
 
     try {
       const result = await generatePdfFromContent();
@@ -414,7 +673,19 @@ export function ReportWizardPage() {
     } finally {
       setActiveAction(null);
     }
-  }, [generatePdfFromContent, selectedSource, useCase, t, showToast, tErrors]);
+  }, [
+    generatePdfFromContent,
+    selectedSource,
+    useCase,
+    t,
+    showToast,
+    tErrors,
+    partsMode,
+    baseName,
+    ensureParts,
+    uploadState,
+    effectiveContent,
+  ]);
 
   // Handle mark claimed
   const handleMarkClaimed = async () => {
@@ -512,12 +783,35 @@ export function ReportWizardPage() {
 
   // Cleanup on unmount
   useEffect(() => {
+    const stagger = staggerRef.current;
     return () => {
       if (modalPreviewUrlRef.current) {
         URL.revokeObjectURL(modalPreviewUrlRef.current);
       }
+      if (stagger.timer) clearTimeout(stagger.timer);
+      stagger.resolve();
     };
   }, []);
+
+  // Keep the latest ensureParts reachable from the step-5 auto-prepare effect without making
+  // content edits retrigger it (edits make the parts stale; they regenerate on the next action).
+  const ensurePartsRef = useRef(ensureParts);
+  useEffect(() => {
+    ensurePartsRef.current = ensureParts;
+  }, [ensureParts]);
+
+  useEffect(() => {
+    if (currentStep === 5 && partsMode) {
+      void ensurePartsRef.current();
+    }
+  }, [currentStep, partsMode]);
+
+  // Focus the Retry button when attachment sizing fails
+  useEffect(() => {
+    if (sizing.phase === 'failed') {
+      retryFetchRef.current?.focus();
+    }
+  }, [sizing.phase]);
 
   // Move focus to the active step panel's heading on step change
   useEffect(() => {
@@ -591,6 +885,27 @@ export function ReportWizardPage() {
 
   const coverLetterDisabled = !selectedSource?.contactAddress && !selectedSource?.reference;
 
+  // Step 4 -> 5: with a valid size limit, attachment sizes are acquired first.
+  const handleAdvanceToStep5 = useCallback(async () => {
+    if (limitInvalid) {
+      dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } });
+      return;
+    }
+    if (!partsMode || currentStep === 5) {
+      dispatch({ type: 'GO_TO_STEP', payload: { step: 5 } });
+      return;
+    }
+    if (currentStep !== 4) {
+      dispatch({ type: 'GO_TO_STEP', payload: { step: 4 } });
+    }
+    const outcome = await startSizing();
+    if (outcome === 'ok') {
+      dispatch({ type: 'GO_TO_STEP', payload: { step: 5 } });
+    } else if (outcome === 'cancelled') {
+      requestAnimationFrame(() => stepHeadingsRef.current[3]?.focus());
+    }
+  }, [limitInvalid, partsMode, currentStep, startSizing]);
+
   return (
     <PageLayout title={t('sourceReports.title')}>
       <SubNav tabs={BUDGET_TABS} ariaLabel={t('sourceReports.subNavAriaLabel')} />
@@ -599,7 +914,14 @@ export function ReportWizardPage() {
         steps={steps}
         currentStep={currentStep}
         maxReachedStep={maxReachedStep}
-        onStepClick={(step) => dispatch({ type: 'GO_TO_STEP', payload: { step } })}
+        onStepClick={(step) => {
+          if (step === 5) {
+            void handleAdvanceToStep5();
+            return;
+          }
+          cancelSizing();
+          dispatch({ type: 'GO_TO_STEP', payload: { step } });
+        }}
         ariaLabel={t('sourceReports.stepperAriaLabel')}
         mobileStepLabel={(current, total) => t('sourceReports.mobileStepLabel', { current, total })}
       />
@@ -764,40 +1086,67 @@ export function ReportWizardPage() {
             >
               {steps[3]?.label}
             </h2>
-            <Step4Settings
-              reportLanguage={reportLanguage}
-              onReportLanguageChange={(lang) =>
-                guardedUpdate(() => dispatch({ type: 'SET_REPORT_LANGUAGE', payload: { lang } }))
-              }
-              attachDocuments={attachDocuments}
-              onAttachDocumentsChange={(value) =>
-                guardedUpdate(() => dispatch({ type: 'SET_ATTACH_DOCUMENTS', payload: { value } }))
-              }
-              includeCoverLetter={includeCoverLetter}
-              onIncludeCoverLetterChange={(value) =>
-                guardedUpdate(() =>
-                  dispatch({ type: 'SET_INCLUDE_COVER_LETTER', payload: { value } }),
-                )
-              }
-              coverLetterDisabled={coverLetterDisabled}
-              t={t}
-            />
-            <div className={styles.buttonRow}>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 3 } })}
-              >
-                {t('common:button.back')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 5 } })}
-              >
-                {t('common:button.next')}
-              </button>
-            </div>
+            {sizing.phase !== 'idle' ? (
+              <Step4SizingPhase
+                sizing={sizing}
+                onCancel={cancelSizing}
+                onRetry={() => void handleAdvanceToStep5()}
+                onContinue={() => {
+                  continueWithoutFailed();
+                  dispatch({ type: 'GO_TO_STEP', payload: { step: 5 } });
+                }}
+                onBack={cancelSizing}
+                retryRef={retryFetchRef}
+                t={t}
+              />
+            ) : (
+              <>
+                <Step4Settings
+                  reportLanguage={reportLanguage}
+                  onReportLanguageChange={(lang) =>
+                    guardedUpdate(() =>
+                      dispatch({ type: 'SET_REPORT_LANGUAGE', payload: { lang } }),
+                    )
+                  }
+                  attachDocuments={attachDocuments}
+                  onAttachDocumentsChange={(value) =>
+                    guardedUpdate(() =>
+                      dispatch({ type: 'SET_ATTACH_DOCUMENTS', payload: { value } }),
+                    )
+                  }
+                  includeCoverLetter={includeCoverLetter}
+                  onIncludeCoverLetterChange={(value) =>
+                    guardedUpdate(() =>
+                      dispatch({ type: 'SET_INCLUDE_COVER_LETTER', payload: { value } }),
+                    )
+                  }
+                  coverLetterDisabled={coverLetterDisabled}
+                  maxFileSize={maxFileSizeInput}
+                  onMaxFileSizeChange={(value) =>
+                    dispatch({ type: 'SET_MAX_FILE_SIZE', payload: { value } })
+                  }
+                  maxFileSizeError={limitParse.status === 'invalid' ? limitParse.reason : null}
+                  t={t}
+                />
+                <div className={styles.buttonRow}>
+                  <button
+                    type="button"
+                    className={sharedStyles.btnSecondary}
+                    onClick={() => dispatch({ type: 'GO_TO_STEP', payload: { step: 3 } })}
+                  >
+                    {t('common:button.back')}
+                  </button>
+                  <button
+                    type="button"
+                    className={sharedStyles.btnPrimary}
+                    onClick={() => void handleAdvanceToStep5()}
+                    disabled={limitInvalid}
+                  >
+                    {t('common:button.next')}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -875,6 +1224,23 @@ export function ReportWizardPage() {
               </div>
             )}
 
+            {partsMode && (
+              <Step5Parts
+                status={partsStatus}
+                result={partsResult}
+                fileNames={partFileNames}
+                uploadStatus={uploadStatuses}
+                uploadSummary={uploadSummary}
+                onDownloadPart={handleDownloadPart}
+                onUpdateFiles={() => void ensureParts()}
+                onRetryGenerate={() => void ensureParts()}
+                actionsDisabled={activeAction !== null}
+                formatSize={formatSize}
+                headingRef={partsHeadingRef}
+                t={t}
+              />
+            )}
+
             <Step5Actions
               useCase={useCase!}
               paperlessStatus={paperlessStatus}
@@ -894,6 +1260,9 @@ export function ReportWizardPage() {
               }}
               onUploadPaperless={handleUploadPaperless}
               activeAction={activeAction}
+              partCount={partsMode ? (partsResult?.parts.length ?? 1) : 1}
+              retryFailedCount={retryFailedCount}
+              statusMessage={transferMessage}
               t={t}
             />
 
@@ -1036,6 +1405,28 @@ export function ReportWizardPage() {
             setActionError('');
           }}
         >
+          {partsMode && partsResult && partsResult.parts.length > 1 && (
+            <div className={styles.partSelectRow}>
+              <label htmlFor="previewPart">{t('sourceReports.parts.previewPartLabel')}</label>
+              <select
+                id="previewPart"
+                className={sharedStyles.select}
+                value={previewPartIndex}
+                onChange={(e) => void previewPartAt(Number(e.target.value))}
+                disabled={activeAction === 'preview'}
+              >
+                {partsResult.parts.map((part, i) => (
+                  <option key={part.index} value={i}>
+                    {t('sourceReports.parts.previewPartOption', {
+                      part: i + 1,
+                      total: partsResult.parts.length,
+                    })}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {modalPreviewUrl || actionError ? (
             <ReportPdfPreview
               blobUrl={modalPreviewUrl}

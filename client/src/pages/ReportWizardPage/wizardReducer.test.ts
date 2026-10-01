@@ -975,3 +975,64 @@ describe('wizardReducer default/exhaustiveness guard', () => {
     expect(next).toBe(state);
   });
 });
+
+// ─── SET_MAX_FILE_SIZE (#2161) ───────────────────────────────────────────────
+
+describe('SET_MAX_FILE_SIZE', () => {
+  it('starts as an empty string (no limit) on a fresh wizard', () => {
+    expect(createInitialWizardState(null).maxFileSizeInput).toBe('');
+  });
+
+  it('stores the raw input text without parsing or trimming it', () => {
+    const next = wizardReducer(makeState(), {
+      type: 'SET_MAX_FILE_SIZE',
+      payload: { value: ' 9,5 ' },
+    });
+
+    expect(next.maxFileSizeInput).toBe(' 9,5 ');
+  });
+
+  it('can be cleared back to an empty string', () => {
+    const state = makeState({ maxFileSizeInput: '10' });
+    const next = wizardReducer(state, { type: 'SET_MAX_FILE_SIZE', payload: { value: '' } });
+
+    expect(next.maxFileSizeInput).toBe('');
+  });
+
+  it('does not touch other state (no discard of overrides, no guarded reset)', () => {
+    const state = makeState({ overrides: { 'a.b': 'edited' }, currentStep: 4 });
+    const next = wizardReducer(state, { type: 'SET_MAX_FILE_SIZE', payload: { value: '3' } });
+
+    expect(next.overrides).toBe(state.overrides);
+    expect(next.currentStep).toBe(4);
+    expect(next.attachDocuments).toBe(state.attachDocuments);
+  });
+
+  it('survives SELECT_USE_CASE', () => {
+    const state = makeState({ maxFileSizeInput: '12.5' });
+    const next = wizardReducer(state, {
+      type: 'SELECT_USE_CASE',
+      payload: { useCase: 'budget-overview', step2RequestId: 'req-1' },
+    });
+
+    expect(next.maxFileSizeInput).toBe('12.5');
+  });
+
+  it('survives SELECT_SOURCE', () => {
+    const state = makeState({ maxFileSizeInput: '12.5', useCase: 'claim' });
+    const next = wizardReducer(state, {
+      type: 'SELECT_SOURCE',
+      payload: { sourceId: 'src-2', requestId: 'req-2' },
+    });
+
+    expect(next.maxFileSizeInput).toBe('12.5');
+  });
+
+  it('survives DISCARD_EDITS', () => {
+    const state = makeState({ maxFileSizeInput: '12.5', overrides: { 'a.b': 'edited' } });
+    const next = wizardReducer(state, { type: 'DISCARD_EDITS' });
+
+    expect(next.overrides).toEqual({});
+    expect(next.maxFileSizeInput).toBe('12.5');
+  });
+});
