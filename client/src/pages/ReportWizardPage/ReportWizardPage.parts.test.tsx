@@ -82,12 +82,14 @@ jest.unstable_mockModule('../../lib/reportPdf/index.js', () => ({
 let partsModuleImported = false;
 const mockAcquire = jest.fn<typeof PartsTypes.acquireAttachments>();
 const mockCountUncached = jest.fn<typeof PartsTypes.countUncachedDocuments>();
+const mockCountIncluded = jest.fn<typeof PartsTypes.countIncludedDocuments>();
 const mockGenerateParts = jest.fn<typeof PartsTypes.generateReportParts>();
 jest.unstable_mockModule('../../lib/reportPdf/parts.js', () => {
   partsModuleImported = true;
   return {
     acquireAttachments: mockAcquire,
     countUncachedDocuments: mockCountUncached,
+    countIncludedDocuments: mockCountIncluded,
     generateReportParts: mockGenerateParts,
   };
 });
@@ -249,6 +251,7 @@ beforeEach(async () => {
   mockCreatePreviewUrl.mockImplementation(() => 'blob:preview');
   mockUploadToPaperless.mockResolvedValue(undefined);
   mockCountUncached.mockReturnValue(0);
+  mockCountIncluded.mockReturnValue(3);
   mockAcquire.mockResolvedValue(OK_ACQUIRE);
   mockGenerateParts.mockImplementation(async () => makeParts(3));
 
@@ -346,6 +349,7 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
     expect(screen.queryByText('Generated files')).not.toBeInTheDocument();
     expect(mockAcquire).not.toHaveBeenCalled();
     expect(mockCountUncached).not.toHaveBeenCalled();
+    expect(mockCountIncluded).not.toHaveBeenCalled();
     expect(mockGenerateParts).not.toHaveBeenCalled();
     expect(partsModuleImported).toBe(false);
   });
@@ -393,6 +397,7 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       expect(screen.queryByRole('button', { name: 'Download PDF' })).not.toBeInTheDocument();
       expect(stepperButton('Settings')).toHaveAttribute('aria-current', 'step');
       expect(mockCountUncached).not.toHaveBeenCalled();
+      expect(mockCountIncluded).not.toHaveBeenCalled();
       expect(mockAcquire).not.toHaveBeenCalled();
     });
 
@@ -645,7 +650,6 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       });
 
       expect(mockDownloadPdf).toHaveBeenCalledTimes(1);
-      expect(screen.getByRole('status', { name: '' })).toBeInTheDocument();
       expect(screen.getByText('Downloading 1 of 3…')).toBeInTheDocument();
 
       await act(async () => {

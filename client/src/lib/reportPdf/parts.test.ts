@@ -25,11 +25,17 @@ import type * as CoverLetterPdfModule from './coverLetterPdf.js';
 import type * as ContinuationLetterPdfModule from './continuationLetterPdf.js';
 import type * as OverviewPdfModule from './overviewPdf.js';
 import type { AcquireResult, ReportAttachment } from './types.js';
-import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
+import {
+  PAGE_MARGIN_X,
+  PAGE_TOP_MARGIN,
+  PAGE_MARGIN_BOTTOM,
+  PDF_STYLES,
+  PDF_DEFAULT_STYLE,
+} from './pageGeometry.js';
 
 // ─── Mock: ./loader.js ────────────────────────────────────────────────────────
 
-const sizes = { p1: 100, cont: 50 };
+const sizes = { p1: 100, cont: 50, noticeExtra: 0 };
 let onGetBlob: (() => void) | null = null;
 
 interface CreatePdfDefinition {
@@ -48,7 +54,12 @@ const mockCreatePdf = jest.fn((def: CreatePdfDefinition) => ({
     mockGetBlob();
     onGetBlob?.();
     const isContinuation = def.content.some((n) => (n as { text?: string }).text === 'CONT');
-    return new Blob([new Uint8Array(isContinuation ? sizes.cont : sizes.p1)]);
+    const hasNotice = def.content.some((n) =>
+      ((n as { text?: string }).text ?? '').includes('+NOTICE'),
+    );
+    return new Blob([
+      new Uint8Array(isContinuation ? sizes.cont : sizes.p1 + (hasNotice ? sizes.noticeExtra : 0)),
+    ]);
   },
 }));
 
@@ -96,7 +107,9 @@ jest.unstable_mockModule('./shared.js', () => ({
 
 const mockBuildCoverLetterContent = jest
   .fn<typeof CoverLetterPdfModule.buildCoverLetterContent>()
-  .mockReturnValue([{ text: 'COVER' }]);
+  .mockImplementation((_content, options) => [
+    { text: options?.partsNotice ? 'COVER+NOTICE' : 'COVER' },
+  ]);
 const mockBuildContinuationLetterContent = jest
   .fn<typeof ContinuationLetterPdfModule.buildContinuationLetterContent>()
   .mockReturnValue([{ text: 'CONT' }]);
@@ -143,6 +156,7 @@ beforeEach(async () => {
 
   sizes.p1 = 100;
   sizes.cont = 50;
+  sizes.noticeExtra = 0;
   onGetBlob = null;
   mockGetBlob.mockClear();
   mockCreatePdf.mockClear();
@@ -348,7 +362,9 @@ describe('generateReportParts — single part', () => {
     // The final (N = 1) part-1 render has no notice: options argument absent.
     const lastCover = mockBuildCoverLetterContent.mock.calls.at(-1)!;
     expect(lastCover[1]).toBeUndefined();
-    expect(mockBuildContinuationLetterContent).toHaveBeenCalledTimes(1); // overhead estimate only
+    // A report that fits as one PDF needs no continuation overhead estimate at all.
+    expect(mockBuildContinuationLetterContent).not.toHaveBeenCalled();
+    expect(mockBuildCoverLetterContent.mock.calls.every((c) => c[1] === undefined)).toBe(true);
   });
 
   it('returns the text-only blob as-is when there are no attachments', async () => {
@@ -379,6 +395,43 @@ describe('generateReportParts — single part', () => {
 
     expect(result.parts).toHaveLength(2);
     expect(result.parts.map((p) => p.attachmentKeys)).toEqual([[], ['inv-1:1']]);
+  });
+});
+
+describe('generateReportParts — single-PDF boundary (AC 3.4)', () => {
+  it('stays one PDF when it fits without the notice, even if it would not fit with the N = 99 notice', async () => {
+    sizes.noticeExtra = 200; // part 1 with any notice is 300, without it 100
+    // Single PDF: 100 + 850 = 950 <= 1000. With the N = 99 estimate: 300 + 850 = 1150 > 1000.
+    const result = await run(makeContent(), acquired([att('inv-1', 1, 850)]));
+
+    expect(result.parts).toHaveLength(1);
+    expect(result.parts[0]?.attachmentKeys).toEqual(['inv-1:1']);
+    expect(result.parts[0]?.size).toBe(950);
+    expect(result.parts[0]?.overLimit).toBe(false);
+    expect(result.warnings).toEqual([]);
+    expect(mockBuildContinuationLetterContent).not.toHaveBeenCalled();
+    expect(
+      mockBuildCoverLetterContent.mock.calls.every((c) => c[1]?.partsNotice === undefined),
+    ).toBe(true);
+  });
+
+  it('splits when it does not fit as a single PDF, planning with the N = 99 estimate', async () => {
+    sizes.noticeExtra = 200;
+    // Single PDF: 100 + 950 = 1050 > 1000, so the estimate path runs.
+    const result = await run(makeContent(), acquired([att('inv-1', 1, 950)]));
+
+    expect(result.parts.length).toBeGreaterThan(1);
+    expect(
+      mockBuildCoverLetterContent.mock.calls.some((c) => c[1]?.partsNotice === 'NOTICE 99'),
+    ).toBe(true);
+  });
+
+  it('stays one PDF at exactly the limit without the notice', async () => {
+    sizes.noticeExtra = 200;
+    const result = await run(makeContent(), acquired([att('inv-1', 1, L - 100)]));
+
+    expect(result.parts).toHaveLength(1);
+    expect(result.parts[0]?.size).toBe(L);
   });
 });
 
@@ -413,7 +466,10 @@ describe('generateReportParts — plan to render mapping', () => {
   it('uses the worst-case N = 99 notice for the part-1 overhead estimate', async () => {
     await run(makeContent(), acquired(threeBig()));
 
-    expect(mockBuildCoverLetterContent.mock.calls[0]?.[1]).toEqual({ partsNotice: 'NOTICE 99' });
+    // Call 0 measures the single-PDF part 1 (no notice); the N = 99 estimate only follows when
+    // that does not fit.
+    expect(mockBuildCoverLetterContent.mock.calls[0]?.[1]).toBeUndefined();
+    expect(mockBuildCoverLetterContent.mock.calls[1]?.[1]).toEqual({ partsNotice: 'NOTICE 99' });
     expect(contCalls('SUBJ 99/99')).toHaveLength(1);
   });
 
@@ -490,12 +546,18 @@ describe('generateReportParts — plan to render mapping', () => {
     ]);
   });
 
-  it('falls back to the attachment vendor/number with an em dash and empty date when the row is missing', async () => {
-    const noNumber = { ...att('inv-9', 9, 600), invoiceNumber: null };
-    await run(makeContent({ rows: [] }), acquired([att('inv-8', 8, 600), noNumber]));
+  it('throws an invariant error when an attachment invoice has no row in the report content', async () => {
+    await expect(
+      run(makeContent({ rows: ['inv-9'] }), acquired([att('inv-8', 8, 600), att('inv-9', 9, 600)])),
+    ).rejects.toThrow('invariant: attachment invoice inv-8 has no row in the report content');
+  });
 
-    const lines = contCalls('SUBJ 2/2')[0]?.[1].invoiceLines;
-    expect(lines).toEqual(['LINE Vendor inv-9|—|']);
+  it('takes the continuation line values from the content row of the attachment invoice', async () => {
+    await run(makeContent(), acquired([att('inv-1', 1, 600), att('inv-2', 2, 600)]));
+
+    expect(contCalls('SUBJ 2/2')[0]?.[1].invoiceLines).toEqual([
+      'LINE Vendor inv-2|N-inv-2|date-inv-2',
+    ]);
   });
 
   it('passes skipped documents to the overview grouped by invoice and the hidden columns through', async () => {
@@ -566,7 +628,8 @@ describe('generateReportParts — pdf document definition', () => {
       PAGE_MARGIN_BOTTOM,
     ]);
     expect(def.styles).toBe(PDF_STYLES);
-    expect(def.defaultStyle).toEqual(mergePdfDefaultStyle);
+    expect(def.defaultStyle).toBe(PDF_DEFAULT_STYLE);
+    expect(mergePdfDefaultStyle).toBe(PDF_DEFAULT_STYLE);
   });
 
   it('prints no header on page 1 and the report header on later pages; footer uses the page label', async () => {

@@ -26,6 +26,7 @@ interface Overrides {
   statusMessage?: string | null;
   paperlessStatus?: PaperlessStatusResponse | null;
   claimSuccess?: boolean;
+  disabled?: boolean;
 }
 
 function renderActions(overrides: Overrides = {}) {
@@ -107,17 +108,68 @@ describe('Step5Actions — multi-PDF labels and status', () => {
     expect(status).toHaveAttribute('aria-atomic', 'true');
   });
 
-  it('renders no status line when statusMessage is null or omitted', () => {
+  it('keeps an empty persistent status node mounted when statusMessage is null or omitted', () => {
     renderActions({ partCount: 3, statusMessage: null });
 
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+  });
+
+  it('updates the same status node in place when the message is set', () => {
+    const view = renderActions({ partCount: 3 });
+    const node = screen.getByRole('status');
+    expect(node).toBeEmptyDOMElement();
+
+    view.rerender(
+      <MemoryRouter>
+        <Step5Actions
+          useCase="claim"
+          paperlessStatus={paperlessReady}
+          isMarkingClaimed={false}
+          claimError={null}
+          claimSuccess={false}
+          claimedInvoiceCount={0}
+          claimedDepositCount={0}
+          finishedWithoutMarking={false}
+          selectedInvoiceCount={3}
+          onPreviewPdf={jest.fn()}
+          onDownload={jest.fn()}
+          onMarkClaimed={jest.fn()}
+          onFinishWithoutMarking={jest.fn()}
+          onUploadPaperless={jest.fn()}
+          activeAction={null}
+          t={t}
+          partCount={3}
+          statusMessage="Downloading 1 of 3…"
+        />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole('status')).toBe(node);
+    expect(node).toHaveTextContent('Downloading 1 of 3…');
+  });
+
+  it('disables Preview, Download all, Upload all and the claim buttons when disabled', () => {
+    renderActions({ partCount: 3, disabled: true });
+
+    expect(screen.getByRole('button', { name: 'Preview PDF' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Download all (3 PDFs)' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Upload all (3) to Paperless' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /^Mark/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /without marking/i })).toBeDisabled();
+  });
+
+  it('keeps the actions enabled when not disabled', () => {
+    renderActions({ partCount: 3, disabled: false });
+
+    expect(screen.getByRole('button', { name: 'Download all (3 PDFs)' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'Preview PDF' })).toBeEnabled();
   });
 
   it('does not render the multi-part controls once the claim is marked (success view)', () => {
-    renderActions({ partCount: 3, claimSuccess: true, statusMessage: 'Uploading 2 of 3…' });
+    renderActions({ partCount: 3, claimSuccess: true });
 
     expect(screen.queryByRole('button', { name: 'Download all (3 PDFs)' })).not.toBeInTheDocument();
-    expect(screen.queryByText('Uploading 2 of 3…')).not.toBeInTheDocument();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('omits the upload button entirely when Paperless is not reachable', () => {

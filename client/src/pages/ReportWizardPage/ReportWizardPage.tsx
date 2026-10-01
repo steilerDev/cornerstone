@@ -323,7 +323,7 @@ export function ReportWizardPage() {
   const limitInvalid = attachDocuments && limitParse.status === 'invalid';
   const limitBytes = limitParse.status === 'valid' ? limitParse.bytes : null;
 
-  const includedInvoiceIds = useMemo<ReadonlySet<string>>(() => {
+  const includedInvoiceIds = useMemo<Set<string>>(() => {
     if (!report) return new Set<string>();
     const effectiveReport = applyLineExclusions(report, excludedLineIds);
     return new Set(
@@ -398,13 +398,6 @@ export function ReportWizardPage() {
     if (!report || !useCase || !effectiveContent) return null;
 
     try {
-      const effectiveReport = applyLineExclusions(report, excludedLineIds);
-      const includedInvoiceIds = new Set(
-        effectiveReport.invoices
-          .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-          .map((inv) => inv.invoiceId),
-      );
-
       const result = await generateReportPdf(report, includedInvoiceIds, effectiveContent, {
         attachDocuments,
         hiddenColumns,
@@ -416,15 +409,7 @@ export function ReportWizardPage() {
       console.error(err);
       return null;
     }
-  }, [
-    report,
-    useCase,
-    effectiveContent,
-    excludedLineIds,
-    excludedInvoiceIds,
-    attachDocuments,
-    hiddenColumns,
-  ]);
+  }, [report, useCase, effectiveContent, includedInvoiceIds, attachDocuments, hiddenColumns]);
 
   // Handle preview PDF
   const showPreviewBlob = useCallback((blob: Blob) => {
@@ -533,12 +518,7 @@ export function ReportWizardPage() {
       return;
     }
 
-    const today = new Date().toISOString().slice(0, 10);
-    const slug = selectedSource.name
-      .toLowerCase()
-      .replace(/\s+/g, '-')
-      .replace(/[^\w-]/g, '');
-    const filename = `${useCase}-${slug}-${today}.pdf`;
+    const filename = `${reportBaseName(useCase, selectedSource.name, reportDate)}.pdf`;
 
     downloadPdf(result.blob, filename);
     setActiveAction(null);
@@ -552,6 +532,7 @@ export function ReportWizardPage() {
     baseName,
     ensureParts,
     waitStagger,
+    reportDate,
   ]);
 
   // Download a single part of a multi-part report
@@ -655,12 +636,7 @@ export function ReportWizardPage() {
         return;
       }
 
-      const today = new Date().toISOString().slice(0, 10);
-      const slug = selectedSource.name
-        .toLowerCase()
-        .replace(/\s+/g, '-')
-        .replace(/[^\w-]/g, '');
-      const title = `${useCase}-${slug}-${today}`;
+      const title = reportBaseName(useCase, selectedSource.name, reportDate);
 
       await uploadToPaperless(result.blob, title);
       showToast('success', t('sourceReports.uploadSuccess'));
@@ -685,6 +661,7 @@ export function ReportWizardPage() {
     ensureParts,
     uploadState,
     effectiveContent,
+    reportDate,
   ]);
 
   // Handle mark claimed
@@ -1234,7 +1211,7 @@ export function ReportWizardPage() {
                 onDownloadPart={handleDownloadPart}
                 onUpdateFiles={() => void ensureParts()}
                 onRetryGenerate={() => void ensureParts()}
-                actionsDisabled={activeAction !== null}
+                actionsDisabled={activeAction !== null || partsStatus === 'preparing'}
                 formatSize={formatSize}
                 headingRef={partsHeadingRef}
                 t={t}
@@ -1263,6 +1240,7 @@ export function ReportWizardPage() {
               partCount={partsMode ? (partsResult?.parts.length ?? 1) : 1}
               retryFailedCount={retryFailedCount}
               statusMessage={transferMessage}
+              disabled={partsMode && partsStatus === 'preparing'}
               t={t}
             />
 

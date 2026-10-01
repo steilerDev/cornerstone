@@ -2,6 +2,12 @@
 
 Detailed review notes for individual stories. Referenced from MEMORY.md.
 
+## PR #2167 (#2161 multi-PDF report split), 2026-10-01: REQUEST_CHANGES (5 findings)
+
+- **A lazy `await import()` comment justified by bundle/static-dependency reasons was false**: the page already statically imported `paperlessApi` and the barrel, and the lazily loaded module pulled in `paperlessApi` itself. The real reason was **partial-mock isolation**: it keeps the new module out of the link graph of an existing page test that mocks `reportPdf/index.js` and `paperlessApi.js` with only some exports (AC "existing tests unmodified"). The false rationale also licensed a forked `PDF_DEFAULT_STYLE`. When reviewing a lazy import, grep the importer's static imports before trusting "keeps X out of the graph".
+- **Worst-case estimates violate "no split if it fits" ACs**: a part-1 overhead measured only at N = 99 over-splits at the boundary, and a forward-only verification loop never re-merges. Plan with the N = 1 overhead first.
+- Forked `today` sources (date at mount vs date at click) in one page can disagree in a session that crosses midnight. Treat this as part of the forked-derivation sweep.
+
 ## Story #29: Client Responsive Layout (PR #48, reviewed)
 
 - AppShell owns sidebar state (`useState`), passes `isOpen`/`onClose` to Sidebar

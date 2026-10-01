@@ -24,6 +24,19 @@ function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
 }
 
+/** Number of (invoice, document) pairs across the included invoices. */
+export function countIncludedDocuments(
+  report: SourceReportResponse,
+  includedInvoiceIds: ReadonlySet<string>,
+): number {
+  let count = 0;
+  for (const invoice of report.invoices) {
+    if (!includedInvoiceIds.has(invoice.invoiceId)) continue;
+    count += (invoice.documents ?? []).length;
+  }
+  return count;
+}
+
 /** Number of (invoice, document) pairs whose document is not yet cached. */
 export function countUncachedDocuments(
   report: SourceReportResponse,
@@ -53,11 +66,7 @@ export async function acquireAttachments(
   const failedFetches: FailedFetch[] = [];
   const failedThisRun = new Set<number>();
 
-  let total = 0;
-  for (const invoice of report.invoices) {
-    if (!includedInvoiceIds.has(invoice.invoiceId)) continue;
-    total += (invoice.documents ?? []).length;
-  }
+  const total = countIncludedDocuments(report, includedInvoiceIds);
 
   let done = 0;
   for (const invoice of report.invoices) {

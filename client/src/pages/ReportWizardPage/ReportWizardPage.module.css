@@ -439,7 +439,9 @@
 }
 
 @media (max-width: 767px) {
-  .maxFileSizeInputWrap input {
+  .maxFileSizeInputWrap input,
+  .partsStale button,
+  .partSelectRow select {
     min-height: 44px;
   }
 }

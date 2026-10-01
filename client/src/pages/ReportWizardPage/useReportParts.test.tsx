@@ -19,10 +19,12 @@ import type { UseReportPartsArgs } from './useReportParts.js';
 
 const mockAcquire = jest.fn<typeof PartsModule.acquireAttachments>();
 const mockCountUncached = jest.fn<typeof PartsModule.countUncachedDocuments>();
+const mockCountIncluded = jest.fn<typeof PartsModule.countIncludedDocuments>();
 const mockGenerate = jest.fn<typeof PartsModule.generateReportParts>();
 jest.unstable_mockModule('../../lib/reportPdf/parts.js', () => ({
   acquireAttachments: mockAcquire,
   countUncachedDocuments: mockCountUncached,
+  countIncludedDocuments: mockCountIncluded,
   generateReportParts: mockGenerate,
 }));
 
@@ -123,6 +125,7 @@ function setup(initial: Partial<UseReportPartsArgs> = {}) {
 beforeEach(() => {
   jest.clearAllMocks();
   mockCountUncached.mockReturnValue(2);
+  mockCountIncluded.mockReturnValue(3);
   mockAcquire.mockResolvedValue(okAcquire);
   mockGenerate.mockImplementation(async () => makeParts());
 });
@@ -208,6 +211,7 @@ describe('useReportParts — sizing', () => {
 
     await expect(pending).resolves.toBe('ok');
     expect(result.current.sizing).toEqual({ phase: 'idle' });
+    expect(mockCountIncluded).toHaveBeenCalledWith(REPORT, INCLUDED);
     expect(mockAcquire).toHaveBeenCalledTimes(1);
     const [report, included, cache, options] = mockAcquire.mock.calls[0]!;
     expect(report).toBe(REPORT);

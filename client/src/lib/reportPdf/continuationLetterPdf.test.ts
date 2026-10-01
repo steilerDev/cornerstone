@@ -6,7 +6,6 @@
  * (pdf-lib appends the attachments, a break would leave a blank page).
  */
 import { describe, it, expect } from '@jest/globals';
-import type { Content } from 'pdfmake/build/pdfmake';
 import type { ReportContent, ReportContentCoverLetter } from '../reportContent/index.js';
 import { buildContinuationLetterContent } from './continuationLetterPdf.js';
 
@@ -89,8 +88,7 @@ describe('buildContinuationLetterContent — with a cover letter', () => {
       { text: 'Dear Sir or Madam,', style: 'normal', margin: [0, 0, 0, 16] },
       { text: 'This file contains attachments.', style: 'normal', margin: [0, 0, 0, 32] },
       { text: 'Invoices in this file:', style: 'normal', bold: true, margin: [0, 0, 0, 8] },
-      { text: 'Acme, no. 1, 2026-01-10', style: 'normal', margin: [0, 0, 0, 2] },
-      { text: 'Bolt, no. 2, 2026-01-11', style: 'normal', margin: [0, 0, 0, 32] },
+      { ul: letter.invoiceLines, style: 'normal', margin: [0, 0, 0, 32] },
       { text: 'Sincerely,', style: 'normal', margin: [0, 0, 0, 54] },
       { text: 'The Smiths', style: 'normal', margin: [0, 0, 0, 0] },
     ]);
@@ -109,14 +107,13 @@ describe('buildContinuationLetterContent — with a cover letter', () => {
       }),
       letter,
     );
-    expect(nodes.map((n) => (n as { text?: string }).text)).toEqual([
+    expect(nodes.map((n) => (n as { text?: string }).text ?? 'UL')).toEqual([
       'DATELINE-2026-01-15',
       'Subject: Attachment 2 of 3',
       'Dear Sir or Madam,',
       'This file contains attachments.',
       'Invoices in this file:',
-      'Acme, no. 1, 2026-01-10',
-      'Bolt, no. 2, 2026-01-11',
+      'UL',
       'Sincerely,',
       'The Smiths',
     ]);
@@ -138,8 +135,7 @@ describe('buildContinuationLetterContent — without a cover letter', () => {
       { text: 'Subject: Attachment 2 of 3', style: 'letterSubject', margin: [0, 0, 0, 16] },
       { text: 'This file contains attachments.', style: 'normal', margin: [0, 0, 0, 32] },
       { text: 'Invoices in this file:', style: 'normal', bold: true, margin: [0, 0, 0, 8] },
-      { text: 'Acme, no. 1, 2026-01-10', style: 'normal', margin: [0, 0, 0, 2] },
-      { text: 'Bolt, no. 2, 2026-01-11', style: 'normal', margin: [0, 0, 0, 32] },
+      { ul: letter.invoiceLines, style: 'normal', margin: [0, 0, 0, 32] },
     ]);
   });
 
@@ -160,43 +156,31 @@ describe('buildContinuationLetterContent — without a cover letter', () => {
 
 describe('buildContinuationLetterContent — invoice list', () => {
   const makeLines = (n: number) => Array.from({ length: n }, (_, i) => `Invoice line ${i + 1}`);
+  const noLetter = () => makeContent({ coverLetter: null });
 
-  it('renders one node per line for exactly 12 lines, the last with a 32pt bottom margin', () => {
-    const nodes = buildContinuationLetterContent(makeContent({ coverLetter: null }), {
-      ...letter,
-      invoiceLines: makeLines(12),
-    });
-    const lineNodes = nodes.filter((n) =>
-      /^Invoice line \d+$/.test((n as { text?: string }).text ?? ''),
-    ) as { text: string; margin: number[] }[];
-    expect(lineNodes).toHaveLength(12);
-    expect(lineNodes.slice(0, 11).every((n) => n.margin[3] === 2)).toBe(true);
-    expect(lineNodes[11]?.margin).toEqual([0, 0, 0, 32]);
-    expect(JSON.stringify(nodes)).not.toContain('"ul"');
-  });
+  it.each([1, 12, 13, 40])(
+    'renders %i lines as one single ul node with a 32pt bottom margin',
+    (n) => {
+      const lines = makeLines(n);
+      const nodes = buildContinuationLetterContent(noLetter(), { ...letter, invoiceLines: lines });
 
-  it('switches to a single ul node for 13 lines', () => {
-    const lines = makeLines(13);
-    const nodes = buildContinuationLetterContent(makeContent({ coverLetter: null }), {
-      ...letter,
-      invoiceLines: lines,
-    });
-    const last = nodes[nodes.length - 1] as Content;
-    expect(last).toEqual({ ul: lines, style: 'normal', margin: [0, 0, 0, 32] });
-    expect(JSON.stringify(nodes)).not.toContain('"text":"Invoice line 1"');
-  });
+      const uls = nodes.filter((node) => 'ul' in (node as object));
+      expect(uls).toHaveLength(1);
+      expect(uls[0]).toEqual({ ul: lines, style: 'normal', margin: [0, 0, 0, 32] });
+      expect(nodes[nodes.length - 1]).toBe(uls[0]);
+    },
+  );
 
-  it('keeps the heading and omits list nodes when there are no lines', () => {
-    const nodes = buildContinuationLetterContent(makeContent({ coverLetter: null }), {
-      ...letter,
-      invoiceLines: [],
-    });
-    expect(nodes[nodes.length - 1]).toEqual({
+  it('keeps the heading and renders an empty ul when there are no lines', () => {
+    const nodes = buildContinuationLetterContent(noLetter(), { ...letter, invoiceLines: [] });
+
+    expect(nodes[nodes.length - 2]).toEqual({
       text: 'Invoices in this file:',
       style: 'normal',
       bold: true,
       margin: [0, 0, 0, 8],
     });
+    expect(nodes[nodes.length - 1]).toEqual({ ul: [], style: 'normal', margin: [0, 0, 0, 32] });
   });
 
   it('places the ul before the closing and signature when a cover letter exists', () => {

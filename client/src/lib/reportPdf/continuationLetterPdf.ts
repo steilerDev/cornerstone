@@ -1,5 +1,5 @@
 /**
- * Continuation letter content builder (#2161): the one-page attachment letter that starts every
+ * Continuation letter content builder (#2161): the attachment letter that starts every
  * part after the first. Text only; strings arrive pre-translated (report language).
  */
 import type { Content } from 'pdfmake/build/pdfmake';
@@ -11,8 +11,6 @@ export interface ContinuationLetterText {
   invoicesHeading: string;
   invoiceLines: string[];
 }
-
-const MAX_INDIVIDUAL_LINES = 12;
 
 export function buildContinuationLetterContent(
   content: ReportContent,
@@ -56,17 +54,7 @@ export function buildContinuationLetterContent(
     bold: true,
     margin: [0, 0, 0, 8],
   });
-  if (letter.invoiceLines.length <= MAX_INDIVIDUAL_LINES) {
-    letter.invoiceLines.forEach((line, i) => {
-      nodes.push({
-        text: line,
-        style: 'normal',
-        margin: [0, 0, 0, i === letter.invoiceLines.length - 1 ? 32 : 2],
-      });
-    });
-  } else {
-    nodes.push({ ul: letter.invoiceLines, style: 'normal', margin: [0, 0, 0, 32] });
-  }
+  nodes.push({ ul: letter.invoiceLines, style: 'normal', margin: [0, 0, 0, 32] });
 
   if (cl) {
     nodes.push({ text: cl.closing, style: 'normal', margin: [0, 0, 0, 54] });

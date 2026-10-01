@@ -2,10 +2,12 @@
  * Multi-PDF report generation (#2161): plan the split, render each part, merge its attachments
  * and verify the real sizes against the limit.
  *
- * Imports no value from `merge.ts` (it pulls in `paperlessApi`); the page loads this module
- * lazily so the wizard's static import graph is unchanged.
+ * The wizard loads this module through a dynamic `import()`: the pipeline lands in a separate
+ * chunk that is fetched only when a size limit is set, the page itself imports only types and
+ * pure helpers statically, and tests get a single module to mock. It shares the document
+ * definition with `merge.ts` via `docDefinition.ts` and imports no value from `merge.ts`.
  */
-import type { Content, Style } from 'pdfmake/build/pdfmake';
+import type { Content } from 'pdfmake/build/pdfmake';
 import type { PDFDocument } from 'pdf-lib';
 import type { SourceReportResponse } from '@cornerstone/shared';
 import type {
@@ -16,11 +18,10 @@ import type {
   ReportSkipReason,
 } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
-import { buildPageHeader, buildPageFooter } from './shared.js';
+import { buildReportDocDefinition } from './docDefinition.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildContinuationLetterContent } from './continuationLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
-import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
 import { planReportParts, shiftLastItem } from './partPlan.js';
 import type { PartPlan } from './partPlan.js';
 import type {
@@ -32,14 +33,11 @@ import type {
   SkippedDocument,
 } from './types.js';
 
-export { acquireAttachments, countUncachedDocuments } from './attachments.js';
-
-/** Mirrors `PDF_DEFAULT_STYLE` in merge.ts (not imported: merge.ts pulls in paperlessApi). */
-const PDF_DEFAULT_STYLE: Style = {
-  font: 'Roboto',
-  fontSize: 11,
-  lineHeight: 1.4,
-};
+export {
+  acquireAttachments,
+  countUncachedDocuments,
+  countIncludedDocuments,
+} from './attachments.js';
 
 /** Worst-case part count used when estimating per-part overhead. */
 const ESTIMATE_PART_COUNT = 99;
@@ -89,22 +87,7 @@ export async function generateReportParts(
   const mergeSkips = new Map<string, SkippedDocument>();
 
   async function renderText(nodes: Content[]): Promise<Blob> {
-    const pdfDoc = pdfMake.createPdf({
-      content: nodes,
-      pageSize: 'A4',
-      pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
-      header: (currentPage: number) => {
-        if (currentPage === 1) return null;
-        return buildPageHeader(
-          content.tableTitle,
-          content.sourceInfo.sourceName,
-          `${content.labels.generatedAt}: ${content.sourceInfo.generatedAtText}`,
-        );
-      },
-      footer: buildPageFooter(content.labels.pageLabel),
-      defaultStyle: PDF_DEFAULT_STYLE,
-      styles: PDF_STYLES,
-    });
+    const pdfDoc = pdfMake.createPdf(buildReportDocDefinition(nodes, content));
     return pdfDoc.getBlob();
   }
 
@@ -130,13 +113,10 @@ export async function generateReportParts(
     );
     return invoiceIds.map((id) => {
       const row = rowByInvoiceId.get(id);
-      if (row) return texts.continuationInvoiceLine(row);
-      const att = attachments.find((a) => a.invoiceId === id);
-      return texts.continuationInvoiceLine({
-        vendor: att?.vendorName ?? '',
-        invoiceNumber: att?.invoiceNumber ?? '—',
-        dateText: '',
-      });
+      if (!row) {
+        throw new Error(`invariant: attachment invoice ${id} has no row in the report content`);
+      }
+      return texts.continuationInvoiceLine(row);
     });
   }
 
@@ -155,25 +135,37 @@ export async function generateReportParts(
     );
   }
 
-  // Overhead estimates (conservative upper bounds, see spec step 7).
-  const part1Overhead = (await part1Text(ESTIMATE_PART_COUNT)).size;
-  const continuationOverhead = (
-    await continuationText(
-      ESTIMATE_PART_COUNT,
-      ESTIMATE_PART_COUNT,
-      attachments.map((a) => a.key),
-    )
-  ).size;
-
   const items = attachments.map((a) => ({ key: a.key, size: a.size }));
-  const planWith = (fixedPartCounts?: readonly number[]): PartPlan =>
+  const planWith = (
+    part1OverheadBytes: number,
+    continuationOverheadBytes: number,
+    fixedPartCounts?: readonly number[],
+  ): PartPlan =>
     planReportParts({
       items,
       limitBytes,
-      part1OverheadBytes: part1Overhead,
-      continuationOverheadBytes: continuationOverhead,
+      part1OverheadBytes,
+      continuationOverheadBytes,
       fixedPartCounts,
     });
+
+  // Conservative multi-part overhead estimates (see spec step 7), computed only when needed.
+  let estimates: { part1: number; continuation: number } | null = null;
+  async function getEstimates(): Promise<{ part1: number; continuation: number }> {
+    if (!estimates) {
+      estimates = {
+        part1: (await part1Text(ESTIMATE_PART_COUNT)).size,
+        continuation: (
+          await continuationText(
+            ESTIMATE_PART_COUNT,
+            ESTIMATE_PART_COUNT,
+            attachments.map((a) => a.key),
+          )
+        ).size,
+      };
+    }
+    return estimates;
+  }
 
   const sourceDocs = new Map<string, PDFDocument>();
   const renderedCache = new Map<string, GeneratedReportPart>();
@@ -251,7 +243,14 @@ export async function generateReportParts(
   }
 
   // Plan, render, then verify real sizes; move a part's last attachment on when it is over.
-  let plan = planWith();
+  // AC 3.4: a report that fits in one PDF stays one PDF. Try a single part first, measuring
+  // part 1 without the multi-part notice; only if that does not fit, plan with the N=99 estimate.
+  const part1Single = (await part1Text(1)).size;
+  let plan = planWith(part1Single, 0);
+  if (plan.parts.length > 1) {
+    const est = await getEstimates();
+    plan = planWith(est.part1, est.continuation);
+  }
   const maxPasses = plan.parts.length + 1;
   let parts = await renderPlan(plan);
   for (let pass = 0; pass < maxPasses; pass++) {
@@ -260,7 +259,8 @@ export async function generateReportParts(
       return i === 0 ? p.attachmentKeys.length >= 1 : p.attachmentKeys.length >= 2;
     });
     if (overIndex < 0) break;
-    plan = planWith(shiftLastItem(plan, overIndex));
+    const est = await getEstimates();
+    plan = planWith(est.part1, est.continuation, shiftLastItem(plan, overIndex));
     parts = await renderPlan(plan);
   }
 

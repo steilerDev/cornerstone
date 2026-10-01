@@ -2,9 +2,10 @@
  * Multi-PDF report pipeline state for the report wizard (#2161): attachment sizing (step 4),
  * part generation and staleness (step 5).
  *
- * The pipeline module (`lib/reportPdf/parts.js`) is loaded lazily via dynamic import so the
- * wizard page does not statically depend on the Paperless API client. Static imports here are
- * limited to React and types.
+ * The pipeline module (`lib/reportPdf/parts.js`) is loaded through a dynamic import: it lands in
+ * a separate chunk fetched only when a size limit is set, the page imports only types and pure
+ * helpers statically, and tests get a single module to mock. Static imports here are limited to
+ * React and types.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SourceReportResponse } from '@cornerstone/shared';
@@ -173,11 +174,7 @@ export function useReportParts(args: UseReportPartsArgs): UseReportPartsResult {
       if (uncached === 0) return 'ok';
 
       // onProgress reports over all included (invoice, document) pairs, so start from that total.
-      let totalPairs = 0;
-      for (const invoice of report.invoices) {
-        if (!includedInvoiceIds.has(invoice.invoiceId)) continue;
-        totalPairs += (invoice.documents ?? []).length;
-      }
+      const totalPairs = lib.countIncludedDocuments(report, includedInvoiceIds);
       setSizing({ phase: 'running', done: 0, total: totalPairs });
       let lastEmit = 0;
       const acquired = await lib.acquireAttachments(report, includedInvoiceIds, cache, {

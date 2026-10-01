@@ -98,16 +98,47 @@ describe('Step5Parts', () => {
       expect(screen.queryByRole('list')).not.toBeInTheDocument();
     });
 
-    it('renders nothing when idle', () => {
-      const { container } = renderParts({ status: 'idle' });
+    it('renders only the empty persistent status node when idle', () => {
+      renderParts({ status: 'idle' });
 
-      expect(container).toBeEmptyDOMElement();
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
     });
 
-    it('renders nothing when ready but there is no result yet', () => {
-      const { container } = renderParts({ status: 'ready', result: null });
+    it('renders only the empty persistent status node when ready but there is no result yet', () => {
+      renderParts({ status: 'ready', result: null });
 
-      expect(container).toBeEmptyDOMElement();
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+      expect(screen.queryByRole('list')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('keeps the same status node mounted across preparing and ready, updating its text', () => {
+      const view = renderParts({ status: 'idle' });
+      const node = screen.getByRole('status');
+      expect(node).toBeEmptyDOMElement();
+
+      view.rerender(
+        <Step5Parts
+          status="preparing"
+          result={null}
+          fileNames={[]}
+          uploadStatus={new Map()}
+          uploadSummary={null}
+          actionsDisabled={false}
+          formatSize={formatSize}
+          headingRef={view.headingRef}
+          t={t}
+          onDownloadPart={view.onDownloadPart}
+          onUpdateFiles={view.onUpdateFiles}
+          onRetryGenerate={view.onRetryGenerate}
+        />,
+      );
+
+      expect(screen.getByRole('status')).toBe(node);
+      expect(node).toHaveTextContent('Preparing files…');
     });
   });
 
@@ -346,6 +377,23 @@ describe('Step5Parts', () => {
     it('disables "Update files" while another action runs', () => {
       renderParts({ status: 'stale', actionsDisabled: true });
 
+      expect(screen.getByRole('button', { name: 'Update files' })).toBeDisabled();
+    });
+
+    it('does not mark the stale notice as a live region', () => {
+      renderParts({ status: 'stale' });
+
+      const notice = screen.getByText(/The report changed since the files were prepared/);
+      expect(notice).not.toHaveAttribute('role');
+      expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    });
+
+    it('disables per-file downloads and "Update files" while the parts are being prepared (actionsDisabled)', () => {
+      renderParts({ status: 'stale', actionsDisabled: true });
+
+      for (const button of screen.getAllByRole('button', { name: /^Download / })) {
+        expect(button).toBeDisabled();
+      }
       expect(screen.getByRole('button', { name: 'Update files' })).toBeDisabled();
     });
 

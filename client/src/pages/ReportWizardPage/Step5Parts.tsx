@@ -72,7 +72,7 @@ function warningKey(warning: ReportPartWarning): string {
   }
 }
 
-export function Step5Parts({
+function PartsBody({
   status,
   result,
   fileNames,
@@ -86,17 +86,6 @@ export function Step5Parts({
   headingRef,
   t,
 }: Step5PartsProps) {
-  if (status === 'preparing') {
-    return (
-      <div className={styles.partsPreparing}>
-        <span aria-hidden="true">
-          <Spinner size="sm" color="muted" />
-        </span>
-        <p role="status">{t('sourceReports.parts.preparing')}</p>
-      </div>
-    );
-  }
-
   if (status === 'error') {
     return (
       <div className={styles.partsStack}>
@@ -179,7 +168,7 @@ export function Step5Parts({
         >
           {isStale && (
             <div className={styles.partsStale}>
-              <p role="status">{t('sourceReports.parts.stale')}</p>
+              <p>{t('sourceReports.parts.stale')}</p>
               <button
                 type="button"
                 className={sharedStyles.btnSecondaryCompact}
@@ -207,5 +196,24 @@ export function Step5Parts({
         </div>
       )}
     </div>
+  );
+}
+
+export function Step5Parts(props: Step5PartsProps) {
+  const isPreparing = props.status === 'preparing';
+  const { t } = props;
+  return (
+    <>
+      {/* Persistent live region: mounted before its text changes so the update is announced. */}
+      <div className={isPreparing ? styles.partsPreparing : sharedStyles.srOnly}>
+        {isPreparing && (
+          <span aria-hidden="true">
+            <Spinner size="sm" color="muted" />
+          </span>
+        )}
+        <p role="status">{isPreparing ? t('sourceReports.parts.preparing') : ''}</p>
+      </div>
+      <PartsBody {...props} />
+    </>
   );
 }
