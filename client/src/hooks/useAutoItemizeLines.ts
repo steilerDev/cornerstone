@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   WorkItemBudgetLine,
@@ -10,6 +10,8 @@ import { useBudgetLinePicker } from './useBudgetLinePicker.js';
 import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
 import type { LineWithInclude } from '../components/autoItemize/types.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
+import { toAssignedBudgetLineSnapshot } from '../lib/autoItemizeDraftUtils.js';
+import { effectiveLineAmount } from '../lib/budgetConstants.js';
 import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
 import {
   aggregateMergedLineNumerics,
@@ -71,6 +73,11 @@ export interface UseAutoItemizeLinesReturn {
  * Internally calls useBudgetLinePicker so the consuming page no longer needs to.
  * All handlers are stable (useCallback with empty deps) — they read from refs
  * that are kept current on every render to avoid stale closures.
+ *
+ * A budget line must not be linked twice: the returned picker hides lines already
+ * assigned to OTHER rows of the same draft (the active row's own line stays visible
+ * so "Change" can re-select it). Lines linked to any invoice are already hidden by
+ * useBudgetLinePicker itself.
  */
 export function useAutoItemizeLines({
   invoiceId,
@@ -84,6 +91,8 @@ export function useAutoItemizeLines({
 }: UseAutoItemizeLinesOptions): UseAutoItemizeLinesReturn {
   const [lines, setLines] = useState<LineWithInclude[]>([]);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
+  // `${type}:${id}` keys of budget lines assigned to other rows; set when the picker opens.
+  const [excludedLineKeys, setExcludedLineKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   // Mutable refs — updated every render so stable callbacks always see fresh values.
   const activeRowIdRef = useRef<string | null>(null);
@@ -127,6 +136,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: line.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: line.description,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(line),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
                 createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
                 inlineHideConfidence: undefined,
@@ -173,6 +186,19 @@ export function useAutoItemizeLines({
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [picker.pickerState.budgetSources]);
 
+  const visiblePicker = useMemo<UseBudgetLinePickerReturn>(() => {
+    if (excludedLineKeys.size === 0) return picker;
+    return {
+      ...picker,
+      pickerState: {
+        ...picker.pickerState,
+        budgetLines: picker.pickerState.budgetLines.filter(
+          (bl) => !excludedLineKeys.has(`${picker.pickerState.type}:${bl.id}`),
+        ),
+      },
+    };
+  }, [picker, excludedLineKeys]);
+
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
   const onToggleInclude = useCallback((rowId: string) => {
@@ -192,7 +218,7 @@ export function useAutoItemizeLines({
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? null : parsed;
             }
-          } else if (field === 'totalAmount') {
+          } else if (field === 'totalAmount' || field === 'linkedItemizedAmount') {
             if (typeof value === 'string') {
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? 0 : parsed;
@@ -221,6 +247,13 @@ export function useAutoItemizeLines({
 
   const onAssign = useCallback((rowId: string) => {
     activeRowIdRef.current = rowId;
+    setExcludedLineKeys(
+      new Set(
+        linesRef.current
+          .filter((l) => l.rowId !== rowId && l.assignedBudgetLineId && l.assignedBudgetLineType)
+          .map((l) => `${l.assignedBudgetLineType}:${l.assignedBudgetLineId}`),
+      ),
+    );
     openPickerRef.current();
   }, []);
 
@@ -238,6 +271,10 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: budgetLine.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: budgetLine.description ?? null,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(budgetLine),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
               }
             : l,
         ),
@@ -351,6 +388,8 @@ export function useAutoItemizeLines({
               assignedBudgetLineId: undefined,
               assignedBudgetLineType: undefined,
               assignedBudgetLineDescription: undefined,
+              assignedBudgetLineSnapshot: undefined,
+              linkedItemizedAmount: undefined,
               createdFromExtraction: undefined,
               assignedItemId: undefined,
               assignedItemType: undefined,
@@ -520,7 +559,7 @@ export function useAutoItemizeLines({
   return {
     lines,
     setLines,
-    picker,
+    picker: visiblePicker,
     handlers: {
       onToggleInclude,
       onFieldChange,

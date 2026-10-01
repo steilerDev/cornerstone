@@ -248,6 +248,46 @@ describe('AutoItemizeLineList', () => {
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
   });
 
+  // #2149 — a linked row keeps its original source, so its stale extracted source id must not
+  // trigger the discretionary note.
+  it('does not render the discretionary note for a linked row whose extracted source is discretionary', () => {
+    const lines = [
+      makeLine('r1', { budgetSourceId: 'disc-1', assignedBudgetLineId: 'wib-1' }),
+      makeLine('r2', { budgetSourceId: 'src-1' }),
+    ];
+    renderList(lines, { discretionarySourceId: 'disc-1' });
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('still renders the discretionary note when an unlinked row is discretionary alongside a linked one', () => {
+    const lines = [
+      makeLine('r1', { budgetSourceId: 'disc-1', assignedBudgetLineId: 'wib-1' }),
+      makeLine('r2', { budgetSourceId: 'disc-1' }),
+    ];
+    renderList(lines, { discretionarySourceId: 'disc-1' });
+
+    expect(screen.getByRole('note')).toBeInTheDocument();
+  });
+
+  it('passes formatCurrency down to linked cards (planned amount is formatted)', () => {
+    const lines = [
+      makeLine('r1', {
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        assignedBudgetLineSnapshot: {
+          plannedAmount: 5000,
+          includesVat: true,
+          budgetCategory: null,
+          budgetSource: null,
+        },
+      }),
+    ];
+    renderList(lines);
+
+    expect(screen.getByTestId('linked-line-planned')).toHaveTextContent('€5000.00');
+  });
+
   // 9. Callbacks propagated through to AutoItemizeLineCard (via real DOM interactions)
   //
   // The mock for AutoItemizeLineCard does not reliably intercept in Jest ESM mode.

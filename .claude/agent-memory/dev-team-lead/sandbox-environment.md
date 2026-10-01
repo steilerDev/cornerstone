@@ -120,3 +120,7 @@ Then `git add wiki` in the main repo to stage the submodule pointer bump alongsi
 ## gh GraphQL rate limit: create PRs via REST
 
 `gh pr create` goes through GraphQL and can fail with "API rate limit already exceeded" even while `gh api rate_limit` shows GraphQL quota left. The REST core limit is separate. Fallback that worked (#2148): `gh api -X POST repos/steilerDev/cornerstone/pulls -f base=beta -f head=<branch> -f "title=..." -F body=@<file> --jq .html_url`. Worktree-isolated sessions also refuse compound/looped git/gh commands, so put retry loops in a script file.
+
+## `gh pr edit` fails on the classic-Projects deprecation
+
+`gh pr edit <n> --body-file f` exits 1 with "Projects (classic) is being deprecated ... (repository.pullRequest.projectCards)" and does not edit the PR. Use REST instead: `gh api -X PATCH repos/steilerDev/cornerstone/pulls/<n> -F body=@f -q .html_url` (#2149).

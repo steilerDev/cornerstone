@@ -660,6 +660,10 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
     await expect(autoItemizePage.errorBanner).toBeVisible();
     expect(page.url()).toContain('auto-itemize');
 
+    // ── Assert (#2149): the materialized row now renders as a linked, read-only row ──
+    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    await expect(autoItemizePage.lineDescription(0)).toHaveCount(0);
+
     // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────
     expect(
       wiCreateCallCount,

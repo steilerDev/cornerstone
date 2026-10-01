@@ -3,7 +3,6 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import type {
-  ExtractedLine,
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
   Vendor,
@@ -13,6 +12,8 @@ import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import {
   applyBudgetSourceToNewLines,
+  buildCommitLines,
+  effectiveRowAmount,
   isNewBudgetLineRow,
   materializeInlineDrafts,
   mergeMaterializedLines,
@@ -318,29 +319,7 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
-      // Linking an existing budget line never modifies it (#2149): for assign-existing
-      // rows, omit budgetCategoryId/budgetSourceId so the server skips them.
-      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
-        description: l.description,
-        quantity: l.quantity,
-        unit: l.unit,
-        unitPrice: l.unitPrice,
-        totalAmount: l.totalAmount,
-        includesVat: l.includesVat,
-        vendorName: l.vendorName,
-        confidence: l.confidence,
-        budgetCategoryId: l.assignedBudgetLineId ? undefined : l.budgetCategoryId,
-        budgetSourceId: l.assignedBudgetLineId ? undefined : l.budgetSourceId || undefined,
-        ...(l.assignedBudgetLineId && l.assignedBudgetLineType
-          ? {
-              assignedBudgetLineId: l.assignedBudgetLineId,
-              assignedBudgetLineType: l.assignedBudgetLineType,
-              assignmentMode: 'assign-existing' as const,
-            }
-          : {
-              assignmentMode: 'create-new' as const,
-            }),
-      }));
+      const linesPayload = buildCommitLines(workingLines);
 
       const result = await commitAutoItemizeCreate({
         paperlessDocumentId: documentId,
@@ -362,14 +341,7 @@ export function PaperlessInvoiceReviewPage() {
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
-    () =>
-      lines
-        .filter((l) => l.included)
-        .reduce(
-          (sum, l) =>
-            sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
-          0,
-        ),
+    () => lines.filter((l) => l.included).reduce((sum, l) => sum + effectiveRowAmount(l), 0),
     [lines],
   );
 

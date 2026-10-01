@@ -3,10 +3,77 @@ import type {
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
   CreateBudgetLineRequest,
+  ExtractedLine,
 } from '@cornerstone/shared';
-import type { LineWithInclude } from '../components/autoItemize/types.js';
+import type {
+  AssignedBudgetLineSnapshot,
+  LineWithInclude,
+} from '../components/autoItemize/types.js';
+import { effectiveLineAmount } from './budgetConstants.js';
 import { ApiClientError } from './apiClient.js';
 import { translateApiError } from './errorTranslation.js';
+
+export function toAssignedBudgetLineSnapshot(
+  line: WorkItemBudgetLine | HouseholdItemBudgetLine,
+): AssignedBudgetLineSnapshot {
+  return {
+    plannedAmount: line.plannedAmount,
+    includesVat: line.includesVat,
+    budgetCategory: line.budgetCategory
+      ? {
+          id: line.budgetCategory.id,
+          name: line.budgetCategory.name,
+          translationKey: line.budgetCategory.translationKey,
+        }
+      : null,
+    budgetSource: line.budgetSource
+      ? { id: line.budgetSource.id, name: line.budgetSource.name }
+      : null,
+  };
+}
+
+/** Amount this row contributes to the itemized total (gross). */
+export function effectiveRowAmount(line: LineWithInclude): number {
+  if (line.assignedBudgetLineId && line.linkedItemizedAmount !== undefined) {
+    return line.linkedItemizedAmount;
+  }
+  return effectiveLineAmount({ amount: line.totalAmount ?? 0, includesVat: line.includesVat });
+}
+
+/** Builds the commit payload. Explicit field mapping — the server rejects unknown properties. */
+export function buildCommitLines(lines: LineWithInclude[]): ExtractedLine[] {
+  return lines.map((l) => {
+    const base: ExtractedLine = {
+      description: l.description,
+      quantity: l.quantity,
+      unit: l.unit,
+      unitPrice: l.unitPrice,
+      totalAmount: l.totalAmount,
+      includesVat: l.includesVat,
+      vendorName: l.vendorName,
+      confidence: l.confidence,
+      budgetCategoryId: l.budgetCategoryId,
+      budgetSourceId: l.budgetSourceId || undefined,
+    };
+    if (l.assignedBudgetLineId && l.assignedBudgetLineType) {
+      return {
+        ...base,
+        // Description is not editable on a linked row and is ignored by the server in
+        // assign-existing mode, but the schema requires a non-empty string.
+        description: l.description.trim() || l.assignedBudgetLineDescription?.trim() || '—',
+        // Linked rows keep the original budget line's category and source, so send neither.
+        budgetCategoryId: undefined,
+        budgetSourceId: undefined,
+        totalAmount: effectiveRowAmount(l),
+        includesVat: true,
+        assignedBudgetLineId: l.assignedBudgetLineId,
+        assignedBudgetLineType: l.assignedBudgetLineType,
+        assignmentMode: 'assign-existing' as const,
+      };
+    }
+    return { ...base, assignmentMode: 'create-new' as const };
+  });
+}
 
 type CreateFn = (
   itemId: string,
@@ -112,6 +179,8 @@ export async function materializeInlineDrafts(
         ...line,
         assignedBudgetLineId: created.id,
         assignedBudgetLineType: line.assignedItemType,
+        assignedBudgetLineDescription: created.description ?? null,
+        assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(created),
         totalAmount: netBase, // live amount
         includesVat: line.includesVat, // live VAT flag
         inlineCreatedBudgetLineDraft: undefined,

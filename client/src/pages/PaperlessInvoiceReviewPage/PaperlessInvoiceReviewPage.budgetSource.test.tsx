@@ -529,8 +529,19 @@ function getRowSelect(row: HTMLElement): HTMLSelectElement {
   return select as HTMLSelectElement;
 }
 
+/**
+ * Per-row source: the select value for editable rows; for rows linked to an existing budget line
+ * (read-only original values, no select) `linked:<displayed source name>`.
+ */
 function rowSources(): string[] {
-  return getRows().map((row) => getRowSelect(row).value);
+  return getRows().map((row) => {
+    const linked = row.querySelector('[data-testid="linked-line-source"]');
+    if (linked) {
+      expect(row.querySelector('select[id^="source-"]')).toBeNull();
+      return `linked:${linked.textContent}`;
+    }
+    return getRowSelect(row).value;
+  });
 }
 
 function getTopSelect(): HTMLSelectElement {
@@ -713,11 +724,11 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await renderReady();
 
     await linkExistingLine(0, /Existing disc line/);
-    expect(rowSources()).toEqual(['src-loan', 'src-loan']);
+    expect(rowSources()).toEqual(['linked:Discretionary Fund', 'src-loan']);
 
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['src-loan', 'src-sav']);
+    expect(rowSources()).toEqual(['linked:Discretionary Fund', 'src-sav']);
     expect(statusText()).toBe('Budget source "Savings" applied to 1 line');
 
     const lines = await clickSaveAndGetCommitLines();
@@ -738,7 +749,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await linkExistingLine(0, /Existing disc line/);
     await setTopSource('src-sav');
 
-    expect(rowSources()).toEqual(['src-loan']);
+    expect(rowSources()).toEqual(['linked:Discretionary Fund']);
     expect(getTopSelect().value).toBe('src-sav');
     expect(statusText()).toBe('');
   });
@@ -929,7 +940,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await act(async () => {
       capturedOnLineCreated?.(makeWorkItemBudgetLine({ id: 'bl-picker', plannedAmount: 100 }));
     });
-    expect(rowSources()).toEqual(['src-loan']);
+    expect(rowSources()).toEqual(['linked:Bank Loan']);
 
     const lines = await clickSaveAndGetCommitLines();
     expect(lines.length).toBe(1);
@@ -949,7 +960,7 @@ describe('PaperlessInvoiceReviewPage — invoice-level default budget source (Is
     await linkExistingLine(0, /Existing disc line/);
     // The default is chosen while the row is linked, so it is skipped by the apply step.
     await setTopSource('src-sav');
-    expect(rowSources()).toEqual(['src-loan']);
+    expect(rowSources()).toEqual(['linked:Not set']);
     expect(statusText()).toBe('');
 
     await act(async () => {

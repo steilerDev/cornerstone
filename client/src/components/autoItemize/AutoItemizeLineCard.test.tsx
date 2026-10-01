@@ -24,8 +24,11 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 // ─── Mocks must come before any static imports ────────────────────────────────
 
+const mockGetCategoryDisplayName = jest.fn((_t: unknown, name: string, _key: unknown) => name);
+
 jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
-  getCategoryDisplayName: (_t: unknown, name: string, _translationKey: unknown) => name,
+  getCategoryDisplayName: (t: unknown, name: string, translationKey: unknown) =>
+    mockGetCategoryDisplayName(t, name, translationKey),
   useCategoryDisplayName: (_name: string, _translationKey: unknown) => _name,
 }));
 
@@ -117,6 +120,7 @@ function renderCard(
     ...render(
       React.createElement(AutoItemizeLineCard, {
         line: makeLine(lineOverrides),
+        formatCurrency: (n: number) => '€' + n.toFixed(2),
         onToggleInclude: mockToggle as (rowId: string) => void,
         onFieldChange: mockFieldChange as (
           rowId: string,
@@ -559,6 +563,7 @@ describe('AutoItemizeLineCard', () => {
     render(
       React.createElement(AutoItemizeLineCard, {
         line: makeLine({ rowId: 'row-tk', budgetCategoryId: 'cat-tk' }),
+        formatCurrency: (n: number) => '€' + n.toFixed(2),
         onToggleInclude: jest.fn(),
         onFieldChange: jest.fn(),
         onAssign: jest.fn(),
@@ -650,6 +655,279 @@ describe('AutoItemizeLineCard', () => {
       const li = document.querySelector('li')!;
       const classList = Array.from(li.classList);
       expect(classList.some((c) => c.includes('Selected'))).toBe(false);
+    });
+  });
+});
+
+// ─── #2149 — linked (assign-existing) card: read-only original values ─────────
+
+describe('AutoItemizeLineCard — linked to an existing budget line (#2149)', () => {
+  const fmt = (n: number) => '€' + n.toFixed(2);
+  // Interpolating t so the net suffix is observable.
+  const tInterp = (key: string, opts?: Record<string, unknown>) =>
+    opts && 'amount' in opts ? `${key}|${opts.amount}` : key;
+
+  const snapshot = {
+    plannedAmount: 5000,
+    includesVat: true,
+    budgetCategory: { id: 'cat-9', name: 'Flooring', translationKey: 'cat.flooring' },
+    budgetSource: { id: 'src-9', name: 'Main Fund' },
+  };
+
+  type Callbacks = {
+    onFieldChange?: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
+    onAssign?: (rowId: string) => void;
+    onClearAssign?: (rowId: string) => void;
+  };
+
+  function buildProps(line: LineWithInclude, cb: Callbacks = {}) {
+    return {
+      line,
+      formatCurrency: fmt,
+      onToggleInclude: jest.fn(),
+      onFieldChange: (cb.onFieldChange ?? jest.fn()) as (
+        rowId: string,
+        field: keyof LineWithInclude,
+        value: unknown,
+      ) => void,
+      onAssign: (cb.onAssign ?? jest.fn()) as (rowId: string) => void,
+      onClearAssign: (cb.onClearAssign ?? jest.fn()) as (rowId: string) => void,
+      categories,
+      budgetSources,
+      createdFromExtractionVariants,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      t: tInterp as any,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      tSettings: tSettings as any,
+    };
+  }
+
+  function linkedLine(overrides: Partial<LineWithInclude> = {}): LineWithInclude {
+    return makeLine({
+      assignedBudgetLineId: 'wib-1',
+      assignedBudgetLineType: 'work_item',
+      assignedBudgetLineDescription: 'Stored description',
+      assignedBudgetLineSnapshot: snapshot,
+      linkedItemizedAmount: 1100,
+      quantity: 3,
+      unit: 'm2',
+      unitPrice: 10,
+      ...overrides,
+    });
+  }
+
+  function renderLinked(overrides: Partial<LineWithInclude> = {}, cb: Callbacks = {}) {
+    return render(React.createElement(AutoItemizeLineCard, buildProps(linkedLine(overrides), cb)));
+  }
+
+  beforeEach(() => {
+    mockGetCategoryDisplayName.mockClear();
+  });
+
+  it('hides the editable description, VAT checkbox, metric inputs and category/source pickers', () => {
+    renderLinked();
+
+    expect(
+      screen.queryByRole('textbox', { name: 'autoItemize.editDescriptionAriaLabel' }),
+    ).toBeNull();
+    expect(document.querySelector('textarea')).toBeNull();
+    expect(document.querySelector('select')).toBeNull();
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.queryByLabelText('autoItemize.includesVat')).toBeNull();
+    expect(
+      document.querySelector('input[aria-label="autoItemize.editQuantityAriaLabel"]'),
+    ).toBeNull();
+    expect(document.querySelector('input[aria-label="autoItemize.editUnitAriaLabel"]')).toBeNull();
+    expect(
+      document.querySelector('input[aria-label="autoItemize.editUnitPriceAriaLabel"]'),
+    ).toBeNull();
+    // Only the (disabled) merge-selection checkbox and the include checkbox remain — no VAT one.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(2);
+  });
+
+  it('shows the extracted description as read-only text, with an em dash fallback', () => {
+    const { unmount } = renderLinked({ description: 'Extracted text' });
+    expect(screen.getByTestId('linked-line-description')).toHaveTextContent('Extracted text');
+    unmount();
+
+    renderLinked({ description: '' });
+    expect(screen.getByTestId('linked-line-description')).toHaveTextContent('—');
+  });
+
+  it('shows the ORIGINAL category, funding source and planned amount from the snapshot', () => {
+    renderLinked({ budgetCategoryId: 'cat-1', budgetSourceId: 'src-2' }); // differing extracted ids
+
+    expect(screen.getByTestId('linked-line-category')).toHaveTextContent('Flooring');
+    expect(screen.getByTestId('linked-line-source')).toHaveTextContent('Main Fund');
+    expect(screen.getByTestId('linked-line-planned')).toHaveTextContent('€5000.00');
+    expect(mockGetCategoryDisplayName).toHaveBeenCalledWith(tSettings, 'Flooring', 'cat.flooring');
+  });
+
+  it('passes null when the snapshot category has no translationKey', () => {
+    renderLinked({
+      assignedBudgetLineSnapshot: {
+        ...snapshot,
+        budgetCategory: { id: 'c', name: 'Plain', translationKey: undefined as unknown as null },
+      },
+    });
+
+    expect(mockGetCategoryDisplayName).toHaveBeenCalledWith(tSettings, 'Plain', null);
+  });
+
+  it('appends the net suffix to the planned amount when the original line is net (includesVat=false)', () => {
+    renderLinked({ assignedBudgetLineSnapshot: { ...snapshot, includesVat: false } });
+
+    expect(screen.getByTestId('linked-line-planned')).toHaveTextContent(
+      'autoItemize.linkedLinePlannedNet|€5000.00',
+    );
+  });
+
+  it('shows "Not set" for a missing category and source', () => {
+    renderLinked({
+      assignedBudgetLineSnapshot: { ...snapshot, budgetCategory: null, budgetSource: null },
+    });
+
+    expect(screen.getByTestId('linked-line-category')).toHaveTextContent(
+      'autoItemize.linkedLineNotSet',
+    );
+    expect(screen.getByTestId('linked-line-source')).toHaveTextContent(
+      'autoItemize.linkedLineNotSet',
+    );
+  });
+
+  it('shows "Not set" for all three values when the snapshot is missing', () => {
+    renderLinked({ assignedBudgetLineSnapshot: undefined });
+
+    for (const id of ['linked-line-category', 'linked-line-source', 'linked-line-planned']) {
+      expect(screen.getByTestId(id)).toHaveTextContent('autoItemize.linkedLineNotSet');
+    }
+  });
+
+  it('itemized amount input shows linkedItemizedAmount and edits call onFieldChange', () => {
+    const onFieldChange =
+      jest.fn<(rowId: string, field: keyof LineWithInclude, v: unknown) => void>();
+    renderLinked({ rowId: 'row-9' }, { onFieldChange });
+
+    const input = screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement;
+    expect(input.value).toBe('1100');
+    expect(input).toHaveAccessibleName('autoItemize.itemizedAmountLabel');
+
+    fireEvent.change(input, { target: { value: '1250' } });
+
+    expect(onFieldChange).toHaveBeenCalledWith('row-9', 'linkedItemizedAmount', '1250');
+  });
+
+  it('itemized amount input falls back to the effective extracted amount when linkedItemizedAmount is unset', () => {
+    renderLinked({ linkedItemizedAmount: undefined, totalAmount: 100, includesVat: false });
+
+    expect((screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement).value).toBe(
+      '119',
+    );
+  });
+
+  it('Change button calls onAssign with the rowId', () => {
+    const onAssign = jest.fn<(rowId: string) => void>();
+    renderLinked({ rowId: 'row-9' }, { onAssign });
+
+    fireEvent.click(screen.getByRole('button', { name: 'autoItemize.changeAssignmentAriaLabel' }));
+
+    expect(onAssign).toHaveBeenCalledWith('row-9');
+  });
+
+  it('unlinked card shows no linked values, Assign button and the editable controls', () => {
+    render(React.createElement(AutoItemizeLineCard, buildProps(makeLine())));
+
+    expect(screen.queryByTestId('linked-line-values')).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'autoItemize.changeAssignmentAriaLabel' }),
+    ).toBeNull();
+    expect(document.querySelector('textarea')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'autoItemize.assignButton' })).toBeInTheDocument();
+  });
+
+  describe('focus management', () => {
+    it('moves focus to Change when a row becomes linked and nothing holds focus', () => {
+      const { rerender } = render(React.createElement(AutoItemizeLineCard, buildProps(makeLine())));
+      expect(document.activeElement).toBe(document.body);
+
+      rerender(React.createElement(AutoItemizeLineCard, buildProps(linkedLine())));
+
+      expect(
+        screen.getByRole('button', { name: 'autoItemize.changeAssignmentAriaLabel' }),
+      ).toHaveFocus();
+    });
+
+    it('moves focus to Assign when a linked row is cleared and nothing holds focus', () => {
+      const { rerender } = render(
+        React.createElement(AutoItemizeLineCard, buildProps(linkedLine())),
+      );
+      // A focused control that unmounts leaves focus on the body.
+      screen.getByRole('button', { name: 'autoItemize.clearAssignmentAriaLabel' }).focus();
+
+      rerender(
+        React.createElement(
+          AutoItemizeLineCard,
+          buildProps(
+            makeLine({
+              assignedBudgetLineId: undefined,
+              assignedBudgetLineSnapshot: undefined,
+              linkedItemizedAmount: undefined,
+            }),
+          ),
+        ),
+      );
+
+      expect(screen.getByRole('button', { name: 'autoItemize.assignButton' })).toHaveFocus();
+    });
+
+    it('does not steal focus when another element holds it', () => {
+      const outside = document.createElement('input');
+      document.body.appendChild(outside);
+      try {
+        const { rerender } = render(
+          React.createElement(AutoItemizeLineCard, buildProps(makeLine())),
+        );
+        outside.focus();
+
+        rerender(React.createElement(AutoItemizeLineCard, buildProps(linkedLine())));
+
+        expect(outside).toHaveFocus();
+      } finally {
+        outside.remove();
+      }
+    });
+
+    it('does not move focus on re-render when the linked id did not change', () => {
+      const { rerender } = render(
+        React.createElement(AutoItemizeLineCard, buildProps(linkedLine())),
+      );
+      expect(document.activeElement).toBe(document.body);
+
+      rerender(
+        React.createElement(
+          AutoItemizeLineCard,
+          buildProps(linkedLine({ linkedItemizedAmount: 5 })),
+        ),
+      );
+
+      expect(document.activeElement).toBe(document.body);
+    });
+
+    it('re-selecting a different line (id changes, still linked) keeps focus on Change when body is active', () => {
+      const { rerender } = render(
+        React.createElement(AutoItemizeLineCard, buildProps(linkedLine())),
+      );
+
+      rerender(
+        React.createElement(
+          AutoItemizeLineCard,
+          buildProps(linkedLine({ assignedBudgetLineId: 'wib-2' })),
+        ),
+      );
+
+      expect(
+        screen.getByRole('button', { name: 'autoItemize.changeAssignmentAriaLabel' }),
+      ).toHaveFocus();
     });
   });
 });

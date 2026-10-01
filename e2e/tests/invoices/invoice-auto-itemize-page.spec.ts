@@ -1331,6 +1331,13 @@ test.describe('Scenario 13 — Per-row assignment: "Assign…" picker flow', () 
       const line0 = linesPayload![0] as Record<string, unknown>;
       expect(line0.assignedBudgetLineId).toBe(budgetLineId);
       expect(line0.assignedBudgetLineType).toBe('work_item');
+      // #2149: assign-existing links only. The row commits the gross itemized amount
+      // (extracted 900 net -> 1071 gross) as an already-VAT-inclusive total.
+      expect(line0.assignmentMode).toBe('assign-existing');
+      expect(line0.includesVat).toBe(true);
+      expect(line0.totalAmount as number).toBeCloseTo(1071, 2);
+      expect(line0).not.toHaveProperty('linkedItemizedAmount');
+      expect(line0).not.toHaveProperty('assignedBudgetLineSnapshot');
 
       // lines[1] must NOT contain assignedBudgetLineId
       const line1 = linesPayload![1] as Record<string, unknown>;

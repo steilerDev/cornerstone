@@ -3,7 +3,6 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   Invoice,
-  ExtractedLine,
   AutoItemizeWarning,
   PaperlessDocumentSearchResult,
   InvoicePatchForAutoItemize,
@@ -16,6 +15,8 @@ import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import {
+  buildCommitLines,
+  effectiveRowAmount,
   materializeInlineDrafts,
   mergeMaterializedLines,
 } from '../../lib/autoItemizeDraftUtils.js';
@@ -34,7 +35,7 @@ import {
   BudgetLinePickerModal,
   type LineWithInclude,
 } from '../../components/autoItemize/index.js';
-import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 
@@ -316,27 +317,7 @@ export function AutoItemizePage() {
         return;
       }
 
-      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
-        description: l.description,
-        quantity: l.quantity,
-        unit: l.unit,
-        unitPrice: l.unitPrice,
-        totalAmount: l.totalAmount,
-        includesVat: l.includesVat,
-        vendorName: l.vendorName,
-        confidence: l.confidence,
-        budgetCategoryId: l.budgetCategoryId,
-        budgetSourceId: l.budgetSourceId || undefined,
-        ...(l.assignedBudgetLineId && l.assignedBudgetLineType
-          ? {
-              assignedBudgetLineId: l.assignedBudgetLineId,
-              assignedBudgetLineType: l.assignedBudgetLineType,
-              assignmentMode: 'assign-existing' as const,
-            }
-          : {
-              assignmentMode: 'create-new' as const,
-            }),
-      }));
+      const linesPayload = buildCommitLines(workingLines);
 
       await autoItemize(invoiceId, {
         paperlessDocumentId: docId,
@@ -462,11 +443,7 @@ export function AutoItemizePage() {
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
     const total = lines
       .filter((l) => l.included)
-      .reduce(
-        (sum, l) =>
-          sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
-        0,
-      );
+      .reduce((sum, l) => sum + effectiveRowAmount(l), 0);
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {

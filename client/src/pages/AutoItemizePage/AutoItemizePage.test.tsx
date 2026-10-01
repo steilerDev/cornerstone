@@ -919,6 +919,11 @@ describe('AutoItemizePage', () => {
 
       mockCreateWorkItemBudget.mockResolvedValue({
         id: 'new-wib-1',
+        description: 'Created',
+        plannedAmount: 300,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
       } as unknown as WorkItemBudgetLine);
       // First commit attempt fails; second (retry) succeeds.
       mockAutoItemize.mockRejectedValueOnce(new Error('Commit failed'));
@@ -975,7 +980,14 @@ describe('AutoItemizePage', () => {
 
       // First draft's create succeeds; second draft's create rejects.
       mockCreateWorkItemBudget
-        .mockResolvedValueOnce({ id: 'new-wib-A' } as unknown as WorkItemBudgetLine)
+        .mockResolvedValueOnce({
+          id: 'new-wib-A',
+          description: 'Created',
+          plannedAmount: 300,
+          includesVat: true,
+          budgetCategory: null,
+          budgetSource: null,
+        } as unknown as WorkItemBudgetLine)
         .mockRejectedValueOnce(new Error('Network failure'));
 
       await act(async () => {
@@ -996,6 +1008,11 @@ describe('AutoItemizePage', () => {
       // retried.
       mockCreateWorkItemBudget.mockResolvedValueOnce({
         id: 'new-wib-B',
+        description: 'Created',
+        plannedAmount: 300,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
       } as unknown as WorkItemBudgetLine);
       mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
 
@@ -1133,6 +1150,30 @@ describe('AutoItemizePage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
+    });
+
+    it('shows the translated error banner when Save is rejected with 409 BUDGET_LINE_ALREADY_LINKED', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
+      mockAutoItemize.mockRejectedValueOnce(
+        new MockApiClientError(409, 'BUDGET_LINE_ALREADY_LINKED', 'already linked'),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
+      });
+      expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
     });
   });
 
@@ -3199,6 +3240,126 @@ describe('AutoItemizePage', () => {
       });
       const callArg = mockMergeLines.mock.calls[0]![0] as { documentSummary?: string | null };
       expect(callArg.documentSummary).toBe('Bathroom renovation quote');
+    });
+  });
+  // ─── #2149 — linking an existing budget line commits the gross itemized amount ──
+
+  describe('linking an existing budget line (#2149)', () => {
+    function makeExistingLine(overrides: Record<string, unknown> = {}) {
+      return {
+        id: 'wib-1',
+        workItemId: 'wi-1',
+        description: 'Existing line',
+        plannedAmount: 5000,
+        confidence: 'quote',
+        confidenceMargin: 0,
+        includesVat: true,
+        quantity: null,
+        unit: null,
+        unitPrice: null,
+        budgetCategory: { id: 'cat-9', name: 'Flooring', translationKey: null },
+        budgetSource: { id: 'src-9', name: 'Main Fund' },
+        vendor: null,
+        actualCost: 0,
+        actualCostPaid: 0,
+        invoiceLink: null,
+        ...overrides,
+      };
+    }
+
+    async function renderAndLink(
+      dryRun: Parameters<typeof makeDryRunResponse>[0],
+      existing = makeExistingLine(),
+    ) {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse(dryRun));
+      mockPickerStateOverride = {
+        isOpen: true,
+        step: 2,
+        type: 'work_item',
+        itemId: 'wi-1',
+        itemTitle: 'Kitchen',
+        isLoading: false,
+        error: null,
+        budgetLines: [existing],
+        showCreateForm: false,
+        createError: null,
+        vendors: [],
+        budgetSources: [],
+        categories: [],
+      };
+
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^Save$/i })).toBeInTheDocument();
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getAllByRole('button', { name: /Assign…/i })[0]!);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Existing line/i }));
+      });
+    }
+
+    async function save() {
+      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 0 });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+      await waitFor(() => {
+        expect(mockAutoItemize).toHaveBeenCalledTimes(2);
+      });
+      return mockAutoItemize.mock.calls[1]![1] as unknown as {
+        dryRun?: boolean;
+        lines: Array<Record<string, unknown>>;
+      };
+    }
+
+    it('shows the original values read-only and commits the edited gross amount with includesVat=true', async () => {
+      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: false }]);
+
+      // Original category / source / planned amount, no editable pickers.
+      expect(screen.getByTestId('linked-line-category')).toHaveTextContent('Flooring');
+      expect(screen.getByTestId('linked-line-source')).toHaveTextContent('Main Fund');
+      expect(screen.getByTestId('linked-line-planned')).toHaveTextContent('€5000.00');
+      expect(screen.queryByDisplayValue('Tile work')).toBeNull();
+
+      // Defaults to the gross of the extracted net amount (100 -> 119).
+      const amount = screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement;
+      expect(amount.value).toBe('119');
+      fireEvent.change(amount, { target: { value: '250' } });
+
+      const commit = await save();
+
+      expect(commit.dryRun).toBe(false);
+      expect(commit.lines).toHaveLength(1);
+      expect(commit.lines[0]).toMatchObject({
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        totalAmount: 250,
+        includesVat: true,
+      });
+    });
+
+    it('commits the default gross amount when the user does not edit it', async () => {
+      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: false }]);
+
+      const commit = await save();
+
+      expect(commit.lines[0]).toMatchObject({ totalAmount: 119, includesVat: true });
+    });
+
+    it('total reflects the edited linked amount', async () => {
+      await renderAndLink([{ description: 'Tile work', totalAmount: 100, includesVat: true }]);
+
+      fireEvent.change(screen.getByTestId('linked-line-itemized-amount'), {
+        target: { value: '640' },
+      });
+
+      expect(screen.getAllByText('€640.00').length).toBeGreaterThan(0);
     });
   });
 });

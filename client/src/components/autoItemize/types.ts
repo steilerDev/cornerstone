@@ -1,5 +1,13 @@
-import type { ExtractedLine } from '@cornerstone/shared';
+import type { BudgetCategory, BudgetSourceSummary, ExtractedLine } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+
+/** The linked budget line's ORIGINAL stored values — display only, never sent to the server. */
+export interface AssignedBudgetLineSnapshot {
+  plannedAmount: number;
+  includesVat: boolean;
+  budgetCategory: Pick<BudgetCategory, 'id' | 'name' | 'translationKey'> | null;
+  budgetSource: Pick<BudgetSourceSummary, 'id' | 'name'> | null;
+}
 
 export interface LineWithInclude extends ExtractedLine {
   included: boolean;
@@ -11,6 +19,9 @@ export interface LineWithInclude extends ExtractedLine {
   assignedBudgetLineId?: string;
   assignedBudgetLineType?: 'work_item' | 'household_item';
   assignedBudgetLineDescription?: string | null;
+  assignedBudgetLineSnapshot?: AssignedBudgetLineSnapshot;
+  /** Gross (VAT-effective) itemized amount for a linked row; committed verbatim as itemizedAmount. */
+  linkedItemizedAmount?: number;
   createdFromExtraction?: boolean;
   inlineCreatedBudgetLineDraft?: BudgetLineFormState;
   inlineHideConfidence?: boolean;
