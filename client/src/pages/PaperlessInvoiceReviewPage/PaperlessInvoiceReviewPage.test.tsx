@@ -17,13 +17,6 @@
  *   5. Include/exclude toggle and the assign button opening the picker.
  *   6. Error states (preview failure, document fetch failure).
  *   7. Missing documentId guard.
- *
- * NOTE on local Node 20 / jest.unstable_mockModule interception:
- *   All mocks that rely on jest.unstable_mockModule may not be intercepted in local
- *   worktree Node 20 environments (known sandbox limitation — CI on Node 24 passes).
- *   Tests that can only assert mock calls when interception works use guarded fallbacks
- *   ("if (mockXxx.mock.calls.length > 0)") or rely solely on DOM state, consistent
- *   with the AutoItemizePage.test.tsx pattern.
  */
 
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
@@ -259,15 +252,9 @@ import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 let PaperlessInvoiceReviewPage: (typeof PaperlessInvoiceReviewPageModule)['PaperlessInvoiceReviewPage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
-// ─── globalThis.fetch fallback stub ──────────────────────────────────────────
-// When jest.unstable_mockModule is NOT intercepted (local Node 22 worktree env),
-// the real apiClient fires real fetch calls which crash with "fetch is not defined".
-// We stub globalThis.fetch to return benign empty responses so the real hooks can
-// complete without crashing. This matches the BudgetSection.invoice-edit.test.tsx
-// pattern (using globalThis.fetch stub instead of module mocks as fallback).
-//
-// When mocks ARE intercepted (CI Node 24), the stub is never reached because the
-// module-level mocks intercept first.
+// ─── globalThis.fetch safety-net stub ────────────────────────────────────────
+// The module mocks above cover every API the page uses. This stub only guarantees that
+// a call that escapes them resolves with benign empty data instead of a real network call.
 
 const FALLBACK_EMPTY_LIST = JSON.stringify({ results: [], count: 0 });
 const FALLBACK_VENDORS = JSON.stringify({
@@ -348,8 +335,7 @@ beforeEach(async () => {
   mockShowCreateBudgetLineForm.mockReset();
   mockShowCreateBudgetLineForm.mockResolvedValue(undefined);
 
-  // Stub globalThis.fetch as a fallback for when module mocks are not intercepted (local env).
-  // In CI (Node 24, mocks intercepted), module mocks fire first and fetch is never called.
+  // Safety-net fetch stub (the module mocks handle all expected calls).
   globalThis.fetch = makeFetchStub() as unknown as typeof fetch;
 });
 
@@ -439,8 +425,7 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
 }
 
 // ─── Render helper ─────────────────────────────────────────────────────────────
-// Wraps in LocaleProvider (matches AutoItemizePage.test.tsx pattern — handles both
-// intercepted and non-intercepted mock environments).
+// Wraps in LocaleProvider (matches AutoItemizePage.test.tsx pattern).
 
 function renderPage(
   state: { documentId: number; documentTitle: string } = {
@@ -507,11 +492,11 @@ describe('PaperlessInvoiceReviewPage', () => {
       // Note: confidence dots also have role="img" in ready state, so we target
       // the Spinner specifically via aria-label="Loading".
       await waitFor(() => {
-        const spinners = document.querySelectorAll('[role="img"][aria-label="Loading"]');
-        const hasSpinner = spinners.length > 0;
-        const hasLoadingText = screen.queryAllByText(/Analyzing/i).length > 0;
-        expect(hasSpinner || hasLoadingText).toBe(true);
+        expect(
+          document.querySelectorAll('[role="img"][aria-label="Loading"]').length,
+        ).toBeGreaterThan(0);
       });
+      expect(screen.getAllByText(/Analyzing/i).length).toBeGreaterThan(0);
     });
 
     it('previewAutoItemize is called on mount with the documentId from location state', async () => {
@@ -529,27 +514,19 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       renderPage();
 
-      // Wait a tick for the effects to fire
       await waitFor(() => {
-        // Either mock was called (intercepted — CI) or we're in loading state (local)
-        const called = mockPreviewAutoItemize.mock.calls.length > 0;
-        const inLoadingState =
-          document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0 ||
-          screen.queryAllByText(/Analyzing/i).length > 0;
-        expect(called || inLoadingState).toBe(true);
+        expect(mockPreviewAutoItemize).toHaveBeenCalledWith({ paperlessDocumentId: 42 });
       });
+      expect(mockPreviewAutoItemize).toHaveBeenCalledTimes(1);
 
-      // Clean up: resolve the promise to avoid act() warning
-      if (resolvePreview) {
-        await act(async () => {
-          resolvePreview(makePreviewResponse());
-        });
-      }
+      // Clean up: resolve the pending preview to avoid act() warnings
+      await act(async () => {
+        resolvePreview(makePreviewResponse());
+      });
     });
 
     it('does not show the Create Invoice button in loading state', async () => {
-      // Override fetch stub to never resolve — keeps the page in loading state
-      // regardless of whether module mocks are intercepted or not.
+      // Override fetch stub to never resolve — keeps the page in loading state.
 
       globalThis.fetch = jest
         .fn()
@@ -603,7 +580,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The create button must be present (disabled when vendorId is empty)
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
       expect(createBtn).toBeInTheDocument();
     });
 
@@ -623,17 +600,8 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // Either the SearchPicker displays the vendor name (intercepted mock — CI) or the
-      // vendor name appears somewhere in the DOM (non-intercepted — local).
-      // Accept either path.
-      await waitFor(() => {
-        // queryAllByText avoids "Found multiple elements" when 'Builder Corp' appears in both
-        // the picker's selectedTitle span AND a suggestion-badge rendered via FloatingPortal.
-        const vendorVisible =
-          screen.queryAllByText('Builder Corp').length > 0 ||
-          document.querySelector('[id="vendor-picker"]') !== null;
-        expect(vendorVisible).toBe(true);
-      });
+      // The vendor name is shown (picker's selected title and/or the suggestion badge).
+      expect((await screen.findAllByText('Builder Corp')).length).toBeGreaterThan(0);
     });
 
     it('shows SuggestionBadge when suggestedVendorId is pre-filled', async () => {
@@ -684,19 +652,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // SuggestionBadge renders either via mock (data-testid="suggestion-badge") or as
-      // real component showing "LLM suggests: ..." text, or vendor name visible in DOM.
-      // When mocks are intercepted (CI): SuggestionBadge mock renders with displayValue.
-      // When not intercepted (local): fetch stub provides the data and the real component renders.
-      await waitFor(() => {
-        // queryAllByText avoids "Found multiple elements" when 'Builder Corp' appears in both
-        // the picker's selectedTitle span AND a suggestion-badge rendered via FloatingPortal.
-        const badge =
-          screen.queryByTestId('suggestion-badge') !== null ||
-          screen.queryByText(/LLM suggests/i) !== null ||
-          screen.queryAllByText('Builder Corp').length > 0;
-        expect(badge).toBe(true);
-      });
+      expect(await screen.findByTestId('suggestion-badge')).toBeInTheDocument();
     });
 
     it('renders the extracted line items list when ready', async () => {
@@ -736,19 +692,11 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // Line descriptions are rendered as textarea values (aria-label: "Edit line item description")
-      // Accept either the textarea display value or raw text in the DOM.
-      // In CI: mock intercepted, lines from mockPreviewAutoItemize.
-      // In local: fetch stub provides lines, real component renders them.
-      await waitFor(() => {
-        const hasFirstLine =
-          screen.queryByDisplayValue('Tile work') !== null ||
-          screen.queryByText('Tile work') !== null;
-        expect(hasFirstLine).toBe(true);
-      });
+      expect(await screen.findByDisplayValue('Tile work')).toBeInTheDocument();
     });
 
     it('renders Assign… button for each unassigned line', async () => {
-      // Override fetch stub to return lines so Assign… buttons appear regardless of mock interception
+      // Override fetch stub to return lines so Assign… buttons appear
       const previewLines = [
         { description: 'Line A', totalAmount: 100, confidence: 0.9, budgetCategoryId: 'bc-a' },
         { description: 'Line B', totalAmount: 200, confidence: 0.8, budgetCategoryId: 'bc-b' },
@@ -788,14 +736,11 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // Without a vendor the button must NOT be disabled (only disabled when saving)
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn) {
-        // The component disables the button via: disabled={pageStatus === 'saving'}
-        // NOT via: disabled={!vendorId} — vendor validation is inside handleSave now
-        expect(createBtn).not.toBeDisabled();
-      }
-      // If the button is not found, we're in local env (non-intercepted) — acceptable
+      // The component disables the button via: disabled={pageStatus === 'saving'}
+      // NOT via: disabled={!vendorId} — vendor validation is inside handleSave now
+      expect(createBtn).not.toBeDisabled();
     });
 
     it('shows a FormError / alert when confirm is somehow clicked without vendor', async () => {
@@ -809,25 +754,23 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn) {
-        // Button is NOT disabled without a vendor (only disabled when saving).
-        // Vendor validation fires inside handleSave and renders an inline field error via
-        // <FormError variant="field"> — which does NOT produce role="alert" (that is banner-only).
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      // Button is NOT disabled without a vendor (only disabled when saving).
+      // Vendor validation fires inside handleSave and renders an inline field error via
+      // <FormError variant="field"> — which does NOT produce role="alert" (that is banner-only).
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // The vendor field error is an inline field error rendered as:
-        //   <div id="vendor-error"><FormError variant="field" message={vendorError} /></div>
-        // FormError variant="field" renders a plain <div> with no role="alert" (banner-only gets alert).
-        // Assert the error container is present in the DOM.
-        await waitFor(() => {
-          const vendorErrorEl = document.querySelector('#vendor-error');
-          expect(vendorErrorEl).not.toBeNull();
-        });
-      }
+      // The vendor field error is an inline field error rendered as:
+      //   <div id="vendor-error"><FormError variant="field" message={vendorError} /></div>
+      // FormError variant="field" renders a plain <div> with no role="alert" (banner-only gets alert).
+      // Assert the error container is present in the DOM.
+      await waitFor(() => {
+        const vendorErrorEl = document.querySelector('#vendor-error');
+        expect(vendorErrorEl).not.toBeNull();
+      });
       // Outcome confirms vendor is required and the inline field error is surfaced
     });
   });
@@ -852,26 +795,23 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn && !createBtn.hasAttribute('disabled')) {
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      expect(createBtn).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // Guarded: CI (mock intercepted) asserts the call; local (not intercepted) skips
-        if (mockCommitAutoItemizeCreate.mock.calls.length > 0) {
-          expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
-          const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as Record<
-            string,
-            unknown
-          >;
-          expect(callArg).toHaveProperty('vendorId', 'vendor-1');
-          expect(callArg).toHaveProperty('paperlessDocumentId', 42);
-          expect(callArg).toHaveProperty('lines');
-          expect(callArg).toHaveProperty('invoice');
-        }
-      }
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalled();
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
+      const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as Record<
+        string,
+        unknown
+      >;
+      expect(callArg).toHaveProperty('vendorId', 'vendor-1');
+      expect(callArg).toHaveProperty('paperlessDocumentId', 42);
+      expect(callArg).toHaveProperty('lines');
+      expect(callArg).toHaveProperty('invoice');
     });
 
     it('payload maps included lines with assignmentMode=assign-existing when a budget line is pre-assigned', async () => {
@@ -904,24 +844,21 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn && !createBtn.hasAttribute('disabled')) {
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      expect(createBtn).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // Guarded assertion: only run when mock was actually called
-        if (mockCommitAutoItemizeCreate.mock.calls.length > 0) {
-          const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as {
-            lines: Array<Record<string, unknown>>;
-          };
-          expect(callArg.lines).toHaveLength(1);
-          // Unassigned line → assignmentMode: 'create-new'
-          expect(callArg.lines[0]).toHaveProperty('assignmentMode', 'create-new');
-          expect(callArg.lines[0]).toHaveProperty('description', 'Flooring');
-        }
-      }
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalled();
+      const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as {
+        lines: Array<Record<string, unknown>>;
+      };
+      expect(callArg.lines).toHaveLength(1);
+      // Unassigned line → assignmentMode: 'create-new'
+      expect(callArg.lines[0]).toHaveProperty('assignmentMode', 'create-new');
+      expect(callArg.lines[0]).toHaveProperty('description', 'Flooring');
     });
 
     it('navigates to /budget/invoices/:id on successful commit', async () => {
@@ -940,20 +877,17 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn && !createBtn.hasAttribute('disabled')) {
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      expect(createBtn).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // Guarded: only assert navigation in CI (when mock intercepted and commit resolves)
-        if (mockCommitAutoItemizeCreate.mock.calls.length > 0) {
-          await waitFor(() => {
-            expect(screen.queryByTestId('invoice-detail-page')).toBeInTheDocument();
-          });
-        }
-      }
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.queryByTestId('invoice-detail-page')).toBeInTheDocument();
+      });
     });
   });
 
@@ -968,10 +902,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       renderPage();
 
       // The page has a race: vendors useEffect may change `vendors` state which retriggers
-      // loadData. We wait for the ready state to appear and then stabilise before clicking.
-      // In CI (mocks intercepted): all mocks are synchronous, no race.
-      // In local (mocks not intercepted): we wait until the page has been in ready state
-      // consistently (no spinner, no "Analyzing" text) for a stable assertion window.
+      // loadData, so wait until the page is in ready state (no spinner, no "Analyzing" text).
       await waitFor(
         () => {
           const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
@@ -1034,7 +965,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { description: 'Line A', totalAmount: 100, confidence: 0.9, budgetCategoryId: 'bc-a' },
         { description: 'Line B', totalAmount: 200, confidence: 0.8, budgetCategoryId: 'bc-b' },
       ];
-      // Override fetch stub so lines appear regardless of mock interception
+      // Override fetch stub so lines appear
       globalThis.fetch = makeFetchStub({
         preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
       }) as unknown as typeof fetch;
@@ -1165,15 +1096,9 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // When the picker mock is intercepted (CI), the modal opens automatically because
-      // pickerState.isOpen=true is returned from the mock.
-      // When not intercepted (local), the real hook returns isOpen=false.
-      // Accept either outcome.
-      const hasModal =
-        screen.queryByRole('dialog') !== null ||
-        screen.queryByTestId('parent-picker') !== null ||
-        screen.queryByRole('button', { name: /cancel/i }) !== null; // page is at least mounted
-      expect(hasModal).toBe(true);
+      // pickerState.isOpen=true from the mock opens the picker modal with the parent picker.
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('parent-picker')).toBeInTheDocument();
     });
   });
 
@@ -1209,12 +1134,8 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // When mock intercepted (CI): the modal renders the budget line button
-      // When not intercepted (local): only the page's own cancel button is visible
-      const hasBudgetLineButton =
-        screen.queryByText('Tile budget') !== null ||
-        screen.queryByRole('button', { name: /cancel/i }) !== null;
-      expect(hasBudgetLineButton).toBe(true);
+      // The picker modal renders the provided budget line
+      expect(screen.getByText('Tile budget')).toBeInTheDocument();
     });
   });
 
@@ -1246,27 +1167,16 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // When mock intercepted: "Create Budget Line" button renders in step 2
-      const assignBtnInPage = screen.queryByRole('button', { name: /Assign…/i });
-      if (assignBtnInPage) {
-        // Set activeRowId first by clicking Assign…
-        await act(async () => {
-          fireEvent.click(assignBtnInPage);
-        });
-      }
+      // Set activeRowId by clicking Assign…, then click the picker's Create Budget Line button
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Assign…/i }));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Create Budget Line/i }));
+      });
 
-      const createLineBtn =
-        screen.queryByText(/Create Budget Line/i) !== null
-          ? screen.queryByText(/Create Budget Line/i)
-          : screen.queryByRole('button', { name: /create.*line/i });
-
-      if (createLineBtn) {
-        await act(async () => {
-          fireEvent.click(createLineBtn);
-        });
-        // No crash — page is still mounted
-        expect(document.body).toBeTruthy();
-      }
+      // No crash — the page is still in ready state
+      expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
   });
 
@@ -1274,9 +1184,6 @@ describe('PaperlessInvoiceReviewPage', () => {
 
   describe('error state', () => {
     it('shows error state when previewAutoItemize fails with a generic error', async () => {
-      // In CI (mock intercepted): mockPreviewAutoItemize.mockRejectedValue causes error state.
-      // In local (mock not intercepted): we make the fetch stub return an HTTP 500 error for the
-      // preview endpoint so the real apiClient throws and the component reaches error state.
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       globalThis.fetch = jest.fn().mockImplementation((url: any) => {
         if (String(url).includes('/api/invoices/auto-itemize/preview')) {
@@ -1306,7 +1213,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('shows error state when getPaperlessDocument fails with ApiClientError', async () => {
-      // When mocks not intercepted: the fetch stub for the document endpoint returns a 404
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       globalThis.fetch = jest.fn().mockImplementation((url: any) => {
         if (
@@ -1403,10 +1309,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
 
-      // When errorTranslation mock is intercepted (CI): shows "Translated error message"
-      // When not intercepted (local): shows real translated error or fallback message
-      const alert = screen.getByRole('alert');
-      expect(alert.textContent?.length).toBeGreaterThan(0);
+      expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
     });
   });
 
@@ -1494,12 +1397,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      // When mock intercepted (CI): capturedOnLineCreated is set
-      // When not intercepted (local): capturedOnLineCreated remains null
-      // Accept either — this just verifies no crash on mount
-      expect(capturedOnLineCreated === null || typeof capturedOnLineCreated === 'function').toBe(
-        true,
-      );
+      expect(typeof capturedOnLineCreated).toBe('function');
     });
   });
 
@@ -1529,39 +1427,27 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The Create Invoice button is not disabled when no vendor (only disabled when saving)
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn) {
-        // Click even if it looks disabled — vendor validation fires in handleSave
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      // Click even if it looks disabled — vendor validation fires in handleSave
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // Vendor error should appear as a FormError field error (role="alert" or visible error text)
-        // The component renders: {vendorError && <FormError variant="field" message={vendorError} />}
-        // which produces a div with an error message.
-        // Also verify page did NOT navigate (invoices-list-page is NOT present)
-        const navigated =
-          screen.queryByTestId('invoices-list-page') !== null ||
-          screen.queryByTestId('invoice-detail-page') !== null;
-        const hasVendorError =
-          screen.queryByRole('alert') !== null ||
-          document.querySelector('#vendor-error') !== null ||
-          screen.queryAllByText(/vendor.*required/i).length > 0 ||
-          screen.queryAllByText(/Vendor.*required/i).length > 0;
+      // Vendor error should appear as a FormError field error (role="alert" or visible error text)
+      // The component renders: {vendorError && <FormError variant="field" message={vendorError} />}
+      // which produces a div with an error message.
+      // Also verify page did NOT navigate (invoices-list-page is NOT present)
+      const navigated =
+        screen.queryByTestId('invoices-list-page') !== null ||
+        screen.queryByTestId('invoice-detail-page') !== null;
 
-        // Either validation showed an error OR the button was disabled (both satisfy the requirement)
-        // If the button was truly disabled, clicking it shouldn't have changed state.
-        // We verify: no navigation occurred
-        expect(navigated).toBe(false);
-
-        // In CI (mocks intercepted): the handleSave runs and vendorError is set
-        if (mockCommitAutoItemizeCreate.mock.calls.length === 0) {
-          // handleSave ran but didn't call commit (returned early due to !vendorId)
-          // vendorError should be visible
-          expect(hasVendorError || !navigated).toBe(true);
-        }
-      }
+      // handleSave returned early (no vendor): no commit, no navigation, inline field error shown
+      expect(navigated).toBe(false);
+      expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
+      await waitFor(() => {
+        expect(document.querySelector('#vendor-error')).not.toBeNull();
+      });
     });
 
     it('does NOT call commitAutoItemizeCreate when save is clicked without a vendor', async () => {
@@ -1582,13 +1468,11 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn) {
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
-      }
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
       // commitAutoItemizeCreate must NOT have been called
       expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
@@ -1623,27 +1507,25 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn && !createBtn.hasAttribute('disabled')) {
-        await act(async () => {
-          fireEvent.click(createBtn);
-        });
+      expect(createBtn).not.toBeDisabled();
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
 
-        // When mock intercepted (CI): commit throws → pageError set → banner renders
-        if (mockCommitAutoItemizeCreate.mock.calls.length > 0) {
-          await waitFor(() => {
-            expect(screen.getByRole('alert')).toBeInTheDocument();
-          });
+      // commit throws → pageError set → banner renders
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalled();
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
 
-          // The page should still show the ready state (not the fatal error layout)
-          // Cancel button still present → we're in ready state with an inline banner
-          expect(
-            screen.queryByRole('button', { name: /cancel/i }) !== null ||
-              screen.queryByRole('button', { name: /Back to Invoices/i }) !== null,
-          ).toBe(true);
-        }
-      }
+      // The page should still show the ready state (not the fatal error layout)
+      // Cancel button still present → we're in ready state with an inline banner
+      expect(
+        screen.queryByRole('button', { name: /cancel/i }) !== null ||
+          screen.queryByRole('button', { name: /Back to Invoices/i }) !== null,
+      ).toBe(true);
     });
   });
 
@@ -1669,25 +1551,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The <iframe> renders with title="Invoice PDF preview" (t('autoItemize.pdfPreviewTitle'))
-      // In CI (i18n mocked): title is the translation key "autoItemize.pdfPreviewTitle"
-      // In local (real i18n): title is the English string "Invoice PDF preview"
-      const iframes = document.querySelectorAll('iframe');
-      if (iframes.length > 0) {
-        const iframe = iframes[0]!;
-        const title = iframe.getAttribute('title');
-        expect(title).toBeTruthy();
-        // Accept either the real title or the translation key
-        expect(
-          title?.toLowerCase().includes('pdf') ||
-            title?.includes('pdfPreviewTitle') ||
-            title?.includes('preview'),
-        ).toBe(true);
-      } else {
-        // If the iframe is not found in local env (mocks not intercepted, page may be in
-        // loading state still), we accept this — the production code does render the iframe
-        // in ready state as verified by the existing test infrastructure.
-        expect(true).toBe(true);
-      }
+      const iframe = document.querySelector('iframe');
+      expect(iframe).not.toBeNull();
+      expect(iframe!.getAttribute('title')).toBe('Invoice PDF preview');
     });
 
     it('iframe src contains the documentId from location state', async () => {
@@ -1745,17 +1611,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       const formCol = document.querySelector('[class*="formColumn"]');
       const previewCol = document.querySelector('[class*="previewColumn"]');
 
-      // When mock intercepted (CI) or real component renders (local):
-      // formColumn exists as id="itemize-form" with className containing "formColumn"
-      // previewColumn is a sibling div in the pageBody
-      const hasFormCol = formCol !== null || document.getElementById('itemize-form') !== null;
-      const hasPreviewCol = previewCol !== null;
-
-      // At minimum, the form column (with the action buttons) must render
-      expect(hasFormCol).toBe(true);
-      // Accept previewColumn being absent in local env where mocks may not intercept
-      // (If the page is in a non-ready state, previewColumn wouldn't render)
-      expect(hasFormCol || hasPreviewCol).toBe(true);
+      // formColumn is id="itemize-form"; previewColumn is a sibling div in the pageBody
+      expect(formCol !== null || document.getElementById('itemize-form') !== null).toBe(true);
+      expect(previewCol).not.toBeNull();
     });
   });
 
@@ -1782,13 +1640,10 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       // The Create Invoice button should be clickable (not disabled) even without a vendor.
       // disabled is only set when pageStatus === 'saving'.
-      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
 
-      if (createBtn) {
-        // Button must NOT have the disabled attribute
-        expect(createBtn).not.toBeDisabled();
-      }
-      // If button not found, the page may be in local non-intercepted env; skip assertion
+      // Button must NOT have the disabled attribute
+      expect(createBtn).not.toBeDisabled();
     });
   });
 
@@ -1923,30 +1778,27 @@ describe('PaperlessInvoiceReviewPage', () => {
 
     /**
      * Queues an inline draft on the next row that still shows an "Assign…" button
-     * by clicking it, then the picker's "Create Budget Line" button. Returns false
-     * when the picker mock is not intercepted (local sandbox limitation) so callers
-     * can skip gracefully; CI (Node 24) always intercepts.
+     * by clicking it, then the picker's "Create Budget Line" button, and asserts the
+     * draft was actually queued (inline form stub or creating-new badge).
      */
-    async function queueNextDraft(): Promise<boolean> {
-      const assignBtn = screen.queryAllByRole('button', { name: /Assign…/i })[0];
-      if (!assignBtn) return false;
+    async function queueNextDraft(): Promise<void> {
+      const assignBtn = screen.getAllByRole('button', { name: /Assign…/i })[0];
+      expect(assignBtn).toBeDefined();
 
       await act(async () => {
-        fireEvent.click(assignBtn);
+        fireEvent.click(assignBtn!);
       });
 
-      const createBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createBtn) return false;
+      const createBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createBtn);
       });
 
-      // Confirm a draft was actually queued (inline form stub or creating-new badge).
-      const queued =
+      expect(
         document.querySelector('[data-testid="budget-line-form"]') !== null ||
-        screen.queryByTestId('creating-new-badge') !== null;
-      return queued;
+          screen.queryByTestId('creating-new-badge') !== null,
+      ).toBe(true);
     }
 
     it('commit failure then retry does not re-create the budget line', async () => {
@@ -2001,8 +1853,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const queued = await queueNextDraft();
-      if (!queued) return; // non-intercepting local env — covered by CI (Node 24)
+      await queueNextDraft();
 
       mockCreateWorkItemBudget.mockResolvedValue({ id: 'new-wib-1' });
       // First commit attempt fails; second (retry) succeeds.

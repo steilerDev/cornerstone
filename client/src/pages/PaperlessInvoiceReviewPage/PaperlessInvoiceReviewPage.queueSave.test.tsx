@@ -13,12 +13,6 @@
  *     3d. createWorkItemBudget rejects — page error set; commitAutoItemizeCreate NOT called
  *  4. missingCategories validation skips queued draft lines (exempt from category check)
  *  5. onClearAssign clears all 7 fields including queued-flow fields
- *
- * NOTE on local Node 20 / jest.unstable_mockModule interception:
- *   All mocks that rely on jest.unstable_mockModule may not be intercepted in local
- *   worktree environments (known sandbox limitation — CI on Node 24 passes).
- *   Tests that can only assert mock calls when interception works use early-return guards:
- *   "if (!element) return; // non-intercepting env".
  */
 
 // ─── Mocks (must precede all static imports) ───────────────────────────────────
@@ -190,10 +184,28 @@ jest.unstable_mockModule('../../components/SuggestionBadge/SuggestionBadge.js', 
 // ─── Mock: BudgetLineForm ──────────────────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BudgetLineForm: (props: any) => (
-    <div data-testid="budget-line-form">{props.form?.description ?? ''}</div>
-  ),
+  // Minimal controlled stand-in exposing the inputs these tests drive. Ids mirror the real
+  // form (`${idPrefix}budget-<field>`) so the tests query them the same way.
+  BudgetLineForm: (props: {
+    idPrefix?: string;
+    form: Record<string, string>;
+    onFormChange: (updates: Record<string, string>) => void;
+  }) => {
+    const prefix = props.idPrefix ?? '';
+    const field = (id: string, key: string) => (
+      <input
+        id={`${prefix}budget-${id}`}
+        value={props.form[key] ?? ''}
+        onChange={(e) => props.onFormChange({ [key]: e.target.value })}
+      />
+    );
+    return (
+      <div data-testid="budget-line-form">
+        {field('description', 'description')}
+        {field('planned-amount', 'plannedAmount')}
+      </div>
+    );
+  },
 }));
 
 // ─── Mock: ParentPicker ────────────────────────────────────────────────────────
@@ -246,10 +258,9 @@ import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 let PaperlessInvoiceReviewPage: (typeof PaperlessInvoiceReviewPageModule)['PaperlessInvoiceReviewPage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
-// ─── Fetch fallback stub ───────────────────────────────────────────────────────
-// When jest.unstable_mockModule is NOT intercepted (local Node env), the real apiClient
-// fires real fetch calls. This stub provides benign empty responses. Pattern from
-// PaperlessInvoiceReviewPage.test.tsx.
+// ─── Fetch safety-net stub ─────────────────────────────────────────────────────
+// The module mocks above cover every API the page uses. This stub only guarantees that
+// a call that escapes them resolves with benign empty data instead of a real network call.
 
 const FALLBACK_VENDORS = JSON.stringify({
   vendors: [],
@@ -522,8 +533,8 @@ async function waitForReady() {
 }
 
 /** The save button. */
-function getCreateBtn() {
-  return screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
+function getCreateBtn(): HTMLElement {
+  return screen.getByRole('button', { name: 'Create Invoice & Itemize' });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -551,16 +562,14 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       // Click Assign button on the line to set activeRowId (the component needs this for
       // handleQueueNewBudgetLine to know which row to update)
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env — skip
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // "Create Budget Line" button appears in picker step 2
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -605,16 +614,14 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Set activeRowId via Assign button
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // Queue the draft
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -623,13 +630,13 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // Wait for inline draft form to appear
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // The AutoItemizeLineList passes onInlineDraftChange to AutoItemizeLineCard.
       // If the inline BudgetLineForm is real (not mocked), find the description textarea
       // scoped to an inline form. The inline BudgetLineForm renders id="inline-{rowId}-budget-description".
       const descInputs = document.querySelectorAll('[id*="budget-description"]');
-      if (descInputs.length === 0) return; // non-intercepting or mock env
+      expect(descInputs.length).toBeGreaterThan(0);
 
       const descInput = descInputs[0] as HTMLInputElement;
       const originalValue = descInput.value;
@@ -670,16 +677,14 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Set activeRowId via Assign click
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // Queue the draft by clicking "Create Budget Line"
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -688,19 +693,17 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // Verify draft queued
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // Update the plannedAmount to 1500 (direct pricing)
       const amountInputs = document.querySelectorAll('[id*="budget-planned-amount"]');
-      if (amountInputs.length > 0) {
-        await act(async () => {
-          fireEvent.change(amountInputs[0]!, { target: { value: '1500' } });
-        });
-      }
+      expect(amountInputs.length).toBeGreaterThan(0);
+      await act(async () => {
+        fireEvent.change(amountInputs[0]!, { target: { value: '1500' } });
+      });
 
       // Click the save button
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -781,16 +784,14 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Set activeRowId via Assign click
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // Queue the draft by clicking "Create Budget Line"
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -799,11 +800,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // Verify draft queued
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // Click save
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -879,17 +879,23 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       renderPage();
       await waitForReady();
 
+      // Make the live line's unit pricing invalid (negative net base: -5 x 30). The metric
+      // inputs are hidden once a draft is queued, so edit before queueing.
+      await act(async () => {
+        fireEvent.change(screen.getByLabelText('Edit line item quantity'), {
+          target: { value: '-5' },
+        });
+      });
+
       // Set activeRowId
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // Queue draft
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -897,19 +903,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
-
-      // Set an invalid quantity (NaN) in the inline form
-      const quantityInputs = document.querySelectorAll('[id*="budget-quantity"]');
-      if (quantityInputs.length > 0) {
-        await act(async () => {
-          fireEvent.change(quantityInputs[0]!, { target: { value: 'abc' } });
-        });
-      }
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // Click save
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -918,14 +915,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // commitAutoItemizeCreate must NOT be called (validation blocked it)
       expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
 
-      // A page error should appear (either role="alert" banner or error text)
-      await waitFor(() => {
-        const hasAlert = screen.queryByRole('alert') !== null;
-        const hasErrorText =
-          screen.queryAllByText(/inlineDraftInvalid/i).length > 0 ||
-          screen.queryAllByText(/invalid/i).length > 0;
-        expect(hasAlert || hasErrorText).toBe(true);
-      });
+      // The page error banner shows the invalid-amount message
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'Invalid amount in queued budget line. Please fix before saving.',
+      );
     });
   });
 
@@ -953,16 +946,14 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Set activeRowId
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
       // Queue draft
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -970,11 +961,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // Click save
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -988,15 +978,8 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // commitAutoItemizeCreate must NOT be called
       expect(mockCommitAutoItemizeCreate).not.toHaveBeenCalled();
 
-      // Page error banner must appear
-      await waitFor(() => {
-        const hasAlert = screen.queryByRole('alert') !== null;
-        // When errorTranslation mock is intercepted (CI): "Translated error message"
-        const hasTranslated =
-          screen.queryAllByText(/Translated error message/i).length > 0 ||
-          screen.queryAllByText(/inlineDraftCreateFailed/i).length > 0;
-        expect(hasAlert || hasTranslated).toBe(true);
-      });
+      // Page error banner shows the translated API error
+      expect(await screen.findByRole('alert')).toHaveTextContent('Translated error message');
 
       // Page stays in ready state (not navigated away)
       expect(screen.queryByTestId('invoice-detail-page')).not.toBeInTheDocument();
@@ -1045,15 +1028,13 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Queue a draft on the line by going through the picker flow
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -1061,11 +1042,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!inlineForm && !creatingBadge) return; // non-intercepting env
+      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
 
       // Click save
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
@@ -1078,12 +1058,9 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       // The "category required" error must NOT have been shown
       // (categoryRequiredError text would be in the role="alert" banner)
-      const alertEl = screen.queryByRole('alert');
-      if (alertEl) {
-        const alertText = alertEl.textContent ?? '';
-        expect(alertText).not.toMatch(/categoryRequired/i);
-        expect(alertText).not.toMatch(/category.*required/i);
-      }
+      const alertText = screen.queryByRole('alert')?.textContent ?? '';
+      expect(alertText).not.toMatch(/categoryRequired/i);
+      expect(alertText).not.toMatch(/category.*required/i);
 
       // commitAutoItemizeCreate must have been called (save completed)
       await waitFor(() => {
@@ -1112,15 +1089,13 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       // Queue a draft
-      const assignBtn = screen.queryByRole('button', { name: /Assign…/i });
-      if (!assignBtn) return; // non-intercepting env
+      const assignBtn = screen.getByRole('button', { name: /Assign…/i });
 
       await act(async () => {
         fireEvent.click(assignBtn);
       });
 
-      const createLineBtn = screen.queryByRole('button', { name: /Create Budget Line/i });
-      if (!createLineBtn) return; // non-intercepting env
+      const createLineBtn = screen.getByRole('button', { name: /Create Budget Line/i });
 
       await act(async () => {
         fireEvent.click(createLineBtn);
@@ -1128,15 +1103,11 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
 
       // Verify draft is queued (creating-new badge should appear)
       const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      if (!creatingBadge) return; // non-intercepting env
+      expect(creatingBadge).not.toBeNull();
 
       // Click the Discard button (onClearAssign triggers via AutoItemizeLineCard)
       // The Discard button has aria-label from t('autoItemize.discardInlineDraft') = "Discard"
-      const discardBtn =
-        screen.queryByRole('button', { name: /Discard/i }) ||
-        screen.queryByRole('button', { name: /discardInlineDraft/i });
-
-      if (!discardBtn) return; // safety guard
+      const discardBtn = screen.getByRole('button', { name: /Discard/i });
 
       await act(async () => {
         fireEvent.click(discardBtn);
@@ -1170,25 +1141,16 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       await waitForReady();
 
       const createBtn = getCreateBtn();
-      if (!createBtn) return; // non-intercepting env
 
       await act(async () => {
         fireEvent.click(createBtn);
       });
 
-      // The vendor-required guard fires first when vendorId is empty.
-      // When mocks ARE intercepted (CI): suggestedVendorId='vendor-1' is returned by
-      // mockPreviewAutoItemize which causes vendorId to be set — no vendor error.
-      // When mocks are NOT intercepted (local): we can't guarantee the vendor is pre-filled.
-      // In either case: neither budget creation API should be called (no inline drafts).
+      // suggestedVendorId='vendor-1' pre-fills the vendor, so save proceeds to commit.
+      // No inline drafts are queued, so neither budget creation API may be called.
       expect(mockCreateWorkItemBudget).not.toHaveBeenCalled();
       expect(mockCreateHouseholdItemBudget).not.toHaveBeenCalled();
-
-      // When mocks intercepted (CI): commitAutoItemizeCreate was called once (vendor is set)
-      // When not intercepted: commitAutoItemizeCreate may or may not have been called (vendor guard)
-      // Accept either outcome — the critical assertion is that no budget creation API was called
-      const commitCallCount = mockCommitAutoItemizeCreate.mock.calls.length;
-      expect(commitCallCount === 0 || commitCallCount === 1).toBe(true);
+      expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
     });
   });
 });
