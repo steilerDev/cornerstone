@@ -672,6 +672,24 @@ describe('buildCommitLines (#2149)', () => {
     }
   });
 
+  it.each(['work_item', 'household_item'])(
+    'linked %s row commits no budgetSourceId or budgetCategoryId even when the row has both',
+    (type) => {
+      const [out] = buildCommitLines([
+        makeLine({
+          budgetSourceId: 'src-row',
+          budgetCategoryId: 'cat-row',
+          assignedBudgetLineId: 'bl-1',
+          assignedBudgetLineType: type,
+        }),
+      ]);
+
+      expect(out.assignmentMode).toBe('assign-existing');
+      expect(out.budgetSourceId).toBeUndefined();
+      expect(out.budgetCategoryId).toBeUndefined();
+    },
+  );
+
   it('a row with an id but no type is treated as create-new', () => {
     const [out] = buildCommitLines([makeLine({ assignedBudgetLineId: 'wib-1' })]);
     expect(out.assignmentMode).toBe('create-new');

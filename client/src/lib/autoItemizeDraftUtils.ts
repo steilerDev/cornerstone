@@ -61,6 +61,9 @@ export function buildCommitLines(lines: LineWithInclude[]): ExtractedLine[] {
         // Description is not editable on a linked row and is ignored by the server in
         // assign-existing mode, but the schema requires a non-empty string.
         description: l.description.trim() || l.assignedBudgetLineDescription?.trim() || '—',
+        // Linked rows keep the original budget line's category and source, so send neither.
+        budgetCategoryId: undefined,
+        budgetSourceId: undefined,
         totalAmount: effectiveRowAmount(l),
         includesVat: true,
         assignedBudgetLineId: l.assignedBudgetLineId,
