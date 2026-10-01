@@ -44,6 +44,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     secureCookies: false,
     trustProxy: false,
     oidcEnabled: false,
+    oidcJitProvisioning: false,
     paperlessUrl: 'http://paperless.test.local',
     paperlessExternalUrl: undefined,
     paperlessApiToken: 'test-paperless-token',

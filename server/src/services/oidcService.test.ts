@@ -251,8 +251,13 @@ describe('OIDC Service', () => {
         name: 'John Doe',
       });
 
-      // name is no longer extracted
-      expect(result).toEqual({ sub: 'user-123', email: 'user@example.com', emailVerified: true });
+      expect(result).toEqual({
+        sub: 'user-123',
+        email: 'user@example.com',
+        emailVerified: true,
+        name: 'John Doe',
+        preferredUsername: undefined,
+      });
       expect(mockAuthorizationCodeGrant).toHaveBeenCalledTimes(1);
       expect(mockAuthorizationCodeGrant).toHaveBeenCalledWith(mockConfig, callbackUrl, {
         expectedState: 'xyz',
@@ -279,6 +284,41 @@ describe('OIDC Service', () => {
 
       expect(result).toEqual({ sub: 'user-789', email: '', emailVerified: true });
     });
+
+    it('returns name and preferredUsername when both are string claims', async () => {
+      const result = await callbackWithClaims({
+        sub: 's1',
+        email: 'a@example.com',
+        email_verified: true,
+        name: 'Jane Doe',
+        preferred_username: 'jdoe',
+      });
+
+      expect(result.name).toBe('Jane Doe');
+      expect(result.preferredUsername).toBe('jdoe');
+    });
+
+    it('returns undefined name and preferredUsername when claims are absent', async () => {
+      const result = await callbackWithClaims({ sub: 's2', email: 'a@example.com' });
+
+      expect(result.name).toBeUndefined();
+      expect(result.preferredUsername).toBeUndefined();
+    });
+
+    it.each([42, null, true, { first: 'x' }, ['x']])(
+      'returns undefined name and preferredUsername for non-string claim %j',
+      async (value) => {
+        const result = await callbackWithClaims({
+          sub: 's3',
+          email: 'a@example.com',
+          name: value,
+          preferred_username: value,
+        });
+
+        expect(result.name).toBeUndefined();
+        expect(result.preferredUsername).toBeUndefined();
+      },
+    );
 
     it('throws error when claims() returns null', async () => {
       // Given: Mock token response with null claims

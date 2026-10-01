@@ -598,4 +598,236 @@ describe('OIDC Routes', () => {
       expect(uri.searchParams.get('iss')).toBe('https://idp.example.com');
     });
   });
+
+  describe('GET /api/auth/oidc/callback — JIT provisioning (issue #2142)', () => {
+    const CALLBACK = '/api/auth/oidc/callback?code=abc&state=xyz';
+
+    async function startApp(flag?: string) {
+      process.env.OIDC_ISSUER = 'https://oidc.example.com';
+      process.env.OIDC_CLIENT_ID = 'client-123';
+      process.env.OIDC_CLIENT_SECRET = 'secret-456';
+      if (flag === undefined) delete process.env.OIDC_JIT_PROVISIONING;
+      else process.env.OIDC_JIT_PROVISIONING = flag;
+      app = await buildApp();
+      mockDiscoverOidcConfig.mockResolvedValue({});
+      mockConsumeState.mockReturnValue('/');
+    }
+
+    async function seedAdmin() {
+      return userService.createLocalUser(
+        app.db,
+        'admin@example.com',
+        'Admin',
+        'password123456',
+        'admin',
+      );
+    }
+
+    function sessionCookie(response: { headers: Record<string, unknown> }): string {
+      const raw = response.headers['set-cookie'];
+      const all = Array.isArray(raw) ? (raw as string[]) : raw ? [String(raw)] : [];
+      const match = all.map((c) => /cornerstone_session=([^;]+)/.exec(c)).find((m) => m);
+      return match ? `cornerstone_session=${match[1]}` : '';
+    }
+
+    function findByEmail(email: string) {
+      return userService.findByEmail(app.db, email);
+    }
+
+    it.each([['false'], [undefined]])(
+      'flag off (OIDC_JIT_PROVISIONING=%s): unmatched email redirects to oidc_no_matching_account',
+      async (flag) => {
+        await startApp(flag);
+        await seedAdmin();
+        mockHandleCallback.mockResolvedValue({
+          sub: 'sub-off',
+          email: 'new@example.com',
+          emailVerified: true,
+        });
+
+        const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+        expect(response.statusCode).toBe(302);
+        expect(response.headers.location).toBe('/login?error=oidc_no_matching_account');
+        expect(findByEmail('new@example.com')).toBeUndefined();
+        expect(userService.countUsers(app.db)).toBe(1);
+      },
+    );
+
+    it('flag on: provisions a member, sets a session cookie and logs only the user id', async () => {
+      await startApp('true');
+      await seedAdmin();
+      mockConsumeState.mockReturnValue('/dashboard');
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-secret-xyz',
+        email: 'new@example.com',
+        emailVerified: true,
+        name: 'New Person',
+      });
+      const infoSpy = jest.spyOn(app.log, 'info');
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/dashboard');
+      expect(sessionCookie(response)).not.toBe('');
+
+      const created = findByEmail('new@example.com')!;
+      expect(created.role).toBe('member');
+      expect(created.authProvider).toBe('oidc');
+      expect(created.oidcSubject).toBe('sub-secret-xyz');
+      expect(created.passwordHash).toBeNull();
+      expect(created.displayName).toBe('New Person');
+      expect(created.deactivatedAt).toBeNull();
+      expect(userService.countUsers(app.db)).toBe(2);
+
+      const provisionedCalls = infoSpy.mock.calls.filter((c) => c[1] === 'OIDC user provisioned');
+      expect(provisionedCalls).toHaveLength(1);
+      expect(provisionedCalls[0]?.[0]).toEqual({ userId: created.id });
+      const serialized = JSON.stringify(provisionedCalls[0] ?? []);
+      expect(serialized).not.toContain('new@example.com');
+      expect(serialized).not.toContain('sub-secret-xyz');
+      expect(serialized.toLowerCase()).not.toContain('token');
+      infoSpy.mockRestore();
+    });
+
+    it.each([
+      ['name', { name: 'Full Name', preferredUsername: 'puser' }, 'Full Name'],
+      ['preferred_username', { preferredUsername: 'puser' }, 'puser'],
+      ['email', {}, 'dn@example.com'],
+    ])('derives the display name from %s', async (_label, claims, expected) => {
+      await startApp('true');
+      await seedAdmin();
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-dn',
+        email: 'dn@example.com',
+        emailVerified: true,
+        ...claims,
+      });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.statusCode).toBe(302);
+      expect(findByEmail('dn@example.com')?.displayName).toBe(expected);
+    });
+
+    it('flag on: missing email redirects to missing_email without creating a user', async () => {
+      await startApp('true');
+      await seedAdmin();
+      mockHandleCallback.mockResolvedValue({ sub: 's-me', email: '', emailVerified: true });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.headers.location).toBe('/login?error=missing_email');
+      expect(userService.countUsers(app.db)).toBe(1);
+    });
+
+    it('flag on: unverified email redirects to oidc_email_unverified without creating a user', async () => {
+      await startApp('true');
+      await seedAdmin();
+      mockHandleCallback.mockResolvedValue({
+        sub: 's-unv',
+        email: 'unv@example.com',
+        emailVerified: false,
+      });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.headers.location).toBe('/login?error=oidc_email_unverified');
+      expect(sessionCookie(response)).toBe('');
+      expect(userService.countUsers(app.db)).toBe(1);
+    });
+
+    it('flag on: a deactivated matching account redirects to account_deactivated', async () => {
+      await startApp('true');
+      await seedAdmin();
+      const deact = await userService.createLocalUser(
+        app.db,
+        'deact@example.com',
+        'Deact',
+        'password123456',
+      );
+      userService.deactivateUser(app.db, deact.id);
+      mockHandleCallback.mockResolvedValue({
+        sub: 's-deact',
+        email: 'deact@example.com',
+        emailVerified: true,
+      });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.headers.location).toBe('/login?error=account_deactivated');
+      expect(sessionCookie(response)).toBe('');
+      expect(userService.countUsers(app.db)).toBe(2);
+    });
+
+    it('flag on: an active matching account is linked, not duplicated', async () => {
+      await startApp('true');
+      await seedAdmin();
+      const active = await userService.createLocalUser(
+        app.db,
+        'active@example.com',
+        'Active',
+        'password123456',
+      );
+      mockHandleCallback.mockResolvedValue({
+        sub: 's-act',
+        email: 'active@example.com',
+        emailVerified: true,
+      });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/');
+      expect(userService.findById(app.db, active.id)?.oidcSubject).toBe('s-act');
+      expect(userService.countUsers(app.db)).toBe(2);
+    });
+
+    it('flag on: with zero users redirects to oidc_no_matching_account and creates nothing', async () => {
+      await startApp('true');
+      mockHandleCallback.mockResolvedValue({
+        sub: 's-zero',
+        email: 'first@example.com',
+        emailVerified: true,
+      });
+
+      const response = await app.inject({ method: 'GET', url: CALLBACK });
+
+      expect(response.headers.location).toBe('/login?error=oidc_no_matching_account');
+      expect(userService.countUsers(app.db)).toBe(0);
+    });
+
+    it('flag on: two concurrent first logins for the same identity create exactly one user', async () => {
+      await startApp('true');
+      await seedAdmin();
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-concurrent',
+        email: 'race@example.com',
+        emailVerified: true,
+      });
+
+      const [a, b] = await Promise.all([
+        app.inject({ method: 'GET', url: CALLBACK }),
+        app.inject({ method: 'GET', url: CALLBACK }),
+      ]);
+
+      expect(a.statusCode).toBe(302);
+      expect(b.statusCode).toBe(302);
+      expect(a.headers.location).toBe('/');
+      expect(b.headers.location).toBe('/');
+      expect(userService.countUsers(app.db)).toBe(2);
+
+      const ids: string[] = [];
+      for (const r of [a, b]) {
+        const cookie = sessionCookie(r);
+        expect(cookie).not.toBe('');
+        const me = await app.inject({ method: 'GET', url: '/api/auth/me', headers: { cookie } });
+        expect(me.statusCode).toBe(200);
+        ids.push(JSON.parse(me.body).user.id);
+      }
+      expect(ids[0]).toBe(ids[1]);
+      expect(ids[0]).toBe(findByEmail('race@example.com')!.id);
+    });
+  });
 });

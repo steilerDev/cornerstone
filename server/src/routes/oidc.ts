@@ -134,18 +134,22 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
         sub: subFromService,
         email,
         emailVerified,
+        name,
+        preferredUsername,
       } = await oidcService.handleCallback(config, callbackUrl, state);
       sub = subFromService;
 
       // Find or link user
-      const { user, outcome, previousSubject } = userService.findOrLinkOidcUser(fastify.db, {
-        sub,
-        email,
-        emailVerified,
-      });
+      const { user, outcome, previousSubject } = userService.findOrLinkOidcUser(
+        fastify.db,
+        { sub, email, emailVerified, name, preferredUsername },
+        { jitProvisioning: fastify.config.oidcJitProvisioning },
+      );
 
       if (outcome === 'linked') {
         fastify.log.info({ userId: user.id, sub }, 'OIDC subject linked to existing account');
+      } else if (outcome === 'provisioned') {
+        fastify.log.info({ userId: user.id }, 'OIDC user provisioned');
       } else if (outcome === 'relinked') {
         fastify.log.warn(
           { userId: user.id, previousSub: previousSubject, sub },

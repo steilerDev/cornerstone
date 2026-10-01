@@ -1096,6 +1096,247 @@ describe('User Service', () => {
     });
   });
 
+  describe('resolveOidcDisplayName()', () => {
+    const base = { sub: 's', email: 'fallback@example.com', emailVerified: true };
+
+    it('prefers name over preferredUsername and email', () => {
+      expect(
+        userService.resolveOidcDisplayName({ ...base, name: 'Jane', preferredUsername: 'jd' }),
+      ).toBe('Jane');
+    });
+
+    it('falls back to preferredUsername when name is absent', () => {
+      expect(userService.resolveOidcDisplayName({ ...base, preferredUsername: 'jd' })).toBe('jd');
+    });
+
+    it('falls back to preferredUsername when name is whitespace only', () => {
+      expect(
+        userService.resolveOidcDisplayName({ ...base, name: '   ', preferredUsername: 'jd' }),
+      ).toBe('jd');
+    });
+
+    it('falls back to email when name and preferredUsername are blank', () => {
+      expect(
+        userService.resolveOidcDisplayName({ ...base, name: ' ', preferredUsername: '' }),
+      ).toBe('fallback@example.com');
+    });
+
+    it('trims surrounding whitespace', () => {
+      expect(userService.resolveOidcDisplayName({ ...base, name: '  Jane Doe  ' })).toBe(
+        'Jane Doe',
+      );
+    });
+
+    it('returns an empty string when every candidate is blank', () => {
+      expect(userService.resolveOidcDisplayName({ ...base, email: '' })).toBe('');
+    });
+
+    it('truncates to 100 code points', () => {
+      const result = userService.resolveOidcDisplayName({ ...base, name: 'a'.repeat(150) });
+      expect(result).toBe('a'.repeat(100));
+    });
+
+    it('does not split a surrogate pair at the 100 code point boundary', () => {
+      const name = 'a'.repeat(99) + '\u{1F600}' + 'b';
+      const result = userService.resolveOidcDisplayName({ ...base, name });
+      expect(Array.from(result)).toHaveLength(100);
+      expect(result.endsWith('\u{1F600}')).toBe(true);
+    });
+  });
+
+  describe('findOrLinkOidcUser() with JIT provisioning', () => {
+    const on = { jitProvisioning: true };
+    const verified = (sub: string, email: string) => ({ sub, email, emailVerified: true });
+
+    async function seedAdmin(email = 'admin@example.com') {
+      return userService.createLocalUser(db, email, 'Admin', 'password123456', 'admin');
+    }
+
+    it('rejects an unmatched email when the flag is off', async () => {
+      await seedAdmin();
+      const before = userService.countUsers(db);
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('s-off', 'new@example.com'), {
+          jitProvisioning: false,
+        }),
+      ).toThrow(OidcNoMatchingAccountError);
+      expect(userService.countUsers(db)).toBe(before);
+    });
+
+    it('rejects an unmatched email when no options are passed (default off)', async () => {
+      await seedAdmin();
+      const before = userService.countUsers(db);
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('s-def', 'new@example.com')),
+      ).toThrow(OidcNoMatchingAccountError);
+      expect(userService.countUsers(db)).toBe(before);
+    });
+
+    it('provisions a member account for an unmatched verified email', async () => {
+      await seedAdmin();
+      const before = userService.countUsers(db);
+
+      const result = userService.findOrLinkOidcUser(
+        db,
+        { ...verified('s-new', 'new@example.com'), name: 'New Person' },
+        on,
+      );
+
+      expect(result.outcome).toBe('provisioned');
+      expect(result.previousSubject).toBeNull();
+      expect(result.user.role).toBe('member');
+      expect(result.user.authProvider).toBe('oidc');
+      expect(result.user.oidcSubject).toBe('s-new');
+      expect(result.user.email).toBe('new@example.com');
+      expect(result.user.displayName).toBe('New Person');
+      expect(result.user.passwordHash).toBeNull();
+      expect(result.user.deactivatedAt).toBeNull();
+      expect(userService.countUsers(db)).toBe(before + 1);
+      expect(userService.findById(db, result.user.id)).toBeDefined();
+    });
+
+    it('resolves a second login for the provisioned subject without creating another row', async () => {
+      await seedAdmin();
+      const first = userService.findOrLinkOidcUser(db, verified('s-two', 'two@example.com'), on);
+      const count = userService.countUsers(db);
+
+      const second = userService.findOrLinkOidcUser(db, verified('s-two', 'two@example.com'), on);
+
+      expect(second.outcome).toBe('matched_subject');
+      expect(second.user.id).toBe(first.user.id);
+      expect(userService.countUsers(db)).toBe(count);
+    });
+
+    it('keeps existing guards in force with the flag on', async () => {
+      await seedAdmin();
+      const linked = await userService.createLocalUser(db, 'l@example.com', 'L', 'password123456');
+      userService.findOrLinkOidcUser(db, verified('s-linked', linked.email), on);
+      const deact = await userService.createLocalUser(
+        db,
+        'Deact@Example.com',
+        'D',
+        'password123456',
+      );
+      userService.deactivateUser(db, deact.id);
+      const active = await userService.createLocalUser(
+        db,
+        'Act@Example.com',
+        'A',
+        'password123456',
+      );
+      const count = userService.countUsers(db);
+
+      expect(
+        userService.findOrLinkOidcUser(db, verified('s-linked', 'whatever@example.com'), on)
+          .outcome,
+      ).toBe('matched_subject');
+      expect(() =>
+        userService.findOrLinkOidcUser(db, { sub: 'e', email: '', emailVerified: true }, on),
+      ).toThrow(OidcMissingEmailError);
+      expect(() =>
+        userService.findOrLinkOidcUser(
+          db,
+          { sub: 'u', email: 'unv@example.com', emailVerified: false },
+          on,
+        ),
+      ).toThrow(OidcEmailUnverifiedError);
+      expect(
+        userService.findOrLinkOidcUser(db, verified('s-d', 'deact@example.com'), on).outcome,
+      ).toBe('deactivated_not_linked');
+      const linkedActive = userService.findOrLinkOidcUser(
+        db,
+        verified('s-a', 'act@example.com'),
+        on,
+      );
+      expect(linkedActive.outcome).toBe('linked');
+      expect(linkedActive.user.id).toBe(active.id);
+      expect(userService.countUsers(db)).toBe(count);
+    });
+
+    it('fails closed on ambiguous case-variant emails without creating a third row', async () => {
+      await userService.createLocalUser(db, 'A@x.com', 'A1', 'password123456');
+      await userService.createLocalUser(db, 'a@X.com', 'A2', 'password123456');
+
+      expect(() => userService.findOrLinkOidcUser(db, verified('s-amb', 'a@x.com'), on)).toThrow(
+        OidcNoMatchingAccountError,
+      );
+      expect(userService.countUsers(db)).toBe(2);
+    });
+
+    it('refuses to provision before initial setup (zero users)', () => {
+      expect(() =>
+        userService.findOrLinkOidcUser(db, verified('s-z', 'z@example.com'), on),
+      ).toThrow(/Initial setup is not complete/);
+      expect(userService.countUsers(db)).toBe(0);
+    });
+  });
+
+  describe('provisionOidcUser()', () => {
+    const identity = { sub: 'race-sub', email: 'new@example.com', emailVerified: true };
+
+    function seedSubjectOwner() {
+      db.insert(users)
+        .values({
+          id: 'owner-id',
+          email: 'owner@example.com',
+          displayName: 'Owner',
+          role: 'member',
+          authProvider: 'oidc',
+          oidcSubject: 'race-sub',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        })
+        .run();
+    }
+
+    it('treats an oidc_subject unique violation as matched_subject', () => {
+      seedSubjectOwner();
+
+      const result = userService.provisionOidcUser(db, identity);
+
+      expect(result.outcome).toBe('matched_subject');
+      expect(result.user.id).toBe('owner-id');
+      expect(result.previousSubject).toBe('race-sub');
+      expect(userService.countUsers(db)).toBe(1);
+    });
+
+    it('commits the surrounding transaction after absorbing the subject collision', () => {
+      seedSubjectOwner();
+
+      const result = db.transaction(() => userService.provisionOidcUser(db, identity));
+
+      expect(result.outcome).toBe('matched_subject');
+      // Connection remains usable and no failed-statement poison remains
+      db.insert(users)
+        .values({
+          id: 'after-id',
+          email: 'after@example.com',
+          displayName: 'After',
+          role: 'member',
+          authProvider: 'local',
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+        })
+        .run();
+      expect(userService.countUsers(db)).toBe(2);
+    });
+
+    it('rethrows other unique violations (duplicate email, different subject)', () => {
+      seedSubjectOwner();
+
+      expect(() =>
+        userService.provisionOidcUser(db, {
+          sub: 'different-sub',
+          email: 'owner@example.com',
+          emailVerified: true,
+        }),
+      ).toThrow(/UNIQUE constraint failed/);
+      expect(userService.countUsers(db)).toBe(1);
+    });
+  });
+
   describe('updateDisplayName()', () => {
     it('updates display name and updatedAt timestamp', async () => {
       // Given: User in database

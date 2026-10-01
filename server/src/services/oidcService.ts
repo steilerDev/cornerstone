@@ -94,7 +94,13 @@ export async function handleCallback(
   config: client.Configuration,
   callbackUrl: URL,
   expectedState: string,
-): Promise<{ sub: string; email: string; emailVerified: boolean }> {
+): Promise<{
+  sub: string;
+  email: string;
+  emailVerified: boolean;
+  name?: string;
+  preferredUsername?: string;
+}> {
   const tokenResponse = await client.authorizationCodeGrant(config, callbackUrl, {
     expectedState,
   });
@@ -109,7 +115,11 @@ export async function handleCallback(
   const email = typeof claims.email === 'string' ? claims.email : '';
   const emailVerified = claims.email_verified === true;
 
-  return { sub, email, emailVerified };
+  const name = typeof claims.name === 'string' ? claims.name : undefined;
+  const preferredUsername =
+    typeof claims.preferred_username === 'string' ? claims.preferred_username : undefined;
+
+  return { sub, email, emailVerified, name, preferredUsername };
 }
 
 /**
