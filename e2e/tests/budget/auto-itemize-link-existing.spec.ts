@@ -77,7 +77,7 @@ async function createCategoryViaApi(page: Page, name: string): Promise<string> {
     data: { name, sortOrder: 999 },
   });
   expect(resp.ok(), `POST category failed: ${resp.status()}`).toBeTruthy();
-  return ((await resp.json()) as { id: string }).id;
+  return ((await resp.json()) as { budgetCategory: { id: string } }).budgetCategory.id;
 }
 
 async function deleteCategoryViaApi(page: Page, id: string): Promise<void> {
