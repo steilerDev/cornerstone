@@ -394,10 +394,7 @@ describe('buildCoverLetterContent — opening salutation (#2159)', () => {
 
   it('does not set keepWithNext or unbreakable on the opening node', () => {
     const result = buildCoverLetterContent(makeContent());
-    const opening = result.find((c) => textOf(c) === 'Dear Sir or Madam,') as Record<
-      string,
-      unknown
-    >;
+    const opening = result.find((c) => textOf(c) === 'Dear Sir or Madam,') as object;
     expect('keepWithNext' in opening).toBe(false);
     expect('unbreakable' in opening).toBe(false);
   });
