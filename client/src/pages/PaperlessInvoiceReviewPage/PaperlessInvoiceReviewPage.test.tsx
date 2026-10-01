@@ -252,62 +252,14 @@ import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 let PaperlessInvoiceReviewPage: (typeof PaperlessInvoiceReviewPageModule)['PaperlessInvoiceReviewPage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
-// ─── globalThis.fetch safety-net stub ────────────────────────────────────────
-// The module mocks above cover every API the page uses. This stub only guarantees that
-// a call that escapes them resolves with benign empty data instead of a real network call.
-
-const FALLBACK_EMPTY_LIST = JSON.stringify({ results: [], count: 0 });
-const FALLBACK_VENDORS = JSON.stringify({
-  vendors: [],
-  pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-});
-const FALLBACK_DOC = JSON.stringify({
-  document: {
-    id: 42,
-    title: 'Stub',
-    content: '',
-    tags: [],
-    created: '2026-01-01',
-    added: '2026-01-01',
-    modified: '2026-01-01',
-    correspondent: null,
-    documentType: null,
-    archiveSerialNumber: null,
-    originalFileName: 'stub.pdf',
-    pageCount: 1,
-  },
-});
-const FALLBACK_PREVIEW = JSON.stringify({ lines: [], suggestedVendorId: null });
-const FALLBACK_CATEGORIES = JSON.stringify([]);
-const FALLBACK_SOURCES = JSON.stringify([]);
-
-function makeFetchStub(overrides: Record<string, string> = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jest.fn().mockImplementation((url: any) => {
-    let body = FALLBACK_EMPTY_LIST;
-    if (url.includes('/api/vendors')) body = overrides['/api/vendors'] ?? FALLBACK_VENDORS;
-    else if (url.includes('/api/invoices/auto-itemize/preview'))
-      body = overrides['preview'] ?? FALLBACK_PREVIEW;
-    else if (url.includes('/api/invoices/auto-itemize/commit')) body = overrides['commit'] ?? '{}';
-    else if (url.includes('/api/paperless/documents/'))
-      body = overrides['document'] ?? FALLBACK_DOC;
-    else if (url.includes('/api/budget-categories'))
-      body = overrides['categories'] ?? FALLBACK_CATEGORIES;
-    else if (url.includes('/api/budget-sources')) body = overrides['sources'] ?? FALLBACK_SOURCES;
-    else if (url.includes('/api/config'))
-      body = JSON.stringify({ currency: 'EUR', paperlessEnabled: true, autoItemizeEnabled: true });
-    else if (url.includes('/api/preferences')) body = JSON.stringify([]);
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(JSON.parse(body)),
-      text: () => Promise.resolve(body),
-      headers: new Headers({ 'content-type': 'application/json' }),
-    } as Response);
-  });
-}
+const originalFetch = globalThis.fetch;
+let mockFetch: jest.Mock<typeof fetch>;
 
 beforeEach(async () => {
+  // Every API the page uses is module-mocked; any real fetch is an unmocked dependency.
+  mockFetch = jest.fn<typeof fetch>(() => Promise.reject(new Error('unmocked fetch')));
+  globalThis.fetch = mockFetch;
+
   ({ PaperlessInvoiceReviewPage } =
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PaperlessInvoiceReviewPageModule);
 
@@ -334,12 +286,12 @@ beforeEach(async () => {
   capturedOnLineCreated = null;
   mockShowCreateBudgetLineForm.mockReset();
   mockShowCreateBudgetLineForm.mockResolvedValue(undefined);
-
-  // Safety-net fetch stub (the module mocks handle all expected calls).
-  globalThis.fetch = makeFetchStub() as unknown as typeof fetch;
 });
 
 afterEach(() => {
+  const fetchCalls = mockFetch.mock.calls.length;
+  globalThis.fetch = originalFetch;
+  expect(fetchCalls).toBe(0);
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
@@ -475,11 +427,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
   describe('loading state', () => {
     it('shows a spinner / analyzing caption on mount before APIs resolve', async () => {
-      // Never resolve — stays in loading state (fetch stub also never resolves)
-
-      globalThis.fetch = jest
-        .fn()
-        .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
+      // Never resolve — stays in loading state
 
       mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
       mockPreviewAutoItemize.mockReturnValue(new Promise(() => {}));
@@ -526,12 +474,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('does not show the Create Invoice button in loading state', async () => {
-      // Override fetch stub to never resolve — keeps the page in loading state.
-
-      globalThis.fetch = jest
-        .fn()
-        .mockReturnValue(new Promise<any>(() => {})) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
       mockPreviewAutoItemize.mockReturnValue(new Promise(() => {}));
       mockFetchVendors.mockReturnValue(new Promise(() => {}));
@@ -539,12 +481,12 @@ describe('PaperlessInvoiceReviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        // We're in loading — spinner or loading text is present
-        // Spinner has role="img" aria-label="Loading" (confidence dots also have role="img" but different aria-label)
+        // We're in loading — the Spinner (role="img" aria-label="Loading"; confidence dots have
+        // a different aria-label) and the "Analyzing" caption are both present
         expect(
-          document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0 ||
-            screen.queryAllByText(/Analyzing/i).length > 0,
-        ).toBe(true);
+          document.querySelectorAll('[role="img"][aria-label="Loading"]').length,
+        ).toBeGreaterThan(0);
+        expect(screen.queryAllByText(/Analyzing/i).length).toBeGreaterThan(0);
       });
 
       // The "Create Invoice & Itemize" button must not be visible yet
@@ -605,39 +547,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('shows SuggestionBadge when suggestedVendorId is pre-filled', async () => {
-      // Override fetch stub to return the suggested vendor in preview response
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({
-          lines: [
-            {
-              description: 'Tile work',
-              totalAmount: 300,
-              confidence: 0.9,
-              budgetCategoryId: 'bc-test',
-              budgetSourceId: null,
-            },
-          ],
-          suggestedVendorId: 'vendor-1',
-        }),
-        '/api/vendors': JSON.stringify({
-          vendors: [
-            {
-              id: 'vendor-1',
-              name: 'Builder Corp',
-              notes: null,
-              phone: null,
-              email: null,
-              address: null,
-              trade: null,
-              createdBy: null,
-              createdAt: '2026-01-01T00:00:00Z',
-              updatedAt: '2026-01-01T00:00:00Z',
-            },
-          ],
-          pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
-        }),
-      }) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(
         makePreviewResponse({ suggestedVendorId: 'vendor-1' }),
@@ -656,7 +565,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('renders the extracted line items list when ready', async () => {
-      // Override fetch stub to return lines in the preview response
       const previewLines = [
         {
           description: 'Tile work',
@@ -673,9 +581,6 @@ describe('PaperlessInvoiceReviewPage', () => {
           budgetSourceId: null,
         },
       ];
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
-      }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(
@@ -696,14 +601,10 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('renders Assign… button for each unassigned line', async () => {
-      // Override fetch stub to return lines so Assign… buttons appear
       const previewLines = [
         { description: 'Line A', totalAmount: 100, confidence: 0.9, budgetCategoryId: 'bc-a' },
         { description: 'Line B', totalAmount: 200, confidence: 0.8, budgetCategoryId: 'bc-b' },
       ];
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
-      }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
@@ -802,7 +703,6 @@ describe('PaperlessInvoiceReviewPage', () => {
         fireEvent.click(createBtn);
       });
 
-      expect(mockCommitAutoItemizeCreate).toHaveBeenCalled();
       expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
       const callArg = mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as Record<
         string,
@@ -814,11 +714,9 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(callArg).toHaveProperty('invoice');
     });
 
-    it('payload maps included lines with assignmentMode=assign-existing when a budget line is pre-assigned', async () => {
-      // This test verifies the payload shape: lines without assignments get
-      // assignmentMode: 'create-new'; lines with assignments get 'assign-existing'.
-      // Since we can't inject assignment state externally (no state setter exposed),
-      // we verify the create-new path (all lines unassigned).
+    it('payload maps an unassigned included line with assignmentMode=create-new', async () => {
+      // Lines without assignments get assignmentMode: 'create-new' (the assign-existing
+      // path is covered in the queueSave suite).
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(
         makePreviewResponse({
@@ -965,10 +863,6 @@ describe('PaperlessInvoiceReviewPage', () => {
         { description: 'Line A', totalAmount: 100, confidence: 0.9, budgetCategoryId: 'bc-a' },
         { description: 'Line B', totalAmount: 200, confidence: 0.8, budgetCategoryId: 'bc-b' },
       ];
-      // Override fetch stub so lines appear
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
-      }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
@@ -996,9 +890,6 @@ describe('PaperlessInvoiceReviewPage', () => {
           budgetCategoryId: 'bc-test',
         },
       ];
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
-      }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
@@ -1043,9 +934,6 @@ describe('PaperlessInvoiceReviewPage', () => {
           budgetCategoryId: 'bc-test',
         },
       ];
-      globalThis.fetch = makeFetchStub({
-        preview: JSON.stringify({ lines: previewLines, suggestedVendorId: null }),
-      }) as unknown as typeof fetch;
 
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ lines: previewLines }));
@@ -1175,8 +1063,8 @@ describe('PaperlessInvoiceReviewPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /Create Budget Line/i }));
       });
 
-      // No crash — the page is still in ready state
-      expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+      // No crash — the normal page (not the error screen) is still rendered
+      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
     });
   });
 
@@ -1184,23 +1072,6 @@ describe('PaperlessInvoiceReviewPage', () => {
 
   describe('error state', () => {
     it('shows error state when previewAutoItemize fails with a generic error', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockImplementation((url: any) => {
-        if (String(url).includes('/api/invoices/auto-itemize/preview')) {
-          return Promise.resolve({
-            ok: false,
-            status: 500,
-            json: () =>
-              Promise.resolve({ error: { code: 'LLM_UNREACHABLE', message: 'LLM unreachable' } }),
-            text: () =>
-              Promise.resolve('{"error":{"code":"LLM_UNREACHABLE","message":"LLM unreachable"}}'),
-            headers: new Headers({ 'content-type': 'application/json' }),
-          } as Response);
-        }
-        // All other endpoints succeed
-        return makeFetchStub()(url);
-      }) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockRejectedValue(new Error('LLM unreachable'));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
@@ -1213,25 +1084,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('shows error state when getPaperlessDocument fails with ApiClientError', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockImplementation((url: any) => {
-        if (
-          String(url).includes('/api/paperless/documents/') ||
-          (url as string).includes('/paperless/')
-        ) {
-          return Promise.resolve({
-            ok: false,
-            status: 404,
-            json: () =>
-              Promise.resolve({ error: { code: 'NOT_FOUND', message: 'Document not found' } }),
-            text: () =>
-              Promise.resolve('{"error":{"code":"NOT_FOUND","message":"Document not found"}}'),
-            headers: new Headers({ 'content-type': 'application/json' }),
-          } as Response);
-        }
-        return makeFetchStub()(url);
-      }) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockRejectedValue(
         new MockApiClientError(404, 'NOT_FOUND', 'Document not found'),
       );
@@ -1246,20 +1098,6 @@ describe('PaperlessInvoiceReviewPage', () => {
     });
 
     it('renders "Back to Invoices" button in error state', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockImplementation((url: any) => {
-        if (String(url).includes('/api/invoices/auto-itemize/preview')) {
-          return Promise.resolve({
-            ok: false,
-            status: 500,
-            json: () => Promise.resolve({ error: { code: 'LLM_ERROR', message: 'LLM error' } }),
-            text: () => Promise.resolve('{"error":{"code":"LLM_ERROR","message":"LLM error"}}'),
-            headers: new Headers({ 'content-type': 'application/json' }),
-          } as Response);
-        }
-        return makeFetchStub()(url);
-      }) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockRejectedValue(new Error('LLM error'));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
@@ -1270,33 +1108,10 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
 
-      const backButton =
-        screen.queryByRole('button', { name: /Back to Invoices/i }) ||
-        screen.queryByRole('button', { name: /backToInvoices/i });
-      expect(backButton).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Back to Invoices' })).toBeInTheDocument();
     });
 
     it('shows translated ApiClientError message in error state', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      globalThis.fetch = jest.fn().mockImplementation((url: any) => {
-        if (String(url).includes('/api/invoices/auto-itemize/preview')) {
-          return Promise.resolve({
-            ok: false,
-            status: 500,
-            json: () =>
-              Promise.resolve({
-                error: { code: 'LLM_NOT_CONFIGURED', message: 'LLM not configured' },
-              }),
-            text: () =>
-              Promise.resolve(
-                '{"error":{"code":"LLM_NOT_CONFIGURED","message":"LLM not configured"}}',
-              ),
-            headers: new Headers({ 'content-type': 'application/json' }),
-          } as Response);
-        }
-        return makeFetchStub()(url);
-      }) as unknown as typeof fetch;
-
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockRejectedValue(
         new MockApiClientError(500, 'LLM_NOT_CONFIGURED', 'LLM not configured'),
@@ -1520,12 +1335,9 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
 
-      // The page should still show the ready state (not the fatal error layout)
-      // Cancel button still present → we're in ready state with an inline banner
-      expect(
-        screen.queryByRole('button', { name: /cancel/i }) !== null ||
-          screen.queryByRole('button', { name: /Back to Invoices/i }) !== null,
-      ).toBe(true);
+      // Still the normal page (inline banner), not the fatal error screen
+      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Back to Invoices/i })).not.toBeInTheDocument();
     });
   });
 
@@ -1605,14 +1417,11 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      // CSS Modules hash class names. The component uses styles.formColumn and styles.previewColumn.
-      // In JSDOM, CSS Modules may produce hashed names (e.g. "formColumn___xyz") or identity names.
-      // Use partial class name match (class*=) via querySelector.
-      const formCol = document.querySelector('[class*="formColumn"]');
+      // Partial class name match (CSS Modules may hash class names).
       const previewCol = document.querySelector('[class*="previewColumn"]');
 
       // formColumn is id="itemize-form"; previewColumn is a sibling div in the pageBody
-      expect(formCol !== null || document.getElementById('itemize-form') !== null).toBe(true);
+      expect(document.getElementById('itemize-form')).not.toBeNull();
       expect(previewCol).not.toBeNull();
     });
   });
@@ -1795,10 +1604,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         fireEvent.click(createBtn);
       });
 
-      expect(
-        document.querySelector('[data-testid="budget-line-form"]') !== null ||
-          screen.queryByTestId('creating-new-badge') !== null,
-      ).toBe(true);
+      expect(screen.getAllByTestId('creating-new-badge').length).toBeGreaterThan(0);
     }
 
     it('commit failure then retry does not re-create the budget line', async () => {

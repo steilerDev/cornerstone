@@ -258,71 +258,16 @@ import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 let PaperlessInvoiceReviewPage: (typeof PaperlessInvoiceReviewPageModule)['PaperlessInvoiceReviewPage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
-// ─── Fetch safety-net stub ─────────────────────────────────────────────────────
-// The module mocks above cover every API the page uses. This stub only guarantees that
-// a call that escapes them resolves with benign empty data instead of a real network call.
-
-const FALLBACK_VENDORS = JSON.stringify({
-  vendors: [],
-  pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-});
-const FALLBACK_DOC = JSON.stringify({
-  document: {
-    id: 42,
-    title: 'Stub',
-    content: '',
-    tags: [],
-    created: '2026-01-01',
-    added: '2026-01-01',
-    modified: '2026-01-01',
-    correspondent: null,
-    documentType: null,
-    archiveSerialNumber: null,
-    originalFileName: 'stub.pdf',
-    pageCount: 1,
-  },
-});
-const FALLBACK_PREVIEW = JSON.stringify({
-  lines: [
-    {
-      description: 'Tile work',
-      totalAmount: 300,
-      confidence: 0.9,
-      budgetCategoryId: 'bc-test',
-      budgetSourceId: null,
-    },
-  ],
-  suggestedVendorId: 'vendor-1',
-});
-
-function makeFetchStub(overrides: Record<string, string> = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jest.fn().mockImplementation((url: any) => {
-    let body = '{}';
-    if (url.includes('/api/vendors')) body = overrides['/api/vendors'] ?? FALLBACK_VENDORS;
-    else if (url.includes('/api/invoices/auto-itemize/preview'))
-      body = overrides['preview'] ?? FALLBACK_PREVIEW;
-    else if (url.includes('/api/invoices/auto-itemize/commit')) body = overrides['commit'] ?? '{}';
-    else if (url.includes('/api/paperless/documents/'))
-      body = overrides['document'] ?? FALLBACK_DOC;
-    else if (url.includes('/api/budget-categories')) body = '[]';
-    else if (url.includes('/api/budget-sources')) body = '[]';
-    else if (url.includes('/api/config'))
-      body = JSON.stringify({ currency: 'EUR', paperlessEnabled: true, autoItemizeEnabled: true });
-    else if (url.includes('/api/preferences')) body = '[]';
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(JSON.parse(body)),
-      text: () => Promise.resolve(body),
-      headers: new Headers({ 'content-type': 'application/json' }),
-    } as Response);
-  });
-}
-
 // ─── Setup / Teardown ─────────────────────────────────────────────────────────
 
+const originalFetch = globalThis.fetch;
+let mockFetch: jest.Mock<typeof fetch>;
+
 beforeEach(async () => {
+  // Every API the page uses is module-mocked; any real fetch is an unmocked dependency.
+  mockFetch = jest.fn<typeof fetch>(() => Promise.reject(new Error('unmocked fetch')));
+  globalThis.fetch = mockFetch;
+
   ({ PaperlessInvoiceReviewPage } =
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PaperlessInvoiceReviewPageModule);
   ({ LocaleProvider } =
@@ -345,11 +290,12 @@ beforeEach(async () => {
     makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
   );
   mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
-
-  globalThis.fetch = makeFetchStub() as unknown as typeof fetch;
 });
 
 afterEach(() => {
+  const fetchCalls = mockFetch.mock.calls.length;
+  globalThis.fetch = originalFetch;
+  expect(fetchCalls).toBe(0);
   jest.useRealTimers();
   jest.restoreAllMocks();
   document.body.innerHTML = '';
@@ -582,14 +528,9 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       // The picker must have been closed via closePicker()
       expect(mockClosePicker).toHaveBeenCalled();
 
-      // The row should now show the inline draft state (Assign button replaced by
-      // "Creating New" badge or inline form)
-      const assignBtnAfter = screen.queryByRole('button', { name: /Assign…/i });
-      const hasInlineDraftState =
-        document.querySelector('[data-testid="creating-new-badge"]') !== null ||
-        document.querySelector('[data-testid="inline-budget-line-form"]') !== null ||
-        assignBtnAfter === null;
-      expect(hasInlineDraftState).toBe(true);
+      // The row shows the "Creating New" badge and its Assign button is gone
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /Assign…/i })).not.toBeInTheDocument();
     });
   });
 
@@ -628,9 +569,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // Wait for inline draft form to appear
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // The AutoItemizeLineList passes onInlineDraftChange to AutoItemizeLineCard.
       // If the inline BudgetLineForm is real (not mocked), find the description textarea
@@ -691,9 +630,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // Verify draft queued
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Update the plannedAmount to 1500 (direct pricing)
       const amountInputs = document.querySelectorAll('[id*="budget-planned-amount"]');
@@ -798,9 +735,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // Verify draft queued
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Click save
       const createBtn = getCreateBtn();
@@ -901,9 +836,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
         fireEvent.click(createLineBtn);
       });
 
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Click save
       const createBtn = getCreateBtn();
@@ -959,9 +892,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
         fireEvent.click(createLineBtn);
       });
 
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Click save
       const createBtn = getCreateBtn();
@@ -1040,9 +971,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
         fireEvent.click(createLineBtn);
       });
 
-      const inlineForm = document.querySelector('[data-testid="inline-budget-line-form"]');
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(inlineForm !== null || creatingBadge !== null).toBe(true);
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Click save
       const createBtn = getCreateBtn();
@@ -1057,10 +986,9 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // The "category required" error must NOT have been shown
-      // (categoryRequiredError text would be in the role="alert" banner)
-      const alertText = screen.queryByRole('alert')?.textContent ?? '';
-      expect(alertText).not.toMatch(/categoryRequired/i);
-      expect(alertText).not.toMatch(/category.*required/i);
+      expect(
+        screen.queryByText('Please select a category for all included line items'),
+      ).not.toBeInTheDocument();
 
       // commitAutoItemizeCreate must have been called (save completed)
       await waitFor(() => {
@@ -1102,8 +1030,7 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // Verify draft is queued (creating-new badge should appear)
-      const creatingBadge = document.querySelector('[data-testid="creating-new-badge"]');
-      expect(creatingBadge).not.toBeNull();
+      expect(screen.getByTestId('creating-new-badge')).toBeInTheDocument();
 
       // Click the Discard button (onClearAssign triggers via AutoItemizeLineCard)
       // The Discard button has aria-label from t('autoItemize.discardInlineDraft') = "Discard"
@@ -1119,12 +1046,10 @@ describe('PaperlessInvoiceReviewPage — queued-on-save flow (Issue #1764)', () 
       });
 
       // The "creating new" draft state must be gone
-      expect(document.querySelector('[data-testid="creating-new-badge"]')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('creating-new-badge')).not.toBeInTheDocument();
 
       // The inline form draft must be gone
-      expect(
-        document.querySelector('[data-testid="inline-budget-line-form"]'),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByTestId('budget-line-form')).not.toBeInTheDocument();
     });
   });
 
