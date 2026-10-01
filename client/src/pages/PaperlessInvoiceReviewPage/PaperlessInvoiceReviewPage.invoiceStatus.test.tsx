@@ -13,8 +13,6 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
-import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
-import type * as HouseholdItemBudgetsApiModule from '../../lib/householdItemBudgetsApi.js';
 import type * as VendorsApiModule from '../../lib/vendorsApi.js';
 import type {
   PaperlessDocumentDetailResponse,
@@ -46,13 +44,11 @@ const mockPreviewAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.previe
 const mockCommitAutoItemizeCreate =
   jest.fn<typeof InvoiceAutoItemizeApiModule.commitAutoItemizeCreate>();
 
-const mockMergeLines = jest.fn<typeof InvoiceAutoItemizeApiModule.mergeLines>();
-
 jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
   autoItemize: jest.fn(),
   previewAutoItemize: mockPreviewAutoItemize,
   commitAutoItemizeCreate: mockCommitAutoItemizeCreate,
-  mergeLines: mockMergeLines,
+  mergeLines: jest.fn(),
 }));
 
 // ─── Mock: vendorsApi ──────────────────────────────────────────────────────────
@@ -69,34 +65,24 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 
 // ─── Mock: workItemBudgetsApi ─────────────────────────────────────────────────
 
-const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiModule.createWorkItemBudget>();
-
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   fetchWorkItemBudgets: jest.fn(),
-  createWorkItemBudget: mockCreateWorkItemBudget,
+  createWorkItemBudget: jest.fn(),
   updateWorkItemBudget: jest.fn(),
   deleteWorkItemBudget: jest.fn(),
 }));
 
 // ─── Mock: householdItemBudgetsApi ────────────────────────────────────────────
 
-const mockCreateHouseholdItemBudget =
-  jest.fn<typeof HouseholdItemBudgetsApiModule.createHouseholdItemBudget>();
-
 jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
   fetchHouseholdItemBudgets: jest.fn(),
-  createHouseholdItemBudget: mockCreateHouseholdItemBudget,
+  createHouseholdItemBudget: jest.fn(),
   updateHouseholdItemBudget: jest.fn(),
   deleteHouseholdItemBudget: jest.fn(),
 }));
 
 // ─── Mock: useBudgetLinePicker ─────────────────────────────────────────────────
-// Exposes mockPickerStateOverride so individual tests can inject picker state
-// (e.g. isOpen=true, step=2, type='work_item') without changing the global default.
-// The capturedClosePicker spy lets tests verify picker.closePicker() was called.
-
-let mockPickerStateOverride: Record<string, unknown> = {};
-const mockClosePicker = jest.fn();
+// Static closed-picker stub; no test here drives the picker.
 
 jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
   useBudgetLinePicker: () => ({
@@ -115,10 +101,9 @@ jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
       showCreateForm: false,
       createError: null,
       createForm: undefined,
-      ...mockPickerStateOverride,
     },
     openPicker: jest.fn(),
-    closePicker: mockClosePicker,
+    closePicker: jest.fn(),
     handleSelectItem: jest.fn(),
     showCreateBudgetLineForm: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     handleCreateBudgetLine: jest.fn(),
@@ -233,69 +218,6 @@ import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 let PaperlessInvoiceReviewPage: (typeof PaperlessInvoiceReviewPageModule)['PaperlessInvoiceReviewPage'];
 let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
-// ─── Fetch fallback stub ───────────────────────────────────────────────────────
-// When jest.unstable_mockModule is NOT intercepted (local Node env), the real apiClient
-// fires real fetch calls. This stub provides benign empty responses. Pattern from
-// PaperlessInvoiceReviewPage.test.tsx.
-
-const FALLBACK_VENDORS = JSON.stringify({
-  vendors: [],
-  pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-});
-const FALLBACK_DOC = JSON.stringify({
-  document: {
-    id: 42,
-    title: 'Stub',
-    content: '',
-    tags: [],
-    created: '2026-01-01',
-    added: '2026-01-01',
-    modified: '2026-01-01',
-    correspondent: null,
-    documentType: null,
-    archiveSerialNumber: null,
-    originalFileName: 'stub.pdf',
-    pageCount: 1,
-  },
-});
-const FALLBACK_PREVIEW = JSON.stringify({
-  lines: [
-    {
-      description: 'Tile work',
-      totalAmount: 300,
-      confidence: 0.9,
-      budgetCategoryId: 'bc-test',
-      budgetSourceId: null,
-    },
-  ],
-  suggestedVendorId: 'vendor-1',
-});
-
-function makeFetchStub(overrides: Record<string, string> = {}) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return jest.fn().mockImplementation((url: any) => {
-    let body = '{}';
-    if (url.includes('/api/vendors')) body = overrides['/api/vendors'] ?? FALLBACK_VENDORS;
-    else if (url.includes('/api/invoices/auto-itemize/preview'))
-      body = overrides['preview'] ?? FALLBACK_PREVIEW;
-    else if (url.includes('/api/invoices/auto-itemize/commit')) body = overrides['commit'] ?? '{}';
-    else if (url.includes('/api/paperless/documents/'))
-      body = overrides['document'] ?? FALLBACK_DOC;
-    else if (url.includes('/api/budget-categories')) body = '[]';
-    else if (url.includes('/api/budget-sources')) body = '[]';
-    else if (url.includes('/api/config'))
-      body = JSON.stringify({ currency: 'EUR', paperlessEnabled: true, autoItemizeEnabled: true });
-    else if (url.includes('/api/preferences')) body = '[]';
-    return Promise.resolve({
-      ok: true,
-      status: 200,
-      json: () => Promise.resolve(JSON.parse(body)),
-      text: () => Promise.resolve(body),
-      headers: new Headers({ 'content-type': 'application/json' }),
-    } as Response);
-  });
-}
-
 // ─── Setup / Teardown ─────────────────────────────────────────────────────────
 
 beforeEach(async () => {
@@ -309,10 +231,6 @@ beforeEach(async () => {
   mockPreviewAutoItemize.mockReset();
   mockCommitAutoItemizeCreate.mockReset();
   mockFetchVendors.mockReset();
-  mockCreateWorkItemBudget.mockReset();
-  mockCreateHouseholdItemBudget.mockReset();
-  mockClosePicker.mockReset();
-  mockPickerStateOverride = {};
 
   // Safe defaults so tests that don't override still reach ready state
   mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
@@ -321,8 +239,6 @@ beforeEach(async () => {
     makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
   );
   mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
-
-  globalThis.fetch = makeFetchStub() as unknown as typeof fetch;
 });
 
 afterEach(() => {
@@ -471,13 +387,9 @@ async function waitForReady() {
   );
 }
 
-/** Click the "Create Invoice & Itemize" (or equivalent) save button. */
-function getCreateBtn() {
-  return (
-    screen.queryByRole('button', { name: /Create Invoice/i }) ||
-    screen.queryByRole('button', { name: /createAndItemize/i }) ||
-    screen.queryByRole('button', { name: /Itemize/i })
-  );
+/** The save button. */
+function getCreateBtn(): HTMLElement {
+  return screen.getByRole('button', { name: 'Create Invoice & Itemize' });
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -494,9 +406,8 @@ async function selectStatus(value: string) {
 
 async function clickCreate() {
   const btn = getCreateBtn();
-  expect(btn).not.toBeNull();
   await act(async () => {
-    fireEvent.click(btn!);
+    fireEvent.click(btn);
   });
 }
 

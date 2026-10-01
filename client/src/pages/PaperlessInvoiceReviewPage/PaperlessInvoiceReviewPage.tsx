@@ -430,7 +430,7 @@ export function PaperlessInvoiceReviewPage() {
 
         <div className={styles.pageBody}>
           {/* Form column */}
-          <div id="itemize-form" className={styles.formColumn} aria-busy={pageStatus === 'saving'}>
+          <div id="itemize-form" className={styles.formColumn} aria-busy={isSaving}>
             <a href="#itemize-form" className={styles.skipLink}>
               {t('autoItemize.skipToForm')}
             </a>
@@ -650,17 +650,15 @@ export function PaperlessInvoiceReviewPage() {
                 type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={() => void handleSave()}
-                disabled={pageStatus === 'saving'}
+                disabled={isSaving}
               >
-                {pageStatus === 'saving'
-                  ? t('autoItemize.saving')
-                  : t('autoItemize.createAndItemize')}
+                {isSaving ? t('autoItemize.saving') : t('autoItemize.createAndItemize')}
               </button>
               <button
                 type="button"
                 className={sharedStyles.btnSecondary}
                 onClick={handleCancel}
-                disabled={pageStatus === 'saving'}
+                disabled={isSaving}
               >
                 {t('autoItemize.cancel')}
               </button>

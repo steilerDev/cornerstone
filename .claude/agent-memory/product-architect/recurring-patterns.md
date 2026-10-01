@@ -1799,3 +1799,11 @@ rows therefore never reaches the epsilon branch.
 The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise on the JS side (a
 subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
 boundary branch executes.
+
+## Split-off test files inherit the sibling suite's dead scaffolding (PR #2156, 2026-10-01)
+
+When a story adds a `Page.<feature>.test.tsx` next to an existing page suite, the author copies the
+whole mock preamble. Grep each named spy/override/fixture for usage count (`grep -c`); declared+reset
+only = dead. The `makeFetchStub` "when unstable_mockModule is NOT intercepted" fallback is the worst
+of it: unreachable in CI, and if reached it masks the mock failure with plausible data. Also flag
+`getByRole` helpers that fall back to the raw i18n key — dead once any assertion relies on resolved text.

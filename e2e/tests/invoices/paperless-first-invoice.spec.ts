@@ -883,7 +883,7 @@ test.describe('Scenario 7b — Invoice status select on review page', () => {
       await expect(reviewPage.statusSelect).toBeVisible();
       await expect(reviewPage.statusSelect).toHaveValue('pending');
 
-      // Keyboard-driven selection (focus, then selectOption)
+      // Focus the select, then set its value directly via selectOption (no key presses)
       await reviewPage.statusSelect.focus();
       await reviewPage.statusSelect.selectOption('paid');
       await expect(reviewPage.statusSelect).toHaveValue('paid');
