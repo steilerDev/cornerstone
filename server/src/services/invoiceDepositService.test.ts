@@ -1946,16 +1946,22 @@ describe('invoiceDepositService', () => {
       expect(updateDeposit(db, invoiceId, d.id, { amount: 399.99 }).amount).toBe(399.99);
     });
 
-    it('scenario 9: float noise at the boundary does not throw (332.85 + 333.04 + 384.11 - 50 = 1000)', () => {
+    it('scenario 9: float noise in the JS-side net subtraction does not throw at the boundary', () => {
       const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 332.85);
-      mk(userId, invoiceId, 'deposit', 333.04);
-      const r = mk(userId, invoiceId, 'refund', 60);
-      mk(userId, invoiceId, 'deposit', 384.11);
+      mk(userId, invoiceId, 'deposit', 1000);
+      mk(userId, invoiceId, 'refund', 0.01);
+      const r = mk(userId, invoiceId, 'refund', 0.1);
+      lowerInvoice(invoiceId, 999.93);
 
-      expect(updateDeposit(db, invoiceId, r.id, { amount: 50 }).amount).toBe(50);
-      // one cent lower is rejected, proving the boundary is exact
-      expect(() => updateDeposit(db, invoiceId, r.id, { amount: 49.99 })).toThrow(
+      // Precondition: the subtraction really is noisy, so a bare `>` would reject it.
+      expect(1000 - 0.01 - 0.06).toBe(999.9300000000001);
+      expect(1000 - 0.01 - 0.06 > 999.93).toBe(true);
+
+      // net = 1000 - 0.01 - 0.06 = 999.93 in cents: exactly at the invoice total, allowed.
+      expect(updateDeposit(db, invoiceId, r.id, { amount: 0.06 }).amount).toBe(0.06);
+
+      // One cent lower puts net at 999.94 (> 999.93) and must be rejected.
+      expect(() => updateDeposit(db, invoiceId, r.id, { amount: 0.05 })).toThrow(
         DepositsExceedInvoiceTotalError,
       );
     });

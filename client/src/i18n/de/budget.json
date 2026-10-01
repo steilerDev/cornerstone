@@ -674,8 +674,8 @@
       },
       "errors": {
         "exceedsTotal": "Die Abschlagszahlungen abzüglich Rückerstattungen würden den Rechnungsgesamtbetrag übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
-        "refundReductionExceedsTotal": "Das Verringern dieser Rückerstattung würde die Abschlagszahlungen abzüglich Rückerstattungen über den Rechnungsgesamtbetrag hinausbringen. Die Rückerstattung muss mindestens {{minimumRefundAmount}} betragen.",
-        "refundDeleteExceedsTotal": "Diese Rückerstattung kann nicht gelöscht werden: die Abschlagszahlungen abzüglich Rückerstattungen würden dann den Rechnungsgesamtbetrag übersteigen. Behalten Sie mindestens {{minimumRefundAmount}} als Rückerstattung, oder verringern Sie zuerst die Abschlagszahlungen.",
+        "refundReductionExceedsTotal": "Das Verringern dieser Rückerstattung würde dazu führen, dass die Abschlagszahlungen abzüglich Rückerstattungen den Rechnungsgesamtbetrag übersteigen. Die Rückerstattung muss mindestens {{minimumRefundAmount}} betragen.",
+        "refundDeleteExceedsTotal": "Diese Rückerstattung kann nicht gelöscht werden: Die Abschlagszahlungen abzüglich Rückerstattungen würden dann den Rechnungsgesamtbetrag übersteigen. Die Rückerstattung muss mindestens {{minimumRefundAmount}} betragen, oder verringern Sie zuerst die Abschlagszahlungen.",
         "refundExceedsTotal": "Rückerstattungsbetrag überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",

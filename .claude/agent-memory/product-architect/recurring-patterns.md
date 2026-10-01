@@ -1788,3 +1788,11 @@ the rule and the lock-name registry (wiki `b9fc2cd`). To audit lock coverage, gr
 state, not only the writers. Most `TEST_ADMIN` hits are email-matched or mocked `createdBy` payloads.
 Also: a CLAUDE.md convention whose scope sentence says "different major" is falsified by its own PR's
 follow-up when the trap is any root-slot version mismatch (#2138 is a minor-version case).
+
+## SQLite `SUM` is compensated: float-noise boundary tests must make the noise in JS (#2127, PR #2150)
+
+SQLite 3.53's `SUM` uses compensated (Kahan-Babuska-Neumaier) summation, so rows such as `0.1 + 0.2`
+summed in SQL come back clean, and a test that seeds noise that way never reaches the epsilon branch.
+The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise on the JS side (a
+subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
+boundary branch executes.
