@@ -175,7 +175,7 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
 
 - **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. For example, if you have allocated 1000 EUR across budget lines and the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Edits that raise the amount (or leave it unchanged) are never blocked.
-- **Net deposit floor** -- The net of deposits minus refunds must not exceed the invoice amount. This is checked when you add or increase a deposit and when you lower the invoice amount. Raising the amount is never blocked.
+- **Net deposit floor** -- The net of deposits minus refunds must not exceed the invoice amount. This is checked when you add or increase a deposit, lower or delete a refund, or lower the invoice amount. Raising the amount is never blocked.
 
 These guards ensure your budget stays mathematically consistent.
 

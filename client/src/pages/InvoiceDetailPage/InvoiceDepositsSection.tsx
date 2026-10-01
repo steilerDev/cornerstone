@@ -213,7 +213,17 @@ export function InvoiceDepositsSection({
       onDepositMutated();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setFormError(translateApiError(err.error.code, tErrors));
+        if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+          const minimumRefundAmount =
+            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
+          setFormError(
+            t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
+              minimumRefundAmount: formatCurrency(minimumRefundAmount),
+            }),
+          );
+        } else {
+          setFormError(translateApiError(err.error.code, tErrors));
+        }
       } else {
         setFormError(t('budget:invoiceDetail.deposits.errors.deleteError'));
       }

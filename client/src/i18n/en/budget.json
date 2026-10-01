@@ -822,6 +822,8 @@
       },
       "errors": {
         "exceedsTotal": "Deposits net of refunds would exceed the invoice total. Available headroom: {{availableHeadroom}}",
+        "refundReductionExceedsTotal": "Lowering this refund would push deposits net of refunds above the invoice total. The refund must be at least {{minimumRefundAmount}}.",
+        "refundDeleteExceedsTotal": "This refund cannot be deleted: deposits net of refunds would then exceed the invoice total. Keep at least {{minimumRefundAmount}} refunded, or lower the deposits first.",
         "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",

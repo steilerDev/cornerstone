@@ -100,6 +100,41 @@ function assertNetDepositsWithinInvoice(
 }
 
 /**
+ * Throw DepositsExceedInvoiceTotalError if lowering (or deleting, newRefundAmount = 0)
+ * the given refund would push deposits net of refunds above the invoice amount (#2127).
+ */
+function assertRefundChangeKeepsNetWithinInvoice(
+  db: Pick<DbType, 'select'>,
+  invoiceId: string,
+  invoiceAmount: number,
+  refundId: string,
+  newRefundAmount: number,
+): void {
+  const { depositTotal: currentDepositSum, refundTotal } = getDepositEntryTotals(
+    db,
+    invoiceId,
+    refundId,
+  );
+  const netDeposits = currentDepositSum - refundTotal - newRefundAmount;
+  if (exceedsAmount(netDeposits, invoiceAmount)) {
+    throw new DepositsExceedInvoiceTotalError(
+      'Lowering or deleting this refund would push deposits net of refunds above the invoice total',
+      {
+        invoiceTotal: invoiceAmount,
+        currentDepositSum,
+        refundTotal,
+        requestedAmount: newRefundAmount,
+        netDeposits: Math.round(netDeposits * 100) / 100,
+        minimumRefundAmount: Math.max(
+          0,
+          Math.round((currentDepositSum - refundTotal - invoiceAmount) * 100) / 100,
+        ),
+      },
+    );
+  }
+}
+
+/**
  * Get today's date in ISO YYYY-MM-DD format (server's local timezone).
  */
 function today(): string {
@@ -360,7 +395,8 @@ export function createDeposit(
 /**
  * Update an invoice deposit.
  * Validates transitions, date constraints, and sum invariant (net-of-refunds for deposits,
- * gross for refunds). The sum check runs only when the entry amount increases.
+ * gross for refunds). Amount increases are checked per type; refund decreases are checked
+ * against the net rule (#2127); deposit decreases are never checked.
  * Applies date side-effects per AC-14.
  * @throws NotFoundError if invoice or deposit not found
  * @throws ValidationError if any field is invalid
@@ -497,34 +533,48 @@ export function updateDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Sum check only when the entry amount increases (#2109)
-    if (data.amount !== undefined && toCents(data.amount) > toCents(existing.amount)) {
-      if ((existing.entryType as InvoiceDepositEntryType) === 'refund') {
-        const otherSum = tx
-          .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
-          .from(invoiceDeposits)
-          .where(
-            and(
-              eq(invoiceDeposits.invoiceId, invoiceId),
-              eq(invoiceDeposits.entryType, 'refund'),
-              sql`${invoiceDeposits.id} != ${depositId}`,
-            ),
-          )
-          .get();
-        const otherTotal = otherSum?.sum ?? 0;
-        if (exceedsAmount(otherTotal + data.amount, invoice.amount)) {
-          throw new RefundExceedsInvoiceError(
-            'Sum of refund amounts would exceed the invoice total',
-            {
-              invoiceTotal: invoice.amount,
-              currentRefundSum: otherTotal,
-              requestedAmount: data.amount,
-              availableHeadroom: Math.max(0, invoice.amount - otherTotal),
-            },
-          );
+    // Increases are checked per type (#2109); refund decreases against the net rule (#2127);
+    // deposit decreases are never checked.
+    if (data.amount !== undefined) {
+      const newCents = toCents(data.amount);
+      const oldCents = toCents(existing.amount);
+      const isRefund = (existing.entryType as InvoiceDepositEntryType) === 'refund';
+      if (newCents > oldCents) {
+        if (isRefund) {
+          const otherSum = tx
+            .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
+            .from(invoiceDeposits)
+            .where(
+              and(
+                eq(invoiceDeposits.invoiceId, invoiceId),
+                eq(invoiceDeposits.entryType, 'refund'),
+                sql`${invoiceDeposits.id} != ${depositId}`,
+              ),
+            )
+            .get();
+          const otherTotal = otherSum?.sum ?? 0;
+          if (exceedsAmount(otherTotal + data.amount, invoice.amount)) {
+            throw new RefundExceedsInvoiceError(
+              'Sum of refund amounts would exceed the invoice total',
+              {
+                invoiceTotal: invoice.amount,
+                currentRefundSum: otherTotal,
+                requestedAmount: data.amount,
+                availableHeadroom: Math.max(0, invoice.amount - otherTotal),
+              },
+            );
+          }
+        } else {
+          assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount, depositId);
         }
-      } else {
-        assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount, depositId);
+      } else if (isRefund && newCents < oldCents) {
+        assertRefundChangeKeepsNetWithinInvoice(
+          tx,
+          invoiceId,
+          invoice.amount,
+          depositId,
+          data.amount,
+        );
       }
     }
 
@@ -554,12 +604,25 @@ export function updateDeposit(
 }
 
 /**
- * Delete an invoice deposit.
+ * Delete an invoice deposit. Deleting a refund must not push deposits net of refunds
+ * above the invoice total (#2127).
  * @throws NotFoundError if invoice or deposit not found
+ * @throws DepositsExceedInvoiceTotalError if deleting a refund would push net deposits above the invoice total
  */
 export function deleteDeposit(db: DbType, invoiceId: string, depositId: string): void {
   // Verify ownership
-  assertDepositBelongsToInvoice(db, invoiceId, depositId);
+  const existing = assertDepositBelongsToInvoice(db, invoiceId, depositId);
 
-  db.delete(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).run();
+  db.transaction((tx) => {
+    if ((existing.entryType as InvoiceDepositEntryType) === 'refund') {
+      const invoice = tx
+        .select({ amount: invoices.amount })
+        .from(invoices)
+        .where(eq(invoices.id, invoiceId))
+        .get();
+      if (!invoice) throw new NotFoundError('Invoice not found');
+      assertRefundChangeKeepsNetWithinInvoice(tx, invoiceId, invoice.amount, depositId, 0);
+    }
+    tx.delete(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).run();
+  });
 }
