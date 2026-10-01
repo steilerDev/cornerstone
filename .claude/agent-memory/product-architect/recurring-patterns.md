@@ -1809,3 +1809,7 @@ it is never persisted. "Retry idempotency" is no justification here: a failed sa
 no junction behind. When a write guard is described as "idempotent", ask which caller actually produces a
 second write. If the only caller is the user, the dedup is data loss. Separate same-call dedup from
 cross-call dedup; the cross-call case is a product decision (add or reject).
+Round 2: once the fix sums into an existing junction, check every caller **mode** before accepting it.
+`mode: 'replace'` deletes only `origin='auto'` lines, so junctions to manual lines survive it. Summing then
+double-counts a line that is re-linked under replace. The rule is "add" in append mode and "reset, then
+add" in replace mode. An accumulate rule is only correct relative to what the previous step cleared.

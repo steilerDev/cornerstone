@@ -255,7 +255,15 @@ export async function autoItemize(
       }
 
       // 4b-4d. Persist lines (includes validation)
-      persistLines(db, invoiceId, invoice.vendorId, userId, validatedLines, effectiveInvoiceAmount);
+      persistLines(
+        db,
+        invoiceId,
+        invoice.vendorId,
+        userId,
+        validatedLines,
+        effectiveInvoiceAmount,
+        body.mode === 'replace',
+      );
 
       // 4e. Return the full invoice budget lines list
       return invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
@@ -280,6 +288,8 @@ export async function autoItemize(
  * @param userId - User ID for createdBy field
  * @param lines - Extracted lines to persist
  * @param effectiveInvoiceAmount - Invoice amount for validation (may differ from original if patched)
+ * @param resetPreexistingJunctions - true for 'replace' mode: the first row targeting a junction that
+ *   existed before this call overwrites its amount; false (append): amounts accumulate onto it
  * @returns Object with totalItemized amount for remaining calculation
  * @throws ItemizedSumExceedsInvoiceError if sum of itemized amounts exceeds invoice total
  * @throws NotFoundError if budget line IDs are invalid
@@ -292,8 +302,11 @@ export function persistLines(
   userId: string,
   lines: ExtractedLine[],
   effectiveInvoiceAmount: number,
+  resetPreexistingJunctions = false,
 ): { totalItemized: number } {
   const now = new Date().toISOString();
+  // Junction rows already written (or reset) during this call; later rows accumulate onto them
+  const touchedJunctionIds = new Set<string>();
 
   // Get the discretionary budget source
   const discretionarySource = db
@@ -374,12 +387,17 @@ export function persistLines(
       if (existingJunction) {
         db.update(invoiceBudgetLines)
           .set({
-            itemizedAmount: existingJunction.itemizedAmount + lineItemizedAmount,
+            itemizedAmount:
+              resetPreexistingJunctions && !touchedJunctionIds.has(existingJunction.id)
+                ? lineItemizedAmount
+                : existingJunction.itemizedAmount + lineItemizedAmount,
             updatedAt: now,
           })
           .where(eq(invoiceBudgetLines.id, existingJunction.id))
           .run();
+        touchedJunctionIds.add(existingJunction.id);
       } else {
+        touchedJunctionIds.add(invoiceBudgetLineId);
         const workItemBudgetId =
           extractedLine.assignedBudgetLineType === 'work_item'
             ? extractedLine.assignedBudgetLineId

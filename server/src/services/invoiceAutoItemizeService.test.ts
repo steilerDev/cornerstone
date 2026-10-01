@@ -2301,6 +2301,108 @@ describe('invoiceAutoItemizeService', () => {
       });
     });
 
+    describe.each<LinkTarget>(['work_item', 'household_item'])(
+      'replace-mode reset of pre-existing junctions: %s',
+      (type) => {
+        function preLink(invoiceId: string, lineId: string, amount: number) {
+          const t = '2026-01-01T00:00:00.000Z';
+          db.insert(schema.invoiceBudgetLines)
+            .values({
+              id: uid('ibl'),
+              invoiceId,
+              workItemBudgetId: type === 'work_item' ? lineId : null,
+              householdItemBudgetId: type === 'household_item' ? lineId : null,
+              itemizedAmount: amount,
+              createdAt: t,
+              updatedAt: t,
+            })
+            .run();
+        }
+
+        function rows(lineId: string, amounts: number[]): ExtractedLine[] {
+          return amounts.map((a) => ({
+            description: 'x',
+            totalAmount: a,
+            includesVat: true,
+            confidence: 0.9,
+            assignmentMode: 'assign-existing' as const,
+            assignedBudgetLineId: lineId,
+            assignedBudgetLineType: type,
+          }));
+        }
+
+        function persist(
+          invoiceId: string,
+          vendorId: string,
+          lines: ExtractedLine[],
+          reset: boolean,
+          invoiceAmount = 5000,
+        ) {
+          db.transaction(() =>
+            persistLines(db, invoiceId, vendorId, 'user-1', lines, invoiceAmount, reset),
+          );
+        }
+
+        it('(a) reset: re-linking a line previously linked at 1000 with one row of 1000 stays 1000', () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          preLink(invoiceId, lineId, 1000);
+
+          persist(invoiceId, vendorId, rows(lineId, [1000]), true);
+
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]!.itemizedAmount).toBe(1000);
+          expect(junctions[0]!.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('(b) reset: two rows 300+200 on a pre-existing junction give 500', () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          preLink(invoiceId, lineId, 1000);
+
+          persist(invoiceId, vendorId, rows(lineId, [300, 200]), true);
+
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]!.itemizedAmount).toBe(500);
+        });
+
+        it('(c) append: re-linking still adds (1000 + 300 = 1300)', () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          preLink(invoiceId, lineId, 1000);
+
+          persist(invoiceId, vendorId, rows(lineId, [300]), false);
+
+          expect(junctionsFor(db, type, lineId)[0]!.itemizedAmount).toBe(1300);
+        });
+
+        it('(d) autoItemize mode=replace resets, mode=append adds (flag wiring)', async () => {
+          const { invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          preLink(invoiceId, lineId, 1000);
+          const send = (mode: 'append' | 'replace', amounts: number[]) =>
+            autoItemize(
+              db,
+              makeConfig(),
+              invoiceId,
+              'user-1',
+              { paperlessDocumentId: 42, mode, dryRun: false, lines: rows(lineId, amounts) },
+              PAPERLESS_AUTH,
+            );
+
+          await send('replace', [1000]);
+          expect(junctionsFor(db, type, lineId)[0]!.itemizedAmount).toBe(1000);
+
+          await send('append', [300]);
+          expect(junctionsFor(db, type, lineId)[0]!.itemizedAmount).toBe(1300);
+        });
+      },
+    );
+
     describe('stored-total sum check (ITEMIZED_SUM_EXCEEDS_INVOICE)', () => {
       it('append: a second save pushing the stored total over the invoice amount throws and rolls back', async () => {
         const vendorId = insertVendor(db);
