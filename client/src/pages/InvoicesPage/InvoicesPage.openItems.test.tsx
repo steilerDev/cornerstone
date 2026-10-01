@@ -590,7 +590,7 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       expect(desktopContainer[0]).not.toBe(mobileContainer[0]);
     });
 
-    it('the status badge (unconditional renderCard override) renders exactly one desktop-testid and one distinct mobile-testid element', async () => {
+    it('the status badge (single surface-aware render) renders exactly one desktop-testid and one distinct mobile-testid element', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA]));
       renderPageAt('/budget/invoices?openOnly=true');
       await waitFor(() => expect(screen.getByTestId('invoice-status-inv-a')).toBeInTheDocument());

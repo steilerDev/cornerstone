@@ -257,8 +257,8 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
-      // DataTable renders renderActions in both table and mobile card, so two elements
-      // with the same testid exist — use getAllByTestId
+      // DataTable renders renderActions in both table and mobile card; the testids are disjoint
+      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
       await waitFor(() => {
         expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });

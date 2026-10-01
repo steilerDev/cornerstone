@@ -294,7 +294,8 @@ describe('HouseholdItemsPage', () => {
 
       renderPage();
 
-      // DataTable renders actions in both table rows and mobile cards — use getAllByTestId.
+      // DataTable renders actions in both table rows and mobile cards; the testids are disjoint
+      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
       await waitFor(() => {
         expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });

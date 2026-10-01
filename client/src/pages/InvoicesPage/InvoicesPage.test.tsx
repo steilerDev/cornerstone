@@ -664,7 +664,8 @@ describe('InvoicesPage', () => {
 
       renderPage();
 
-      // DataTable renders renderActions in both table and mobile card — use getAllByTestId
+      // DataTable renders renderActions in both table and mobile card; the ids are disjoint
+      // (`invoice-menu-button-<id>` vs `invoice-menu-button-mobile-<id>`), so getByTestId is safe.
       await waitFor(() => {
         expect(screen.getByTestId('invoice-menu-button-inv-001')).toBeInTheDocument();
       });

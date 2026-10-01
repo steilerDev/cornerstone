@@ -139,7 +139,7 @@ describe('useInfiniteScrollAnnouncements', () => {
     expect(node.textContent).toBe('initial:1');
   });
 
-  it('does not re-announce when only the label/isCounted lambdas change for the same fetch', () => {
+  it('fetchSequence dedup: does not re-announce when only the label/isCounted lambdas change for the same fetch', () => {
     const { node, update } = setup();
     update({ fetchSequence: 1, items: items(1, 2) });
     node.textContent = 'sentinel';
@@ -151,12 +151,21 @@ describe('useInfiniteScrollAnnouncements', () => {
     expect(node.textContent).toBe('sentinel');
   });
 
-  it('does not re-announce when isCounted toggles without a new fetch', () => {
+  it('fetchSequence dedup: does not re-announce when isCounted toggles without a new fetch', () => {
     const { node, update } = setup({ isCounted: () => true });
     update({ fetchSequence: 1, items: items(1, 2) });
     expect(node.textContent).toBe('initial:2');
     node.textContent = 'sentinel';
     update({ isCounted: () => false });
+    expect(node.textContent).toBe('sentinel');
+  });
+
+  it('a lambda-only rerender while loading does not rewrite the region (latest-value refs, not deps)', () => {
+    const { node, update } = setup();
+    update({ fetchSequence: 1, items: items(1) });
+    update({ status: 'loading' });
+    node.textContent = 'sentinel';
+    update({ labels: { ...LABELS, loading: () => 'loading-2' } });
     expect(node.textContent).toBe('sentinel');
   });
 

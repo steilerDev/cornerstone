@@ -500,19 +500,21 @@ describe('EditableField — AC3: counter class reflects over/at-limit state (cla
     expect(container.querySelector(`.${styles.counterOverLimit}`)).not.toBeInTheDocument();
   });
 
-  it('applies .counterOverLimit (not .counter) once value.length exceeds maxLength', () => {
+  it('applies .counterOverLimit once value.length exceeds lengthLimit.max', () => {
     const { container } = render(
       <EditableField as="input" {...maxLengthProps()} value={'a'.repeat(201)} />,
     );
     expect(container.querySelector(`.${styles.counterOverLimit}`)).toBeInTheDocument();
-    expect(container.querySelector(`.${styles.counter}`)).not.toBeInTheDocument();
+    // No negative `.counter` assertion: in production `.counterOverLimit` uses `composes: counter`,
+    // so the over-limit span also carries the `.counter` class. identity-obj-proxy cannot see
+    // `composes`, so "absent" would only pass under jest and be false in the real build.
   });
 });
 
 describe('EditableField — AC4: over-limit baseline on load (a derived/baseline value already over the limit, not a "saved override" — an override cannot survive a reload)', () => {
   const overLimitValue = 'a'.repeat(250); // maxLength(200) + 50
 
-  it('renders the full untruncated value, applies .counterOverLimit, sets no aria-invalid anywhere, and shows overMaxLengthHint in the limitHintId span when provided', () => {
+  it('renders the full untruncated value, applies .counterOverLimit, sets no aria-invalid anywhere, and shows lengthLimit.overHint in the limitHintId span when provided', () => {
     const { container } = render(
       <EditableField as="input" {...maxLengthProps()} value={overLimitValue} isEdited={false} />,
     );
@@ -535,7 +537,7 @@ describe('EditableField — AC4: over-limit baseline on load (a derived/baseline
     );
   });
 
-  it('falls back to maxLengthHint in the limitHintId span when overMaxLengthHint is omitted while over limit', () => {
+  it('falls back to lengthLimit.hint in the limitHintId span when lengthLimit.overHint is omitted while over limit', () => {
     const { container } = render(
       <EditableField
         as="input"
