@@ -367,7 +367,9 @@ describe('DiaryFilterBar', () => {
 
   it('shows the English filters toggle text', () => {
     renderFilterBar();
-    expect(screen.getByRole('button', { name: /toggle filters/i })).toHaveTextContent('Filters');
+    expect(screen.getByRole('button', { name: 'Toggle filters' })).toHaveTextContent(
+      /^🔍 Filters\s*$/,
+    );
   });
 
   it('shows German chip labels and toggle text when the language is German', async () => {
@@ -381,8 +383,8 @@ describe('DiaryFilterBar', () => {
         /^Arbeitspaket$/,
       );
       expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Rechnung$/);
-      expect(screen.getByTestId('diary-filter-bar').querySelector('button')).toHaveTextContent(
-        'Filter',
+      expect(screen.getByRole('button', { name: 'Filter ein-/ausblenden' })).toHaveTextContent(
+        /^🔍 Filter\s*$/,
       );
     } finally {
       await act(async () => {
