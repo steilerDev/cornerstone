@@ -188,7 +188,7 @@ test.describe(
         const invoiceNumber = `${testPrefix}-VCHG-001`;
         const visibleInvoiceLink = page
           .locator('[class*="invoiceLink"]', { hasText: invoiceNumber })
-          .filter({ visible: true });
+          .visible();
         await expect(visibleInvoiceLink).toHaveCount(0);
 
         // It DOES appear when filtered to the new vendor — exactly 1 visible link.

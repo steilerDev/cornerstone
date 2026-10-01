@@ -427,9 +427,10 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
       // DataTable renders both the table AND the mobile cards simultaneously and uses
       // CSS media queries to toggle visibility, so we must pick the visible one.
       const invoiceLink = page
-        .locator('[class*="invoiceLink"]:visible', {
+        .locator('[class*="invoiceLink"]', {
           hasText: `${testPrefix}-ROW-001`,
         })
+        .visible()
         .first();
       await invoiceLink.click();
 

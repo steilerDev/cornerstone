@@ -6,7 +6,8 @@ import { test, expect } from '../../fixtures/auth.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
-test.describe('User List Display', () => {
+// Asserts TEST_ADMIN.displayName, which update-display-name and edit-user mutate — share their lock.
+test.describe('User List Display', { lock: 'admin-account' }, () => {
   test('Admin sees user list table', { tag: '@smoke' }, async ({ page }) => {
     const userManagementPage = new UserManagementPage(page);
 

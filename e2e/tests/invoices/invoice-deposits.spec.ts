@@ -207,7 +207,7 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
         // toBeVisible() fails on mobile viewports.
         const depositRows = detailPage.depositsSection
           .locator('[class*="tableRow"], [class*="mobileCard"]')
-          .filter({ visible: true });
+          .visible();
         await expect(depositRows.first()).toBeVisible();
 
         // Final Payment row is now visible: invoice total (1000) − deposit (300) = 700
@@ -1045,7 +1045,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
 
       // Count of visible refund rows/cards before the failed attempt — used below to
       // confirm no second row was created.
-      const refundBadgeCountBefore = await detailPage.refundBadge.filter({ visible: true }).count();
+      const refundBadgeCountBefore = await detailPage.refundBadge.visible().count();
 
       // Try to add a second refund of 50 (exceeds remaining 30 headroom)
       await detailPage.openAddDepositModal();
@@ -1076,7 +1076,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
       await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
 
       // No second refund row was created — count is unchanged from before the attempt
-      const refundBadgeCountAfter = await detailPage.refundBadge.filter({ visible: true }).count();
+      const refundBadgeCountAfter = await detailPage.refundBadge.visible().count();
       expect(refundBadgeCountAfter).toBe(refundBadgeCountBefore);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);

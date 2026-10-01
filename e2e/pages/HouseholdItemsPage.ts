@@ -225,14 +225,16 @@ export class HouseholdItemsPage {
     // Both table and card layouts render an actions button with the same aria-label.
     // On mobile the table is display:none, so we must target the visible one.
     const actionsBtn = this.page
-      .locator(`[aria-label^="Actions for"][aria-label*="${name}"]:visible`)
+      .locator(`[aria-label^="Actions for"][aria-label*="${name}"]`)
+      .visible()
       .first();
     await actionsBtn.click();
     // The dropdown renders <button> elements (not role="menuitem"). The delete button
     // has class menuItemDanger and text "Delete". Use data-testid pattern: hi-delete-{id}
     // falls back to searching for a visible button named "Delete" near the open menu.
     const deleteBtn = this.page
-      .locator('[class*="menuItemDanger"]:visible')
+      .locator('[class*="menuItemDanger"]')
+      .visible()
       .filter({ hasText: 'Delete' })
       .first();
     await deleteBtn.click();
