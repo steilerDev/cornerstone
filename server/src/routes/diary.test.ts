@@ -938,6 +938,9 @@ describe('Diary Routes', () => {
       ],
       ['301-char signerName', { signerName: 'a'.repeat(301) }],
       ['bad signedAt', { signedAt: 'nope' }],
+      ['signedAt with trailing junk', { signedAt: '2026-01-01T10:00:00.000Zjunk' }],
+      ['date-only signedAt', { signedAt: '2026-01-01' }],
+      ['65-char signedAt', { signedAt: '2026-01-01T10:00:00.000Z'.padEnd(65, '0') }],
     ];
 
     describe.each(types)('%s', (entryType, extra) => {
@@ -959,6 +962,30 @@ describe('Diary Routes', () => {
         });
         expect(response.statusCode).toBe(400);
         expect(response.json<ApiErrorResponse>().error.code).toBe('INVALID_METADATA');
+      });
+
+      it('accepts an offset signedAt and stores the signerName trimmed', async () => {
+        const { cookie } = await createUserWithSession(
+          `t-${entryType}-${Math.random()}@test.com`,
+          'Trim',
+          'password',
+        );
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/diary-entries',
+          headers: { cookie },
+          payload: {
+            entryType,
+            status: 'draft',
+            metadata: {
+              ...extra,
+              signatures: [{ ...sig, signerName: '  Alice  ', signedAt: '2026-01-01T10:00+02:00' }],
+            },
+          },
+        });
+        expect(response.statusCode).toBe(201);
+        const m = response.json<{ entry?: unknown }>();
+        expect(JSON.stringify(m)).toContain('"signerName":"Alice"');
       });
 
       it('rejects 11 signatures and accepts 10', async () => {

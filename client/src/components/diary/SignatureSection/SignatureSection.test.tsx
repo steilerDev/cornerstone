@@ -104,6 +104,24 @@ describe('SignatureSection', () => {
       expect(onAddSignature).toHaveBeenCalledTimes(disabled ? 0 : 1);
     });
 
+    it('shows the limit hint and points the disabled Add button at it when the cap is reached', () => {
+      const signatures = Array.from({ length: 10 }, (_, i) => makeSig({ signerName: `S${i}` }));
+      render(<SignatureSection {...makeProps({ signatures })} />);
+      const hint = screen.getByText('You can add up to 10 signatures.');
+      expect(hint.id).toBeTruthy();
+      const btn = screen.getByRole('button', { name: /add signature/i });
+      expect(btn).toBeDisabled();
+      expect(btn.getAttribute('aria-describedby')).toBe(hint.id);
+    });
+
+    it('shows no limit hint and no aria-describedby below the cap', () => {
+      const signatures = Array.from({ length: 9 }, (_, i) => makeSig({ signerName: `S${i}` }));
+      render(<SignatureSection {...makeProps({ signatures })} />);
+      expect(screen.queryByText(/you can add up to/i)).toBeNull();
+      const btn = screen.getByRole('button', { name: /add signature/i });
+      expect(btn.hasAttribute('aria-describedby')).toBe(false);
+    });
+
     it('button is enabled when disabled prop is false (default)', () => {
       render(<SignatureSection {...makeProps({ disabled: false })} />);
       const btn = screen.getByRole('button', { name: /add signature/i }) as HTMLButtonElement;

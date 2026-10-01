@@ -1795,6 +1795,89 @@ describe('diaryService', () => {
         reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
       );
 
+      it.each([
+        ['trailing junk after a valid ISO', '2026-01-01T10:00:00.000Zjunk'],
+        ['a date-only value', '2026-01-01'],
+        ['a 65-character string', '2026-01-01T10:00:00.000Z' + ' '.repeat(41)],
+        ['a missing timezone', '2026-01-01T10:00:00'],
+      ])('rejects signedAt with %s', (_l, bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it('rejects a 65-character signedAt even when the prefix is a valid ISO', () => {
+        const bad = '2026-01-01T10:00:00.000Z'.padEnd(65, '0');
+        expect(bad).toHaveLength(65);
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`);
+      });
+
+      it.each([
+        ['an offset timestamp', '2026-01-01T10:00:00.000+02:00'],
+        ['a no-seconds UTC timestamp', '2026-01-01T10:00Z'],
+        ['a no-seconds offset timestamp', '2026-01-01T10:00-05:30'],
+        ['a seconds-only timestamp', '2026-01-01T10:00:00Z'],
+      ])('accepts signedAt with %s', (_l, ok) => {
+        expect(create(entryType, extra, [{ ...base, signedAt: ok }]).isSigned).toBe(true);
+      });
+
+      it('stores the signerName trimmed on create', () => {
+        const entry = create(entryType, extra, [{ ...base, signerName: '  Alice  ' }]);
+        const m = getDiaryEntry(db, entry.id).metadata as {
+          signatures: Array<{ signerName: string }>;
+        };
+        expect(m.signatures[0].signerName).toBe('Alice');
+      });
+
+      it('stores the signerName trimmed on update', () => {
+        const entryId = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify({ ...extra, signatures: [base] }),
+        });
+        const updated = updateDiaryEntry(db, entryId, {
+          metadata: { ...extra, signatures: [{ ...base, signerName: '\t Bob \n' }] } as never,
+        });
+        expect(
+          (updated.metadata as { signatures: Array<{ signerName: string }> }).signatures[0]
+            .signerName,
+        ).toBe('Bob');
+        const m = getDiaryEntry(db, entryId).metadata as {
+          signatures: Array<{ signerName: string }>;
+        };
+        expect(m.signatures[0].signerName).toBe('Bob');
+      });
+
+      const promoteExtra =
+        entryType === 'site_visit' ? { inspectorName: 'Insp', outcome: 'pass' } : extra;
+
+      it('stores the signerName trimmed on promote (override metadata)', () => {
+        const id = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify(promoteExtra),
+        });
+        promoteDiaryEntry(db, id, {
+          metadata: { ...promoteExtra, signatures: [{ ...base, signerName: ' Carol ' }] } as never,
+        });
+        const m = getDiaryEntry(db, id).metadata as { signatures: Array<{ signerName: string }> };
+        expect(m.signatures[0].signerName).toBe('Carol');
+      });
+
+      it('rejects an invalid signedAt on promote', () => {
+        const id = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify(promoteExtra),
+        });
+        expect(() =>
+          promoteDiaryEntry(db, id, {
+            metadata: {
+              ...promoteExtra,
+              signatures: [{ ...base, signedAt: '2026-01-01' }],
+            } as never,
+          }),
+        ).toThrow(`${entryType} signature entry signedAt must be a valid date`);
+      });
+
       it('accepts a signature without signedAt', () => {
         const { signedAt: _omit, ...noDate } = base;
         expect(create(entryType, extra, [noDate]).isSigned).toBe(true);
