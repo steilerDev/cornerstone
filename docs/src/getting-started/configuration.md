@@ -46,14 +46,14 @@ The login endpoint (`POST /api/auth/login`) is rate-limited per client to slow d
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AUTH_RATE_LIMIT_MAX` | `20` | Maximum login requests allowed per client within the window (positive integer) |
-| `AUTH_RATE_LIMIT_WINDOW` | `15 minutes` | Length of the rate-limit window: a number (decimals allowed, e.g. `1.5`) followed by an optional space and a unit -- `ms`, `s`/`sec`/`secs`/`second`/`seconds`, `m`/`min`/`mins`/`minute`/`minutes`, `h`/`hr`/`hrs`/`hour`/`hours`, `d`/`day`/`days`, or `w`/`week`/`weeks` (e.g. `15 minutes`, `1h`, `30s`, `1.5h`). A bare number with no unit (e.g. `900000`) is rejected, and forms some duration parsers accept -- like `1y` or `1 msec` -- are not. |
+| `AUTH_RATE_LIMIT_WINDOW` | `15 minutes` | Length of the rate-limit window: a number (decimals allowed, e.g. `1.5`) followed by optional spaces and a unit (case-insensitive) -- `ms`, `s`/`sec`/`secs`/`second`/`seconds`, `m`/`min`/`mins`/`minute`/`minutes`, `h`/`hr`/`hrs`/`hour`/`hours`, `d`/`day`/`days`, or `w`/`week`/`weeks` (e.g. `15 minutes`, `1h`, `30s`, `1.5h`, `1H`, `15 Minutes`). A bare number with no unit (e.g. `900000`) is rejected, and forms some duration parsers accept -- like `1y` or `1 msec` -- are not. |
 
 :::caution
 **Malformed values fail at startup.** The server validates these variables strictly before starting: any value that cannot be parsed fails immediately with a configuration error rather than silently using a truncated or default value.
 
 For `AUTH_RATE_LIMIT_MAX`, malformed means anything other than an optional minus sign followed by digits -- no trailing characters, decimals, exponent notation, or surrounding whitespace. These are rejected: `20abc` (trailing characters), `20.9` (decimal), `2e3` (exponent), `' 20'` (whitespace). Additionally, `AUTH_RATE_LIMIT_MAX` must be positive (greater than zero) -- a valid integer like `0` or `-5` parses but fails its range check.
 
-For `AUTH_RATE_LIMIT_WINDOW`, malformed means it doesn't match the format shown above (a number, optional space, and a unit). A bare number like `900000` is rejected; so are unsupported units like `1y` or `1 msec`.
+For `AUTH_RATE_LIMIT_WINDOW`, malformed means it doesn't match the format shown above (a number, optional spaces, and a unit). A bare number like `900000` is rejected; so are unsupported units like `1y` or `1 msec`. Units are case-insensitive (e.g. `1H`, `15 Minutes` are valid). The duration must also be greater than zero -- a value like `0s` or `0 minutes` matches the format but fails at startup.
 :::
 
 ### Which direction to tune
