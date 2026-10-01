@@ -426,7 +426,7 @@ export function ReportWizardPage() {
       .filter(
         (inv) =>
           !excludedInvoiceIds.has(inv.invoiceId) &&
-          !inv.budgetLines.some((line) => excludedLineIds.has(line.id)),
+          !inv.budgetLinesForSource.some((line) => excludedLineIds.has(line.id)),
       )
       .map((inv) => inv.invoiceId);
 
@@ -434,7 +434,7 @@ export function ReportWizardPage() {
     // (intentionally includes deposits of invoices omitted from invoiceIds)
     const depositIds = report.invoices
       .filter((inv) => !excludedInvoiceIds.has(inv.invoiceId))
-      .flatMap((inv) => inv.deposits ?? [])
+      .flatMap((inv) => inv.depositsVisibleToSource ?? [])
       .filter((dep) => dep.status !== 'claimed')
       .map((dep) => dep.id);
 
@@ -995,7 +995,7 @@ export function ReportWizardPage() {
             const invoicesWithExcludedItems = report.invoices.filter(
               (inv) =>
                 !excludedInvoiceIds.has(inv.invoiceId) &&
-                inv.budgetLines.some((line) => excludedLineIds.has(line.id)),
+                inv.budgetLinesForSource.some((line) => excludedLineIds.has(line.id)),
             );
 
             return invoicesWithExcludedItems.length > 0 ? (

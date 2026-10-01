@@ -25,6 +25,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
 
         oidcEnabled: false,
+        oidcJitProvisioning: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
@@ -77,6 +78,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
 
         oidcEnabled: false,
+        oidcJitProvisioning: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
@@ -131,6 +133,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
 
         oidcEnabled: false,
+        oidcJitProvisioning: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
@@ -180,6 +183,7 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         oidcClientSecret: undefined,
 
         oidcEnabled: false,
+        oidcJitProvisioning: false,
         paperlessUrl: undefined,
         paperlessExternalUrl: undefined,
         paperlessApiToken: undefined,
@@ -302,6 +306,31 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
     it('rejects invalid value', () => {
       expect(() => loadConfig({ TRUST_PROXY: 'yes' })).toThrow(
         "TRUST_PROXY must be 'true' or 'false', got: yes",
+      );
+    });
+  });
+
+  describe('OIDC_JIT_PROVISIONING Configuration', () => {
+    it('defaults to false when not set', () => {
+      expect(loadConfig({}).oidcJitProvisioning).toBe(false);
+    });
+
+    it('treats an empty string as unset (false)', () => {
+      expect(loadConfig({ OIDC_JIT_PROVISIONING: '' }).oidcJitProvisioning).toBe(false);
+    });
+
+    it('parses true and false', () => {
+      expect(loadConfig({ OIDC_JIT_PROVISIONING: 'true' }).oidcJitProvisioning).toBe(true);
+      expect(loadConfig({ OIDC_JIT_PROVISIONING: 'false' }).oidcJitProvisioning).toBe(false);
+    });
+
+    it('is case-insensitive', () => {
+      expect(loadConfig({ OIDC_JIT_PROVISIONING: 'TRUE' }).oidcJitProvisioning).toBe(true);
+    });
+
+    it.each(['yes', '1', 'on', ' '])('rejects invalid value %j', (value) => {
+      expect(() => loadConfig({ OIDC_JIT_PROVISIONING: value })).toThrow(
+        `OIDC_JIT_PROVISIONING must be 'true' or 'false', got: ${value}`,
       );
     });
   });

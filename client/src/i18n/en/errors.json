@@ -14,7 +14,8 @@
   "LAST_ADMIN": "Cannot remove the last admin from the system.",
   "OIDC_NOT_CONFIGURED": "Single sign-on is not configured for this instance.",
   "OIDC_ERROR": "An error occurred during single sign-on. Please try again.",
-  "EMAIL_CONFLICT": "An account with this email address already exists.",
+  "OIDC_NO_MATCHING_ACCOUNT": "No account was found for your email address. Please contact an administrator to have an account created for you.",
+  "OIDC_EMAIL_UNVERIFIED": "Your identity provider did not confirm that your email address is verified.",
   "CIRCULAR_DEPENDENCY": "This would create a circular dependency.",
   "DUPLICATE_DEPENDENCY": "This dependency already exists.",
   "CATEGORY_IN_USE": "This category is in use and cannot be deleted.",
@@ -33,7 +34,7 @@
   "BUDGET_LINE_ALREADY_ASSIGNED": "This budget line is already assigned to a work item or household item.",
   "RATE_LIMIT_EXCEEDED": "Too many requests. Please wait a moment before trying again.",
   "ACCOUNT_LOCKED": "This account has been temporarily locked due to too many failed login attempts.",
-  "INVALID_METADATA": "The entry metadata is invalid.",
+  "INVALID_METADATA": "Some entry details are invalid or incomplete (for example, an unfinished signature). Please review the entry and try again.",
   "INVALID_ENTRY_TYPE": "This diary entry type is not allowed for this operation.",
   "IMMUTABLE_ENTRY": "This diary entry cannot be modified.",
   "BACKUP_NOT_CONFIGURED": "Backup is not configured. Set the BACKUP_DIR environment variable.",
@@ -46,5 +47,7 @@
   "LLM_UPSTREAM_ERROR": "The AI service reported an error. Please try again.",
   "REFUND_EXCEEDS_INVOICE": "Refund amount exceeds the invoice total.",
   "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.",
-  "EMPTY_SELECTION": "Select at least one invoice."
+  "EMPTY_SELECTION": "Select at least one invoice.",
+  "INVOICE_NOT_QUOTATION": "This invoice is not a quotation and cannot be converted.",
+  "DEPOSITS_EXCEED_INVOICE_TOTAL": "The deposits exceed the invoice total."
 }

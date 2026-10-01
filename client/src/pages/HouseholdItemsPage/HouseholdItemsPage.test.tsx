@@ -16,6 +16,7 @@ import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -293,9 +294,10 @@ describe('HouseholdItemsPage', () => {
 
       renderPage();
 
-      // DataTable renders actions in both table rows and mobile cards — use getAllByTestId.
+      // DataTable renders actions in both table rows and mobile cards; the testids are disjoint
+      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1').length).toBeGreaterThan(0);
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
     });
   });
@@ -336,13 +338,34 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
 
-      expect(screen.getAllByTestId('hi-view-hi-1')[0]!).toBeInTheDocument();
-      expect(screen.getAllByTestId('hi-delete-hi-1')[0]!).toBeInTheDocument();
+      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
+      expect(screen.getByTestId('hi-delete-hi-1')).toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
+      mockListHouseholdItems.mockResolvedValueOnce(
+        defaultListResponse([
+          makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' }),
+          makeHouseholdItem({ id: 'hi-2', name: 'Dining Table' }),
+        ]),
+      );
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('hi-menu-button-mobile-hi-1')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+
+      expect(screen.getByTestId('hi-view-hi-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
 
     it('opens delete confirmation modal when delete is clicked from menu', async () => {
@@ -352,11 +375,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
 
       await waitFor(() => {
         // The delete modal renders the item name in bold
@@ -375,11 +398,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
 
       await waitFor(() => {
         const boldItems = screen.getAllByText('Living Room Sofa');
@@ -415,11 +438,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
 
       await waitFor(() => {
         const boldItems = screen.getAllByText('Living Room Sofa');
@@ -449,11 +472,11 @@ describe('HouseholdItemsPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('hi-menu-button-hi-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('hi-menu-button-hi-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('hi-delete-hi-1')[0]!);
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
 
       await waitFor(() => {
         // Modal is open

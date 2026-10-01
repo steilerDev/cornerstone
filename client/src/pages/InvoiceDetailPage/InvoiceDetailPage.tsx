@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus, Vendor } from '@cornerstone/shared';
@@ -6,11 +6,16 @@ import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoic
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
+import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
+import { ConvertQuotationModal } from './ConvertQuotationModal.js';
+import { useConvertQuotation } from './useConvertQuotation.js';
+import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import styles from './InvoiceDetailPage.module.css';
 
 // STATUS_LABELS will be dynamically generated from i18n
@@ -34,6 +39,7 @@ export function InvoiceDetailPage() {
     formatDateTime: _formatDateTime,
   } = useFormatters();
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -62,6 +68,36 @@ export function InvoiceDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
 
+  // Story #2107: quotation-to-final-invoice conversion
+  const [sectionsKey, setSectionsKey] = useState(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusHeadingAfterConvertRef = useRef(false);
+
+  /** Silent re-fetch: does not toggle the page loading state. */
+  const refreshInvoice = async (): Promise<Invoice> => {
+    const fresh = await fetchInvoiceById(id!);
+    setInvoice(fresh);
+    return fresh;
+  };
+
+  const convert = useConvertQuotation({
+    invoice,
+    refreshInvoice,
+    onConverted: (converted) => {
+      setInvoice(converted);
+      setSectionsKey((k) => k + 1);
+      focusHeadingAfterConvertRef.current = true;
+    },
+  });
+
+  // The Convert button unmounts once the status changes, so move focus to the page heading.
+  useEffect(() => {
+    if (focusHeadingAfterConvertRef.current) {
+      focusHeadingAfterConvertRef.current = false;
+      headingRef.current?.focus();
+    }
+  }, [invoice]);
+
   useEffect(() => {
     if (!id) return;
     void loadInvoice();
@@ -80,7 +116,7 @@ export function InvoiceDetailPage() {
         if (err.statusCode === 404) {
           setError(t('invoiceDetail.invoiceNotFound'));
         } else {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setError(t('invoiceDetail.invoiceNotFound'));
@@ -150,8 +186,24 @@ export function InvoiceDetailPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404 && err.error.code === 'NOT_FOUND') {
           setEditError(t('invoiceDetail.messages.vendorNotFound'));
+        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+          const itemizedTotal =
+            (err.error.details as { itemizedTotal?: number } | undefined)?.itemizedTotal ?? 0;
+          setEditError(
+            t('invoiceDetail.messages.amountBelowItemized', {
+              itemizedTotal: formatCurrency(itemizedTotal),
+            }),
+          );
+        } else if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+          const netDeposits =
+            (err.error.details as { netDeposits?: number } | undefined)?.netDeposits ?? 0;
+          setEditError(
+            t('invoiceDetail.messages.amountBelowNetDeposits', {
+              netDeposits: formatCurrency(netDeposits),
+            }),
+          );
         } else {
-          setEditError(err.error.message);
+          setEditError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setEditError(t('invoiceDetail.messages.updateError'));
@@ -182,7 +234,7 @@ export function InvoiceDetailPage() {
       navigate('/budget/invoices');
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteError(t('invoiceDetail.messages.deleteError'));
       }
@@ -239,7 +291,7 @@ export function InvoiceDetailPage() {
         {/* Page heading */}
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
-            <h1 className={styles.pageTitle}>
+            <h1 className={styles.pageTitle} ref={headingRef} tabIndex={-1}>
               {invoice.invoiceNumber
                 ? `#${invoice.invoiceNumber}`
                 : t('invoiceDetail.invoiceDetails')}
@@ -249,6 +301,16 @@ export function InvoiceDetailPage() {
             </span>
           </div>
           <div className={styles.pageActions}>
+            {invoice.status === 'quotation' && (
+              <button
+                type="button"
+                className={styles.convertButton}
+                data-testid="convert-quotation-button"
+                onClick={convert.open}
+              >
+                {t('invoiceDetail.buttons.convertToFinal')}
+              </button>
+            )}
             <button type="button" className={styles.editButton} onClick={openEditModal}>
               {t('invoiceDetail.buttons.edit')}
             </button>
@@ -321,10 +383,36 @@ export function InvoiceDetailPage() {
           onDepositMutated={() => void loadInvoice()}
         />
 
-        <InvoiceBudgetLinesSection invoiceId={id!} invoiceTotal={invoice.amount} />
+        <InvoiceBudgetLinesSection
+          key={`lines-${sectionsKey}`}
+          invoiceId={id!}
+          invoiceTotal={invoice.amount}
+        />
 
-        <LinkedDocumentsSection entityType="invoice" entityId={id!} />
+        <LinkedDocumentsSection key={`docs-${sectionsKey}`} entityType="invoice" entityId={id!} />
       </div>
+
+      {/* Quotation conversion flow: one modal at a time, never stacked */}
+      {convert.view === 'form' && <ConvertQuotationModal convert={convert} />}
+      {convert.view === 'paperless' && (
+        <InvoicePaperlessPickerModal
+          onDocumentSelected={convert.onDocumentSelected}
+          onManualEntry={convert.onPickerClosed}
+          onClose={convert.onPickerClosed}
+          paperlessUrl={convert.paperless.paperlessUrl}
+        />
+      )}
+      {convert.view === 'refund' && (
+        <InvoiceDepositFormModal
+          invoiceId={invoice.id}
+          mode="add"
+          lockEntryType
+          initialValues={{ entryType: 'refund', status: 'pending', ...convert.refundPreset }}
+          budgetSources={convert.budgetSources}
+          onSaved={() => void convert.onRefundSaved()}
+          onClose={convert.onRefundClosed}
+        />
+      )}
 
       {/* Edit invoice modal */}
       {showEditModal && (

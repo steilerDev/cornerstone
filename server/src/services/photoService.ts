@@ -21,7 +21,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { photos, users, areas, orientations } from '../db/schema.js';
 import { ValidationError } from '../errors/AppError.js';
-import type { Photo, PhotoEntityType, OrientationSummary } from '@cornerstone/shared';
+import type { Photo, PhotoEntityType } from '@cornerstone/shared';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 

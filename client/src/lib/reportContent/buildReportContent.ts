@@ -8,11 +8,11 @@ import { computeIncludedTotal } from '@cornerstone/shared';
 import type {
   SourceReportResponse,
   SourceReportType,
-  InvoiceStatus,
   HouseholdSettings,
   AttachmentType,
 } from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type {
   ReportContent,
   ReportContentRow,
@@ -33,9 +33,9 @@ function uniqueInOrder<T>(items: T[]): T[] {
  * Returns distinct linked item areaName values, first-seen order, comma-joined, or null when empty.
  */
 function getAreaText(invoice: {
-  budgetLines: Array<{ linkedItem: { areaName: string | null } | null }>;
+  budgetLinesForSource: Array<{ linkedItem: { areaName: string | null } | null }>;
 }): string | null {
-  const areaNames = invoice.budgetLines
+  const areaNames = invoice.budgetLinesForSource
     .map((line) => line.linkedItem?.areaName)
     .filter((name) => name !== null && name !== undefined) as string[];
 
@@ -51,18 +51,18 @@ function getAreaText(invoice: {
  * Returns distinct linked item names if any line has linkedItem; else distinct descriptions; else '—'.
  */
 function getUsageText(invoice: {
-  budgetLines: Array<{ linkedItem: { name: string } | null; description: string | null }>;
+  budgetLinesForSource: Array<{ linkedItem: { name: string } | null; description: string | null }>;
 }): string {
-  const hasLinkedItems = invoice.budgetLines.some((line) => line.linkedItem !== null);
+  const hasLinkedItems = invoice.budgetLinesForSource.some((line) => line.linkedItem !== null);
 
   if (hasLinkedItems) {
-    const linkedNames = invoice.budgetLines
+    const linkedNames = invoice.budgetLinesForSource
       .filter((line) => line.linkedItem !== null)
       .map((line) => line.linkedItem!.name);
     return uniqueInOrder(linkedNames).join(', ');
   }
 
-  const descriptions = invoice.budgetLines
+  const descriptions = invoice.budgetLinesForSource
     .filter((line) => line.description !== null)
     .map((line) => line.description!);
   if (descriptions.length > 0) {
@@ -71,18 +71,6 @@ function getUsageText(invoice: {
 
   return '—';
 }
-
-/**
- * Maps each AttachmentType member to its i18n key under sourceReports.table.attachmentType.
- * Declared as Record<AttachmentType, string> so that adding a 4th AttachmentType member without
- * a corresponding entry here fails to compile — the previous template-literal key interpolation
- * would instead print a raw i18n key onto a bank-facing PDF (issue #1912 item 1).
- */
-const ATTACHMENT_TYPE_KEYS: Record<AttachmentType, string> = {
-  quotation: 'sourceReports.table.attachmentType.quotation',
-  deposit: 'sourceReports.table.attachmentType.deposit',
-  invoice: 'sourceReports.table.attachmentType.invoice',
-};
 
 /**
  * Helper: get attachment note from invoice documents.
@@ -113,7 +101,7 @@ function getAttachmentNote(
 
   // Deduplicate types and translate
   const dedupedTypes = uniqueInOrder(attachmentTypes);
-  const typeLabels = dedupedTypes.map((type) => t(ATTACHMENT_TYPE_KEYS[type]));
+  const typeLabels = dedupedTypes.map((type) => t(I18N_UNION_KEYS.reportAttachmentType.key(type)));
 
   const count = documents.length;
   return t(`sourceReports.table.attachmentsNote_${count === 1 ? 'one' : 'other'}`, {
@@ -140,10 +128,10 @@ export function buildReportContent(
   const user = options?.user ?? null;
 
   // Build title
-  const tableTitle = reportT(`sourceReports.table.title.${useCase}`);
+  const tableTitle = reportT(I18N_UNION_KEYS.reportTitle.key(useCase));
 
   // Build source info
-  const sourceTypeText = reportT(`sourceReports.sourceType.${report.source.sourceType}`);
+  const sourceTypeText = reportT(I18N_UNION_KEYS.reportSourceType.key(report.source.sourceType));
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0] ?? '';
   const generatedAtText: string = reportFormatters.formatDate(todayStr);
@@ -156,10 +144,10 @@ export function buildReportContent(
   };
 
   // Track invoices for split/deposit markers (#1911: driven by splitKind, not isSplit +
-  // budgetLines/deposits shape — the array-shape gate was unsound: claim reports drop
+  // budgetLinesForSource/depositsVisibleToSource shape — the array-shape gate was unsound: claim reports drop
   // zero-contribution budget lines (§3.1), and a foreign-tagged deposit is filtered out of
-  // deposits[] server-side entirely (§3.2, the bug this story exists to fix).
-  const splitInvoiceIds = new Set<string>();
+  // depositsVisibleToSource[] server-side entirely (§3.2, the bug this story exists to fix).
+  const partialInvoiceIds = new Set<string>();
   const depositReducedInvoiceIds = new Set<string>();
   const depositConstitutedInvoiceIds = new Set<string>();
 
@@ -168,9 +156,9 @@ export function buildReportContent(
       continue;
     }
 
-    // AC 3.1: row.isSplit ⟺ splitKind === 'lines' || splitKind === 'both'
+    // AC 3.1: row.isPartial ⟺ splitKind === 'lines' || splitKind === 'both'
     if (invoice.splitKind === 'lines' || invoice.splitKind === 'both') {
-      splitInvoiceIds.add(invoice.invoiceId);
+      partialInvoiceIds.add(invoice.invoiceId);
     }
 
     // AC 3.2: row.isDepositReduced ⟺ splitKind === 'deposits' || splitKind === 'both'
@@ -179,9 +167,16 @@ export function buildReportContent(
     }
 
     // AC 3.3: row.isDeposit (constituted) trigger is UNCHANGED — still invoice.isSplit &&
-    // hasOwnTaggedDeposit, still read from the visible deposits[]. Decoupling isDeposit from
+    // hasOwnTaggedDeposit, still read from the visible depositsVisibleToSource[]. Decoupling isDeposit from
     // isSplit is an explicit non-goal (§3).
-    const hasOwnTaggedDeposit = invoice.deposits.some((d) => d.budgetSourceId === report.source.id);
+    // Sound by construction (#2018, #2019): this is a SAME-scope predicate ("does THIS source have
+    // a tagged deposit?") over depositsVisibleToSource, whose server-side step-i filter keeps exactly
+    // untagged + this-source deposits. Narrowing that filter (sourceReportService.ts step i) silently
+    // removes the (Deposit) badge — pinned by the "#2018 guard" tests in sourceReportService.test.ts
+    // and buildReportContent.test.ts.
+    const hasOwnTaggedDeposit = invoice.depositsVisibleToSource.some(
+      (d) => d.budgetSourceId === report.source.id,
+    );
     if (invoice.isSplit && hasOwnTaggedDeposit) {
       depositConstitutedInvoiceIds.add(invoice.invoiceId);
     }
@@ -195,15 +190,15 @@ export function buildReportContent(
       continue;
     }
 
-    const status = invoice.status as InvoiceStatus;
-
     const invoiceAmountText = reportFormatters.formatCurrency(invoice.invoiceAmount);
 
     const allocatedAmountValueText = reportFormatters.formatCurrency(invoice.allocatedAmount);
 
-    const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
+    const statusText = isOverview
+      ? reportT(I18N_UNION_KEYS.invoiceStatus.key(invoice.status))
+      : null;
 
-    const isSplit = splitInvoiceIds.has(invoice.invoiceId);
+    const isPartial = partialInvoiceIds.has(invoice.invoiceId);
     const isDepositReduced = depositReducedInvoiceIds.has(invoice.invoiceId);
     const isDeposit = depositConstitutedInvoiceIds.has(invoice.invoiceId);
     const refundNoteText = reportT('sourceReports.table.refundNote');
@@ -216,11 +211,11 @@ export function buildReportContent(
       vendor: invoice.vendorName,
       invoiceNumber: invoice.invoiceNumber ?? '—',
       dateText: reportFormatters.formatDate(invoice.date),
-      status: isOverview ? status : null,
+      status: isOverview ? invoice.status : null,
       statusText,
       invoiceAmountText,
       allocatedAmountValueText,
-      isSplit,
+      isPartial,
       isDepositReduced,
       isDeposit,
       isRefund: invoice.lineKind === 'refund-adjustment',
@@ -246,7 +241,7 @@ export function buildReportContent(
   const footnotes: ReportContentFootnote[] = [];
 
   // Legend footnotes: one sentence per flag, deduplicated by set membership (AC 1.1–1.5)
-  if (splitInvoiceIds.size > 0) {
+  if (partialInvoiceIds.size > 0) {
     footnotes.push({
       id: 'split',
       marker: reportT('sourceReports.table.splitInlineLabel'),
@@ -271,9 +266,10 @@ export function buildReportContent(
     if (household?.householdAddress) senderLines.push(household.householdAddress);
     const sender = senderLines.join('\n');
 
-    const subject = reportT(`sourceReports.coverLetter.subject.${useCase}`);
-    const bodyKey = `sourceReports.coverLetter.body.${useCase}`;
-    const body = reportT(bodyKey, { total: totalAmountText });
+    const subject = reportT(I18N_UNION_KEYS.reportCoverLetterSubject.key(useCase));
+    const body = reportT(I18N_UNION_KEYS.reportCoverLetterBody.key(useCase), {
+      total: totalAmountText,
+    });
     const signature = sender.split('\n')[0]?.trim() ?? '';
     const closing = reportT('sourceReports.coverLetter.closing');
 
@@ -304,7 +300,7 @@ export function buildReportContent(
       allocatedAmount: reportT('sourceReports.table.allocatedAmount'),
       usage: reportT('sourceReports.table.usage'),
       attachmentsNote: reportT('sourceReports.editable.attachmentsNoteLabel'),
-      deposit: reportT('sourceReports.table.attachmentType.deposit'),
+      deposit: reportT(I18N_UNION_KEYS.reportAttachmentType.key('deposit')),
       splitNote: reportT('sourceReports.table.splitInlineLabel'),
       depositReducedNote: reportT('sourceReports.table.depositReducedInlineLabel'),
       source: reportT('sourceReports.table.source'),

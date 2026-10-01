@@ -243,6 +243,14 @@
   background-color: var(--color-bg-tertiary);
 }
 
+.parentPickerSection:focus {
+  outline: none;
+}
+
+.parentPickerSection:focus-visible {
+  box-shadow: var(--shadow-focus);
+}
+
 .parentPickerLegend {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
@@ -314,11 +322,11 @@
   margin-top: var(--spacing-2);
 }
 
-.assignSubmitButton:hover:not(:disabled) {
+.assignSubmitButton:hover:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-primary-hover);
 }
 
-.assignSubmitButton:active:not(:disabled) {
+.assignSubmitButton:active:not(:disabled, [aria-disabled='true']) {
   background-color: var(--color-primary-active);
 }
 
@@ -327,7 +335,8 @@
   box-shadow: var(--shadow-focus);
 }
 
-.assignSubmitButton:disabled {
+.assignSubmitButton:disabled,
+.assignSubmitButton[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -343,6 +352,12 @@
   padding: var(--spacing-2) var(--spacing-3);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+}
+
+/* The `hidden` attribute only hides via the UA rule `[hidden] { display: none }`,
+   which the author-level `display: flex` above overrides. Restore it explicitly (#2067). */
+.currentParentRow[hidden] {
+  display: none;
 }
 
 .currentParentLabel {

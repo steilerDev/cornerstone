@@ -113,7 +113,6 @@ function renderModal(
     onCancelCreateForm?: () => void;
     onCreateBudgetLine?: (e: any) => void;
     handleSelectItem?: (...args: any[]) => Promise<void>;
-    setPickerState?: (...args: any[]) => void;
   } = {},
 ) {
   const pickerState = makePickerState(pickerStateOverrides);
@@ -122,7 +121,6 @@ function renderModal(
   const handleSelectItem =
     callbacks.handleSelectItem ??
     jest.fn<UseBudgetLinePickerReturn['handleSelectItem']>().mockResolvedValue(undefined);
-  const setPickerState = callbacks.setPickerState ?? jest.fn();
 
   return {
     pickerState,
@@ -130,11 +128,9 @@ function renderModal(
     onCreateNewBudgetLine: callbacks.onCreateNewBudgetLine ?? jest.fn(),
     onBackToStep1: callbacks.onBackToStep1 ?? jest.fn(),
     handleSelectItem,
-    setPickerState,
     ...render(
       React.createElement(BudgetLinePickerModal, {
         pickerState,
-        setPickerState,
         handleSelectItem,
         createBudgetLineButtonRef,
         onSelectBudgetLine: callbacks.onSelectBudgetLine ?? jest.fn(),

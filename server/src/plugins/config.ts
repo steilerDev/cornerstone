@@ -15,6 +15,8 @@ export interface AppConfig {
   oidcClientId?: string;
   oidcClientSecret?: string;
   oidcEnabled: boolean;
+  /** Opt-in: create a `member` account on first OIDC login when no account matches (default off, see ADR-035) */
+  oidcJitProvisioning: boolean;
   paperlessUrl?: string;
   paperlessExternalUrl?: string;
   paperlessApiToken?: string;
@@ -157,6 +159,15 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
 
   // OIDC is enabled when issuer, client ID, and client secret are set
   const oidcEnabled = !!(oidcIssuer && oidcClientId && oidcClientSecret);
+
+  // Opt-in JIT provisioning of OIDC users (inert when OIDC is disabled)
+  const oidcJitProvisioningStr = (getValue('OIDC_JIT_PROVISIONING') ?? 'false').toLowerCase();
+  if (oidcJitProvisioningStr !== 'true' && oidcJitProvisioningStr !== 'false') {
+    errors.push(
+      `OIDC_JIT_PROVISIONING must be 'true' or 'false', got: ${getValue('OIDC_JIT_PROVISIONING')}`,
+    );
+  }
+  const oidcJitProvisioning = oidcJitProvisioningStr === 'true';
 
   // Paperless-ngx configuration (all optional)
   const paperlessUrlRaw = getValue('PAPERLESS_URL');
@@ -408,6 +419,7 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     oidcClientId,
     oidcClientSecret,
     oidcEnabled,
+    oidcJitProvisioning,
     externalUrl,
     paperlessUrl,
     paperlessExternalUrl,
@@ -456,6 +468,7 @@ export default fp(
         externalUrl: config.externalUrl,
         oidcEnabled: config.oidcEnabled,
         oidcIssuer: config.oidcIssuer,
+        oidcJitProvisioning: config.oidcJitProvisioning,
         paperlessEnabled: config.paperlessEnabled,
         paperlessUrl: config.paperlessUrl,
         paperlessFilterTag: config.paperlessFilterTag,

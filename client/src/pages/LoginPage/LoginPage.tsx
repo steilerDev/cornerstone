@@ -50,8 +50,9 @@ export function LoginPage() {
         'oidc_error',
         'invalid_state',
         'missing_email',
-        'email_conflict',
+        'oidc_email_unverified',
         'account_deactivated',
+        'oidc_no_matching_account',
       ];
       if (knownCodes.includes(errorCode)) {
         /* eslint-disable @eslint-react/set-state-in-effect -- initializing error state from url params */

@@ -18,7 +18,7 @@ export function applyLineExclusions(
     ...report,
     invoices: report.invoices.map((inv) => {
       // Calculate total portion of excluded lines for this invoice
-      const excludedPortion = inv.budgetLines
+      const excludedPortion = inv.budgetLinesForSource
         .filter((l) => excludedLineIds.has(l.id))
         .reduce((s, l) => s + l.allocatedPortion, 0);
 

@@ -427,9 +427,10 @@ test.describe('Invoice row click navigation (Scenario 7)', { tag: '@responsive' 
       // DataTable renders both the table AND the mobile cards simultaneously and uses
       // CSS media queries to toggle visibility, so we must pick the visible one.
       const invoiceLink = page
-        .locator('[class*="invoiceLink"]:visible', {
+        .locator('[class*="invoiceLink"]', {
           hasText: `${testPrefix}-ROW-001`,
         })
+        .visible()
         .first();
       await invoiceLink.click();
 
@@ -621,6 +622,75 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
       await expect(detailPage.statusBadge).toContainText('Pending');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+
+  // Issues #2108/#2109/#2113: lowering the amount below the itemized total is rejected
+  // with ITEMIZED_SUM_EXCEEDS_INVOICE; the translated message carries the itemized total.
+  test('Edit invoice — lowering amount below itemized total shows error and keeps modal open', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let workItemId = '';
+    let budgetSourceId = '';
+
+    try {
+      const vendor = await createVendorViaApi(page, `${testPrefix} EditItemized Vendor`);
+      vendorId = vendor.id;
+      const invoice = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-EDT-ITM`,
+        amount: 1000,
+        date: '2026-01-15',
+        status: 'pending',
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} EditItemized WI` });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} EditItemized Source`,
+        totalAmount: 5000,
+      });
+      const budgetResp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
+        data: {
+          plannedAmount: 600,
+          budgetSourceId,
+          confidence: 'own_estimate',
+          description: `${testPrefix} EditItemized line`,
+        },
+      });
+      expect(budgetResp.ok(), `POST work item budget failed: ${budgetResp.status()}`).toBeTruthy();
+      const budgetBody = (await budgetResp.json()) as { budget: { id: string } };
+      const linkResp = await page.request.post(`/api/invoices/${invoice.id}/budget-lines`, {
+        data: { workItemBudgetId: budgetBody.budget.id, itemizedAmount: 600 },
+      });
+      expect(linkResp.ok(), `POST invoice budget-line failed: ${linkResp.status()}`).toBeTruthy();
+
+      await detailPage.goto(invoice.id);
+      await detailPage.openEditModal();
+      await detailPage.fillEditForm({ amount: '500' });
+
+      const errorResponsePromise = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/invoices/${invoice.id}`) &&
+          resp.request().method() === 'PATCH' &&
+          resp.status() === 400,
+      );
+      await detailPage.editSaveButton.click();
+      await errorResponsePromise;
+
+      // Error banner shows the itemized total (600, formatting-agnostic) and the modal stays open
+      await expect(detailPage.editErrorBanner).toBeVisible();
+      await expect(detailPage.editErrorBanner).toContainText('600');
+      await expect(detailPage.editModal).toBeVisible();
+
+      // Cancel — the invoice amount is unchanged
+      await detailPage.closeEditModal();
+      await expect(detailPage.editModal).not.toBeVisible();
+      await expect(detailPage.infoList).toContainText(/1[.,\s\u00a0\u202f]?000/);
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });

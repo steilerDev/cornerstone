@@ -85,7 +85,7 @@ fails with the same `requires the chromium snap to be installed` message, and th
 init system"). This means a mutation-test AC ("change production code, confirm the E2E test goes
 red, revert, confirm byte-identical") cannot be executed live in this sandbox class — do the
 edit/observe-would-fail-by-code-reading/revert cycle instead, verify the revert is byte-identical
-via `git diff`/`git status` (that part *is* mechanically provable), and state the live-red
+via `git diff`/`git status` (that part _is_ mechanically provable), and state the live-red
 confirmation as deferred to CI in the report. Did not attempt the `dhi.io` container build this
 session (task didn't need it — pure E2E test-file edits, no app change), so that half of the
 2026-07-30 finding is unverified this round; re-attempt it fresh next time a task needs it rather

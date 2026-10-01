@@ -76,8 +76,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [],
-    deposits: [],
+    budgetLinesForSource: [],
+    depositsVisibleToSource: [],
     ...overrides,
   };
 }
@@ -830,9 +830,9 @@ describe('ReportInvoiceList', () => {
       return btn as HTMLElement;
     }
 
-    it('renders NO chevron/expand button for an invoice with zero budgetLines and zero deposits', () => {
+    it('renders NO chevron/expand button for an invoice with zero budgetLinesForSource and zero depositsVisibleToSource', () => {
       const report = makeReport([
-        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [] }),
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [], depositsVisibleToSource: [] }),
       ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
@@ -849,7 +849,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('renders a chevron/expand button when the invoice has at least one budgetLine', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -864,9 +866,13 @@ describe('ReportInvoiceList', () => {
       expect(findExpandButton(container, 'inv-1')).toBeInTheDocument();
     });
 
-    it('renders a chevron/expand button when the invoice has at least one deposit (even with zero budgetLines)', () => {
+    it('renders a chevron/expand button when the invoice has at least one deposit (even with zero budgetLinesForSource)', () => {
       const report = makeReport([
-        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+        makeInvoice({
+          invoiceId: 'inv-1',
+          budgetLinesForSource: [],
+          depositsVisibleToSource: [deposit],
+        }),
       ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
@@ -883,7 +889,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('aria-expanded starts false, and the expansion panel is not rendered before clicking', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -901,7 +909,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('clicking the chevron sets aria-expanded=true and renders a panel with matching id, tabIndex -1, and focuses it', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -924,7 +934,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('clicking the chevron again collapses the panel (aria-expanded=false, panel removed)', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -945,7 +957,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('Enter and Space keys on the chevron toggle expansion (keyboard operability)', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       const { container } = renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -965,7 +979,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('the expand button has a translated accessible name that flips to the collapse variant after expanding (Story #1891 follow-up: aria-label fix)', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+      ]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1000,7 +1016,7 @@ describe('ReportInvoiceList', () => {
     describe('items sub-table', () => {
       it('renders a row per budgetLine with description, allocated portion, and a linked-item link', () => {
         const report = makeReport([
-          makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine, workItemLine] }),
+          makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine, workItemLine] }),
         ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
@@ -1023,7 +1039,7 @@ describe('ReportInvoiceList', () => {
 
       it('renders a household_item linkedItem with the correct href', () => {
         const report = makeReport([
-          makeInvoice({ invoiceId: 'inv-1', budgetLines: [householdItemLine] }),
+          makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [householdItemLine] }),
         ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
@@ -1043,7 +1059,9 @@ describe('ReportInvoiceList', () => {
       });
 
       it('renders an "unassigned" badge instead of a link when linkedItem is null', () => {
-        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+        ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
             report={report}
@@ -1064,7 +1082,7 @@ describe('ReportInvoiceList', () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
-            budgetLines: [{ ...budgetLine, description: null }],
+            budgetLinesForSource: [{ ...budgetLine, description: null }],
           }),
         ]);
         const { container } = renderWithRouter(
@@ -1083,9 +1101,13 @@ describe('ReportInvoiceList', () => {
         expect(screen.getAllByText('sourceReports.expand.unnamedLine').length).toBeGreaterThan(0);
       });
 
-      it('renders an EmptyState for the items sub-table when budgetLines is empty (deposit-only invoice)', () => {
+      it('renders an EmptyState for the items sub-table when budgetLinesForSource is empty (deposit-only invoice)', () => {
         const report = makeReport([
-          makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [deposit],
+          }),
         ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
@@ -1106,7 +1128,9 @@ describe('ReportInvoiceList', () => {
       it('calls onToggleLine(lineId, true) when unchecking an included line, and does NOT call onToggle', () => {
         const onToggleLine = jest.fn();
         const onToggle = jest.fn();
-        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+        ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
             report={report}
@@ -1131,7 +1155,9 @@ describe('ReportInvoiceList', () => {
 
       it('calls onToggleLine(lineId, false) when re-checking an excluded line', () => {
         const onToggleLine = jest.fn();
-        const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine] })]);
+        const report = makeReport([
+          makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [budgetLine] }),
+        ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
             report={report}
@@ -1160,8 +1186,8 @@ describe('ReportInvoiceList', () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
-            budgetLines: [],
-            deposits: [{ ...deposit, status: 'paid', paidDate: '2026-01-20' }],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [{ ...deposit, status: 'paid', paidDate: '2026-01-20' }],
           }),
         ]);
         const { container } = renderWithRouter(
@@ -1188,8 +1214,8 @@ describe('ReportInvoiceList', () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
-            budgetLines: [],
-            deposits: [{ ...deposit, amount: 75, entryType: 'refund' }],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [{ ...deposit, amount: 75, entryType: 'refund' }],
           }),
         ]);
         const { container } = renderWithRouter(
@@ -1215,8 +1241,8 @@ describe('ReportInvoiceList', () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
-            budgetLines: [],
-            deposits: [{ ...deposit, budgetSourceId: 'src-1' }],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [{ ...deposit, budgetSourceId: 'src-1' }],
           }),
         ]);
         const { container } = renderWithRouter(
@@ -1240,8 +1266,8 @@ describe('ReportInvoiceList', () => {
         const report = makeReport([
           makeInvoice({
             invoiceId: 'inv-1',
-            budgetLines: [],
-            deposits: [{ ...deposit, budgetSourceId: null }],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [{ ...deposit, budgetSourceId: null }],
           }),
         ]);
         const { container } = renderWithRouter(
@@ -1260,9 +1286,13 @@ describe('ReportInvoiceList', () => {
         expect(screen.getByText('—')).toBeInTheDocument();
       });
 
-      it('renders an EmptyState for the deposits sub-table when deposits is empty', () => {
+      it('renders an EmptyState for the deposits sub-table when depositsVisibleToSource is empty', () => {
         const report = makeReport([
-          makeInvoice({ invoiceId: 'inv-1', budgetLines: [budgetLine], deposits: [] }),
+          makeInvoice({
+            invoiceId: 'inv-1',
+            budgetLinesForSource: [budgetLine],
+            depositsVisibleToSource: [],
+          }),
         ]);
         const { container } = renderWithRouter(
           <ReportInvoiceList
@@ -1287,7 +1317,9 @@ describe('ReportInvoiceList', () => {
     const lineB = { id: 'line-b', description: 'B', allocatedPortion: 200, linkedItem: null };
 
     it('state 1 (checked): invoice not excluded and no lines excluded', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
+      ]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1306,7 +1338,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('state 2 (indeterminate): invoice not excluded, SOME (not all) lines excluded', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
+      ]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1324,7 +1358,9 @@ describe('ReportInvoiceList', () => {
     });
 
     it('state 3 (unchecked, but invoice remains included): ALL lines excluded, invoice itself not excluded — checkbox reads unchecked, not indeterminate', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
+      ]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1347,7 +1383,9 @@ describe('ReportInvoiceList', () => {
     it('clicking the parent checkbox calls onToggle for the INVOICE, never onToggleLine — even with lines excluded', () => {
       const onToggle = jest.fn();
       const onToggleLine = jest.fn();
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [lineA, lineB] })]);
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [lineA, lineB] }),
+      ]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1370,8 +1408,8 @@ describe('ReportInvoiceList', () => {
       expect(onToggleLine).not.toHaveBeenCalled();
     });
 
-    it('an invoice with zero budgetLines is always in the "checked" tri-state (excludedLineCount === 0 vacuously)', () => {
-      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLines: [] })]);
+    it('an invoice with zero budgetLinesForSource is always in the "checked" tri-state (excludedLineCount === 0 vacuously)', () => {
+      const report = makeReport([makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [] })]);
       renderWithRouter(
         <ReportInvoiceList
           report={report}
@@ -1580,7 +1618,11 @@ describe('ReportInvoiceList', () => {
 
     function renderWithDeposit(deposit: SourceReportDeposit) {
       const report = makeReport([
-        makeInvoice({ invoiceId: 'inv-1', budgetLines: [], deposits: [deposit] }),
+        makeInvoice({
+          invoiceId: 'inv-1',
+          budgetLinesForSource: [],
+          depositsVisibleToSource: [deposit],
+        }),
       ]);
       return renderWithRouter(
         <ReportInvoiceList

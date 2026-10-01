@@ -1,5 +1,10 @@
-import type { FastifyInstance } from 'fastify';
-import { AppError, ConflictError } from '../errors/AppError.js';
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import {
+  AppError,
+  OidcEmailUnverifiedError,
+  OidcMissingEmailError,
+  OidcNoMatchingAccountError,
+} from '../errors/AppError.js';
 import * as oidcService from '../services/oidcService.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -17,7 +22,24 @@ function isSafeRedirect(redirect: string): boolean {
   return redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes('://');
 }
 
+export const OIDC_CALLBACK_PATH = '/api/auth/oidc/callback';
+
+/**
+ * Single source of the OIDC redirect_uri for BOTH legs (RFC 6749 §4.1.3):
+ * the authorization request and the token exchange must send the identical value.
+ *
+ * @param externalUrl - Configured EXTERNAL_URL, if any
+ * @param requestOrigin - Origin derived from the incoming request (protocol://host)
+ * @returns The callback URL (without query string)
+ */
+export function buildOidcRedirectUri(externalUrl: string | undefined, requestOrigin: string): URL {
+  return new URL(`${externalUrl || requestOrigin}${OIDC_CALLBACK_PATH}`);
+}
+
 export default async function oidcRoutes(fastify: FastifyInstance) {
+  const redirectUriFor = (request: FastifyRequest): URL =>
+    buildOidcRedirectUri(fastify.config.externalUrl, `${request.protocol}://${request.host}`);
+
   /**
    * GET /api/auth/oidc/login
    *
@@ -42,7 +64,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
     );
 
     // Derive redirect URI from EXTERNAL_URL or from the incoming request
-    const redirectUri = `${fastify.config.externalUrl || `${request.protocol}://${request.host}`}/api/auth/oidc/callback`;
+    const redirectUri = redirectUriFor(request).href;
 
     // Build authorization URL
     const { authorizationUrl } = oidcService.buildAuthorizationUrl(
@@ -92,6 +114,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       return reply.redirect('/login?error=invalid_state');
     }
 
+    let sub: string | undefined;
     try {
       // Discover OIDC configuration
       const config = await oidcService.discoverOidcConfig(
@@ -100,28 +123,39 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
         fastify.config.oidcClientSecret!,
       );
 
-      // Build the callback URL from the request
-      // The openid-client library expects the full callback URL including query params
-      // Fastify's request.protocol respects trustProxy + x-forwarded-proto
-      const callbackUrl = new URL(request.url, `${request.protocol}://${request.host}`);
+      // The token-exchange URL must use the same redirect_uri as the authorization
+      // request (derived via redirectUriFor, honoring EXTERNAL_URL); only the query
+      // string (code, state) is taken from the incoming request.
+      const callbackUrl = redirectUriFor(request);
+      callbackUrl.search = new URL(request.url, 'http://placeholder.invalid').search;
 
       // Exchange code for tokens and extract claims
-      const { sub, email, name } = await oidcService.handleCallback(config, callbackUrl, state);
-
-      // Ensure email is present
-      if (!email) {
-        fastify.log.warn({ sub }, 'OIDC user missing email claim');
-        return reply.redirect('/login?error=missing_email');
-      }
-
-      // Find or create user
-      const user = userService.findOrCreateOidcUser(
-        fastify.db,
-        sub,
+      const {
+        sub: subFromService,
         email,
-        name || email.split('@')[0]!,
-        // email.split('@')[0] is defined: email is non-empty and split always returns at least one element
+        emailVerified,
+        name,
+        preferredUsername,
+      } = await oidcService.handleCallback(config, callbackUrl, state);
+      sub = subFromService;
+
+      // Find or link user
+      const { user, outcome, previousSubject } = userService.findOrLinkOidcUser(
+        fastify.db,
+        { sub, email, emailVerified, name, preferredUsername },
+        { jitProvisioning: fastify.config.oidcJitProvisioning },
       );
+
+      if (outcome === 'linked') {
+        fastify.log.info({ userId: user.id, sub }, 'OIDC subject linked to existing account');
+      } else if (outcome === 'provisioned') {
+        fastify.log.info({ userId: user.id }, 'OIDC user provisioned');
+      } else if (outcome === 'relinked') {
+        fastify.log.warn(
+          { userId: user.id, previousSub: previousSubject, sub },
+          'OIDC subject re-bound for existing account',
+        );
+      }
 
       // Check if user is deactivated
       if (user.deactivatedAt) {
@@ -148,10 +182,17 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       // Redirect to the original app path
       return reply.redirect(appRedirect);
     } catch (error) {
-      // Email conflict: OIDC user's email matches a different auth provider's user
-      if (error instanceof ConflictError) {
-        fastify.log.warn({ error }, 'OIDC email conflict');
-        return reply.redirect('/login?error=email_conflict');
+      if (error instanceof OidcNoMatchingAccountError) {
+        fastify.log.warn({ error, sub }, 'OIDC login rejected: no matching account for email');
+        return reply.redirect('/login?error=oidc_no_matching_account');
+      }
+      if (error instanceof OidcMissingEmailError) {
+        fastify.log.warn({ sub }, 'OIDC user missing email claim');
+        return reply.redirect('/login?error=missing_email');
+      }
+      if (error instanceof OidcEmailUnverifiedError) {
+        fastify.log.warn({ sub }, 'OIDC login rejected: email not verified by IdP');
+        return reply.redirect('/login?error=oidc_email_unverified');
       }
       fastify.log.error({ error }, 'OIDC callback error');
       return reply.redirect('/login?error=oidc_error');

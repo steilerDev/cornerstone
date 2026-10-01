@@ -12,6 +12,9 @@ import {
   BudgetLineInUseError,
   CategoryInUseError,
   AccountLockedError,
+  OidcNoMatchingAccountError,
+  OidcEmailUnverifiedError,
+  OidcMissingEmailError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -185,5 +188,53 @@ describe('AccountLockedError', () => {
 
     expect(error).toBeInstanceOf(AppError);
     expect(error).toBeInstanceOf(Error);
+  });
+});
+
+describe('OidcNoMatchingAccountError', () => {
+  it('has the OIDC_NO_MATCHING_ACCOUNT code, 403 status and a default message', () => {
+    const error = new OidcNoMatchingAccountError();
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('OidcNoMatchingAccountError');
+    expect(error.code).toBe('OIDC_NO_MATCHING_ACCOUNT');
+    expect(error.statusCode).toBe(403);
+    expect(error.message).toBe('No existing account matches this identity provider email address');
+  });
+
+  it('accepts a custom message', () => {
+    expect(new OidcNoMatchingAccountError('custom').message).toBe('custom');
+  });
+});
+
+describe('OidcEmailUnverifiedError', () => {
+  it('has the OIDC_EMAIL_UNVERIFIED code, 403 status and the default message', () => {
+    const error = new OidcEmailUnverifiedError();
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('OidcEmailUnverifiedError');
+    expect(error.code).toBe('OIDC_EMAIL_UNVERIFIED');
+    expect(error.statusCode).toBe(403);
+    expect(error.message).toBe('Identity provider did not assert a verified email address');
+  });
+
+  it('accepts a custom message', () => {
+    expect(new OidcEmailUnverifiedError('nope').message).toBe('nope');
+  });
+});
+
+describe('OidcMissingEmailError', () => {
+  it('has the OIDC_MISSING_EMAIL code, 403 status and the default message', () => {
+    const error = new OidcMissingEmailError();
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('OidcMissingEmailError');
+    expect(error.code).toBe('OIDC_MISSING_EMAIL');
+    expect(error.statusCode).toBe(403);
+    expect(error.message).toBe('Identity provider did not supply an email address');
+  });
+
+  it('accepts a custom message', () => {
+    expect(new OidcMissingEmailError('x').message).toBe('x');
   });
 });

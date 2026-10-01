@@ -461,6 +461,11 @@ export function DiaryEntryForm({
             currentUserName={currentUserName}
             vendors={vendors}
           />
+          {validationErrors.dailyLogSignatures && (
+            <div id="daily-log-signatures-error" className={styles.errorText} role="alert">
+              {validationErrors.dailyLogSignatures}
+            </div>
+          )}
         </div>
       )}
 
@@ -557,6 +562,11 @@ export function DiaryEntryForm({
             currentUserName={currentUserName}
             vendors={vendors}
           />
+          {validationErrors.siteVisitSignatures && (
+            <div id="site-visit-signatures-error" className={styles.errorText} role="alert">
+              {validationErrors.siteVisitSignatures}
+            </div>
+          )}
         </div>
       )}
 

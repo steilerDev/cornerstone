@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
+import type { ConvertQuotationRequest } from '@cornerstone/shared';
 import * as invoiceService from '../services/invoiceService.js';
+import { convertQuotation } from '../services/quotationConversionService.js';
 
 const listAllInvoicesSchema = {
   querystring: {
@@ -31,6 +33,42 @@ const getInvoiceByIdSchema = {
     required: ['invoiceId'],
     properties: {
       invoiceId: { type: 'string' },
+    },
+  },
+};
+
+const convertQuotationSchema = {
+  params: {
+    type: 'object',
+    required: ['invoiceId'],
+    properties: { invoiceId: { type: 'string' } },
+  },
+  body: {
+    type: 'object',
+    required: ['amount', 'date', 'status', 'conversionNote'],
+    additionalProperties: false,
+    properties: {
+      amount: { type: 'number', exclusiveMinimum: 0 },
+      date: { type: 'string', pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+      invoiceNumber: { type: ['string', 'null'], maxLength: 100 },
+      dueDate: { type: ['string', 'null'], pattern: '^\\d{4}-\\d{2}-\\d{2}$' },
+      notes: { type: ['string', 'null'], maxLength: 10000 },
+      status: { type: 'string', enum: ['pending', 'paid'] },
+      conversionNote: { type: 'string', minLength: 1, maxLength: 1000 },
+      budgetLines: {
+        type: 'array',
+        maxItems: 200,
+        items: {
+          type: 'object',
+          required: ['id', 'itemizedAmount'],
+          additionalProperties: false,
+          properties: {
+            id: { type: 'string', minLength: 1 },
+            itemizedAmount: { type: 'number', exclusiveMinimum: 0 },
+          },
+        },
+      },
+      paperlessDocumentId: { type: 'integer', minimum: 1 },
     },
   },
 };
@@ -79,6 +117,27 @@ export default async function standaloneInvoiceRoutes(fastify: FastifyInstance) 
     async (request, reply) => {
       if (!request.user) throw new UnauthorizedError();
       const invoice = invoiceService.getInvoiceById(fastify.db, request.params.invoiceId);
+      return reply.status(200).send({ invoice });
+    },
+  );
+
+  /**
+   * POST /api/invoices/:invoiceId/convert-quotation
+   * Atomically convert a quotation into the final invoice (Story #2107).
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.post<{ Params: { invoiceId: string }; Body: ConvertQuotationRequest }>(
+    '/:invoiceId/convert-quotation',
+    { schema: convertQuotationSchema },
+    async (request, reply) => {
+      if (!request.user) throw new UnauthorizedError();
+      const invoice = convertQuotation(
+        fastify.db,
+        request.params.invoiceId,
+        request.body,
+        request.user.id,
+        fastify.config.diaryAutoEvents,
+      );
       return reply.status(200).send({ invoice });
     },
   );

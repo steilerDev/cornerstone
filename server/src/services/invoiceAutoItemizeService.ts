@@ -50,6 +50,7 @@ import type {
 } from '@cornerstone/shared';
 import { effectiveLineAmount } from '@cornerstone/shared';
 import { exceedsAmount } from './shared/money.js';
+import { isValidIsoDate } from './shared/validators.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -797,17 +798,6 @@ export async function commitAutoItemizeCreate(
       remainingAmount,
     };
   });
-}
-
-/**
- * Helper to validate ISO date format (YYYY-MM-DD).
- */
-function isValidIsoDate(value: string): boolean {
-  const re = /^\d{4}-\d{2}-\d{2}$/;
-  if (!re.test(value)) return false;
-  // Also validate that it's a real date
-  const date = new Date(value + 'T00:00:00Z');
-  return !isNaN(date.getTime());
 }
 
 /**

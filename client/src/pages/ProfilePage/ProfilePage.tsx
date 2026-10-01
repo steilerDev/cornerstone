@@ -215,7 +215,11 @@ export function ProfilePage() {
           <div className={styles.infoRow}>
             <span className={styles.infoLabel}>{t('profile.authentication')}</span>
             <span className={styles.infoValue}>
-              {user.authProvider === 'local' ? t('profile.authLocal') : t('profile.authOidc')}
+              {user.authProvider === 'oidc'
+                ? t('profile.authOidc')
+                : user.oidcLinked
+                  ? t('profile.authLocalAndOidc')
+                  : t('profile.authLocal')}
             </span>
           </div>
           <div className={styles.infoRow}>

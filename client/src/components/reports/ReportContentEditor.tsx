@@ -18,7 +18,7 @@ import {
   visibleReportColumns,
 } from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
-import { EditableField } from '../EditableField/EditableField.js';
+import { EditableField, type EditableFieldLengthLimit } from '../EditableField/EditableField.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportContentEditor.module.css';
 
@@ -115,6 +115,13 @@ export function ReportContentEditor({
   // Helper: check if a field has been overridden
   const isFieldEdited = (key: string): boolean => key in overrides;
 
+  const lengthLimit = (max: number): EditableFieldLengthLimit => ({
+    max,
+    hint: t('sourceReports.editable.maxLengthHint', { max }),
+    overHint: t('sourceReports.editable.overMaxLengthHint'),
+    reachedAnnouncement: t('sourceReports.editable.maxLengthReachedAnnouncement'),
+  });
+
   // Visible columns (AC 2.1's single derivation, shared with the PDF geometry engine) —
   // hiddenColumns/onToggleColumn are fully controlled by the parent (ReportWizardPage), which is
   // what makes this control actually change the generated PDF instead of being preview-only.
@@ -162,14 +169,7 @@ export function ReportContentEditor({
               rows={4}
               lang={lang}
               uiLang={uiLang}
-              maxLength={SENDER_MAX_LENGTH}
-              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                max: SENDER_MAX_LENGTH,
-              })}
-              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-              maxLengthReachedAnnouncement={t(
-                'sourceReports.editable.maxLengthReachedAnnouncement',
-              )}
+              lengthLimit={lengthLimit(SENDER_MAX_LENGTH)}
             />
 
             {content.coverLetter.recipient && (
@@ -188,14 +188,7 @@ export function ReportContentEditor({
                 rows={3}
                 lang={lang}
                 uiLang={uiLang}
-                maxLength={RECIPIENT_MAX_LENGTH}
-                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                  max: RECIPIENT_MAX_LENGTH,
-                })}
-                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-                maxLengthReachedAnnouncement={t(
-                  'sourceReports.editable.maxLengthReachedAnnouncement',
-                )}
+                lengthLimit={lengthLimit(RECIPIENT_MAX_LENGTH)}
               />
             )}
 
@@ -223,14 +216,7 @@ export function ReportContentEditor({
                 onReset={() => onFieldReset(overrideKey.coverLetter.reference)}
                 lang={lang}
                 uiLang={uiLang}
-                maxLength={REFERENCE_MAX_LENGTH}
-                maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                  max: REFERENCE_MAX_LENGTH,
-                })}
-                overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-                maxLengthReachedAnnouncement={t(
-                  'sourceReports.editable.maxLengthReachedAnnouncement',
-                )}
+                lengthLimit={lengthLimit(REFERENCE_MAX_LENGTH)}
               />
             )}
 
@@ -248,14 +234,7 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.subject)}
               lang={lang}
               uiLang={uiLang}
-              maxLength={SUBJECT_MAX_LENGTH}
-              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                max: SUBJECT_MAX_LENGTH,
-              })}
-              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-              maxLengthReachedAnnouncement={t(
-                'sourceReports.editable.maxLengthReachedAnnouncement',
-              )}
+              lengthLimit={lengthLimit(SUBJECT_MAX_LENGTH)}
             />
 
             <EditableField
@@ -273,14 +252,7 @@ export function ReportContentEditor({
               rows={10}
               lang={lang}
               uiLang={uiLang}
-              maxLength={BODY_MAX_LENGTH}
-              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                max: BODY_MAX_LENGTH,
-              })}
-              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-              maxLengthReachedAnnouncement={t(
-                'sourceReports.editable.maxLengthReachedAnnouncement',
-              )}
+              lengthLimit={lengthLimit(BODY_MAX_LENGTH)}
             />
 
             <div className={styles.readOnlyField}>
@@ -306,14 +278,7 @@ export function ReportContentEditor({
               onReset={() => onFieldReset(overrideKey.coverLetter.signature)}
               lang={lang}
               uiLang={uiLang}
-              maxLength={SIGNATURE_MAX_LENGTH}
-              maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                max: SIGNATURE_MAX_LENGTH,
-              })}
-              overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-              maxLengthReachedAnnouncement={t(
-                'sourceReports.editable.maxLengthReachedAnnouncement',
-              )}
+              lengthLimit={lengthLimit(SIGNATURE_MAX_LENGTH)}
             />
           </div>
         </div>
@@ -425,7 +390,6 @@ export function ReportContentEditor({
                 {show('allocatedAmount') && (
                   <td className={`${styles.rightAlign} ${row.isRefund ? styles.refundAmount : ''}`}>
                     {row.allocatedAmountValueText}
-                    {row.isRefund && ` ${row.refundNoteText}`}
                     {row.isDeposit && (
                       <Badge
                         className={styles.depositLabel}
@@ -438,7 +402,7 @@ export function ReportContentEditor({
                         value="deposit"
                       />
                     )}
-                    {row.isSplit && (
+                    {row.isPartial && (
                       <span className={styles.inlineNote}> ({content.labels.splitNote})</span>
                     )}
                     {row.isDepositReduced && (
@@ -447,6 +411,7 @@ export function ReportContentEditor({
                         ({content.labels.depositReducedNote})
                       </span>
                     )}
+                    {row.isRefund && ` ${row.refundNoteText}`}
                   </td>
                 )}
                 {show('usage') && (
@@ -469,14 +434,7 @@ export function ReportContentEditor({
                       onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                       lang={lang}
                       uiLang={uiLang}
-                      maxLength={USAGE_TEXT_MAX_LENGTH}
-                      maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                        max: USAGE_TEXT_MAX_LENGTH,
-                      })}
-                      overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-                      maxLengthReachedAnnouncement={t(
-                        'sourceReports.editable.maxLengthReachedAnnouncement',
-                      )}
+                      lengthLimit={lengthLimit(USAGE_TEXT_MAX_LENGTH)}
                     />
                     {(row.areaText || row.attachmentsNote) && (
                       <div className={styles.usageMetaText}>
@@ -545,7 +503,6 @@ export function ReportContentEditor({
                     className={`${styles.mobileCardValue} ${row.isRefund ? styles.refundAmount : ''}`}
                   >
                     {row.allocatedAmountValueText}
-                    {row.isRefund && ` ${row.refundNoteText}`}
                   </span>
                   {row.isDeposit && (
                     <Badge
@@ -558,11 +515,16 @@ export function ReportContentEditor({
                       value="deposit"
                     />
                   )}
-                  {row.isSplit && (
+                  {row.isPartial && (
                     <span className={styles.inlineNote}>({content.labels.splitNote})</span>
                   )}
                   {row.isDepositReduced && (
                     <span className={styles.inlineNote}>({content.labels.depositReducedNote})</span>
+                  )}
+                  {row.isRefund && (
+                    <span className={`${styles.mobileCardValue} ${styles.refundAmount}`}>
+                      {row.refundNoteText}
+                    </span>
                   )}
                 </span>
               </div>
@@ -588,14 +550,7 @@ export function ReportContentEditor({
                   onReset={() => onFieldReset(overrideKey.row(row.invoiceId).usageText)}
                   lang={lang}
                   uiLang={uiLang}
-                  maxLength={USAGE_TEXT_MAX_LENGTH}
-                  maxLengthHint={t('sourceReports.editable.maxLengthHint', {
-                    max: USAGE_TEXT_MAX_LENGTH,
-                  })}
-                  overMaxLengthHint={t('sourceReports.editable.overMaxLengthHint')}
-                  maxLengthReachedAnnouncement={t(
-                    'sourceReports.editable.maxLengthReachedAnnouncement',
-                  )}
+                  lengthLimit={lengthLimit(USAGE_TEXT_MAX_LENGTH)}
                 />
                 {(row.areaText || row.attachmentsNote) && (
                   <span className={styles.usageMetaText}>

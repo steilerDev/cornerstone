@@ -43,13 +43,13 @@ can co-occur on one row (old code's implicit either/or is gone).
 
 **How I found it without a live browser**: cross-referenced `server/src/services/
 sourceReportService.test.ts` (search `Story #1891 regression: invoice with lines only for source B
-+ a deposit tagged to source A → isSplit true in both A and B reports`, line ~346) against the
-E2E fixture shape — that unit test's `resultB.invoices[0].isSplit` assertion is `true`, which is
-the DB-level raw `isSplit` (unchanged by #1911) that Scenario 17's OLD stale comment claimed was
-`false`. Then confirmed via `buildReportContent.test.ts`'s "AC 3.1 (regression, #1898/claim
-zero-contribution-line drop)" test that the row-level flag inherits this. Static/unit-test
-cross-referencing caught a bug the incoming E2E spec missed — worth doing whenever a spec claims
-"no E2E changes needed" for a semantic (not just additive) server change.
+
+- a deposit tagged to source A → isSplit true in both A and B reports`, line ~346) against the
+E2E fixture shape — that unit test's `resultB.invoices[0].isSplit`assertion is`true`, which is
+the DB-level raw `isSplit`(unchanged by #1911) that Scenario 17's OLD stale comment claimed was`false`. Then confirmed via `buildReportContent.test.ts`'s "AC 3.1 (regression, #1898/claim
+  zero-contribution-line drop)" test that the row-level flag inherits this. Static/unit-test
+  cross-referencing caught a bug the incoming E2E spec missed — worth doing whenever a spec claims
+  "no E2E changes needed" for a semantic (not just additive) server change.
 
 ## Regression-guard test added
 

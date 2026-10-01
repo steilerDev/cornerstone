@@ -14,6 +14,7 @@ per site) `// eslint-disable-next-line @typescript-eslint/no-explicit-any` comme
 
 **Fix hierarchy** (bare `jest.fn()` alone does NOT fix it — same `never` inference applies to an
 untyped mock too, confirmed empirically):
+
 1. Prefer `jest.fn<typeof RealModule.realFn>()` with `import type * as RealModule from '...'` —
    this repo already has this convention established in many files (grep `jest.fn<typeof.*Types\.`
    for examples). Removes the adjacent eslint-disable comment too (no longer suppressing anything).
@@ -31,14 +32,14 @@ untyped mock too, confirmed empirically):
    unexported type.
 4. For a component callback prop mock, prefer indexing the real prop type
    (`UseBudgetLinePickerReturn['handleSelectItem']`) over inventing an inline `(...args: any[]) => ...`
-   signature — avoids adding a *new* explicit-any lint warning while fixing the typecheck.
+   signature — avoids adding a _new_ explicit-any lint warning while fixing the typecheck.
 5. If a mock is never given `.mockResolvedValue`/`.mockReturnValue` (only `.mockReset()` /
    `toHaveBeenCalledTimes()` etc.), bare `jest.fn()` genuinely doesn't error — leave it as the bulk
    drop-`<any>` fix produces, no per-site follow-up needed (confirmed: `mockCreateHouseholdItemDep`/
    `mockDeleteHouseholdItemDep` in MilestoneDetailPage.test.tsx, `mockCreateHouseholdItemBudget` in
    PaperlessInvoiceReviewPage.test.tsx).
 
-**Second-order bug this surfaced**: once `mockFetchVendors` was typed to the *real*
+**Second-order bug this surfaced**: once `mockFetchVendors` was typed to the _real_
 `fetchVendors(): Promise<VendorListResponse>`, three test files' local `makeVendorsResponse()`
 fixture helpers failed structurally — they still built vendor objects with `tradeId`/`websiteUrl`/
 `contactEmail`/`contactPhone` (an OLD `Vendor` shape) instead of the current `phone`/`email`/
@@ -61,7 +62,7 @@ more failures the first pass missed, both worth remembering:
 
 1. **A 14th file with the identical bug, missed by the original grep** — `InvoicesPage.openItems.test.tsx`
    didn't exist in the worktree at grep time because it (plus ~400 lines of production feature code in
-   `InvoicesPage.tsx`/`openItemsUtils.ts`) landed on `beta` *after* the dependabot branch was cut, and
+   `InvoicesPage.tsx`/`openItemsUtils.ts`) landed on `beta` _after_ the dependabot branch was cut, and
    GitHub's `pull_request` CI check tests the PR merged against the current base branch, not the
    worktree's stale checkout. **Lesson**: when CI reports an error in a file that doesn't exist locally,
    check `git log <branch-point>..origin/beta -- <path>` before assuming the grep was wrong — the fix

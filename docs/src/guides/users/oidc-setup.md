@@ -64,9 +64,38 @@ Restart your Cornerstone container. The login page will now show an OIDC login b
 4. Identity provider redirects back to `<EXTERNAL_URL>/api/auth/oidc/callback` with an authorization code
 5. Cornerstone exchanges the code for tokens and creates a session
 
-### Auto-Provisioning
+### Account Linking
 
-Users who log in via OIDC for the first time are automatically created in Cornerstone with the **Member** role. Admins can change their role later through the [admin panel](admin-panel).
+By default, OIDC does not create accounts. Instead, it links existing local accounts on first SSO login:
+
+1. **Admin creates the account first** -- use the [admin panel](admin-panel) to add users with their email address
+2. **First SSO login links the account** -- when a user logs in via their identity provider for the first time, Cornerstone matches the verified email (case-insensitive) to an existing local account and links them
+3. **Identity provider requirements** -- the identity provider must send `email_verified: true` with the user's email claim; unverified emails are rejected
+4. **Both login methods work** -- after linking, users can log in with either their local password or OIDC SSO
+5. **Unknown emails are rejected** (unless `OIDC_JIT_PROVISIONING=true`) -- if a user's verified email doesn't match any existing account, they are shown a clear error message and cannot proceed
+
+:::info Identity providers without email verification
+
+Some identity providers (e.g., certain Azure AD / Microsoft Entra configurations) don't send the `email_verified: true` claim. If your provider doesn't verify emails, new SSO login attempts will show an "email not verified" error and cannot establish a link. Users whose account is already linked can keep signing in even if the identity provider doesn't send a verified-email claim.
+
+Creating an account requires a password. For SSO-only users, admins can set a random password during creation; users can ignore it and simply use SSO to log in.
+:::
+
+### Just-in-time provisioning (opt-in)
+
+Set `OIDC_JIT_PROVISIONING=true` to create accounts on first SSO login instead of rejecting unknown emails.
+
+- **Off by default** -- without the setting, OIDC only links existing accounts.
+- **Members only** -- new accounts get the `member` role, never `admin`.
+- **Display name** -- taken from the `name` claim, then `preferred_username`, then the email address.
+- **Verified email still required** -- the identity provider must send `email_verified: true`.
+- **Never provisioned** -- deactivated accounts and emails that ambiguously match existing accounts are not provisioned.
+- **After initial setup only** -- provisioning is refused until the first admin account has been created.
+- **SSO only** -- provisioned accounts have no password and sign in through SSO only; password change is unavailable, as for any OIDC account.
+
+:::warning
+With an open identity provider (for example Google), anyone with an account there can register. Enable this only with a provider that restricts who can sign in.
+:::
 
 ## Environment Variables Reference
 
@@ -75,6 +104,7 @@ Users who log in via OIDC for the first time are automatically created in Corner
 | `OIDC_ISSUER` | Yes | Your OIDC provider's issuer URL |
 | `OIDC_CLIENT_ID` | Yes | Client ID from your provider |
 | `OIDC_CLIENT_SECRET` | Yes | Client secret from your provider |
+| `OIDC_JIT_PROVISIONING` | No | Set to `true` to create `member` accounts on first SSO login (default `false`) |
 | `EXTERNAL_URL` | Recommended | Public-facing base URL -- used to build the OIDC callback URL |
 | `TRUST_PROXY` | Recommended | Set to `true` behind a reverse proxy |
 | `SECURE_COOKIES` | Recommended | Set to `true` for HTTPS (default) |

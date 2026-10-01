@@ -62,9 +62,19 @@ describe('ErrorCode type', () => {
       expect(code).toBe('OIDC_ERROR');
     });
 
-    it('should include EMAIL_CONFLICT error code', () => {
-      const code: ErrorCode = 'EMAIL_CONFLICT';
-      expect(code).toBe('EMAIL_CONFLICT');
+    it('should include OIDC_NO_MATCHING_ACCOUNT error code', () => {
+      const code: ErrorCode = 'OIDC_NO_MATCHING_ACCOUNT';
+      expect(code).toBe('OIDC_NO_MATCHING_ACCOUNT');
+    });
+
+    it('should include OIDC_EMAIL_UNVERIFIED error code', () => {
+      const code: ErrorCode = 'OIDC_EMAIL_UNVERIFIED';
+      expect(code).toBe('OIDC_EMAIL_UNVERIFIED');
+    });
+
+    it('should include OIDC_MISSING_EMAIL error code', () => {
+      const code: ErrorCode = 'OIDC_MISSING_EMAIL';
+      expect(code).toBe('OIDC_MISSING_EMAIL');
     });
 
     it('should accept all auth error codes in an array', () => {
@@ -76,10 +86,12 @@ describe('ErrorCode type', () => {
         'LAST_ADMIN',
         'OIDC_NOT_CONFIGURED',
         'OIDC_ERROR',
-        'EMAIL_CONFLICT',
+        'OIDC_NO_MATCHING_ACCOUNT',
+        'OIDC_EMAIL_UNVERIFIED',
+        'OIDC_MISSING_EMAIL',
       ];
 
-      expect(authCodes).toHaveLength(8);
+      expect(authCodes).toHaveLength(10);
       expect(authCodes).toContain('SETUP_COMPLETE');
       expect(authCodes).toContain('INVALID_CREDENTIALS');
       expect(authCodes).toContain('ACCOUNT_DEACTIVATED');
@@ -87,7 +99,9 @@ describe('ErrorCode type', () => {
       expect(authCodes).toContain('LAST_ADMIN');
       expect(authCodes).toContain('OIDC_NOT_CONFIGURED');
       expect(authCodes).toContain('OIDC_ERROR');
-      expect(authCodes).toContain('EMAIL_CONFLICT');
+      expect(authCodes).toContain('OIDC_NO_MATCHING_ACCOUNT');
+      expect(authCodes).toContain('OIDC_EMAIL_UNVERIFIED');
+      expect(authCodes).toContain('OIDC_MISSING_EMAIL');
     });
   });
 

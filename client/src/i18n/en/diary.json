@@ -99,6 +99,7 @@
     "deleteErrorMessage": "Failed to delete diary entry. Please try again."
   },
   "edit": {
+    "signatureIncomplete": "Accept or remove the unfinished signature before saving.",
     "backLink": "← Back to Diary",
     "entryDate": "Entry Date",
     "entryDateRequired": "Entry date is required",

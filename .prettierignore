@@ -7,3 +7,5 @@ coverage/
 *.db
 .git/
 docs/
+# git submodule (separate repo, own conventions) — see #2024
+wiki/

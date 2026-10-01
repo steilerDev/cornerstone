@@ -1,0 +1,517 @@
+/* ConvertQuotationModal (Story #2107). Tokens only. */
+
+.convertModal {
+  width: min(720px, 95vw);
+  max-width: 95vw;
+}
+
+.intro {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.saveErrorWrap {
+  margin-bottom: var(--spacing-4);
+}
+
+.saveErrorWrap:focus {
+  outline: none;
+}
+
+.saveErrorWrap:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-md);
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background-color: var(--color-bg-primary);
+}
+
+.sectionHeading {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  margin: 0;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.countChip {
+  padding: var(--spacing-0-5) var(--spacing-2);
+  border-radius: var(--radius-full);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.muted {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.successText {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-success-badge-text);
+}
+
+/* ---- Buttons ---- */
+
+.actionButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+.textButton {
+  padding: var(--spacing-2) var(--spacing-3);
+  min-height: 44px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.textButton:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.textButton:disabled {
+  color: var(--color-text-muted);
+  cursor: not-allowed;
+}
+
+.textButton:focus-visible,
+.actionButton:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.footerActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.confirmContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+/* ---- Source document ---- */
+
+.sourceRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.selectedDocument {
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.selectedDocumentEmpty {
+  color: var(--color-text-muted);
+  white-space: normal;
+}
+
+.aiBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.aiButtonContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.aiWarning {
+  composes: bannerWarning from '../../styles/shared.module.css';
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ---- Invoice details ---- */
+
+.detailsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--spacing-3);
+}
+
+.formField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  min-width: 0;
+}
+
+.fullWidth {
+  grid-column: 1 / -1;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.required {
+  color: var(--color-danger-text-on-light);
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+  min-height: 44px;
+}
+
+.textarea {
+  composes: textarea from '../../styles/shared.module.css';
+}
+
+.inputInvalid {
+  border-color: var(--color-danger-border);
+}
+
+.deltaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.deltaIncrease {
+  background-color: var(--color-warning-badge-bg);
+  color: var(--color-warning-text-on-light);
+}
+
+.deltaDecrease {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.deltaNone {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+/* ---- Itemized lines ---- */
+
+.linesTableWrap {
+  overflow-x: auto;
+}
+
+.linesToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.checkLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: 44px;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.checkLabel:focus-within {
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-md);
+}
+
+.checkLabel input[type='checkbox'] {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  cursor: pointer;
+}
+
+.linesTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.linesTable th {
+  padding: var(--spacing-2);
+  text-align: left;
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.linesTable td {
+  padding: var(--spacing-2);
+  vertical-align: middle;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.linesTable tbody tr:hover {
+  background-color: var(--color-bg-hover);
+}
+
+.numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.lineName {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-0-5);
+  min-width: 0;
+}
+
+.lineType {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.lineInput {
+  composes: input from '../../styles/shared.module.css';
+  min-height: 44px;
+  max-width: 9rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.linesCards {
+  display: none;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mobileCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+}
+
+.mobileCardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+}
+
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-bg-secondary);
+}
+
+.totalsOver {
+  background-color: var(--color-danger-bg);
+  border-color: var(--color-danger-border);
+}
+
+.summaryRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.summaryValue {
+  font-variant-numeric: tabular-nums;
+}
+
+.summaryStrong {
+  font-weight: var(--font-weight-semibold);
+}
+
+.overAllocated {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--color-danger-text-on-light);
+}
+
+/* ---- Deposits ---- */
+
+.depositList {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.depositItem {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.depositAmount {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.refundBadge {
+  composes: refund from './InvoiceDepositsSection.module.css';
+}
+
+.statusPending {
+  composes: statusPending from './InvoiceDepositsSection.module.css';
+}
+
+.statusPaid {
+  composes: statusPaid from './InvoiceDepositsSection.module.css';
+}
+
+.statusClaimed {
+  composes: statusClaimed from './InvoiceDepositsSection.module.css';
+}
+
+.statusQuotation {
+  composes: statusQuotation from './InvoiceDepositsSection.module.css';
+}
+
+.overpaidBanner {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-danger-border);
+  border-radius: var(--radius-md);
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+  font-size: var(--font-size-sm);
+}
+
+.overpaidMessage {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  flex: 1 1 12rem;
+  margin: 0;
+}
+
+/* ---- Status ---- */
+
+.statusGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-4);
+}
+
+.statusGroup label {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--font-size-sm);
+}
+
+.statusGroup input[type='radio'] {
+  cursor: pointer;
+}
+
+.statusGroup label:focus-within {
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-md);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 767px) {
+  .convertModal {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .detailsGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .linesTableWrap {
+    display: none;
+  }
+
+  .linesCards {
+    display: flex;
+  }
+
+  .lineInput {
+    max-width: none;
+    width: 100%;
+  }
+
+  .footerActions {
+    flex-direction: column-reverse;
+  }
+
+  .footerActions button {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .overpaidBanner button {
+    width: 100%;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .textButton,
+  .actionButton,
+  .footerActions button {
+    min-height: 44px;
+  }
+}

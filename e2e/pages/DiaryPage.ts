@@ -112,14 +112,17 @@ export class DiaryPage {
     // Uses shared.emptyState CSS class. Use .first() in case multiple containers appear.
     this.emptyState = page.locator('[class*="emptyState"]').first();
 
-    this.errorBanner = page.locator('[class*="bannerError"]');
+    // The page-level bannerError was removed in #2064: a first-batch failure now renders the
+    // footer's role="alert" FormError (plus Retry), so waitForLoaded() still resolves on error.
+    this.errorBanner = page.getByTestId('diary-footer').getByRole('alert');
 
     // Infinite scroll footer (Issue #2060) — replaces the numbered pager entirely.
     // InfiniteScrollFooter is generic, parameterized by a `testIdPrefix` prop; DiaryPage passes
     // testIdPrefix="diary", so its root container is data-testid="diary-footer" (NOT
     // "diary-infinite-scroll-footer" — that was the pre-genericization hardcoded testid).
-    // Rendered only when entries.length > 0; footerError is scoped to the footer's own
-    // role="alert" banner so it never matches the page-level errorBanner above.
+    // Rendered only when entries.length > 0 or while recovering from a first-batch failure
+    // (#2064); footerError is scoped to the footer's own role="alert" banner (errorBanner
+    // aliases the same element).
     this.loadMoreButton = page.getByTestId('diary-load-more-button');
     this.endOfListMessage = page.getByTestId('diary-end-of-list');
     this.infiniteScrollSentinel = page.getByTestId('diary-sentinel');

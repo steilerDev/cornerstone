@@ -1,12 +1,21 @@
 /**
  * @jest-environment jsdom
  */
+import { useEffect } from 'react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import type { Invoice, Vendor } from '@cornerstone/shared';
+import type {
+  AppConfigResponse,
+  Invoice,
+  InvoiceDeposit,
+  PaperlessStatusResponse,
+  Vendor,
+} from '@cornerstone/shared';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import type * as ConfigApiTypes from '../../lib/configApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
@@ -15,6 +24,13 @@ const mockFetchInvoiceById = jest.fn<typeof InvoicesApiTypes.fetchInvoiceById>()
 const mockUpdateInvoice = jest.fn<typeof InvoicesApiTypes.updateInvoice>();
 const mockDeleteInvoice = jest.fn<typeof InvoicesApiTypes.deleteInvoice>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockConvertQuotation = jest.fn<typeof InvoicesApiTypes.convertQuotation>();
+const mockGetPaperlessStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
+const mockFetchConfig = jest.fn<typeof ConfigApiTypes.fetchConfig>();
+
+/** Mount counters for the stubbed sections (Story #2107: remount after conversion). */
+let budgetLinesMounts = 0;
+let linkedDocumentsMounts = 0;
 
 /** Captures the SearchPicker onChange handler so tests can simulate vendor selection */
 let capturedSearchPickerOnChange: ((id: string) => void) | null = null;
@@ -25,6 +41,7 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchInvoiceById: mockFetchInvoiceById,
   updateInvoice: mockUpdateInvoice,
   deleteInvoice: mockDeleteInvoice,
+  convertQuotation: mockConvertQuotation,
   fetchInvoices: jest.fn(),
   createInvoice: jest.fn(),
   fetchAllInvoices: jest.fn(),
@@ -34,24 +51,96 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // Stub out the section to avoid cascading dependencies in InvoiceDetailPage tests
 
 jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
-  InvoiceBudgetLinesSection: (props: { invoiceId: string; invoiceTotal: number }) => (
-    <div
-      data-testid="invoice-budget-lines-section"
-      data-invoice-id={props.invoiceId}
-      data-invoice-total={props.invoiceTotal}
-    />
-  ),
+  InvoiceBudgetLinesSection: (props: { invoiceId: string; invoiceTotal: number }) => {
+    useEffect(() => {
+      budgetLinesMounts += 1;
+    }, []);
+    return (
+      <div
+        data-testid="invoice-budget-lines-section"
+        data-invoice-id={props.invoiceId}
+        data-invoice-total={props.invoiceTotal}
+      />
+    );
+  },
 }));
 
 // ─── Mock: LinkedDocumentsSection stub ────────────────────────────────────────
 
 jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js', () => ({
-  LinkedDocumentsSection: (props: { entityType: string; entityId: string }) => (
-    <div
-      data-testid="linked-documents-section"
-      data-entity-type={props.entityType}
-      data-entity-id={props.entityId}
-    />
+  LinkedDocumentsSection: (props: { entityType: string; entityId: string }) => {
+    useEffect(() => {
+      linkedDocumentsMounts += 1;
+    }, []);
+    return (
+      <div
+        data-testid="linked-documents-section"
+        data-entity-type={props.entityType}
+        data-entity-id={props.entityId}
+      />
+    );
+  },
+}));
+
+// ─── Mocks: conversion flow integrations (Story #2107) ───────────────────────
+
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockGetPaperlessStatus,
+}));
+jest.unstable_mockModule('../../lib/configApi.js', () => ({ fetchConfig: mockFetchConfig }));
+
+/** Stub of the Paperless picker: lets tests select a document or close it. */
+jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.js', () => ({
+  InvoicePaperlessPickerModal: (props: {
+    onDocumentSelected: (doc: { id: number; title: string }) => void;
+    onManualEntry: () => void;
+    onClose: () => void;
+    paperlessUrl: string | null;
+  }) => (
+    <div role="dialog" aria-label="Stub picker" data-testid="stub-picker">
+      <span data-testid="stub-picker-url">{props.paperlessUrl}</span>
+      <button
+        type="button"
+        data-testid="stub-picker-select"
+        onClick={() => props.onDocumentSelected({ id: 7, title: 'Picked.pdf' })}
+      >
+        select
+      </button>
+      <button type="button" data-testid="stub-picker-manual" onClick={props.onManualEntry}>
+        manual
+      </button>
+      <button type="button" data-testid="stub-picker-close" onClick={props.onClose}>
+        close
+      </button>
+    </div>
+  ),
+}));
+
+/** Stub of the deposit form modal, used for the refund sub-flow. */
+jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
+  getEmptyForm: () => ({}),
+  InvoiceDepositFormModal: (props: {
+    mode: string;
+    lockEntryType?: boolean;
+    initialValues?: Record<string, unknown>;
+    onSaved: (deposit: unknown) => void;
+    onClose: () => void;
+  }) => (
+    <div role="dialog" aria-label="Stub refund" data-testid="stub-refund">
+      <span data-testid="stub-refund-props">
+        {JSON.stringify({
+          mode: props.mode,
+          lockEntryType: props.lockEntryType,
+          initialValues: props.initialValues,
+        })}
+      </span>
+      <button type="button" data-testid="stub-refund-save" onClick={() => props.onSaved({})}>
+        save
+      </button>
+      <button type="button" data-testid="stub-refund-close" onClick={props.onClose}>
+        close
+      </button>
+    </div>
   ),
 }));
 
@@ -169,6 +258,55 @@ const mockInvoice: Invoice = {
   updatedAt: '2026-01-15T10:00:00Z',
 };
 
+const PAPERLESS_OFF: PaperlessStatusResponse = {
+  configured: false,
+  reachable: false,
+  error: null,
+  paperlessUrl: null,
+  filterTag: null,
+};
+const PAPERLESS_ON: PaperlessStatusResponse = {
+  configured: true,
+  reachable: true,
+  error: null,
+  paperlessUrl: 'https://paperless.example',
+  filterTag: null,
+};
+const CONFIG_OFF: AppConfigResponse = {
+  currency: 'EUR',
+  vatRate: 0.19,
+  autoItemizeEnabled: false,
+  llmEnabled: false,
+};
+
+/** A quotation of 10,000 with a far-future due date (so the default invoice date never trips validation). */
+const mockQuotation: Invoice = {
+  ...mockInvoice,
+  status: 'quotation',
+  amount: 10000,
+  remainingAmount: 10000,
+  finalPaymentAmount: 10000,
+  dueDate: '2099-01-01',
+};
+
+function paidDeposit(amount: number): InvoiceDeposit {
+  return {
+    id: 'dep-1',
+    invoiceId: MOCK_INVOICE_ID,
+    amount,
+    dueDate: '2026-01-10',
+    paidDate: '2026-01-11',
+    claimedDate: null,
+    description: null,
+    status: 'paid',
+    entryType: 'deposit',
+    budgetSourceId: null,
+    createdBy: null,
+    createdAt: '2026-01-10T00:00:00Z',
+    updatedAt: '2026-01-10T00:00:00Z',
+  };
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 
 beforeEach(async () => {
@@ -176,6 +314,15 @@ beforeEach(async () => {
   mockUpdateInvoice.mockReset();
   mockDeleteInvoice.mockReset();
   mockFetchVendors.mockReset();
+  mockConvertQuotation.mockReset();
+  mockGetPaperlessStatus.mockReset();
+  mockFetchConfig.mockReset();
+  budgetLinesMounts = 0;
+  linkedDocumentsMounts = 0;
+
+  // Default: Paperless and the LLM unavailable for the conversion flow
+  mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_OFF);
+  mockFetchConfig.mockResolvedValue(CONFIG_OFF);
 
   // Default: successful load
   mockFetchInvoiceById.mockResolvedValue(mockInvoice);
@@ -234,7 +381,13 @@ describe('InvoiceDetailPage', () => {
       );
       renderPage();
 
-      await waitFor(() => expect(screen.getByText(/Internal server error/i)).toBeInTheDocument());
+      // #2113: API errors are shown via the errors namespace translation, never the raw message
+      await waitFor(() =>
+        expect(
+          screen.getByText('An unexpected error occurred. Please try again.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/Internal server error/i)).not.toBeInTheDocument();
     });
 
     it('renders generic error message on network failure', async () => {
@@ -516,6 +669,406 @@ describe('InvoiceDetailPage', () => {
 
       // Modal should still be open
       expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
+    });
+  });
+  // ─── Story #2107: quotation-to-final-invoice conversion ─────────────────────
+
+  describe('quotation conversion (#2107)', () => {
+    async function renderQuotation(invoice: Invoice = mockQuotation) {
+      mockFetchInvoiceById.mockResolvedValue(invoice);
+      renderPage();
+      await screen.findByTestId('invoice-budget-lines-section');
+    }
+
+    async function openConvertModal() {
+      fireEvent.click(await screen.findByTestId('convert-quotation-button'));
+      return screen.findByTestId('convert-quotation-form');
+    }
+
+    it('scenario 45: shows the Convert button for a quotation', async () => {
+      await renderQuotation();
+
+      const button = screen.getByTestId('convert-quotation-button');
+      expect(button).toHaveTextContent('Convert to final invoice');
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('scenario 45: does not show the Convert button for a pending invoice', async () => {
+      await renderQuotation(mockInvoice);
+
+      expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument();
+    });
+
+    it.each(['paid', 'claimed'] as const)(
+      'does not show the Convert button for a %s invoice',
+      async (status) => {
+        await renderQuotation({ ...mockInvoice, status });
+
+        expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument();
+      },
+    );
+
+    it('scenario 45: clicking the button opens the conversion modal with the invoice values', async () => {
+      await renderQuotation();
+
+      await openConvertModal();
+
+      const dialogs = screen.getAllByRole('dialog');
+      expect(dialogs).toHaveLength(1);
+      expect(screen.getByText('Convert quotation to final invoice')).toBeInTheDocument();
+      expect(screen.getByTestId('convert-final-amount')).toHaveValue(10000);
+      expect(screen.getByTestId('convert-invoice-number')).toHaveValue('INV-2026-001');
+    });
+
+    it('Cancel closes the modal without calling the API', async () => {
+      await renderQuotation();
+      await openConvertModal();
+
+      fireEvent.click(screen.getByTestId('convert-cancel'));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(mockConvertQuotation).not.toHaveBeenCalled();
+      expect(screen.getByTestId('convert-quotation-button')).toBeInTheDocument();
+    });
+
+    it('scenario 45: switching to the document picker shows exactly one dialog and returns to the form', async () => {
+      mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_ON);
+      await renderQuotation();
+      await openConvertModal();
+      fireEvent.click(await screen.findByTestId('convert-select-document'));
+
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByTestId('stub-picker')).toBeInTheDocument();
+      expect(screen.queryByTestId('convert-quotation-form')).not.toBeInTheDocument();
+      expect(screen.getByTestId('stub-picker-url')).toHaveTextContent('https://paperless.example');
+
+      fireEvent.click(screen.getByTestId('stub-picker-select'));
+
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.queryByTestId('stub-picker')).not.toBeInTheDocument();
+      expect(screen.getByTestId('convert-selected-document')).toHaveTextContent('Picked.pdf');
+      // form values survive the round trip
+      expect(screen.getByTestId('convert-final-amount')).toHaveValue(10000);
+    });
+
+    it.each(['stub-picker-close', 'stub-picker-manual'])(
+      'closing the picker via %s returns to the form without a document',
+      async (testId) => {
+        mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_ON);
+        await renderQuotation();
+        await openConvertModal();
+        fireEvent.click(await screen.findByTestId('convert-select-document'));
+
+        fireEvent.click(screen.getByTestId(testId));
+
+        expect(screen.getAllByRole('dialog')).toHaveLength(1);
+        expect(screen.getByTestId('convert-quotation-form')).toBeInTheDocument();
+        expect(screen.getByTestId('convert-selected-document')).toHaveTextContent(
+          'No document selected',
+        );
+      },
+    );
+
+    it('scenario 45: switching to the refund modal shows exactly one dialog with a locked refund preset', async () => {
+      await renderQuotation({ ...mockQuotation, deposits: [paidDeposit(6000)] });
+      await openConvertModal();
+      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
+
+      fireEvent.click(screen.getByTestId('convert-add-refund'));
+
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.queryByTestId('convert-quotation-form')).not.toBeInTheDocument();
+      const props = JSON.parse(screen.getByTestId('stub-refund-props').textContent!) as {
+        mode: string;
+        lockEntryType: boolean;
+        initialValues: Record<string, unknown>;
+      };
+      expect(props.mode).toBe('add');
+      expect(props.lockEntryType).toBe(true);
+      expect(props.initialValues).toMatchObject({
+        entryType: 'refund',
+        status: 'pending',
+        amount: '1000.00',
+      });
+    });
+
+    it('cancelling the refund modal returns to the form and keeps the entered amount', async () => {
+      await renderQuotation({ ...mockQuotation, deposits: [paidDeposit(6000)] });
+      await openConvertModal();
+      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
+      fireEvent.click(screen.getByTestId('convert-add-refund'));
+
+      fireEvent.click(screen.getByTestId('stub-refund-close'));
+
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByTestId('convert-final-amount')).toHaveValue(5000);
+      expect(screen.getByTestId('convert-overpaid-banner')).toBeInTheDocument();
+    });
+
+    it('saving the refund silently refreshes the invoice (no page loader) and returns to the form', async () => {
+      const refunded: Invoice = {
+        ...mockQuotation,
+        deposits: [
+          paidDeposit(6000),
+          { ...paidDeposit(1000), id: 'ref-1', entryType: 'refund', status: 'pending' },
+        ],
+      };
+      mockFetchInvoiceById.mockResolvedValueOnce({
+        ...mockQuotation,
+        deposits: [paidDeposit(6000)],
+      });
+      mockFetchInvoiceById.mockResolvedValue(refunded);
+      renderPage();
+      await screen.findByTestId('invoice-budget-lines-section');
+      await openConvertModal();
+      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '5000' } });
+      fireEvent.click(screen.getByTestId('convert-add-refund'));
+      expect(mockFetchInvoiceById).toHaveBeenCalledTimes(1);
+
+      fireEvent.click(screen.getByTestId('stub-refund-save'));
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('convert-overpaid-banner')).not.toBeInTheDocument(),
+      );
+      expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText('Loading invoice...')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByTestId('convert-final-amount')).toHaveValue(5000);
+      expect(screen.getByTestId('convert-confirm')).toBeEnabled();
+    });
+
+    it('scenario 45: after a successful conversion the status shows Pending, the button is gone and the amount is updated', async () => {
+      const converted: Invoice = {
+        ...mockQuotation,
+        status: 'pending',
+        amount: 10500,
+        finalPaymentAmount: 10500,
+        remainingAmount: 10500,
+        notes: 'Converted from quotation of $10000.00 on 2026-09-30.',
+      };
+      mockConvertQuotation.mockResolvedValue(converted);
+      await renderQuotation();
+      expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+      await openConvertModal();
+      fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '10500' } });
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('convert-confirm'));
+      });
+
+      await waitFor(() =>
+        expect(screen.queryByTestId('convert-quotation-button')).not.toBeInTheDocument(),
+      );
+      expect(mockConvertQuotation).toHaveBeenCalledTimes(1);
+      expect(mockConvertQuotation.mock.calls[0]![0]).toBe(MOCK_INVOICE_ID);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('$10500.00').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/Converted from quotation of/)).toBeInTheDocument();
+    });
+
+    it('remounts the budget lines and linked documents sections after conversion', async () => {
+      mockConvertQuotation.mockResolvedValue({ ...mockQuotation, status: 'pending' });
+      await renderQuotation();
+      await waitFor(() => expect(budgetLinesMounts).toBe(1));
+      expect(linkedDocumentsMounts).toBe(1);
+      await openConvertModal();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('convert-confirm'));
+      });
+
+      await waitFor(() => expect(budgetLinesMounts).toBe(2));
+      expect(linkedDocumentsMounts).toBe(2);
+    });
+
+    it('moves focus to the page heading after conversion', async () => {
+      mockConvertQuotation.mockResolvedValue({ ...mockQuotation, status: 'pending' });
+      await renderQuotation();
+      await openConvertModal();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('convert-confirm'));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { level: 1, name: /#INV-2026-001/ })).toHaveFocus(),
+      );
+    });
+
+    it('a failed conversion keeps the modal open with the error and the quotation state', async () => {
+      mockConvertQuotation.mockRejectedValue(
+        new MockApiClientError(409, { code: 'INVOICE_NOT_QUOTATION', message: 'x' }),
+      );
+      mockFetchInvoiceById.mockResolvedValue(mockQuotation);
+      await renderQuotation();
+      await openConvertModal();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('convert-confirm'));
+      });
+
+      expect(
+        await screen.findByText(
+          'This invoice is no longer a quotation. The page has been refreshed.',
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('convert-quotation-form')).toBeInTheDocument();
+      expect(budgetLinesMounts).toBe(1);
+    });
+  });
+
+  // ─── #2108 / #2109 / #2113: translated error surfaces ───────────────────────
+
+  describe('translated API errors (#2108, #2109, #2113)', () => {
+    async function openEditAndSave() {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+    }
+
+    it('scenario 19: ITEMIZED_SUM_EXCEEDS_INVOICE shows amountBelowItemized with formatted itemizedTotal and keeps the modal open', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, {
+          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+          message: 'raw server text',
+          details: { invoiceTotal: 800, itemizedTotal: 900 },
+        } as never),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'The amount cannot be lower than the itemized total of $900.00. Reduce the itemized budget lines first.',
+          ),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
+    });
+
+    it('scenario 20: DEPOSITS_EXCEED_INVOICE_TOTAL shows amountBelowNetDeposits with formatted netDeposits and keeps the modal open', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'raw server text',
+          details: { netDeposits: 500, shortfall: 0.01 },
+        } as never),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText(
+            'The amount cannot be lower than the deposits net of refunds ($500.00). Add a refund entry or reduce the deposits first.',
+          ),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
+    });
+
+    it('falls back to a formatted zero when the error details are missing', async () => {
+      mockUpdateInvoice.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'ITEMIZED_SUM_EXCEEDS_INVOICE', message: 'raw' }),
+      );
+      await openEditAndSave();
+      await waitFor(() =>
+        expect(screen.getByText(/itemized total of \$0\.00/)).toBeInTheDocument(),
+      );
+    });
+
+    it('falls back to a formatted zero net deposits when the error details are missing', async () => {
+      mockUpdateInvoice.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'raw' }),
+      );
+      await openEditAndSave();
+      await waitFor(() => expect(screen.getByText(/refunds \(\$0\.00\)/)).toBeInTheDocument());
+    });
+
+    it('scenario 21: VALIDATION_ERROR shows the errors-namespace translation, not the raw server message', async () => {
+      mockUpdateInvoice.mockRejectedValue(
+        new MockApiClientError(400, { code: 'VALIDATION_ERROR', message: 'raw server text' }),
+      );
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('The submitted data is invalid. Please check your input.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+    });
+
+    it('a non-API update failure shows the generic updateError message', async () => {
+      mockUpdateInvoice.mockRejectedValue(new Error('boom'));
+
+      await openEditAndSave();
+
+      await waitFor(() =>
+        expect(screen.getByText('Failed to update invoice. Please try again.')).toBeInTheDocument(),
+      );
+    });
+
+    it('scenario 22: a delete failure shows the translated error, not the raw server message', async () => {
+      mockDeleteInvoice.mockRejectedValue(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'raw server text' }),
+      );
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      const confirm = await screen.findByRole('button', { name: 'Delete Invoice' });
+      await act(async () => {
+        fireEvent.click(confirm);
+      });
+
+      await waitFor(() =>
+        expect(
+          screen.getByText('A conflict occurred. The resource may already exist.'),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+    });
+
+    it('a non-API delete failure shows the generic deleteError message', async () => {
+      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Invoice' }));
+      });
+
+      await waitFor(() =>
+        expect(screen.getByText('Failed to delete invoice. Please try again.')).toBeInTheDocument(),
+      );
     });
   });
 });

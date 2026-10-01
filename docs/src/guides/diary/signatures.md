@@ -17,9 +17,15 @@ Diary entries support multiple signers. To add a signature:
    - **User** -- Select an existing Cornerstone user
    - **Vendor** -- Enter a signatory name (for people who do not have a Cornerstone account)
 4. Draw the signature on the canvas
-5. Save the signature
+5. Finish the signature by clicking **Save** to finalize it
 
 You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue.
+
+When selecting a user as the signer, their display name is recorded. If a user's display name is blank, their email address is used as the signer name instead.
+
+:::caution Unfinished signatures are blocked
+An unfinished signature (no signer selected or no drawing yet) cannot be saved to the entry. Save is blocked client-side with a clear message next to the field, and autosave continues working in the background. To discard an incomplete signature, click **Remove** to clear it, then save the entry. Server errors appear translated to your configured language.
+:::
 
 ## Immutability
 

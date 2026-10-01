@@ -9,8 +9,8 @@ metadata:
 
 - `shared/src/types/sourceReport.ts`: new **required** `SourceReportInvoice.splitKind: 'lines' | 'deposits' | 'both' | null`.
 - `server/src/services/sourceReportService.ts` step f: UNION query gains an `origin` literal per arm
-  + two `MAX(CASE...)` conditional aggregates (`has_foreign_line_source`/`has_foreign_deposit_source`),
-  same `db.all` call, `COUNT(DISTINCT source_id)` untouched as the `isSplit` basis.
+  - two `MAX(CASE...)` conditional aggregates (`has_foreign_line_source`/`has_foreign_deposit_source`),
+    same `db.all` call, `COUNT(DISTINCT source_id)` untouched as the `isSplit` basis.
 - `client/src/lib/reportContent/buildReportContent.ts`: pre-pass rewritten — `isSplit`/`isDepositReduced`
   driven purely by `splitKind` (`'lines'|'both'` / `'deposits'|'both'`); `isDeposit`'s trigger is
   UNCHANGED (`invoice.isSplit(raw) && hasOwnTaggedDeposit`) — the old `if/else` between constituted
@@ -61,7 +61,7 @@ checklist item, by just running the file after the factory-default edit and read
   explicit AC 3.1 zero-contribution-line regression case, not a mistake to "fix back").
 - `realRender.test.ts`: 5 pre-existing tests broke (`makeMixedReport`'s two line-split fixtures needed
   `splitKind:'lines'`; `makeUsageFeatureReport`'s "Reduced Vendor" fixture used an UNTAGGED deposit
-  to drive `isDepositReduced` — that's now the AC 3.2 *over-inclusive* bug shape and must NOT fire;
+  to drive `isDepositReduced` — that's now the AC 3.2 _over-inclusive_ bug shape and must NOT fire;
   rewrote it to `splitKind:'both', deposits:[]` to preserve the original test's intent (this ONE
   fixture alone produced both legend entries under the old code) without relying on the now-fixed
   bug to do it; two `#1980` legend tests needed the same treatment). Also proactively fixed 2 more
@@ -73,7 +73,7 @@ checklist item, by just running the file after the factory-default edit and read
   `reportPdf/merge.test.ts`, `ReportInvoiceList.test.tsx`, `shared/reportMath.test.ts`.
 - `ReportWizardPage.test.tsx`/`.aiGeneration.test.tsx`: 10+2 raw literals, all `isSplit: false,`
   immediately followed by `documents: [],` — safe to batch-fix with a scoped `perl -pi -e
-  's/^(\s*)isSplit: false,$/$1isSplit: false,\n$1splitKind: null,/'` on just these two files (verified
+'s/^(\s*)isSplit: false,$/$1isSplit: false,\n$1splitKind: null,/'` on just these two files (verified
   every match was this exact shape via grep count parity with the spec's line list before running it).
 - CONFIRMED NOT needing changes (verified via `makeRow`/type import inspection, not just doc trust):
   `ReportContentEditor.test.tsx`, `overviewPdf.test.ts`, `applyAiContent.test.ts`,
@@ -135,6 +135,7 @@ maximal row, the two renders become indistinguishable and the inequality collaps
 actually caught the mutation (see below), not a hand-derived absolute line-count ceiling.
 
 **Mutation-testing proof (both checks), git-diff-verified restore:**
+
 - Backed up `overviewPdf.ts` to `/tmp` before either mutation (this file is NOT part of my PR's diff
   — it's already-committed code from #1959/#1973, so `git diff --stat` after restore showing nothing
   is the correct "byte-identical" signal here, not `git show HEAD:`).

@@ -13,6 +13,7 @@ import {
   validateBudgetCategoryId,
   validateBudgetSourceId,
   validateVendorId,
+  isValidIsoDate,
 } from './validators.js';
 
 describe('Shared Validators', () => {
@@ -243,5 +244,30 @@ describe('Shared Validators', () => {
         'Vendor not found: vendor-not-here',
       );
     });
+  });
+});
+
+describe('isValidIsoDate() (#2113)', () => {
+  it.each(['2026-02-28', '2024-02-29', '2000-02-29', '2026-12-31'])(
+    'accepts the real calendar date %s',
+    (value) => {
+      expect(isValidIsoDate(value)).toBe(true);
+    },
+  );
+
+  it.each([
+    '2026-02-29', // 2026 is not a leap year
+    '1900-02-29', // century non-leap year
+    '2026-02-31',
+    '2026-04-31',
+    '2026-13-01',
+    '2026-00-10',
+    '2026-01-00',
+    '2026-1-01',
+    '2026-01-01T00:00:00Z',
+    '',
+    'abcd-ef-gh',
+  ])('rejects %j', (value) => {
+    expect(isValidIsoDate(value)).toBe(false);
   });
 });

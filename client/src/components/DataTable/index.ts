@@ -9,6 +9,9 @@ export type {
   ActiveFilter,
 } from './DataTable.js';
 
+export { dataTableTestId } from './dataTableTestId.js';
+export type { DataTableSurface } from './dataTableTestId.js';
+
 export { DataTableHeader } from './DataTableHeader.js';
 export { DataTableRow } from './DataTableRow.js';
 export { DataTableCard } from './DataTableCard.js';

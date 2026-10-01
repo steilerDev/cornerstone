@@ -49,12 +49,7 @@ import styles from './ManagePage.module.css';
 const DEFAULT_COLOR = '#3b82f6';
 
 type Tab =
-  | 'household'
-  | 'areas'
-  | 'trades'
-  | 'orientations'
-  | 'budget-categories'
-  | 'hi-categories';
+  'household' | 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
 
 // ============================================================
 // HOUSEHOLD TAB

@@ -7,6 +7,13 @@ import { useId } from 'react';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './EditableField.module.css';
 
+export interface EditableFieldLengthLimit {
+  max: number; // enforcement ceiling (native maxLength)
+  hint: string; // pre-translated, e.g. "Maximum 200 characters." — always-on description
+  overHint?: string; // pre-translated; falls back to `hint` while over the limit
+  reachedAnnouncement: string; // pre-translated live-region text, e.g. "Maximum length reached."
+}
+
 export interface EditableFieldProps {
   as: 'input' | 'textarea';
   id?: string;
@@ -22,10 +29,7 @@ export interface EditableFieldProps {
   className?: string;
   lang?: string;
   uiLang?: string;
-  maxLength?: number; // enforcement ceiling; omitted = unbounded (AC9)
-  maxLengthHint?: string; // pre-translated, e.g. "Maximum 200 characters." — always-on description
-  overMaxLengthHint?: string; // pre-translated; falls back to maxLengthHint if omitted while over limit
-  maxLengthReachedAnnouncement?: string; // pre-translated, e.g. "Maximum length reached."
+  lengthLimit?: EditableFieldLengthLimit; // omitted = unbounded (AC9)
 }
 
 export function EditableField({
@@ -43,10 +47,7 @@ export function EditableField({
   className = '',
   lang,
   uiLang,
-  maxLength,
-  maxLengthHint,
-  overMaxLengthHint,
-  maxLengthReachedAnnouncement,
+  lengthLimit,
 }: EditableFieldProps) {
   const generatedId = useId();
   const fieldId = providedId || generatedId;
@@ -57,16 +58,15 @@ export function EditableField({
   const containerClassName = [styles.container, className].filter(Boolean).join(' ');
   const fieldClassName = as === 'textarea' ? styles.fieldTextarea : styles.field;
 
-  const hasMaxLength = maxLength !== undefined;
-  const overLimit = hasMaxLength && value.length > maxLength!;
-  const atLimit = hasMaxLength && value.length === maxLength;
-  const showCounter = hasMaxLength && value.length >= Math.ceil(maxLength! * 0.9);
+  const overLimit = lengthLimit !== undefined && value.length > lengthLimit.max;
+  const atLimit = lengthLimit !== undefined && value.length === lengthLimit.max;
+  const showCounter = lengthLimit !== undefined && value.length >= Math.ceil(lengthLimit.max * 0.9);
 
   const ariaDescribedBy =
     [
       isEdited && label ? editedHintId : null,
-      hasMaxLength ? limitHintId : null,
-      hasMaxLength ? limitLiveId : null,
+      lengthLimit ? limitHintId : null,
+      lengthLimit ? limitLiveId : null,
     ]
       .filter((id): id is string => id !== null)
       .join(' ') || undefined;
@@ -109,7 +109,7 @@ export function EditableField({
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
             lang={lang}
-            maxLength={maxLength}
+            maxLength={lengthLimit?.max}
           />
         ) : (
           <input
@@ -121,7 +121,7 @@ export function EditableField({
             aria-label={effectiveAriaLabel}
             aria-describedby={ariaDescribedBy}
             lang={lang}
-            maxLength={maxLength}
+            maxLength={lengthLimit?.max}
           />
         )}
 
@@ -140,7 +140,7 @@ export function EditableField({
       {showCounter ? (
         <div className={styles.metaRow}>
           <span className={overLimit ? styles.counterOverLimit : styles.counter} aria-hidden="true">
-            {value.length}/{maxLength}
+            {value.length}/{lengthLimit?.max}
           </span>
           {resetButton}
         </div>
@@ -148,12 +148,12 @@ export function EditableField({
         resetButton
       )}
 
-      {hasMaxLength && (
+      {lengthLimit && (
         <span id={limitHintId} className={sharedStyles.srOnly} lang={uiLang}>
-          {overLimit ? (overMaxLengthHint ?? maxLengthHint) : maxLengthHint}
+          {overLimit ? (lengthLimit.overHint ?? lengthLimit.hint) : lengthLimit.hint}
         </span>
       )}
-      {hasMaxLength && (
+      {lengthLimit && (
         <span
           id={limitLiveId}
           aria-live="polite"
@@ -161,7 +161,7 @@ export function EditableField({
           className={sharedStyles.srOnly}
           lang={uiLang}
         >
-          {atLimit ? maxLengthReachedAnnouncement : ''}
+          {atLimit ? lengthLimit.reachedAnnouncement : ''}
         </span>
       )}
     </div>

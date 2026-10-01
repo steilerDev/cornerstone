@@ -646,7 +646,8 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "deleting": "Deleting..."
+      "deleting": "Deleting...",
+      "convertToFinal": "Convert to final invoice"
     },
     "statusLabels": {
       "pending": "Pending",
@@ -664,7 +665,9 @@
     "messages": {
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again.",
-      "vendorNotFound": "The selected vendor could not be found"
+      "vendorNotFound": "The selected vendor could not be found",
+      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first.",
+      "amountBelowNetDeposits": "The amount cannot be lower than the deposits net of refunds ({{netDeposits}}). Add a refund entry or reduce the deposits first."
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",
@@ -818,7 +821,7 @@
         "refund": "Refund"
       },
       "errors": {
-        "exceedsTotal": "Deposit amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "exceedsTotal": "Deposits net of refunds would exceed the invoice total. Available headroom: {{availableHeadroom}}",
         "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
@@ -832,6 +835,101 @@
       "stateConfirm": {
         "paidDateLabel": "Paid date",
         "claimedDateLabel": "Claimed date"
+      }
+    },
+    "convertModal": {
+      "title": "Convert quotation to final invoice",
+      "intro": "Review the final amount, itemized lines and deposits. Nothing is saved until you confirm.",
+      "confirm": "Convert to invoice",
+      "confirming": "Converting...",
+      "cancel": "Cancel",
+      "saveError": "The quotation could not be converted. Nothing was changed.",
+      "history": {
+        "converted": "Converted from quotation of {{amount}} on {{date}}."
+      },
+      "errors": {
+        "depositsExceed": "The deposits recorded exceed the final amount. Add a refund entry or increase the final amount.",
+        "itemizedExceeds": "The itemized total exceeds the final amount. Adjust the itemized lines.",
+        "notQuotation": "This invoice is no longer a quotation. The page has been refreshed."
+      },
+      "source": {
+        "heading": "Source document",
+        "select": "Select Paperless document",
+        "change": "Change document",
+        "remove": "Remove",
+        "none": "No document selected. A selected document is linked as the invoice attachment.",
+        "paperlessUnavailable": "Paperless-ngx is not configured, so no document can be linked. You can still convert manually.",
+        "aiAnalyze": "Prefill from document",
+        "aiAnalyzing": "Analyzing...",
+        "aiUnavailable": "AI prefill is unavailable because AI assistance is not configured.",
+        "aiNeedsDocument": "Select a document to enable AI prefill.",
+        "aiSuccess": "Prefilled from document. Review the values before confirming.",
+        "aiError": "Analysis failed. Your entries are kept. Continue manually or try again.",
+        "aiRetry": "Try again",
+        "aiTotalMismatch": "The document total ({{extracted}}) differs from the quoted amount ({{quoted}}) by more than 1%.",
+        "aiNoLines": "No line items were detected in the document, so the final amount was not prefilled."
+      },
+      "details": {
+        "heading": "Invoice details",
+        "finalAmount": "Final amount",
+        "date": "Invoice date",
+        "invoiceNumber": "Invoice number",
+        "dueDate": "Due date",
+        "notes": "Notes",
+        "historyHint": "A note with the quoted amount is added automatically.",
+        "quotedAmount": "Quoted {{quoted}} → Final {{final}}",
+        "deltaIncrease": "Increase: +{{amount}} (+{{percent}})",
+        "deltaDecrease": "Decrease: −{{amount}} (−{{percent}})",
+        "deltaNone": "No change",
+        "errors": {
+          "amountRequired": "Enter a final amount.",
+          "amountPositive": "The final amount must be greater than 0.",
+          "dateRequired": "Enter an invoice date.",
+          "dueDateBeforeDate": "The due date must be on or after the invoice date."
+        }
+      },
+      "lines": {
+        "heading": "Itemized lines",
+        "caption": "Proposed itemized amounts for the final invoice",
+        "proposalHint": "Proposed amounts are scaled pro rata to the final amount.",
+        "columns": {
+          "line": "Line",
+          "quoted": "Quoted",
+          "proposed": "Proposed",
+          "keep": "Keep"
+        },
+        "keepExisting": "Keep existing itemization",
+        "reset": "Reset to proposal",
+        "proposedAria": "Proposed amount for {{name}}",
+        "keepAria": "Keep existing amount for {{name}}",
+        "itemizedTotal": "Itemized total",
+        "remainderDiscretionary": "Remainder to Discretionary",
+        "overAllocated": "Itemized total exceeds the final amount by {{amount}}.",
+        "lineInvalid": "Enter an amount greater than 0.",
+        "empty": "No itemized lines. Nothing to adjust.",
+        "workItem": "Work item",
+        "householdItem": "Household item"
+      },
+      "deposits": {
+        "heading": "Deposits and final payment",
+        "unchangedNote": "Deposits are kept unchanged.",
+        "empty": "No deposits recorded.",
+        "refund": "Refund",
+        "finalAmount": "Final amount",
+        "depositsSubtotal": "Deposits",
+        "finalPayment": "Final payment",
+        "noRemaining": "No remaining payment."
+      },
+      "overpaid": {
+        "message": "The final amount is {{shortfall}} lower than the deposits recorded ({{deposits}}). Add a refund entry or increase the final amount.",
+        "addRefund": "Add refund",
+        "resolved": "Deposits check passed.",
+        "refundDescription": "Refund for quotation conversion"
+      },
+      "status": {
+        "heading": "Payment status",
+        "pending": "Leave as pending",
+        "paid": "Already paid"
       }
     }
   },

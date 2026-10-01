@@ -179,7 +179,7 @@ async function expandInvoiceGroup(
 ): Promise<void> {
   // The toggle button has aria-expanded and class="toggleBtn" (from InvoiceGroup.module.css,
   // rendered as [class*="toggleBtn"]). Scoped to budgetSection to avoid other accordions.
-  const toggleBtn = budgetSection.locator('[class*="toggleBtn"]').filter({ visible: true }).first();
+  const toggleBtn = budgetSection.locator('[class*="toggleBtn"]').visible().first();
 
   const isExpanded = await toggleBtn.getAttribute('aria-expanded');
   if (isExpanded === 'true') return;

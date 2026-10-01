@@ -41,7 +41,7 @@ export function DataTableRow<T>({
       {leadingCell !== undefined && <td className={styles.expandCell}>{leadingCell}</td>}
       {visibleCols.map((col) => (
         <td key={col.key} className={`${styles.tableCell} ${col.className || ''}`}>
-          {col.render(item) ?? '—'}
+          {col.render(item, 'table') ?? '—'}
         </td>
       ))}
       {renderActions && (

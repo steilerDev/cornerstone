@@ -528,12 +528,12 @@ and as of PR #2008 it has no `_minWidth` coverage.
 
 The two hardcoded table shapes are gone. `overviewPdf.ts` now renders any of **96 legal column
 subsets** (64 budget-overview + 32 claim; `allocatedAmount` locked, R1), driven by
-`client/src/lib/reportContent/columns.ts` — the AC 2.1 single derivation consumed by *both*
+`client/src/lib/reportContent/columns.ts` — the AC 2.1 single derivation consumed by _both_
 `overviewPdf.ts` and `ReportContentEditor.tsx`.
 
 **Width mechanism (endorsed): single absorber.** `computeColumnWidths(visible)` picks
 `usage` → else `vendor` → else `null`; the absorber takes `usableColumnWidth(n) − fixedSum`, every
-other column keeps its pinned constant. This discharges R7/AC 3.1–3.5 *algebraically*
+other column keeps its pinned constant. This discharges R7/AC 3.1–3.5 _algebraically_
 (`total = printableWidth()` exactly with an absorber, strictly less without) instead of by 96
 assertions. `'*'` was correctly rejected (#1929 `columnCalculator.js` case-1); proportional
 slack-sharing would violate R7's "don't stretch a numeric table across 515pt".
@@ -543,7 +543,7 @@ subsets.** Removing any column both shrinks `fixedSum` (≥ 40pt) and grows `usa
 (+8.5pt), so Usage is strictly monotone-decreasing in column count. That is why
 `MAX_SAFE_USAGE_CHUNK_CHARS` (650, measured at 138.28pt) needed **no re-measurement** — hiding
 columns only makes it more conservative. `usageChunkCharsForWidth` is a deliberate one-sided clamp
-(`min(650, floor(650 · w/138.28))`): scales down for a future *added* column, never up.
+(`min(650, floor(650 · w/138.28))`): scales down for a future _added_ column, never up.
 
 **Standing review lesson — a wiki page can state a PROHIBITION that a later PR deletes.**
 ADR-034's "Geometry constraint that blocks a feature" (line 153) said the PDF column count is
@@ -594,18 +594,18 @@ Render-time marker: a bare `{ text: '… ' }` run prepended by `buildUsageCell(s
 `packedCellRows` index >= 1 — never in `UsageCellSegment.text`, so I1 stays trivially true.
 
 **The AC1-vs-AC2 resolution worth reusing.** Three candidate designs; only one works:
-merge-without-repack is *unsound* (receiver can already be at `maxChars`); always-repack-at-reduced
+merge-without-repack is _unsound_ (receiver can already be at `maxChars`); always-repack-at-reduced
 budget is sound but regresses the zero-degradation range; **gate the reduced-budget repack behind an
 actual runt check** is the only one that pays neither. A "lookahead inside the packer" is not a
 single-pass alternative — you cannot know a remainder exists without packing to the end, so the
-lookahead *is* the first pass, and folding it in would cost the primitive its clean
+lookahead _is_ the first pass, and folding it in would cost the primitive its clean
 "every row <= the budget I was given" contract, which is what the safety proof rests on.
 
 **The backward-merge induction, stated so it can be defended.** (1) primitive guarantees
 `rowCharCount <= B`; (2) **receiver virginity is structural**: at counter `i` the only index written
 is `i-1`, the counter strictly decreases, so index `k` is written iff the counter equals `k+1` —
-exactly once ever; `splice(i,1)` shifts only indices `> i`; (3) the donor is `< min` *at the moment
-of donation* because the guard re-reads the possibly-already-grown row. Hence
+exactly once ever; `splice(i,1)` shifts only indices `> i`; (3) the donor is `< min` _at the moment
+of donation_ because the guard re-reads the possibly-already-grown row. Hence
 `(<= M-m) + (< m) < M` at any cascade depth. Verified by hand **and** by a 400k-case fuzz
 (verbatim ports, `maxChars` 2..61, `min` 1..maxChars+4 incl. the degenerate band, meta segments,
 leading empty segments): 0 AC1 / 0 AC2 / 0 I1 violations. **Fuzzing verbatim function ports in a
@@ -615,19 +615,20 @@ a doc comment carries a proof.**
 **Wrapping row-level output was the right layer, for a stronger reason than the PR gave.** The PR's
 reason (a runt arises from two paths, one of which the chunker never sees) is true — the packer's
 own `used > 0 && rest.length <= maxChars` flush creates runts with `splitIntoPageSafeChunks` never
-invoked. But the load-bearing reason is a **unit mismatch**: the AC's unit is the rendered *row*;
-the chunker's unit is a chunk within one *segment*. A row can hold a prose chunk AND the grey meta
+invoked. But the load-bearing reason is a **unit mismatch**: the AC's unit is the rendered _row_;
+the chunker's unit is a chunk within one _segment_. A row can hold a prose chunk AND the grey meta
 segment, so a chunk-level floor bounds the wrong quantity.
 
 **Findings left open (all non-blocking, for the ADR-034 pass):**
+
 - ADR-034 **line 152**'s call-site quote is stale a **third** time (`MAX_SAFE_USAGE_CHUNK_CHARS` ->
   `usageChunkChars` -> now `packUsageCellRowsWithMinimum(..., minTrailingUsageChars)`). Three
-  staleness events on one quoted signature: name the *contract*, drop the literal call.
-- ADR-034 **line 148**'s rule ("bound what a cell *renders*") is now literally under-satisfied — the
-  marker is rendered and unbounded. Safe *by size only*: 2 chars, worst case **+1 line** (when the
+  staleness events on one quoted signature: name the _contract_, drop the literal call.
+- ADR-034 **line 148**'s rule ("bound what a cell _renders_") is now literally under-satisfied — the
+  marker is rendered and unbounded. Safe _by size only_: 2 chars, worst case **+1 line** (when the
   next token is <= 16 chars so no `break-all`, but too long for the 14 slots left beside `'… '`);
   0 lines in the break-all case. 41 -> 42 vs the 44-line `№` budget. Nobody wrote that down, and the
-  ux spec already budgets 14 chars for a *textual* marker variant — the obvious next request.
+  ux spec already budgets 14 chars for a _textual_ marker variant — the obvious next request.
 - `packUsageCellRows` now has **exactly one production caller** (the wrapper). Add a "production
   callers go through the wrapper" line to its doc comment.
 - ux-designer's "threshold-to-ceiling **ratio** stays roughly constant across subsets" is **false**
@@ -636,7 +637,17 @@ segment, so a chunk-level floor bounds the wrong quantity.
   let the ratio framing get copied into the ADR as the reason.
 
 **#1950 sequencing: confirmed no reorder needed.** No geometry constant moves, and the repack budget
-is strictly *below* the ceiling, so the new consumer is more conservative. But #1950's guard pins a
+is strictly _below_ the ceiling, so the new consumer is more conservative. But #1950's guard pins a
 **rendered** quantity, and the marker adds 2 uncounted rendered characters: on a continuation row the
 real overage against the derived `Ѹ` 616 ceiling is 36 chars / **4 lines / 44.8pt**, not 34 / 3 /
 33.6. State which quantity the guard pins when #1950 lands.
+
+## PR #2133 / #2011 (2026-09-30, APPROVED) — per-cell `_minWidth` check is vacuous for `columns` groups
+
+- Tier-3 summary `stack` gets right margin `printableWidth() - (tableOffsetsTotal(n) + Σ widths)`; rows label `'*'` + amount `'auto'`.
+- For a pdfmake `columns` group, `columnCalculator` case 1 sets auto `_calcWidth = _minWidth` and star to `starMaxMin`, so
+  per-cell `_minWidth <= _calcWidth` holds WHILE overflowing. Discriminating check = group span == container width.
+  Mutation-verified (two stars → 89.87/93.84pt vs 84pt). Recorded in ADR-034 rule #1 sub-bullet, wiki `954b846`.
+- Preview `.summaryTable` at 100% is the SAME rule (preview `.table` is always 100%) — not a parity gap.
+- Running a single jest file from the base checkout: `NODE_OPTIONS='--experimental-vm-modules' npx jest <path> -t <x>` from repo root;
+  without the flag (or from `client/`) it silently reports `Tests: 0 total`.

@@ -10,6 +10,7 @@ import type {
 } from '@cornerstone/shared';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocumentLinks.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
@@ -273,7 +274,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         await hook.updateAttachmentType(link.id, type);
         // Announce change to screen readers
         const typeLabel = type
-          ? t(`documentCard.attachmentType.${type}`)
+          ? t(I18N_UNION_KEYS.documentAttachmentType.key(type))
           : t('documentCard.attachmentType.none');
         setAnnounceMessage(
           t('linkedDocuments.attachmentTypeChanged', {

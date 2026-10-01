@@ -207,7 +207,7 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
         // toBeVisible() fails on mobile viewports.
         const depositRows = detailPage.depositsSection
           .locator('[class*="tableRow"], [class*="mobileCard"]')
-          .filter({ visible: true });
+          .visible();
         await expect(depositRows.first()).toBeVisible();
 
         // Final Payment row is now visible: invoice total (1000) − deposit (300) = 700
@@ -1045,7 +1045,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
 
       // Count of visible refund rows/cards before the failed attempt — used below to
       // confirm no second row was created.
-      const refundBadgeCountBefore = await detailPage.refundBadge.filter({ visible: true }).count();
+      const refundBadgeCountBefore = await detailPage.refundBadge.count();
 
       // Try to add a second refund of 50 (exceeds remaining 30 headroom)
       await detailPage.openAddDepositModal();
@@ -1076,7 +1076,7 @@ test.describe('Refund entries — exceed invoice total error (Scenario 10, #1876
       await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
 
       // No second refund row was created — count is unchanged from before the attempt
-      const refundBadgeCountAfter = await detailPage.refundBadge.filter({ visible: true }).count();
+      const refundBadgeCountAfter = await detailPage.refundBadge.count();
       expect(refundBadgeCountAfter).toBe(refundBadgeCountBefore);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -1226,6 +1226,55 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
       await expect(detailPage.depositsSection).toContainText('Paid');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       await expect(detailPage.refundAmountNegative.first()).toContainText('100');
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13 (#2109): deposit headroom is NET of refunds
+// (Σdeposit − Σrefund ≤ invoice amount, all statuses)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Deposits — headroom is net of refunds (Scenario 13, #2109)', () => {
+  test('With deposit 100 and refund 30 on a 100 invoice, adding a deposit of 30 succeeds', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detailPage = new InvoiceDetailPage(page);
+    let vendorId = '';
+    let invoiceId: string;
+    const description = `${testPrefix} net-of-refund deposit`;
+
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} NetRefund Vendor`);
+      invoiceId = await createInvoiceViaApi(page, vendorId, {
+        amount: 100,
+        date: '2026-06-01',
+      });
+      await createDepositViaApi(page, invoiceId, { amount: 100, dueDate: '2026-07-01' });
+      await createDepositViaApi(page, invoiceId, {
+        entryType: 'refund',
+        amount: 30,
+        dueDate: '2026-07-02',
+      });
+
+      await detailPage.goto(invoiceId);
+      await expect(detailPage.heading).toBeVisible();
+
+      // Net deposits = 100 − 30 = 70, so 30 of headroom remains
+      await detailPage.openAddDepositModal();
+      await detailPage.fillDepositForm({
+        amount: '30',
+        dueDate: '2026-08-01',
+        description,
+      });
+      await detailPage.saveDepositForm();
+
+      // Modal closed (saveDepositForm waits for it) and the new entry is listed
+      await expect(detailPage.depositModalError).not.toBeVisible();
+      await expect(detailPage.depositsSection).toContainText(description);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

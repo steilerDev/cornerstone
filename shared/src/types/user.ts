@@ -26,4 +26,6 @@ export interface UserResponse {
   createdAt: string;
   updatedAt?: string;
   deactivatedAt?: string | null;
+  /** True when the account can sign in via OIDC (oidc_subject set). Always emitted by the server; optional only so existing fixtures need not change. Absent ⇒ false. */
+  oidcLinked?: boolean;
 }

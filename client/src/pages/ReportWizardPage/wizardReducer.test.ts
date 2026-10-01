@@ -51,7 +51,7 @@ function makeInvoice(id: string): SourceReportResponse['invoices'][0] {
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [
+    budgetLinesForSource: [
       {
         id: `bl-${id}`,
         description: 'Usage text',
@@ -59,7 +59,7 @@ function makeInvoice(id: string): SourceReportResponse['invoices'][0] {
         linkedItem: null,
       },
     ],
-    deposits: [],
+    depositsVisibleToSource: [],
   };
 }
 

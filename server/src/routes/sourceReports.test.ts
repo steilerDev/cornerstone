@@ -274,8 +274,8 @@ describe('Source Report Routes', () => {
       expect(body.report.invoices[0]!.splitKind).toBeNull(); // single-source invoice, not split
     });
 
-    // Story #1891: response shape now includes budgetLines[]/deposits[] per invoice.
-    it('populated invoices include budgetLines[] and deposits[] arrays in the response shape', async () => {
+    // Story #1891: response shape now includes budgetLinesForSource[]/depositsVisibleToSource[] per invoice.
+    it('populated invoices include budgetLinesForSource[] and depositsVisibleToSource[] arrays in the response shape', async () => {
       const { cookie } = await createUserWithSession();
       const sourceId = insertSource();
       const vendorId = insertVendor();
@@ -293,13 +293,13 @@ describe('Source Report Routes', () => {
       const body = response.json<{ report: SourceReportResponse }>();
       expect(body.report.invoices).toHaveLength(1);
       const invoice = body.report.invoices[0]!;
-      expect(Array.isArray(invoice.budgetLines)).toBe(true);
-      expect(invoice.budgetLines).toHaveLength(1);
-      expect(invoice.budgetLines[0]).toMatchObject({
+      expect(Array.isArray(invoice.budgetLinesForSource)).toBe(true);
+      expect(invoice.budgetLinesForSource).toHaveLength(1);
+      expect(invoice.budgetLinesForSource[0]).toMatchObject({
         allocatedPortion: expect.any(Number),
       });
-      expect(Array.isArray(invoice.deposits)).toBe(true);
-      expect(invoice.deposits).toEqual([]);
+      expect(Array.isArray(invoice.depositsVisibleToSource)).toBe(true);
+      expect(invoice.depositsVisibleToSource).toEqual([]);
     });
 
     it('silently strips unknown query parameters (Fastify/AJV removeAdditional default) rather than rejecting with 400', async () => {

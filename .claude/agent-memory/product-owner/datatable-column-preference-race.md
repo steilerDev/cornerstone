@@ -40,7 +40,7 @@ the list, read next label, tick. That is ordinary reading pace.
 I initially judged this programmatic-only and argued fast clicking was the trigger; the
 `e2e-test-engineer` demonstrated from source that the opposite is true. When triaging a debounce +
 optimistic-refetch race, check which side the `clearTimeout` protects before assessing user
-reachability — coalescing usually makes rapid input the safe path and *deliberate, unhurried* input
+reachability — coalescing usually makes rapid input the safe path and _deliberate, unhurried_ input
 the dangerous one. Do not downgrade such a bug to "only a test artifact" on speed intuition alone.
 
 ## 2. A green shard is not a fixed product
@@ -53,7 +53,7 @@ deterministic but leaves the production race completely untouched — it only st
 driving the app through the racy window.
 
 Cross-comment posted on #1920 stating this explicitly, so nobody closes #1955 as already-done.
-Generalise: when an E2E fix is a *test-harness* change (awaiting a response, adding a retry) rather
+Generalise: when an E2E fix is a _test-harness_ change (awaiting a response, adding a retry) rather
 than a production change, the underlying defect needs its own tracked issue and the flake issue must
 say so in writing.
 

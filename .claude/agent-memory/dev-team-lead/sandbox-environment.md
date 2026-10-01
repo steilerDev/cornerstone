@@ -1,6 +1,6 @@
 ---
 name: sandbox-environment
-description: Sandbox/worktree environment quirks — node_modules corruption, shared package build order, prettier CWD, git index corruption, gh CLI version gaps, wiki submodule git identity.
+description: Sandbox/worktree environment quirks — node_modules corruption and /tmp npm-ci workaround, no pre-commit hook, prettier CWD, git index corruption, wiki submodule quirks, actionlint via docker.
 metadata:
   type: feedback
 ---
@@ -42,9 +42,22 @@ Or use worktree tsc if not corrupted: `npm run build -w shared`
 
 The pre-commit hook calls `npm run typecheck` which calls `npm run build -w shared` first, so committing will trigger the build automatically.
 
-## Commit Strategy: Pre-commit Hook Handles Everything
+## Commit Strategy: No Pre-commit Hook
 
-The pre-commit hook runs lint-staged + typecheck + build + audit automatically. Just `git commit` and the hook validates. Avoid manually running `npm test` or `npm run build` beforehand (per CLAUDE.md policy).
+As of 2026-09-30 there is no `.husky/` and no lint-staged config — nothing validates on `git commit`
+except the Claude harness `bash-guard.mjs` trailer pre-check. Lint/format cleanliness is verified in
+`[MODE: review]` and by CI's static-analysis job (ESLint + `format:check` added by #2111).
+
+## Mounted-filesystem sandbox (no worktree, repo under /Users/...)
+
+- `npm ci` in the repo fails with `ENOTEMPTY ... fsync` on the mounted FS. Workaround: copy root +
+  workspace `package.json` files and `package-lock.json` to `/tmp/cs-deps`, `npm ci --ignore-scripts`
+  there (4s from cache), then symlink `node_modules`, `client/node_modules`, `e2e/node_modules` back
+  into the repo. The symlinks are git-ignored (`.gitignore` has bare `node_modules`). ESLint/Prettier/
+  client Jest work; native `better-sqlite3`/`sharp` are not built, so server DB tests won't run.
+- `git status` errors with `'wiki/.git' not recognized` when the wiki submodule is uninitialised —
+  use `git status --ignore-submodules=all`.
+- actionlint works via `docker run --rm -v "$PWD":/repo -w /repo rhysd/actionlint:latest -oneline <file>`.
 
 ## Prettier: Run from Worktree Directory, Not Root
 

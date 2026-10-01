@@ -6,7 +6,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { UserResponse } from '@cornerstone/shared';
-import { ConflictError } from '../errors/AppError.js';
+import {
+  ConflictError,
+  OidcEmailUnverifiedError,
+  OidcMissingEmailError,
+  OidcNoMatchingAccountError,
+} from '../errors/AppError.js';
 
 // Re-export ConflictError for tests
 export { ConflictError };
@@ -95,6 +100,7 @@ export function toUserResponse(row: typeof users.$inferSelect): UserResponse {
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     deactivatedAt: row.deactivatedAt,
+    oidcLinked: row.oidcSubject !== null,
   };
 }
 
@@ -178,70 +184,244 @@ export function countActiveUsers(db: DbType): number {
 }
 
 /**
- * Find a user by OIDC subject.
+ * Find a user by OIDC subject, regardless of how the account was created
+ * (local password account that was later linked, or a legacy OIDC-created
+ * account). `oidcSubject` alone is the correlation key.
  *
  * @param db - Database instance
  * @param sub - OIDC subject identifier
  * @returns User row or undefined if not found
  */
 export function findByOidcSubject(db: DbType, sub: string): typeof users.$inferSelect | undefined {
-  return db
-    .select()
-    .from(users)
-    .where(and(eq(users.authProvider, 'oidc'), eq(users.oidcSubject, sub)))
-    .get();
+  return db.select().from(users).where(eq(users.oidcSubject, sub)).get();
+}
+
+/** Identity asserted by the OIDC provider (server-internal). */
+export interface OidcIdentity {
+  sub: string;
+  email: string;
+  emailVerified: boolean;
+  name?: string;
+  preferredUsername?: string;
+}
+
+/** Options controlling OIDC account resolution. */
+export interface OidcResolveOptions {
+  jitProvisioning: boolean;
+}
+
+export type OidcResolutionOutcome =
+  'matched_subject' | 'linked' | 'relinked' | 'deactivated_not_linked' | 'provisioned';
+
+export interface OidcResolution {
+  user: typeof users.$inferSelect;
+  outcome: OidcResolutionOutcome;
+  previousSubject: string | null;
 }
 
 /**
- * Find a user by OIDC subject or create a new one.
+ * Find a user by email for OIDC linking, case-insensitively.
+ * An exact-case match wins; otherwise a single case-insensitive match is
+ * returned. Multiple case-variant matches with no exact match are ambiguous and
+ * fail closed (undefined).
  *
  * @param db - Database instance
- * @param sub - OIDC subject identifier
- * @param email - User email address
- * @param displayName - User display name
- * @returns The user row (existing or newly created)
- * @throws ConflictError if email is already in use by another account
+ * @param email - Email asserted by the identity provider
+ * @returns User row or undefined if none/ambiguous
  */
-export function findOrCreateOidcUser(
+export function findByEmailForOidc(
   db: DbType,
-  sub: string,
   email: string,
-  displayName: string,
-): typeof users.$inferSelect {
-  // First, try to find by OIDC subject
-  const existingUser = findByOidcSubject(db, sub);
-  if (existingUser) {
-    return existingUser;
-  }
+): typeof users.$inferSelect | undefined {
+  const rows = db
+    .select()
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .all();
+  const exact = rows.find((r) => r.email === email);
+  if (exact) return exact;
+  return rows.length === 1 ? rows[0] : undefined;
+}
 
-  // Check if email is already used by another user
-  const emailUser = findByEmail(db, email);
-  if (emailUser) {
-    throw new ConflictError('Email already in use by another account', {
-      email,
-    });
-  }
+/** Count users whose email matches case-insensitively (ASCII `lower()`); used to detect ambiguous case variants before JIT provisioning. */
+function countByEmailCaseInsensitive(db: DbType, email: string): number {
+  const result = db
+    .select({ count: sql<number>`COUNT(*)` })
+    .from(users)
+    .where(sql`lower(${users.email}) = lower(${email})`)
+    .get();
+  return result?.count ?? 0;
+}
 
-  // Create new OIDC user
+/**
+ * Derive a display name for a provisioned OIDC user: first non-empty of
+ * `name`, `preferredUsername`, `email`; trimmed and capped at 100 code points.
+ *
+ * @param identity - Identity asserted by the IdP
+ * @returns Display name (max 100 code points)
+ */
+export function resolveOidcDisplayName(identity: OidcIdentity): string {
+  const candidate = [identity.name, identity.preferredUsername, identity.email]
+    .map((v) => (v ?? '').trim())
+    .find((v) => v.length > 0);
+  return Array.from(candidate ?? '')
+    .slice(0, 100)
+    .join('');
+}
+
+/** True if `err` or any error in its `.cause` chain is the `users.oidc_subject` unique-index violation; drizzle may wrap driver errors. */
+function isOidcSubjectUniqueViolation(err: unknown): boolean {
+  const seen = new Set<unknown>();
+  let current: unknown = err;
+  while (current && typeof current === 'object' && !seen.has(current)) {
+    seen.add(current);
+    const message = (current as { message?: unknown }).message;
+    if (
+      typeof message === 'string' &&
+      message.includes('UNIQUE constraint failed: users.oidc_subject')
+    ) {
+      return true;
+    }
+    current = (current as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+/**
+ * Create a `member` account for an OIDC identity (no password, SSO only).
+ * The caller must hold the transaction.
+ *
+ * Catching the insert error inside the transaction is safe: SQLite's default
+ * ABORT conflict mode reverts only the failing statement. Single-process
+ * better-sqlite3 transactions already serialize, so the unique index on
+ * oidc_subject is the backstop for multiple instances or external writes.
+ *
+ * @param db - Database instance
+ * @param identity - Verified identity from the IdP
+ * @returns Resolution with outcome 'provisioned' (or 'matched_subject' on a subject race)
+ */
+export function provisionOidcUser(db: DbType, identity: OidcIdentity): OidcResolution {
   const now = new Date().toISOString();
   const id = randomUUID();
 
-  db.insert(users)
-    .values({
-      id,
-      email,
-      displayName,
-      role: 'member',
-      authProvider: 'oidc',
-      oidcSubject: sub,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .run();
+  try {
+    db.insert(users)
+      .values({
+        id,
+        email: identity.email,
+        displayName: resolveOidcDisplayName(identity),
+        role: 'member',
+        authProvider: 'oidc',
+        oidcSubject: identity.sub,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+  } catch (err) {
+    if (isOidcSubjectUniqueViolation(err)) {
+      const user = findByOidcSubject(db, identity.sub);
+      if (user) {
+        return { user, outcome: 'matched_subject', previousSubject: user.oidcSubject };
+      }
+    }
+    throw err;
+  }
 
-  // Return the inserted row
-  const row = db.select().from(users).where(eq(users.id, id)).get();
-  return row!;
+  const user = db.select().from(users).where(eq(users.id, id)).get()!;
+  return { user, outcome: 'provisioned', previousSubject: null };
+}
+
+/**
+ * Resolve the local account for an OIDC identity, linking it on login.
+ *
+ * By default OIDC is an alternate login method for accounts that already
+ * exist. With `options.jitProvisioning` it may also create a `member` account
+ * (step 4). Runs in a single transaction.
+ * Resolution order:
+ *   1. `sub` already linked to an account: return it ('matched_subject').
+ *      No verified-email requirement (the subject is the correlation key).
+ *   2. Empty email (no email claim): throw OidcMissingEmailError. Only the link
+ *      path needs an email, so a linked user without an email claim still signs in.
+ *   3. Email not asserted as verified by the IdP: throw
+ *      OidcEmailUnverifiedError, BEFORE any email lookup (no account enumeration).
+ *   4. No account matches the email (case-insensitive, see findByEmailForOidc):
+ *      throw OidcNoMatchingAccountError unless jitProvisioning is on, in which
+ *      case provision a member account ('provisioned') — refusing (throw) when
+ *      case-variant emails make the match ambiguous or when initial setup is
+ *      not complete (no users yet).
+ *   5. Matching account is deactivated: return it ('deactivated_not_linked')
+ *      without writing anything.
+ *   6. Otherwise bind `sub` to the account. If the account already had a
+ *      different subject it is re-bound ('relinked') — this lets an IdP
+ *      migration self-heal, since there is no link/unlink UI. Otherwise
+ *      'linked'. `authProvider` and `passwordHash` are left untouched.
+ *
+ * @param db - Database instance
+ * @param identity - Subject, email, email-verified flag and name claims from the IdP
+ * @param options - Resolution options (jitProvisioning defaults to false)
+ * @returns The resolved user, outcome and previous subject
+ * @throws OidcMissingEmailError, OidcEmailUnverifiedError, OidcNoMatchingAccountError
+ */
+export function findOrLinkOidcUser(
+  db: DbType,
+  identity: OidcIdentity,
+  options: OidcResolveOptions = { jitProvisioning: false },
+): OidcResolution {
+  return db.transaction(() => {
+    const existingUser = findByOidcSubject(db, identity.sub);
+    if (existingUser) {
+      return {
+        user: existingUser,
+        outcome: 'matched_subject' as const,
+        previousSubject: existingUser.oidcSubject,
+      };
+    }
+
+    if (!identity.email) {
+      throw new OidcMissingEmailError();
+    }
+
+    if (!identity.emailVerified) {
+      throw new OidcEmailUnverifiedError();
+    }
+
+    const emailUser = findByEmailForOidc(db, identity.email);
+    if (!emailUser) {
+      if (!options.jitProvisioning) throw new OidcNoMatchingAccountError();
+      // Ambiguous case-variant match: never create another variant (fail closed)
+      if (countByEmailCaseInsensitive(db, identity.email) > 0) {
+        throw new OidcNoMatchingAccountError();
+      }
+      // Setup not complete: provisioning would block POST /api/auth/setup permanently
+      if (countUsers(db) === 0) {
+        throw new OidcNoMatchingAccountError(
+          'Initial setup is not complete; OIDC provisioning is unavailable until an admin account exists',
+        );
+      }
+      return provisionOidcUser(db, identity);
+    }
+
+    if (emailUser.deactivatedAt) {
+      return {
+        user: emailUser,
+        outcome: 'deactivated_not_linked' as const,
+        previousSubject: emailUser.oidcSubject,
+      };
+    }
+
+    const now = new Date().toISOString();
+    db.update(users)
+      .set({ oidcSubject: identity.sub, updatedAt: now })
+      .where(eq(users.id, emailUser.id))
+      .run();
+
+    const row = db.select().from(users).where(eq(users.id, emailUser.id)).get()!;
+    return {
+      user: row,
+      outcome: emailUser.oidcSubject ? ('relinked' as const) : ('linked' as const),
+      previousSubject: emailUser.oidcSubject,
+    };
+  });
 }
 
 /**

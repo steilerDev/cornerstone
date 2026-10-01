@@ -6,6 +6,7 @@ import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import type { OrientationResponse } from '@cornerstone/shared';
 import type { OrientationPickerProps } from './OrientationPicker.js';
+import type * as OrientationApi from '../../lib/orientationApi.js';
 
 // Module-scope captures for inspecting props passed to mocked SearchPicker
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -17,8 +18,7 @@ let capturedSpecialOptions: any[] | undefined;
 let capturedOnChange: ((id: string) => void) | null = null;
 let capturedEmptyHint: string | undefined = undefined;
 
-const mockFetchOrientations =
-  jest.fn<typeof import('../../lib/orientationApi.js').fetchOrientations>();
+const mockFetchOrientations = jest.fn<typeof OrientationApi.fetchOrientations>();
 
 jest.unstable_mockModule('../../lib/orientationApi.js', () => ({
   fetchOrientations: mockFetchOrientations,

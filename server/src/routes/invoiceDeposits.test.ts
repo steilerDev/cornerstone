@@ -350,15 +350,25 @@ describe('Invoice Deposit Routes', () => {
       });
       expect(refundResponse.statusCode).toBe(201);
 
-      // Exceeding either type's cap now fails with its own error code.
+      // Exceeding either type's cap fails with its own error code. #2109 (sanctioned contract
+      // change): the deposit cap is NET of refunds. With deposits 10000 and refunds 10000, a
+      // further +1 deposit is now allowed (net 1); it takes +10000.01 to exceed the cap.
       const overDeposit = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 10000.01, dueDate: '2026-02-01', entryType: 'deposit' },
+      });
+      expect(overDeposit.statusCode).toBe(400);
+      expect(overDeposit.json<ApiErrorResponse>().error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+
+      const netAllowedDeposit = await app.inject({
         method: 'POST',
         url: `/api/invoices/${invoiceId}/deposits`,
         headers: { cookie },
         payload: { amount: 1, dueDate: '2026-02-01', entryType: 'deposit' },
       });
-      expect(overDeposit.statusCode).toBe(400);
-      expect(overDeposit.json<ApiErrorResponse>().error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(netAllowedDeposit.statusCode).toBe(201);
 
       const overRefund = await app.inject({
         method: 'POST',
@@ -1057,6 +1067,36 @@ describe('Invoice Deposit Routes', () => {
       const body = response.json<{ deposit: { status: string; budgetSourceId: string | null } }>();
       expect(body.deposit.status).toBe('claimed'); // status unaffected
       expect(body.deposit.budgetSourceId).toBe(sourceId);
+    });
+  });
+
+  describe('POST net-of-refunds violation (#2109)', () => {
+    it('returns 400 DEPOSITS_EXCEED_INVOICE_TOTAL with refundTotal and netDeposits in details', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'net2109@test.com',
+        'Test User',
+        'password123',
+      );
+      const vendorId = createTestVendor();
+      const invoiceId = createTestInvoice(vendorId, 1000);
+      createTestDeposit(invoiceId, userId, 800, 'pending', 'deposit');
+      createTestDeposit(invoiceId, userId, 100, 'pending', 'refund');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 400, dueDate: '2026-02-01' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(error.details).toMatchObject({
+        refundTotal: 100,
+        netDeposits: 1100,
+        availableHeadroom: 300,
+      });
     });
   });
 });

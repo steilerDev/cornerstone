@@ -142,6 +142,9 @@ export type {
   UpdateDepositRequest,
   InvoiceListResponse,
   InvoiceResponse,
+  ConvertQuotationTargetStatus,
+  ConvertQuotationLineUpdate,
+  ConvertQuotationRequest,
   InvoiceStatusSummary,
   InvoiceStatusBreakdown,
   InvoiceListPaginatedResponse,
@@ -254,6 +257,12 @@ export type {
   WorkItemBudgetResponse,
 } from './types/workItemBudget.js';
 export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
+
+// Runtime union tuples (#2029)
+export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
+export { BUDGET_SOURCE_TYPES } from './types/budgetSource.js';
+export { INVOICE_STATUSES } from './types/invoice.js';
+export { ATTACHMENT_TYPES } from './types/document.js';
 
 // Milestones
 export type {

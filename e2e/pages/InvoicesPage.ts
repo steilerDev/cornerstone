@@ -62,8 +62,13 @@
  * - Status badges use data-testid="invoice-status-{id}" (desktop table) /
  *   "invoice-status-mobile-{id}" (mobile card) — same dual-DOM pattern as the
  *   invoice-overdue/invoice-container flag badges and the deposit-status/deposit-overdue badges
- * - Actions menu button: data-testid="invoice-menu-button-{id}"
- * - View button in dropdown: data-testid="invoice-view-{id}"
+ * - Actions menu button: data-testid="invoice-menu-button-{id}" (desktop table) /
+ *   "invoice-menu-button-mobile-{id}" (mobile card)
+ * - View button in dropdown: data-testid="invoice-view-{id}" (desktop table) /
+ *   "invoice-view-mobile-{id}" (mobile card)
+ * - Dual-DOM testid convention: DataTable builds surface-scoped ids via
+ *   dataTableTestId(prefix, id, surface) — desktop keeps `<prefix>-<id>`, mobile cards
+ *   insert `mobile` (`<prefix>-mobile-<id>`). See wiki Architecture > Frontend Conventions.
  * - Create form is in a Modal component (uses the shared Modal component)
  */
 
@@ -573,12 +578,12 @@ export class InvoicesPage {
   /**
    * Currently-VISIBLE child `<tr>` elements inside an invoice's row group,
    * excluding the parent row itself. Child rows stay in the DOM at all times and
-   * toggle via the `hidden` attribute (never unmounted) — `:visible` reflects that
-   * correctly since nothing overrides the browser's default `[hidden] { display:
+   * toggle via the `hidden` attribute (never unmounted) — `locator.visible()` reflects
+   * that correctly since nothing overrides the browser's default `[hidden] { display:
    * none }` behavior in this codebase's CSS.
    */
   childRows(invoiceId: string): Locator {
-    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]:visible');
+    return this.rowGroup(invoiceId).locator('tr[class*="childRow"]').visible();
   }
 
   /** Desktop table-row "Overdue"/"Deposit overdue" flag badge on an invoice's parent row. */

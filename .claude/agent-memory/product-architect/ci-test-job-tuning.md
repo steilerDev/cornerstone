@@ -1,48 +1,44 @@
 ---
 name: ci-test-job-tuning
-description: How to reason about Jest CI shard slowness/timeouts — the runner-vs-dev-box speed ratio, why maxWorkers/shardTotal are near-useless levers here, and where testTimeout belongs
+description: How the CI Jest test job is sized and balanced — duration-packed shards, 2 workers on 2-core runners, no testTimeout override, how to diagnose a slow shard, and what hardcodes the shard count (nothing)
 metadata:
   type: project
 ---
 
-# CI Jest shard tuning (established on #2076/#2078, promotion PR #2075)
+# CI Jest shard tuning (settled on PR #2114, #2078)
 
-**GitHub-hosted `ubuntu-latest` is ~1.8x slower single-threaded than the Apple-Silicon dev
-sandbox.** Measured two ways on run `34154456691`: `SearchPicker.test.tsx` 2326 s on CI vs
-1330 s locally (60 tests); `WorkItemPicker.test.tsx` 435.6 s vs 224 s (14 tests). A wall-clock
-budget calibrated on a dev box has roughly *half* the headroom it appears to have in CI.
+**Current shape:** 6 shards x `--maxWorkers=2`, ~8 min per job (~1m45s setup + ~6.5 min tests),
+no `--testTimeout` override (Jest's default 5 s). Shards are packed by recorded per-file runtime
+(`scripts/jest-shard-sequencer.mjs` + `scripts/jest-timings.json`, refreshed with
+`node scripts/update-jest-timings.mjs <run-id>`), not Jest's default path hash.
 
-**Why:** the sandbox runs on the user's M-series Mac; GitHub's standard runners are Azure
-D-series vCPUs. This is expected, not a defect — but it is invisible until measured, and it
-gets misdiagnosed as contention or as a dependency regression.
+**Why:**
+
+- The path-hash split ignored runtime; with runtime packing, **shard count is a real lever** again
+  — total worker-time / (2 x shards) predicts per-shard test time well. A single file still can't
+  be split across shards, so keep every file well under a shard's budget.
+- `ubuntu-latest` has 4 vCPUs but only 2 physical cores. 3 workers measured ~2x slower per file and
+  ~30% more total CPU (run 36722807521) — stay at 2.
+- `--coverage` costs ~0.3% (A/B on WorkItemPicker) — not worth optimising.
+- The earlier "CI runner is ~1.8x slower than the dev box", "contention", and 60-240 s timeout
+  stopgaps were all built on a misdiagnosis: the picker-family suites were slow because of an
+  nwsapi 2.2.27 bug (`:modal` recursion, ~281 ms per floating-ui positioning check), fixed in
+  2.2.28. See the qa-integration-tester note `pr2070-searchpicker-dropdown-timeout.md`.
 
 **How to apply:**
 
-- **Diagnose a shard by its timeline before theorising.** `gh api
-  repos/<r>/actions/jobs/<id>/logs`, then compare the timestamp of the *last* `PASS` line
-  against the failing suite's. On shard 5, 77 of 78 suites finished at 19:23:29 and the
-  failing file then ran **alone for 25m54s** and still blew a 60 s per-test ceiling. That
-  single comparison falsifies every contention hypothesis in one step. Do it first.
-- **`--maxWorkers` and `shardTotal` are almost never the lever.** `--shard` splits by *file*;
-  when one file is 2326 s of a shard's 2366 s, no shard count subdivides it and the critical
-  path is fixed. More shards only buy more `npm ci` overhead (~45 s fixed cost each).
-- **`--coverage` is free here.** Full-suite A/B: 223.7 s without vs 224.4 s with (0.3%).
-  babel/istanbul instrumentation is *not* a multiplier on render-heavy jsdom suites in this
-  repo. Don't spend a cycle on `coverageProvider: 'v8'` expecting a win.
-- **`testTimeout` belongs in two different places for two different jobs.** Keep
-  `jest.config.ts`'s value tight — it is the *regression detector* devs run against. Put the
-  machine-speed headroom in the CI invocation as `--testTimeout=<ms>`, which is a real jest 30
-  CLI flag and — verified via `--showConfig` — lands in **globalConfig**, so it dodges the
-  `projects[].testTimeout`-is-silently-ignored trap documented in `jest.config.ts`.
+- **Profile a slow test file before touching CI knobs:** `node --cpu-prof --cpu-prof-dir=<dir>
+--experimental-vm-modules node_modules/.bin/jest <file> -i` and tally self-time by package.
+- **Diagnose a shard by its timeline**: `gh api repos/<r>/actions/jobs/<id>/logs`, compare the last
+  `PASS` timestamp against the slow suite's to see whether one file is the critical path.
+- A test needing more than the 5 s default is a performance bug to find, not a timeout to raise.
+  If a raise is ever justified, `testTimeout` must be top-level in `jest.config.ts` (or the
+  `--testTimeout` CLI flag) — `projects[].testTimeout` is silently ignored by jest-circus.
 
 **Nothing hardcodes the shard count**, verified: rulesets require only `Quality Gates`,
 `E2E Gates`, `Require head branch == beta` (never per-shard names); `merge-coverage.mjs` globs
 `*.json`; `download-artifact` uses `coverage-shard-*`; `quality-gates` reads `needs.test.result`,
 which aggregates a matrix. `coverage-report` is **not** in the `quality-gates` needs list, so
 coverage is informational and non-gating.
-
-**`scripts/ci-wait.sh` defaults were below a healthy run** (600 s beta / 900 s main) while
-Quality Gates routinely runs 15-40 min. Raised to 2400/3600. A too-short wait reports
-`TIMEOUT`, which reads as a CI fault rather than "still running".
 
 See also [[recurring-patterns]].

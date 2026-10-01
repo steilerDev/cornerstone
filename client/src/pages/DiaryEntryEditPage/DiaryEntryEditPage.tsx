@@ -22,6 +22,7 @@ import {
   promoteDiaryEntry,
 } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
@@ -38,14 +39,25 @@ import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import styles from './DiaryEntryEditPage.module.css';
 
+function isSignatureComplete(sig: DiarySignatureEntry): boolean {
+  return (
+    typeof sig.signerName === 'string' &&
+    sig.signerName.trim().length > 0 &&
+    typeof sig.signatureDataUrl === 'string' &&
+    sig.signatureDataUrl.trim().length > 0
+  );
+}
+
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DiaryEntryEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation('diary');
+  const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
   const { user } = useAuth();
+  const currentUserName = user ? user.displayName.trim() || user.email : undefined;
   const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
 
   useEffect(() => {
@@ -356,6 +368,9 @@ export default function DiaryEntryEditPage() {
       if (!siteVisitOutcome) {
         errors.siteVisitOutcome = t('edit.inspectionOutcomeRequired');
       }
+      if ((siteVisitSignatures ?? []).some((sig) => !isSignatureComplete(sig))) {
+        errors.siteVisitSignatures = t('edit.signatureIncomplete');
+      }
     }
 
     if (entry?.entryType === 'issue') {
@@ -371,6 +386,9 @@ export default function DiaryEntryEditPage() {
       if (dailyLogWorkStart && dailyLogWorkEnd && dailyLogWorkEnd <= dailyLogWorkStart) {
         errors.dailyLogWorkTime = t('validation.workTimeEndBeforeStart');
       }
+      if ((dailyLogSignatures ?? []).some((sig) => !isSignatureComplete(sig))) {
+        errors.dailyLogSignatures = t('edit.signatureIncomplete');
+      }
     }
 
     setValidationErrors(errors);
@@ -383,8 +401,8 @@ export default function DiaryEntryEditPage() {
       if (dailyLogWeather) metadata.weather = dailyLogWeather;
       if (dailyLogTemperature !== null) metadata.temperatureCelsius = dailyLogTemperature;
       if (dailyLogWorkers !== null) metadata.workersOnSite = dailyLogWorkers;
-      if (dailyLogSignatures && dailyLogSignatures.length > 0)
-        metadata.signatures = dailyLogSignatures;
+      const completeSignatures = (dailyLogSignatures ?? []).filter(isSignatureComplete);
+      if (completeSignatures.length > 0) metadata.signatures = completeSignatures;
       if (dailyLogVendorId) metadata.vendorId = dailyLogVendorId;
       if (dailyLogWorkStart) metadata.workStart = dailyLogWorkStart;
       if (dailyLogWorkEnd) metadata.workEnd = dailyLogWorkEnd;
@@ -395,8 +413,8 @@ export default function DiaryEntryEditPage() {
       const metadata: SiteVisitMetadata = {};
       if (siteVisitInspectorName) metadata.inspectorName = siteVisitInspectorName;
       if (siteVisitOutcome) metadata.outcome = siteVisitOutcome;
-      if (siteVisitSignatures && siteVisitSignatures.length > 0)
-        metadata.signatures = siteVisitSignatures;
+      const completeSignatures = (siteVisitSignatures ?? []).filter(isSignatureComplete);
+      if (completeSignatures.length > 0) metadata.signatures = completeSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -452,18 +470,21 @@ export default function DiaryEntryEditPage() {
       showToast('success', t('editPage.updateSuccess'));
       navigate(`/diary/${promoted.id}`);
     } catch (err) {
-      if (err instanceof ApiClientError && err.error.code === 'VALIDATION_ERROR') {
-        // Handle validation errors from promote
+      if (
+        err instanceof ApiClientError &&
+        err.error.code === 'VALIDATION_ERROR' &&
+        err.error.details &&
+        typeof err.error.details === 'object' &&
+        'fieldErrors' in err.error.details
+      ) {
+        // Handle field-level validation errors from promote
         const errors: Record<string, string> = {};
-        if (
-          err.error.details &&
-          typeof err.error.details === 'object' &&
-          'fieldErrors' in err.error.details
-        ) {
-          const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
-          Object.assign(errors, fieldErrors);
-        }
+        const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
+        Object.assign(errors, fieldErrors);
         setValidationErrors(errors);
+      } else if (err instanceof ApiClientError) {
+        setError(translateApiError(err.error.code, tErrors));
+        console.error('Failed to promote diary entry:', err);
       } else {
         setError(t('editPage.updateError'));
         console.error('Failed to promote diary entry:', err);
@@ -502,7 +523,11 @@ export default function DiaryEntryEditPage() {
         showToast('success', t('editPage.updateSuccess'));
         navigate(`/diary/${entry.id}`);
       } catch (err) {
-        setError(t('editPage.updateError'));
+        setError(
+          err instanceof ApiClientError
+            ? translateApiError(err.error.code, tErrors)
+            : t('editPage.updateError'),
+        );
         console.error('Failed to update diary entry:', err);
         setIsSubmitting(false);
       }
@@ -610,7 +635,11 @@ export default function DiaryEntryEditPage() {
         )}
       </div>
 
-      {error && <div className={styles.errorBanner}>{error}</div>}
+      {error && (
+        <div className={styles.errorBanner} role="alert">
+          {error}
+        </div>
+      )}
 
       <form className={styles.form} onSubmit={handleSubmit} noValidate>
         <DiaryEntryForm
@@ -658,7 +687,7 @@ export default function DiaryEntryEditPage() {
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
           // signature enhancements
-          currentUserName={user?.displayName}
+          currentUserName={currentUserName}
           vendors={vendorOptions}
         />
 

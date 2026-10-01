@@ -2,7 +2,7 @@
  * Unit tests for shared/src/lib/reportMath.ts — computeIncludedTotal().
  *
  * All fixtures are minimal: only the fields consumed by computeIncludedTotal
- * (invoiceId, allocatedAmount, budgetLines[].{id, allocatedPortion}) are
+ * (invoiceId, allocatedAmount, budgetLinesForSource[].{id, allocatedPortion}) are
  * meaningful. The remaining required fields are filled with sentinel values.
  */
 
@@ -30,13 +30,13 @@ function makeInvoice(
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: budgetLines.map(({ id, allocatedPortion }) => ({
+    budgetLinesForSource: budgetLines.map(({ id, allocatedPortion }) => ({
       id,
       description: null,
       allocatedPortion,
       linkedItem: null,
     })),
-    deposits: [],
+    depositsVisibleToSource: [],
   };
 }
 

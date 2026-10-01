@@ -107,7 +107,7 @@ module.exports = (env, argv) => {
       historyApiFallback: true,
       proxy: [
         {
-          context: ['/api'],
+          pathFilter: ['/api'],
           target: `http://localhost:${process.env.PORT || '3000'}`,
           changeOrigin: true,
         },

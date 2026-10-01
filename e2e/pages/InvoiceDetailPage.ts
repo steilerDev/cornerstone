@@ -577,6 +577,41 @@ export class InvoiceDetailPage {
     await applyBtn.click();
   }
 
+  // ─── Quotation → final invoice conversion (Story #2107) ─────────────────
+  // All locators are data-testid based; ConvertQuotationModal renders in a portal.
+  readonly convertButton: Locator;
+  readonly convertForm: Locator;
+  readonly convertFinalAmount: Locator;
+  readonly convertDate: Locator;
+  readonly convertInvoiceNumber: Locator;
+  readonly convertDueDate: Locator;
+  readonly convertNotes: Locator;
+  readonly convertDelta: Locator;
+  readonly convertKeepExisting: Locator;
+  readonly convertResetProposal: Locator;
+  readonly convertRemainder: Locator;
+  readonly convertItemizedTotal: Locator;
+  readonly convertOverAllocated: Locator;
+  readonly convertOverpaidBanner: Locator;
+  readonly convertAddRefund: Locator;
+  readonly convertFinalPayment: Locator;
+  readonly convertStatusPending: Locator;
+  readonly convertStatusPaid: Locator;
+  readonly convertConfirm: Locator;
+  readonly convertCancel: Locator;
+  readonly convertSaveError: Locator;
+  readonly convertSelectDocument: Locator;
+  readonly convertSelectedDocument: Locator;
+  readonly convertAiPrefill: Locator;
+  readonly convertAiError: Locator;
+  readonly convertAiRetry: Locator;
+  readonly convertAiSuccess: Locator;
+  readonly convertAiMismatch: Locator;
+  readonly convertPaperlessUnavailable: Locator;
+  readonly convertLinesEmpty: Locator;
+  /** The convert modal dialog (only present while the form view is open). */
+  readonly convertDialog: Locator;
+
   constructor(page: Page) {
     this.page = page;
 
@@ -718,10 +753,8 @@ export class InvoiceDetailPage {
     // bare locator's .first() would resolve to DOM order (table before card), which is
     // the WRONG element whenever the mobile card is the visible one. Pre-filter to
     // visible so .first() always resolves to the currently-rendered layout.
-    this.refundBadge = this.depositsSection.locator('[class*="refund"]').filter({ visible: true });
-    this.refundAmountNegative = this.depositsSection
-      .locator('[class*="amountNegative"]')
-      .filter({ visible: true });
+    this.refundBadge = this.depositsSection.locator('[class*="refund"]').visible();
+    this.refundAmountNegative = this.depositsSection.locator('[class*="amountNegative"]').visible();
 
     // Save button in add/edit deposit modal — stable data-testid added in #1407
     this.depositModalSave = page.getByTestId('deposit-modal-save');
@@ -854,6 +887,84 @@ export class InvoiceDetailPage {
     this.moveHintBanner = this.editBudgetLineModal
       .locator('[role="status"]')
       .filter({ hasText: /transfer/i });
+
+    // ─── Quotation conversion locators (Story #2107) ─────────────────────
+    this.convertButton = page.getByTestId('convert-quotation-button');
+    this.convertForm = page.getByTestId('convert-quotation-form');
+    this.convertFinalAmount = page.getByTestId('convert-final-amount');
+    this.convertDate = page.getByTestId('convert-date');
+    this.convertInvoiceNumber = page.getByTestId('convert-invoice-number');
+    this.convertDueDate = page.getByTestId('convert-due-date');
+    this.convertNotes = page.getByTestId('convert-notes');
+    this.convertDelta = page.getByTestId('convert-delta');
+    this.convertKeepExisting = page.getByTestId('convert-keep-existing');
+    this.convertResetProposal = page.getByTestId('convert-reset-proposal');
+    this.convertRemainder = page.getByTestId('convert-remainder');
+    this.convertItemizedTotal = page.getByTestId('convert-itemized-total');
+    this.convertOverAllocated = page.getByTestId('convert-over-allocated');
+    this.convertOverpaidBanner = page.getByTestId('convert-overpaid-banner');
+    this.convertAddRefund = page.getByTestId('convert-add-refund');
+    this.convertFinalPayment = page.getByTestId('convert-final-payment');
+    this.convertStatusPending = page.getByTestId('convert-status-pending');
+    this.convertStatusPaid = page.getByTestId('convert-status-paid');
+    this.convertConfirm = page.getByTestId('convert-confirm');
+    this.convertCancel = page.getByTestId('convert-cancel');
+    this.convertSaveError = page.getByTestId('convert-save-error');
+    this.convertSelectDocument = page.getByTestId('convert-select-document');
+    this.convertSelectedDocument = page.getByTestId('convert-selected-document');
+    this.convertAiPrefill = page.getByTestId('convert-ai-prefill');
+    this.convertAiError = page.getByTestId('convert-ai-error');
+    this.convertAiRetry = page.getByTestId('convert-ai-retry');
+    this.convertAiSuccess = page.getByTestId('convert-ai-success');
+    this.convertAiMismatch = page.getByTestId('convert-ai-mismatch');
+    this.convertPaperlessUnavailable = page.getByTestId('convert-paperless-unavailable');
+    this.convertLinesEmpty = page.getByTestId('convert-lines-empty');
+    this.convertDialog = page
+      .getByRole('dialog')
+      .filter({ has: page.getByTestId('convert-quotation-form') });
+  }
+
+  // ─── Quotation conversion helpers (Story #2107) ───────────────────────────
+
+  /** Proposed-amount input for an invoice budget line (table on desktop/tablet, card on mobile). */
+  lineInput(id: string, viewport: 'desktop' | 'mobile'): Locator {
+    return this.page.getByTestId(
+      viewport === 'mobile' ? `convert-line-input-mobile-${id}` : `convert-line-input-${id}`,
+    );
+  }
+
+  /** "Keep" checkbox for an invoice budget line (table on desktop/tablet, card on mobile). */
+  lineKeep(id: string, viewport: 'desktop' | 'mobile'): Locator {
+    return this.page.getByTestId(
+      viewport === 'mobile' ? `convert-line-keep-mobile-${id}` : `convert-line-keep-${id}`,
+    );
+  }
+
+  /** Mobile line card for an invoice budget line. */
+  lineCard(id: string): Locator {
+    return this.page.getByTestId(`convert-line-card-${id}`);
+  }
+
+  /** Desktop/tablet line table row for an invoice budget line. */
+  lineRow(id: string): Locator {
+    return this.page.getByTestId(`convert-line-row-${id}`);
+  }
+
+  /** Opens the conversion modal and waits for the form to be ready. */
+  async openConvert(): Promise<void> {
+    await this.convertButton.click();
+    await this.convertForm.waitFor({ state: 'visible' });
+    await this.convertFinalAmount.waitFor({ state: 'visible' });
+  }
+
+  /** Clicks Confirm and waits for the POST convert-quotation response. Returns its HTTP status. */
+  async confirmConvert(): Promise<number> {
+    const responsePromise = this.page.waitForResponse(
+      (resp) => resp.url().includes('/convert-quotation') && resp.request().method() === 'POST',
+    );
+    await this.convertConfirm.click();
+    const response = await responsePromise;
+    return response.status();
   }
 
   /**
@@ -1058,30 +1169,23 @@ export class InvoiceDetailPage {
     if (depositDescription !== undefined) {
       // The aria-label contains the description verbatim — use substring match
       // aria-label format: "Deposit actions for {description}"
-      // .filter({ visible: true }) is required on mobile: the desktop table rows are hidden
+      // .visible() is required on mobile: the desktop table rows are hidden
       // but their overflow buttons remain in the DOM, so .first() without the filter picks
       // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
         .locator(
           `button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
         )
-        .filter({ visible: true })
+        .visible()
         .first();
     } else {
-      menuButton = this.depositsSection
-        .locator('button[aria-haspopup="true"]')
-        .filter({ visible: true })
-        .first();
+      menuButton = this.depositsSection.locator('button[aria-haspopup="true"]').visible().first();
     }
 
     await menuButton.click();
     // Wait for menu to appear. The desktop table (display:none on mobile) keeps its
     // [role="menu"] in the DOM, so filter to visible before resolving .first().
-    await this.page
-      .locator('[role="menu"]')
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: 'visible' });
+    await this.page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
   }
 
   /**
@@ -1091,10 +1195,7 @@ export class InvoiceDetailPage {
     // Mobile/tablet hide the desktop table via CSS but keep its [role="menuitem"]
     // nodes in the DOM. Filter to visible elements so .first() picks the visible
     // menu item (not the hidden table duplicate).
-    const menuItem = this.page
-      .locator('[role="menuitem"]')
-      .filter({ visible: true })
-      .filter({ hasText: label });
+    const menuItem = this.page.locator('[role="menuitem"]').visible().filter({ hasText: label });
     await menuItem.first().click();
   }
 
@@ -1246,21 +1347,14 @@ export class InvoiceDetailPage {
         .locator(
           `button[aria-haspopup="true"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
         )
-        .filter({ visible: true })
+        .visible()
         .first();
     } else {
-      trigger = this.budgetLinesSection
-        .locator('button[aria-haspopup="true"]')
-        .filter({ visible: true })
-        .first();
+      trigger = this.budgetLinesSection.locator('button[aria-haspopup="true"]').visible().first();
     }
     await trigger.click();
     // Portal renders menu at document.body level
-    await this.page
-      .locator('[role="menu"]')
-      .filter({ visible: true })
-      .first()
-      .waitFor({ state: 'visible' });
+    await this.page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
   }
 
   /**
@@ -1268,10 +1362,7 @@ export class InvoiceDetailPage {
    * line OverflowMenu.
    */
   async clickBudgetLineMenuItem(label: string | RegExp): Promise<void> {
-    const menuItem = this.page
-      .locator('[role="menuitem"]')
-      .filter({ visible: true })
-      .filter({ hasText: label });
+    const menuItem = this.page.locator('[role="menuitem"]').visible().filter({ hasText: label });
     await menuItem.first().click();
   }
 

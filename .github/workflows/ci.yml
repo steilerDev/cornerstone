@@ -39,7 +39,8 @@ jobs:
     name: Static Analysis
     runs-on: ubuntu-latest
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.app == 'true'
+    # No job-level `if:` — repo-wide checks (format, ESLint) must run on every PR.
+    # App-only steps are gated individually below.
 
     steps:
       - name: Checkout
@@ -52,28 +53,44 @@ jobs:
           cache: npm
 
       - name: Install dependencies
+        id: install
         run: npm ci
 
       - name: Check single konva version
+        if: needs.detect-changes.outputs.app == 'true'
         run: bash scripts/check-single-dep-version.sh konva
 
       - name: Verify dependency signatures
+        if: needs.detect-changes.outputs.app == 'true'
         run: npm audit signatures
 
       - name: Type check
+        if: needs.detect-changes.outputs.app == 'true'
         run: npm run typecheck
 
       - name: Stylelint
+        if: needs.detect-changes.outputs.app == 'true'
         run: npm run stylelint
 
       - name: Build
+        if: needs.detect-changes.outputs.app == 'true'
         run: npm run build
+
+      - name: Prettier format check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run format:check
+
+      - name: ESLint
+        # Fails on errors only; warnings are reported but non-fatal until #2118
+        # burns them down and adds --max-warnings=0.
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npx eslint .
 
   trailer-check:
     name: Trailer Check
     runs-on: ubuntu-latest
     needs: [detect-changes]
-    if: needs.detect-changes.outputs.app == 'true' && github.event.pull_request.user.login != 'dependabot[bot]'
+    if: (needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true') && github.event.pull_request.user.login != 'dependabot[bot]'
 
     steps:
       - name: Checkout
@@ -95,6 +112,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # 6 shards x 2 workers targets 5-10 min per job (~1m45s of setup plus
+        # ~6.5 min of tests). Shards are packed by recorded runtime, not path hash —
+        # see scripts/jest-shard-sequencer.mjs. If shards drift apart, refresh the
+        # weights from a green run: `node scripts/update-jest-timings.mjs <run-id>`.
         shardIndex: [1, 2, 3, 4, 5, 6]
         shardTotal: [6]
 
@@ -114,54 +135,22 @@ jobs:
       - name: Build shared package
         run: npm run build -w shared
 
-      # Records the runner's actual capacity so the "was it 2 or 4 vCPUs?"
-      # question stops being argued from assumption. Free, and #2078 needs it.
-      - name: Report runner capacity
-        run: |
-          echo "nproc: $(nproc)"
-          lscpu | grep -E '^(Model name|CPU\(s\)|Thread\(s\) per core|Core\(s\) per socket)' || true
-          free -m
-
-      # --- STOPGAP, NOT A FIX (issue #2078) -------------------------------------
-      # `--testTimeout` is raised HERE, in the CI invocation only, rather than in
-      # jest.config.ts. That split is deliberate:
-      #
-      #   * jest.config.ts's testTimeout (60000) stays tight. It is the *regression
-      #     detector* developers run against — a newly-pathological test must still
-      #     fail fast on a dev machine.
-      #   * This CI-only ceiling absorbs the fact that a GitHub-hosted runner is
-      #     ~1.8x slower single-threaded than the Apple-Silicon dev boxes the 60 s
-      #     figure was calibrated on. It buys headroom for a *machine-speed*
-      #     difference. It does not make anything faster and it explains nothing.
-      #
-      # The underlying defect is untouched and still open: picker-family component
-      # tests cost ~21 s of CPU *per test* on a dev box (~40 s here), for reasons
-      # nobody has explained. #2078 owns finding out, next step `node --cpu-prof`
-      # on a single dropdown test. Do not read a green Quality Gates as evidence
-      # that the slowness was solved — it was only given more room.
-      #
-      # Levers evaluated on the PR #2075 failure and deliberately NOT taken, so
-      # they don't get re-proposed (evidence: run 34154456691):
-      #
-      #   * --maxWorkers=1. Contention is not the mechanism. In shard 5, all 77
-      #     other suites finished at 19:23:29 and SearchPicker.test.tsx then ran
-      #     ALONE on the runner until 19:49:23 — 25m54s with zero contention — and
-      #     still blew the 60 s ceiling on 3 tests. Serializing workers cannot fix
-      #     a failure that already reproduced with the box to itself.
-      #   * Raising shardTotal. `--shard` splits by file, and one file was 2326 s
-      #     of that shard's 2366 s. More shards cannot subdivide a single file, so
-      #     the critical path is unchanged; it only buys more npm-ci overhead.
-      #   * Dropping/retargeting --coverage. Measured A/B on the full
-      #     WorkItemPicker suite: 223.7 s without coverage vs 224.4 s with. The
-      #     babel/istanbul instrumentation costs 0.3%. Not the multiplier.
-      #   * Fake timers. beta already ships SearchPicker.test.tsx fully converted
-      #     to jest.useFakeTimers() + advanceTimers; the run above IS the converted
-      #     file. It went from 9 failures to 3, not to 0.
-      # -------------------------------------------------------------------------
       - name: Run tests (shard ${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
         env:
           NODE_OPTIONS: --max-old-space-size=6144
-        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --testTimeout=240000
+          JEST_TIMINGS_FILE: jest-timings/shard-${{ matrix.shardIndex }}.json
+        # --maxWorkers=2, not 3/4: the runner is 4 vCPU but only 2 physical cores
+        # (2 threads each). Measured on PR #2114 (run 36722807521): 3 workers
+        # inflated every file ~2x (server suites 25 s -> 70 s, SearchPicker parts
+        # ~450 s -> 630-810 s) and total worker-time 9.3k s -> 12.0k s, so the
+        # extra worker added contention, not throughput. (Those figures predate the
+        # nwsapi 2.2.28 fix below and are inflated, but the core count is not.)
+        #
+        # No --testTimeout override: the picker-family slowness that once needed
+        # 60-240 s ceilings (#2076/#2077/#2078) was nwsapi 2.2.27 (jsdom's selector
+        # engine) recursing on `:modal`, which floating-ui checks on every
+        # positioning pass — ~280 ms per call. Fixed upstream in nwsapi 2.2.28.
+        run: node --experimental-vm-modules node_modules/.bin/jest --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }} --coverage --coverageReporters=json --maxWorkers=2 --workerIdleMemoryLimit=2048MB --reporters=default --reporters=./scripts/jest-timing-reporter.mjs
 
       - name: Rename coverage for merge
         if: ${{ always() }}
@@ -177,6 +166,16 @@ jobs:
           name: coverage-shard-${{ matrix.shardIndex }}
           path: coverage/coverage-shard-${{ matrix.shardIndex }}.json
           retention-days: 1
+
+      # Per-file runtimes consumed by scripts/update-jest-timings.mjs.
+      - name: Upload test timings
+        if: ${{ always() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jest-timings-shard-${{ matrix.shardIndex }}
+          path: jest-timings/shard-${{ matrix.shardIndex }}.json
+          if-no-files-found: ignore
+          retention-days: 14
 
   coverage-report:
     name: Coverage Report
@@ -215,7 +214,7 @@ jobs:
   quality-gates:
     name: Quality Gates
     runs-on: ubuntu-latest
-    needs: [static-analysis, trailer-check, test, docker, e2e-warmup, e2e-smoke]
+    needs: [detect-changes, static-analysis, trailer-check, test, docker, e2e-warmup, e2e-smoke]
     if: ${{ !cancelled() }}
     steps:
       - name: Check results
@@ -234,7 +233,10 @@ jobs:
             fi
           }
 
-          check_job "static-analysis" "${{ needs.static-analysis.result }}"
+          require_success() { if [ "$2" = "success" ]; then echo "OK $1: $2"; else echo "FAIL $1: $2 (must succeed)"; failed=1; fi; }
+
+          require_success "detect-changes" "${{ needs.detect-changes.result }}"
+          require_success "static-analysis" "${{ needs.static-analysis.result }}"
           check_job "trailer-check" "${{ needs.trailer-check.result }}"
           check_job "test" "${{ needs.test.result }}"
           check_job "docker" "${{ needs.docker.result }}"
@@ -249,31 +251,42 @@ jobs:
   e2e-gates:
     name: E2E Gates
     runs-on: ubuntu-latest
-    needs: [e2e, e2e-merge-reports]
+    # docker/e2e-warmup/detect-changes are listed so a skip caused by their failure
+    # can be told apart from a path-filter skip (#2043). Skipped is not passed.
+    needs: [detect-changes, docker, e2e-warmup, e2e, e2e-merge-reports]
     if: ${{ !cancelled() }}
     steps:
       - name: Check E2E results
+        env:
+          DETECT_RESULT: ${{ needs.detect-changes.result }}
+          APP_CHANGED: ${{ needs.detect-changes.outputs.app }}
+          E2E_CHANGED: ${{ needs.detect-changes.outputs.e2e }}
+          DOCKER_RESULT: ${{ needs.docker.result }}
+          WARMUP_RESULT: ${{ needs.e2e-warmup.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
+          MERGE_RESULT: ${{ needs.e2e-merge-reports.result }}
         run: |
           failed=0
-
-          check_job() {
-            local job=$1
-            local result=$2
-
-            if [ "$result" != "success" ] && [ "$result" != "skipped" ]; then
-              echo "❌ $job: $result"
-              failed=1
-            else
-              echo "✅ $job: $result"
-            fi
-          }
-
-          check_job "e2e" "${{ needs.e2e.result }}"
-          check_job "e2e-merge-reports" "${{ needs.e2e-merge-reports.result }}"
-
-          if [ "$failed" = "1" ]; then
-            exit 1
+          if [ "$DETECT_RESULT" != "success" ]; then
+            echo "FAIL detect-changes: $DETECT_RESULT (cannot tell whether E2E was required)"
+            failed=1
           fi
+          if [ "$APP_CHANGED" = "true" ] || [ "$E2E_CHANGED" = "true" ]; then
+            expected="success"
+            echo "Testable changes (app=$APP_CHANGED, e2e=$E2E_CHANGED): every E2E job must succeed."
+          else
+            expected="skipped"
+            echo "No app/e2e changes: E2E jobs are expected to be path-filter skipped."
+          fi
+          check() {
+            if [ "$2" = "$expected" ]; then echo "OK $1: $2"
+            else echo "FAIL $1: $2 (expected $expected)"; failed=1; fi
+          }
+          check "docker" "$DOCKER_RESULT"
+          check "e2e-warmup" "$WARMUP_RESULT"
+          check "e2e" "$E2E_RESULT"
+          check "e2e-merge-reports" "$MERGE_RESULT"
+          [ "$failed" = "0" ] || exit 1
 
   docker:
     name: Docker
@@ -293,10 +306,10 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
 
       - name: Build image
-        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
         with:
           context: .
           load: true

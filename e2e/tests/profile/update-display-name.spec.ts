@@ -6,7 +6,10 @@ import { test, expect } from '../../fixtures/auth.js';
 import { ProfilePage } from '../../pages/ProfilePage.js';
 import { TEST_ADMIN } from '../../fixtures/testData.js';
 
-test.describe('Update Display Name', () => {
+test.describe('Update Display Name', { lock: 'admin-account' }, () => {
+  // The `admin-account` lock (held by edit-user, update-display-name and user-list specs)
+  // prevents these from running concurrently across workers and projects; serial mode only
+  // orders tests in-project.
   // Serialize tests within this describe block — they all modify the shared admin
   // user's display name and must not run in parallel with each other.
   test.describe.configure({ mode: 'serial' });

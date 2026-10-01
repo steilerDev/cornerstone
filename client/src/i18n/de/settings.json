@@ -11,6 +11,7 @@
     "authentication": "Authentifizierung",
     "authLocal": "Lokales Konto",
     "authOidc": "Single Sign-On (OIDC)",
+    "authLocalAndOidc": "Lokales Konto + Single Sign-On (OIDC)",
     "memberSince": "Mitglied seit",
     "displayName": "Anzeigename",
     "displayNameDescription": "Dies ist der Name, der in der gesamten Anwendung angezeigt wird.",
@@ -62,7 +63,8 @@
     },
     "authProviders": {
       "local": "Lokal",
-      "oidc": "OIDC"
+      "oidc": "OIDC",
+      "localAndOidc": "Lokal + OIDC"
     },
     "status": {
       "active": "Aktiv",
@@ -147,7 +149,7 @@
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "deleteTitle": "Bereich löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie den Bereich \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie den Bereich „{{name}}“ löschen möchten?",
       "deleteWarning": "Dieser Bereich wird von allen Arbeitspaketen und Haushaltsartikeln entfernt, die ihn verwenden.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Bereich löschen",
@@ -156,9 +158,9 @@
         "nameTooLong": "Bereichsname darf maximal 100 Zeichen lang sein"
       },
       "messages": {
-        "created": "Bereich \"{{name}}\" erfolgreich erstellt",
-        "updated": "Bereich \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Bereich \"{{name}}\" erfolgreich gelöscht",
+        "created": "Bereich „{{name}}“ erfolgreich erstellt",
+        "updated": "Bereich „{{name}}“ erfolgreich aktualisiert",
+        "deleted": "Bereich „{{name}}“ erfolgreich gelöscht",
         "createError": "Bereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
@@ -188,7 +190,7 @@
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "deleteTitle": "Gewerk löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie das Gewerk \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie das Gewerk „{{name}}“ löschen möchten?",
       "deleteWarning": "Dieses Gewerk wird von allen Auftragnehmern und Arbeitspaketen entfernt, die es verwenden.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Gewerk löschen",
@@ -197,9 +199,9 @@
         "nameTooLong": "Gewerkname darf maximal 100 Zeichen lang sein"
       },
       "messages": {
-        "created": "Gewerk \"{{name}}\" erfolgreich erstellt",
-        "updated": "Gewerk \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Gewerk \"{{name}}\" erfolgreich gelöscht",
+        "created": "Gewerk „{{name}}“ erfolgreich erstellt",
+        "updated": "Gewerk „{{name}}“ erfolgreich aktualisiert",
+        "deleted": "Gewerk „{{name}}“ erfolgreich gelöscht",
         "createError": "Gewerk konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
@@ -225,7 +227,7 @@
       "saving": "Wird gespeichert…",
       "cancel": "Abbrechen",
       "deleteTitle": "Ausrichtung löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "deleteButton": "Löschen",
       "deleting": "Wird gelöscht…",
@@ -234,9 +236,9 @@
         "nameTooLong": "Name darf maximal 100 Zeichen lang sein."
       },
       "messages": {
-        "created": "Ausrichtung \"{{name}}\" erstellt.",
-        "updated": "Ausrichtung \"{{name}}\" aktualisiert.",
-        "deleted": "Ausrichtung \"{{name}}\" gelöscht.",
+        "created": "Ausrichtung „{{name}}“ erstellt.",
+        "updated": "Ausrichtung „{{name}}“ aktualisiert.",
+        "deleted": "Ausrichtung „{{name}}“ gelöscht.",
         "createError": "Ausrichtung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Ausrichtung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Ausrichtung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
@@ -269,7 +271,7 @@
       "delete": "Löschen",
       "sortOrderTitle": "Sortierreihenfolge",
       "deleteTitle": "Kategorie löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie „{{name}}“ löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Kategorie löschen",
@@ -278,9 +280,9 @@
         "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
       },
       "messages": {
-        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
-        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht",
+        "created": "Kategorie „{{name}}“ erfolgreich erstellt",
+        "updated": "Kategorie „{{name}}“ erfolgreich aktualisiert",
+        "deleted": "Kategorie „{{name}}“ erfolgreich gelöscht",
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
@@ -311,7 +313,7 @@
       "delete": "Löschen",
       "sortOrderTitle": "Sortierreihenfolge",
       "deleteTitle": "Kategorie löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie \"{{name}}\" löschen möchten?",
+      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie „{{name}}“ löschen möchten?",
       "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Kategorie löschen",
@@ -320,9 +322,9 @@
         "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
       },
       "messages": {
-        "created": "Kategorie \"{{name}}\" erfolgreich erstellt",
-        "updated": "Kategorie \"{{name}}\" erfolgreich aktualisiert",
-        "deleted": "Kategorie \"{{name}}\" erfolgreich gelöscht",
+        "created": "Kategorie „{{name}}“ erfolgreich erstellt",
+        "updated": "Kategorie „{{name}}“ erfolgreich aktualisiert",
+        "deleted": "Kategorie „{{name}}“ erfolgreich gelöscht",
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",

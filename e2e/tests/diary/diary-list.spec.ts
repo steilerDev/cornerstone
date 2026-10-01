@@ -20,6 +20,7 @@
  * 12. Default filter mode is Manual when navigating to /diary with no params (@smoke)
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
@@ -46,6 +47,28 @@ function makeMockEntry(overrides: Partial<Record<string, unknown>> = {}): Record
     updatedAt: '2026-03-14T10:00:00.000Z',
     ...overrides,
   };
+}
+
+/**
+ * Replace IntersectionObserver with a no-op stub so the infinite-scroll auto-load path can never
+ * fire; only the footer button's own click/keypress can trigger a fetch.
+ */
+async function stubIntersectionObserver(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    class StubIntersectionObserver implements IntersectionObserver {
+      readonly root: Element | Document | null = null;
+      readonly rootMargin = '';
+      readonly thresholds: ReadonlyArray<number> = [];
+      constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
+      disconnect(): void {}
+      observe(): void {}
+      unobserve(): void {}
+      takeRecords(): IntersectionObserverEntry[] {
+        return [];
+      }
+    }
+    window.IntersectionObserver = StubIntersectionObserver;
+  });
 }
 
 function makePaginatedResponse(
@@ -452,21 +475,7 @@ test.describe('Infinite scroll (Scenario 7)', () => {
     // `toBeFocused()` into a deterministic "element(s) not found". This test's whole point is to
     // prove the button's OWN click/keypress activation works independent of the auto-scroll
     // observer, so isolate that path entirely rather than trying to out-race it.
-    await page.addInitScript(() => {
-      class StubIntersectionObserver implements IntersectionObserver {
-        readonly root: Element | Document | null = null;
-        readonly rootMargin = '';
-        readonly thresholds: ReadonlyArray<number> = [];
-        constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
-        disconnect(): void {}
-        observe(): void {}
-        unobserve(): void {}
-        takeRecords(): IntersectionObserverEntry[] {
-          return [];
-        }
-      }
-      window.IntersectionObserver = StubIntersectionObserver;
-    });
+    await stubIntersectionObserver(page);
 
     const page1Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p1-${i}` }));
     const page2Entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `kbd-p2-${i}` }));
@@ -521,6 +530,117 @@ test.describe('Infinite scroll (Scenario 7)', () => {
       await page2ResponsePromise;
 
       await expect(diaryPage.entryCard('kbd-p2-0')).toBeVisible();
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('first-batch failure shows a single error with a keyboard-operable Retry that re-requests page 1', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+    await stubIntersectionObserver(page);
+
+    const entries = Array.from({ length: 25 }, (_, i) => makeMockEntry({ id: `retry-p1-${i}` }));
+    const requestedPages: Array<string | null> = [];
+    let requestCount = 0;
+
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      requestedPages.push(new URL(route.request().url()).searchParams.get('page'));
+      requestCount += 1;
+      if (requestCount === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makePaginatedResponse(entries, { totalItems: 50, totalPages: 2 })),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+
+      // Exactly one error surface, with the generic translated text (not the raw server message)
+      await expect(diaryPage.footerError).toBeVisible();
+      await expect(diaryPage.footerError).toContainText(
+        'Failed to load diary entries. Please try again.',
+      );
+      await expect(page.getByRole('alert')).toHaveCount(1);
+      await expect(page.getByText('Server error')).toHaveCount(0);
+      await expect(diaryPage.loadMoreButton).toHaveText('Retry');
+
+      // Keyboard-only activation
+      await diaryPage.loadMoreButton.focus();
+      await expect(diaryPage.loadMoreButton).toBeFocused();
+      const retryResponse = page.waitForResponse(
+        (resp) =>
+          resp.url().includes('/api/diary-entries') &&
+          resp.request().method() === 'GET' &&
+          resp.status() === 200,
+      );
+      await page.keyboard.press('Enter');
+      await retryResponse;
+
+      expect(requestedPages).toEqual(['1', '1']);
+      await expect(diaryPage.entryCard('retry-p1-0')).toBeVisible();
+      await expect(diaryPage.footerError).toBeHidden();
+      await expect(diaryPage.loadMoreButton).toHaveText('Load more');
+      await expect(diaryPage.loadMoreButton).toBeFocused();
+    } finally {
+      await page.unroute('**/api/diary-entries*');
+    }
+  });
+
+  test('first-batch failure followed by an empty Retry result focuses the empty-state CTA', async ({
+    page,
+  }) => {
+    const diaryPage = new DiaryPage(page);
+    await stubIntersectionObserver(page);
+
+    let requestCount = 0;
+    await page.route('**/api/diary-entries*', async (route) => {
+      if (route.request().method() !== 'GET') {
+        await route.continue();
+        return;
+      }
+      requestCount += 1;
+      if (requestCount === 1) {
+        await route.fulfill({
+          status: 500,
+          contentType: 'application/json',
+          body: JSON.stringify({ error: { code: 'INTERNAL_ERROR', message: 'Server error' } }),
+        });
+        return;
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(makePaginatedResponse([])),
+      });
+    });
+
+    try {
+      await diaryPage.goto();
+      await diaryPage.waitForLoaded();
+      await expect(diaryPage.footerError).toBeVisible();
+
+      await diaryPage.loadMoreButton.focus();
+      await page.keyboard.press('Enter');
+
+      await expect(diaryPage.emptyState).toBeVisible();
+      await expect(diaryPage.emptyState.getByRole('link')).toBeFocused();
+      await expect(diaryPage.footerError).toBeHidden();
     } finally {
       await page.unroute('**/api/diary-entries*');
     }

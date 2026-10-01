@@ -4,6 +4,8 @@ import type { UserResponse } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
@@ -380,9 +382,11 @@ export function UserManagementPage() {
         filterable: false,
         defaultVisible: false,
         render: (u) =>
-          u.authProvider === 'local'
-            ? t('userManagement.authProviders.local')
-            : t('userManagement.authProviders.oidc')!,
+          u.authProvider === 'oidc'
+            ? t('userManagement.authProviders.oidc')
+            : u.oidcLinked
+              ? t('userManagement.authProviders.localAndOidc')
+              : t('userManagement.authProviders.local'),
       },
       {
         key: 'status',
@@ -426,7 +430,7 @@ export function UserManagementPage() {
   }, [activeMenuId]);
 
   // Render actions menu
-  const renderActions = (user: UserResponse) => {
+  const renderActions = (user: UserResponse, surface: DataTableSurface) => {
     const isActive = !user.deactivatedAt;
     return (
       <div className={styles.actionsMenu}>
@@ -435,7 +439,7 @@ export function UserManagementPage() {
           className={styles.menuButton}
           onClick={() => setActiveMenuId(activeMenuId === user.id ? null : user.id)}
           aria-label={t('userManagement.actions.menuAriaLabel')}
-          data-testid={`user-menu-button-${user.id}`}
+          data-testid={dataTableTestId('user-menu-button', user.id, surface)}
         >
           ⋮
         </button>
@@ -446,7 +450,7 @@ export function UserManagementPage() {
               className={styles.menuItem}
               onClick={() => openEditModal(user)}
               disabled={!isActive}
-              data-testid={`user-edit-${user.id}`}
+              data-testid={dataTableTestId('user-edit', user.id, surface)}
             >
               {t('userManagement.actions.edit')}
             </button>
@@ -455,7 +459,7 @@ export function UserManagementPage() {
                 type="button"
                 className={`${styles.menuItem} ${styles.menuItemDanger}`}
                 onClick={() => openDeactivateModal(user)}
-                data-testid={`user-deactivate-${user.id}`}
+                data-testid={dataTableTestId('user-deactivate', user.id, surface)}
               >
                 {t('userManagement.actions.deactivate')}
               </button>

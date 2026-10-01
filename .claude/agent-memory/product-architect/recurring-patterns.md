@@ -1701,7 +1701,7 @@ cheap:
    dashboard.json (5) already use it, so the fix converges on house style rather than adding a third dialect.
 3. **The assertion must be rendered text, not a key**: `DiaryPage.test.tsx` asserts `'1 more entry loaded'` /
    `'2 entries loaded'`. If the suffix format were wrong, i18next falls back and these fail. A test that
-   asserts the *key name* (or that the key exists in JSON) passes under a broken format and is worthless as a
+   asserts the _key name_ (or that the key exists in JSON) passes under a broken format and is worthless as a
    guard. `i18n.parity.test.ts` compares en/de key **sets** only — it cannot catch a wrong suffix format
    either, since a consistently-wrong rename stays in parity.
 
@@ -1716,7 +1716,7 @@ naming the pre-existing one without the beta provenance check invites scope cree
 
 ---
 
-## Always-mounted dual DOM makes `data-testid` a *pair*, not a name (#2046 / PR #2066 → #2068, 2026-09-06)
+## Always-mounted dual DOM makes `data-testid` a _pair_, not a name (#2046 / PR #2066 → #2068, 2026-09-06)
 
 `DataTable` renders the desktop `<table>` **and** the mobile card list at the same time; only CSS
 (`@media (max-width: 767px)`: `.tableContainer{display:none}` / `.cardsContainer{display:flex}`) picks one.
@@ -1726,14 +1726,14 @@ So every `data-testid` emitted from a `ColumnDef.render` with no `renderCard` ov
 Four things to carry forward:
 
 1. **jsdom cannot see this class of bug, and the idiomatic assertion actively hides it.**
-   `getAllByTestId(x)[0]` is satisfied by one match *or* two, so a whole 46-test suite stayed green over a
+   `getAllByTestId(x)[0]` is satisfied by one match _or_ two, so a whole 46-test suite stayed green over a
    Playwright strict-mode violation on every page-wide `getByTestId`. The assertion that works is
    `expect(getAllByTestId(desktopId)).toHaveLength(1)` **plus** `...(mobileId)).toHaveLength(1)` **plus**
    `expect(a[0]).not.toBe(b[0])`. Same family as the `count >= 1` finding from #1910/PR #2004 r4: a
    tolerant-cardinality assertion is not coverage. Verify with a mutation — reverting the suffix must turn
-   the new tests red (it did: 4 failed, and the *old* `[0]` assertions stayed green under the same mutation).
+   the new tests red (it did: 4 failed, and the _old_ `[0]` assertions stayed green under the same mutation).
 2. **`Quality Gates` on `beta` does not wait for the full E2E shards**, so an E2E suite can merge having only
-   been shown to *collect* cleanly. A suite that has never actually executed is not evidence. When reviewing
+   been shown to _collect_ cleanly. A suite that has never actually executed is not evidence. When reviewing
    a PR that adds a large E2E spec, ask whether it was run against the built image, not whether it typechecks.
 3. **A partial fix on a systemic hazard needs the inventory written down.** The convention already existed
    (`deposit-status-mobile-{id}`) but lived only in a page object's header comment — so five other DataTable
@@ -1755,3 +1755,36 @@ with an explicit viewport (Scenario 18) run redundantly on all three projects.
 **Positional `idSuffix: string`**: narrow to `'' | '-mobile'`. `string` accepts `'mobile'`/`'_mobile'`, which
 compiles, renders, and produces a testid nobody locates, with no failing test outside the three that pin the
 correct spelling. A literal union makes the convention compiler-enforced at both call sites.
+
+---
+
+## A CI aggregator that accepts `skipped` is only as safe as every dependency's skip causes (#2043/#2111, PR #2119, 2026-09-30)
+
+When a gate job reads `needs.X.result` and treats `skipped` as passing, it is sound only if every way X can be
+skipped is either "nothing to test" or an upstream failure that the gate itself checks. A job-level `if:` that
+narrows beyond the path filter breaks this silently. Examples: a dependabot exclusion, or `app`-only on a job
+whose script also enforces `e2e/` rules. `trailer-check` (`if: app == 'true'`) skipped e2e-only PRs, so trailer
+Rule 5 was never checked in CI even after E2E Gates was fixed. When reviewing a gate: list each needed job's
+`if:` and ask whether any skip cause is neither a path-filter "no-op" nor a checked upstream. The robust pattern
+is E2E Gates' approach: derive the expected result from `detect-changes` outputs and compare against it exactly.
+
+## Passing a drizzle `tx` to a helper: `Pick<DbType, 'select'>`, never `tx as unknown as DbType` (PR #2128, 2026-09-30)
+
+- A better-sqlite3 drizzle `tx` (SQLiteTransaction) is not assignable to `BetterSQLite3Database`, so authors reach for a double cast. Typing the helper param as the narrowest used surface (`Pick<DbType, 'select'>`) accepts both `db` and `tx` with zero casts (verified with `tsc --noEmit`) and makes the compiler flag a helper that later starts writing or nesting a transaction.
+- Also from #2128: `milestoneService`'s regex-only `DATE_RE` is NOT an impossible-date hole — the route schema's ajv `format: 'date'` rejects `2026-02-31` first. Check the route schema before filing a "sibling validator" bug.
+
+## A dedup guard masks a dependency-array mutation; `identity-obj-proxy` hides `composes` (#2103/#2034, PR #2137, 2026-10-01)
+
+- **Test latest-value refs on the code path that has no dedup.** `useInfiniteScrollAnnouncements` keeps its label and `isCounted` lambdas in render-time refs so that inline lambdas do not re-run the effect. Its two "lambda-only rerender does not re-announce" tests ran outside `status === 'loading'`. There, a re-run effect returns at the `fetchSequence === announcedSeqRef.current` dedup anyway. I put the lambdas back into the dependency array and all 20 tests still passed. The ref mechanism is observable only in the branch the dedup does not cover (the loading branch): set a sentinel and rerender with only a new `labels.loading`, then assert the sentinel survives. General rule: when an effect has an early-return guard, a test of "the effect does not re-run" must reach a branch that sits before or outside that guard. Otherwise it tests the guard.
+- **`identity-obj-proxy` cannot see CSS Modules `composes`.** In Jest, `styles.counterOverLimit` is the bare string `'counterOverLimit'`. In the webpack build, a class with `composes: counter` resolves to both hashes. So `expect(querySelector('.' + styles.counter)).not.toBeInTheDocument()` passes in Jest while being false in production. When a PR introduces `composes`, grep the tests for negative assertions on the composed-in class.
+
+## E2E shared state: `serial` is per-project, restore is not atomic (#2116, PR #2139)
+
+`test.describe.configure({ mode: 'serial' })` orders one project's job only. Under `fullyParallel`, the
+desktop/tablet/mobile projects run the same serial block concurrently, and a `finally` restore races another
+test's snapshot. Playwright 1.63 `{ lock: '<name>' }` is the guard. Locks are unioned per job (one serial
+describe = one job), and they do not span CI shards (each shard has its own containers). ADR-011 now records
+the rule and the lock-name registry (wiki `b9fc2cd`). To audit lock coverage, grep every _reader_ of the
+state, not only the writers. Most `TEST_ADMIN` hits are email-matched or mocked `createdBy` payloads.
+Also: a CLAUDE.md convention whose scope sentence says "different major" is falsified by its own PR's
+follow-up when the trap is any root-slot version mismatch (#2138 is a minor-version case).

@@ -269,6 +269,7 @@ line-level conflict markers (diff3 got confused because both patches touch the s
 lines) that were not practical to resolve by editing hunks in place.
 
 **Working resolution pattern** (reusable for any future same-insertion-point collision):
+
 1. `git rebase --abort` immediately rather than trying to hand-splice interleaved `<<<<<<<`
    blocks — the two patches share too much context for a clean 3-way merge.
 2. Snapshot both full versions to `/tmp`: `git show origin/beta:<file>` (the side that already

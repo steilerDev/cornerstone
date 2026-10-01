@@ -217,6 +217,25 @@ describe('ProfilePage', () => {
       expect(screen.getByText('Local Account')).toBeInTheDocument();
     });
 
+    it('displays auth provider as "Local Account + Single Sign-On (OIDC)" for linked local users', () => {
+      // Given: Local user whose account is linked to an OIDC identity
+      mockUseAuth.mockReturnValue({
+        user: { ...mockLocalUser, oidcLinked: true },
+        oidcEnabled: true,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
+      });
+
+      // When: Rendering ProfilePage
+      render(<ProfilePage />);
+
+      // Then: The combined label is shown (not the plain local or OIDC label)
+      expect(screen.getByText('Local Account + Single Sign-On (OIDC)')).toBeInTheDocument();
+      expect(screen.queryByText('Local Account')).not.toBeInTheDocument();
+    });
+
     it('displays auth provider as "Single Sign-On (OIDC)" for OIDC users', () => {
       // Given: OIDC user
       mockUseAuth.mockReturnValue({

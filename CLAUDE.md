@@ -124,6 +124,7 @@ Deterministic git/GitHub mechanics live in `scripts/` — skills and agents call
 | `scripts/squash-merge.sh <pr> "<subject>" [body-file]` | Squash merge with trailer preservation and skip-ci guard                                        |
 | `scripts/worktree-done.sh <path> [branch]`             | End-of-session worktree + branch cleanup (run from the base repo)                               |
 | `scripts/check-trailers.sh <base> <head>`              | Trailer verification for a commit range                                                         |
+| `scripts/update-jest-timings.mjs <run-id>`             | Refresh `scripts/jest-timings.json` (Jest shard balancing weights) from a CI run's artifacts    |
 
 ### Acceptance & Validation
 
@@ -250,7 +251,7 @@ Cornerstone uses a two-tier release model:
 
 Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers static analysis, unit tests, Docker build, and E2E smoke tests — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (errors), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ### Local Validation Policy
 
@@ -259,10 +260,10 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 ```bash
 npm run lint:fix    # auto-fix all fixable issues
 npm run format      # apply Prettier formatting
-npm run lint        # must report zero warnings or errors
+npm run lint        # must report zero errors (CI-enforced)
 ```
 
-If `npm run lint` still reports warnings or errors after auto-fix, they must be resolved before handback. The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
+If `npm run lint` still reports errors after auto-fix, they must be resolved before handback. Existing warnings are tracked in #2118; do not add new warnings in files you touch. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
 
 **Do NOT run `npm test`, `npm run typecheck`, or `npm run build` manually.** CI Quality Gates (typecheck + test + build) run on every PR and own full validation.
 
@@ -318,7 +319,7 @@ two places:
 
 1. **`/develop` step 6h / step 9** (orchestrator, before merging) — run it directly instead of
    hand-checking with grep.
-2. **CI's `trailer-check` job** (automated, on every PR touching production paths) — see
+2. **CI's `trailer-check` job** (automated, on every PR touching production paths, including `e2e/`) — see
    `.github/workflows/ci.yml`.
 
 Detection inside the script is case-insensitive and accepts both the current de-versioned trailer
@@ -410,6 +411,7 @@ cornerstone/
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
 - **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
+- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` (and `babel-loader`) resolve `webpack-dev-server` / `@babel/core` from their own root-hoisted location, so whenever the root slot holds a different version than the workspace pins (a different major forced by `docs/` (Docusaurus), or just a different minor, see #2138 for `webpack`), the workspace's nested copy is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack-dev-server`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major.
 
 ## Coding Standards
 
@@ -462,7 +464,7 @@ Before creating a new UI component, check if an existing shared component can be
 - `Skeleton` — loading placeholder with configurable line count
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
-- `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic.
+- `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic, and the `useInfiniteScrollAnnouncements` hook (`client/src/hooks/`), which owns the live-region announcement bookkeeping.
 
 **Rules:**
 
@@ -472,6 +474,7 @@ Before creating a new UI component, check if an existing shared component can be
 4. New shared components require UX designer visual spec approval
 5. All CSS values must use design tokens from `tokens.css` — no hardcoded colors, spacing, radii, or font sizes
 6. Stylelint enforces token usage automatically (via `npm run lint` locally and the CI `static-analysis` job's `Stylelint` step; covers `client/src/**/*.css` and `client/src/**/*.module.css`, not `docs/`)
+7. **DataTable testids**: any `data-testid` emitted from `ColumnDef.render` or `renderActions` must be built with `dataTableTestId(prefix, id, surface)` — DataTable mounts the table and the mobile cards simultaneously (see wiki Architecture › Frontend Conventions).
 
 ### Internationalization & Translation
 
@@ -482,6 +485,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
 - **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Union-derived keys**: A union enumerated at runtime is a shared `as const` tuple with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key in new code (pre-existing template-literal sites are tracked in #2136) — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029).
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
 
@@ -505,7 +509,7 @@ The application supports multiple locales (English and German) via `i18next` and
 
 Coverage is enforced through three mechanisms:
 
-- **CI**: 6 Jest shards upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages.
+- **CI**: 6 Jest shards (2 workers each — the 4-vCPU runners have only 2 physical cores; 3 workers measured ~2x slower per file) upload a `coverage-report` artifact (retained 30 days) — inspect via the CI run for per-file percentages. Shards are packed by recorded per-file runtime (`scripts/jest-shard-sequencer.mjs` + `scripts/jest-timings.json`), not path hash. When shard durations drift apart (e.g. after adding or splitting a slow test file), refresh the weights from a green run with `node scripts/update-jest-timings.mjs <run-id>` and commit the JSON. Keep any single test file well under a shard's ~6 minute test budget — `--shard` cannot subdivide a file, so one slow file sets its shard's floor. CI uses Jest's default 5 s `testTimeout`; a test needing more is a performance bug to profile (`node --cpu-prof`), not a timeout to raise.
 - **Test file parity**: dev-team-lead `[MODE: review]` rejects production files without a corresponding test file (`VERDICT: CHANGES_REQUIRED` → routed to `qa-integration-tester`) — type-only files, pure re-export barrels, and configuration are exempt (see `.claude/checklists/implementation-checklist.md`).
 - **Local**: QA runs `npx jest path/to/file.test.ts --coverage --coverageReporters=text --maxWorkers=1` before committing; 95%+ required.
 
@@ -557,41 +561,42 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 ### Environment Variables
 
-| Variable                     | Default                    | Description                                                                                                        |
-| ---------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `PORT`                       | `3000`                     | Server port                                                                                                        |
-| `HOST`                       | `0.0.0.0`                  | Server bind address                                                                                                |
-| `DATABASE_URL`               | `/app/data/cornerstone.db` | SQLite database path                                                                                               |
-| `LOG_LEVEL`                  | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                                                      |
-| `NODE_ENV`                   | `production`               | Environment                                                                                                        |
-| `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                      |
-| `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                      |
-| `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                                  |
-| `AUTH_RATE_LIMIT_MAX`        | `20`                       | Login endpoint rate limit: max requests per IP per window (positive integer)                                       |
-| `AUTH_RATE_LIMIT_WINDOW`     | `15 minutes`               | Login endpoint rate limit: time window (ms library format, e.g. `15 minutes`, `1h`, `30s`)                         |
-| `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                          |
-| `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                         |
-| `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                     |
-| `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                              |
-| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                                    |
-| `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                        |
-| `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                              |
-| `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                              |
-| `VAT_RATE`                   | `0.19`                     | VAT/sales-tax rate as a fraction (e.g. `0.19` = 19%) for budget-line gross-up math (exposed via `GET /api/config`) |
-| `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                                    |
-| `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                             |
-| `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                                |
-| `PAPERLESS_FILTER_TAG`       | (none)                     | Tag name for automatic document pre-filtering                                                                      |
-| `BACKUP_DIR`                 | `/backups`                 | Backup destination directory (must be outside app data directory)                                                  |
-| `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                        |
-| `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                         |
-| `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable)      |
-| `LLM_BASE_URL`               | (none)                     | Base URL for OpenAI-compatible LLM API (e.g., `https://api.openai.com/v1`)                                         |
-| `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                            |
-| `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                               |
-| `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                                |
-| `LLM_MAX_TOKENS`             | `16384`                    | Maximum output tokens per LLM call. Increase if extractions truncate (see `finishReason: "length"`)                |
-| `LLM_PROVIDER`               | auto-detect                | Optional: `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` if unset      |
+| Variable                     | Default                    | Description                                                                                                          |
+| ---------------------------- | -------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                       | `3000`                     | Server port                                                                                                          |
+| `HOST`                       | `0.0.0.0`                  | Server bind address                                                                                                  |
+| `DATABASE_URL`               | `/app/data/cornerstone.db` | SQLite database path                                                                                                 |
+| `LOG_LEVEL`                  | `info`                     | Log level (trace/debug/info/warn/error/fatal)                                                                        |
+| `NODE_ENV`                   | `production`               | Environment                                                                                                          |
+| `SESSION_DURATION`           | `604800`                   | Session duration in seconds (default: 7 days)                                                                        |
+| `SECURE_COOKIES`             | `true`                     | Enable HTTPS-only cookie flag                                                                                        |
+| `TRUST_PROXY`                | `false`                    | Trust X-Forwarded-\* headers from a reverse proxy                                                                    |
+| `AUTH_RATE_LIMIT_MAX`        | `20`                       | Login endpoint rate limit: max requests per IP per window (positive integer)                                         |
+| `AUTH_RATE_LIMIT_WINDOW`     | `15 minutes`               | Login endpoint rate limit: time window (ms library format, e.g. `15 minutes`, `1h`, `30s`)                           |
+| `OIDC_ISSUER`                | (none)                     | OpenID Connect issuer URL                                                                                            |
+| `OIDC_CLIENT_ID`             | (none)                     | OIDC application client ID                                                                                           |
+| `OIDC_CLIENT_SECRET`         | (none)                     | OIDC application client secret                                                                                       |
+| `OIDC_JIT_PROVISIONING`      | `false`                    | Opt-in: create a `member` account on first OIDC login with a verified email that matches no account. Off = link-only |
+| `EXTERNAL_URL`               | (none)                     | Public-facing base URL (e.g., `https://myhouse.example.com`) for reverse-proxy setups                                |
+| `PHOTO_MAX_FILE_SIZE_MB`     | `20`                       | Maximum photo upload size in MB                                                                                      |
+| `PHOTO_STORAGE_PATH`         | `{DB_DIR}/photos`          | Directory for photo storage                                                                                          |
+| `DIARY_AUTO_EVENTS`          | `true`                     | Enable automatic diary event creation                                                                                |
+| `CURRENCY`                   | `EUR`                      | ISO 4217 currency code for formatting (exposed via `GET /api/config`)                                                |
+| `VAT_RATE`                   | `0.19`                     | VAT/sales-tax rate as a fraction (e.g. `0.19` = 19%) for budget-line gross-up math (exposed via `GET /api/config`)   |
+| `PAPERLESS_URL`              | (none)                     | Paperless-ngx instance base URL                                                                                      |
+| `PAPERLESS_API_TOKEN`        | (none)                     | Paperless-ngx API authentication token                                                                               |
+| `PAPERLESS_EXTERNAL_URL`     | (none)                     | Browser-facing URL for Paperless-ngx links (falls back to `PAPERLESS_URL` if unset)                                  |
+| `PAPERLESS_FILTER_TAG`       | (none)                     | Tag name for automatic document pre-filtering                                                                        |
+| `BACKUP_DIR`                 | `/backups`                 | Backup destination directory (must be outside app data directory)                                                    |
+| `BACKUP_CADENCE`             | (none)                     | Cron expression for automatic backups (e.g., `0 2 * * *` for daily at 2 AM)                                          |
+| `BACKUP_RETENTION`           | (none)                     | Maximum number of backup archives to retain (oldest deleted when exceeded)                                           |
+| `DIARY_DRAFT_RETENTION_DAYS` | `30`                       | Days a draft diary entry can sit untouched before the daily orphan cleanup deletes it (set to `0` to disable)        |
+| `LLM_BASE_URL`               | (none)                     | Base URL for OpenAI-compatible LLM API (e.g., `https://api.openai.com/v1`)                                           |
+| `LLM_API_KEY`                | (none)                     | API key for LLM provider authentication                                                                              |
+| `LLM_MODEL`                  | (none)                     | LLM model identifier (e.g., `gpt-4-turbo`, `claude-3-opus-20240229`)                                                 |
+| `LLM_REQUEST_TIMEOUT_MS`     | `30000`                    | Timeout in milliseconds for LLM requests (must be positive integer)                                                  |
+| `LLM_MAX_TOKENS`             | `16384`                    | Maximum output tokens per LLM call. Increase if extractions truncate (see `finishReason: "length"`)                  |
+| `LLM_PROVIDER`               | auto-detect                | Optional: `openai`, `anthropic`, `gemini`, `ollama`, or `generic`. Auto-detected from `LLM_BASE_URL` if unset        |
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 

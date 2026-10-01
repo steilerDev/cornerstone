@@ -9,6 +9,7 @@ import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type * as MilestonesPageTypes from './MilestonesPage.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -256,10 +257,10 @@ describe('MilestonesPage', () => {
 
       renderPage();
 
-      // DataTable renders renderActions in both table and mobile card, so two elements
-      // with the same testid exist — use getAllByTestId
+      // DataTable renders renderActions in both table and mobile card; the testids are disjoint
+      // (`-mobile-` infix via dataTableTestId), so getByTestId targets the table instance.
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
     });
 
@@ -269,13 +270,29 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
 
-      expect(screen.getAllByTestId('milestone-edit-1')[0]!).toBeInTheDocument();
-      expect(screen.getAllByTestId('milestone-delete-1')[0]!).toBeInTheDocument();
+      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
+      expect(screen.getByTestId('milestone-delete-1')).toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique across the table and mobile cards, with a row menu open (#2069)', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1, sampleMilestone2]);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+      });
+      expect(screen.getByTestId('milestone-menu-button-mobile-1')).toBeInTheDocument();
+
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+
+      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
 
     it('closes dropdown when menu button is clicked again', async () => {
@@ -284,13 +301,13 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
-      expect(screen.getAllByTestId('milestone-edit-1')[0]!).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      expect(screen.getByTestId('milestone-edit-1')).toBeInTheDocument();
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       expect(screen.queryByTestId('milestone-edit-1')).not.toBeInTheDocument();
     });
   });
@@ -304,11 +321,11 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
       // Modal should show milestone title
       expect(screen.getAllByText('Foundation Complete')[0]!).toBeInTheDocument();
@@ -320,11 +337,11 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
       // Click cancel button (first secondary button in the modal)
       const cancelButtons = screen.getAllByRole('button');
@@ -344,11 +361,11 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
       // Find the confirm delete button
       const buttons = screen.getAllByRole('button');
@@ -370,11 +387,11 @@ describe('MilestonesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByTestId('milestone-menu-button-1')[0]!).toBeInTheDocument();
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getAllByTestId('milestone-menu-button-1')[0]!);
-      fireEvent.click(screen.getAllByTestId('milestone-delete-1')[0]!);
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
       const buttons = screen.getAllByRole('button');
       const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/delete milestone/i));

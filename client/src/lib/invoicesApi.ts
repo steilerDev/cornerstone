@@ -5,6 +5,7 @@ import type {
   InvoiceListPaginatedResponse,
   CreateInvoiceRequest,
   UpdateInvoiceRequest,
+  ConvertQuotationRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -80,4 +81,16 @@ export function fetchAllInvoices(params?: {
  */
 export function fetchInvoiceById(invoiceId: string): Promise<Invoice> {
   return get<InvoiceDetailResponse>(`/invoices/${invoiceId}`).then((r) => r.invoice);
+}
+
+/**
+ * Story #2107: converts a quotation into the final invoice, atomically.
+ */
+export function convertQuotation(
+  invoiceId: string,
+  body: ConvertQuotationRequest,
+): Promise<Invoice> {
+  return post<{ invoice: Invoice }>(`/invoices/${invoiceId}/convert-quotation`, body).then(
+    (r) => r.invoice,
+  );
 }

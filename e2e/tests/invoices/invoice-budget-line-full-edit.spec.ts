@@ -685,9 +685,7 @@ test.describe('WI detail page inline edit — form visible (Scenario 5)', () => 
           resp.request().method() === 'PATCH' &&
           resp.status() === 200,
       );
-      const saveButton = wiDetailPage.budgetSection
-        .locator('[class*="submitButton"]')
-        .filter({ visible: true });
+      const saveButton = wiDetailPage.budgetSection.locator('[class*="submitButton"]').visible();
       await saveButton.click();
       await savePromise;
 

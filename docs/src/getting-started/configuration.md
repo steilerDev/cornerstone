@@ -46,10 +46,14 @@ The login endpoint (`POST /api/auth/login`) is rate-limited per client to slow d
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `AUTH_RATE_LIMIT_MAX` | `20` | Maximum login requests allowed per client within the window (positive integer) |
-| `AUTH_RATE_LIMIT_WINDOW` | `15 minutes` | Length of the rate-limit window: a number (decimals allowed, e.g. `1.5`) followed by an optional space and a unit -- `ms`, `s`/`sec`/`secs`/`second`/`seconds`, `m`/`min`/`mins`/`minute`/`minutes`, `h`/`hr`/`hrs`/`hour`/`hours`, `d`/`day`/`days`, or `w`/`week`/`weeks` (e.g. `15 minutes`, `1h`, `30s`, `1.5h`). A bare number with no unit (e.g. `900000`) is rejected, and forms some duration parsers accept -- like `1y` or `1 msec` -- are not. |
+| `AUTH_RATE_LIMIT_WINDOW` | `15 minutes` | Length of the rate-limit window: a number (decimals allowed, e.g. `1.5`) followed by optional spaces and a unit (case-insensitive) -- `ms`, `s`/`sec`/`secs`/`second`/`seconds`, `m`/`min`/`mins`/`minute`/`minutes`, `h`/`hr`/`hrs`/`hour`/`hours`, `d`/`day`/`days`, or `w`/`week`/`weeks` (e.g. `15 minutes`, `1h`, `30s`, `1.5h`, `1H`, `15 Minutes`). A bare number with no unit (e.g. `900000`) is rejected, and forms some duration parsers accept -- like `1y` or `1 msec` -- are not. |
 
 :::caution
-A value that fails to parse at all -- a non-numeric `AUTH_RATE_LIMIT_MAX`, or an `AUTH_RATE_LIMIT_WINDOW` that doesn't match the format above -- causes the server to **fail at startup** with a configuration error rather than silently falling back to the default. This doesn't catch every mistake: `AUTH_RATE_LIMIT_MAX` is parsed with JavaScript's `parseInt`, which reads only the leading digits and ignores the rest. `AUTH_RATE_LIMIT_MAX=20abc` and `AUTH_RATE_LIMIT_MAX=2e3` both start successfully -- as `20` and `2`, not the `2000` you likely meant in the second case. Use a plain integer with no extra characters.
+**Malformed values fail at startup.** The server validates these variables strictly before starting: any value that cannot be parsed fails immediately with a configuration error rather than silently using a truncated or default value.
+
+For `AUTH_RATE_LIMIT_MAX`, malformed means anything other than an optional minus sign followed by digits -- no trailing characters, decimals, exponent notation, or surrounding whitespace. These are rejected: `20abc` (trailing characters), `20.9` (decimal), `2e3` (exponent), `' 20'` (whitespace). Additionally, `AUTH_RATE_LIMIT_MAX` must be positive (greater than zero) -- a valid integer like `0` or `-5` parses but fails its range check.
+
+For `AUTH_RATE_LIMIT_WINDOW`, malformed means it doesn't match the format shown above (a number, optional spaces, and a unit). A bare number like `900000` is rejected; so are unsupported units like `1y` or `1 msec`. Units are case-insensitive (e.g. `1H`, `15 Minutes` are valid). The duration must also be greater than zero -- a value like `0s` or `0 minutes` matches the format but fails at startup.
 :::
 
 ### Which direction to tune
@@ -76,6 +80,13 @@ OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CL
 | `OIDC_ISSUER` | -- | Your OIDC provider's issuer URL (e.g., `https://auth.example.com/realms/main`) |
 | `OIDC_CLIENT_ID` | -- | Client ID registered with your OIDC provider |
 | `OIDC_CLIENT_SECRET` | -- | Client secret for the OIDC client |
+| `OIDC_JIT_PROVISIONING` | `false` | Opt-in: create a `member` account on first OIDC login with a verified email that matches no account. Off = link-only |
+
+When `OIDC_JIT_PROVISIONING=true`, users who sign in through your identity provider with a verified email that matches no existing account get a new `member` account automatically. The setting has no effect unless OIDC is enabled.
+
+:::warning
+With an open identity provider (for example Google), anyone with an account there can register. Enable this only with a provider that restricts who can sign in.
+:::
 
 The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/callback`. If `EXTERNAL_URL` is not set, it falls back to the request's protocol and host. See [OIDC Setup](../guides/users/oidc-setup) for details on registering this URL with your identity provider.
 

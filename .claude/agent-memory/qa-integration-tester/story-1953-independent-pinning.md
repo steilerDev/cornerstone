@@ -16,13 +16,13 @@ failed 4 tests, not 1.
 `product-architect` caught what the mutation count masked, in PR #2035 review: the third test was
 **assertion-for-assertion identical** to a pre-existing test 60 lines below (same two `toBe` checks,
 order swapped) — zero added discrimination. The 4-failure count was itself the tell in hindsight: it
-included *both* copies of the duplicated pair failing for the identical reason, not four independent
+included _both_ copies of the duplicated pair failing for the identical reason, not four independent
 reasons. A mutation count only proves "this mutation moves some needle" — it does not prove each
 individual failing assertion is pulling separate weight. Check for duplicate assertions against the
-*existing* suite before citing a multi-test-failure count as evidence of thoroughness.
+_existing_ suite before citing a multi-test-failure count as evidence of thoroughness.
 
-Second, sharper problem: the test's title claimed *"PAGE_TOP_MARGIN does not depend on
-letterSubject.fontSize"* while **neither assertion in the body referenced `letterSubject`** — the
+Second, sharper problem: the test's title claimed _"PAGE_TOP_MARGIN does not depend on
+letterSubject.fontSize"_ while **neither assertion in the body referenced `letterSubject`** — the
 title asserted a causal-independence guarantee (issue's own Verification section: "change the
 subject size and no page reflows") that the body never tested, because neither constant is exported
 so a live-mutation-based standing assertion isn't expressible in the permanent suite. **A test name

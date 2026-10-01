@@ -105,6 +105,14 @@ describe('User Database Schema & Migration', () => {
       const oidcLookupIdx = indexes.find((idx) => idx.name === 'idx_users_oidc_lookup');
       expect(oidcLookupIdx?.tbl_name).toBe('users');
 
+      // Issue #1865: the OIDC lookup index is on oidc_subject ONLY (not auth_provider)
+      const oidcIdxColumns = (
+        sqlite.prepare("PRAGMA index_info('idx_users_oidc_lookup')").all() as Array<{
+          name: string;
+        }>
+      ).map((c) => c.name);
+      expect(oidcIdxColumns).toEqual(['oidc_subject']);
+
       const userIdIdx = indexes.find((idx) => idx.name === 'idx_sessions_user_id');
       expect(userIdIdx?.tbl_name).toBe('sessions');
 
@@ -210,7 +218,7 @@ describe('User Database Schema & Migration', () => {
       expect(error?.message).toMatch(/UNIQUE constraint failed/);
     });
 
-    it('enforces OIDC lookup unique index (duplicate auth_provider + oidc_subject)', async () => {
+    it('enforces OIDC lookup unique index (duplicate oidc_subject)', async () => {
       const now = new Date().toISOString();
 
       // Insert first OIDC user
@@ -234,7 +242,7 @@ describe('User Database Schema & Migration', () => {
         .where(eq(schema.users.id, 'user-oidc-1'));
       expect(firstUser).toHaveLength(1);
 
-      // Attempt to insert second OIDC user with same auth_provider + oidc_subject (should throw)
+      // Attempt to insert second OIDC user with same oidc_subject (should throw)
       let error: Error | undefined;
       try {
         await db.insert(schema.users).values({
@@ -254,6 +262,40 @@ describe('User Database Schema & Migration', () => {
       }
 
       expect(error).toBeDefined();
+      expect(error?.message).toMatch(/UNIQUE constraint failed/);
+    });
+
+    it('rejects a duplicate oidc_subject across a local and an oidc account', async () => {
+      const now = new Date().toISOString();
+      await db.insert(schema.users).values({
+        id: 'user-local-linked',
+        email: 'locallinked@example.com',
+        displayName: 'Local Linked',
+        role: 'member',
+        authProvider: 'local',
+        passwordHash: 'hash',
+        oidcSubject: 'cross-provider-subject',
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      let error: Error | undefined;
+      try {
+        await db.insert(schema.users).values({
+          id: 'user-oidc-dup',
+          email: 'oidcdup@example.com',
+          displayName: 'OIDC Dup',
+          role: 'member',
+          authProvider: 'oidc',
+          passwordHash: null,
+          oidcSubject: 'cross-provider-subject',
+          createdAt: now,
+          updatedAt: now,
+        });
+      } catch (err) {
+        error = err as Error;
+      }
+
       expect(error?.message).toMatch(/UNIQUE constraint failed/);
     });
 

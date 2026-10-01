@@ -1,1 +1,5 @@
-export { EditableField, type EditableFieldProps } from './EditableField.js';
+export {
+  EditableField,
+  type EditableFieldProps,
+  type EditableFieldLengthLimit,
+} from './EditableField.js';

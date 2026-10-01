@@ -40,7 +40,6 @@ let capturedRenderSelectedLabel: ((item: any) => string) | null = null;
 let capturedSpecialOptions: any[] | undefined = undefined;
 let capturedOnChange: ((id: string) => void) | null = null;
 let capturedInitialTitle: string | undefined = undefined;
-let capturedValue: string = '';
 
 jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -52,7 +51,6 @@ jest.unstable_mockModule('../SearchPicker/SearchPicker.js', () => ({
     capturedSpecialOptions = props.specialOptions;
     capturedOnChange = props.onChange;
     capturedInitialTitle = props.initialTitle;
-    capturedValue = props.value;
     return (
       <div
         data-testid="search-picker-mock"
@@ -85,7 +83,6 @@ beforeEach(async () => {
   capturedSpecialOptions = undefined;
   capturedOnChange = null;
   capturedInitialTitle = undefined;
-  capturedValue = '';
 });
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────

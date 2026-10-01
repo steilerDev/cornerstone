@@ -81,7 +81,6 @@ test.describe('Orientations tab — visibility (Scenario 1)', { tag: '@responsiv
 test.describe('Orientations tab — empty state (Scenario 2)', { tag: '@responsive' }, () => {
   test('Empty state is displayed in the existing list section when no orientations exist', async ({
     page,
-    testPrefix,
   }) => {
     // We cannot guarantee the DB is empty, so we mock the GET to return empty.
     await page.route('**/api/orientations*', async (route) => {

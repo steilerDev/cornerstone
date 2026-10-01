@@ -58,8 +58,8 @@ export function ReportInvoiceList({
         (inv) =>
           inv.allocatedAmount > 0 ||
           inv.lineKind === 'refund-adjustment' ||
-          inv.budgetLines.length > 0 ||
-          inv.deposits.length > 0,
+          inv.budgetLinesForSource.length > 0 ||
+          inv.depositsVisibleToSource.length > 0,
       ),
     [report.invoices],
   );
@@ -157,14 +157,17 @@ export function ReportInvoiceList({
         const isExcluded = excludedInvoiceIds.has(invoice.invoiceId);
         const hasDocuments = (invoice.documents && invoice.documents.length > 0) || false;
         const isExpanded = expandedInvoiceIds.has(invoice.invoiceId);
-        const isExpandable = invoice.budgetLines.length > 0 || invoice.deposits.length > 0;
+        const isExpandable =
+          invoice.budgetLinesForSource.length > 0 || invoice.depositsVisibleToSource.length > 0;
 
         // Tri-state logic: indeterminate if some but not all lines are excluded
-        const excludedLineCount = invoice.budgetLines.filter((l) =>
+        const excludedLineCount = invoice.budgetLinesForSource.filter((l) =>
           excludedLineIds.has(l.id),
         ).length;
         const isTriStateIndeterminate =
-          !isExcluded && excludedLineCount > 0 && excludedLineCount < invoice.budgetLines.length;
+          !isExcluded &&
+          excludedLineCount > 0 &&
+          excludedLineCount < invoice.budgetLinesForSource.length;
         const isTriStateChecked = !isExcluded && excludedLineCount === 0;
 
         return (
@@ -316,7 +319,7 @@ export function ReportInvoiceList({
                 }}
               >
                 {/* Items sub-table */}
-                {invoice.budgetLines.length > 0 ? (
+                {invoice.budgetLinesForSource.length > 0 ? (
                   <div className={styles.subTableSection}>
                     <h4
                       className={styles.subTableHeading}
@@ -339,7 +342,7 @@ export function ReportInvoiceList({
                           </tr>
                         </thead>
                         <tbody>
-                          {invoice.budgetLines.map((line) => {
+                          {invoice.budgetLinesForSource.map((line) => {
                             const isLineExcluded = excludedLineIds.has(line.id);
                             return (
                               <tr key={line.id}>
@@ -389,7 +392,7 @@ export function ReportInvoiceList({
                     </div>
                     {/* Mobile card list */}
                     <div className={styles.mobileCardList} role="list">
-                      {invoice.budgetLines.map((line) => {
+                      {invoice.budgetLinesForSource.map((line) => {
                         const isLineExcluded = excludedLineIds.has(line.id);
                         return (
                           <div key={line.id} className={styles.mobileCard} role="listitem">
@@ -457,7 +460,7 @@ export function ReportInvoiceList({
                 )}
 
                 {/* Deposits sub-table */}
-                {invoice.deposits.length > 0 ? (
+                {invoice.depositsVisibleToSource.length > 0 ? (
                   <div className={`${styles.subTableSection} ${styles.subTableSeparated}`}>
                     <h4
                       className={styles.subTableHeading}
@@ -481,7 +484,7 @@ export function ReportInvoiceList({
                           </tr>
                         </thead>
                         <tbody>
-                          {invoice.deposits.map((deposit) => (
+                          {invoice.depositsVisibleToSource.map((deposit) => (
                             <tr key={deposit.id}>
                               <td>
                                 <div className={styles.depositAmountContainer}>
@@ -573,7 +576,7 @@ export function ReportInvoiceList({
                     </div>
                     {/* Mobile card list */}
                     <div className={styles.mobileCardList} role="list">
-                      {invoice.deposits.map((deposit) => (
+                      {invoice.depositsVisibleToSource.map((deposit) => (
                         <div key={deposit.id} className={styles.mobileCard} role="listitem">
                           <div className={styles.mobileCardTopRow}>
                             <span className={styles.amount}>

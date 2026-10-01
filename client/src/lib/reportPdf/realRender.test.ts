@@ -457,8 +457,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [],
-    deposits: [],
+    budgetLinesForSource: [],
+    depositsVisibleToSource: [],
     ...overrides,
   };
 }
@@ -484,7 +484,7 @@ async function makeMixedReport(): Promise<{
     splitKind: 'lines', // #1911: a genuine line split (foreign budget-line source)
     invoiceAmount: 800,
     allocatedAmount: 300,
-    budgetLines: [
+    budgetLinesForSource: [
       { id: 'bl-split-nodoc', description: null, allocatedPortion: 300, linkedItem: null },
     ],
   });
@@ -497,7 +497,7 @@ async function makeMixedReport(): Promise<{
     invoiceAmount: 700,
     allocatedAmount: 250,
     documents: [{ documentId: 1, archiveSerialNumber: null, title: null, attachmentType: null }],
-    budgetLines: [
+    budgetLinesForSource: [
       { id: 'bl-split-doc', description: null, allocatedPortion: 250, linkedItem: null },
     ],
   });
@@ -799,7 +799,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         invoiceId: 'inv-usage-linked',
         vendorName: 'Linked Vendor',
         invoiceNumber: 'U-1',
-        budgetLines: [
+        budgetLinesForSource: [
           {
             id: 'bl-linked-1',
             description: null,
@@ -859,8 +859,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         splitKind: null,
         invoiceAmount: 250,
         allocatedAmount: 250,
-        budgetLines: [],
-        deposits: [
+        budgetLinesForSource: [],
+        depositsVisibleToSource: [
           {
             id: 'dep-constituted',
             amount: 250,
@@ -879,19 +879,19 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         invoiceNumber: 'U-6',
         isSplit: true,
         // #1911 AC 1.2 shape: splitKind "both" — this fixture is what pre-#1911 code (wrongly)
-        // treated as "split (from non-empty budgetLines) AND deposit-reduced (from an untagged
+        // treated as "split (from non-empty budgetLinesForSource) AND deposit-reduced (from an untagged
         // deposit)" simultaneously. Post-#1911, an UNTAGGED deposit no longer triggers
         // isDepositReduced at all (§3.2 over-inclusive fix) — the reduction must come from a
-        // genuinely foreign-tagged deposit, which is invisible in deposits[] (§1.10). "both"
+        // genuinely foreign-tagged deposit, which is invisible in depositsVisibleToSource[] (§1.10). "both"
         // preserves this row contributing BOTH the split and depositReduced legend entries, same
         // as the original fixture intended, without relying on the fixed bug to do it.
         splitKind: 'both',
         invoiceAmount: 150,
         allocatedAmount: 150,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'bl-reduced', description: null, allocatedPortion: 150, linkedItem: null },
         ],
-        deposits: [], // the foreign-tagged deposit causing the reduction is invisible (§1.10)
+        depositsVisibleToSource: [], // the foreign-tagged deposit causing the reduction is invisible (§1.10)
       });
 
       return {
@@ -1003,7 +1003,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         ) as { table: { body: unknown[][] } };
 
         // #1959: attachmentsNote no longer gets a continuation row of its own — it is the trailing
-        // grey run of the invoice's OWN Usage cell. These fixture invoices carry no budgetLines, so
+        // grey run of the invoice's OWN Usage cell. These fixture invoices carry no budgetLinesForSource, so
         // areaText is null and the meta run holds the attachment note alone (no ' · ' separator).
         const single = usageCellForVendor(tableItem.table.body, 'Single Attach Vendor');
         const multi = usageCellForVendor(tableItem.table.body, 'Multi Attach Vendor');
@@ -1152,7 +1152,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
           includeCoverLetter: false,
           household: null,
         });
-        const splitRows = content.rows.filter((r) => r.isSplit);
+        const splitRows = content.rows.filter((r) => r.isPartial);
         expect(splitRows.length).toBeGreaterThan(0); // the fixture really does contain split rows
 
         const pdfContent = buildOverviewContent(content, new Map());
@@ -1207,7 +1207,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             inv.invoiceId === 'inv-normal'
               ? {
                   ...inv,
-                  budgetLines: [
+                  budgetLinesForSource: [
                     {
                       id: 'bl-normal',
                       description: 'ORIGINAL BASELINE USAGE TEXT',
@@ -1722,7 +1722,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         splitKind: 'lines', // #1911: genuine line split, drives the ' (partial)' inline label
         invoiceAmount: 1234.56,
         allocatedAmount: 987.65,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'bl-worst-1', description: null, allocatedPortion: 500, linkedItem: null },
           { id: 'bl-worst-2', description: null, allocatedPortion: 487.65, linkedItem: null },
         ],
@@ -1735,8 +1735,8 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         splitKind: null, // isDeposit trigger is unchanged (isSplit && hasOwnTaggedDeposit), §3.3
         invoiceAmount: 500,
         allocatedAmount: 500,
-        budgetLines: [],
-        deposits: [
+        budgetLinesForSource: [],
+        depositsVisibleToSource: [
           {
             id: 'dep-worst',
             amount: 500,
@@ -2383,7 +2383,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
         statusText: null,
         invoiceAmountText: '€100.00',
         allocatedAmountValueText: '€100.00',
-        isSplit: false,
+        isPartial: false,
         isDepositReduced: false,
         isDeposit: false,
         isRefund: false,
@@ -2951,8 +2951,8 @@ describe('production i18n singleton — getFixedT resolves a language independen
       splitKind: null, // isDeposit trigger is unchanged (isSplit && hasOwnTaggedDeposit), §3.3
       invoiceAmount: 250,
       allocatedAmount: 250,
-      budgetLines: [],
-      deposits: [
+      budgetLinesForSource: [],
+      depositsVisibleToSource: [
         {
           id: 'dep-constituted',
           amount: 250,
@@ -3184,7 +3184,7 @@ describe('ADR-034 rule #1: horizontal-overflow via _minWidth <= _calcWidth (issu
         invoiceId: 'inv-wide-area',
         invoiceAmount: 200,
         allocatedAmount: 200,
-        budgetLines: [
+        budgetLinesForSource: [
           {
             id: 'bl-wide-area',
             description: null,
@@ -3271,7 +3271,7 @@ describe('#1940: continuation-row marker (AC5) and runt-avoidance (AC1/AC9), rea
       statusText: 'Pending',
       invoiceAmountText: '€100.00',
       allocatedAmountValueText: '€100.00',
-      isSplit: false,
+      isPartial: false,
       isDepositReduced: false,
       isDeposit: false,
       isRefund: false,
@@ -3479,7 +3479,7 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
       const t = getT();
       const formatters = formattersFor(localeStr as 'en-US' | 'de-DE');
 
-      // One split invoice (isSplit + budgetLines) and one deposit-reduced invoice
+      // One split invoice (isSplit + budgetLinesForSource) and one deposit-reduced invoice
       // (isSplit + untagged deposit, no budget lines) — both flag types present so
       // buildReportContent emits two footnote entries.
       const splitInv = makeInvoice({
@@ -3488,22 +3488,22 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
         splitKind: 'lines', // #1911: genuine line split
         invoiceAmount: 300,
         allocatedAmount: 300,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'bl-leg-split', description: null, allocatedPortion: 300, linkedItem: null },
         ],
-        deposits: [],
+        depositsVisibleToSource: [],
       });
       const depositReducedInv = makeInvoice({
         invoiceId: 'inv-leg-deposit',
         isSplit: true,
         // #1911 AC 1.2 shape: the reduction comes from a foreign-TAGGED deposit, which is
-        // invisible in deposits[] (§1.10) — an untagged deposit no longer triggers
+        // invisible in depositsVisibleToSource[] (§1.10) — an untagged deposit no longer triggers
         // isDepositReduced at all (§3.2 over-inclusive fix).
         splitKind: 'deposits',
         invoiceAmount: 150,
         allocatedAmount: 150,
-        budgetLines: [],
-        deposits: [],
+        budgetLinesForSource: [],
+        depositsVisibleToSource: [],
       });
       const report: SourceReportResponse = {
         type: 'claim',
@@ -3563,7 +3563,7 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
       splitKind: 'lines',
       invoiceAmount: 200,
       allocatedAmount: 200,
-      budgetLines: [
+      budgetLinesForSource: [
         { id: 'bl-split-a', description: null, allocatedPortion: 200, linkedItem: null },
       ],
     });
@@ -3573,7 +3573,7 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
       splitKind: 'lines',
       invoiceAmount: 150,
       allocatedAmount: 150,
-      budgetLines: [
+      budgetLinesForSource: [
         { id: 'bl-split-b', description: null, allocatedPortion: 150, linkedItem: null },
       ],
     });
@@ -3663,7 +3663,7 @@ describe('legend sentence layout and occurrence count (#1980)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────
-// #1911 §5.3 — the AC 1.2 shape (splitKind "deposits", deposits: [] — the foreign-tagged deposit
+// #1911 §5.3 — the AC 1.2 shape (splitKind "deposits", depositsVisibleToSource: [] — the foreign-tagged deposit
 // causing the split is invisible server-side) renders the deposit-reduced inline label and legend
 // sentence, and NEVER the split label/sentence, through the real, unmocked pdfmake pipeline in
 // both locales. This is the content-level companion to the AC 1.2 server test (which proves the
@@ -3698,8 +3698,8 @@ describe('#1911 AC 5.3: the AC 1.2 shape renders (less deposit)/depositReducedFo
         splitKind: 'deposits',
         invoiceAmount: 500,
         allocatedAmount: 500,
-        budgetLines: [],
-        deposits: [], // the foreign-tagged deposit causing the split is invisible (§1.10)
+        budgetLinesForSource: [],
+        depositsVisibleToSource: [], // the foreign-tagged deposit causing the split is invisible (§1.10)
       });
       const report: SourceReportResponse = {
         type: 'claim',
@@ -3726,7 +3726,7 @@ describe('#1911 AC 5.3: the AC 1.2 shape renders (less deposit)/depositReducedFo
       );
       // Sanity at the model level before rendering.
       expect(content.rows[0]!.isDepositReduced).toBe(true);
-      expect(content.rows[0]!.isSplit).toBe(false);
+      expect(content.rows[0]!.isPartial).toBe(false);
       expect(content.footnotes.map((f) => f.id)).toEqual(['depositReduced']);
 
       const pdfContent = buildOverviewContent(content, new Map());
@@ -3794,10 +3794,10 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
       lineKind: 'refund-adjustment',
       invoiceAmount: 500,
       allocatedAmount: -150,
-      budgetLines: [
+      budgetLinesForSource: [
         { id: 'bl-maximal', description: 'Materials', allocatedPortion: -150, linkedItem: null },
       ],
-      deposits: [
+      depositsVisibleToSource: [
         {
           id: 'dep-maximal',
           amount: 100,
@@ -3929,7 +3929,7 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
       { includeCoverLetter: false, household: null },
     );
     expect(maximalModelCheck.rows[0]!.isDeposit).toBe(true);
-    expect(maximalModelCheck.rows[0]!.isSplit).toBe(true);
+    expect(maximalModelCheck.rows[0]!.isPartial).toBe(true);
     expect(maximalModelCheck.rows[0]!.isDepositReduced).toBe(true);
     expect(maximalModelCheck.rows[0]!.isRefund).toBe(true);
 
@@ -3947,7 +3947,7 @@ describe('#1911 AC 4.5: maximal four-run allocated-amount row — real render, n
 
     // CHECK 2 — no silent drop (differential, real OUTPUT not input). Render a REDUCED comparator:
     // the same fixture with exactly one fact removed — splitKind "deposits" instead of "both",
-    // which is the isSplit flag alone toggling off, dropping exactly the ' (partial)'/
+    // which is the isPartial flag alone toggling off, dropping exactly the ' (partial)'/
     // ' (Teilbetrag)' run. `.positions.length` is written by pdfmake DURING layout and reflects
     // how many real lines the cell's ACTUAL content required — unlike `.text`, it cannot be
     // satisfied by what the test merely constructed. Given how tight the 75pt column is (no two of
@@ -4025,6 +4025,147 @@ describe('#1973 AC2.7: single-column ({allocatedAmount} alone) real render', () 
 
       const pdfDoc = await PDFDocument.load(await result!.blob.arrayBuffer());
       expect(pdfDoc.getPageCount()).toBeGreaterThanOrEqual(1);
+    },
+  );
+});
+
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+// #2011 — tier-3 summary block, measured from pdfmake's own post-render state. The declared
+// margin/widths are asserted in overviewPdf.test.ts; this block proves the LAID-OUT label/amount
+// columns actually land inside the rendered table's width (a 6-digit de total, "123.456,78 €",
+// must not overflow the narrow {allocatedAmount}-only block) via `.positions` / `._calcWidth`.
+// ─────────────────────────────────────────────────────────────────────────────────────────────
+describe('#2011: tier-3 summary block real render — measured from pdfmake post-render state', () => {
+  function makeBigTotalReport(useCase: 'budget-overview' | 'claim'): SourceReportResponse {
+    return {
+      type: useCase,
+      source: {
+        id: 'src-2011',
+        name: 'Source 2011',
+        sourceType: 'bank_loan',
+        reference: null,
+        contactAddress: null,
+      },
+      invoices: [
+        makeInvoice({
+          invoiceId: 'inv-2011',
+          invoiceAmount: 123456.78,
+          allocatedAmount: 123456.78,
+        }),
+      ],
+      totalAmount: 123456.78,
+      unallocatedInvoices: [],
+      generatedAt: '2026-03-01T00:00:00.000Z',
+    };
+  }
+
+  interface PositionedNode {
+    positions?: { left: number }[];
+    _calcWidth?: number;
+  }
+
+  // Renders and measures. `visibleExtra` lists additional (hideable) columns to keep visible.
+  async function measureSummary(
+    useCase: 'budget-overview' | 'claim',
+    t: TFunction,
+    locale: 'en-US' | 'de-DE',
+    visibleExtra: string[],
+  ): Promise<{
+    tableW: number;
+    labelLeft: number;
+    amountRight: number;
+    labelPositions: number;
+    amountPositions: number;
+    pageCount: number;
+  }> {
+    const { buildOverviewContent } = await import('./overviewPdf.js');
+    const { reportColumnsForUseCase, REQUIRED_REPORT_COLUMN } =
+      await import('../reportContent/columns.js');
+    const report = makeBigTotalReport(useCase);
+    const content = buildReportContent(
+      report,
+      new Set(['inv-2011']),
+      useCase,
+      t,
+      formattersFor(locale),
+      {
+        includeCoverLetter: false,
+        household: null,
+      },
+    );
+    const hidden = new Set(
+      reportColumnsForUseCase(content.isOverview).filter(
+        (c) => c !== REQUIRED_REPORT_COLUMN && !visibleExtra.includes(c),
+      ),
+    );
+    const pdfContent = buildOverviewContent(content, new Map(), hidden);
+    const blob = await renderOverviewPdfContent(
+      pdfContent,
+      { tableTitle: content.tableTitle, sourceName: content.sourceInfo.sourceName },
+      t,
+    );
+
+    const tableIndex = pdfContent.findIndex(
+      (c) => typeof c === 'object' && c !== null && 'table' in c,
+    );
+    const tableItem = findTableItem(pdfContent);
+    const tableW =
+      calcWidthsOf(tableItem.table.widths).reduce((a, b) => a + b, 0) +
+      tableOffsetsTotal(tableItem.table.widths.length);
+
+    const summaryNode = pdfContent[tableIndex + 1] as
+      { stack?: { columns?: PositionedNode[] }[] } | undefined;
+    const columns = summaryNode?.stack?.[0]?.columns;
+    if (!columns || columns.length !== 2) {
+      throw new Error('Expected the tier-3 summary stack to hold a 2-column row');
+    }
+    const [labelNode, amountNode] = columns as [PositionedNode, PositionedNode];
+    if (!Array.isArray(labelNode.positions) || !Array.isArray(amountNode.positions)) {
+      throw new Error('summary columns have no .positions — was the tree rendered first?');
+    }
+    const labelPos = labelNode.positions[0];
+    const amountPos = amountNode.positions[0];
+    if (!labelPos || !amountPos || typeof amountNode._calcWidth !== 'number') {
+      throw new Error('summary columns have no measured position/_calcWidth');
+    }
+    const pdfDoc = await PDFDocument.load(await blob.arrayBuffer());
+    return {
+      tableW,
+      labelLeft: labelPos.left,
+      amountRight: amountPos.left + amountNode._calcWidth,
+      labelPositions: labelNode.positions.length,
+      amountPositions: amountNode.positions.length,
+      pageCount: pdfDoc.getPageCount(),
+    };
+  }
+
+  it.each([
+    ['budget-overview', 'en', 'budget-overview' as const, 'en-US' as const, () => tEn] as const,
+    ['budget-overview', 'de', 'budget-overview' as const, 'de-DE' as const, () => tDe] as const,
+    ['claim', 'en', 'claim' as const, 'en-US' as const, () => tEn] as const,
+    ['claim', 'de', 'claim' as const, 'de-DE' as const, () => tDe] as const,
+  ])(
+    '{allocatedAmount} alone, %s %s: the summary label/amount span exactly the table width starting at the left margin',
+    async (_uc, _loc, useCase, locale, getT) => {
+      const m = await measureSummary(useCase, getT(), locale, []);
+      expect(m.labelLeft).toBeCloseTo(PAGE_MARGIN_X, 2);
+      expect(m.amountRight - m.labelLeft).toBeCloseTo(m.tableW, 2);
+      expect(m.amountRight - m.labelLeft).toBeLessThanOrEqual(m.tableW + 1e-6);
+      expect(m.labelPositions).toBe(1);
+      expect(m.amountPositions).toBe(1);
+      expect(m.pageCount).toBeGreaterThanOrEqual(1);
+    },
+  );
+
+  it.each([
+    ['budget-overview', 'budget-overview' as const],
+    ['claim', 'claim' as const],
+  ])(
+    'AC3: {allocatedAmount, usage} %s (en): the summary spans the table, which fills the printable width',
+    async (_uc, useCase) => {
+      const m = await measureSummary(useCase, tEn, 'en-US', ['usage']);
+      expect(m.amountRight - m.labelLeft).toBeCloseTo(m.tableW, 2);
+      expect(m.tableW).toBeCloseTo(printableWidth(), 2);
     },
   );
 });

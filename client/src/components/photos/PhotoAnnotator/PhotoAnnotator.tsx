@@ -1241,7 +1241,7 @@ function renderKonvaShape(
           }
         }}
         onDragEnd={(e) => {
-          const target = e.target as Konva.Group;
+          const target: Konva.Node = e.target;
           const dx = target.x();
           const dy = target.y();
           onChange(shape.id, {

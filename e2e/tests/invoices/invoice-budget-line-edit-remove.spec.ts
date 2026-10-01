@@ -139,7 +139,7 @@ async function openBudgetLineMenu(
   page: Page,
   section: ReturnType<typeof page.locator>,
 ): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="true"]').filter({ visible: true }).first();
+  const trigger = section.locator('button[aria-haspopup="true"]').visible().first();
 
   // Pre-scroll the trigger into the center of the viewport before clicking.
   // This prevents the OverflowMenu's scroll-close listener from firing during
@@ -150,11 +150,7 @@ async function openBudgetLineMenu(
   await trigger.click();
 
   // The menu renders via portal so it's attached to document.body.
-  await page
-    .locator('[role="menu"]')
-    .filter({ visible: true })
-    .first()
-    .waitFor({ state: 'visible' });
+  await page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
 }
 
 /**
@@ -168,10 +164,7 @@ async function openBudgetLineMenu(
  * that check while still requiring the element to exist and be attached.
  */
 async function clickMenuItemByText(page: Page, text: string | RegExp): Promise<void> {
-  const item = page
-    .locator('[role="menuitem"]')
-    .filter({ visible: true })
-    .filter({ hasText: text });
+  const item = page.locator('[role="menuitem"]').visible().filter({ hasText: text });
   await item.first().click({ force: true });
 }
 

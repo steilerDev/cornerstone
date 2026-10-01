@@ -98,9 +98,7 @@
 
 /* Over-limit counter — warning-orange, informational register (not an error) */
 .counterOverLimit {
-  flex: 1;
-  text-align: right;
-  font-size: var(--font-size-xs);
+  composes: counter;
   color: var(--color-warning-text-on-light);
 }
 

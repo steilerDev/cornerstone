@@ -22,7 +22,7 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     statusText: null,
     invoiceAmountText: '€100.00',
     allocatedAmountValueText: '€100.00',
-    isSplit: false,
+    isPartial: false,
     isDepositReduced: false,
     isDeposit: false,
     isRefund: false,

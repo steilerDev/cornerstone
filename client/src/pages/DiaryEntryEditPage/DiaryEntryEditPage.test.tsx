@@ -86,16 +86,20 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+const defaultMockUser = {
+  id: 'user-1',
+  displayName: 'Alice Builder',
+  email: 'alice@example.com',
+  role: 'admin',
+  authProvider: 'local',
+  createdAt: '2026-01-01T00:00:00Z',
+};
+// Mutable so individual tests can vary displayName/email (reset in beforeEach).
+let mockUser: typeof defaultMockUser = { ...defaultMockUser };
+
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({
-    user: {
-      id: 'user-1',
-      displayName: 'Alice Builder',
-      email: 'alice@example.com',
-      role: 'admin',
-      authProvider: 'local',
-      createdAt: '2026-01-01T00:00:00Z',
-    },
+    user: mockUser,
     oidcEnabled: false,
     isLoading: false,
     error: null,
@@ -267,6 +271,7 @@ describe('DiaryEntryEditPage', () => {
     mockUpdateDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
     mockPromoteDiaryEntry.mockReset();
+    mockUser = { ...defaultMockUser };
     photosState.refresh = jest.fn();
     capturedOnUpload = null;
   });
@@ -1016,6 +1021,327 @@ describe('DiaryEntryEditPage', () => {
 
       expect(screen.queryByRole('button', { name: /discard draft/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId('draft-status-badge')).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Unfinished signatures & API error translation (#2088) ──────────────────
+
+  describe('unfinished signatures and API errors (#2088)', () => {
+    const INCOMPLETE_MSG = 'Accept or remove the unfinished signature before saving.';
+    const INVALID_METADATA_MSG =
+      'Some entry details are invalid or incomplete (for example, an unfinished signature). Please review the entry and try again.';
+    const VALIDATION_ERROR_MSG = 'The submitted data is invalid. Please check your input.';
+
+    const draftDailyLog: DiaryEntryDetail = {
+      ...baseDailyLogEntry,
+      id: 'draft-dl',
+      status: 'draft',
+      metadata: null,
+    };
+    const draftSiteVisit: DiaryEntryDetail = {
+      ...siteVisitEntry,
+      id: 'draft-sv',
+      status: 'draft',
+    };
+
+    const originalGetContext = HTMLCanvasElement.prototype.getContext;
+    const originalToDataURL = HTMLCanvasElement.prototype.toDataURL;
+    const originalGetBoundingClientRect = Element.prototype.getBoundingClientRect;
+
+    beforeEach(() => {
+      const ctx = new Proxy(
+        {},
+        {
+          get: (target, prop) =>
+            prop in target ? (target as Record<string | symbol, unknown>)[prop] : jest.fn(),
+          set: (target, prop, value) => {
+            (target as Record<string | symbol, unknown>)[prop] = value;
+            return true;
+          },
+        },
+      );
+      HTMLCanvasElement.prototype.getContext = jest.fn(
+        () => ctx,
+      ) as unknown as typeof HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.toDataURL = jest.fn(
+        () => 'data:image/png;base64,MOCKDATA',
+      ) as unknown as typeof HTMLCanvasElement.prototype.toDataURL;
+      Element.prototype.getBoundingClientRect = jest.fn(() => ({
+        width: 300,
+        height: 150,
+        top: 0,
+        left: 0,
+        right: 300,
+        bottom: 150,
+        x: 0,
+        y: 0,
+        toJSON() {
+          return {};
+        },
+      })) as unknown as typeof Element.prototype.getBoundingClientRect;
+    });
+
+    afterEach(() => {
+      HTMLCanvasElement.prototype.getContext = originalGetContext;
+      HTMLCanvasElement.prototype.toDataURL = originalToDataURL;
+      Element.prototype.getBoundingClientRect = originalGetBoundingClientRect;
+      jest.useRealTimers();
+    });
+
+    const loadDraft = async (entry: DiaryEntryDetail) => {
+      mockGetDiaryEntry.mockResolvedValueOnce(entry);
+      mockUpdateDiaryEntry.mockResolvedValue(entry);
+      renderEditPage(entry.id);
+      await screen.findByRole('button', { name: /add signature/i });
+    };
+
+    const addPendingSignature = async () => {
+      await userEvent.setup().click(screen.getByRole('button', { name: /add signature/i }));
+      await screen.findByLabelText('Signature canvas');
+    };
+
+    const clickPromote = async () => {
+      const saveBtn = screen
+        .getAllByRole('button')
+        .find((btn) => /^save$/i.test(btn.textContent ?? ''))!;
+      await userEvent.setup().click(saveBtn);
+    };
+
+    const lastUpdateMetadata = () => {
+      const call = mockUpdateDiaryEntry.mock.calls[mockUpdateDiaryEntry.mock.calls.length - 1];
+      expect(call).toBeDefined();
+      return (call![1] as { metadata?: Record<string, unknown> | null }).metadata;
+    };
+
+    it('falls back to the email as signer name when displayName is blank', async () => {
+      mockUser = { ...defaultMockUser, displayName: '   ' };
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      expect(screen.getByText('alice@example.com')).toBeInTheDocument();
+    });
+
+    it('uses the display name as signer name when present', async () => {
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      // displayName also appears in the draft header/meta; assert within the signature group
+      expect(screen.getAllByText('Alice Builder').length).toBeGreaterThan(0);
+      expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
+    });
+
+    it('blocks promote with an inline alert while a signature is unfinished', async () => {
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      mockPromoteDiaryEntry.mockClear();
+      await clickPromote();
+
+      expect(mockPromoteDiaryEntry).not.toHaveBeenCalled();
+      const msg = await screen.findByText(INCOMPLETE_MSG);
+      expect(msg).toHaveAttribute('role', 'alert');
+      expect(msg).toHaveAttribute('id', 'daily-log-signatures-error');
+    });
+
+    it('#2088 repro: still blocks promote after switching the pending signature to Vendor', async () => {
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      await userEvent.setup().click(screen.getByRole('radio', { name: 'Vendor' }));
+      mockPromoteDiaryEntry.mockClear();
+      await clickPromote();
+
+      expect(mockPromoteDiaryEntry).not.toHaveBeenCalled();
+      expect(await screen.findByText(INCOMPLETE_MSG)).toHaveAttribute('role', 'alert');
+    });
+
+    it('promotes without signatures after the unfinished signature is removed', async () => {
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      await clickPromote();
+      await screen.findByText(INCOMPLETE_MSG);
+
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Remove Signature' }));
+      mockPromoteDiaryEntry.mockResolvedValueOnce({ ...draftDailyLog, status: 'saved' });
+      await clickPromote();
+
+      await waitFor(() => expect(mockPromoteDiaryEntry).toHaveBeenCalledTimes(1));
+      const payload = mockPromoteDiaryEntry.mock.calls[0];
+      expect(payload).toBeDefined();
+      const metadata = (payload![1] as { metadata?: Record<string, unknown> | null }).metadata;
+      expect(metadata ?? {}).not.toHaveProperty('signatures');
+    });
+
+    it('promotes with the complete signature after it is accepted', async () => {
+      await loadDraft(draftDailyLog);
+      await addPendingSignature();
+      const canvas = screen.getByLabelText('Signature canvas');
+      fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+      fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 });
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Signature canvas')).not.toBeInTheDocument(),
+      );
+
+      mockPromoteDiaryEntry.mockResolvedValueOnce({ ...draftDailyLog, status: 'saved' });
+      await clickPromote();
+
+      await waitFor(() => expect(mockPromoteDiaryEntry).toHaveBeenCalledTimes(1));
+      const payload = mockPromoteDiaryEntry.mock.calls[0];
+      expect(payload).toBeDefined();
+      const metadata = (payload![1] as { metadata?: { signatures?: unknown[] } }).metadata;
+      expect(metadata?.signatures).toEqual([
+        expect.objectContaining({
+          signerName: 'Alice Builder',
+          signerType: 'self',
+          signatureDataUrl: 'data:image/png;base64,MOCKDATA',
+        }),
+      ]);
+    });
+
+    it('autosave strips an unfinished signature placeholder from metadata', async () => {
+      jest.useFakeTimers();
+      mockGetDiaryEntry.mockResolvedValueOnce(draftDailyLog);
+      mockUpdateDiaryEntry.mockResolvedValue(draftDailyLog);
+      renderEditPage('draft-dl');
+      const addBtn = await screen.findByRole('button', { name: /add signature/i });
+      await jest.advanceTimersByTimeAsync(50);
+      mockUpdateDiaryEntry.mockClear();
+
+      fireEvent.click(addBtn);
+      await jest.advanceTimersByTimeAsync(1100);
+
+      await waitFor(() => expect(mockUpdateDiaryEntry).toHaveBeenCalled());
+      expect(lastUpdateMetadata() ?? {}).not.toHaveProperty('signatures');
+      expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
+    });
+
+    it('blocks promote for a site_visit with an unfinished signature', async () => {
+      await loadDraft(draftSiteVisit);
+      await addPendingSignature();
+      mockPromoteDiaryEntry.mockClear();
+      await clickPromote();
+
+      expect(mockPromoteDiaryEntry).not.toHaveBeenCalled();
+      const msg = await screen.findByText(INCOMPLETE_MSG);
+      expect(msg).toHaveAttribute('id', 'site-visit-signatures-error');
+      expect(msg).toHaveAttribute('role', 'alert');
+    });
+
+    it('promotes a site_visit with only complete signatures', async () => {
+      await loadDraft(draftSiteVisit);
+      await addPendingSignature();
+      const canvas = screen.getByLabelText('Signature canvas');
+      fireEvent.mouseDown(canvas, { clientX: 10, clientY: 10 });
+      fireEvent.mouseMove(canvas, { clientX: 20, clientY: 20 });
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+      await waitFor(() =>
+        expect(screen.queryByLabelText('Signature canvas')).not.toBeInTheDocument(),
+      );
+
+      mockPromoteDiaryEntry.mockResolvedValueOnce({ ...draftSiteVisit, status: 'saved' });
+      await clickPromote();
+
+      await waitFor(() => expect(mockPromoteDiaryEntry).toHaveBeenCalledTimes(1));
+      const payload = mockPromoteDiaryEntry.mock.calls[0];
+      expect(payload).toBeDefined();
+      const metadata = (payload![1] as { metadata?: { signatures?: unknown[] } }).metadata;
+      expect(metadata?.signatures).toHaveLength(1);
+    });
+
+    it('site_visit autosave strips an unfinished signature placeholder', async () => {
+      jest.useFakeTimers();
+      mockGetDiaryEntry.mockResolvedValueOnce(draftSiteVisit);
+      mockUpdateDiaryEntry.mockResolvedValue(draftSiteVisit);
+      renderEditPage('draft-sv');
+      const addBtn = await screen.findByRole('button', { name: /add signature/i });
+      await jest.advanceTimersByTimeAsync(50);
+      mockUpdateDiaryEntry.mockClear();
+
+      fireEvent.click(addBtn);
+      await jest.advanceTimersByTimeAsync(1100);
+
+      await waitFor(() => expect(mockUpdateDiaryEntry).toHaveBeenCalled());
+      expect(lastUpdateMetadata()).toEqual(
+        expect.objectContaining({ inspectorName: 'Bob Inspector', outcome: 'pass' }),
+      );
+      expect(lastUpdateMetadata() ?? {}).not.toHaveProperty('signatures');
+      expect(screen.getByLabelText('Signature canvas')).toBeInTheDocument();
+    });
+
+    it('promote INVALID_METADATA shows the translated message, not the raw server text', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      await loadDraft(draftDailyLog);
+      mockPromoteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(400, {
+          code: 'INVALID_METADATA',
+          message: 'daily_log signature entry must have non-empty signerName',
+        }),
+      );
+      await clickPromote();
+
+      const banner = await screen.findByText(INVALID_METADATA_MSG);
+      expect(banner).toHaveAttribute('role', 'alert');
+      expect(screen.queryByText(/non-empty signerName/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/failed to update diary entry/i)).not.toBeInTheDocument();
+    });
+
+    it('promote VALIDATION_ERROR without fieldErrors shows the translated banner', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      await loadDraft(draftDailyLog);
+      mockPromoteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'bad' }),
+      );
+      await clickPromote();
+
+      const banner = await screen.findByText(VALIDATION_ERROR_MSG);
+      expect(banner).toHaveAttribute('role', 'alert');
+    });
+
+    it('promote VALIDATION_ERROR with fieldErrors maps onto the field, without a banner', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      await loadDraft(draftDailyLog);
+      mockPromoteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(400, {
+          code: 'VALIDATION_ERROR',
+          message: 'bad',
+          details: { fieldErrors: { body: 'Server says body is bad' } },
+        }),
+      );
+      await clickPromote();
+
+      const fieldError = await screen.findByText('Server says body is bad');
+      expect(fieldError).toHaveAttribute('id', 'body-error');
+      expect(screen.queryByText(VALIDATION_ERROR_MSG)).not.toBeInTheDocument();
+    });
+
+    it('promote with a non-API error shows the generic update error', async () => {
+      await loadDraft(draftDailyLog);
+      mockPromoteDiaryEntry.mockRejectedValueOnce(new Error('network down'));
+      await clickPromote();
+
+      const banner = await screen.findByText(/failed to update diary entry/i);
+      expect(banner).toHaveAttribute('role', 'alert');
+    });
+
+    it('saved-entry update INVALID_METADATA shows the translated banner', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
+      mockUpdateDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(400, { code: 'INVALID_METADATA', message: 'raw server detail' }),
+      );
+      renderEditPage('de-1');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /save changes/i }));
+
+      const banner = await screen.findByText(INVALID_METADATA_MSG);
+      expect(banner).toHaveAttribute('role', 'alert');
+      expect(screen.queryByText(/raw server detail/)).not.toBeInTheDocument();
+    });
+
+    it('blocks saving a saved daily_log entry whose state holds an unfinished signature', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
+      renderEditPage('de-1');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /add signature/i }));
+      await userEvent.setup().click(screen.getByRole('button', { name: /save changes/i }));
+
+      expect(await screen.findByText(INCOMPLETE_MSG)).toBeInTheDocument();
+      expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
     });
   });
 

@@ -31,6 +31,7 @@ metadata:
 3. `realRender.test.ts` production singleton describe (line ~2818) — 'Auftragnehmer' → 'Firma'.
 
 **New tests added**: AC7 describe block at the end of `realRender.test.ts`:
+
 - Length bounds: `content.labels.vendor.length <= 8`, `content.labels.invoiceAmount.length <= 9`
   (derived from 5.19pt/char measured Roboto average advance at 10pt bold)
 - Exact value pins: `tDe('...vendor') === 'Firma'`, `tDe('...invoiceAmount') === 'Betrag'`

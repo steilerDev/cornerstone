@@ -186,21 +186,14 @@ async function openBudgetLineMenu(
   page: Page,
   section: ReturnType<typeof page.locator>,
 ): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="true"]').filter({ visible: true }).first();
+  const trigger = section.locator('button[aria-haspopup="true"]').visible().first();
   await trigger.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
   await trigger.click();
-  await page
-    .locator('[role="menu"]')
-    .filter({ visible: true })
-    .first()
-    .waitFor({ state: 'visible' });
+  await page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });
 }
 
 async function clickMenuItemByText(page: Page, text: string | RegExp): Promise<void> {
-  const item = page
-    .locator('[role="menuitem"]')
-    .filter({ visible: true })
-    .filter({ hasText: text });
+  const item = page.locator('[role="menuitem"]').visible().filter({ hasText: text });
   await item.first().click({ force: true });
 }
 
@@ -530,7 +523,7 @@ test.describe('Edit modal for assigned budget line — collapsed parent picker (
   // the edit modal — the current parent is shown as a pill + label with a
   // "Change" affordance, and the expandable picker body is hidden by default.
   // The picker only expands when the user clicks "Change".
-  test('Opening Edit modal on an already-assigned line shows the collapsed parent row with the current parent and a Change button (picker body hidden)', async ({
+  test('Opening Edit modal on an already-assigned line shows the collapsed parent row with a Change button (picker body hidden), and Change/Cancel toggles the picker with focus management', async ({
     page,
     testPrefix,
   }) => {
@@ -607,6 +600,19 @@ test.describe('Edit modal for assigned budget line — collapsed parent picker (
       // The expanded picker body is hidden by default
       const pickerBody = parentPickerFieldset.locator('#parent-picker-body');
       await expect(pickerBody).toBeHidden();
+
+      // #2067: "Change" expands the picker, truly hides the collapsed row (real-layout check,
+      // not just the [hidden] attribute) and moves focus into the picker fieldset.
+      await changeButton.click();
+      await expect(currentParentRow).toBeHidden();
+      await expect(pickerBody).toBeVisible();
+      await expect(parentPickerFieldset).toBeFocused();
+
+      // Picker "Cancel" (inside the fieldset) collapses it again and returns focus to "Change"
+      await parentPickerFieldset.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await expect(currentParentRow).toBeVisible();
+      await expect(pickerBody).toBeHidden();
+      await expect(changeButton).toBeFocused();
 
       // The itemized amount input is still shown (full edit form for assigned lines)
       // The field id changed from #budget-line-amount to #budget-itemized-amount in PR #1553

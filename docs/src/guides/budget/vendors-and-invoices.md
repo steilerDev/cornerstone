@@ -95,6 +95,18 @@ Invoices have four statuses:
 Use the **Quotation** status for vendor quotes that you want to track alongside actual invoices. Quotation amounts are treated with a +/- 5% margin in budget projections, reflecting the typical variance from a formal quote.
 :::
 
+### Converting a Quotation to a Final Invoice
+
+When a quotation becomes a finalized invoice from the vendor, you can convert it to capture the final amounts and details. On the quotation's invoice detail page, click **Convert to final invoice** to open a dialog where you:
+
+1. **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes (the quoted amount is automatically added as a note)
+2. **Optionally select a Paperless document** -- the document becomes the invoice attachment. If Paperless and an LLM are configured, **Prefill from document** auto-extracts the final details
+3. **Review and edit itemized lines** -- proposed amounts are scaled pro rata to the final amount. You can adjust them or keep the existing itemization; any unallocated amount goes to Discretionary
+4. **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final balance
+5. **Choose payment status** -- mark the invoice as pending or already paid
+
+Conversion is blocked if deposits exceed the final amount (add a refund or increase the amount) or if the itemized total exceeds it. Nothing is saved until you confirm the dialog.
+
 ### Invoice Detail
 
 Click an invoice to see its full detail page with the invoice amount, current status, the **Deposits** section (for tracking staged payments), and the **Linked Budget Lines** section.
@@ -157,3 +169,16 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 - A budget line can be linked to **at most one invoice** -- each budget line is exclusive to a single invoice
 - An invoice can be linked to **many budget lines** across different work items and household items
 - Itemized amounts are independent of the planned amount on the budget line -- they represent the actual cost attribution from the invoice
+
+### Invoice Amount Validation
+
+When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
+
+- **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. For example, if you have allocated 1000 EUR across budget lines and the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Edits that raise the amount (or leave it unchanged) are never blocked.
+- **Net deposit floor** -- The net of deposits minus refunds must not exceed the invoice amount. This is checked when you add or increase a deposit and when you lower the invoice amount. Raising the amount is never blocked.
+
+These guards ensure your budget stays mathematically consistent.
+
+:::info Date validation
+Cornerstone rejects calendar-impossible invoice dates (e.g., 2026-02-31). Dates must be valid ISO 8601 dates.
+:::

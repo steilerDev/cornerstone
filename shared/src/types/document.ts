@@ -18,17 +18,18 @@ import type { PaginationMeta } from './pagination.js';
  * Entity types that can be linked to Paperless-ngx documents.
  */
 export type DocumentLinkEntityType =
-  | 'work_item'
-  | 'household_item'
-  | 'invoice'
-  | 'budget_source'
-  | 'subsidy_program';
+  'work_item' | 'household_item' | 'invoice' | 'budget_source' | 'subsidy_program';
+
+/**
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const ATTACHMENT_TYPES = ['quotation', 'deposit', 'invoice'] as const;
 
 /**
  * Tag applied to an invoice document link, indicating its role in the claim report.
  * Meaningful only for entityType='invoice'; always null otherwise.
  */
-export type AttachmentType = 'quotation' | 'deposit' | 'invoice';
+export type AttachmentType = (typeof ATTACHMENT_TYPES)[number];
 
 // ─── Paperless-ngx Proxy Types ───────────────────────────────────────────────
 

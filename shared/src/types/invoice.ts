@@ -11,11 +11,16 @@ import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
 import type { FilterMeta } from './filterMeta.js';
 
 /**
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const INVOICE_STATUSES = ['pending', 'paid', 'claimed', 'quotation'] as const;
+
+/**
  * Invoice payment status.
  * EPIC-05 Story 5.9: replaced 'overdue' with 'claimed'.
  * 'quotation' represents a formal quote (not yet an actual cost).
  */
-export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /**
  * Deposit status within an invoice: pending, paid, or claimed.
@@ -156,6 +161,37 @@ export interface InvoiceListResponse {
  */
 export interface InvoiceResponse {
   invoice: Invoice;
+}
+
+/** Story #2107: target status when converting a quotation into the final invoice. */
+export type ConvertQuotationTargetStatus = 'pending' | 'paid';
+
+/** Story #2107: new itemizedAmount for one existing invoice budget line (junction row id). */
+export interface ConvertQuotationLineUpdate {
+  /** invoice_budget_lines.id (InvoiceBudgetLineSummary.id), must belong to the invoice. */
+  id: string;
+  /** > 0, major units. */
+  itemizedAmount: number;
+}
+
+/**
+ * Story #2107: POST /api/invoices/:invoiceId/convert-quotation.
+ * Converts a status='quotation' invoice in place, atomically.
+ */
+export interface ConvertQuotationRequest {
+  amount: number; // > 0
+  date: string; // YYYY-MM-DD
+  invoiceNumber?: string | null; // omitted = keep, null = clear; max 100
+  dueDate?: string | null; // omitted = keep, null = clear; >= date
+  /** Final user notes. Omitted = keep existing notes; null = clear. conversionNote is appended. */
+  notes?: string | null;
+  status: ConvertQuotationTargetStatus;
+  /** Localized history line composed by the client; appended to notes. 1..1000 chars after trim. */
+  conversionNote: string;
+  /** Lines to re-amount. Omitted/empty = keep existing itemization. Lines not listed are unchanged. */
+  budgetLines?: ConvertQuotationLineUpdate[];
+  /** Optional Paperless document to link with attachmentType='invoice'. */
+  paperlessDocumentId?: number;
 }
 
 /**

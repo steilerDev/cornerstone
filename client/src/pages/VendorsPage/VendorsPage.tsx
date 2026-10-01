@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
+import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
+import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
@@ -355,14 +357,14 @@ export function VendorsPage() {
   }, [activeMenuId]);
 
   // Render actions menu
-  const renderActions = (vendor: Vendor) => (
+  const renderActions = (vendor: Vendor, surface: DataTableSurface) => (
     <div className={styles.actionsMenu}>
       <button
         type="button"
         className={styles.menuButton}
         onClick={() => setActiveMenuId(activeMenuId === vendor.id ? null : vendor.id)}
         aria-label={t('common:menu.actions')}
-        data-testid={`vendor-menu-button-${vendor.id}`}
+        data-testid={dataTableTestId('vendor-menu-button', vendor.id, surface)}
       >
         ⋮
       </button>
@@ -372,7 +374,7 @@ export function VendorsPage() {
             type="button"
             className={styles.menuItem}
             onClick={() => navigate(`/settings/vendors/${vendor.id}`)}
-            data-testid={`vendor-view-${vendor.id}`}
+            data-testid={dataTableTestId('vendor-view', vendor.id, surface)}
           >
             {t('vendors.buttons.view')}
           </button>
@@ -380,7 +382,7 @@ export function VendorsPage() {
             type="button"
             className={`${styles.menuItem} ${styles.menuItemDanger}`}
             onClick={() => openDeleteConfirm(vendor)}
-            data-testid={`vendor-delete-${vendor.id}`}
+            data-testid={dataTableTestId('vendor-delete', vendor.id, surface)}
           >
             {t('vendors.buttons.delete')}
           </button>

@@ -75,8 +75,8 @@
  * (`client/src/lib/reportExclusions.ts`) clamps a fully-line-excluded invoice's
  * `allocatedAmount` to exactly `0` (never negative). `ReportInvoiceList.tsx`'s
  * `allocatedInvoices` filter now reads
- * `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLines.length > 0
- * || inv.deposits.length > 0` — the added `budgetLines.length`/`deposits.length` clauses keep a
+ * `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLinesForSource.length > 0
+ * || inv.depositsVisibleToSource.length > 0` — the added `budgetLinesForSource.length`/`depositsVisibleToSource.length` clauses keep a
  * net-zero non-refund invoice with budget lines or deposits visible as a `€0.00` row instead of
  * being filtered out, which also preserves the only UI path back to un-excluding those lines
  * (the row's own expand toggle). The PDF export and the actual claim submission were never

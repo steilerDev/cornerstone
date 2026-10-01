@@ -235,117 +235,90 @@ describe('OIDC Service', () => {
   });
 
   describe('handleCallback()', () => {
-    it('extracts sub, email, name from claims', async () => {
-      // Given: Mock token response with claims
-      const mockConfig = { issuer: 'https://oidc.example.com' } as never;
-      const callbackUrl = new URL('https://app.example.com/callback?code=abc&state=xyz');
-      const expectedState = 'xyz';
+    const mockConfig = { issuer: 'https://oidc.example.com' } as never;
+    const callbackUrl = new URL('https://app.example.com/callback?code=abc&state=xyz');
 
-      const mockClaims = {
+    async function callbackWithClaims(claims: Record<string, unknown>) {
+      mockAuthorizationCodeGrant.mockResolvedValue({ claims: () => claims } as never);
+      return oidcService.handleCallback(mockConfig, callbackUrl, 'xyz');
+    }
+
+    it('extracts sub, email and emailVerified from claims', async () => {
+      const result = await callbackWithClaims({
         sub: 'user-123',
         email: 'user@example.com',
-        name: 'John Doe',
-      };
-
-      mockAuthorizationCodeGrant.mockResolvedValue({
-        claims: () => mockClaims,
-      } as never);
-
-      // When: Handling callback
-      const result = await oidcService.handleCallback(mockConfig, callbackUrl, expectedState);
-
-      // Then: Claims are extracted correctly
-      expect(result).toEqual({
-        sub: 'user-123',
-        email: 'user@example.com',
+        email_verified: true,
         name: 'John Doe',
       });
 
-      // And: authorizationCodeGrant was called with correct params
+      expect(result).toEqual({
+        sub: 'user-123',
+        email: 'user@example.com',
+        emailVerified: true,
+        name: 'John Doe',
+        preferredUsername: undefined,
+      });
       expect(mockAuthorizationCodeGrant).toHaveBeenCalledTimes(1);
       expect(mockAuthorizationCodeGrant).toHaveBeenCalledWith(mockConfig, callbackUrl, {
-        expectedState,
+        expectedState: 'xyz',
       });
     });
 
-    it('falls back to preferred_username when name is missing', async () => {
-      // Given: Mock token response without name claim
-      const mockConfig = { issuer: 'https://oidc.example.com' } as never;
-      const callbackUrl = new URL('https://app.example.com/callback?code=abc&state=xyz');
-      const expectedState = 'xyz';
+    it.each([
+      ['false', false],
+      ['absent', undefined],
+      ['the string "true"', 'true'],
+      ['the number 1', 1],
+      ['null', null],
+    ])('treats email_verified as unverified when it is %s', async (_label, value) => {
+      const claims: Record<string, unknown> = { sub: 'user-1', email: 'user@example.com' };
+      if (value !== undefined) claims.email_verified = value;
 
-      const mockClaims = {
-        sub: 'user-456',
-        email: 'user@example.com',
-        preferred_username: 'johndoe',
-      };
+      const result = await callbackWithClaims(claims);
 
-      mockAuthorizationCodeGrant.mockResolvedValue({
-        claims: () => mockClaims,
-      } as never);
-
-      // When: Handling callback
-      const result = await oidcService.handleCallback(mockConfig, callbackUrl, expectedState);
-
-      // Then: preferred_username is used as name
-      expect(result).toEqual({
-        sub: 'user-456',
-        email: 'user@example.com',
-        name: 'johndoe',
-      });
+      expect(result.emailVerified).toBe(false);
     });
 
     it('returns empty string for email when not in claims', async () => {
-      // Given: Mock token response without email claim
-      const mockConfig = { issuer: 'https://oidc.example.com' } as never;
-      const callbackUrl = new URL('https://app.example.com/callback?code=abc&state=xyz');
-      const expectedState = 'xyz';
+      const result = await callbackWithClaims({ sub: 'user-789', email_verified: true });
 
-      const mockClaims = {
-        sub: 'user-789',
-        name: 'Jane Doe',
-      };
-
-      mockAuthorizationCodeGrant.mockResolvedValue({
-        claims: () => mockClaims,
-      } as never);
-
-      // When: Handling callback
-      const result = await oidcService.handleCallback(mockConfig, callbackUrl, expectedState);
-
-      // Then: Email is empty string
-      expect(result).toEqual({
-        sub: 'user-789',
-        email: '',
-        name: 'Jane Doe',
-      });
+      expect(result).toEqual({ sub: 'user-789', email: '', emailVerified: true });
     });
 
-    it('returns empty string for name when both name and preferred_username missing', async () => {
-      // Given: Mock token response without name or preferred_username
-      const mockConfig = { issuer: 'https://oidc.example.com' } as never;
-      const callbackUrl = new URL('https://app.example.com/callback?code=abc&state=xyz');
-      const expectedState = 'xyz';
-
-      const mockClaims = {
-        sub: 'user-999',
-        email: 'minimal@example.com',
-      };
-
-      mockAuthorizationCodeGrant.mockResolvedValue({
-        claims: () => mockClaims,
-      } as never);
-
-      // When: Handling callback
-      const result = await oidcService.handleCallback(mockConfig, callbackUrl, expectedState);
-
-      // Then: Name is empty string
-      expect(result).toEqual({
-        sub: 'user-999',
-        email: 'minimal@example.com',
-        name: '',
+    it('returns name and preferredUsername when both are string claims', async () => {
+      const result = await callbackWithClaims({
+        sub: 's1',
+        email: 'a@example.com',
+        email_verified: true,
+        name: 'Jane Doe',
+        preferred_username: 'jdoe',
       });
+
+      expect(result.name).toBe('Jane Doe');
+      expect(result.preferredUsername).toBe('jdoe');
     });
+
+    it('returns undefined name and preferredUsername when claims are absent', async () => {
+      const result = await callbackWithClaims({ sub: 's2', email: 'a@example.com' });
+
+      expect(result.name).toBeUndefined();
+      expect(result.preferredUsername).toBeUndefined();
+    });
+
+    it.each([42, null, true, { first: 'x' }, ['x']])(
+      'returns undefined name and preferredUsername for non-string claim %j',
+      async (value) => {
+        const result = await callbackWithClaims({
+          sub: 's3',
+          email: 'a@example.com',
+          name: value,
+          preferred_username: value,
+        });
+
+        expect(result.name).toBeUndefined();
+        expect(result.preferredUsername).toBeUndefined();
+      },
+    );
 
     it('throws error when claims() returns null', async () => {
       // Given: Mock token response with null claims
