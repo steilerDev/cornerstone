@@ -76,21 +76,21 @@
  * class docstring for the full locator reference (`sourceInfoBlock`, `depositBadge`/
  * `mobileDepositBadge`, `inlineNote`/`mobileInlineNote`, `usageMetaText`/`mobileUsageMetaText`,
  * `summaryTable`/`summaryTableRows`, and `footnotesBlock`/`footnoteItems` — one deduplicated
- * entry per active flag (`isSplit`/`isDepositReduced`), absent only when NEITHER flag fires
+ * entry per active flag (`isPartial`/`isDepositReduced`), absent only when NEITHER flag fires
  * anywhere in the report (Issue #1965)).
  *
- * Issue #1911 (`splitKind`): `isSplit`/`isDepositReduced`/`isDeposit` are now derived purely from
+ * Issue #1911 (`splitKind`): `isPartial`/`isDepositReduced`/`isDeposit` are now derived purely from
  * the server's `splitKind: 'lines' | 'deposits' | 'both' | null` rather than the old
- * `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` array-shape gates.
+ * `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` (pre-#2016/#2017 names) array-shape gates.
  * Two consequences that ripple into Scenario 17/18 below: (1) a ZERO-contribution-line row (all
  * of the invoice's budget lines point to a DIFFERENT source, `splitKind: 'lines'`) now DOES carry
- * the `(partial)` label — the old `budgetLines.length>0` gate used to suppress it, which was the
+ * the `(partial)` label — the old `budgetLines.length>0` gate (pre-#2016/#2017 name) used to suppress it, which was the
  * #1911 bug's mirror case; (2) `isDepositReduced` now fires ONLY when a deposit is tagged to a
  * source OTHER than the one being reported (`splitKind: 'deposits'`/`'both'`) — an UNTAGGED
  * deposit (`budgetSourceId: null`) never triggers it, because untagged deposits are apportioned
  * pro-rata back INTO the reported source (`depositAggregateUtils.ts`), not claimed separately.
  * `isDeposit` (the constituted-deposit badge trigger) is UNCHANGED and can now co-occur with
- * `isSplit`/`isDepositReduced` on the same row — the old code's implicit either/or is gone.
+ * `isPartial`/`isDepositReduced` on the same row — the old code's implicit either/or is gone.
  * - Scenario 16: A `claim` report omits the source-info metadata block entirely (AC3.1) — the
  *   counterpart to Scenario 1's `budget-overview` regression guard (AC3.3).
  * - Scenario 17: A constituted-deposit row (the row's allocation is made up entirely by a
@@ -1638,11 +1638,11 @@ test.describe(
         // View source B's own claim report — this invoice has zero budget lines for B (all of
         // its budget lines point at source A), so its entire row here is the tagged deposit:
         // `isDeposit` fires (own-tagged deposit present, raw `isSplit` true — unchanged trigger).
-        // Since Issue #1911, `isSplit`/`isDepositReduced` are driven purely by the server's
+        // Since Issue #1911, `isPartial`/`isDepositReduced` are driven purely by the server's
         // `splitKind`, not by whether B itself has a budget-line contribution: the invoice's
         // lines are ALL foreign to B (they're on A) → `has_foreign_line_source` is true for B's
-        // report → `splitKind: 'lines'` → `isSplit` fires too, even though B's own `budgetLines[]`
-        // slice is empty (AC 3.1's zero-contribution-line case — the old `budgetLines.length>0`
+        // report → `splitKind: 'lines'` → `isPartial` fires too, even though B's own `budgetLinesForSource[]`
+        // slice is empty (AC 3.1's zero-contribution-line case — the old `budgetLines.length>0` (pre-#2016/#2017 name)
         // gate used to suppress this; `splitKind` alone decides now). `isDepositReduced` stays
         // false: the deposit is tagged to B itself (the reported source), not a foreign one, so
         // `has_foreign_deposit_source` is false and `splitKind` cannot be 'deposits'/'both'.
@@ -1840,7 +1840,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       expect(row2Text).not.toContain('‡');
 
       // Issue #1965 + AC5 (Issue #1980): the footnotes block now contains TWO deduplicated
-      // legend entries — one for `isSplit` (all three invoices trigger it) and one for
+      // legend entries — one for `isPartial` (all three invoices trigger it) and one for
       // `isDepositReduced` (invoice3 triggers it via its deposit tagged to `otherSourceId` —
       // Issue #1911's `splitKind: 'both'` shape). Two distinct flag types → two distinct legend
       // sentences, even though invoice3 triggers both simultaneously.
@@ -1877,7 +1877,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
 
   // Issue #1911 AC 3.2 regression guard (the over-inclusive-fix direction): a split invoice
   // carrying an UNTAGGED deposit must show "(partial)" — the invoice's lines genuinely span two
-  // sources, so `splitKind: 'lines'` and `isSplit` fires normally — but must NEVER show
+  // sources, so `splitKind: 'lines'` and `isPartial` fires normally — but must NEVER show
   // "(less deposit)", and must contribute exactly ONE legend entry. Before #1911,
   // `isDepositReduced` fired on ANY untagged deposit sharing an invoice with a split line,
   // producing a false "claimed separately" legend sentence for a deposit that

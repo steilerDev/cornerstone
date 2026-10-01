@@ -18,8 +18,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [],
-    deposits: [],
+    budgetLinesForSource: [],
+    depositsVisibleToSource: [],
     ...overrides,
   };
 }
@@ -45,7 +45,7 @@ describe('applyLineExclusions', () => {
   it('no-op: empty excludedLineIds returns the exact same report object reference', () => {
     const report = makeReport([
       makeInvoice({
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'line-1', description: 'Foundation', allocatedPortion: 500, linkedItem: null },
         ],
       }),
@@ -61,7 +61,7 @@ describe('applyLineExclusions', () => {
       makeInvoice({
         invoiceId: 'inv-1',
         allocatedAmount: 1000,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'line-1', description: 'Foundation', allocatedPortion: 300, linkedItem: null },
           { id: 'line-2', description: 'Roofing', allocatedPortion: 700, linkedItem: null },
         ],
@@ -80,7 +80,7 @@ describe('applyLineExclusions', () => {
       makeInvoice({
         invoiceId: 'inv-1',
         allocatedAmount: 1000,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'line-1', description: 'Foundation', allocatedPortion: 400, linkedItem: null },
           { id: 'line-2', description: 'Roofing', allocatedPortion: 600, linkedItem: null },
         ],
@@ -99,7 +99,7 @@ describe('applyLineExclusions', () => {
       makeInvoice({
         invoiceId: 'inv-1',
         allocatedAmount: 200,
-        budgetLines: [
+        budgetLinesForSource: [
           {
             id: 'line-1',
             description: 'Overpaid deposit',
@@ -122,7 +122,7 @@ describe('applyLineExclusions', () => {
         invoiceId: 'inv-1',
         allocatedAmount: -300,
         lineKind: 'refund-adjustment',
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'line-1', description: 'Extra item', allocatedPortion: 100, linkedItem: null },
         ],
       }),
@@ -138,14 +138,14 @@ describe('applyLineExclusions', () => {
     const uninvolvedInvoice = makeInvoice({
       invoiceId: 'inv-2',
       allocatedAmount: 500,
-      budgetLines: [
+      budgetLinesForSource: [
         { id: 'line-9', description: 'Unrelated', allocatedPortion: 500, linkedItem: null },
       ],
     });
     const targetInvoice = makeInvoice({
       invoiceId: 'inv-1',
       allocatedAmount: 1000,
-      budgetLines: [
+      budgetLinesForSource: [
         { id: 'line-1', description: 'Target', allocatedPortion: 300, linkedItem: null },
       ],
     });
@@ -159,12 +159,12 @@ describe('applyLineExclusions', () => {
     expect(result.invoices[0]!.allocatedAmount).toBe(700);
   });
 
-  it('an invoice with zero budgetLines (deposit-only) is passed through unchanged even with a non-matching excludedLineIds set', () => {
+  it('an invoice with zero budgetLinesForSource (deposit-only) is passed through unchanged even with a non-matching excludedLineIds set', () => {
     const depositOnlyInvoice = makeInvoice({
       invoiceId: 'inv-3',
       allocatedAmount: 400,
-      budgetLines: [],
-      deposits: [
+      budgetLinesForSource: [],
+      depositsVisibleToSource: [
         {
           id: 'dep-1',
           amount: 400,
@@ -190,7 +190,7 @@ describe('applyLineExclusions', () => {
       makeInvoice({
         invoiceId: 'inv-1',
         allocatedAmount: 100.1,
-        budgetLines: [
+        budgetLinesForSource: [
           { id: 'line-1', description: 'Line A', allocatedPortion: 33.33, linkedItem: null },
         ],
       }),
@@ -202,7 +202,7 @@ describe('applyLineExclusions', () => {
     expect(result.invoices[0]!.allocatedAmount).toBe(66.77);
   });
 
-  it('passthrough of other fields: vendorName, invoiceNumber, status, documents, isSplit, deposits remain untouched', () => {
+  it('passthrough of other fields: vendorName, invoiceNumber, status, documents, isSplit, depositsVisibleToSource remain untouched', () => {
     const report = makeReport([
       makeInvoice({
         invoiceId: 'inv-1',
@@ -218,7 +218,7 @@ describe('applyLineExclusions', () => {
             attachmentType: 'invoice',
           },
         ],
-        deposits: [
+        depositsVisibleToSource: [
           {
             id: 'dep-1',
             amount: 50,
@@ -231,7 +231,9 @@ describe('applyLineExclusions', () => {
           },
         ],
         allocatedAmount: 1000,
-        budgetLines: [{ id: 'line-1', description: null, allocatedPortion: 200, linkedItem: null }],
+        budgetLinesForSource: [
+          { id: 'line-1', description: null, allocatedPortion: 200, linkedItem: null },
+        ],
       }),
     ]);
 
@@ -243,7 +245,7 @@ describe('applyLineExclusions', () => {
     expect(inv.status).toBe('claimed');
     expect(inv.isSplit).toBe(true);
     expect(inv.documents).toHaveLength(1);
-    expect(inv.deposits).toHaveLength(1);
+    expect(inv.depositsVisibleToSource).toHaveLength(1);
     expect(inv.allocatedAmount).toBe(800);
   });
 
@@ -251,7 +253,9 @@ describe('applyLineExclusions', () => {
     const report = makeReport([
       makeInvoice({
         allocatedAmount: 1000,
-        budgetLines: [{ id: 'line-1', description: null, allocatedPortion: 100, linkedItem: null }],
+        budgetLinesForSource: [
+          { id: 'line-1', description: null, allocatedPortion: 100, linkedItem: null },
+        ],
       }),
     ]);
 
@@ -270,12 +274,16 @@ describe('applyLineExclusions', () => {
     const invA = makeInvoice({
       invoiceId: 'inv-A',
       allocatedAmount: 500,
-      budgetLines: [{ id: 'line-A1', description: null, allocatedPortion: 200, linkedItem: null }],
+      budgetLinesForSource: [
+        { id: 'line-A1', description: null, allocatedPortion: 200, linkedItem: null },
+      ],
     });
     const invB = makeInvoice({
       invoiceId: 'inv-B',
       allocatedAmount: 300,
-      budgetLines: [{ id: 'line-B1', description: null, allocatedPortion: 100, linkedItem: null }],
+      budgetLinesForSource: [
+        { id: 'line-B1', description: null, allocatedPortion: 100, linkedItem: null },
+      ],
     });
     const report = makeReport([invA, invB]);
 
@@ -290,7 +298,9 @@ describe('applyLineExclusions', () => {
   it('excluding a lineId that matches no line on any invoice is a full no-op on amounts (but not a reference no-op, since size > 0)', () => {
     const invoice = makeInvoice({
       allocatedAmount: 1000,
-      budgetLines: [{ id: 'line-1', description: null, allocatedPortion: 500, linkedItem: null }],
+      budgetLinesForSource: [
+        { id: 'line-1', description: null, allocatedPortion: 500, linkedItem: null },
+      ],
     });
     const report = makeReport([invoice]);
 

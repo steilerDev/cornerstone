@@ -947,7 +947,7 @@ export function buildOverviewContent(
         fontSize: DEPOSIT_NOTE_FONT_SIZE,
       });
     }
-    if (contentRow.isSplit) {
+    if (contentRow.isPartial) {
       allocatedRuns.push({
         text: ` (${reportContent.labels.splitNote})`,
         color: DEPOSIT_NOTE_TEXT_COLOR,

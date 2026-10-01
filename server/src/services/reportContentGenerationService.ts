@@ -76,7 +76,7 @@ export async function generateReportContent(
     // Start with invoice's allocated amount
     let invContribution = inv.allocatedAmount;
     // Subtract excluded budget lines' allocatedPortion
-    for (const line of inv.budgetLines) {
+    for (const line of inv.budgetLinesForSource) {
       if (excludedLineIds.has(line.id)) {
         invContribution -= line.allocatedPortion;
       }
@@ -109,7 +109,7 @@ export async function generateReportContent(
     if (!includedInvoiceIdSet.has(inv.invoiceId)) {
       continue;
     }
-    for (const line of inv.budgetLines) {
+    for (const line of inv.budgetLinesForSource) {
       if (!excludedLineIds.has(line.id) && line.linkedItem) {
         linkedItemIds.add(line.linkedItem.id);
         linkedItemTypes.set(line.linkedItem.id, line.linkedItem.type);
@@ -153,7 +153,7 @@ export async function generateReportContent(
     }
 
     const budgetLines: GenerateReportContentLlmInvoiceLine[] = [];
-    for (const line of inv.budgetLines) {
+    for (const line of inv.budgetLinesForSource) {
       if (excludedLineIds.has(line.id)) {
         continue; // Skip excluded lines
       }

@@ -252,7 +252,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         isSplit: false,
         splitKind: null,
         documents: [],
-        budgetLines: [
+        budgetLinesForSource: [
           {
             id: 'bl-1',
             description: 'Original Usage Text',
@@ -260,7 +260,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
             linkedItem: null,
           },
         ],
-        deposits: [],
+        depositsVisibleToSource: [],
       },
     ],
     totalAmount: 1000,
@@ -812,7 +812,7 @@ describe('ReportWizardPage', () => {
               isSplit: false,
               splitKind: null,
               documents: [],
-              budgetLines: [
+              budgetLinesForSource: [
                 {
                   id: 'line-1',
                   description: 'Foundation work',
@@ -820,7 +820,7 @@ describe('ReportWizardPage', () => {
                   linkedItem: null,
                 },
               ],
-              deposits: [],
+              depositsVisibleToSource: [],
             },
           ],
         }),
@@ -1142,8 +1142,10 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [{ id: 'bl-a', description: 'A', allocatedPortion: 0, linkedItem: null }],
-            deposits: [],
+            budgetLinesForSource: [
+              { id: 'bl-a', description: 'A', allocatedPortion: 0, linkedItem: null },
+            ],
+            depositsVisibleToSource: [],
           },
         ],
       });
@@ -1163,8 +1165,10 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [{ id: 'bl-b', description: 'B', allocatedPortion: 0, linkedItem: null }],
-            deposits: [],
+            budgetLinesForSource: [
+              { id: 'bl-b', description: 'B', allocatedPortion: 0, linkedItem: null },
+            ],
+            depositsVisibleToSource: [],
           },
         ],
       });
@@ -1235,10 +1239,10 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [
+            budgetLinesForSource: [
               { id: 'bl-b2', description: 'B2', allocatedPortion: 0, linkedItem: null },
             ],
-            deposits: [],
+            depositsVisibleToSource: [],
           },
         ],
       });
@@ -1885,8 +1889,8 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [],
-            deposits: [],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [],
           },
         ],
       });
@@ -1937,8 +1941,8 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [],
-            deposits: [],
+            budgetLinesForSource: [],
+            depositsVisibleToSource: [],
           },
         ],
       });
@@ -2047,7 +2051,7 @@ describe('ReportWizardPage', () => {
               isSplit: false,
               splitKind: null,
               documents: [],
-              budgetLines: [
+              budgetLinesForSource: [
                 {
                   id: 'line-1',
                   description: 'Foundation work',
@@ -2055,7 +2059,7 @@ describe('ReportWizardPage', () => {
                   linkedItem: null,
                 },
               ],
-              deposits: [
+              depositsVisibleToSource: [
                 {
                   id: 'dep-1',
                   amount: 200,
@@ -2158,7 +2162,7 @@ describe('ReportWizardPage', () => {
               isSplit: false,
               splitKind: null,
               documents: [],
-              budgetLines: [
+              budgetLinesForSource: [
                 {
                   id: 'line-1',
                   description: 'Foundation work',
@@ -2166,7 +2170,7 @@ describe('ReportWizardPage', () => {
                   linkedItem: null,
                 },
               ],
-              deposits: [
+              depositsVisibleToSource: [
                 {
                   id: 'dep-1',
                   amount: 200,
@@ -2331,7 +2335,7 @@ describe('ReportWizardPage', () => {
             isSplit: false,
             splitKind: null,
             documents: [],
-            budgetLines: [
+            budgetLinesForSource: [
               {
                 id: 'line-1',
                 description: 'Foundation work',
@@ -2340,7 +2344,7 @@ describe('ReportWizardPage', () => {
               },
               { id: 'line-2', description: 'Roofing', allocatedPortion: 400, linkedItem: null },
             ],
-            deposits: [],
+            depositsVisibleToSource: [],
           },
         ],
         totalAmount: 1000,

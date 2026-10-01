@@ -733,7 +733,7 @@ describe('generateReportContent (Story #1901)', () => {
     insertInvoiceBudgetLine(invoiceId, { workItemBudgetId: budgetId }, 1000);
     // Deposit tagged to this source — sweeps the line's Rail A contribution to zero for a
     // 'claim' report (quotation isn't in the claim slice, and the tagged deposit is excluded
-    // from Rail A by definition), so getSourceReport drops budgetLines[] for this invoice.
+    // from Rail A by definition), so getSourceReport drops budgetLinesForSource[] for this invoice.
     insertDeposit(invoiceId, { amount: 300, status: 'pending', budgetSourceId: sourceId });
 
     mockProviderGenerateReportContent.mockResolvedValue(defaultLlmResult([invoiceId]));

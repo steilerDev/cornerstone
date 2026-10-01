@@ -467,8 +467,8 @@ describe('sourceReportService', () => {
       });
 
       it('AC 1.2 (headline): budget lines all in the requested source, one deposit tagged to a different source → splitKind "deposits" — the exact case the issue is about', async () => {
-        // Byte-identical to a non-split invoice in every OTHER field (budgetLines[] holds only
-        // A's line, deposits[] is empty because the B-tagged deposit is filtered out server-side
+        // Byte-identical to a non-split invoice in every OTHER field (budgetLinesForSource[] holds only
+        // A's line, depositsVisibleToSource[] is empty because the B-tagged deposit is filtered out server-side
         // — PO's premise-1 verification table). splitKind is the only field that discriminates
         // this from a genuinely unsplit invoice.
         const sourceA = insertSource({ name: 'Source A' });
@@ -488,11 +488,11 @@ describe('sourceReportService', () => {
         expect(result.invoices).toHaveLength(1);
         expect(result.invoices[0]!.splitKind).toBe('deposits');
         expect(result.invoices[0]!.isSplit).toBe(true);
-        // Reproduce the byte-identical-response premise: budgetLines[] carries only A's own line,
-        // deposits[] is empty (the B-tagged deposit is invisible), yet splitKind still tells them
+        // Reproduce the byte-identical-response premise: budgetLinesForSource[] carries only A's own line,
+        // depositsVisibleToSource[] is empty (the B-tagged deposit is invisible), yet splitKind still tells them
         // apart.
-        expect(result.invoices[0]!.budgetLines).toHaveLength(1);
-        expect(result.invoices[0]!.deposits).toEqual([]);
+        expect(result.invoices[0]!.budgetLinesForSource).toHaveLength(1);
+        expect(result.invoices[0]!.depositsVisibleToSource).toEqual([]);
       });
 
       it('AC 1.3: lines in two sources AND a deposit tagged to a third source → splitKind "both"', async () => {
@@ -1225,12 +1225,46 @@ describe('sourceReportService', () => {
 
   // ═══════════════════════════════════════════════════════════════════════
   // Story #1891: Rail A (line-derived, excluding tagged deposits) + Rail B
-  // (deposit-direct) — budgetLines[]/deposits[] population, deposit-only
+  // (deposit-direct) — budgetLinesForSource[]/depositsVisibleToSource[] population, deposit-only
   // invoices, cross-source deposit filtering.
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('getSourceReport — Story #1891 Rail A + Rail B', () => {
-    it('a deposit-only invoice (zero budget lines for the source, one tagged deposit) appears with budgetLines:[] and is excluded from unallocatedInvoices', async () => {
+    // #2018 guard pair (server half). The SUBJECT is a cross-layer coupling: the client's
+    // `hasOwnTaggedDeposit` predicate (client/src/lib/reportContent/buildReportContent.ts) is only
+    // sound because the server's step-i deposit filter keeps deposits tagged to THIS source (and
+    // untagged ones) in `depositsVisibleToSource`. If that filter were narrowed (e.g. to untagged
+    // only) the client predicate would silently go false and the Deposit badge would vanish. The
+    // client half is the test titled '#2018 guard: an invoice whose depositsVisibleToSource carries
+    // a deposit tagged to the reported source (isSplit true) builds a row with isDeposit === true'.
+    it('#2018 guard: step-i deposit filter keeps a deposit tagged to the reported source, so the client hasOwnTaggedDeposit predicate (buildReportContent.ts) can see it', async () => {
+      // Story #1891 regression shape: lines only in B, a deposit tagged to A, report for A.
+      const sourceA = insertSource({ name: 'Source A' });
+      const sourceB = insertSource({ name: 'Source B' });
+      const vendorId = insertVendor();
+      const budgetB = insertWorkItemBudget(sourceB);
+      const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
+      insertInvoiceBudgetLine(invId, budgetB, 1000);
+      const taggedDepId = insertDeposit(invId, {
+        amount: 300,
+        status: 'paid',
+        entryType: 'deposit',
+        budgetSourceId: sourceA,
+      });
+
+      const result = await getSourceReport(db, 'claim', sourceA, PAPERLESS_DISABLED);
+
+      expect(result.invoices).toHaveLength(1);
+      const inv = result.invoices[0]!;
+      expect(inv.isSplit).toBe(true);
+      expect(inv.depositsVisibleToSource.map((d) => d.id)).toContain(taggedDepId);
+      // Mirrors buildReportContent.ts's hasOwnTaggedDeposit predicate verbatim.
+      const hasOwnTaggedDeposit =
+        inv.isSplit && inv.depositsVisibleToSource.some((d) => d.budgetSourceId === sourceA);
+      expect(hasOwnTaggedDeposit).toBe(true);
+    });
+
+    it('a deposit-only invoice (zero budget lines for the source, one tagged deposit) appears with budgetLinesForSource:[] and is excluded from unallocatedInvoices', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const invId = insertInvoice(vendorId, { status: 'pending', amount: 1000 });
@@ -1246,7 +1280,7 @@ describe('sourceReportService', () => {
 
       expect(result.invoices).toHaveLength(1);
       expect(result.invoices[0]!.invoiceId).toBe(invId);
-      expect(result.invoices[0]!.budgetLines).toEqual([]);
+      expect(result.invoices[0]!.budgetLinesForSource).toEqual([]);
       expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(300);
       // Must NOT also appear in unallocatedInvoices — the tagged deposit "claims" it.
       expect(result.unallocatedInvoices).toHaveLength(0);
@@ -1275,7 +1309,7 @@ describe('sourceReportService', () => {
       expect(result.unallocatedInvoices).toHaveLength(0);
     });
 
-    it('budgetLines[] includes ALL ibl lines for the source, with description and linkedItem populated for a work item', async () => {
+    it('budgetLinesForSource[] includes ALL ibl lines for the source, with description and linkedItem populated for a work item', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const wiId = `wi-linked-${++counter}`;
@@ -1307,8 +1341,8 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0]!.budgetLines).toHaveLength(1);
-      const line = result.invoices[0]!.budgetLines[0]!;
+      expect(result.invoices[0]!.budgetLinesForSource).toHaveLength(1);
+      const line = result.invoices[0]!.budgetLinesForSource[0]!;
       expect(line.id).toBe(iblId);
       expect(line.allocatedPortion).toBeCloseTo(500);
       expect(line.linkedItem).toEqual({
@@ -1320,7 +1354,7 @@ describe('sourceReportService', () => {
       });
     });
 
-    it('budgetLines[] linkedItem resolves a household item budget line', async () => {
+    it('budgetLinesForSource[] linkedItem resolves a household item budget line', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const hiId = `hi-linked-${++counter}`;
@@ -1360,7 +1394,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+      expect(result.invoices[0]!.budgetLinesForSource[0]!.linkedItem).toEqual({
         type: 'household_item',
         id: hiId,
         name: 'Kitchen Cabinet',
@@ -1369,7 +1403,7 @@ describe('sourceReportService', () => {
       });
     });
 
-    it('budgetLines[] includes lines even when their allocatedPortion is 0 for the current status slice', async () => {
+    it('budgetLinesForSource[] includes lines even when their allocatedPortion is 0 for the current status slice', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
@@ -1380,12 +1414,12 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
       // Net contribution is 0 → dropped from invoices entirely per the drop-on-zero rule,
-      // so budgetLines[] population itself isn't independently observable here; this test
+      // so budgetLinesForSource[] population itself isn't independently observable here; this test
       // instead confirms the invoice does NOT appear (0 net rows are dropped, not partial).
       expect(result.invoices).toHaveLength(0);
     });
 
-    it('cross-source deposit filter: deposits[] includes untagged and this-source deposits, but excludes a deposit tagged to a DIFFERENT source', async () => {
+    it('cross-source deposit filter: depositsVisibleToSource[] includes untagged and this-source deposits, but excludes a deposit tagged to a DIFFERENT source', async () => {
       const sourceA = insertSource({ name: 'Source A' });
       const sourceB = insertSource({ name: 'Source B' });
       const vendorId = insertVendor();
@@ -1412,25 +1446,25 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'budget-overview', sourceA, PAPERLESS_DISABLED);
 
       expect(result.invoices).toHaveLength(1);
-      const depositIds = result.invoices[0]!.deposits.map((d) => d.id).sort();
+      const depositIds = result.invoices[0]!.depositsVisibleToSource.map((d) => d.id).sort();
       expect(depositIds).toEqual([sameSourceDep, untaggedDep].sort());
       expect(depositIds).not.toContain(otherSourceDep);
     });
 
-    it('deposits[] is informational: it is populated but its amounts are never summed into allocatedAmount beyond Rail A + Rail B', async () => {
+    it('depositsVisibleToSource[] is informational: it is populated but its amounts are never summed into allocatedAmount beyond Rail A + Rail B', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
       const invId = insertInvoice(vendorId, { status: 'paid', amount: 1000 });
       insertInvoiceBudgetLine(invId, budgetId, 1000);
-      // An UNTAGGED deposit still shows up in deposits[] (informational) even though it's
-      // status is outside this report's slice — deposits[] is unfiltered by status.
+      // An UNTAGGED deposit still shows up in depositsVisibleToSource[] (informational) even though it's
+      // status is outside this report's slice — depositsVisibleToSource[] is unfiltered by status.
       insertDeposit(invId, { amount: 50, status: 'claimed', budgetSourceId: null });
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED); // claim = {pending, paid}
 
-      expect(result.invoices[0]!.deposits).toHaveLength(1);
-      expect(result.invoices[0]!.deposits[0]!.status).toBe('claimed'); // present despite being out-of-slice
+      expect(result.invoices[0]!.depositsVisibleToSource).toHaveLength(1);
+      expect(result.invoices[0]!.depositsVisibleToSource[0]!.status).toBe('claimed'); // present despite being out-of-slice
     });
 
     it('mixed two-source + tagged deposit reconciliation: source A gets its line share + its own tagged deposit; source B still shares the reduced invoice-level residual', async () => {
@@ -1471,7 +1505,7 @@ describe('sourceReportService', () => {
       ).toBeCloseTo(1000);
     });
 
-    it('deposits[] is ordered by dueDate asc, createdAt asc — identity order, not set-equality — when seeded out of insertion order', async () => {
+    it('depositsVisibleToSource[] is ordered by dueDate asc, createdAt asc — identity order, not set-equality — when seeded out of insertion order', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
@@ -1490,10 +1524,14 @@ describe('sourceReportService', () => {
       expect(result.invoices).toHaveLength(1);
       // Identity order assertion (toEqual on the mapped id array, not toEqual(...).sort() /
       // a Set comparison) — this fails if the ordering degrades back to insertion/rowid order.
-      expect(result.invoices[0]!.deposits.map((d) => d.id)).toEqual([depEarly, depMid, depLate]);
+      expect(result.invoices[0]!.depositsVisibleToSource.map((d) => d.id)).toEqual([
+        depEarly,
+        depMid,
+        depLate,
+      ]);
     });
 
-    it('deposits[] breaks a dueDate tie using createdAt asc — identity order', async () => {
+    it('depositsVisibleToSource[] breaks a dueDate tie using createdAt asc — identity order', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetId = insertWorkItemBudget(sourceId);
@@ -1510,7 +1548,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      expect(result.invoices[0]!.deposits.map((d) => d.id)).toEqual([
+      expect(result.invoices[0]!.depositsVisibleToSource.map((d) => d.id)).toEqual([
         depFirst,
         depSecond,
         depThird,
@@ -1564,7 +1602,7 @@ describe('sourceReportService', () => {
   });
 
   // ═══════════════════════════════════════════════════════════════════════
-  // Story #1923 AC5: budgetLines[].linkedItem gains areaId/areaName, populated via a
+  // Story #1923 AC5: budgetLinesForSource[].linkedItem gains areaId/areaName, populated via a
   // LEFT JOIN areas on work_items.area_id / household_items.area_id.
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -1602,7 +1640,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+      expect(result.invoices[0]!.budgetLinesForSource[0]!.linkedItem).toEqual({
         type: 'work_item',
         id: wiId,
         name: 'Cabinetry',
@@ -1653,7 +1691,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toEqual({
+      expect(result.invoices[0]!.budgetLinesForSource[0]!.linkedItem).toEqual({
         type: 'household_item',
         id: hiId,
         name: 'Sofa',
@@ -1671,7 +1709,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      const linkedItem = result.invoices[0]!.budgetLinesForSource[0]!.linkedItem!;
       expect(linkedItem.areaId).toBeNull();
       expect(linkedItem.areaName).toBeNull();
       expect(linkedItem.areaId).not.toBeUndefined();
@@ -1712,7 +1750,7 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      const linkedItem = result.invoices[0]!.budgetLines[0]!.linkedItem!;
+      const linkedItem = result.invoices[0]!.budgetLinesForSource[0]!.linkedItem!;
       expect(linkedItem.areaId).toBe(childAreaId);
       expect(linkedItem.areaName).toBe('Ensuite');
       expect(linkedItem.areaName).not.toContain('Ground Floor');
@@ -1756,8 +1794,8 @@ describe('sourceReportService', () => {
 
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
-      expect(result.invoices[0]!.budgetLines).toHaveLength(1);
-      expect(result.invoices[0]!.budgetLines[0]!.linkedItem).toBeNull();
+      expect(result.invoices[0]!.budgetLinesForSource).toHaveLength(1);
+      expect(result.invoices[0]!.budgetLinesForSource[0]!.linkedItem).toBeNull();
     });
   });
 
@@ -1766,13 +1804,13 @@ describe('sourceReportService', () => {
   // invoice whose only funding is a deposit TAGGED to the reported source has its
   // per-line Rail A contribution swept to zero (residual excluded because
   // 'quotation' isn't in the claim slice; the tagged deposit is excluded from Rail A
-  // by definition) — so budgetLines[] must be dropped for 'claim' reports specifically,
+  // by definition) — so budgetLinesForSource[] must be dropped for 'claim' reports specifically,
   // while allocatedAmount still reflects the deposit's own Rail B contribution and
-  // deposits[] remains fully populated (informational, never filtered by contribution).
+  // depositsVisibleToSource[] remains fully populated (informational, never filtered by contribution).
   // ═══════════════════════════════════════════════════════════════════════
 
   describe('getSourceReport — Story #1918 (claim reports skip zero-contribution budget lines)', () => {
-    it('AC5: quotation invoice with 2 lines allocated to this source + a pending deposit tagged to this source → claim report drops budgetLines[], allocatedAmount equals the deposit amount, deposits[] unaffected', async () => {
+    it('AC5: quotation invoice with 2 lines allocated to this source + a pending deposit tagged to this source → claim report drops budgetLinesForSource[], allocatedAmount equals the deposit amount, depositsVisibleToSource[] unaffected', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetA = insertWorkItemBudget(sourceId);
@@ -1790,13 +1828,13 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0]!.budgetLines).toEqual([]);
+      expect(result.invoices[0]!.budgetLinesForSource).toEqual([]);
       expect(result.invoices[0]!.allocatedAmount).toBeCloseTo(300);
-      expect(result.invoices[0]!.deposits).toHaveLength(1);
-      expect(result.invoices[0]!.deposits[0]!.id).toBe(depId);
+      expect(result.invoices[0]!.depositsVisibleToSource).toHaveLength(1);
+      expect(result.invoices[0]!.depositsVisibleToSource[0]!.id).toBe(depId);
     });
 
-    it('AC6 carve-out: same setup but the deposit is UNTAGGED → budgetLines[] is retained with a non-zero allocatedPortion', async () => {
+    it('AC6 carve-out: same setup but the deposit is UNTAGGED → budgetLinesForSource[] is retained with a non-zero allocatedPortion', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetA = insertWorkItemBudget(sourceId);
@@ -1809,13 +1847,13 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'claim', sourceId, PAPERLESS_DISABLED);
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0]!.budgetLines).toHaveLength(2);
-      for (const line of result.invoices[0]!.budgetLines) {
+      expect(result.invoices[0]!.budgetLinesForSource).toHaveLength(2);
+      for (const line of result.invoices[0]!.budgetLinesForSource) {
         expect(line.allocatedPortion).toBeGreaterThan(0);
       }
     });
 
-    it('AC7: the same fixture as a budget-overview report → budgetLines[] is non-empty (the zero-portion skip only applies to claim reports)', async () => {
+    it('AC7: the same fixture as a budget-overview report → budgetLinesForSource[] is non-empty (the zero-portion skip only applies to claim reports)', async () => {
       const sourceId = insertSource();
       const vendorId = insertVendor();
       const budgetA = insertWorkItemBudget(sourceId);
@@ -1833,7 +1871,7 @@ describe('sourceReportService', () => {
       const result = await getSourceReport(db, 'budget-overview', sourceId, PAPERLESS_DISABLED);
 
       expect(result.invoices).toHaveLength(1);
-      expect(result.invoices[0]!.budgetLines.length).toBeGreaterThan(0);
+      expect(result.invoices[0]!.budgetLinesForSource.length).toBeGreaterThan(0);
     });
   });
 

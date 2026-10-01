@@ -54,7 +54,7 @@
  *     still renders (inline), so they can't pass by looking at the wrong tree.
  *
  *  b. The `†`/`‡` footnote markers are gone. `ReportContentRow.allocatedMarkers` was removed in
- *     favour of the booleans `isSplit` / `isDepositReduced`, which render as inline grey
+ *     favour of the booleans `isPartial` / `isDepositReduced`, which render as inline grey
  *     `.inlineNote` spans reading `(content.labels.splitNote)` / `(content.labels.depositReducedNote)`
  *     appended to the allocated-amount cell — same inline treatment the isDeposit Badge already had.
  *
@@ -128,7 +128,7 @@ function makeRow(overrides: Partial<ReportContentRow> = {}): ReportContentRow {
     statusText: null,
     invoiceAmountText: '€100.00',
     allocatedAmountValueText: '€100.00',
-    isSplit: false,
+    isPartial: false,
     isDepositReduced: false,
     isDeposit: false,
     isRefund: false,
@@ -1041,7 +1041,7 @@ describe('ReportContentEditor — isDeposit (AC2.1: inline Deposit badge, no mar
   });
 });
 
-describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels (replacing the † / ‡ footnote markers)', () => {
+describe('ReportContentEditor — #1959 isPartial / isDepositReduced inline labels (replacing the † / ‡ footnote markers)', () => {
   // The allocated cell is a composite of value text + optional badge + optional inline notes, so
   // assert on the CELL's whole textContent — that is what a user reads — rather than on a single
   // text node, which would miss ordering/spacing regressions between the runs.
@@ -1052,9 +1052,9 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
     return within(table).getByText(/^€400\.00/, { selector: 'td' }).textContent!;
   }
 
-  it('appends an inline (splitNote) label to the desktop allocated cell when isSplit, and no † marker', () => {
+  it('appends an inline (splitNote) label to the desktop allocated cell when isPartial, and no † marker', () => {
     const rows = [
-      makeRow({ invoiceId: 'inv-1', isSplit: true, allocatedAmountValueText: '€400.00' }),
+      makeRow({ invoiceId: 'inv-1', isPartial: true, allocatedAmountValueText: '€400.00' }),
     ];
     const { container } = renderEditor({ content: makeContent({ rows }) });
     expect(allocatedCellText(container)).toBe('€400.00 (REPORT_SPLIT_NOTE_LABEL)');
@@ -1086,7 +1086,7 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
     const rows = [
       makeRow({
         invoiceId: 'inv-1',
-        isSplit: true,
+        isPartial: true,
         isDepositReduced: true,
         allocatedAmountValueText: '€400.00',
       }),
@@ -1101,7 +1101,7 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
     const rows = [
       makeRow({
         invoiceId: 'inv-1',
-        isSplit: true,
+        isPartial: true,
         isDepositReduced: true,
         allocatedAmountValueText: '€400.00',
       }),
@@ -1118,7 +1118,7 @@ describe('ReportContentEditor — #1959 isSplit / isDepositReduced inline labels
     const rows = [
       makeRow({
         invoiceId: 'inv-1',
-        isSplit: false,
+        isPartial: false,
         isDepositReduced: false,
         allocatedAmountValueText: '€400.00',
       }),

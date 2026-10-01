@@ -143,7 +143,7 @@ export async function getSourceReport(
   // Step b: Rail A contributions per invoice (excluding tagged deposits)
   const railALineContributions = computeLineContributionsExcludingTagged(railARows, targetStatuses);
 
-  // Build ibl-level details map for budgetLines[] per invoice
+  // Build ibl-level details map for budgetLinesForSource[] per invoice
   const iblDetails = new Map<
     string,
     {
@@ -415,7 +415,7 @@ export async function getSourceReport(
     budgetLinesByInvoiceId.set(invoiceId, lines);
   }
 
-  // Step i: Fetch deposits for each invoice (unfiltered by status, but filtered by source tag)
+  // Step i: Fetch deposits for each invoice (unfiltered by status, but filtered by source tag) -> depositsVisibleToSource
   const depositsByInvoiceId = new Map<string, SourceReportDeposit[]>();
   for (const invoiceId of allInvoiceIds) {
     const deposits = db
@@ -426,6 +426,11 @@ export async function getSourceReport(
       .all();
 
     const filtered: SourceReportDeposit[] = deposits
+      // Scope invariant (#2018): this filter must keep deposits tagged to THIS source. The client's
+      // `hasOwnTaggedDeposit` (buildReportContent.ts) is a same-scope predicate over
+      // depositsVisibleToSource and drives the "(Deposit)" badge; narrowing this to untagged-only
+      // silently removes that badge. Guarded by the "#2018 guard" tests in sourceReportService.test.ts
+      // and buildReportContent.test.ts.
       .filter((d) => d.budgetSourceId === null || d.budgetSourceId === sourceId)
       .map((d) => ({
         id: d.id,
@@ -475,8 +480,8 @@ export async function getSourceReport(
       isSplit: isSplitMap.get(invoiceId) ?? false, // true iff invoice's funding spans 2+ distinct budget sources across budget lines and tagged deposits
       splitKind: splitKindMap.get(invoiceId) ?? null,
       documents,
-      budgetLines: budgetLinesByInvoiceId.get(invoiceId) ?? [],
-      deposits: depositsByInvoiceId.get(invoiceId) ?? [],
+      budgetLinesForSource: budgetLinesByInvoiceId.get(invoiceId) ?? [],
+      depositsVisibleToSource: depositsByInvoiceId.get(invoiceId) ?? [],
     });
   }
 

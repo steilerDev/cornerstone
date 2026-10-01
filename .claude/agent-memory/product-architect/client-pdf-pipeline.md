@@ -641,3 +641,13 @@ is strictly _below_ the ceiling, so the new consumer is more conservative. But #
 **rendered** quantity, and the marker adds 2 uncounted rendered characters: on a continuation row the
 real overage against the derived `Ѹ` 616 ceiling is 36 chars / **4 lines / 44.8pt**, not 34 / 3 /
 33.6. State which quantity the guard pins when #1950 lands.
+
+## PR #2133 / #2011 (2026-09-30, APPROVED) — per-cell `_minWidth` check is vacuous for `columns` groups
+
+- Tier-3 summary `stack` gets right margin `printableWidth() - (tableOffsetsTotal(n) + Σ widths)`; rows label `'*'` + amount `'auto'`.
+- For a pdfmake `columns` group, `columnCalculator` case 1 sets auto `_calcWidth = _minWidth` and star to `starMaxMin`, so
+  per-cell `_minWidth <= _calcWidth` holds WHILE overflowing. Discriminating check = group span == container width.
+  Mutation-verified (two stars → 89.87/93.84pt vs 84pt). Recorded in ADR-034 rule #1 sub-bullet, wiki `954b846`.
+- Preview `.summaryTable` at 100% is the SAME rule (preview `.table` is always 100%) — not a parity gap.
+- Running a single jest file from the base checkout: `NODE_OPTIONS='--experimental-vm-modules' npx jest <path> -t <x>` from repo root;
+  without the flag (or from `client/`) it silently reports `Tests: 0 total`.

@@ -27,6 +27,17 @@ export interface ReportTier {
   skippedDocuments: SkippedDocument[];
 }
 
+/**
+ * ContentTier reset rule (#2014): every field on this tier is reset to its freshContentTier()
+ * value by SELECT_USE_CASE, SELECT_SOURCE and DISCARD_EDITS (all three spread freshContentTier()).
+ * That is the DEFAULT for a new field — adding one here and to freshContentTier() opts it in to
+ * all three resets. A field that must survive one of them must write itself back explicitly at
+ * that case, with a comment stating why. Existing write-backs:
+ *   - hiddenColumns — preserved by DISCARD_EDITS (see that case: presentation choice, not a content edit).
+ *   - aiError — preserved by SELECT_SOURCE, and by DISCARD_EDITS only when no AI request is in flight.
+ * Full rationale (including "a further opt-out should split the tier instead"): wiki
+ * Architecture › "Multi-step wizard state: tier factories".
+ */
 export interface ContentTier {
   overrides: ReportContentOverrides;
   aiContent: GenerateReportContentResponse | null;
@@ -273,6 +284,7 @@ export function wizardReducer(state: WizardState, action: WizardAction): WizardS
       // column visibility is a presentation choice, not a "content edit" — R5 co-locates it with
       // `overrides` on ContentTier for reset-on-use-case-change purposes only, not to make it
       // discardable together with text edits (#1973).
+      // This is an exception to the ContentTier reset rule — see the JSDoc on ContentTier.
       return {
         ...state,
         ...freshContentTier(),
