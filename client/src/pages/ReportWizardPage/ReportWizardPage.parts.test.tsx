@@ -216,6 +216,18 @@ const BASE_NAME = /claim-home-loan-\d{4}-\d{2}-\d{2}/;
 
 beforeEach(async () => {
   jest.clearAllMocks();
+  // clearAllMocks keeps queued mockXxxOnce values. Reset the pipeline mocks so an unconsumed
+  // once-value from one test can never be consumed by the next.
+  for (const mock of [
+    mockAcquire,
+    mockCountUncached,
+    mockCountIncluded,
+    mockGenerateParts,
+    mockUploadToPaperless,
+    mockGenerateReportPdf,
+  ]) {
+    mock.mockReset();
+  }
   ({ ReportWizardPage } = await import('./ReportWizardPage.js'));
   ({ ApiClientError } = await import('../../lib/apiClient.js'));
 
@@ -287,6 +299,19 @@ async function clickNext(user: User) {
   await user.click(screen.getByRole('button', { name: 'Next' }));
 }
 
+/**
+ * The page moves focus to the new step's <h2> inside a requestAnimationFrame after every step
+ * change. If a test starts typing before that frame fires, the focus jumps from the input to the
+ * heading mid-typing and the keystrokes are lost (a flaky "limit never applied" failure on loaded
+ * CI runners, which then leaked unconsumed once-mocks into later tests). Wait for the heading to
+ * take focus before interacting with the step.
+ */
+async function settleStepFocus(headingName: string) {
+  await waitFor(() =>
+    expect(screen.getByRole('heading', { level: 2, name: headingName })).toHaveFocus(),
+  );
+}
+
 async function goToStep4(user: User) {
   await waitFor(() => screen.getByRole('radiogroup'));
   await user.click(screen.getAllByRole('radio')[1]!); // claim
@@ -298,12 +323,15 @@ async function goToStep4(user: User) {
   await waitFor(() => expect(screen.getByText('ACME')).toBeInTheDocument());
   await clickNext(user);
   await screen.findByLabelText('Maximum file size (MB)');
+  await settleStepFocus('Settings');
 }
 
 async function setLimit(user: User, value: string) {
   const input = screen.getByLabelText('Maximum file size (MB)');
   await user.clear(input);
   if (value !== '') await user.type(input, value);
+  // Fail here, with a clear message, if the keystrokes did not land.
+  expect(input).toHaveValue(value);
 }
 
 /** Step 4 with a valid limit typed, ready to click Next. */
@@ -316,6 +344,7 @@ async function goToStep5WithLimit(user: User, limit = '1') {
   await step4WithLimit(user, limit);
   await clickNext(user);
   await screen.findByRole('button', { name: /^Download all/ });
+  await settleStepFocus('Preview & Export');
 }
 
 async function firstGenerated(): Promise<GeneratedReportParts> {
@@ -387,6 +416,7 @@ describe('ReportWizardPage — maximum file size / multi-PDF split (#2161)', () 
       await screen.findByRole('button', { name: 'Download PDF' });
       await user.click(stepperButton('Settings'));
       await screen.findByLabelText('Maximum file size (MB)');
+      await settleStepFocus('Settings');
       await setLimit(user, '0.5');
       await screen.findByText('The minimum is 1 MB.');
 
