@@ -366,7 +366,7 @@ In multi-item mode, reviewers must validate that **all items** in the batch are 
 
 ### 9. Fix Loop (max 2 rounds)
 
-Reviewers operate **fix-or-block** (CLAUDE.md > Reviewer Verdict Policy): low-effort findings are fixed in this PR before merge — never deferred — and any deferral must arrive as a filed, justified GitHub issue in the review body. Never merge with unfixed `fix-in-session` findings, and never accept an unfiled deferral.
+Reviewers operate **fix-or-block, no deferrals** (CLAUDE.md > Reviewer Verdict Policy): an approval carries zero findings, and every finding is fixed in-session. Findings in this PR's files or adjacent code are fixed in this PR; findings in unrelated code become a **separate fix PR in this session**, scheduled immediately after this PR merges and before the next item. Never merge with unfixed `fix-in-session` findings, never accept an approval that lists findings, and never file (or let an agent file) a follow-up or deferral issue. Findings that need a product decision go to the user in-session.
 
 Track fix loop iterations. Each fix-and-re-review cycle counts as one round.
 

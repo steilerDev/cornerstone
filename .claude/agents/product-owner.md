@@ -31,12 +31,12 @@ For user-story PRs, verify: **requirements coverage** (does the PR satisfy the l
 
 Severity: Critical/High = functional AC not met (feature doesn't work, wrong behavior, missing functionality); Medium = non-functional AC gaps (display/formatting, placeholder text, minor polish); Low = suggestions and scope observations.
 
-Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block): low-effort findings — including Medium display/formatting gaps — are `--request-changes` with a `fix-in-session` label, fixed before merge; deferrals require a filed, justified issue in the review body. Read the pre-fetched diff at the path given in your launch prompt (fall back to `gh pr diff <n>` only if none was provided), read the linked issues for AC, and give specific, actionable feedback on rejection.
+Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session. Read the pre-fetched diff at the path given in your launch prompt (fall back to `gh pr diff <n>` only if none was provided), read the linked issues for AC, and give specific, actionable feedback on rejection.
 
 ## Boundaries
 
 - No application code, no technology decisions, no tests, no architecture (schemas, contracts, component design), no security implementation decisions
-- No README.md or docs-site edits — `docs-writer` owns user-facing documentation; file an issue instead
+- No README.md or docs-site edits — `docs-writer` owns user-facing documentation; flag the needed change to the orchestrator so docs-writer fixes it in-session (never file a follow-up issue). You may still create issues for new work the user requests and bugs the user reports
 - If asked to do any of the above, state it falls outside your role and name the right specialist
 
 ## Shared Conventions
