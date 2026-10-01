@@ -42,6 +42,7 @@ export interface ReportContentCoverLetter {
   dateLine: string; // READ-ONLY
   reference: string | null; // EDITABLE when non-null; null → omitted; distinct from sourceInfo.referenceText
   subject: string; // EDITABLE; baseline reportT(subject.<useCase>)
+  opening: string; // READ-ONLY; reportT('sourceReports.coverLetter.opening'); printed between subject and body. Same artifact-content rule as `closing` (#1909/#1924); no override key (#2159)
   body: string; // EDITABLE; baseline reportT(body.<useCase>, {total}) interpolated ONCE at build
   signature: string; // EDITABLE (first-class); baseline derived from sender's first line (the user's display name, per AC 3.1); NOT recomputed from sender once explicitly overridden — see applyOverrides.ts
   closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)

@@ -81,6 +81,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       subject: 'Baseline Subject',
       body: 'Baseline Body',
       signature: 'The Smiths',
+      opening: 'Dear Sir or Madam,',
       closing: 'Sincerely,',
     },
     rows: [makeRow()],
@@ -259,5 +260,18 @@ describe('applyAiContent — purity / immutability', () => {
     expect(result.coverLetter!.subject).toBe('Combined Subject');
     expect(result.coverLetter!.body).toBe('Combined Body');
     expect(result.rows[0]!.usageText).toBe('Combined usage');
+  });
+});
+
+describe('applyAiContent — read-only opening (#2159)', () => {
+  it('leaves the opening unchanged when AI subject and body are applied', () => {
+    const content = makeContent();
+    const result = applyAiContent(
+      content,
+      makeAiContent({ letterSubject: 'AI Subj', letterBody: 'AI Body text' }),
+    );
+    expect(result.coverLetter!.subject).toBe('AI Subj');
+    expect(result.coverLetter!.body).toBe('AI Body text');
+    expect(result.coverLetter!.opening).toBe('Dear Sir or Madam,');
   });
 });

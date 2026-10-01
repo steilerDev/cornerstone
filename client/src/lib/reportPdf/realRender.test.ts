@@ -4169,3 +4169,114 @@ describe('#2011: tier-3 summary block real render — measured from pdfmake post
     },
   );
 });
+
+// ─── #2159: cover-letter opening salutation + German copy, real i18n bundles, real render ─────
+describe('#2159: cover-letter opening and German copy (real bundles, real pdfmake render)', () => {
+  function collectAllStrings(node: unknown, out: string[] = []): string[] {
+    if (typeof node === 'string') {
+      out.push(node);
+    } else if (Array.isArray(node)) {
+      for (const item of node) collectAllStrings(item, out);
+    } else if (node !== null && typeof node === 'object') {
+      for (const value of Object.values(node as Record<string, unknown>)) {
+        collectAllStrings(value, out);
+      }
+    }
+    return out;
+  }
+
+  async function letterFor(
+    useCase: 'budget-overview' | 'claim' | 'proof-of-funds',
+    locale: 'en-US' | 'de-DE',
+    overrides: ReportContentOverrides = {},
+  ) {
+    const { buildCoverLetterContent } = await import('./coverLetterPdf.js');
+    const { report, includedIds } = await makeMixedReport();
+    const baseline = buildReportContent(
+      report,
+      includedIds,
+      useCase,
+      locale === 'de-DE' ? tDe : tEn,
+      formattersFor(locale),
+      { includeCoverLetter: true, household },
+    );
+    const effective = applyOverrides(baseline, overrides);
+    const pdfContent = buildCoverLetterContent(effective);
+    return { baseline, effective, pdfContent, strings: collectAllStrings(pdfContent) };
+  }
+
+  function nodeWithText(pdfContent: Content[], text: string): Record<string, unknown> {
+    const item = pdfContent.find(
+      (c) => typeof c === 'object' && c !== null && (c as { text?: unknown }).text === text,
+    );
+    if (!item) throw new Error(`No node with text ${JSON.stringify(text)}`);
+    return item as unknown as Record<string, unknown>;
+  }
+
+  function firstPosition(node: Record<string, unknown>): { pageNumber: number; top: number } {
+    const positions = node['positions'] as { pageNumber: number; top: number }[] | undefined;
+    if (!Array.isArray(positions) || positions.length === 0) {
+      throw new Error('node has no .positions — was the tree rendered first?');
+    }
+    return positions[0]!;
+  }
+
+  it('de claim letter: subject "Betreff: Abruf Kreditmittel", opening "Sehr geehrte Damen und Herren,", old subject gone', async () => {
+    const { baseline, strings } = await letterFor('claim', 'de-DE');
+    expect(baseline.coverLetter!.subject).toBe('Abruf Kreditmittel');
+    expect(baseline.coverLetter!.opening).toBe('Sehr geehrte Damen und Herren,');
+    expect(strings).toContain('Betreff: Abruf Kreditmittel');
+    expect(strings).toContain('Sehr geehrte Damen und Herren,');
+    expect(strings.some((s) => s.includes('Einreichungsunterlagen'))).toBe(false);
+  });
+
+  it('en claim letter: subject "Subject: Claim Documentation", opening "Dear Sir or Madam,"', async () => {
+    const { strings } = await letterFor('claim', 'en-US');
+    expect(strings).toContain('Subject: Claim Documentation');
+    expect(strings).toContain('Dear Sir or Madam,');
+  });
+
+  it('de budget-overview and proof-of-funds letters: real subjects, real opening, lowercase-start default bodies', async () => {
+    const overview = await letterFor('budget-overview', 'de-DE');
+    expect(overview.baseline.coverLetter!.subject).toBe('Budgetübersicht unseres Bauprojekts');
+    expect(overview.strings).toContain('Betreff: Budgetübersicht unseres Bauprojekts');
+    expect(overview.strings).toContain('Sehr geehrte Damen und Herren,');
+    expect(overview.baseline.coverLetter!.body.startsWith('anbei ')).toBe(true);
+
+    const pof = await letterFor('proof-of-funds', 'de-DE');
+    expect(pof.baseline.coverLetter!.subject).toBe('Verwendungsnachweis');
+    expect(pof.strings).toContain('Betreff: Verwendungsnachweis');
+    expect(pof.strings).toContain('Sehr geehrte Damen und Herren,');
+    expect(pof.baseline.coverLetter!.body.startsWith('anbei ')).toBe(true);
+
+    const claim = await letterFor('claim', 'de-DE');
+    expect(claim.baseline.coverLetter!.body.startsWith('hiermit ')).toBe(true);
+  });
+
+  it('de claim letter with a 3 x ~1500-char body: opening and first body paragraph on page 1, subject above opening above body, closing and signature together', async () => {
+    const paragraph = (n: number) =>
+      `Absatz${n} ${'Dies ist ein langer Absatz zum Bauprojekt mit vielen Worten. '.repeat(24)}`.trim();
+    const body = [paragraph(1), paragraph(2), paragraph(3)].join('\n\n');
+    expect(paragraph(1).length).toBeGreaterThan(1400);
+    const { pdfContent } = await letterFor('claim', 'de-DE', {
+      'coverLetter.body': body,
+      'coverLetter.signature': 'Max Mustermann',
+    });
+
+    await renderCoverLetterPdfContent(pdfContent);
+
+    const subject = firstPosition(nodeWithText(pdfContent, 'Betreff: Abruf Kreditmittel'));
+    const opening = firstPosition(nodeWithText(pdfContent, 'Sehr geehrte Damen und Herren,'));
+    const firstBody = firstPosition(nodeWithText(pdfContent, paragraph(1)));
+    const closing = firstPosition(nodeWithText(pdfContent, 'Mit freundlichen Grüßen'));
+    const signature = firstPosition(nodeWithText(pdfContent, 'Max Mustermann'));
+
+    expect(subject.pageNumber).toBe(1);
+    expect(opening.pageNumber).toBe(1);
+    expect(firstBody.pageNumber).toBe(1);
+    expect(subject.top).toBeLessThan(opening.top);
+    expect(opening.top).toBeLessThan(firstBody.top);
+    expect(firstPosition(nodeWithText(pdfContent, paragraph(3))).pageNumber).toBeGreaterThan(1);
+    expect(closing.pageNumber).toBe(signature.pageNumber);
+  });
+});
