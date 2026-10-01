@@ -2,9 +2,10 @@
  * Multi-PDF report generation (#2161): plan the split, render each part, merge its attachments
  * and verify the real sizes against the limit.
  *
- * The wizard loads this module through a dynamic `import()`: the pipeline lands in a separate
- * chunk that is fetched only when a size limit is set, the page itself imports only types and
- * pure helpers statically, and tests get a single module to mock. It shares the document
+ * Invariant: this module is reached only through a dynamic `import()` (from `useReportParts`),
+ * never statically. That keeps it out of the module graph of the existing wizard page tests,
+ * which mock `reportPdf/index.js` and `paperlessApi.js` with only some of their exports; as a
+ * side effect the pipeline code loads only when a size limit is set. It shares the document
  * definition with `merge.ts` via `docDefinition.ts` and imports no value from `merge.ts`.
  */
 import type { Content } from 'pdfmake/build/pdfmake';

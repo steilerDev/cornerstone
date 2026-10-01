@@ -25,7 +25,7 @@ export { PDF_STYLES };
 
 export async function generateReportPdf(
   report: SourceReportResponse,
-  includedInvoiceIds: Set<string>,
+  includedInvoiceIds: ReadonlySet<string>,
   reportContent: ReportContent,
   options: ReportPdfOptions,
 ): Promise<GeneratedReport> {

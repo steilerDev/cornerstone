@@ -323,7 +323,7 @@ export function ReportWizardPage() {
   const limitInvalid = attachDocuments && limitParse.status === 'invalid';
   const limitBytes = limitParse.status === 'valid' ? limitParse.bytes : null;
 
-  const includedInvoiceIds = useMemo<Set<string>>(() => {
+  const includedInvoiceIds = useMemo<ReadonlySet<string>>(() => {
     if (!report) return new Set<string>();
     const effectiveReport = applyLineExclusions(report, excludedLineIds);
     return new Set(

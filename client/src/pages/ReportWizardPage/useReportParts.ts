@@ -2,10 +2,11 @@
  * Multi-PDF report pipeline state for the report wizard (#2161): attachment sizing (step 4),
  * part generation and staleness (step 5).
  *
- * The pipeline module (`lib/reportPdf/parts.js`) is loaded through a dynamic import: it lands in
- * a separate chunk fetched only when a size limit is set, the page imports only types and pure
- * helpers statically, and tests get a single module to mock. Static imports here are limited to
- * React and types.
+ * Invariant: the pipeline module (`lib/reportPdf/parts.js`) is reached only through a dynamic
+ * `import()`, never statically. That keeps it out of the module graph of the existing wizard page
+ * tests, which mock `reportPdf/index.js` and `paperlessApi.js` with only some of their exports;
+ * as a side effect the pipeline code loads only when a size limit is set. Static imports here are
+ * limited to React and types.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { SourceReportResponse } from '@cornerstone/shared';
