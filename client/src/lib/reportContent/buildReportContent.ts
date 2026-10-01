@@ -8,11 +8,11 @@ import { computeIncludedTotal } from '@cornerstone/shared';
 import type {
   SourceReportResponse,
   SourceReportType,
-  InvoiceStatus,
   HouseholdSettings,
   AttachmentType,
 } from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type {
   ReportContent,
   ReportContentRow,
@@ -73,18 +73,6 @@ function getUsageText(invoice: {
 }
 
 /**
- * Maps each AttachmentType member to its i18n key under sourceReports.table.attachmentType.
- * Declared as Record<AttachmentType, string> so that adding a 4th AttachmentType member without
- * a corresponding entry here fails to compile — the previous template-literal key interpolation
- * would instead print a raw i18n key onto a bank-facing PDF (issue #1912 item 1).
- */
-const ATTACHMENT_TYPE_KEYS: Record<AttachmentType, string> = {
-  quotation: 'sourceReports.table.attachmentType.quotation',
-  deposit: 'sourceReports.table.attachmentType.deposit',
-  invoice: 'sourceReports.table.attachmentType.invoice',
-};
-
-/**
  * Helper: get attachment note from invoice documents.
  * Returns null if no documents; else formatted note with deduped types or count-only.
  */
@@ -113,7 +101,7 @@ function getAttachmentNote(
 
   // Deduplicate types and translate
   const dedupedTypes = uniqueInOrder(attachmentTypes);
-  const typeLabels = dedupedTypes.map((type) => t(ATTACHMENT_TYPE_KEYS[type]));
+  const typeLabels = dedupedTypes.map((type) => t(I18N_UNION_KEYS.reportAttachmentType.key(type)));
 
   const count = documents.length;
   return t(`sourceReports.table.attachmentsNote_${count === 1 ? 'one' : 'other'}`, {
@@ -140,10 +128,10 @@ export function buildReportContent(
   const user = options?.user ?? null;
 
   // Build title
-  const tableTitle = reportT(`sourceReports.table.title.${useCase}`);
+  const tableTitle = reportT(I18N_UNION_KEYS.reportTitle.key(useCase));
 
   // Build source info
-  const sourceTypeText = reportT(`sourceReports.sourceType.${report.source.sourceType}`);
+  const sourceTypeText = reportT(I18N_UNION_KEYS.reportSourceType.key(report.source.sourceType));
   const now = new Date();
   const todayStr = now.toISOString().split('T')[0] ?? '';
   const generatedAtText: string = reportFormatters.formatDate(todayStr);
@@ -202,13 +190,13 @@ export function buildReportContent(
       continue;
     }
 
-    const status = invoice.status as InvoiceStatus;
-
     const invoiceAmountText = reportFormatters.formatCurrency(invoice.invoiceAmount);
 
     const allocatedAmountValueText = reportFormatters.formatCurrency(invoice.allocatedAmount);
 
-    const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
+    const statusText = isOverview
+      ? reportT(I18N_UNION_KEYS.invoiceStatus.key(invoice.status))
+      : null;
 
     const isPartial = partialInvoiceIds.has(invoice.invoiceId);
     const isDepositReduced = depositReducedInvoiceIds.has(invoice.invoiceId);
@@ -223,7 +211,7 @@ export function buildReportContent(
       vendor: invoice.vendorName,
       invoiceNumber: invoice.invoiceNumber ?? '—',
       dateText: reportFormatters.formatDate(invoice.date),
-      status: isOverview ? status : null,
+      status: isOverview ? invoice.status : null,
       statusText,
       invoiceAmountText,
       allocatedAmountValueText,
@@ -278,9 +266,10 @@ export function buildReportContent(
     if (household?.householdAddress) senderLines.push(household.householdAddress);
     const sender = senderLines.join('\n');
 
-    const subject = reportT(`sourceReports.coverLetter.subject.${useCase}`);
-    const bodyKey = `sourceReports.coverLetter.body.${useCase}`;
-    const body = reportT(bodyKey, { total: totalAmountText });
+    const subject = reportT(I18N_UNION_KEYS.reportCoverLetterSubject.key(useCase));
+    const body = reportT(I18N_UNION_KEYS.reportCoverLetterBody.key(useCase), {
+      total: totalAmountText,
+    });
     const signature = sender.split('\n')[0]?.trim() ?? '';
     const closing = reportT('sourceReports.coverLetter.closing');
 
@@ -311,7 +300,7 @@ export function buildReportContent(
       allocatedAmount: reportT('sourceReports.table.allocatedAmount'),
       usage: reportT('sourceReports.table.usage'),
       attachmentsNote: reportT('sourceReports.editable.attachmentsNoteLabel'),
-      deposit: reportT('sourceReports.table.attachmentType.deposit'),
+      deposit: reportT(I18N_UNION_KEYS.reportAttachmentType.key('deposit')),
       splitNote: reportT('sourceReports.table.splitInlineLabel'),
       depositReducedNote: reportT('sourceReports.table.depositReducedInlineLabel'),
       source: reportT('sourceReports.table.source'),

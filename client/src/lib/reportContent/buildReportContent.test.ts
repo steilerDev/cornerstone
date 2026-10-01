@@ -294,12 +294,11 @@ describe('buildReportContent — rows', () => {
       );
     });
 
-    // #1912 item 1: ATTACHMENT_TYPE_KEYS (a Record<AttachmentType, string>) replaces the old
-    // template-literal key interpolation. These three tests fail if a map entry is deleted or its
-    // value is scrambled — verified via a local temporary edit to the map before writing this
-    // suite. They cannot (and do not attempt to) prove the compile-time "4th member" guard that
-    // the Record<AttachmentType, string> type itself provides — that's re-verified by tsc in CI
-    // Static Analysis, not by ts-jest.
+    // #1912 item 1 / #2029: the attachment-type keys now come from
+    // I18N_UNION_KEYS.reportAttachmentType (client/src/i18n/unionKeys.ts). Locale parity for every
+    // member is pinned in client/src/i18n/unionKeys.test.ts and exhaustiveness holds by
+    // construction (the key set iterates the shared ATTACHMENT_TYPES tuple). These three tests
+    // pin the literal key each member resolves to, so a scrambled prefix fails here.
     it('maps attachmentType "quotation" to its dedicated i18n key', () => {
       const invoice = makeInvoice({
         documents: [makeDocument({ attachmentType: 'quotation' })],
@@ -1052,4 +1051,41 @@ describe('buildReportContent — labels: 3 new fields (#2001)', () => {
       'sourceReports.table.footnoteInvalidPdf',
     );
   });
+});
+
+// #2029: literal key tables — deliberately NOT computed via I18N_UNION_KEYS, so a wrong prefix
+// in the registry cannot silently agree with itself.
+describe('buildReportContent — union-derived i18n keys (#2029)', () => {
+  it.each([
+    ['budget-overview', 'budget-overview'],
+    ['claim', 'claim'],
+    ['proof-of-funds', 'proof-of-funds'],
+  ] as const)('resolves title, subject and body keys for use case %s', (useCase, suffix) => {
+    const report = makeReport([makeInvoice()]);
+    const content = buildReportContent(report, new Set(['inv-1']), useCase, t, formatters, {
+      includeCoverLetter: true,
+      household,
+    });
+    expect(content.tableTitle).toBe(`sourceReports.table.title.${suffix}`);
+    expect(content.coverLetter!.subject).toBe(`sourceReports.coverLetter.subject.${suffix}`);
+    expect(content.coverLetter!.body.startsWith(`sourceReports.coverLetter.body.${suffix}::`)).toBe(
+      true,
+    );
+  });
+
+  it.each(['pending', 'paid', 'claimed', 'quotation'] as const)(
+    'overview rows carry status and translated key for invoice status %s',
+    (status) => {
+      const report = makeReport([makeInvoice({ status })]);
+      const content = buildReportContent(
+        report,
+        new Set(['inv-1']),
+        'budget-overview',
+        t,
+        formatters,
+      );
+      expect(content.rows[0]!.status).toBe(status);
+      expect(content.rows[0]!.statusText).toBe(`sources.lines.invoiceStatus.${status}`);
+    },
+  );
 });
