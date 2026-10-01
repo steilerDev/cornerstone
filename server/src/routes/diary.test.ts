@@ -992,8 +992,8 @@ describe('Diary Routes', () => {
         expect(response.statusCode).toBe(201);
         const body = response.json<DiaryEntryDetail>();
         const signatures = (body.metadata as { signatures: DiarySignatureEntry[] }).signatures;
-        expect(signatures[0].signerName).toBe('Alice');
-        expect(signatures[0].signedAt).toBe('2026-01-01T10:00+02:00');
+        expect(signatures[0]?.signerName).toBe('Alice');
+        expect(signatures[0]?.signedAt).toBe('2026-01-01T10:00+02:00');
       });
 
       it('rejects 11 signatures and accepts 10', async () => {

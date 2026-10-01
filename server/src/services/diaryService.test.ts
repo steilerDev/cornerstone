@@ -1847,7 +1847,7 @@ describe('diaryService', () => {
         const m = getDiaryEntry(db, entry.id).metadata as {
           signatures: Array<{ signerName: string }>;
         };
-        expect(m.signatures[0].signerName).toBe('Alice');
+        expect(m.signatures[0]?.signerName).toBe('Alice');
       });
 
       it('stores the signerName trimmed on update', () => {
@@ -1861,12 +1861,12 @@ describe('diaryService', () => {
         });
         expect(
           (updated.metadata as { signatures: Array<{ signerName: string }> }).signatures[0]
-            .signerName,
+            ?.signerName,
         ).toBe('Bob');
         const m = getDiaryEntry(db, entryId).metadata as {
           signatures: Array<{ signerName: string }>;
         };
-        expect(m.signatures[0].signerName).toBe('Bob');
+        expect(m.signatures[0]?.signerName).toBe('Bob');
       });
 
       const promoteExtra =
@@ -1882,7 +1882,7 @@ describe('diaryService', () => {
           metadata: { ...promoteExtra, signatures: [{ ...base, signerName: ' Carol ' }] } as never,
         });
         const m = getDiaryEntry(db, id).metadata as { signatures: Array<{ signerName: string }> };
-        expect(m.signatures[0].signerName).toBe('Carol');
+        expect(m.signatures[0]?.signerName).toBe('Carol');
       });
 
       it('rejects an invalid signedAt on promote', () => {
