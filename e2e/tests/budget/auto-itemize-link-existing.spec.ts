@@ -571,7 +571,9 @@ test('Scenario 4: Paperless review page links an existing household item budget 
 
   let vendorId = '';
   let householdItemId = '';
-  let categoryId = '';
+  // Household item budget lines always get the system category; the server ignores any
+  // provided budgetCategoryId (householdItemBudgetService).
+  const householdCategoryId = 'bc-household-items';
   let sourceId = '';
   let createdInvoiceId = '';
   const hiName = `${testPrefix} LE-S4 HI`;
@@ -580,7 +582,6 @@ test('Scenario 4: Paperless review page links an existing household item budget 
   try {
     vendorId = await createVendorViaApi(page, `${testPrefix} LE-S4 Vendor`);
     householdItemId = await createHouseholdItemViaApi(page, { name: hiName });
-    categoryId = await createCategoryViaApi(page, `${testPrefix} LE-S4 Cat`);
     sourceId = await createBudgetSourceViaApi(page, {
       name: `${testPrefix} LE-S4 Source`,
       totalAmount: 100000,
@@ -588,7 +589,7 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     const lineId = await createBudgetLineViaApi(page, 'household-items', householdItemId, {
       description: desc,
       plannedAmount: 700,
-      budgetCategoryId: categoryId,
+      budgetCategoryId: householdCategoryId,
       budgetSourceId: sourceId,
     });
 
@@ -672,7 +673,9 @@ test('Scenario 4: Paperless review page links an existing household item budget 
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
-          lines: [extractedLine({ description: 'Extracted HI text', categoryId })],
+          lines: [
+            extractedLine({ description: 'Extracted HI text', categoryId: householdCategoryId }),
+          ],
           warnings: [],
           suggestedVendorId: vendorId,
           extractedTotal: 1000,
@@ -707,7 +710,7 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     await row.click();
 
     await expect(reviewPage.lineLinkedValues(0)).toBeVisible();
-    await expect(reviewPage.lineLinkedCategory(0)).toHaveText(`${testPrefix} LE-S4 Cat`);
+    await expect(reviewPage.lineLinkedCategory(0)).toHaveText('Household Items');
     await expect(reviewPage.lineLinkedSource(0)).toHaveText(`${testPrefix} LE-S4 Source`);
     await expect(reviewPage.lineLinkedPlanned(0)).toContainText(/700/);
     await expect(reviewPage.lineItemizedAmountInput(0)).toBeVisible();
@@ -731,7 +734,7 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     expect(lines[0]!.id).toBe(lineId);
     expect(lines[0]!.description).toBe(desc);
     expect(lines[0]!.plannedAmount).toBe(700);
-    expect(lines[0]!.budgetCategory?.id).toBe(categoryId);
+    expect(lines[0]!.budgetCategory?.id).toBe(householdCategoryId);
     expect(lines[0]!.budgetSource?.id).toBe(sourceId);
     await expect
       .poll(async () => {
@@ -744,7 +747,6 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     if (vendorId) await deleteVendorViaApi(page, vendorId);
     if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
     if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
-    if (categoryId) await deleteCategoryViaApi(page, categoryId);
   }
 });
 
