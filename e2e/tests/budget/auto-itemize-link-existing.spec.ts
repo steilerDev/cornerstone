@@ -16,7 +16,9 @@
  *      overflow.
  *
  * Mocking strategy: dry-run/preview extraction, config and Paperless document are mocked;
- * the commit always goes to the real server so DB state can be asserted via the API.
+ * the commit always goes to the real server so DB state can be asserted via the API, except
+ * Scenario 4: the Paperless-first commit needs a configured Paperless instance (503 in E2E),
+ * so it is mocked and the request payload asserted instead.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -575,7 +577,6 @@ test('Scenario 4: Paperless review page links an existing household item budget 
   // provided budgetCategoryId (householdItemBudgetService).
   const householdCategoryId = 'bc-household-items';
   let sourceId = '';
-  let createdInvoiceId = '';
   const hiName = `${testPrefix} LE-S4 HI`;
   const desc = `${testPrefix} LE-S4 Orig HI`;
 
@@ -715,35 +716,54 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     await expect(reviewPage.lineLinkedPlanned(0)).toContainText(/700/);
     await expect(reviewPage.lineItemizedAmountInput(0)).toBeVisible();
 
-    const commitDone = page.waitForResponse(
-      (resp) =>
-        resp.url().includes('/api/invoices/auto-itemize/commit') &&
-        resp.request().method() === 'POST',
+    // Paperless-first commit requires a configured Paperless instance (503 otherwise), so it
+    // is mocked and the request payload asserted. The server-side guarantee that an
+    // assign-existing line is never modified is covered by the integration tests.
+    const captured: { body?: { lines: Array<Record<string, unknown>> } } = {};
+    await page.route('**/api/invoices/auto-itemize/commit', async (route: Route) => {
+      captured.body = route.request().postDataJSON() as typeof captured.body;
+      await route.fulfill({
+        status: 201,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          invoice: {
+            id: 'mock-invoice-2149',
+            invoiceNumber: `${testPrefix}-LE-S4`,
+            amount: 1000,
+            date: '2026-01-15',
+            dueDate: null,
+            status: 'pending',
+            notes: null,
+            vendorId,
+            vendor: { id: vendorId, name: `${testPrefix} LE-S4 Vendor` },
+            createdAt: '2026-06-15T00:00:00.000Z',
+            updatedAt: '2026-06-15T00:00:00.000Z',
+          },
+          budgetLines: [],
+          remainingAmount: 0,
+        }),
+      });
+    });
+    const commitRequest = page.waitForRequest(
+      (req) => req.url().includes('/api/invoices/auto-itemize/commit') && req.method() === 'POST',
     );
     await reviewPage.confirmButton.click();
-    const commitResp = await commitDone;
-    expect(
-      commitResp.ok(),
-      `commit failed ${commitResp.status()}: ${await commitResp.text().catch(() => '')}`,
-    ).toBeTruthy();
-    createdInvoiceId = ((await commitResp.json()) as { invoice: { id: string } }).invoice.id;
+    await commitRequest;
 
-    // HI budget line unchanged, junction created
-    const lines = await listBudgetLinesViaApi(page, 'household-items', householdItemId);
-    expect(lines).toHaveLength(1);
-    expect(lines[0]!.id).toBe(lineId);
-    expect(lines[0]!.description).toBe(desc);
-    expect(lines[0]!.plannedAmount).toBe(700);
-    expect(lines[0]!.budgetCategory?.id).toBe(householdCategoryId);
-    expect(lines[0]!.budgetSource?.id).toBe(sourceId);
-    await expect
-      .poll(async () => {
-        const links = await listInvoiceBudgetLinesViaApi(page, createdInvoiceId);
-        return links.some((l) => l.householdItemBudgetId === lineId);
-      })
-      .toBe(true);
+    expect(captured.body).toBeDefined();
+    const sentLines = captured.body!.lines;
+    expect(sentLines).toHaveLength(1);
+    const sent = sentLines[0]!;
+    expect(sent.assignmentMode).toBe('assign-existing');
+    expect(sent.assignedBudgetLineId).toBe(lineId);
+    expect(sent.assignedBudgetLineType).toBe('household_item');
+    // Linked row commits the gross itemized amount (extracted 1200 net -> 1428 gross)
+    // as an already-VAT-inclusive total.
+    expect(sent.includesVat).toBe(true);
+    expect(sent.totalAmount as number).toBeCloseTo(1428, 2);
+    expect(sent).not.toHaveProperty('linkedItemizedAmount');
+    expect(sent).not.toHaveProperty('assignedBudgetLineSnapshot');
   } finally {
-    if (createdInvoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, createdInvoiceId);
     if (vendorId) await deleteVendorViaApi(page, vendorId);
     if (householdItemId) await deleteHouseholdItemViaApi(page, householdItemId);
     if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
