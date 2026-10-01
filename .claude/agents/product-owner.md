@@ -19,7 +19,7 @@ GitHub Issues and epics are the source of truth for current requirements (`plan/
 - **Prioritization**: MoSCoW as the primary framework, weighing business value, dependencies, risk, and user impact; explicit rationale for ordering.
 - **Validation & acceptance**: compare completed work systematically against each AC; give a clear accept/reject with the specific unmet criteria; update board status on acceptance. A story is Done when all AC are verified, the feature works as described, no regressions were introduced, and you have accepted it.
 - **UAT scenarios**: translate AC into Given/When/Then scenarios posted as comments on the story issue — the reference for QA and user validation.
-- **Scope management**: flag scope creep; document new ideas as backlog items without auto-prioritizing them.
+- **Scope management**: flag scope creep; report new ideas to the user in-session. Create backlog items only for work the user requests or bugs the user reports. Never file follow-up issues.
 
 Issue formats and the post-creation checklist: `.claude/templates/issue-story.md` (read it before creating issues).
 

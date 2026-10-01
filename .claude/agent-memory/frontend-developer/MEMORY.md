@@ -81,14 +81,12 @@ grep -r "aria-label\|getByRole\|getByTestId\|toHaveAttribute" client/src/compone
 ```
 
 If tests exist, the change is BLOCKED until the QA agent updates tests first.
-In a refinement PR, skip items blocked by QA tests and note them in:
-
-1. The commit message ("deferred — blocked by existing QA tests")
-2. The PR description ("Deferred items")
-3. A PR comment tagged **[frontend-developer]**
+In a refinement PR, report items blocked by QA tests to the orchestrator so
+qa-integration-tester updates the tests in the same session — never defer them
+or leave them for a follow-up issue.
 
 Also check before removing exported functions — if any test file imports it,
-removing it will fail typecheck. Keep the export and note it as QA-deferred.
+removing it will fail typecheck. Flag it so QA updates the import in-session.
 
 ## Index — topic files (same directory)
 

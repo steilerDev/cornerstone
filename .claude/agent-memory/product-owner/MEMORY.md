@@ -86,7 +86,7 @@ Full derivations and the incidents behind each are in [pr-review-patterns.md](pr
 - **A generation/epoch guard inside a hook does not protect state the consumer writes inside the injected callback** — enumerate every `setState` on the other side of a race guard (#2063). And when 3+ conditions each suppress a render region, ask what state satisfies all of them at once: the answer is a blank page.
 - **A shared component in the shared directory is not automatically shareable** — check an AC's purpose against its letter whenever the deliverable is "make this reusable"; directory placement alone satisfies the letter (#2063). The cheap proof is a `testIdPrefix`-style param plus a test asserting the _default_ IDs are absent under a custom prefix.
 - **Put consumer-derived state on the safe side of a race guard with an opaque `meta` passthrough + post-guard callbacks**, not by "moving the write earlier" — keeps the hook domain-free (#2063 R2). And **a shared control that disables itself on its own activation drops keyboard focus to `<body>`** — check it on every such component (#2065).
-- **A finding that defeats the PR's own AC belongs in that PR, not a follow-up.** Conversely: **a green PR is not reopened to absorb non-blocking findings — file, don't expand.**
+- **A finding that defeats the PR's own AC belongs in that PR, not a follow-up.** Every finding is blocking (CLAUDE.md > Reviewer Verdict Policy): fix it in this PR or a same-session fix PR — never file a follow-up issue.
 - **Closed/released ACs get a dated supersession comment, never a rewrite.** When a body _is_ rewritten, always report "body rewritten, numbering reassigned" — omitting that let two agents spec from a stale revision.
 - **Wiki Deviation Log: the Observation column of a dated entry is immutable; corrections go forward in that entry's Resolution.** Ruled 2026-08-06 on PR #2022 (#1992). Same shape as the AC supersession rule. Rationale + boundaries (spurious entries are withdrawn not deleted; lead a correction with "Correction to the observation above:", never a trailing parenthetical) in [pr-review-patterns.md](pr-review-patterns.md).
 - **Operator-facing docs never carry a "known issue" pointer to an open bug** — docs ship with releases, the tracker doesn't, and nothing forces the line's removal when the fix lands. Put the _workaround_ in as a plain requirement instead: prescriptive copy ages into harmlessness, diagnostic copy ages into lies. Ruled 2026-08-06 on PR #2027 (#1990) re #2026.
@@ -116,13 +116,13 @@ Full derivations and the incidents behind each are in [pr-review-patterns.md](pr
 - **Check that the issue a routing rule points at is still open before restating the rule.**
 - **Answer boundary/privacy questions about the artifact that leaves the system, not only about the API.**
 - **A finding's severity is capped by my own enumeration failure** — if I missed it in earlier rounds, it can't be blocking now. End mirror-image review cycles by **stating the enumeration as exhaustive**.
-- **Comment keeps the rationale, issue owns the guard.** Bounded-and-quantified earns a tracked owner; unbounded-and-estimated gets documentation only.
+- **Comment keeps the rationale, the guard ships in-session.** Bounded-and-quantified gets the guard fixed in this PR (or a same-session fix PR); unbounded-and-estimated gets documentation only. Never hand the guard to a follow-up issue.
 - **Price intrinsic tensions differently from oversights** — offer a documented deviation for genuine conflicts.
 
 ## PR Review
 
 Detailed checklist, verdict matrix, recurring violations, and per-PR findings in [pr-review-patterns.md](pr-review-patterns.md). Check FIRST: **CI shard status** (`Quality Gates` green ≠ E2E green), **test doubles hiding defects**, **vacuous assertions** (invert an inequality's bound to read the measured value; re-run the exact mutations that stayed green last round), **every `t()` path resolves in `en/<ns>.json`**, dependency pinning, keyboard focus indicators, test authorship (QA not devs), raw-value display bugs.
 
-- Verdict matrix: `--request-changes` for functional AC gaps; `--approve` with "MUST FIX" notes for display/formatting; never `--comment` as a verdict.
+- Verdict matrix (per CLAUDE.md > Reviewer Verdict Policy): `--approve` only with zero findings; any finding (functional AC gap or display/formatting) is `--request-changes` + `fix-in-session`; never `--comment` as a verdict; never file follow-up issues.
 - `gh pr review` **cannot** request changes on a human-authored PR — the verdict goes in a comment.
 - `npm run lint` has **no Prettier** and CI has no `format:check`, so formatting drift merges silently.

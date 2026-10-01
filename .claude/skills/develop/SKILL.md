@@ -370,7 +370,7 @@ Reviewers operate **fix-or-block, no deferrals** (CLAUDE.md > Reviewer Verdict P
 
 Track fix loop iterations. Each fix-and-re-review cycle counts as one round.
 
-If any reviewer identifies blocking issues:
+If any reviewer reports any finding (every finding is blocking under the Reviewer Verdict Policy):
 
 1. Collect all reviewer feedback into a fix request
 2. Continue the **dev-team-lead** (SendMessage) in `[MODE: spec]` with the reviewer feedback to produce targeted fix specs (or write the fix specs yourself if the feedback is clear enough to route directly)

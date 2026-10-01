@@ -34,7 +34,7 @@ UNION over two arms (budget-line sources via `work_item_budgets`/`household_item
 3. **Additive-only diffs (`@@ -N,3 +N,269 @@`, zero deletions) are strong containment** — verify with `git diff origin/beta...HEAD -- <file>` — but they only bound the blast radius to _new_ code paths. They say nothing about whether the new path is correct.
 4. **Tests that assert a surprising number with a long apologetic comment are a smell.** The pre-fix test literally said "1400 … is intentionally MORE than the invoice amount". That comment was the bug report.
 
-## Open follow-ups
+## Known open items (fix in-session when touched — never file as follow-ups)
 
 - Collapse `splitByDeposits` / `splitByDepositsExcludingTagged` (and the two `computeStatusContribution*` pairs) behind `options.excludeTagged` once soaked. This round is the argument: the residual formula had to be verified in two places and only one was wrong.
 - M1: N+1 in `getSourceReport` step j/d (per-invoice deposit + vendor fetches). Tolerable at scale, wrong pattern to copy.

@@ -77,7 +77,7 @@ is still undocumented in Schema.md.
 
 - Cannot `gh pr review --approve` your own PR — use `gh pr comment` instead
 - Root `typecheck` script builds `shared` first
-- Verdicts: `--request-changes` for critical/high only; `--approve` with findings noted for medium/low
+- Verdicts (per CLAUDE.md > Reviewer Verdict Policy): `--approve` only with zero findings; any finding of any severity is `--request-changes` + `fix-in-session`; never file follow-up issues
 
 ## Sandbox Limitations (not real project issues)
 
