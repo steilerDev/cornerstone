@@ -346,7 +346,7 @@ describe('Budget Source Service', () => {
    * Get the discretionary system source inserted by migration 0021.
    */
   function getDiscretionarySource() {
-    return budgetSourceService.getBudgetSourceById(db, 'discretionary-system');
+    return budgetSourceService.getBudgetSourceById(db, 'discretionary-system', 0.19);
   }
 
   beforeEach(() => {
@@ -368,7 +368,7 @@ describe('Budget Source Service', () => {
   describe('listBudgetSources()', () => {
     it('returns only the seeded discretionary source when no user sources exist', () => {
       // Migration 0021 seeds the "Discretionary Funding" system row, so the list is never empty.
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result).toHaveLength(1);
       expect(result[0]!.isDiscretionary).toBe(true);
     });
@@ -376,7 +376,7 @@ describe('Budget Source Service', () => {
     it('returns a single source after insertion (plus seeded discretionary source)', () => {
       insertRawSource({ name: 'Home Loan', sourceType: 'bank_loan', totalAmount: 200000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       // 1 inserted + 1 seeded discretionary = 2
       expect(result).toHaveLength(2);
       const regular = result.find((s) => !s.isDiscretionary);
@@ -388,7 +388,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'Alpha Bank Loan', sourceType: 'bank_loan', totalAmount: 200000 });
       insertRawSource({ name: 'Mid Credit Line', sourceType: 'credit_line', totalAmount: 50000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       const nonDisc = result.filter((s) => !s.isDiscretionary);
       expect(nonDisc[0]!.name).toBe('Alpha Bank Loan');
       expect(nonDisc[1]!.name).toBe('Mid Credit Line');
@@ -409,7 +409,7 @@ describe('Budget Source Service', () => {
         createdBy: TEST_USER_ID,
       });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       // 1 inserted + 1 seeded discretionary = 2
       expect(result).toHaveLength(2);
 
@@ -441,7 +441,7 @@ describe('Budget Source Service', () => {
         createdBy: TEST_USER_ID,
       });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result[0]!.createdBy).not.toBeNull();
       expect(result[0]!.createdBy?.id).toBe(TEST_USER_ID);
       expect(result[0]!.createdBy?.email).toBe(`${TEST_USER_ID}@example.com`);
@@ -450,14 +450,14 @@ describe('Budget Source Service', () => {
     it('returns createdBy as null when createdBy is null', () => {
       insertRawSource({ name: 'No Creator', sourceType: 'savings', totalAmount: 10000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result[0]!.createdBy).toBeNull();
     });
 
     it('computes usedAmount as 0 when no work items reference the source', () => {
       insertRawSource({ name: 'Computing Loan', sourceType: 'bank_loan', totalAmount: 50000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result[0]!.usedAmount).toBe(0);
       expect(result[0]!.availableAmount).toBe(50000);
       // No claimed or paid invoices → both amounts are 0
@@ -477,7 +477,7 @@ describe('Budget Source Service', () => {
       insertRawWorkItemWithSource(raw.id, 10000);
       insertRawWorkItemWithSource(raw.id, 7500.5);
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       const source = result.find((s) => s.id === raw.id)!;
       expect(source.usedAmount).toBe(17500.5);
       expect(source.availableAmount).toBe(82499.5);
@@ -496,7 +496,7 @@ describe('Budget Source Service', () => {
       // Work item with no actualCost
       insertRawWorkItemWithSource(raw.id, null);
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       const source = result.find((s) => s.id === raw.id)!;
       expect(source.usedAmount).toBe(0);
     });
@@ -516,7 +516,7 @@ describe('Budget Source Service', () => {
       insertRawWorkItemWithSource(rawA.id, 5000);
       insertRawWorkItemWithSource(rawB.id, 3000);
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       const sourceA = result.find((s) => s.id === rawA.id)!;
       const sourceB = result.find((s) => s.id === rawB.id)!;
 
@@ -528,7 +528,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'Loan A', sourceType: 'bank_loan', totalAmount: 100000 });
       insertRawSource({ name: 'Savings B', sourceType: 'savings', totalAmount: 20000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       // 2 inserted + 1 seeded discretionary = 3
       expect(result).toHaveLength(3);
     });
@@ -536,7 +536,7 @@ describe('Budget Source Service', () => {
     it('returns sources with null interestRate correctly', () => {
       insertRawSource({ name: 'No Rate Loan', sourceType: 'savings', totalAmount: 5000 });
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result[0]!.interestRate).toBeNull();
     });
   });
@@ -547,7 +547,7 @@ describe('Budget Source Service', () => {
     it('returns a source by ID', () => {
       const raw = insertRawSource({ name: 'Test Get', sourceType: 'savings', totalAmount: 5000 });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.id).toBe(raw.id);
       expect(result.name).toBe('Test Get');
     });
@@ -566,7 +566,7 @@ describe('Budget Source Service', () => {
         createdBy: TEST_USER_ID,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.name).toBe('Full Source');
       expect(result.sourceType).toBe('credit_line');
       expect(result.totalAmount).toBe(75000);
@@ -591,18 +591,18 @@ describe('Budget Source Service', () => {
         totalAmount: 1,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.reference).toBeNull();
       expect(result.contactAddress).toBeNull();
     });
 
     it('throws NotFoundError when source does not exist', () => {
       expect(() => {
-        budgetSourceService.getBudgetSourceById(db, 'non-existent-id');
+        budgetSourceService.getBudgetSourceById(db, 'non-existent-id', 0.19);
       }).toThrow(NotFoundError);
 
       expect(() => {
-        budgetSourceService.getBudgetSourceById(db, 'non-existent-id');
+        budgetSourceService.getBudgetSourceById(db, 'non-existent-id', 0.19);
       }).toThrow('Budget source not found');
     });
 
@@ -614,7 +614,7 @@ describe('Budget Source Service', () => {
         createdBy: TEST_USER_ID,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.createdBy).not.toBeNull();
       expect(result.createdBy?.id).toBe(TEST_USER_ID);
       expect(result.createdBy?.displayName).toBe('Test User');
@@ -623,7 +623,7 @@ describe('Budget Source Service', () => {
     it('returns createdBy as null when no user set', () => {
       const raw = insertRawSource({ name: 'No User', sourceType: 'other', totalAmount: 1000 });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.createdBy).toBeNull();
     });
 
@@ -637,7 +637,7 @@ describe('Budget Source Service', () => {
       insertRawWorkItemWithSource(raw.id, 20000);
       insertRawWorkItemWithSource(raw.id, 5000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.usedAmount).toBe(25000);
       expect(result.availableAmount).toBe(75000);
       // No claimed or paid invoices attached to these budget lines
@@ -657,7 +657,7 @@ describe('Budget Source Service', () => {
         totalAmount: 200000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
       expect(result.id).toBeDefined();
       expect(result.name).toBe('Simple Loan');
@@ -688,7 +688,7 @@ describe('Budget Source Service', () => {
         status: 'active',
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
       expect(result.name).toBe('Full Loan');
       expect(result.sourceType).toBe('credit_line');
@@ -712,6 +712,7 @@ describe('Budget Source Service', () => {
           db,
           { name: `Source ${sourceType}`, sourceType, totalAmount: 1000 },
           TEST_USER_ID,
+          0.19,
         );
         expect(result.sourceType).toBe(sourceType);
       }
@@ -724,7 +725,7 @@ describe('Budget Source Service', () => {
         totalAmount: 5000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.name).toBe('Trimmed Loan');
     });
 
@@ -735,7 +736,7 @@ describe('Budget Source Service', () => {
         totalAmount: 10000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.status).toBe('active');
     });
 
@@ -747,7 +748,7 @@ describe('Budget Source Service', () => {
         status: 'exhausted',
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.status).toBe('exhausted');
     });
 
@@ -759,7 +760,7 @@ describe('Budget Source Service', () => {
         status: 'closed',
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.status).toBe('closed');
     });
 
@@ -770,8 +771,8 @@ describe('Budget Source Service', () => {
         totalAmount: 100000,
       };
 
-      const created = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
-      const fetched = budgetSourceService.getBudgetSourceById(db, created.id);
+      const created = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      const fetched = budgetSourceService.getBudgetSourceById(db, created.id, 0.19);
 
       expect(fetched.id).toBe(created.id);
       expect(fetched.name).toBe('Persisted Loan');
@@ -785,7 +786,7 @@ describe('Budget Source Service', () => {
         interestRate: 0,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.interestRate).toBe(0);
     });
 
@@ -797,7 +798,7 @@ describe('Budget Source Service', () => {
         interestRate: 100,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.interestRate).toBe(100);
     });
 
@@ -809,7 +810,7 @@ describe('Budget Source Service', () => {
         interestRate: null,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.interestRate).toBeNull();
     });
 
@@ -821,7 +822,7 @@ describe('Budget Source Service', () => {
         totalAmount: 1000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       expect(result.name).toBe(name);
     });
 
@@ -832,8 +833,8 @@ describe('Budget Source Service', () => {
         totalAmount: 50000,
       };
 
-      const r1 = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
-      const r2 = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const r1 = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
+      const r2 = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
       expect(r1.id).not.toBe(r2.id);
       expect(r1.name).toBe('Duplicate Name');
@@ -850,10 +851,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Budget source name must be between 1 and 200 characters');
     });
 
@@ -865,7 +866,7 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -877,10 +878,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Budget source name must be between 1 and 200 characters');
     });
 
@@ -892,10 +893,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Invalid source type');
     });
 
@@ -907,10 +908,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Total amount must be a positive number');
     });
 
@@ -922,7 +923,7 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -935,10 +936,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Interest rate must be between 0 and 100');
     });
 
@@ -951,7 +952,7 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -964,10 +965,10 @@ describe('Budget Source Service', () => {
       };
 
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
       }).toThrow('Invalid status');
     });
 
@@ -983,7 +984,7 @@ describe('Budget Source Service', () => {
           contactAddress: '123 Bank St, Springfield',
         };
 
-        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
         expect(result.reference).toBe('Account #12345');
         expect(result.contactAddress).toBe('123 Bank St, Springfield');
@@ -996,7 +997,7 @@ describe('Budget Source Service', () => {
           totalAmount: 10000,
         };
 
-        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
         expect(result.reference).toBeNull();
         expect(result.contactAddress).toBeNull();
@@ -1011,7 +1012,7 @@ describe('Budget Source Service', () => {
           contactAddress: null,
         };
 
-        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
         expect(result.reference).toBeNull();
         expect(result.contactAddress).toBeNull();
@@ -1026,7 +1027,7 @@ describe('Budget Source Service', () => {
           reference,
         };
 
-        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         expect(result.reference).toBe(reference);
       });
 
@@ -1039,10 +1040,10 @@ describe('Budget Source Service', () => {
         };
 
         expect(() => {
-          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         }).toThrow(ValidationError);
         expect(() => {
-          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         }).toThrow('Reference must be 200 characters or fewer');
       });
 
@@ -1055,7 +1056,7 @@ describe('Budget Source Service', () => {
           contactAddress,
         };
 
-        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+        const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         expect(result.contactAddress).toBe(contactAddress);
       });
 
@@ -1068,10 +1069,10 @@ describe('Budget Source Service', () => {
         };
 
         expect(() => {
-          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         }).toThrow(ValidationError);
         expect(() => {
-          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+          budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
         }).toThrow('Contact address must be 500 characters or fewer');
       });
     });
@@ -1088,7 +1089,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { name: 'New Name' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.id).toBe(raw.id);
       expect(result.name).toBe('New Name');
@@ -1104,7 +1105,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { sourceType: 'credit_line' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.sourceType).toBe('credit_line');
       expect(result.name).toBe('Type Update');
@@ -1118,7 +1119,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { totalAmount: 15000 };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.totalAmount).toBe(15000);
       expect(result.availableAmount).toBe(15000);
@@ -1133,7 +1134,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { interestRate: 4.5 };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.interestRate).toBe(4.5);
     });
@@ -1147,7 +1148,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { interestRate: null };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.interestRate).toBeNull();
     });
@@ -1156,7 +1157,7 @@ describe('Budget Source Service', () => {
       const raw = insertRawSource({ name: 'Terms Update', sourceType: 'other', totalAmount: 1000 });
 
       const data: UpdateBudgetSourceRequest = { terms: '12-month fixed' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.terms).toBe('12-month fixed');
     });
@@ -1170,7 +1171,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { terms: null };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.terms).toBeNull();
     });
@@ -1183,7 +1184,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { notes: 'Updated notes' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.notes).toBe('Updated notes');
     });
@@ -1197,7 +1198,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { notes: null };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.notes).toBeNull();
     });
@@ -1206,7 +1207,7 @@ describe('Budget Source Service', () => {
       const raw = insertRawSource({ name: 'Status Update', sourceType: 'other', totalAmount: 500 });
 
       const data: UpdateBudgetSourceRequest = { status: 'closed' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.status).toBe('closed');
     });
@@ -1228,7 +1229,7 @@ describe('Budget Source Service', () => {
         status: 'exhausted',
       };
 
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.name).toBe('Completely Updated');
       expect(result.sourceType).toBe('savings');
@@ -1243,7 +1244,7 @@ describe('Budget Source Service', () => {
       const raw = insertRawSource({ name: 'Original', sourceType: 'other', totalAmount: 1000 });
 
       const data: UpdateBudgetSourceRequest = { name: '  Trimmed  ' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.name).toBe('Trimmed');
     });
@@ -1258,7 +1259,7 @@ describe('Budget Source Service', () => {
       await new Promise((resolve) => setTimeout(resolve, 1));
 
       const data: UpdateBudgetSourceRequest = { name: 'Updated Timestamp' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.updatedAt).not.toBe(raw.updatedAt);
     });
@@ -1271,7 +1272,7 @@ describe('Budget Source Service', () => {
       });
 
       const data: UpdateBudgetSourceRequest = { name: 'Same Name' };
-      const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+      const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
       expect(result.name).toBe('Same Name');
     });
@@ -1280,10 +1281,10 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { name: 'Updated' };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'non-existent-id', data);
+        budgetSourceService.updateBudgetSource(db, 'non-existent-id', data, 0.19);
       }).toThrow(NotFoundError);
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'non-existent-id', data);
+        budgetSourceService.updateBudgetSource(db, 'non-existent-id', data, 0.19);
       }).toThrow('Budget source not found');
     });
 
@@ -1293,10 +1294,10 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = {};
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow('At least one field must be provided');
     });
 
@@ -1310,7 +1311,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { name: '' };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1324,7 +1325,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { name: '   ' };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1338,7 +1339,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { name: 'A'.repeat(201) };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1348,7 +1349,7 @@ describe('Budget Source Service', () => {
       const data = { sourceType: 'invalid' as 'bank_loan' };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1358,7 +1359,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { totalAmount: 0 };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1368,7 +1369,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { totalAmount: -500 };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1378,7 +1379,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { interestRate: -0.1 };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1388,7 +1389,7 @@ describe('Budget Source Service', () => {
       const data: UpdateBudgetSourceRequest = { interestRate: 100.1 };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1398,7 +1399,7 @@ describe('Budget Source Service', () => {
       const data = { status: 'invalid_status' as 'active' };
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, raw.id, data);
+        budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
       }).toThrow(ValidationError);
     });
 
@@ -1414,7 +1415,7 @@ describe('Budget Source Service', () => {
         });
 
         const data: UpdateBudgetSourceRequest = { reference: 'New Reference' };
-        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
         expect(result.reference).toBe('New Reference');
         expect(result.contactAddress).toBe('Original Address');
@@ -1429,7 +1430,7 @@ describe('Budget Source Service', () => {
         });
 
         const data: UpdateBudgetSourceRequest = { contactAddress: 'New Address' };
-        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
         expect(result.reference).toBe('Original Reference');
         expect(result.contactAddress).toBe('New Address');
@@ -1444,7 +1445,7 @@ describe('Budget Source Service', () => {
         });
 
         const data: UpdateBudgetSourceRequest = { reference: null };
-        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
         expect(result.reference).toBeNull();
       });
@@ -1458,7 +1459,7 @@ describe('Budget Source Service', () => {
         });
 
         const data: UpdateBudgetSourceRequest = { contactAddress: null };
-        const result = budgetSourceService.updateBudgetSource(db, raw.id, data);
+        const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
 
         expect(result.contactAddress).toBeNull();
       });
@@ -1471,7 +1472,7 @@ describe('Budget Source Service', () => {
         });
 
         expect(() => {
-          budgetSourceService.updateBudgetSource(db, raw.id, { reference: 'Some Ref' });
+          budgetSourceService.updateBudgetSource(db, raw.id, { reference: 'Some Ref' }, 0.19);
         }).not.toThrow();
       });
 
@@ -1481,10 +1482,10 @@ describe('Budget Source Service', () => {
         const data: UpdateBudgetSourceRequest = { reference: 'R'.repeat(201) };
 
         expect(() => {
-          budgetSourceService.updateBudgetSource(db, raw.id, data);
+          budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
         }).toThrow(ValidationError);
         expect(() => {
-          budgetSourceService.updateBudgetSource(db, raw.id, data);
+          budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
         }).toThrow('Reference must be 200 characters or fewer');
       });
 
@@ -1494,10 +1495,10 @@ describe('Budget Source Service', () => {
         const data: UpdateBudgetSourceRequest = { contactAddress: 'A'.repeat(501) };
 
         expect(() => {
-          budgetSourceService.updateBudgetSource(db, raw.id, data);
+          budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
         }).toThrow(ValidationError);
         expect(() => {
-          budgetSourceService.updateBudgetSource(db, raw.id, data);
+          budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);
         }).toThrow('Contact address must be 500 characters or fewer');
       });
     });
@@ -1512,7 +1513,7 @@ describe('Budget Source Service', () => {
       budgetSourceService.deleteBudgetSource(db, raw.id);
 
       expect(() => {
-        budgetSourceService.getBudgetSourceById(db, raw.id);
+        budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       }).toThrow(NotFoundError);
     });
 
@@ -1520,11 +1521,11 @@ describe('Budget Source Service', () => {
       const raw1 = insertRawSource({ name: 'Delete Me', sourceType: 'savings', totalAmount: 1000 });
       insertRawSource({ name: 'Keep Me', sourceType: 'savings', totalAmount: 2000 });
 
-      const countBefore = budgetSourceService.listBudgetSources(db).length;
+      const countBefore = budgetSourceService.listBudgetSources(db, 0.19).length;
 
       budgetSourceService.deleteBudgetSource(db, raw1.id);
 
-      const result = budgetSourceService.listBudgetSources(db);
+      const result = budgetSourceService.listBudgetSources(db, 0.19);
       expect(result).toHaveLength(countBefore - 1);
       expect(result.find((s) => s.id === raw1.id)).toBeUndefined();
     });
@@ -1664,7 +1665,7 @@ describe('Budget Source Service', () => {
         totalAmount: 80000,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(0);
       expect(result.actualAvailableAmount).toBe(80000);
@@ -1683,7 +1684,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(budgetId1, 8000);
       insertClaimedInvoice(budgetId2, 5000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(13000); // 8000 + 5000
       expect(result.actualAvailableAmount).toBe(87000); // 100000 - 13000
@@ -1699,7 +1700,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertRawWorkItemWithSource(raw.id, 30000);
       insertClaimedInvoice(budgetId, 12500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.totalAmount).toBe(50000);
       expect(result.claimedAmount).toBe(12500);
@@ -1719,7 +1720,7 @@ describe('Budget Source Service', () => {
       insertPaidInvoice(b1, 9000); // paid — should NOT be counted
       insertClaimedInvoice(b2, 3000); // claimed — should be counted
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(3000); // only the claimed invoice
       expect(result.actualAvailableAmount).toBe(57000); // 60000 - 3000
@@ -1740,8 +1741,8 @@ describe('Budget Source Service', () => {
       const { budgetId: budgetIdA } = insertRawWorkItemWithSource(rawA.id, 20000);
       insertClaimedInvoice(budgetIdA, 7000); // belongs to source A, not B
 
-      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
-      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id, 0.19);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id, 0.19);
 
       expect(resultA.claimedAmount).toBe(7000);
       expect(resultA.actualAvailableAmount).toBe(93000); // 100000 - 7000
@@ -1765,7 +1766,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b2, 6000);
       insertClaimedInvoice(b3, 2500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(12500); // 4000 + 6000 + 2500
       expect(result.actualAvailableAmount).toBe(187500); // 200000 - 12500
@@ -1781,7 +1782,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
       insertClaimedInvoice(budgetId, 6000);
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
       const source = results.find((s) => s.id === raw.id)!;
 
       expect(source.claimedAmount).toBe(6000);
@@ -1795,7 +1796,7 @@ describe('Budget Source Service', () => {
         totalAmount: 25000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
       expect(result.claimedAmount).toBe(0);
       expect(result.actualAvailableAmount).toBe(25000);
@@ -1812,7 +1813,12 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(budgetId, 15000);
 
       // Update totalAmount
-      const updated = budgetSourceService.updateBudgetSource(db, raw.id, { totalAmount: 120000 });
+      const updated = budgetSourceService.updateBudgetSource(
+        db,
+        raw.id,
+        { totalAmount: 120000 },
+        0.19,
+      );
 
       expect(updated.claimedAmount).toBe(15000);
       expect(updated.actualAvailableAmount).toBe(105000); // 120000 - 15000
@@ -1829,7 +1835,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertRawWorkItemWithSource(raw.id, 10000);
       insertClaimedInvoice(budgetId, 7000); // more than totalAmount
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(7000);
       expect(result.actualAvailableAmount).toBe(-2000); // 5000 - 7000
@@ -1846,7 +1852,7 @@ describe('Budget Source Service', () => {
         totalAmount: 80000,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.unclaimedAmount).toBe(0);
     });
@@ -1864,7 +1870,7 @@ describe('Budget Source Service', () => {
       insertPaidInvoice(budgetId1, 6000);
       insertPaidInvoice(budgetId2, 4000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.unclaimedAmount).toBe(10000); // 6000 + 4000
     });
@@ -1882,7 +1888,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b1, 9000); // claimed — should NOT count toward unclaimedAmount
       insertPaidInvoice(b2, 3000); // paid — SHOULD count toward unclaimedAmount
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.unclaimedAmount).toBe(3000); // only the paid invoice
       expect(result.claimedAmount).toBe(9000); // only the claimed invoice
@@ -1903,8 +1909,8 @@ describe('Budget Source Service', () => {
       const { budgetId: budgetIdA } = insertRawWorkItemWithSource(rawA.id, 20000);
       insertPaidInvoice(budgetIdA, 5000); // belongs to source A, not B
 
-      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
-      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id, 0.19);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id, 0.19);
 
       expect(resultA.unclaimedAmount).toBe(5000);
       expect(resultB.unclaimedAmount).toBe(0);
@@ -1926,7 +1932,7 @@ describe('Budget Source Service', () => {
       insertPaidInvoice(b2, 7000);
       insertPaidInvoice(b3, 1500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.unclaimedAmount).toBe(11500); // 3000 + 7000 + 1500
     });
@@ -1941,7 +1947,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
       insertPaidInvoice(budgetId, 8000);
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
       const source = results.find((s) => s.id === raw.id)!;
 
       expect(source.unclaimedAmount).toBe(8000);
@@ -1954,7 +1960,7 @@ describe('Budget Source Service', () => {
         totalAmount: 25000,
       };
 
-      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID);
+      const result = budgetSourceService.createBudgetSource(db, data, TEST_USER_ID, 0.19);
 
       expect(result.unclaimedAmount).toBe(0);
     });
@@ -1978,7 +1984,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b2Claimed, 8000); // claimed
       insertPaidInvoice(b2Paid, 3000); // paid (unclaimed)
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(20000); // 12000 + 8000
       expect(result.unclaimedAmount).toBe(8000); // 5000 + 3000
@@ -2000,7 +2006,7 @@ describe('Budget Source Service', () => {
       insertRawHouseholdItemWithSource(raw.id, 10000);
       insertRawHouseholdItemWithSource(raw.id, 7500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.usedAmount).toBe(17500);
       expect(result.availableAmount).toBe(32500);
     });
@@ -2015,7 +2021,7 @@ describe('Budget Source Service', () => {
       insertRawWorkItemWithSource(raw.id, 20000);
       insertRawHouseholdItemWithSource(raw.id, 15000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.usedAmount).toBe(35000);
     });
 
@@ -2034,8 +2040,8 @@ describe('Budget Source Service', () => {
       insertRawHouseholdItemWithSource(rawA.id, 8000);
       insertRawHouseholdItemWithSource(rawB.id, 12000);
 
-      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id);
-      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+      const resultA = budgetSourceService.getBudgetSourceById(db, rawA.id, 0.19);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id, 0.19);
 
       expect(resultA.usedAmount).toBe(8000);
       expect(resultA.availableAmount).toBe(32000);
@@ -2072,22 +2078,37 @@ describe('Budget Source Service', () => {
 
     it('updateBudgetSource with sourceType change on discretionary source throws ValidationError', () => {
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
-          sourceType: 'bank_loan',
-        });
+        budgetSourceService.updateBudgetSource(
+          db,
+          'discretionary-system',
+          {
+            sourceType: 'bank_loan',
+          },
+          0.19,
+        );
       }).toThrow(ValidationError);
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
-          sourceType: 'bank_loan',
-        });
+        budgetSourceService.updateBudgetSource(
+          db,
+          'discretionary-system',
+          {
+            sourceType: 'bank_loan',
+          },
+          0.19,
+        );
       }).toThrow('Cannot change the source type of the Discretionary Funding source');
     });
 
     it('updateBudgetSource with totalAmount: 0 on discretionary source succeeds', () => {
-      const result = budgetSourceService.updateBudgetSource(db, 'discretionary-system', {
-        totalAmount: 0,
-      });
+      const result = budgetSourceService.updateBudgetSource(
+        db,
+        'discretionary-system',
+        {
+          totalAmount: 0,
+        },
+        0.19,
+      );
 
       expect(result.totalAmount).toBe(0);
       expect(result.isDiscretionary).toBe(true);
@@ -2095,11 +2116,21 @@ describe('Budget Source Service', () => {
 
     it('updateBudgetSource with totalAmount: -1 on discretionary source throws ValidationError', () => {
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'discretionary-system', { totalAmount: -1 });
+        budgetSourceService.updateBudgetSource(
+          db,
+          'discretionary-system',
+          { totalAmount: -1 },
+          0.19,
+        );
       }).toThrow(ValidationError);
 
       expect(() => {
-        budgetSourceService.updateBudgetSource(db, 'discretionary-system', { totalAmount: -1 });
+        budgetSourceService.updateBudgetSource(
+          db,
+          'discretionary-system',
+          { totalAmount: -1 },
+          0.19,
+        );
       }).toThrow('Total amount must be a non-negative number');
     });
   });
@@ -2113,7 +2144,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'Aardvark Fund', sourceType: 'savings', totalAmount: 5000 });
       insertRawSource({ name: 'Zebra Loan', sourceType: 'bank_loan', totalAmount: 100000 });
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
 
       // At least 3 sources: Aardvark Fund, Zebra Loan, discretionary-system
       expect(results.length).toBeGreaterThanOrEqual(3);
@@ -2126,7 +2157,7 @@ describe('Budget Source Service', () => {
       insertRawSource({ name: 'Mango Credit', sourceType: 'credit_line', totalAmount: 30000 });
       insertRawSource({ name: 'Alpha Loan', sourceType: 'bank_loan', totalAmount: 50000 });
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
       const regularSources = results.filter((s) => !s.isDiscretionary);
 
       expect(regularSources[0]!.name).toBe('Alpha Loan');
@@ -2148,7 +2179,7 @@ describe('Budget Source Service', () => {
         sourceType: 'bank_loan',
         totalAmount: 10000,
       });
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.isDiscretionary).toBe(false);
     });
 
@@ -2163,7 +2194,7 @@ describe('Budget Source Service', () => {
       // No invoice attached — projectedAmount = 10000 * (1 + 0.2) = 12000
       void budgetId;
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.projectedAmount).toBeCloseTo(10000 * (1 + CONFIDENCE_MARGINS.own_estimate));
     });
 
@@ -2177,7 +2208,7 @@ describe('Budget Source Service', () => {
       // Attach a paid invoice for 18500 — projectedAmount = actual cost = 18500
       insertPaidInvoice(budgetId, 18500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.projectedAmount).toBe(18500);
     });
 
@@ -2192,7 +2223,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b1, 9000); // claimed
       insertPaidInvoice(b2, 4000); // unclaimed
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.claimedAmount).toBe(9000);
       expect(result.unclaimedAmount).toBe(4000);
@@ -2201,7 +2232,7 @@ describe('Budget Source Service', () => {
 
     it('paidAmount is 0 for a newly created source with no invoices', () => {
       const raw = insertRawSource({ name: 'Zero Paid', sourceType: 'other', totalAmount: 5000 });
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.paidAmount).toBe(0);
     });
 
@@ -2214,7 +2245,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertRawWorkItemWithSource(raw.id, 15000);
       insertClaimedInvoice(budgetId, 6000);
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
       const source = results.find((s) => s.id === raw.id)!;
 
       expect(source.isDiscretionary).toBe(false);
@@ -2235,7 +2266,7 @@ describe('Budget Source Service', () => {
       const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 15000);
       insertClaimedInvoiceForHouseholdItem(hiBudgetId, 7500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.claimedAmount).toBe(7500);
       expect(result.actualAvailableAmount).toBe(72500); // 80000 - 7500
     });
@@ -2249,7 +2280,7 @@ describe('Budget Source Service', () => {
       const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(raw.id, 20000);
       insertPaidInvoiceForHouseholdItem(hiBudgetId, 11000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.unclaimedAmount).toBe(11000);
     });
 
@@ -2264,7 +2295,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(wiBudgetId, 8000);
       insertClaimedInvoiceForHouseholdItem(hiBudgetId, 5000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.claimedAmount).toBe(13000); // 8000 + 5000
       expect(result.actualAvailableAmount).toBe(137000); // 150000 - 13000
     });
@@ -2280,7 +2311,7 @@ describe('Budget Source Service', () => {
       insertPaidInvoice(wiBudgetId, 4500);
       insertPaidInvoiceForHouseholdItem(hiBudgetId, 3200);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.unclaimedAmount).toBe(7700); // 4500 + 3200
     });
 
@@ -2299,7 +2330,7 @@ describe('Budget Source Service', () => {
       const { budgetId: hiBudgetId } = insertRawHouseholdItemWithSource(rawA.id, 10000);
       insertClaimedInvoiceForHouseholdItem(hiBudgetId, 4000);
 
-      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, rawB.id, 0.19);
       expect(resultB.claimedAmount).toBe(0);
     });
   });
@@ -2424,7 +2455,7 @@ describe('Budget Source Service', () => {
       }).not.toThrow();
 
       expect(() => {
-        budgetSourceService.getBudgetSourceById(db, rawA.id);
+        budgetSourceService.getBudgetSourceById(db, rawA.id, 0.19);
       }).toThrow(NotFoundError);
     });
 
@@ -2523,7 +2554,7 @@ describe('Budget Source Service', () => {
         totalAmount: 50000,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.projectedMinAmount).toBe(0);
       expect(result.projectedMaxAmount).toBe(0);
@@ -2538,7 +2569,7 @@ describe('Budget Source Service', () => {
       const { budgetId } = insertWorkItemWithConfidence(raw.id, 1200, 'own_estimate');
       insertClaimedInvoice(budgetId, 1000);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.projectedMinAmount).toBe(1000);
       expect(result.projectedMaxAmount).toBe(1000);
@@ -2552,7 +2583,7 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 1000, 'own_estimate');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
       expect(result.projectedMinAmount).toBeCloseTo(1000 * (1 - margin));
@@ -2567,7 +2598,7 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 2000, 'quote');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       const margin = CONFIDENCE_MARGINS.quote;
       expect(result.projectedMinAmount).toBeCloseTo(2000 * (1 - margin));
@@ -2582,7 +2613,7 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 5000, 'professional_estimate');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       const margin = CONFIDENCE_MARGINS.professional_estimate;
       expect(result.projectedMinAmount).toBeCloseTo(5000 * (1 - margin));
@@ -2602,7 +2633,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b1, 500); // invoiced: actual cost 500
       insertWorkItemWithConfidence(raw.id, 1000, 'own_estimate'); // non-invoiced
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
       expect(result.projectedMinAmount).toBeCloseTo(500 + 1000 * (1 - margin));
@@ -2617,7 +2648,7 @@ describe('Budget Source Service', () => {
       });
       insertHouseholdItemWithConfidence(raw.id, 2000, 'professional_estimate');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       const margin = CONFIDENCE_MARGINS.professional_estimate;
       expect(result.projectedMinAmount).toBeCloseTo(2000 * (1 - margin));
@@ -2637,7 +2668,7 @@ describe('Budget Source Service', () => {
       insertClaimedInvoice(b2, 4900);
       insertPaidInvoice(b3, 7500);
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.projectedMinAmount).toBeCloseTo(2800 + 4900 + 7500);
       expect(result.projectedMaxAmount).toBeCloseTo(2800 + 4900 + 7500);
@@ -2651,7 +2682,7 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 10000, 'own_estimate');
 
-      const results = budgetSourceService.listBudgetSources(db);
+      const results = budgetSourceService.listBudgetSources(db, 0.19);
       const source = results.find((s) => s.id === raw.id)!;
 
       expect(typeof source.projectedMinAmount).toBe('number');
@@ -2666,7 +2697,7 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 5000, 'professional_estimate');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(typeof result.projectedMinAmount).toBe('number');
       expect(typeof result.projectedMaxAmount).toBe('number');
@@ -2683,9 +2714,162 @@ describe('Budget Source Service', () => {
       });
       insertWorkItemWithConfidence(raw.id, 8000, 'own_estimate');
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       expect(result.projectedAmount).toBeCloseTo(result.projectedMaxAmount);
+    });
+  });
+
+  // ─── VAT gross-up of net (includes_vat = 0) lines in projected amounts ───────
+
+  describe('projected amounts gross up net-stored lines using the configured VAT rate', () => {
+    function insertLine(
+      kind: 'work_item' | 'household_item',
+      sourceId: string,
+      plannedAmount: number,
+      includesVat: boolean,
+      confidence: 'own_estimate' | 'invoice' = 'invoice',
+    ): string {
+      const n = ++workItemCounter;
+      const ts = new Date(Date.now() + n).toISOString();
+      const budgetId = `bud-vat-proj-${n}`;
+      if (kind === 'work_item') {
+        const wiId = `wi-vat-proj-${n}`;
+        db.insert(schema.workItems)
+          .values({
+            id: wiId,
+            title: `VAT WI ${n}`,
+            status: 'not_started',
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+        db.insert(schema.workItemBudgets)
+          .values({
+            id: budgetId,
+            workItemId: wiId,
+            budgetSourceId: sourceId,
+            plannedAmount,
+            confidence,
+            includesVat,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+      } else {
+        const hiId = `hi-vat-proj-${n}`;
+        db.insert(schema.householdItems)
+          .values({
+            id: hiId,
+            name: `VAT HI ${n}`,
+            categoryId: 'hic-furniture',
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+        db.insert(schema.householdItemBudgets)
+          .values({
+            id: budgetId,
+            householdItemId: hiId,
+            budgetSourceId: sourceId,
+            plannedAmount,
+            confidence,
+            includesVat,
+            createdAt: ts,
+            updatedAt: ts,
+          })
+          .run();
+      }
+      return budgetId;
+    }
+
+    function newSource(name: string): string {
+      return insertRawSource({ name, sourceType: 'bank_loan', totalAmount: 100000 }).id;
+    }
+
+    it.each([
+      [0.19, 119],
+      [0.2, 120],
+    ])(
+      'net work item line (100, no invoices) at vatRate=%s projects %s for amount and range',
+      (vatRate, gross) => {
+        const sourceId = newSource(`Net WI ${vatRate}`);
+        insertLine('work_item', sourceId, 100, false);
+
+        const result = budgetSourceService.getBudgetSourceById(db, sourceId, vatRate);
+
+        expect(result.projectedAmount).toBeCloseTo(gross, 5);
+        expect(result.projectedMinAmount).toBeCloseTo(gross, 5);
+        expect(result.projectedMaxAmount).toBeCloseTo(gross, 5);
+      },
+    );
+
+    it('grosses up before applying the confidence margin (own_estimate +-20%) at vatRate=0.2', () => {
+      const sourceId = newSource('Net WI margin');
+      insertLine('work_item', sourceId, 100, false, 'own_estimate');
+
+      const result = budgetSourceService.getBudgetSourceById(db, sourceId, 0.2);
+
+      expect(result.projectedAmount).toBeCloseTo(120 * 1.2, 5);
+      expect(result.projectedMinAmount).toBeCloseTo(120 * 0.8, 5);
+      expect(result.projectedMaxAmount).toBeCloseTo(120 * 1.2, 5);
+    });
+
+    it('net household item line is grossed up the same way (listBudgetSources, vatRate=0.2)', () => {
+      const sourceId = newSource('Net HI');
+      insertLine('household_item', sourceId, 100, false);
+
+      const listed = budgetSourceService.listBudgetSources(db, 0.2).find((s) => s.id === sourceId)!;
+
+      expect(listed.projectedAmount).toBeCloseTo(120, 5);
+      expect(listed.projectedMinAmount).toBeCloseTo(120, 5);
+      expect(listed.projectedMaxAmount).toBeCloseTo(120, 5);
+    });
+
+    it('gross-stored line (includesVat=true) is unchanged regardless of vatRate', () => {
+      const sourceId = newSource('Gross WI');
+      insertLine('work_item', sourceId, 100, true);
+
+      const result = budgetSourceService.getBudgetSourceById(db, sourceId, 0.2);
+
+      expect(result.projectedAmount).toBeCloseTo(100, 5);
+      expect(result.projectedMinAmount).toBeCloseTo(100, 5);
+      expect(result.projectedMaxAmount).toBeCloseTo(100, 5);
+    });
+
+    it('invoiced net line still projects the itemized invoice sum, not a grossed-up plannedAmount', () => {
+      const sourceId = newSource('Invoiced net WI');
+      const budgetId = insertLine('work_item', sourceId, 100, false);
+      insertClaimedInvoice(budgetId, 90);
+
+      const result = budgetSourceService.getBudgetSourceById(db, sourceId, 0.2);
+
+      expect(result.projectedAmount).toBe(90);
+      expect(result.projectedMinAmount).toBe(90);
+      expect(result.projectedMaxAmount).toBe(90);
+    });
+
+    it('createBudgetSource and updateBudgetSource return amounts computed with the supplied vatRate', () => {
+      const created = budgetSourceService.createBudgetSource(
+        db,
+        {
+          name: 'Rate create',
+          sourceType: 'bank_loan',
+          totalAmount: 1000,
+        } as CreateBudgetSourceRequest,
+        TEST_USER_ID,
+        0.2,
+      );
+      insertLine('work_item', created.id, 100, false);
+
+      const updated = budgetSourceService.updateBudgetSource(
+        db,
+        created.id,
+        { name: 'Rate create renamed' },
+        0.2,
+      );
+
+      expect(updated.projectedAmount).toBeCloseTo(120, 5);
     });
   });
 
@@ -2769,7 +2953,7 @@ describe('Budget Source Service', () => {
         const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
         insertDepositForInvoice(invoiceId, { amount: 400, status: 'claimed' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         // claimedAmount = 400/1000 * 1000 = 400
         expect(result.claimedAmount).toBeCloseTo(400);
       });
@@ -2782,7 +2966,7 @@ describe('Budget Source Service', () => {
         const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'claimed');
         insertDepositForInvoice(invoiceId, { amount: 300, status: 'claimed' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.claimedAmount).toBeCloseTo(1000);
       });
 
@@ -2792,7 +2976,7 @@ describe('Budget Source Service', () => {
         const { budgetId } = insertRawWorkItemWithSource(raw.id, 800);
         insertClaimedInvoice(budgetId, 800);
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.claimedAmount).toBe(800);
       });
     });
@@ -2805,7 +2989,7 @@ describe('Budget Source Service', () => {
         const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
         insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         // unclaimedAmount = computeStatusContribution('paid') = 300
         expect(result.unclaimedAmount).toBeCloseTo(300);
       });
@@ -2817,7 +3001,7 @@ describe('Budget Source Service', () => {
         const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'paid');
         insertDepositForInvoice(invoiceId, { amount: 400, status: 'paid' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.unclaimedAmount).toBeCloseTo(1000);
       });
 
@@ -2826,7 +3010,7 @@ describe('Budget Source Service', () => {
         const { budgetId } = insertRawWorkItemWithSource(raw.id, 500);
         insertPaidInvoice(budgetId, 500);
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.unclaimedAmount).toBe(500);
       });
     });
@@ -2841,7 +3025,7 @@ describe('Budget Source Service', () => {
         insertDepositForInvoice(invoiceId, { amount: 200, status: 'claimed' });
         insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.claimedAmount).toBeCloseTo(200);
         expect(result.unclaimedAmount).toBeCloseTo(300);
         expect(result.paidAmount).toBeCloseTo(500);
@@ -2864,7 +3048,7 @@ describe('Budget Source Service', () => {
           entryType: 'refund',
         });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.claimedAmount).toBeCloseTo(400);
       });
 
@@ -2877,7 +3061,7 @@ describe('Budget Source Service', () => {
         insertDepositForInvoice(invoiceId, { amount: 500, status: 'paid' });
         insertDepositForInvoice(invoiceId, { amount: 150, status: 'paid', entryType: 'refund' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.unclaimedAmount).toBeCloseTo(350);
       });
 
@@ -2887,7 +3071,7 @@ describe('Budget Source Service', () => {
         const invoiceId = insertInvoiceForBudgetLine(budgetId, 1000, 'pending');
         insertDepositForInvoice(invoiceId, { amount: 400, status: 'claimed' });
 
-        const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+        const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
         expect(result.claimedAmount).toBeCloseTo(400);
       });
     });
@@ -2980,7 +3164,7 @@ describe('Budget Source Service', () => {
         ]);
         insertDepositForInvoice(invoiceId, { amount: 300, status: 'paid' });
 
-        const named = budgetSourceService.getBudgetSourceById(db, namedSource.id);
+        const named = budgetSourceService.getBudgetSourceById(db, namedSource.id, 0.19);
         // 600/1000 * 300 = 180
         expect(named.unclaimedAmount).toBeCloseTo(180);
 
@@ -3086,7 +3270,7 @@ describe('Budget Source Service', () => {
       const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
       insertTaggedDeposit(invoiceId, { amount: 250, status: 'claimed', budgetSourceId: raw.id });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.claimedAmount).toBeCloseTo(250);
     });
 
@@ -3095,7 +3279,7 @@ describe('Budget Source Service', () => {
       const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
       insertTaggedDeposit(invoiceId, { amount: 150, status: 'paid', budgetSourceId: raw.id });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.unclaimedAmount).toBeCloseTo(150);
       expect(result.claimedAmount).toBe(0);
     });
@@ -3105,7 +3289,7 @@ describe('Budget Source Service', () => {
       const invoiceId = insertStandaloneInvoiceNoLines(1000, 'pending');
       insertTaggedDeposit(invoiceId, { amount: 400, status: 'pending', budgetSourceId: raw.id });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.claimedAmount).toBe(0);
       expect(result.unclaimedAmount).toBe(0);
     });
@@ -3120,9 +3304,9 @@ describe('Budget Source Service', () => {
         budgetSourceId: sourceB.id,
       });
 
-      const resultA = budgetSourceService.getBudgetSourceById(db, sourceA.id);
+      const resultA = budgetSourceService.getBudgetSourceById(db, sourceA.id, 0.19);
       expect(resultA.claimedAmount).toBe(0);
-      const resultB = budgetSourceService.getBudgetSourceById(db, sourceB.id);
+      const resultB = budgetSourceService.getBudgetSourceById(db, sourceB.id, 0.19);
       expect(resultB.claimedAmount).toBeCloseTo(500);
     });
 
@@ -3142,7 +3326,7 @@ describe('Budget Source Service', () => {
         budgetSourceId: raw.id,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       expect(result.claimedAmount).toBeCloseTo(300);
     });
 
@@ -3184,7 +3368,7 @@ describe('Budget Source Service', () => {
         budgetSourceId: raw.id,
       });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
       // claimedAmount: Rail A contributes 0 (invoice paid, not claimed) + Rail B 100 = 100
       expect(result.claimedAmount).toBeCloseTo(100);
       // unclaimedAmount: Rail A contributes 1000 (paid, untagged, undeposited residual) + Rail B 0 = 1000
@@ -3226,7 +3410,7 @@ describe('Budget Source Service', () => {
         .run();
       insertTaggedDeposit(invoiceId, { amount: 400, status: 'claimed', budgetSourceId: raw.id });
 
-      const result = budgetSourceService.getBudgetSourceById(db, raw.id);
+      const result = budgetSourceService.getBudgetSourceById(db, raw.id, 0.19);
 
       // Rail B (tagged deposit) counts 100% toward claimedAmount: deposit status 'claimed' → 400.
       // Rail A (line share) still has the tagged deposit subtracted from its residual
@@ -3279,7 +3463,7 @@ describe('Budget Source Service', () => {
         budgetSourceId: null,
       });
 
-      const legacyResult = budgetSourceService.getBudgetSourceById(db, legacyRaw.id);
+      const legacyResult = budgetSourceService.getBudgetSourceById(db, legacyRaw.id, 0.19);
       // Untagged deposit: residual and deposit fraction both derive from the same source's own
       // lines, so claimedAmount(400)/unclaimedAmount(600) split identically here — the point is
       // that paidAmount still nets to exactly 1000, proving legacy (untagged) behavior is
@@ -3584,7 +3768,7 @@ describe('Budget Source Service', () => {
 
       // getBudgetSourceById calls getSourceAmounts which, for the discretionary source,
       // calls computeDiscretionaryInvoiceAmount(db, 'paid') → Rail B picks up the tagged deposit.
-      const disc = budgetSourceService.getBudgetSourceById(db, 'discretionary-system');
+      const disc = budgetSourceService.getBudgetSourceById(db, 'discretionary-system', 0.19);
       expect(disc.unclaimedAmount).toBeCloseTo(depositAmount);
       expect(disc.claimedAmount).toBe(0);
     });

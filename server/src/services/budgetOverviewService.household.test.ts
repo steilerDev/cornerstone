@@ -141,7 +141,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       expect(overview.actualCost).toBeDefined();
       // actualCost should include the household item invoice
@@ -195,7 +195,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // 2000 + 1500 = 3500
       expect(overview.actualCost).toBe(3500);
@@ -285,7 +285,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // 2000 (household) + 1500 (work item) = 3500
       expect(overview.actualCost).toBe(3500);
@@ -296,7 +296,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
       const householdItemId = createTestHouseholdItem('Kitchen Appliance', userId);
       createTestHouseholdItemBudget(householdItemId, 5000);
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       expect(overview.actualCost).toBe(0);
     });
@@ -342,7 +342,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // Verify global actualCost includes the household item invoice amount
       expect(overview.actualCost).toBe(2500);
@@ -439,7 +439,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // 1000 (household) + 800 (work item) = 1800
       expect(overview.actualCost).toBe(1800);
@@ -479,7 +479,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // Overview should still complete successfully
       expect(overview).toBeDefined();
@@ -516,7 +516,7 @@ describe('Budget Overview Service - Household Item Invoice Aggregation', () => {
         })
         .run();
 
-      const overview = budgetOverviewService.getBudgetOverview(db);
+      const overview = budgetOverviewService.getBudgetOverview(db, 0.19);
 
       // Verify top-level fields
       expect(overview).toHaveProperty('availableFunds');

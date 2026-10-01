@@ -129,7 +129,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
+  useLocale: () => ({ locale: 'en', setLocale: jest.fn(), vatRate: 0.19 }),
 }));
 
 // ─── Mock: configApi + preferencesApi ────────────────────────────────────────

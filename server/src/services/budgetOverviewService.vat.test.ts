@@ -184,10 +184,31 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
       // effective = 100*1.19=119; own_estimate margin=0.2 -> min=95.2, max=142.8
       insertWorkItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(95.2, 5);
       expect(result.maxPlanned).toBeCloseTo(142.8, 5);
+    });
+  });
+
+  describe('Scenario 13a-ii: configured VAT rate is honored (not hardcoded 0.19)', () => {
+    it('grosses up plannedAmount=100 (includesVat=false) to 120 at vatRate=0.2 before applying margin', () => {
+      // effective = 100*1.20=120; own_estimate margin=0.2 -> min=96, max=144
+      insertWorkItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
+
+      const result = getBudgetOverview(db, 0.2);
+
+      expect(result.minPlanned).toBeCloseTo(96, 5);
+      expect(result.maxPlanned).toBeCloseTo(144, 5);
+    });
+
+    it('leaves a gross-stored line unchanged at vatRate=0.2', () => {
+      insertWorkItem({ plannedAmount: 100, includesVat: true, confidence: 'own_estimate' });
+
+      const result = getBudgetOverview(db, 0.2);
+
+      expect(result.minPlanned).toBeCloseTo(80, 5);
+      expect(result.maxPlanned).toBeCloseTo(120, 5);
     });
   });
 
@@ -197,7 +218,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
     it('includesVat=true leaves min/maxPlanned at raw plannedAmount', () => {
       insertWorkItem({ plannedAmount: 100, includesVat: true, confidence: 'own_estimate' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(80, 5);
       expect(result.maxPlanned).toBeCloseTo(120, 5);
@@ -206,7 +227,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
     it('omitting includesVat (schema default true) leaves min/maxPlanned at raw plannedAmount', () => {
       insertWorkItem({ plannedAmount: 100, confidence: 'own_estimate' });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(80, 5);
       expect(result.maxPlanned).toBeCloseTo(120, 5);
@@ -225,7 +246,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
         confidence: 'professional_estimate',
       });
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.minPlanned).toBeCloseTo(107.1, 5);
       expect(result.maxPlanned).toBeCloseTo(130.9, 5);
@@ -268,7 +289,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.minTotalPayback).toBeCloseTo(95.2, 5);
       expect(result.subsidySummary.maxTotalPayback).toBeCloseTo(142.8, 5);
@@ -291,7 +312,7 @@ describe('getBudgetOverview — VAT gross-up regression (#1805 refactor)', () =>
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 55 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetOverview(db);
+      const result = getBudgetOverview(db, 0.19);
 
       expect(result.subsidySummary.totalReductions).toBeCloseTo(55, 5);
       expect(result.subsidySummary.totalReductions).not.toBeCloseTo(50, 1);

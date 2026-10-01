@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
   Invoice,
   AutoItemizeWarning,
@@ -56,6 +57,7 @@ export function AutoItemizePage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { vatRate } = useLocale();
   const { formatCurrency } = useFormatters();
 
   const createdFromExtractionVariants = useMemo(
@@ -317,7 +319,7 @@ export function AutoItemizePage() {
         return;
       }
 
-      const linesPayload = buildCommitLines(workingLines);
+      const linesPayload = buildCommitLines(workingLines, vatRate);
 
       await autoItemize(invoiceId, {
         paperlessDocumentId: docId,
@@ -349,6 +351,7 @@ export function AutoItemizePage() {
     setLines,
     t,
     tErrors,
+    vatRate,
   ]);
 
   const handleApplySuggestion = useCallback(
@@ -443,7 +446,7 @@ export function AutoItemizePage() {
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
     const total = lines
       .filter((l) => l.included)
-      .reduce((sum, l) => sum + effectiveRowAmount(l), 0);
+      .reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0);
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {
@@ -451,7 +454,7 @@ export function AutoItemizePage() {
       variance: v,
       variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
     };
-  }, [lines, metadataEdits.amount, invoice?.amount]);
+  }, [lines, metadataEdits.amount, invoice?.amount, vatRate]);
 
   if (!invoiceId || !documentId) {
     return <div>{t('autoItemize.error')}</div>;

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
@@ -88,6 +89,7 @@ export function AutoItemizeLineCard({
     (line.assignedBudgetLineId ? changeButtonRef : assignButtonRef).current?.focus();
   }, [line.assignedBudgetLineId]);
 
+  const { vatRate } = useLocale();
   const pct = useMemo(() => Math.round(line.confidence * 100), [line.confidence]);
 
   const confidenceLevel = useMemo(() => {
@@ -249,7 +251,7 @@ export function AutoItemizeLineCard({
               min="0"
               className={styles.cardMetricInput}
               data-testid="linked-line-itemized-amount"
-              value={line.linkedItemizedAmount ?? effectiveRowAmount(line)}
+              value={line.linkedItemizedAmount ?? effectiveRowAmount(line, vatRate)}
               onChange={(e) => onFieldChange(line.rowId, 'linkedItemizedAmount', e.target.value)}
             />
           </div>

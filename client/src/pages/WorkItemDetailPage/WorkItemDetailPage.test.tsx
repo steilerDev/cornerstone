@@ -66,6 +66,22 @@ const mockFetchLinkedHouseholdItems =
   jest.fn<typeof HouseholdItemWorkItemsApiTypes.fetchLinkedHouseholdItems>();
 
 // Mock AuthContext
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
 }));

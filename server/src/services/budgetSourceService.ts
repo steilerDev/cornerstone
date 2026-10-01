@@ -35,7 +35,7 @@ import type {
   MoveBudgetLinesRequest,
   MoveBudgetLinesResponse,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
 import {
   toAreaSummary,
   toBudgetCategory,
@@ -400,19 +400,22 @@ function computeDiscretionaryInvoiceAmount(db: DbType, status: string): number {
 
 /**
  * Compute the projected amount for a budget source.
- * For non-invoiced lines: planned_amount * (1 + confidence_margin)
+ * For non-invoiced lines: effectivePlannedAmount(line, vatRate) * (1 + confidence_margin) — net lines (includes_vat = 0) are grossed up by (1 + vatRate) first
  * For invoiced lines: actual cost (sum of itemized amounts)
+ *
+ * @param vatRate - Configured VAT rate (config.vatRate)
  */
-function computeProjectedAmount(db: DbType, sourceId: string): number {
+function computeProjectedAmount(db: DbType, sourceId: string, vatRate: number): number {
   const lines = db.all<{
     id: string;
     plannedAmount: number;
     confidence: string;
+    includesVat: number | null;
   }>(
-    sql`SELECT id, planned_amount AS plannedAmount, confidence
+    sql`SELECT id, planned_amount AS plannedAmount, confidence, includes_vat AS includesVat
     FROM work_item_budgets WHERE budget_source_id = ${sourceId}
     UNION ALL
-    SELECT id, planned_amount AS plannedAmount, confidence
+    SELECT id, planned_amount AS plannedAmount, confidence, includes_vat AS includesVat
     FROM household_item_budgets WHERE budget_source_id = ${sourceId}`,
   );
 
@@ -432,7 +435,11 @@ function computeProjectedAmount(db: DbType, sourceId: string): number {
       total += actualCost;
     } else {
       const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
-      total += line.plannedAmount * (1 + margin);
+      const planned = effectivePlannedAmount(
+        { plannedAmount: line.plannedAmount, includesVat: line.includesVat !== 0 },
+        vatRate,
+      );
+      total += planned * (1 + margin);
     }
   }
   return total;
@@ -441,21 +448,25 @@ function computeProjectedAmount(db: DbType, sourceId: string): number {
 /**
  * Compute the projected cost range for a budget source.
  * For invoiced lines: actual cost contributes equally to both min and max.
- * For non-invoiced lines: min = planned × (1 − margin), max = planned × (1 + margin).
+ * For non-invoiced lines: min = effective planned × (1 − margin), max = effective planned × (1 + margin), where effective planned grosses net lines up by (1 + vatRate)
+ *
+ * @param vatRate - Configured VAT rate (config.vatRate)
  */
 function computeProjectedRange(
   db: DbType,
   sourceId: string,
+  vatRate: number,
 ): { projectedMinAmount: number; projectedMaxAmount: number } {
   const lines = db.all<{
     id: string;
     plannedAmount: number;
     confidence: string;
+    includesVat: number | null;
   }>(
-    sql`SELECT id, planned_amount AS plannedAmount, confidence
+    sql`SELECT id, planned_amount AS plannedAmount, confidence, includes_vat AS includesVat
     FROM work_item_budgets WHERE budget_source_id = ${sourceId}
     UNION ALL
-    SELECT id, planned_amount AS plannedAmount, confidence
+    SELECT id, planned_amount AS plannedAmount, confidence, includes_vat AS includesVat
     FROM household_item_budgets WHERE budget_source_id = ${sourceId}`,
   );
 
@@ -476,8 +487,12 @@ function computeProjectedRange(
       maxTotal += actualCost;
     } else {
       const margin = CONFIDENCE_MARGINS[line.confidence as keyof typeof CONFIDENCE_MARGINS] ?? 0;
-      minTotal += line.plannedAmount * (1 - margin);
-      maxTotal += line.plannedAmount * (1 + margin);
+      const planned = effectivePlannedAmount(
+        { plannedAmount: line.plannedAmount, includesVat: line.includesVat !== 0 },
+        vatRate,
+      );
+      minTotal += planned * (1 - margin);
+      maxTotal += planned * (1 + margin);
     }
   }
   return { projectedMinAmount: minTotal, projectedMaxAmount: maxTotal };
@@ -490,6 +505,7 @@ function computeProjectedRange(
 function getSourceAmounts(
   db: DbType,
   row: typeof budgetSources.$inferSelect,
+  vatRate: number,
 ): {
   usedAmount: number;
   claimedAmount: number;
@@ -499,8 +515,8 @@ function getSourceAmounts(
   projectedMaxAmount: number;
 } {
   const usedAmount = computeUsedAmount(db, row.id);
-  const projectedAmount = computeProjectedAmount(db, row.id);
-  const projectedRange = computeProjectedRange(db, row.id);
+  const projectedAmount = computeProjectedAmount(db, row.id, vatRate);
+  const projectedRange = computeProjectedRange(db, row.id, vatRate);
 
   if (row.isDiscretionary) {
     const claimedAmount = computeDiscretionaryInvoiceAmount(db, 'claimed');
@@ -529,7 +545,7 @@ function getSourceAmounts(
  * List all budget sources, sorted by isDiscretionary (false first), then by name ascending.
  * Ensures the Discretionary Funding source appears last in the list.
  */
-export function listBudgetSources(db: DbType): BudgetSource[] {
+export function listBudgetSources(db: DbType, vatRate: number): BudgetSource[] {
   const rows = db
     .select()
     .from(budgetSources)
@@ -537,7 +553,7 @@ export function listBudgetSources(db: DbType): BudgetSource[] {
     .all();
 
   return rows.map((row) => {
-    const amounts = getSourceAmounts(db, row);
+    const amounts = getSourceAmounts(db, row, vatRate);
     return toBudgetSource(
       db,
       row,
@@ -555,13 +571,13 @@ export function listBudgetSources(db: DbType): BudgetSource[] {
  * Get a single budget source by ID.
  * @throws NotFoundError if source does not exist
  */
-export function getBudgetSourceById(db: DbType, id: string): BudgetSource {
+export function getBudgetSourceById(db: DbType, id: string, vatRate: number): BudgetSource {
   const row = db.select().from(budgetSources).where(eq(budgetSources.id, id)).get();
   if (!row) {
     throw new NotFoundError('Budget source not found');
   }
 
-  const amounts = getSourceAmounts(db, row);
+  const amounts = getSourceAmounts(db, row, vatRate);
   return toBudgetSource(
     db,
     row,
@@ -582,6 +598,7 @@ export function createBudgetSource(
   db: DbType,
   data: CreateBudgetSourceRequest,
   userId: string,
+  vatRate: number,
 ): BudgetSource {
   // Validate name
   const trimmedName = data.name.trim();
@@ -649,7 +666,7 @@ export function createBudgetSource(
     })
     .run();
 
-  return getBudgetSourceById(db, id);
+  return getBudgetSourceById(db, id, vatRate);
 }
 
 /**
@@ -661,6 +678,7 @@ export function updateBudgetSource(
   db: DbType,
   id: string,
   data: UpdateBudgetSourceRequest,
+  vatRate: number,
 ): BudgetSource {
   // Check source exists
   const existing = db.select().from(budgetSources).where(eq(budgetSources.id, id)).get();
@@ -771,7 +789,7 @@ export function updateBudgetSource(
   // Perform update
   db.update(budgetSources).set(updates).where(eq(budgetSources.id, id)).run();
 
-  return getBudgetSourceById(db, id);
+  return getBudgetSourceById(db, id, vatRate);
 }
 
 /**

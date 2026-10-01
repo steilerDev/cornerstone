@@ -22,9 +22,10 @@ function round2(n: number): number {
  */
 export function aggregateMergedLineNumerics(
   sourceLines: LineWithInclude[],
+  vatRate: number,
 ): AggregatedMergeNumerics {
   const grossAmounts = sourceLines.map((l) =>
-    effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
+    effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }, vatRate),
   );
   const totalAmount = round2(grossAmounts.reduce((sum, a) => sum + a, 0));
 

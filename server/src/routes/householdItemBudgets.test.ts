@@ -79,6 +79,7 @@ describe('Household Item Budget Routes', () => {
         totalAmount: 10000,
       },
       userId,
+      0.19,
     );
     return { id: source.id, name: source.name };
   }

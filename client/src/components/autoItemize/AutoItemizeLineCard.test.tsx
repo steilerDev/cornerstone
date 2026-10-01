@@ -26,6 +26,22 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 
 const mockGetCategoryDisplayName = jest.fn((_t: unknown, name: string, _key: unknown) => name);
 
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+// Mutable so a test can exercise a non-default VAT rate; reset in afterEach.
+const mockLocaleValue = {
+  locale: 'en',
+  resolvedLocale: 'en',
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+};
+
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  LocaleProvider: ({ children }: { children: unknown }) => children,
+  useLocale: () => mockLocaleValue,
+}));
+
 jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
   getCategoryDisplayName: (t: unknown, name: string, translationKey: unknown) =>
     mockGetCategoryDisplayName(t, name, translationKey),
@@ -823,6 +839,19 @@ describe('AutoItemizeLineCard — linked to an existing budget line (#2149)', ()
     expect((screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement).value).toBe(
       '119',
     );
+  });
+
+  it('itemized amount fallback uses the configured VAT rate (net 100 at vatRate=0.2 -> 120)', () => {
+    mockLocaleValue.vatRate = 0.2;
+    try {
+      renderLinked({ linkedItemizedAmount: undefined, totalAmount: 100, includesVat: false });
+
+      expect((screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement).value).toBe(
+        '120',
+      );
+    } finally {
+      mockLocaleValue.vatRate = 0.19;
+    }
   });
 
   it('Change button calls onAssign with the rowId', () => {

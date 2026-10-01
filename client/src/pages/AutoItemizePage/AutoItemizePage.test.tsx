@@ -165,16 +165,19 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 // ─── Mock: LocaleContext (passthrough, for CI compatibility) ──────────────────
 
+// Mutable so a test can exercise a non-default VAT rate; reset in the VAT describe's afterEach.
+const mockLocaleValue = {
+  locale: 'en',
+  resolvedLocale: 'en',
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+};
+
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLocale: () => ({
-    locale: 'en',
-    resolvedLocale: 'en',
-    currency: 'EUR',
-    vatRate: 0.19,
-    setLocale: jest.fn(),
-    syncWithServer: jest.fn(),
-  }),
+  useLocale: () => mockLocaleValue,
 }));
 
 // ─── Mock: configApi + preferencesApi (prevent network calls from LocaleProvider) ─
@@ -2039,6 +2042,47 @@ describe('AutoItemizePage', () => {
   });
 
   // ─── Story #1677: VAT gross-up in computedLineTotal / variance ──────────────
+
+  describe('VAT gross-up uses the configured rate from LocaleContext', () => {
+    afterEach(() => {
+      mockLocaleValue.vatRate = 0.19;
+    });
+
+    it('shows the 0.2 gross-up in the totals card (net 1000 -> €1200.00, not €1190.00)', async () => {
+      mockLocaleValue.vatRate = 0.2;
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1200 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([{ description: 'Net item', totalAmount: 1000, includesVat: false }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('€1200.00')).toBeInTheDocument();
+      expect(screen.queryByText('€1190.00')).not.toBeInTheDocument();
+      expect(screen.getByText('✓', { selector: '[aria-hidden="true"]' })).toBeInTheDocument();
+    });
+
+    it('shows the default 0.19 gross-up in the totals card (net 1000 -> €1190.00)', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1190 }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(
+        makeDryRunResponse([{ description: 'Net item', totalAmount: 1000, includesVat: false }]),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByDisplayValue('Net item')).toBeInTheDocument();
+      });
+
+      expect(screen.getByText('€1190.00')).toBeInTheDocument();
+    });
+  });
 
   describe('VAT gross-up in variance indicator (Story #1677)', () => {
     it('shows match ✓ when one includesVat=false line at 1000 grosses up to 1190 matching invoice', async () => {
