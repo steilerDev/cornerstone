@@ -22,6 +22,7 @@
  */
 
 import type { Page } from '@playwright/test';
+import type { PhotoSpotsResponse } from '@cornerstone/shared';
 import { test, expect } from '../../fixtures/auth.js';
 import {
   createAreaViaApi,
@@ -398,7 +399,11 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
       route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ spots: [], areas: [], orientations: [] }),
+        body: JSON.stringify({
+          spots: [],
+          areas: [],
+          orientations: [],
+        } satisfies PhotoSpotsResponse),
       }),
     );
     await page.goto('/photos');

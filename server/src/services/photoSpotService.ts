@@ -168,7 +168,7 @@ export function listSpotPhotos(
       thumbnailUrl: urls.thumbnailUrl,
       diaryEntry: {
         id: row.entryId,
-        entryType: row.entryType as PhotoSpotPhoto['diaryEntry']['entryType'],
+        entryType: row.entryType,
         title: row.entryTitle,
         entryDate: row.entryDate,
       },

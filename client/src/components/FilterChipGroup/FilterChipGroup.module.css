@@ -2,7 +2,9 @@
   display: flex;
   gap: var(--spacing-2);
   overflow-x: auto;
-  padding-bottom: var(--spacing-1);
+  /* Room for the focus ring (clipped by the scroll container); negative margin keeps chips aligned. */
+  padding: var(--spacing-1);
+  margin: calc(-1 * var(--spacing-1));
 }
 
 .chip {

@@ -280,7 +280,7 @@ export function SpotViewer({
         </dl>
 
         <div className={styles.entryCard}>
-          <h3 className={styles.cardHeading}>{t('viewer.fromDiaryEntry')}</h3>
+          <h2 className={styles.cardHeading}>{t('viewer.fromDiaryEntry')}</h2>
           <div className={styles.entryRow}>
             <DiaryEntryTypeBadge entryType={entry.entryType} />
             <span className={styles.entryTitle}>
