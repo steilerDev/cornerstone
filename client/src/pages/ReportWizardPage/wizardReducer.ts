@@ -32,9 +32,11 @@ export interface ReportTier {
  * value by SELECT_USE_CASE, SELECT_SOURCE and DISCARD_EDITS (all three spread freshContentTier()).
  * That is the DEFAULT for a new field — adding one here and to freshContentTier() opts it in to
  * all three resets. A field that must survive one of them must write itself back explicitly at
- * that case, with a comment stating why. Existing write-backs:
- *   - hiddenColumns — preserved by DISCARD_EDITS (see that case: presentation choice, not a content edit).
- *   - aiError — preserved by SELECT_SOURCE, and by DISCARD_EDITS only when no AI request is in flight.
+ * that case, with a comment stating why.
+ *   - The ONE allowed tier-membership opt-out: hiddenColumns — preserved by DISCARD_EDITS (see that
+ *     case: presentation choice, not a content edit).
+ *   - Error-display carve-out (does not count toward the opt-out limit): aiError — preserved by
+ *     SELECT_SOURCE, and by DISCARD_EDITS only when no AI request is in flight.
  * Full rationale (including "a further opt-out should split the tier instead"): wiki
  * Architecture › "Multi-step wizard state: tier factories".
  */
@@ -43,8 +45,9 @@ export interface ContentTier {
   aiContent: GenerateReportContentResponse | null;
   aiRequestId: string | null;
   aiError: string;
-  /** R5: per-wizard-run only, resets on use-case change (via freshContentTier()), never
-   * persisted to a preference endpoint. */
+  /** R5: per-wizard-run only, resets on use-case change and on source change (via
+   * freshContentTier()), but is preserved by DISCARD_EDITS; never persisted to a preference
+   * endpoint. */
   hiddenColumns: Set<ReportColumnKey>;
 }
 
