@@ -4,6 +4,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Modal } from '../Modal/Modal.js';
 import { SearchPicker, type SearchPickerCreateAction } from './SearchPicker.js';
 
 interface TestItem {
@@ -327,6 +328,71 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
       expect(mockSearchFn).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Escape inside a Modal', () => {
+    const onModalClose = jest.fn<() => void>();
+
+    function renderInModal() {
+      onModalClose.mockReset();
+      return render(
+        <Modal title="Host" onClose={onModalClose}>
+          <SearchPicker<TestItem>
+            value=""
+            onChange={mockOnChange}
+            excludeIds={[]}
+            searchFn={mockSearchFn}
+            renderItem={mockRenderItem}
+            placeholder="Search..."
+            createAction={createAction()}
+          />
+        </Modal>,
+      );
+    }
+
+    it('Escape in the input closes only the open dropdown, not the Modal', async () => {
+      renderInModal();
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await screen.findAllByRole('option');
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      });
+      expect(onModalClose).not.toHaveBeenCalled();
+    });
+
+    it('Escape in the listbox closes only the dropdown, not the Modal', async () => {
+      renderInModal();
+      await user.click(screen.getByPlaceholderText('Search...'));
+      await screen.findAllByRole('option');
+      await user.keyboard('{ArrowDown}');
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      });
+      expect(onModalClose).not.toHaveBeenCalled();
+    });
+
+    it('Escape with the dropdown closed closes the Modal', async () => {
+      renderInModal();
+      const input = screen.getByPlaceholderText('Search...');
+      await user.click(input);
+      await screen.findAllByRole('option');
+      await user.keyboard('{Escape}');
+      await waitFor(() => {
+        expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+      });
+      expect(onModalClose).not.toHaveBeenCalled();
+
+      await user.keyboard('{Escape}');
+
+      expect(onModalClose).toHaveBeenCalledTimes(1);
     });
   });
 

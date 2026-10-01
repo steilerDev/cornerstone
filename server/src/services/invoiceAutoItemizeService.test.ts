@@ -2580,6 +2580,27 @@ describe('invoiceAutoItemizeService', () => {
       expect(result.suggestedVendorId).toBe(vendorId);
     });
 
+    it('trims the chosenVendorName fallback', async () => {
+      const result = await runPreview({ chosenVendorName: '  Builder Co  ' });
+
+      expect(result.extractedVendorName).toBe('Builder Co');
+    });
+
+    it('cuts a chosenVendorName fallback longer than 200 characters to its first 200', async () => {
+      const long = `${'A'.repeat(150)}${'B'.repeat(100)}`;
+
+      const result = await runPreview({ chosenVendorName: long });
+
+      expect(result.extractedVendorName).toBe(long.slice(0, 200));
+      expect(result.extractedVendorName).toHaveLength(200);
+    });
+
+    it('omits extractedVendorName for a whitespace-only chosenVendorName', async () => {
+      const result = await runPreview({ chosenVendorName: '    ' });
+
+      expect('extractedVendorName' in result).toBe(false);
+    });
+
     it('omits extractedVendorName when neither vendorName nor chosenVendorName is returned', async () => {
       insertVendor(db, 'Builder Co');
 

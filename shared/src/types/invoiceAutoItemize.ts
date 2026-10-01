@@ -75,7 +75,8 @@ export interface AutoItemizePreviewResponse {
   /** The app vendor id the LLM matched. null when no exact match. */
   suggestedVendorId: string | null;
   /** Issuer name as printed on the document (max 200 chars), present only when extracted.
-   *  Independent of suggestedVendorId. Story #2148. */
+   *  Independent of suggestedVendorId. When the model returns no raw vendor name, falls back to
+   *  the matched existing vendor name (chosenVendorName); always ≤200 chars. Story #2148. */
   extractedVendorName?: string;
   extractedInvoiceNumber?: string;
   extractedInvoiceDate?: string;

@@ -666,7 +666,9 @@ export async function previewAutoItemize(
     suggestedVendorId = match?.id ?? null;
   }
 
-  const extractedVendorName = result.extractedVendorName ?? (result.chosenVendorName || undefined);
+  // Fallback to the matched vendor name is capped at 200 chars like the extracted path.
+  const extractedVendorName =
+    result.extractedVendorName ?? (result.chosenVendorName?.trim().slice(0, 200) || undefined);
 
   return {
     lines: result.lines,

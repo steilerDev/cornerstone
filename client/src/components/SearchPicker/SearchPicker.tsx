@@ -220,6 +220,11 @@ export function SearchPicker<T>({
 
   const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape') {
+      if (isOpen) {
+        // Close only the dropdown; keep Escape from also closing an enclosing Modal
+        e.preventDefault();
+        e.stopPropagation();
+      }
       setIsOpen(false);
     } else if (e.key === 'ArrowDown') {
       e.preventDefault();
@@ -266,6 +271,7 @@ export function SearchPicker<T>({
         break;
       case 'Escape':
         e.preventDefault();
+        e.stopPropagation();
         setIsOpen(false);
         focusInputQuietly();
         break;
