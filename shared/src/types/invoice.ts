@@ -11,11 +11,16 @@ import type { InvoiceBudgetLineSummary } from './invoiceBudgetLine.js';
 import type { FilterMeta } from './filterMeta.js';
 
 /**
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const INVOICE_STATUSES = ['pending', 'paid', 'claimed', 'quotation'] as const;
+
+/**
  * Invoice payment status.
  * EPIC-05 Story 5.9: replaced 'overdue' with 'claimed'.
  * 'quotation' represents a formal quote (not yet an actual cost).
  */
-export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
+export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /**
  * Deposit status within an invoice: pending, paid, or claimed.

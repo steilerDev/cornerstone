@@ -9,9 +9,20 @@ import type { BaseBudgetLine } from './budget.js';
 import type { AreaSummary } from './area.js';
 
 /**
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const BUDGET_SOURCE_TYPES = [
+  'bank_loan',
+  'credit_line',
+  'savings',
+  'other',
+  'discretionary',
+] as const;
+
+/**
  * The type/category of a financing source.
  */
-export type BudgetSourceType = 'bank_loan' | 'credit_line' | 'savings' | 'other' | 'discretionary';
+export type BudgetSourceType = (typeof BUDGET_SOURCE_TYPES)[number];
 
 /**
  * The current lifecycle status of a budget source.

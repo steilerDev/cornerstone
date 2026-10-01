@@ -2,7 +2,11 @@ import type { AttachmentType } from './document.js';
 import type { BudgetSourceType } from './budgetSource.js';
 import type { InvoiceStatus, InvoiceDepositStatus, InvoiceDepositEntryType } from './invoice.js';
 
-export type SourceReportType = 'budget-overview' | 'claim' | 'proof-of-funds';
+/**
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const SOURCE_REPORT_TYPES = ['budget-overview', 'claim', 'proof-of-funds'] as const;
+export type SourceReportType = (typeof SOURCE_REPORT_TYPES)[number];
 
 /** Linked item (work item or household item) associated with a budget line. */
 export interface SourceReportLinkedItem {

@@ -151,6 +151,14 @@ jest.unstable_mockModule('./LinkedDocumentCard.js', () => ({
             Tag {props.link.id} as Quotation
           </button>
         )}
+        {props.onAttachmentTypeChange && (
+          <button
+            onClick={() => props.onAttachmentTypeChange!(props.link, null)}
+            data-testid={`untag-${props.link.id}`}
+          >
+            Remove tag {props.link.id}
+          </button>
+        )}
       </div>
     );
   },
@@ -512,5 +520,42 @@ describe('LinkedDocumentsSection — onAttachmentTypeChange wiring to LinkedDocu
     });
 
     await waitFor(() => expect(capturedIsUpdatingAttachmentType.get('link-6')).toBe(false));
+  });
+
+  // #2029: the announcement label is built via I18N_UNION_KEYS.documentAttachmentType.key(type).
+  // A wrong/missing key would surface the raw key path in the screen-reader announcement.
+  it('announces the TRANSLATED type label (not a raw key) in the aria-live region after retagging', async () => {
+    mockUseDocumentLinks.mockReturnValue(
+      makeHook({ links: [makeInvoiceLink('link-8')], isLoading: false }),
+    );
+
+    render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+    await waitFor(() => expect(screen.getByTestId('retag-link-8')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('retag-link-8'));
+    });
+
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion).not.toBeNull();
+    expect(liveRegion!.textContent).toContain('Document link-8 tagged as Quotation');
+    expect(liveRegion!.textContent).not.toContain('documentCard.attachmentType');
+  });
+
+  it('announces "No tag" in the aria-live region when the tag is removed', async () => {
+    mockUseDocumentLinks.mockReturnValue(
+      makeHook({ links: [makeInvoiceLink('link-9', 'quotation')], isLoading: false }),
+    );
+
+    render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
+    await waitFor(() => expect(screen.getByTestId('untag-link-9')).toBeInTheDocument());
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('untag-link-9'));
+    });
+
+    const liveRegion = document.querySelector('[aria-live="polite"]');
+    expect(liveRegion!.textContent).toContain('Document link-9 tagged as No tag');
+    expect(liveRegion!.textContent).not.toContain('documentCard.attachmentType');
   });
 });
