@@ -30,7 +30,7 @@ deleting the referenced row fires SET NULL, which then violates the XOR CHECK an
 When a function is forked into an `XExcludingY` / `XWithZ` variant rather than parameterised, diff the
 core formula against the original line by line — that divergence is where the bug will be. Seen on
 `splitByDepositsExcludingTagged` (PR #1894), where the residual expression was the sole difference and
-the sole defect. Prefer an options flag over a fork; when a fork ships anyway, file the collapse follow-up.
+the sole defect. Prefer an options flag over a fork; a fork is a `fix-in-session` finding — collapse it in-session, never file a follow-up.
 
 ### Forked _test harness_ — `realRender.test.ts` re-implements merge.ts's docDefinition
 
@@ -586,9 +586,9 @@ then be matched by bridging two adjacent cells, so no false positives.
 Ranking the two remedies (settled on PR #1985 round 2, APPROVED): the universal-negative loop is only
 discriminating when the table happens to contain a non-matching row. `e2e/playwright.config.ts` sets
 `fullyParallel: true` across 16 shards and `e2e/fixtures/seed.ts` seeds only the setup admin, so a test can
-land in a shard whose user table is nearly empty and a broken filter still passes vacuously. Treat the loop
-as sufficient-to-approve (it can no longer pass while wrong rows render) but the **seeded non-matching row**
-as the airtight form; ask for it as a follow-up, not a block.
+land in a shard whose user table is nearly empty and a broken filter still passes vacuously. The loop alone is
+not sufficient (it can pass vacuously); the **seeded non-matching row** is the airtight form and is
+requested as a `fix-in-session` finding — every finding blocks, none becomes a follow-up.
 
 Positional cell indices (`cells[0]`/`cells[1]`) are coupled to `useColumnPreferences(pageKey, columns)`,
 which persists both visibility **and** order. No E2E test toggles columns on `/settings/users` today and the
@@ -843,11 +843,11 @@ or propose a uniform `/^\d+$/` guard across `loadConfig()` as its own item.
 
 Adding an env var means: `CLAUDE.md` table, `wiki/Architecture.md` (topic-grouped tables — e.g.
 "Authentication & Sessions" ~L393), `wiki/API-Contract.md` ("Environment Variables (Auth)" ~L107), and
-`docs/src/getting-started/configuration.md` (**docs-writer-owned** — file a request, don't edit).
+`docs/src/getting-started/configuration.md` (**docs-writer-owned** — route to docs-writer in-session, don't edit it yourself).
 The first three belong in the implementing PR with the submodule ref bumped on the branch. PR #1989
-updated only `CLAUDE.md` at first review; `47ee190` added both wiki pages, leaving the docs-writer one
-as a release-staging follow-up — that is the correct end state, so treat "3 of 4 + a flagged follow-up"
-as the passing bar, not 4 of 4.
+updated only `CLAUDE.md` at first review; `47ee190` added both wiki pages and left the docs-writer one
+as a release-staging follow-up. That is no longer acceptable: all 4 locations are the passing bar, with the
+docs-site entry done by docs-writer in the same session.
 
 Cheap way to find every location when adding a var: grep an _existing_ comparable var repo-wide
 (`grep -rln SESSION_DURATION --include='*.md' --include='*.yml' .`) instead of guessing which files

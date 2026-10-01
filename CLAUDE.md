@@ -98,7 +98,7 @@ The orchestrator uses the following skills to drive work. Each skill contains th
 | `/epic-run`      | Autonomous end-to-end epic: plan, develop all stories, close                                                                                                            | Epic description or issue number                                |
 | `/batch-develop` | Sequential development from a list/file: **each item gets its own branch and PR** (not bundled — contrast with `/develop`'s multi-item mode, which bundles into one PR) | Issue number list, or falls back to `/tmp/batch-queue.md`       |
 | `/mini-epic`     | Analyze a spec, decompose into 2–6 work items, challenge assumptions with the user, hand off to `/batch-develop`                                                        | Inline spec, `@file`, or issue number                           |
-| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, file adoption follow-ups                                          | None (always processes the full queue)                          |
+| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, implement or report adoptions                                     | None (always processes the full queue)                          |
 | `/fix-e2e`       | Iteratively analyze and fix failing E2E tests from a CI run until all shards pass                                                                                       | GitHub Actions run URL or ID                                    |
 | `/review-pr`     | Comprehensive full-team review of a PR not created by `/develop` (external contributions, Dependabot, re-reviews)                                                       | PR number                                                       |
 
@@ -111,7 +111,7 @@ Execution skills track their steps with the harness task tools. The standard rul
 - **Create the task list up front** (one task per skill step) before executing step 1, and keep it 1:1 with the skill's step numbering.
 - **Mark progress live**: set a task `in_progress` before starting its step and `completed` immediately after finishing it — never batch updates.
 - **Recovery**: after context compaction or session resume, call `TaskList` first and continue from the earliest non-completed task instead of restarting the skill.
-- **Dynamic tasks**: work discovered mid-skill (fix loops, follow-ups) gets its own task appended at the point of discovery, so the list stays a faithful record.
+- **Dynamic tasks**: work discovered mid-skill (fix loops, in-session fix PRs) gets its own task appended at the point of discovery, so the list stays a faithful record.
 
 ### Shared Mechanics Scripts
 
@@ -157,12 +157,14 @@ All requested reviewers must approve per the Reviewer Verdict Policy below befor
 
 ### Reviewer Verdict Policy
 
-One verdict matrix for all reviewer agents (product-architect, security-engineer, product-owner, ux-designer) — **fix-or-block**, designed so work completes in the session that started it:
+One verdict matrix for all reviewer agents (product-architect, security-engineer, product-owner, ux-designer) — **fix-or-block, no deferrals**: every finding is fixed in the session that found it, and the session ends with no new open issues or PRs.
 
-- **`gh pr review --request-changes`** — any Critical/High finding, any acceptance-criteria/API-contract/design-system violation, **and any Medium/Low finding that is low-effort and contained to the PR's files**. Label such findings `fix-in-session`; they are fixed in the same PR before merge, never deferred.
-- **`gh pr review --approve`** — no findings, or only findings that are genuinely out of scope for this PR (require a schema change, a new dependency, or touch unrelated code). Every deferral **must** be filed as a GitHub issue referenced in the review comment, with a one-line justification of why it cannot be fixed in-session. An unfiled or unjustified deferral is a policy violation, not an approval.
+- **`gh pr review --approve`** — **only with zero findings.** An approval that lists findings is a policy violation.
+- **`gh pr review --request-changes`** — **any finding, of any severity** (Critical through Low, nits included), including out-of-scope findings in touched or adjacent code. Label each finding `fix-in-session`. It is fixed in-session: in this PR when it touches this PR's files or their immediate neighbours, otherwise as a **separate fix PR in the same session** that the orchestrator schedules immediately (before the next story or batch item) and drives to merge. A finding that needs a schema change or a new dependency is still fixed in-session — it just goes through the architect first.
+- **Never file follow-up, deferral, or "tech-debt later" issues** — this applies to every agent, not just reviewers. There is no "approve and track it in an issue" path. Creating issues remains allowed only for **new work the user asks for** and **bugs the user reports** (e.g. `/develop` description entries, `/release` feedback grouping, `/mini-epic` work items).
+- **Findings that need a product decision** (ambiguous requirement, conflicting AC, a trade-off only the user can make) are escalated to the user **in-session** with the options laid out — never filed as an issue for later.
 - **Never use `--comment` as a verdict** — with one mechanical exception: GitHub rejects `--approve`/`--request-changes` from the token that authored the PR. When that happens, post the review as a comment whose **first line** is `VERDICT: APPROVE` or `VERDICT: REQUEST_CHANGES`; the orchestrator treats it identically.
-- **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further.
+- **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further — never convert them into issues.
 
 ### Delegation Enforcement
 

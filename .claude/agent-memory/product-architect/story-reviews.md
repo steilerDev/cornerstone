@@ -508,16 +508,9 @@ lines, and the queue is the only thing answering AC4 (unordered PATCHes leaving 
 Note #1920's evidence for #1955 was wrong (CSS `text-transform` vs `innerText()`); #1955 stands on
 source-tracing alone, and the traced mechanism holds.
 
-Open follow-ups I own or should file:
-
-- Document that the authority guard depends on `usePreferences` being per-instance (F1) — a
-  `PreferencesContext` refactor breaks it silently. **Mine to do**, on whichever PR introduces that store.
-- A failed column save is now permanently silent and no longer self-heals (F3): `drainSaves` swallows the
-  error, `useColumnPreferences` never destructures `error`, and the guard stops the echo from reconciling.
-  Pre-existing, made more durable. Follow-up: surface or retry once.
-- Pre-hydration toggle window (F4): editing before the mount fetch resolves discards stored prefs for the
-  session. Practically unreachable; `usePreferences.isLoading` is available if it ever matters.
-- `isLoaded` is dead API surface — returned by the hook, not destructured by `DataTable.tsx:171-172`.
+Open findings at the time (F1 per-instance-store dependency, F3 silent failed column save, F4
+pre-hydration window, dead `isLoaded`). Under the current no-deferral policy every one of these is a
+`fix-in-session` finding, never a follow-up to file.
 
 ## PR #1982 — #1937 (DE header word-break) + #1938 (running-header timestamp) — APPROVED
 
@@ -612,7 +605,7 @@ reads come from one snapshot and `'admin'` narrowing `'ad'` under `includes()` c
 `createLocalUser` stores the email verbatim (no lowercasing), so the POM's exact-equality `getUserRow`
 still matches the uppercase `E2E-` prefix in `${testPrefix}-${Date.now()}@…`. Also confirmed `DataTable`
 keeps both `tbody tr` rows and the mobile card list in the DOM, so the loops behave the same on all three
-viewports. Three non-blocking follow-ups (loop-vs-seeded-row discriminating power, non-worker-scoped
+viewports. Three further findings (loop-vs-seeded-row discriminating power, non-worker-scoped
 `no-match-<ts>` email, positional cell indices vs column preferences) — all recorded in
 [[recurring-patterns]].
 
@@ -899,11 +892,12 @@ became `totalItems`. Verified against `shared/src/types/invoice.ts:159-169` and
 `InvoicePipelineCard.tsx`, the `?create=1` gate at `InvoicesPage.tsx:277-293`, the navigation source at
 `DashboardPage.tsx:552`, trailers, and CI (shard 8/16 + Quality Gates green on 7b7a1ea).
 
-Five non-blocking follow-ups filed in the review comment, none yet ticketed:
+Five further findings were left in the review comment:
 type the fixtures against `InvoiceListPaginatedResponse` (would have caught both defects at typecheck —
 highest leverage); backfill `mockInvoices()` (latently broken, see recurring-patterns); refresh the
 stale JSDoc at ~L976 that enumerates an outdated field list; comment the duplicate-route-glob ordering
-dependency; re-add `@smoke` now that #1735 is in beta. **If these are still unticketed, file them.**
+dependency; re-add `@smoke` now that #1735 is in beta. Under the current policy these are `fix-in-session`
+findings — fix any that remain in-session; never file them as issues.
 
 Process note: memory updates for this review were left **uncommitted** rather than pushed onto the
 author's branch — appending a commit to an approved PR with green CI would retrigger E2E and invalidate
@@ -950,7 +944,7 @@ un-bumped and the PR technically still fails the finding.
 The unrelated repo-wide prettier union-collapse drift (5 files) was kept out of the commit after I
 flagged it; verified with `git diff --stat origin/beta...<head> -- <those paths>` being empty.
 
-Left three non-blocking follow-ups: stale signature in `overviewPdf.test.ts:10`'s header comment
+Left three further findings (would now be `fix-in-session`, not follow-ups): stale signature in `overviewPdf.test.ts:10`'s header comment
 (cross-reference rot, one layer down from the ADR lines this PR fixed), two read-side
 `as Map<string, string[]>` casts in `merge.test.ts:316,330`, and the `attachmentType` dynamic-key echo
 in `buildReportContent.ts:82` (same key-echo class, outside scope).

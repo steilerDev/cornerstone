@@ -99,7 +99,7 @@ Parse each posted review to determine the agent's verdict (`approve`, `request-c
 **Determine overall verdict** across both the posted reviews and dev-team-lead's mapped verdict:
 
 - **BLOCK**: any agent (including dev-team-lead's mapped verdict) is effectively `request-changes`
-- **APPROVE**: all posted reviews are `approve`/`comment` AND dev-team-lead returned `VERDICT: APPROVED`
+- **APPROVE**: all posted reviews are `approve` with zero findings AND dev-team-lead returned `VERDICT: APPROVED` (any finding means BLOCK — CLAUDE.md > Reviewer Verdict Policy; never file a follow-up issue in place of a fix)
 
 ### 5. Verdict Action
 

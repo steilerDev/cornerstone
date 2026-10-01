@@ -32,11 +32,12 @@ Create tasks upfront with `TaskCreate` so progress survives context compression:
 
 1. **Inventory** — fetch open Dependabot PRs and open alerts
 2. **Classify** — correlate alerts with PRs and bucket PRs by CI state
-3. **Process READY PRs** — per-PR sub-tasks added dynamically
-4. **Process FAILING PRs** — per-PR sub-tasks added dynamically
-5. **Process ORPHAN alerts** — per-alert sub-tasks added dynamically
-6. **File adoption follow-ups** — one batched issue per package
-7. **Final report**
+3. **Changelog analysis** — tiered changelog/security review of every PR before any merge or fix
+4. **Process READY PRs** — per-PR sub-tasks added dynamically
+5. **Process FAILING PRs** — per-PR sub-tasks added dynamically
+6. **Process ORPHAN alerts** — per-alert sub-tasks added dynamically
+7. **Implement or report adoption opportunities** — never filed as issues
+8. **Final report**
 
 Standard task-tracking rules apply — see CLAUDE.md > "Skill Task Tracking".
 
@@ -63,7 +64,7 @@ gh api repos/steilerDev/cornerstone/dependabot/alerts --paginate \
 
 Store both lists — they are your working set for the rest of the run.
 
-If both lists are empty, skip to step 7 and report "Nothing to do."
+If both lists are empty, skip to step 8 and report "Nothing to do."
 
 ### 2. Classify
 
@@ -118,7 +119,7 @@ For every PR (both `READY` and `FAILING`), run the changelog analysis once — a
 Decide:
 
 - `BLOCKING` security verdict OR any `BREAKING` finding → route the PR to step 5 (treat as failing) regardless of CI state, so the team can patch call sites before merging.
-- `ADOPTION_OPPORTUNITY` findings → queue for step 7 (one batched follow-up issue per run). Do not add inline adoption commits to the Dependabot branch — keeps the bump PR focused and the adoption work reviewable independently.
+- `ADOPTION_OPPORTUNITY` findings → queue for step 7 (implemented in this run as a separate adoption PR, or reported to the user in the final summary — never filed as an issue). Do not add inline adoption commits to the Dependabot branch — keeps the bump PR focused and the adoption work reviewable independently.
 - All other cases → proceed to step 4 (merge).
 
 ### 4. Process READY PRs
@@ -135,7 +136,7 @@ For each `READY` PR with no `BREAKING` or `BLOCKING` findings from step 3:
    ## Changelog review
    - Breaking: <none | list>
    - Bugfix-relevant: <none | list>
-   - Adoption opportunities: <none | "filed as #<follow-up-issue>">
+   - Adoption opportunities: <none | "queued for an adoption PR in this run" | "reported to the user">
    - Neutral: <summary>
 
    Approved by the `/dependabot` skill.
@@ -295,29 +296,12 @@ Wait for the beta CI gate: `bash scripts/ci-wait.sh <pr-number>`. On pass → sq
 
 After each alert (merged, blocked, or recommended for dismissal): return to the original worktree branch with `git checkout <original-branch>`.
 
-### 7. File adoption-opportunity follow-ups
+### 7. Implement or report adoption opportunities
 
-Aggregate every `ADOPTION_OPPORTUNITY` finding from step 3 into **one issue for the whole run** (sections per package) — not one issue per package; a scattered trail of small adoption issues is exactly the follow-up churn this repo is trying to eliminate. Skip entirely if there are no opportunities. File it as:
+Never file adoption opportunities as issues — follow-up issues are prohibited (CLAUDE.md > Reviewer Verdict Policy). Skip entirely if there are no opportunities. For each `ADOPTION_OPPORTUNITY` finding from step 3, decide:
 
-```bash
-gh issue create --repo steilerDev/cornerstone --label enhancement --title "Adopt new capabilities from <package> <version>" --body "$(cat <<'EOF'
-## Context
-The `<package>` bump (PR #<PR>) introduced new capabilities Cornerstone should adopt.
-
-## Opportunities
-- <bullet from product-architect: capability + suggested code path>
-- ...
-
-## References
-- Merged bump PR: #<PR>
-- Release notes: <link>
-
-🤖 Filed by `/dependabot`
-EOF
-)"
-```
-
-The issue should be picked up later via `/develop` — this skill does not implement adoptions inline.
+- **Implement in this run** when the adoption is a contained code change with a clear benefit: create a `chore/dependabot-adopt-<package>` branch from `beta` and run it through the standard `/develop` cycle (dev-team-lead spec → implementer → QA → review → `scripts/ci-wait.sh` → `scripts/squash-merge.sh`) as its own PR, after the bump PR has merged. Return to the original branch afterwards.
+- **Report to the user** in the step 8 summary when it needs a product decision or is too large to justify in a maintenance run — state the capability, the code path that would adopt it, and a recommendation. The user decides; nothing is filed.
 
 ### 8. Final report
 
@@ -330,7 +314,8 @@ Present to the user a table with these rows (omit rows with zero count):
 | PRs blocked (needs user)      | N     | `#126 (pkg) — <remaining error>`                                           |
 | Orphan alerts remediated      | N     | `GHSA-xxx → PR #200 merged`, ...                                           |
 | Alerts awaiting user decision | N     | `GHSA-yyy — no upstream patch; recommend dismissal with reason "<reason>"` |
-| Adoption follow-ups filed     | N     | `#250 (pkg)`, `#251 (pkg)`, ...                                            |
+| Adoptions implemented         | N     | `#250 (pkg) — adopted X in foo.ts`, ...                                    |
+| Adoptions awaiting user       | N     | `pkg — <capability>; recommend <adopt/skip>`                               |
 
 End with one-line summary: "Processed M open Dependabot PRs and N open alerts. Awaiting your decision on K items."
 
@@ -338,7 +323,7 @@ End with one-line summary: "Processed M open Dependabot PRs and N open alerts. A
 
 1. **Changelog reading is mandatory before any merge.** No dep is merged without architect + security-engineer verdicts on record. This catches silent breaking changes and surfaces useful new capabilities.
 2. **The orchestrator never writes code, never merges without verification, never dismisses an alert.** All code changes flow through agents; dismissals require explicit user approval.
-3. **Surface adoption opportunities, don't bury them.** Even when the bump itself is a one-line version change, the changelog often hides improvements Cornerstone should adopt. File them as enhancement issues so they enter the normal `/develop` queue.
+3. **Surface adoption opportunities, don't bury them — and don't file them.** Even when the bump itself is a one-line version change, the changelog often hides improvements Cornerstone should adopt. Implement them in this run as a separate PR, or report them to the user in the final summary; never file them as issues.
 4. **Iterate, don't escalate too early.** A failing PR gets up to 3 fix iterations (matching the spirit of `/fix-e2e`) before going back to the user.
 5. **Trailers reflect the work.** Every commit onto a Dependabot branch (or onto a new `fix/dependabot-*` branch) must carry the correct `Co-Authored-By` trailers per CLAUDE.md's trailer-verification rules. `dev-team-lead [MODE: commit]` enforces this.
 6. **Return to the original branch between PRs.** The user invoked this skill from a worktree; the skill must leave that worktree on the same branch it started on.

@@ -42,22 +42,22 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 - jsdom renders BOTH, so `getByRole` becomes ambiguous. `getAllByRole(...)[0]` is the accepted convention here — legitimate disambiguation, not a weakened test. But `getByText` → `getAllByText(...).length > 0` does drop the "exactly one" guarantee; `within(desktopTable)` keeps both properties.
 - Check any scoped CSS-class fix (e.g. a `justify-self` chip fix) is not overridden or bypassed by the new media query, and that a shared wrapper class (`.tableWrapper`) hidden on mobile isn't also used by an unrelated always-visible region.
 
-## Display-formatting cluster (verdict = `--comment` "MUST FIX", non-blocking)
+## Display-formatting cluster (verdict = `--request-changes`, `fix-in-session`)
 
 - **Raw date strings** — pass API date fields through `formatDate()` before rendering. PR #402 (Story 4.7) rendered `workItem.startDate/endDate` raw while the same PR used `formatDate()` elsewhere. 3rd+ occurrence.
 - **CONFIDENCE_MARGINS fraction vs percentage** — values are decimals (0.2 = 20%). Use `Math.round(CONFIDENCE_MARGINS[...] * 100)`. PR #401 displayed raw "0.2%".
 - **Conditional row rendering vs "—" placeholder** — optional field rows must render unconditionally with a ternary `{item.field ? value : '—'}`, not `{item.field && (...)}` which hides the row. PRs #151 (Notes), #400 (vendor/URL).
 - **Missing display field** — verify list/table rendering, not just forms. PR #414 (Story 4.9) omitted invoice date (AC #6) and had no "Linked To" column / VendorDetailPage change (AC #9).
 - **Color-coded status badge gaps** — when ACs specify colors, verify tokens.css was updated. PR #152 borrowed work-item status tokens for a pending-invoice badge instead of dedicated amber tokens (BLOCKING UX deviation). PR #153 "Exhausted" badge used gray instead of amber.
-- **CSS token deviation from UX spec** — e.g. `--color-danger-active` vs `--color-danger-text-on-light`. Non-blocking. PRs #151, #152.
+- **CSS token deviation from UX spec** — e.g. `--color-danger-active` vs `--color-danger-text-on-light`. `fix-in-session`. PRs #151, #152.
 
 ## Error-handling / API patterns
 
 - **Specific error codes in ACs** — when an AC names a custom code (e.g. `MUTUALLY_EXCLUSIVE_BUDGET_LINK`), verify `AppError` uses it, not a subclass returning generic `VALIDATION_ERROR`. PR #414.
 - **409 error message specificity** — use backend `details` (e.g. `{invoiceCount, workItemCount}`) to build precise messages. PR #151 mentioned only invoices.
 - **Server-side error parsing** — generic banners ("Failed to create…") don't surface field-level validation errors. Recurring in form pages.
-- **AC vs UAT discrepancy** — ACs are source of truth. PR #56: AC #6 `ACCOUNT_DEACTIVATED` vs UAT "generic message". Flag non-blocking.
-- **UAT scenarios exceeding ACs** — UAT sometimes adds constraints not in ACs (char limits, reorder-all-IDs). ACs win; flag UAT gaps as non-blocking refinement.
+- **AC vs UAT discrepancy** — ACs are source of truth. PR #56: AC #6 `ACCOUNT_DEACTIVATED` vs UAT "generic message". Flag as a `fix-in-session` finding.
+- **UAT scenarios exceeding ACs** — UAT sometimes adds constraints not in ACs (char limits, reorder-all-IDs). ACs win; flag UAT gaps as `fix-in-session` findings (or escalate to the user in-session if they need a product decision).
 - **Frontend/backend validation boundary** — PR #153: frontend allowed `totalAmount=0` (min=0) but backend `exclusiveMinimum: 0` rejects. Keep client validation consistent with server.
 - **specialty/field maxLength mismatch** — PR #151 frontend `maxLength={100}` vs backend 200. Verify frontend maxLength matches backend schema.
 - **Multi-select vs single-select filters** — Story 3.5 AC #4 said "multi-select" but impl used single `<select>`. Be explicit in ACs.
@@ -102,9 +102,11 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 
 ## When to Request Changes vs Approve
 
-- **`--request-changes`**: functional AC not met (broken CRUD/calc/nav), critical accessibility missing, or tests not written by QA / missing E2E for "Automated (E2E)" scenarios.
-- **`--comment` "MUST FIX before merge"**: non-functional gaps only (display/formatting/placeholder/date/number). Must be fixed but non-blocking to the review loop.
-- **`--approve`**: all ACs met, all agent reviews present, minor improvements as comments only. Conditional approve when only security-engineer/product-architect reviews are pending.
+Per CLAUDE.md > Reviewer Verdict Policy (no deferrals):
+
+- **`--request-changes`**: any finding at all — functional AC not met, critical accessibility missing, tests not written by QA / missing E2E for "Automated (E2E)" scenarios, and non-functional gaps (display/formatting/placeholder/date/number). Every finding is labelled `fix-in-session` and fixed before merge (or in a same-session fix PR for unrelated code).
+- **`--approve`**: all ACs met, all agent reviews present, **zero findings**. Conditional approve when only security-engineer/product-architect reviews are pending.
+- **Never** file follow-up issues; findings that need a product decision go to the user in-session.
 
 ## LLM/prompt-assembly defects (new class, PR #1916)
 
@@ -138,7 +140,7 @@ When a PR adds a mobile card list beside a desktop table, re-check rather than a
 - **`timeWindow: '0s'` makes every login request 500** (`@fastify/rate-limit` v11 + `@lukeed/ms`). CORRECTED in round 2: my round-1 mechanism (`LocalStore.incr` resetting the counter every request, i.e. silent disable) was **wrong**; `product-architect`'s was right and verified against `node_modules`. `parse('0s')` returns `undefined` because its guard is `if (arr != null && (num = parseFloat(arr[1])))` and `0` is falsy; `mergeParams()`'s `if / else if` chain therefore never falls through to `defaultTimeWindow`, and request time does `await params.timeWindow(req, key)` on `undefined` → `params.timeWindow is not a function`. Same AC2 violation, worse blast radius. **Lesson: a store-level mechanism argument read off one file is not verification — the value passes through `mergeParams()` first.** Trace the whole path (route options → `mergeParams` → store) before naming a mechanism in a review, or the fix gets designed against the wrong failure.
 - **`max` and `timeWindow` are independent branches in `mergeParams()`** (`node_modules/@fastify/rate-limit/index.js:163-175`), and route options merge over `globalParams` via `Object.assign`. So an assertion on `x-ratelimit-limit` proves **only** `max`; deleting the route's `timeWindow` line silently inherits the global window with that assertion still green. PR #1989 round 2 shipped exactly that and its commit message claimed it closed the window gap — it did not. **When an author reports a verification gap as fixed, re-derive the mutation yourself** ("delete the wiring line — does this specific assertion fail?"); a plausible-sounding fix to an assertion gap is the easiest thing to wave through twice.
 - **Hand-rolled regex duplicating a library's grammar drifts in BOTH directions.** The `ms`-format regex accepted `0.5ms` (useless) and rejected `1y` (valid `ms`). Prefer "call the library, require a positive finite result" — one check instead of a guard beside a duplicated grammar.
-- **A "house convention" ruling still deserves a tracked owner when three reviewers independently trip on it.** Round 2 filed **#1991** (tech-debt, Could Have, Backlog) for uniform integer parsing across the eight `parseInt` call sites in `loadConfig()` — the ruling stays "out of scope for #1970", but `product-architect` (Medium) and `security-engineer` (Low) both raised it, so leaving it purely as a review comment guarantees a fourth reviewer raises it again. Same shape as the #1950 ruling: bounded-and-quantified earns a tracked owner.
+- **A "house convention" that three reviewers independently trip on is a finding to fix, not to rule away.** Round 2 of PR #1989 filed **#1991** (uniform integer parsing across the eight `parseInt` call sites in `loadConfig()`) as tech-debt — under the current no-deferral policy that is prohibited: fix the convention in-session (this PR or a same-session fix PR) instead of filing it.
 - **Before flagging leniency, check whether it is the house convention.** `parseInt` + `isNaN || <= 0` lets `20abc`→20 and `1e9`→1 through, but `BACKUP_RETENTION`, `LLM_MAX_TOKENS`, and `LLM_REQUEST_TIMEOUT_MS` in `config.ts` all use the identical form. Tightening one of four makes the file _less_ consistent → ruled explicitly out of scope and labelled informational. Grep the sibling cases in the same file before writing a finding; distinguish "misparse still yields a working control" from "yields no control".
 - **"Asserted by a test that observes the effective limit" means: would this test fail if the wiring line were deleted?** #1989 proved `max` end-to-end (set to 3, 4th request 429s) but nothing proved `timeWindow` reached the route — deleting it would fall back to the global `1 minute` with every test still green. `x-ratelimit-reset` = `Math.ceil(ttl/1000)` makes the window observable (`30s` → ~30 vs global default ~60). Same family as the "assertions that pass on nothing" pattern: the header test asserted only `toBeDefined()`.
 - **Run the mutation, don't read the assertion.** Round 3 (`5446b29a`) closed the gap with `expect(response.headers['x-ratelimit-reset']).toBe('900')`. I verified it by _deleting_ `timeWindow` from `auth.ts:147` locally, running the single test file (`Expected: "900" / Received: "60"`), then `git checkout -- server/src/routes/auth.ts`. Reading a specific-looking assertion cannot distinguish load-bearing from decorative — round 2 is proof, since I nearly waved through an assertion that looked equally specific. Mutate + revert stays inside PO boundaries: it is verification, not authoring. Do this whenever an AC's evidence is of the form "this test proves X reached Y".

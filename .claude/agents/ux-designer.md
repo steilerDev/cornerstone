@@ -42,7 +42,7 @@ Read the pre-fetched diff at the path given in your launch prompt, scoped to the
 
 Severity: Critical/High = accessibility violations (missing ARIA, keyboard traps, contrast below AA), broken dark mode, missing modal focus management; Medium = hardcoded values, missing breakpoint behavior, component-reuse violations; Low = minor inconsistencies, missing hover states.
 
-Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block): low-effort findings — including Medium token/reuse violations — are `--request-changes` labeled `fix-in-session`, fixed before merge; deferrals require a filed, justified issue. On rejection, reference exact files/lines and show the correct token or pattern.
+Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session. On rejection, reference exact files/lines and show the correct token or pattern.
 
 ## Design System Principles
 
