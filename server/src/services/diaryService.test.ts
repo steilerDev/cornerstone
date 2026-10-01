@@ -1235,4 +1235,693 @@ describe('diaryService', () => {
       expect(() => findOrphanDraftIds(db, 0)).not.toThrow();
     });
   });
+
+  // ─── Signature lock (#2124) and issue signatures (#2125) ──────────────────
+
+  describe('signature lock rule (#2124)', () => {
+    const sig = (name = 'Signer') => ({
+      signerName: name,
+      signerType: 'self' as const,
+      signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    });
+
+    it('allows a body update on a signed draft (mutation: lock ignores status)', () => {
+      const id = insertEntry({
+        status: 'draft',
+        metadata: JSON.stringify({ signatures: [sig()] }),
+      });
+      const result = updateDiaryEntry(db, id, { body: 'edited while draft' });
+      expect(result.body).toBe('edited while draft');
+      expect(result.isSigned).toBe(true);
+    });
+
+    it('allows replacing the signatures on a signed draft', () => {
+      const id = insertEntry({
+        status: 'draft',
+        metadata: JSON.stringify({ signatures: [sig('Old')] }),
+      });
+      const result = updateDiaryEntry(db, id, { metadata: { signatures: [sig('New')] } });
+      const m = result.metadata as { signatures: Array<{ signerName: string }> };
+      expect(m.signatures.map((s) => s.signerName)).toEqual(['New']);
+    });
+
+    it('allows removing the signatures on a signed draft, making isSigned false', () => {
+      const id = insertEntry({
+        status: 'draft',
+        metadata: JSON.stringify({ signatures: [sig()] }),
+      });
+      const result = updateDiaryEntry(db, id, { metadata: { signatures: [] } });
+      expect(result.isSigned).toBe(false);
+    });
+
+    it('rejects an update on a signed saved entry with 403 ImmutableEntryError', () => {
+      const id = insertEntry({
+        status: 'saved',
+        metadata: JSON.stringify({ signatures: [sig()] }),
+      });
+      let thrown: unknown;
+      try {
+        updateDiaryEntry(db, id, { body: 'nope' });
+      } catch (err) {
+        thrown = err;
+      }
+      expect(thrown).toBeInstanceOf(ImmutableEntryError);
+      expect((thrown as ImmutableEntryError).statusCode).toBe(403);
+      expect(getDiaryEntry(db, id).body).toBe('Test body content');
+    });
+
+    it('does not lock an unsigned saved entry', () => {
+      const id = insertEntry({ status: 'saved' });
+      expect(updateDiaryEntry(db, id, { body: 'fine' }).body).toBe('fine');
+    });
+
+    it('promotes a signed draft to saved (isSigned stays true) and then locks it', () => {
+      const id = insertEntry({
+        status: 'draft',
+        entryType: 'daily_log',
+        entryDate: '2026-03-14',
+        body: 'Ready',
+        metadata: JSON.stringify({ signatures: [sig()] }),
+      });
+      const promoted = promoteDiaryEntry(db, id, {});
+      expect(promoted.status).toBe('saved');
+      expect(promoted.isSigned).toBe(true);
+      expect(() => updateDiaryEntry(db, id, { body: 'after promote' })).toThrow(
+        ImmutableEntryError,
+      );
+    });
+
+    it('still allows deleting a signed saved entry', async () => {
+      const id = insertEntry({
+        status: 'saved',
+        metadata: JSON.stringify({ signatures: [sig()] }),
+      });
+      await deleteDiaryEntry(db, id, photoStoragePath);
+      expect(() => getDiaryEntry(db, id)).toThrow(NotFoundError);
+    });
+  });
+
+  describe('issue signatures validation (#2125)', () => {
+    const validSig = {
+      signerName: 'Alice',
+      signerType: 'self' as const,
+      signatureDataUrl: 'data:image/png;base64,AAAA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const issueMeta = (signatures: unknown) =>
+      ({ severity: 'high', resolutionStatus: 'open', signatures }) as never;
+
+    it('accepts a valid issue signature on a saved create and reports isSigned', () => {
+      const result = createDiaryEntry(db, testUserId, {
+        entryType: 'issue',
+        entryDate: '2026-03-14',
+        body: 'Leak',
+        metadata: issueMeta([validSig]),
+      });
+      expect(result.isSigned).toBe(true);
+    });
+
+    it('accepts a valid issue signature on a draft create', () => {
+      const result = createDiaryEntry(db, testUserId, {
+        entryType: 'issue',
+        status: 'draft',
+        metadata: issueMeta([validSig]),
+      });
+      expect(result.status).toBe('draft');
+      expect(result.isSigned).toBe(true);
+    });
+
+    it('accepts an issue signature on update', () => {
+      const id = insertEntry({
+        entryType: 'issue',
+        metadata: JSON.stringify({ severity: 'high', resolutionStatus: 'open' }),
+      });
+      const result = updateDiaryEntry(db, id, { metadata: issueMeta([validSig]) });
+      expect(result.isSigned).toBe(true);
+    });
+
+    it('accepts null signatures on an issue', () => {
+      expect(() =>
+        createDiaryEntry(db, testUserId, {
+          entryType: 'issue',
+          entryDate: '2026-03-14',
+          body: 'x',
+          metadata: issueMeta(null),
+        }),
+      ).not.toThrow();
+    });
+
+    const cases: Array<[string, unknown, string]> = [
+      [
+        'empty signerName',
+        [{ ...validSig, signerName: '' }],
+        'issue signature entry must have non-empty signerName',
+      ],
+      [
+        'whitespace signerName',
+        [{ ...validSig, signerName: '   ' }],
+        'issue signature entry must have non-empty signerName',
+      ],
+      [
+        'bad signerType',
+        [{ ...validSig, signerType: 'robot' }],
+        'issue signature entry signerType must be "self" or "vendor"',
+      ],
+      [
+        'missing signerType',
+        [{ ...validSig, signerType: undefined }],
+        'issue signature entry signerType must be "self" or "vendor"',
+      ],
+      [
+        'empty signatureDataUrl',
+        [{ ...validSig, signatureDataUrl: '' }],
+        'issue signature entry must have non-empty signatureDataUrl',
+      ],
+      [
+        'empty signedAt',
+        [{ ...validSig, signedAt: '' }],
+        'issue signature entry signedAt must be a non-empty string if provided',
+      ],
+      [
+        'non-string signedAt',
+        [{ ...validSig, signedAt: 5 }],
+        'issue signature entry signedAt must be a non-empty string if provided',
+      ],
+      ['non-array', 'abc', 'issue signatures must be an array or null'],
+    ];
+    it.each(cases)('rejects %s with the exact message', (_label, signatures, message) => {
+      expect(() =>
+        createDiaryEntry(db, testUserId, {
+          entryType: 'issue',
+          entryDate: '2026-03-14',
+          body: 'x',
+          metadata: issueMeta(signatures),
+        }),
+      ).toThrow(new InvalidMetadataError(message));
+    });
+
+    it.each([
+      ['daily_log', { weather: 'sunny' }],
+      ['site_visit', {}],
+      ['issue', { severity: 'high', resolutionStatus: 'open' }],
+    ] as const)(
+      '%s: non-object signature elements throw InvalidMetadataError, not TypeError',
+      (entryType, base) => {
+        for (const bad of [null, 'x', 5]) {
+          let thrown: unknown;
+          try {
+            createDiaryEntry(db, testUserId, {
+              entryType,
+              entryDate: '2026-03-14',
+              body: 'x',
+              metadata: { ...base, signatures: [bad] } as never,
+            });
+          } catch (err) {
+            thrown = err;
+          }
+          expect(thrown).toBeInstanceOf(InvalidMetadataError);
+          expect((thrown as Error).message).toBe(`${entryType} signature entry must be an object`);
+        }
+      },
+    );
+
+    it('regression: daily_log and site_visit keep their original messages', () => {
+      const mk = (entryType: 'daily_log' | 'site_visit', signatures: unknown) =>
+        createDiaryEntry(db, testUserId, {
+          entryType,
+          entryDate: '2026-03-14',
+          body: 'x',
+          metadata: { signatures } as never,
+        });
+      expect(() => mk('daily_log', [{ ...validSig, signerName: '' }])).toThrow(
+        'daily_log signature entry must have non-empty signerName',
+      );
+      expect(() => mk('daily_log', 'abc')).toThrow('daily_log signatures must be an array or null');
+      expect(() => mk('site_visit', [{ ...validSig, signerType: 'x' }])).toThrow(
+        'site_visit signature entry signerType must be "self" or "vendor"',
+      );
+      expect(() => mk('site_visit', [{ ...validSig, signatureDataUrl: ' ' }])).toThrow(
+        'site_visit signature entry must have non-empty signatureDataUrl',
+      );
+      expect(() => mk('site_visit', [{ ...validSig, signedAt: '' }])).toThrow(
+        'site_visit signature entry signedAt must be a non-empty string if provided',
+      );
+    });
+  });
+
+  // ─── Whole-file coverage: metadata validation, source titles, promote rules ─
+
+  describe('metadata validation matrix', () => {
+    const create = (entryType: CreateDiaryEntryRequest['entryType'], metadata: unknown) =>
+      createDiaryEntry(db, testUserId, {
+        entryType,
+        entryDate: '2026-03-14',
+        body: 'body',
+        metadata: metadata as never,
+      });
+
+    const invalid: Array<[CreateDiaryEntryRequest['entryType'], unknown, string]> = [
+      [
+        'daily_log',
+        { temperatureCelsius: 'hot' },
+        'daily_log temperatureCelsius must be a number or null',
+      ],
+      [
+        'daily_log',
+        { workersOnSite: -1 },
+        'daily_log workersOnSite must be a non-negative integer or null',
+      ],
+      [
+        'daily_log',
+        { workersOnSite: 1.5 },
+        'daily_log workersOnSite must be a non-negative integer or null',
+      ],
+      ['daily_log', { vendorId: '  ' }, 'daily_log vendorId must be a non-empty string or null'],
+      ['daily_log', { vendorId: 7 }, 'daily_log vendorId must be a non-empty string or null'],
+      [
+        'daily_log',
+        { vendorId: 'ghost' },
+        'daily_log vendorId "ghost" does not reference an existing vendor',
+      ],
+      [
+        'daily_log',
+        { workStart: '8am' },
+        'daily_log workStart must be a valid HH:mm time string or null',
+      ],
+      [
+        'daily_log',
+        { workEnd: '5pm' },
+        'daily_log workEnd must be a valid HH:mm time string or null',
+      ],
+      ['site_visit', { inspectorName: 5 }, 'site_visit inspectorName must be a string or null'],
+      [
+        'site_visit',
+        { outcome: 'bad' },
+        'site_visit outcome must be one of: pass, fail, conditional',
+      ],
+      ['delivery', { vendor: 5 }, 'delivery vendor must be a string or null'],
+      ['delivery', { materials: 'wood' }, 'delivery materials must be an array or null'],
+      ['delivery', { materials: ['wood', 1] }, 'delivery materials must be an array of strings'],
+      ['delivery', { deliveryConfirmed: 'yes' }, 'delivery deliveryConfirmed must be a boolean'],
+      ['issue', { severity: 'bad' }, 'issue severity must be one of: low, medium, high, critical'],
+      [
+        'issue',
+        { resolutionStatus: 'bad' },
+        'issue resolutionStatus must be one of: open, in_progress, resolved',
+      ],
+    ];
+    it.each(invalid)('%s rejects %j with the exact message', (entryType, metadata, message) => {
+      expect(() => create(entryType, metadata)).toThrow(new InvalidMetadataError(message));
+    });
+
+    const valid: Array<[CreateDiaryEntryRequest['entryType'], unknown]> = [
+      [
+        'daily_log',
+        {
+          weather: null,
+          temperatureCelsius: null,
+          workersOnSite: null,
+          signatures: null,
+          vendorId: null,
+          workStart: null,
+          workEnd: null,
+        },
+      ],
+      [
+        'daily_log',
+        { temperatureCelsius: -3.5, workersOnSite: 0, workStart: '07:30', workEnd: '16:00' },
+      ],
+      ['site_visit', { inspectorName: null, outcome: null, signatures: null }],
+      ['site_visit', { inspectorName: 'Bob', outcome: 'conditional' }],
+      ['delivery', { vendor: null, materials: null }],
+      ['delivery', { vendor: 'TimberCo', materials: ['oak'], deliveryConfirmed: true }],
+      ['issue', { severity: null, resolutionStatus: null, signatures: null }],
+      ['issue', { severity: 'low', resolutionStatus: 'resolved' }],
+      ['general_note', { anything: 'goes' }],
+    ];
+    it.each(valid)('%s accepts %j', (entryType, metadata) => {
+      expect(() => create(entryType, metadata)).not.toThrow();
+    });
+
+    it('accepts an existing vendorId and denormalizes vendorName on read', () => {
+      const now = new Date().toISOString();
+      db.insert(vendors).values({ id: 'v-1', name: 'Acme', createdAt: now, updatedAt: now }).run();
+      const created = create('daily_log', { vendorId: 'v-1' });
+      expect((created.metadata as DailyLogMetadataTest).vendorName).toBe('Acme');
+    });
+
+    it('sets vendorName to null when the referenced vendor no longer exists', () => {
+      const id = insertEntry({ metadata: JSON.stringify({ vendorId: 'gone' }) });
+      expect((getDiaryEntry(db, id).metadata as DailyLogMetadataTest).vendorName).toBeNull();
+    });
+
+    it('update with metadata: null skips validation and clears metadata', () => {
+      const id = insertEntry({ metadata: JSON.stringify({ weather: 'sunny' }) });
+      expect(updateDiaryEntry(db, id, { metadata: null }).metadata).toBeNull();
+    });
+
+    it('update rejects metadata over 2MB', () => {
+      const id = insertEntry({ entryType: 'general_note' });
+      expect(() =>
+        updateDiaryEntry(db, id, { metadata: { blob: 'x'.repeat(2_100_000) } as never }),
+      ).toThrow('Metadata must not exceed 2MB when serialized');
+    });
+
+    it('create rejects metadata over 2MB', () => {
+      expect(() => create('general_note', { blob: 'x'.repeat(2_100_000) })).toThrow(
+        'Metadata must not exceed 2MB when serialized',
+      );
+    });
+
+    it('treats unparseable stored metadata as null', () => {
+      const id = insertEntry({ metadata: '{not json' });
+      expect(getDiaryEntry(db, id).metadata).toBeNull();
+    });
+  });
+
+  describe('list type filter and source entity titles', () => {
+    it('filters by several comma-separated types', () => {
+      const a = insertEntry({ entryType: 'daily_log' });
+      const b = insertEntry({ entryType: 'issue' });
+      insertEntry({ entryType: 'general_note' });
+      const ids = listDiaryEntries(db, { type: 'daily_log,issue' }).items.map((i) => i.id);
+      expect(ids.sort()).toEqual([a, b].sort());
+    });
+
+    it('a type filter containing only separators applies no type condition', () => {
+      insertEntry({ entryType: 'daily_log' });
+      insertEntry({ entryType: 'issue' });
+      expect(listDiaryEntries(db, { type: ' , ' }).items).toHaveLength(2);
+    });
+
+    it('resolves a null title for a source entity that does not exist', () => {
+      for (const type of ['work_item', 'invoice', 'milestone'] as const) {
+        const id = insertEntry({
+          isAutomatic: true,
+          entryType: 'work_item_status',
+          createdBy: null,
+          sourceEntityType: type,
+          sourceEntityId: type === 'milestone' ? '99999' : 'missing',
+        });
+        expect(getDiaryEntry(db, id).sourceEntityTitle).toBeNull();
+      }
+    });
+
+    it('resolves a null title for an unknown source entity type', () => {
+      const id = insertEntry({
+        isAutomatic: true,
+        entryType: 'work_item_status',
+        createdBy: null,
+        sourceEntityType: 'subsidy_program',
+        sourceEntityId: 'x',
+      });
+      expect(getDiaryEntry(db, id).sourceEntityTitle).toBeNull();
+    });
+  });
+
+  describe('promoteDiaryEntry required-field rules', () => {
+    const draft = (overrides: Partial<typeof diaryEntries.$inferInsert> = {}) =>
+      insertEntry({ status: 'draft', entryType: 'general_note', metadata: null, ...overrides });
+
+    it('rejects an invalid entry date', () => {
+      const id = draft({ entryDate: '' });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(
+        'Entry date is required and must be in YYYY-MM-DD format',
+      );
+    });
+
+    it('rejects a blank body', () => {
+      const id = draft({ body: '   ' });
+      expect(() => promoteDiaryEntry(db, id, {})).toThrow(
+        'Entry body is required and cannot be empty',
+      );
+    });
+
+    it('site_visit requires inspectorName and outcome', () => {
+      const noMeta = draft({ entryType: 'site_visit' });
+      expect(() => promoteDiaryEntry(db, noMeta, {})).toThrow(/non-empty inspectorName/);
+      const noOutcome = draft({
+        entryType: 'site_visit',
+        metadata: JSON.stringify({ inspectorName: 'Bob' }),
+      });
+      expect(() => promoteDiaryEntry(db, noOutcome, {})).toThrow(/require outcome/);
+      const badOutcome = draft({
+        entryType: 'site_visit',
+        metadata: JSON.stringify({ inspectorName: 'Bob', outcome: 'meh' }),
+      });
+      expect(() => promoteDiaryEntry(db, badOutcome, {})).toThrow(/require outcome/);
+    });
+
+    it('issue requires severity and resolutionStatus', () => {
+      const noMeta = draft({ entryType: 'issue' });
+      expect(() => promoteDiaryEntry(db, noMeta, {})).toThrow(/require severity/);
+      const badSeverity = draft({
+        entryType: 'issue',
+        metadata: JSON.stringify({ severity: 'meh', resolutionStatus: 'open' }),
+      });
+      expect(() => promoteDiaryEntry(db, badSeverity, {})).toThrow(/require severity/);
+      const noResolution = draft({
+        entryType: 'issue',
+        metadata: JSON.stringify({ severity: 'high' }),
+      });
+      expect(() => promoteDiaryEntry(db, noResolution, {})).toThrow(/require resolutionStatus/);
+      const badResolution = draft({
+        entryType: 'issue',
+        metadata: JSON.stringify({ severity: 'high', resolutionStatus: 'meh' }),
+      });
+      expect(() => promoteDiaryEntry(db, badResolution, {})).toThrow(/require resolutionStatus/);
+    });
+
+    it('rejects override metadata over 2MB', () => {
+      const id = draft();
+      expect(() =>
+        promoteDiaryEntry(db, id, { metadata: { blob: 'x'.repeat(2_100_000) } as never }),
+      ).toThrow('Metadata must not exceed 2MB when serialized');
+    });
+
+    it('applies a title override of null and keeps null metadata', () => {
+      const id = draft({ title: 'Old' });
+      const result = promoteDiaryEntry(db, id, { title: null });
+      expect(result.title).toBeNull();
+      expect(result.metadata).toBeNull();
+      expect(result.status).toBe('saved');
+    });
+  });
+
+  describe('signature hardening (data URL, name, date, count)', () => {
+    const PNG =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    const MAX = 512 * 1024;
+    const PREFIX = 'data:image/png;base64,';
+    const base = {
+      signerName: 'Alice',
+      signerType: 'self' as const,
+      signatureDataUrl: PNG,
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const types = [
+      ['daily_log', { weather: 'sunny' }],
+      ['site_visit', {}],
+      ['issue', { severity: 'high', resolutionStatus: 'open' }],
+    ] as const;
+
+    const create = (
+      entryType: 'daily_log' | 'site_visit' | 'issue',
+      extra: Record<string, unknown>,
+      signatures: unknown[],
+    ) =>
+      createDiaryEntry(db, testUserId, {
+        entryType,
+        entryDate: '2026-03-14',
+        body: 'x',
+        metadata: { ...extra, signatures } as never,
+      });
+
+    const urlMsg = (t: string) =>
+      `${t} signature entry signatureDataUrl must be a base64 png, jpeg or webp data URL of at most 512 KB`;
+
+    describe.each(types)('%s', (entryType, extra) => {
+      const reject = (sig: Record<string, unknown>, message: string) =>
+        expect(() => create(entryType, extra, [{ ...base, ...sig }])).toThrow(
+          new InvalidMetadataError(message),
+        );
+
+      it.each([
+        ['an https URL', 'https://example.com/sig.png'],
+        ['a javascript: URL', 'javascript:alert(1)'],
+        ['a text/html data URL', 'data:text/html;base64,PGh0bWw+'],
+        ['an svg data URL', 'data:image/svg+xml;base64,PHN2Zz4='],
+        ['a non-base64 png data URL', 'data:image/png;base64,not base64!'],
+        ['an empty payload', 'data:image/png;base64,'],
+      ])('rejects %s', (_l, url) => reject({ signatureDataUrl: url }, urlMsg(entryType)));
+
+      it('rejects a data URL one character over the limit', () => {
+        const over = PREFIX + 'A'.repeat(MAX - PREFIX.length + 1);
+        expect(over.length).toBe(MAX + 1);
+        reject({ signatureDataUrl: over }, urlMsg(entryType));
+      });
+
+      it('accepts a data URL of exactly the limit', () => {
+        const exact = PREFIX + 'A'.repeat(MAX - PREFIX.length);
+        expect(exact.length).toBe(MAX);
+        expect(create(entryType, extra, [{ ...base, signatureDataUrl: exact }]).isSigned).toBe(
+          true,
+        );
+      });
+
+      it.each(['png', 'jpeg', 'webp'])('accepts a valid %s data URL', (fmt) => {
+        const url = `data:image/${fmt};base64,AAAA`;
+        expect(create(entryType, extra, [{ ...base, signatureDataUrl: url }]).isSigned).toBe(true);
+      });
+
+      it('rejects a signerName of 301 characters and accepts 300', () => {
+        reject(
+          { signerName: 'a'.repeat(301) },
+          `${entryType} signature entry signerName must not exceed 300 characters`,
+        );
+        expect(create(entryType, extra, [{ ...base, signerName: 'a'.repeat(300) }]).isSigned).toBe(
+          true,
+        );
+      });
+
+      it('measures the signerName after trimming', () => {
+        expect(
+          create(entryType, extra, [{ ...base, signerName: `  ${'a'.repeat(300)}  ` }]).isSigned,
+        ).toBe(true);
+      });
+
+      it.each([['not a date'], ['2026-13-45T99:99']])('rejects signedAt %j', (bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it.each([
+        ['trailing junk after a valid ISO', '2026-01-01T10:00:00.000Zjunk'],
+        ['a date-only value', '2026-01-01'],
+        ['leading whitespace', ' 2026-01-01T10:00:00.000Z'],
+        ['a very long trailing suffix', '2026-01-01T10:00:00.000Z' + ' '.repeat(60)],
+        ['a missing timezone', '2026-01-01T10:00:00'],
+      ])('rejects signedAt with %s', (_l, bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it.each([
+        ['an impossible day (Feb 30)', '2026-02-30T00:00Z'],
+        ['an impossible month (13)', '2026-13-01T00:00Z'],
+        ['month 00', '2026-00-10T00:00Z'],
+        ['day 31 in a 30-day month', '2026-04-31T00:00Z'],
+        ['hour 25', '2026-01-01T25:00Z'],
+        ['second 99', '2026-01-01T10:00:99Z'],
+        ['a negative offset hour of 24', '2026-01-01T10:00-24:00'],
+        ['a negative offset minute of 60', '2026-01-01T10:00-01:60'],
+        ['hour 24', '2026-01-01T24:00Z'],
+        ['minute 60', '2026-01-01T10:60Z'],
+        ['second 60', '2026-01-01T10:00:60Z'],
+        ['an offset hour of 24', '2026-01-01T10:00+24:00'],
+        ['an offset minute of 60', '2026-01-01T10:00+01:60'],
+        ['Feb 29 in a non-leap year', '2026-02-29T00:00Z'],
+        ['day 00', '2026-01-00T00:00Z'],
+      ])('rejects signedAt with %s', (_l, bad) =>
+        reject({ signedAt: bad }, `${entryType} signature entry signedAt must be a valid date`),
+      );
+
+      it.each([
+        ['a leap day', '2024-02-29T00:00Z'],
+        ['a leap day in year 0 (no 1900 remap)', '0000-02-29T00:00Z'],
+        ['max time with +14:00 offset', '2026-01-01T23:59:59.999+14:00'],
+      ])('accepts signedAt with %s', (_l, ok) => {
+        expect(create(entryType, extra, [{ ...base, signedAt: ok }]).isSigned).toBe(true);
+      });
+
+      it.each([
+        ['an offset timestamp', '2026-01-01T10:00:00.000+02:00'],
+        ['a no-seconds UTC timestamp', '2026-01-01T10:00Z'],
+        ['a no-seconds offset timestamp', '2026-01-01T10:00-05:30'],
+        ['a seconds-only timestamp', '2026-01-01T10:00:00Z'],
+      ])('accepts signedAt with %s', (_l, ok) => {
+        expect(create(entryType, extra, [{ ...base, signedAt: ok }]).isSigned).toBe(true);
+      });
+
+      it('stores the signerName trimmed on create', () => {
+        const entry = create(entryType, extra, [{ ...base, signerName: '  Alice  ' }]);
+        const m = getDiaryEntry(db, entry.id).metadata as {
+          signatures: Array<{ signerName: string }>;
+        };
+        expect(m.signatures[0]?.signerName).toBe('Alice');
+      });
+
+      it('stores the signerName trimmed on update', () => {
+        const entryId = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify({ ...extra, signatures: [base] }),
+        });
+        const updated = updateDiaryEntry(db, entryId, {
+          metadata: { ...extra, signatures: [{ ...base, signerName: '\t Bob \n' }] } as never,
+        });
+        expect(
+          (updated.metadata as { signatures: Array<{ signerName: string }> }).signatures[0]
+            ?.signerName,
+        ).toBe('Bob');
+        const m = getDiaryEntry(db, entryId).metadata as {
+          signatures: Array<{ signerName: string }>;
+        };
+        expect(m.signatures[0]?.signerName).toBe('Bob');
+      });
+
+      const promoteExtra =
+        entryType === 'site_visit' ? { inspectorName: 'Insp', outcome: 'pass' } : extra;
+
+      it('stores the signerName trimmed on promote (override metadata)', () => {
+        const id = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify(promoteExtra),
+        });
+        promoteDiaryEntry(db, id, {
+          metadata: { ...promoteExtra, signatures: [{ ...base, signerName: ' Carol ' }] } as never,
+        });
+        const m = getDiaryEntry(db, id).metadata as { signatures: Array<{ signerName: string }> };
+        expect(m.signatures[0]?.signerName).toBe('Carol');
+      });
+
+      it('rejects an invalid signedAt on promote', () => {
+        const id = insertEntry({
+          status: 'draft',
+          entryType,
+          metadata: JSON.stringify(promoteExtra),
+        });
+        expect(() =>
+          promoteDiaryEntry(db, id, {
+            metadata: {
+              ...promoteExtra,
+              signatures: [{ ...base, signedAt: '2026-01-01' }],
+            } as never,
+          }),
+        ).toThrow(`${entryType} signature entry signedAt must be a valid date`);
+      });
+
+      it('accepts a signature without signedAt', () => {
+        const { signedAt: _omit, ...noDate } = base;
+        expect(create(entryType, extra, [noDate]).isSigned).toBe(true);
+      });
+
+      it('rejects 11 signatures and accepts 10', () => {
+        expect(() =>
+          create(
+            entryType,
+            extra,
+            Array.from({ length: 11 }, () => base),
+          ),
+        ).toThrow(new InvalidMetadataError(`${entryType} signatures must not exceed 10 entries`));
+        expect(
+          create(
+            entryType,
+            extra,
+            Array.from({ length: 10 }, () => base),
+          ).isSigned,
+        ).toBe(true);
+      });
+    });
+  });
 });

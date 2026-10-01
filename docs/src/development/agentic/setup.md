@@ -7,7 +7,7 @@ title: Dev Setup
 
 ## Prerequisites
 
-- Node.js >= 24 (see `.nvmrc`)
+- Node.js >= 24.11 (see `.nvmrc`; Babel 8 requires it)
 - npm >= 11
 - Docker (for container builds and E2E tests)
 

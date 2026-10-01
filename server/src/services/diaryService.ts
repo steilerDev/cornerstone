@@ -46,15 +46,116 @@ import type {
   SiteVisitMetadata,
   DeliveryMetadata,
   IssueMetadata,
+  DiarySignatureEntry,
   DiaryEntryType,
   DiarySourceEntityType,
   AreaSummary,
 } from '@cornerstone/shared';
 import type { PaginationMeta } from '@cornerstone/shared';
+import {
+  hasDiarySignatures,
+  isDiaryEntrySignatureLocked,
+  MAX_SIGNATURES_PER_ENTRY,
+  MAX_SIGNER_NAME_LENGTH,
+  MAX_SIGNATURE_DATA_URL_LENGTH,
+  SIGNATURE_DATA_URL_PATTERN,
+  SIGNED_AT_PATTERN,
+} from '@cornerstone/shared';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
+
+/**
+ * Rejects values that match SIGNED_AT_PATTERN but contain impossible components
+ * (e.g. 2026-02-30, hour 24) which Date.parse would silently roll over.
+ * Takes the match produced by SIGNED_AT_PATTERN so the grammar is defined once.
+ */
+function hasValidCalendarComponents(match: RegExpMatchArray): boolean {
+  const g = match.groups!;
+  const year = Number(g.year);
+  const month = Number(g.month);
+  const day = Number(g.day);
+  // setUTCFullYear does not remap years 0-99 to 1900-1999 (unlike Date.UTC)
+  const d = new Date(0);
+  d.setUTCFullYear(year, month - 1, day);
+  // The full round-trip rejects out-of-range months and days (they roll over).
+  return (
+    d.getUTCFullYear() === year &&
+    d.getUTCMonth() === month - 1 &&
+    d.getUTCDate() === day &&
+    Number(g.hour) <= 23 &&
+    Number(g.minute) <= 59 &&
+    Number(g.second ?? 0) <= 59 &&
+    Number(g.offsetHour ?? 0) <= 23 &&
+    Number(g.offsetMinute ?? 0) <= 59
+  );
+}
+
+/**
+ * Validate a metadata signatures array (daily_log, site_visit, issue).
+ * Also normalises in place: each `signerName` is replaced by its trimmed form, so callers
+ * must persist the same object they validated.
+ * @throws InvalidMetadataError if malformed
+ */
+function validateSignatures(entryType: string, signatures: unknown): void {
+  if (signatures === undefined || signatures === null) return;
+  if (!Array.isArray(signatures)) {
+    throw new InvalidMetadataError(`${entryType} signatures must be an array or null`);
+  }
+  if (signatures.length > MAX_SIGNATURES_PER_ENTRY) {
+    throw new InvalidMetadataError(
+      `${entryType} signatures must not exceed ${MAX_SIGNATURES_PER_ENTRY} entries`,
+    );
+  }
+  for (const raw of signatures) {
+    if (typeof raw !== 'object' || raw === null) {
+      throw new InvalidMetadataError(`${entryType} signature entry must be an object`);
+    }
+    const sig = raw as Partial<DiarySignatureEntry>;
+    if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
+      throw new InvalidMetadataError(`${entryType} signature entry must have non-empty signerName`);
+    }
+    if (sig.signerName.trim().length > MAX_SIGNER_NAME_LENGTH) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry signerName must not exceed ${MAX_SIGNER_NAME_LENGTH} characters`,
+      );
+    }
+    if (!sig.signerType || !['self', 'vendor'].includes(sig.signerType)) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry signerType must be "self" or "vendor"`,
+      );
+    }
+    if (typeof sig.signatureDataUrl !== 'string' || sig.signatureDataUrl.trim().length === 0) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry must have non-empty signatureDataUrl`,
+      );
+    }
+    if (
+      sig.signatureDataUrl.length > MAX_SIGNATURE_DATA_URL_LENGTH ||
+      !SIGNATURE_DATA_URL_PATTERN.test(sig.signatureDataUrl)
+    ) {
+      throw new InvalidMetadataError(
+        `${entryType} signature entry signatureDataUrl must be a base64 png, jpeg or webp data URL of at most ${MAX_SIGNATURE_DATA_URL_LENGTH / 1024} KB`,
+      );
+    }
+    if (sig.signedAt !== undefined) {
+      if (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0) {
+        throw new InvalidMetadataError(
+          `${entryType} signature entry signedAt must be a non-empty string if provided`,
+        );
+      }
+      const signedAtMatch = SIGNED_AT_PATTERN.exec(sig.signedAt);
+      if (!signedAtMatch || !hasValidCalendarComponents(signedAtMatch)) {
+        throw new InvalidMetadataError(
+          `${entryType} signature entry signedAt must be a valid date`,
+        );
+      }
+    }
+    // Normalise: persist the trimmed name (callers store this same metadata object).
+    sig.signerName = sig.signerName.trim();
+  }
+}
 
 /**
  * Manual diary entry types that can be created by users.
@@ -208,12 +309,7 @@ function toDiarySummary(
       dlm.vendorName = vendorRow?.name ?? null;
     }
   }
-  const isSigned = Boolean(
-    metadata &&
-    'signatures' in metadata &&
-    Array.isArray(metadata.signatures) &&
-    metadata.signatures.length > 0,
-  );
+  const isSigned = hasDiarySignatures(metadata);
 
   return {
     id: entry.id,
@@ -275,40 +371,7 @@ function validateMetadata(
           );
         }
       }
-      // Validate signatures array
-      if (dlm.signatures !== undefined && dlm.signatures !== null) {
-        if (!Array.isArray(dlm.signatures)) {
-          throw new InvalidMetadataError('daily_log signatures must be an array or null');
-        }
-        for (const sig of dlm.signatures) {
-          if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
-            throw new InvalidMetadataError(
-              'daily_log signature entry must have non-empty signerName',
-            );
-          }
-          if (!['self', 'vendor'].includes(sig.signerType)) {
-            throw new InvalidMetadataError(
-              'daily_log signature entry signerType must be "self" or "vendor"',
-            );
-          }
-          if (
-            typeof sig.signatureDataUrl !== 'string' ||
-            sig.signatureDataUrl.trim().length === 0
-          ) {
-            throw new InvalidMetadataError(
-              'daily_log signature entry must have non-empty signatureDataUrl',
-            );
-          }
-          if (
-            sig.signedAt !== undefined &&
-            (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)
-          ) {
-            throw new InvalidMetadataError(
-              'daily_log signature entry signedAt must be a non-empty string if provided',
-            );
-          }
-        }
-      }
+      validateSignatures('daily_log', dlm.signatures);
       // Validate vendorId is a string or null, and references an existing vendor
       if (dlm.vendorId !== undefined && dlm.vendorId !== null) {
         if (typeof dlm.vendorId !== 'string' || dlm.vendorId.trim().length === 0) {
@@ -368,40 +431,7 @@ function validateMetadata(
           );
         }
       }
-      // Validate signatures array
-      if (svm.signatures !== undefined && svm.signatures !== null) {
-        if (!Array.isArray(svm.signatures)) {
-          throw new InvalidMetadataError('site_visit signatures must be an array or null');
-        }
-        for (const sig of svm.signatures) {
-          if (typeof sig.signerName !== 'string' || sig.signerName.trim().length === 0) {
-            throw new InvalidMetadataError(
-              'site_visit signature entry must have non-empty signerName',
-            );
-          }
-          if (!['self', 'vendor'].includes(sig.signerType)) {
-            throw new InvalidMetadataError(
-              'site_visit signature entry signerType must be "self" or "vendor"',
-            );
-          }
-          if (
-            typeof sig.signatureDataUrl !== 'string' ||
-            sig.signatureDataUrl.trim().length === 0
-          ) {
-            throw new InvalidMetadataError(
-              'site_visit signature entry must have non-empty signatureDataUrl',
-            );
-          }
-          if (
-            sig.signedAt !== undefined &&
-            (typeof sig.signedAt !== 'string' || sig.signedAt.trim().length === 0)
-          ) {
-            throw new InvalidMetadataError(
-              'site_visit signature entry signedAt must be a non-empty string if provided',
-            );
-          }
-        }
-      }
+      validateSignatures('site_visit', svm.signatures);
       break;
     }
 
@@ -449,6 +479,7 @@ function validateMetadata(
           );
         }
       }
+      validateSignatures('issue', im.signatures);
       break;
     }
 
@@ -758,7 +789,7 @@ export function createDiaryEntry(
  * Cannot update automatic entries.
  * Validation rules depend on entry status: drafts have relaxed validation, saved entries have full validation.
  * @throws NotFoundError if entry does not exist
- * @throws ImmutableEntryError if entry is automatic or signed
+ * @throws ImmutableEntryError if entry is automatic, or saved and signed
  * @throws InvalidMetadataError if metadata validation fails
  */
 export function updateDiaryEntry(
@@ -778,15 +809,9 @@ export function updateDiaryEntry(
     throw new ImmutableEntryError();
   }
 
-  // Cannot update signed entries
-  const metadata = parseMetadata(entry.metadata);
-  const isSigned = Boolean(
-    metadata &&
-    'signatures' in metadata &&
-    Array.isArray(metadata.signatures) &&
-    metadata.signatures.length > 0,
-  );
-  if (isSigned) {
+  // Signatures lock an entry only once it is saved; drafts stay editable until promote (#2124).
+  const isSigned = hasDiarySignatures(parseMetadata(entry.metadata));
+  if (isDiaryEntrySignatureLocked({ isSigned, status: entry.status })) {
     throw new ImmutableEntryError('Signed diary entries cannot be modified');
   }
 

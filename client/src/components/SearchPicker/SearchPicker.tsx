@@ -20,6 +20,21 @@ export interface SpecialOption {
   label: string;
 }
 
+export interface SearchPickerCreateAction<T> {
+  /** Visible + accessible label for the create row; receives the trimmed query ('' when empty). */
+  getLabel: (query: string) => string;
+  /** Called on activation with the trimmed query. Resolve with the created item to select it
+   *  (focus moves to the clear button) or null when cancelled (focus returns to the input).
+   *  A rejection is treated as null. */
+  onCreate: (query: string) => Promise<T | null>;
+}
+
+export interface SearchPickerInputAriaProps {
+  'aria-required'?: boolean;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
+}
+
 export interface SearchPickerProps<T> {
   id?: string;
   value: string;
@@ -40,6 +55,8 @@ export interface SearchPickerProps<T> {
   noResultsMessage?: string;
   loadErrorMessage?: string;
   searchErrorMessage?: string;
+  createAction?: SearchPickerCreateAction<T>;
+  inputAriaProps?: SearchPickerInputAriaProps;
 }
 
 export function SearchPicker<T>({
@@ -62,6 +79,8 @@ export function SearchPicker<T>({
   noResultsMessage,
   loadErrorMessage,
   searchErrorMessage,
+  createAction,
+  inputAriaProps,
 }: SearchPickerProps<T>) {
   const { t } = useTranslation('common');
   const resolvedPlaceholder = placeholder ?? t('search.placeholder');
@@ -90,6 +109,9 @@ export function SearchPicker<T>({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const clearButtonRef = useRef<HTMLButtonElement>(null);
+  const pendingClearFocusRef = useRef(false);
+  const suppressFocusOpenRef = useRef(false);
 
   const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
@@ -175,11 +197,84 @@ export function SearchPicker<T>({
   };
 
   const handleFocus = () => {
-    if (showItemsOnFocus || specialOptions) {
+    if (suppressFocusOpenRef.current) {
+      suppressFocusOpenRef.current = false;
+      return;
+    }
+    if (showItemsOnFocus || specialOptions || createAction) {
       setIsOpen(true);
       fetchInitialResults();
     } else if (searchTerm.trim()) {
       setIsOpen(true);
+    }
+  };
+
+  const getOptions = () =>
+    Array.from(refs.floating.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
+
+  // Return focus to the input without triggering the open-on-focus refetch
+  const focusInputQuietly = () => {
+    suppressFocusOpenRef.current = true;
+    inputRef.current?.focus();
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      if (isOpen) {
+        // Close only the dropdown; keep Escape from also closing an enclosing Modal
+        e.preventDefault();
+        e.stopPropagation();
+      }
+      setIsOpen(false);
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const options = isOpen ? getOptions() : [];
+      if (options.length > 0) {
+        options[0]!.focus();
+      } else if (!isOpen) {
+        if (showItemsOnFocus || specialOptions || createAction) {
+          setIsOpen(true);
+          void fetchInitialResults();
+        } else if (searchTerm.trim()) {
+          setIsOpen(true);
+        }
+      }
+    } else if (e.key === 'ArrowUp') {
+      const options = isOpen ? getOptions() : [];
+      if (options.length > 0) {
+        e.preventDefault();
+        options[options.length - 1]!.focus();
+      }
+    }
+  };
+
+  const handleListKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const options = getOptions();
+    const index = options.indexOf(document.activeElement as HTMLElement);
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        options[Math.min(index + 1, options.length - 1)]?.focus();
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        if (index <= 0) focusInputQuietly();
+        else options[index - 1]?.focus();
+        break;
+      case 'Home':
+        e.preventDefault();
+        options[0]?.focus();
+        break;
+      case 'End':
+        e.preventDefault();
+        options[options.length - 1]?.focus();
+        break;
+      case 'Escape':
+        e.preventDefault();
+        e.stopPropagation();
+        setIsOpen(false);
+        focusInputQuietly();
+        break;
     }
   };
 
@@ -204,6 +299,29 @@ export function SearchPicker<T>({
     setSearchTerm('');
     setResults([]);
   };
+
+  const handleCreate = async () => {
+    if (!createAction) return;
+    const query = searchTerm.trim();
+    setIsOpen(false);
+    debouncedSearch.cancel();
+    const created = await createAction.onCreate(query).catch(() => null);
+    if (created) {
+      pendingClearFocusRef.current = true;
+      handleSelect(created);
+    } else {
+      suppressFocusOpenRef.current = true;
+      inputRef.current?.focus();
+    }
+  };
+
+  // Move focus to the clear button once the created item is rendered as selected
+  useEffect(() => {
+    if (pendingClearFocusRef.current && clearButtonRef.current) {
+      clearButtonRef.current.focus();
+      pendingClearFocusRef.current = false;
+    }
+  });
 
   const handleClear = () => {
     setSelectedItem(null);
@@ -278,6 +396,7 @@ export function SearchPicker<T>({
         >
           <span className={styles.selectedTitle}>{label}</span>
           <button
+            ref={clearButtonRef}
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
@@ -302,12 +421,9 @@ export function SearchPicker<T>({
         value={searchTerm}
         onChange={(e) => handleInputChange(e.target.value)}
         onFocus={handleFocus}
-        onKeyDown={(e) => {
-          if (e.key === 'Escape') {
-            setIsOpen(false);
-          }
-        }}
+        onKeyDown={handleInputKeyDown}
         disabled={disabled}
+        {...inputAriaProps}
       />
 
       <FloatingPortal>
@@ -318,9 +434,7 @@ export function SearchPicker<T>({
             style={isPositioned ? floatingStyles : { ...floatingStyles, visibility: 'hidden' }}
             className={styles.portalDropdown}
             role="listbox"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setIsOpen(false);
-            }}
+            onKeyDown={handleListKeyDown}
           >
             {/* Special options at the top */}
             {specialOptions && specialOptions.length > 0 && (
@@ -396,6 +510,23 @@ export function SearchPicker<T>({
               !searchTerm.trim() &&
               (!specialOptions || specialOptions.length === 0) &&
               !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
+
+            {createAction && (
+              <button
+                type="button"
+                role="option"
+                aria-selected={false}
+                className={`${styles.resultOption} ${styles.createOption}`}
+                onClick={() => void handleCreate()}
+              >
+                <span aria-hidden="true" className={styles.createOptionIcon}>
+                  +
+                </span>
+                <span className={`${styles.resultTitle} ${styles.createOptionLabel}`}>
+                  {createAction.getLabel(searchTerm.trim())}
+                </span>
+              </button>
+            )}
           </div>
         )}
       </FloatingPortal>

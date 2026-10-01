@@ -19,13 +19,18 @@
  * 8.  Delete from detail page — modal confirm, redirects to /diary
  * 9.  Edit button on detail page navigates to /diary/:id/edit
  * 10. [responsive] Create page has no horizontal scroll on current viewport
+ * 14. [responsive] Edit-page dialogs use the shared Modal (Escape, close button, focus)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryEntryCreatePage, DIARY_CREATE_ROUTE } from '../../pages/DiaryEntryCreatePage.js';
 import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
-import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createDiaryEntryViaApi,
+  createDraftDiaryEntryViaApi,
+  deleteDiaryEntryViaApi,
+} from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Type selector shows 5 type cards
@@ -818,6 +823,49 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
       expect(hasHorizontalScroll).toBe(false);
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 14: Shared Modal behaviour on the edit page (#2124/#2125 bundle)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Shared Modal on the edit page (Scenario 14)', { tag: '@responsive' }, () => {
+  test('delete dialog closes on Escape and via the close button', async ({ page, testPrefix }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    let createdId: string | null = null;
+
+    try {
+      createdId = await createDiaryEntryViaApi(page, {
+        entryType: 'general_note',
+        entryDate: '2026-03-14',
+        body: `${testPrefix} entry for shared modal test`,
+      });
+
+      await editPage.goto(createdId);
+      await editPage.openDeleteModal();
+      await page.keyboard.press('Escape');
+      await expect(editPage.deleteModal).not.toBeVisible();
+
+      await editPage.openDeleteModal();
+      await editPage.deleteModal.getByRole('button', { name: 'Close dialog' }).click();
+      await expect(editPage.deleteModal).not.toBeVisible();
+    } finally {
+      if (createdId) await deleteDiaryEntryViaApi(page, createdId);
+    }
+  });
+
+  test('discard dialog moves focus inside the dialog', async ({ page }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const id = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
+
+    try {
+      await editPage.goto(id);
+      await editPage.openDiscardModal();
+      await expect(editPage.discardModal.locator(':focus')).toHaveCount(1);
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
     }
   });
 });

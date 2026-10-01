@@ -23,9 +23,9 @@
     "react-router-dom": "7.18.4"
   },
   "devDependencies": {
-    "@babel/core": "7.29.7",
-    "@babel/preset-react": "7.29.7",
-    "@babel/preset-typescript": "7.29.7",
+    "@babel/core": "8.0.6",
+    "@babel/preset-react": "8.0.1",
+    "@babel/preset-typescript": "8.0.1",
     "@types/fontkit": "2.0.9",
     "@types/pdfmake": "0.3.3",
     "@types/react": "19.3.0",

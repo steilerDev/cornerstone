@@ -84,6 +84,12 @@ export interface ExtractionResult {
   /** One-sentence summary (max 1000 chars) if extracted, else absent. */
   notes?: string;
   /**
+   * Name of the company that issued the document, as printed (letterhead/sender),
+   * independent of the available-vendor list. Trimmed, max 200 chars, else absent.
+   * Story #2148: prefill for inline vendor creation.
+   */
+  vendorName?: string;
+  /**
    * Vendor name matched by the LLM when availableVendors is provided.
    * Must be an exact match to one of the names in hints.availableVendors.
    * EPIC-18 Story #1679: Added for Paperless-first invoice creation preview.

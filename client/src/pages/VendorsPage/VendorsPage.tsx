@@ -1,7 +1,7 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Vendor, CreateVendorRequest, VendorListQuery } from '@cornerstone/shared';
+import type { Vendor, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -9,13 +9,14 @@ import type { DataTableSurface } from '../../components/DataTable/dataTableTestI
 import { Modal } from '../../components/Modal/Modal.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
-import { TradePicker } from '../../components/TradePicker/TradePicker.js';
+import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
-import { fetchVendors, createVendor, deleteVendor } from '../../lib/vendorsApi.js';
+import { fetchVendors, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorsPage.module.css';
@@ -67,16 +68,6 @@ export function VendorsPage() {
 
   // Create vendor modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [createForm, setCreateForm] = useState<CreateVendorRequest>({
-    name: '',
-    phone: '',
-    email: '',
-    address: '',
-    notes: '',
-    tradeId: null,
-  });
-  const [isCreating, setIsCreating] = useState(false);
-  const [createError, setCreateError] = useState<string>('');
 
   // Delete confirmation state
   const [deletingVendor, setDeletingVendor] = useState<Vendor | null>(null);
@@ -85,9 +76,6 @@ export function VendorsPage() {
 
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-
-  // Form ref for submit button in modal
-  const formRef = useRef<HTMLFormElement>(null);
 
   // Load vendors when table state changes
   useEffect(() => {
@@ -155,56 +143,7 @@ export function VendorsPage() {
     setSearchParams(params);
   };
 
-  const openCreateModal = () => {
-    setCreateForm({ name: '', phone: '', email: '', address: '', notes: '', tradeId: null });
-    setCreateError('');
-    setShowCreateModal(true);
-  };
-
-  const closeCreateModal = () => {
-    if (!isCreating) {
-      setShowCreateModal(false);
-      setCreateError('');
-    }
-  };
-
-  const handleCreateVendor = async (event: FormEvent) => {
-    event.preventDefault();
-    setCreateError('');
-
-    const trimmedName = createForm.name.trim();
-    if (!trimmedName) {
-      setCreateError(t('vendors.validation.nameRequired'));
-      return;
-    }
-    if (trimmedName.length > 200) {
-      setCreateError(t('vendors.validation.nameTooLong'));
-      return;
-    }
-
-    setIsCreating(true);
-
-    try {
-      await createVendor({
-        name: trimmedName,
-        phone: createForm.phone?.trim() || null,
-        email: createForm.email?.trim() || null,
-        address: createForm.address?.trim() || null,
-        notes: createForm.notes?.trim() || null,
-        tradeId: createForm.tradeId || null,
-      });
-      setShowCreateModal(false);
-      await loadVendors();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
-      } else {
-        setCreateError(t('vendors.messages.createError'));
-      }
-    } finally {
-      setIsCreating(false);
-    }
-  };
+  const openCreateModal = () => setShowCreateModal(true);
 
   const openDeleteConfirm = (vendor: Vendor) => {
     setDeletingVendor(vendor);
@@ -432,135 +371,13 @@ export function VendorsPage() {
 
       {/* Create vendor modal */}
       {showCreateModal && (
-        <Modal
-          title={t('vendors.modal.title')}
-          onClose={closeCreateModal}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeCreateModal}
-                disabled={isCreating}
-              >
-                {t('vendors.buttons.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnPrimary}
-                onClick={() => formRef.current?.requestSubmit()}
-                disabled={isCreating || !createForm.name.trim()}
-              >
-                {isCreating ? t('vendors.buttons.creating') : t('vendors.buttons.create')}
-              </button>
-            </>
-          }
-        >
-          <p>{t('vendors.modal.description')}</p>
-
-          {createError && (
-            <div className={styles.errorBanner} role="alert">
-              {createError}
-            </div>
-          )}
-
-          <form onSubmit={handleCreateVendor} className={styles.form} noValidate ref={formRef}>
-            <div className={styles.field}>
-              <label htmlFor="vendor-name" className={styles.label}>
-                {t('vendors.form.name')}{' '}
-                <span className={styles.required}>{t('vendors.form.required')}</span>
-              </label>
-              <input
-                type="text"
-                id="vendor-name"
-                value={createForm.name}
-                onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
-                className={styles.input}
-                placeholder={t('vendors.form.placeholders.name')}
-                maxLength={200}
-                disabled={isCreating}
-                autoFocus
-              />
-            </div>
-
-            <div className={styles.formRow}>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="vendor-phone" className={styles.label}>
-                  {t('vendors.form.phone')}
-                </label>
-                <input
-                  type="tel"
-                  id="vendor-phone"
-                  value={createForm.phone ?? ''}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('vendors.form.placeholders.phone')}
-                  maxLength={50}
-                  disabled={isCreating}
-                />
-              </div>
-              <div className={styles.fieldGrow}>
-                <label htmlFor="vendor-email" className={styles.label}>
-                  {t('vendors.form.email')}
-                </label>
-                <input
-                  type="email"
-                  id="vendor-email"
-                  value={createForm.email ?? ''}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  className={styles.input}
-                  placeholder={t('vendors.form.placeholders.email')}
-                  maxLength={255}
-                  disabled={isCreating}
-                />
-              </div>
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="vendor-address" className={styles.label}>
-                {t('vendors.form.address')}
-              </label>
-              <input
-                type="text"
-                id="vendor-address"
-                value={createForm.address ?? ''}
-                onChange={(e) => setCreateForm({ ...createForm, address: e.target.value })}
-                className={styles.input}
-                placeholder={t('vendors.form.placeholders.address')}
-                maxLength={500}
-                disabled={isCreating}
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="vendor-notes" className={styles.label}>
-                {t('vendors.form.notes')}
-              </label>
-              <textarea
-                id="vendor-notes"
-                value={createForm.notes ?? ''}
-                onChange={(e) => setCreateForm({ ...createForm, notes: e.target.value })}
-                className={styles.textarea}
-                placeholder={t('vendors.form.placeholders.notes')}
-                rows={3}
-                disabled={isCreating}
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label htmlFor="vendor-trade" className={styles.label}>
-                {t('vendors.form.trade')}
-              </label>
-              <TradePicker
-                trades={trades}
-                value={createForm.tradeId ?? ''}
-                onChange={(tradeId) => setCreateForm({ ...createForm, tradeId })}
-                disabled={isCreating}
-                placeholder={t('vendors.form.placeholders.trade')}
-              />
-            </div>
-          </form>
-        </Modal>
+        <VendorCreateModal
+          onCreated={() => {
+            setShowCreateModal(false);
+            void loadVendors();
+          }}
+          onClose={() => setShowCreateModal(false)}
+        />
       )}
 
       {/* Delete confirmation modal */}
@@ -593,9 +410,7 @@ export function VendorsPage() {
         >
           <p>{t('vendors.modal.deleteConfirm', { name: deletingVendor.name })}</p>
           {deleteError ? (
-            <div className={styles.errorBanner} role="alert">
-              {deleteError}
-            </div>
+            <FormError variant="banner" message={deleteError} />
           ) : (
             <p className={styles.modalWarning}>{t('vendors.modal.deleteWarning')}</p>
           )}

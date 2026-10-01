@@ -104,7 +104,7 @@ Alerts with no matching open PR are `ORPHAN` and handled in step 6.
 
 For every PR (both `READY` and `FAILING`), run the changelog analysis once — at the tier the bump warrants:
 
-**Tier 1 — patch/minor bump of a devDependency, green CI, no linked security alert**: the orchestrator reviews the changelog itself (`gh release view <tag> --repo <upstream>` or WebFetch of the package changelog) — **no agent launch**. Look only for `BREAKING` lines and surprises; if none, proceed to step 4 (merge). If anything looks breaking or unclear, escalate to Tier 2.
+**Tier 1 — patch/minor bump of a devDependency, green CI, no linked security alert**: the orchestrator reviews the changelog itself (`gh release view <tag> --repo <upstream>` or WebFetch of the package changelog) — **no agent launch**. Look only for `BREAKING` lines and surprises; if none, proceed to step 4 (merge). If anything looks breaking or unclear, escalate to Tier 2. **Hoisting anchors:** if the PR bumps `webpack`, `webpack-dev-server` or `@babel/core`, confirm root `package.json` and the workspace pin moved to the same version (CLAUDE.md > Root hoisting anchors). On a mismatch, route the PR to step 5 (`backend-developer`).
 
 **Tier 2 — everything else** (runtime dependencies, major bumps, or any linked GHSA/CVE): launch a **single security-engineer** agent:
 
@@ -186,13 +186,13 @@ gh run view "$RUN_ID" --repo steilerDev/cornerstone --log-failed
 
 Map the failure to one of these categories and delegate to the appropriate agent. Multiple categories can apply — launch independent fixes in parallel. On repeat iterations (looping back from 5e), continue the previously launched agent via SendMessage (it retains the context it built in the earlier round) instead of launching a fresh agent; launch fresh only if that agent is no longer available.
 
-| Failure pattern                                                                                       | Agent                                                                           | Brief                                                                                                                            |
-| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| App code breaks (TypeScript errors, runtime errors in production code) caused by the bump             | `backend-developer` for `server/`+`shared/`; `frontend-developer` for `client/` | Pass the architect's `BREAKING` findings as context. Patch call sites.                                                           |
-| Unit/integration test failures caused by the bump                                                     | `qa-integration-tester`                                                         | Follow the test failure debugging protocol from CLAUDE.md — fix tests only if production behaviour is correct per spec/contract. |
-| E2E test failures caused by the bump                                                                  | `e2e-test-engineer`                                                             | Same protocol. Update page objects or assertions only if production behaviour is correct.                                        |
-| CI/workflow break (GitHub Action input required, runner mismatch, etc., from a `github-actions` bump) | `product-architect`                                                             | Update `.github/workflows/*.yml`.                                                                                                |
-| Lockfile / install break                                                                              | `backend-developer` (lockfile is server-rooted)                                 | Re-run `npm install` (never `--package-lock-only` per CLAUDE.md) and commit the regenerated lockfile.                            |
+| Failure pattern                                                                                       | Agent                                                                           | Brief                                                                                                                                                                                                                                               |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| App code breaks (TypeScript errors, runtime errors in production code) caused by the bump             | `backend-developer` for `server/`+`shared/`; `frontend-developer` for `client/` | Pass the architect's `BREAKING` findings as context. Patch call sites.                                                                                                                                                                              |
+| Unit/integration test failures caused by the bump                                                     | `qa-integration-tester`                                                         | Follow the test failure debugging protocol from CLAUDE.md — fix tests only if production behaviour is correct per spec/contract.                                                                                                                    |
+| E2E test failures caused by the bump                                                                  | `e2e-test-engineer`                                                             | Same protocol. Update page objects or assertions only if production behaviour is correct.                                                                                                                                                           |
+| CI/workflow break (GitHub Action input required, runner mismatch, etc., from a `github-actions` bump) | `product-architect`                                                             | Update `.github/workflows/*.yml`.                                                                                                                                                                                                                   |
+| Lockfile / install break                                                                              | `backend-developer` (lockfile is server-rooted)                                 | Re-run `npm install` (never `--package-lock-only` per CLAUDE.md) and commit the regenerated lockfile. The 15 `ERESOLVE overriding peer dependency` warnings from `babel-preset-current-node-syntax` are the accepted Babel 8 residual, not a break. |
 
 Each agent receives:
 
@@ -233,6 +233,8 @@ For each alert with no matching open PR:
 npm ls <package> --workspaces --include-workspace-root
 ```
 
+If the package sits in the Babel graph, `npm ls` exits 1 with the accepted `invalid: @babel/core@8` residual (CLAUDE.md > Dependency Policy). Read the tree, not the exit code.
+
 Determine whether the package is direct (listed in a workspace `package.json`), transitive only, or already absent.
 
 #### 6b. Produce a remediation spec
@@ -247,7 +249,7 @@ The spec specifies one of:
 
 - **Direct bump** — patch is available; bump the version in the appropriate `package.json` and update any affected call sites.
 - **Override** — patch only exists upstream of a pinned transitive; add a root-level `overrides` block to force the patched version.
-- **No patch** — document a workaround (input sanitisation, feature flag, sandboxing) OR recommend dismissing the alert with reason. **Never auto-dismiss**: present the dismissal recommendation to the user in the final report and let them decide.
+- **No patch** — document a workaround (input sanitisation, feature flag, sandboxing) OR recommend dismissing the alert with reason. **Never auto-dismiss**: present the dismissal recommendation to the user in the final report and let them decide. Alerts for `brace-expansion`, `ip-address` or `undici` under `node_modules/npm/node_modules/` are the documented bundled-in-npm residual (CLAUDE.md > Dependency Policy). Run its re-check recipe; if a fixed npm exists, spec the root `npm@…` override bump; otherwise report it as the known residual.
 
 #### 6c. Implement
 

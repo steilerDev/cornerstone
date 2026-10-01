@@ -201,7 +201,7 @@
         "none": "Nicht abgerechnet",
         "pending": "Ausstehend",
         "paid": "Bezahlt",
-        "claimed": "Beantragt",
+        "claimed": "Eingereicht",
         "quotation": "Angebot"
       },
       "categoryVendorSeparator": " · ",
@@ -856,7 +856,7 @@
     },
     "statusLabels": {
       "eligible": "Berechtigt",
-      "applied": "Eingereicht",
+      "applied": "Beantragt",
       "approved": "Genehmigt",
       "received": "Erhalten",
       "rejected": "Abgelehnt"
@@ -1205,6 +1205,9 @@
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmer suchen…",
     "vendorRequired": "Auftragnehmer ist erforderlich",
+    "addNewVendor": "Neuen Auftragnehmer hinzufügen",
+    "addNewVendorNamed": "Neuen Auftragnehmer „{{name}}“ hinzufügen",
+    "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
     "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
     "extractingFromDocument": "Dokument wird analysiert…",
     "extractionStarted": "Dokument wird mit KI analysiert…",

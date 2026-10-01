@@ -1,6 +1,7 @@
 /**
  * @jest-environment jsdom
  */
+import React from 'react';
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { Modal } from './Modal.js';
@@ -373,5 +374,46 @@ describe('Modal', () => {
 
     expect(document.activeElement).toBe(input);
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  // ── initialFocusRef (Story #2148) ─────────────────────────────────────────
+
+  describe('initialFocusRef', () => {
+    function WithRef() {
+      const ref = React.useRef<HTMLInputElement>(null);
+      return (
+        <Modal {...defaultProps} initialFocusRef={ref}>
+          <input aria-label="Preferred" ref={ref} />
+        </Modal>
+      );
+    }
+
+    it('focuses the referenced element on mount instead of the close button', () => {
+      render(<WithRef />);
+
+      expect(document.activeElement).toBe(screen.getByLabelText('Preferred'));
+      expect(document.activeElement).not.toBe(screen.getByRole('button', { name: 'Close dialog' }));
+    });
+
+    it('falls back to the first focusable element when the ref is unattached', () => {
+      const ref = { current: null } as React.RefObject<HTMLElement | null>;
+      render(
+        <Modal {...defaultProps} initialFocusRef={ref}>
+          <input aria-label="Other" />
+        </Modal>,
+      );
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close dialog' }));
+    });
+
+    it('keeps the default first-focusable behaviour when no ref is given', () => {
+      render(
+        <Modal {...defaultProps}>
+          <input aria-label="Other" />
+        </Modal>,
+      );
+
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close dialog' }));
+    });
   });
 });

@@ -1813,3 +1813,29 @@ Round 2: once the fix sums into an existing junction, check every caller **mode*
 `mode: 'replace'` deletes only `origin='auto'` lines, so junctions to manual lines survive it. Summing then
 double-counts a line that is re-linked under replace. The rule is "add" in append mode and "reset, then
 add" in replace mode. An accumulate rule is only correct relative to what the previous step cleared.
+
+## A "legacy NULL" branch the schema forbids (PR #2152, #2124)
+
+The shared lock predicate took `status?: DiaryEntryStatus | null` and documented "a null status is a
+legacy row and counts as saved". But `diary_entries.status` has been `NOT NULL DEFAULT 'saved'` since
+migration 0033. The fiction spread to Schema.md, API-Contract.md, a cast in `photos.ts`, and two unit
+tests, while the PR's own service test admitted "not testable: status is NOT NULL". Before accepting
+a legacy-row branch, check the column's migration. If the column is NOT NULL, make the parameter
+required: an optional parameter lets a future caller that forgets the field compile cleanly and
+silently fail closed, so the "defensive" widening is actually a forcing function removed.
+
+## Split-off test files inherit the sibling suite's dead scaffolding (PR #2156, 2026-10-01)
+
+When a story adds a `Page.<feature>.test.tsx` next to an existing page suite, the author copies the
+whole mock preamble. Grep each named spy/override/fixture for usage count (`grep -c`); declared+reset
+only = dead. The `makeFetchStub` "when unstable_mockModule is NOT intercepted" fallback is the worst
+of it: unreachable in CI, and if reached it masks the mock failure with plausible data. Also flag
+`getByRole` helpers that fall back to the raw i18n key — dead once any assertion relies on resolved text.
+Round 2 of #2156 found the same raw-key and never-matching branches in the `waitForReady` loading
+check (`/extractionStarted/i`, `/Extracting/i`), which I had missed in round 1. Sweep **every**
+`queryAllByText`/`queryByRole` regex in a copied helper against `en/<ns>.json`, not only the
+button lookup. A raw-key regex in a _negative_ assertion is the worst variant: it can never fail.
+When a raw-key/fallback lookup is removed, sweep the **same** pass for the guards that hid it:
+`if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
+`if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
+assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).

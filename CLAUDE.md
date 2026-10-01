@@ -355,21 +355,21 @@ When `gh` or `git push` commands fail with a GitHub rate-limit error (primary AP
 
 ## Tech Stack
 
-| Layer                      | Technology              | Version | ADR     |
-| -------------------------- | ----------------------- | ------- | ------- |
-| Server                     | Fastify                 | 5.x     | ADR-001 |
-| Client                     | React                   | 19.x    | ADR-002 |
-| Client Routing             | React Router            | 7.x     | ADR-002 |
-| Database                   | SQLite (better-sqlite3) | --      | ADR-003 |
-| ORM                        | Drizzle ORM             | 0.45.x  | ADR-003 |
-| Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
-| Styling                    | CSS Modules             | --      | ADR-006 |
-| Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
-| Testing (E2E)              | Playwright              | 1.59.x  | ADR-005 |
-| Language                   | TypeScript              | ~6.0    | --      |
-| Runtime                    | Node.js                 | 24 LTS  | --      |
-| Container                  | Docker (DHI Alpine)     | --      | --      |
-| Monorepo                   | npm workspaces          | --      | ADR-007 |
+| Layer                      | Technology              | Version           | ADR     |
+| -------------------------- | ----------------------- | ----------------- | ------- |
+| Server                     | Fastify                 | 5.x               | ADR-001 |
+| Client                     | React                   | 19.x              | ADR-002 |
+| Client Routing             | React Router            | 7.x               | ADR-002 |
+| Database                   | SQLite (better-sqlite3) | --                | ADR-003 |
+| ORM                        | Drizzle ORM             | 0.45.x            | ADR-003 |
+| Bundler (client)           | Webpack                 | 5.x               | ADR-004 |
+| Styling                    | CSS Modules             | --                | ADR-006 |
+| Testing (unit/integration) | Jest (ts-jest)          | 30.x              | ADR-005 |
+| Testing (E2E)              | Playwright              | 1.63.x            | ADR-005 |
+| Language                   | TypeScript              | ~6.0              | --      |
+| Runtime                    | Node.js                 | 24 LTS (>= 24.11) | --      |
+| Container                  | Docker (DHI Alpine)     | --                | --      |
+| Monorepo                   | npm workspaces          | --                | ADR-007 |
 
 Full rationale for each decision is in the corresponding ADR on the GitHub Wiki.
 
@@ -413,7 +413,10 @@ cornerstone/
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
 - **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
-- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` (and `babel-loader`) resolve `webpack-dev-server` / `@babel/core` from their own root-hoisted location, so whenever the root slot holds a different version than the workspace pins (a different major forced by `docs/` (Docusaurus), or just a different minor, see #2138 for `webpack`), the workspace's nested copy is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack-dev-server`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major.
+- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` resolves `webpack` and `webpack-dev-server`, and `babel-loader` resolves its `@babel/core` peer, from their own root-hoisted location. So whenever the root slot holds a different version than the workspace pins (a different major forced by `docs/` (Docusaurus), or just a different minor), the workspace's nested copy is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack`, `webpack-dev-server`, `@babel/core`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major. CI's `check-single-dep-version.sh konva webpack` step enforces the `webpack` anchor. `webpack-dev-server` and `@babel/core` intentionally keep a second, nested copy (Docusaurus and Jest stay on the old major).
+- **Node engine floor `>=24.11.0`** (Babel 8 requires `^22.18.0 || >=24.11.0`; the project is 24-only). Root `engines` declares it and the Dockerfile's `npm ci --engine-strict` enforces it. `.nvmrc` and the Docker base tags stay at the bare major `24`, which floats to the latest 24.x; pinning a minor would freeze or downgrade it.
+- **Accepted `npm ls` residual (Babel 8, #1823).** Jest's `babel-preset-current-node-syntax` depends on 15 `@babel/plugin-syntax-*@7` packages with peer `@babel/core ^7`, and no 8.x of them will ever exist. With the root `@babel/core@8` anchor, every `npm install`/`npm ci` prints 15 `ERESOLVE overriding peer dependency` warnings, and any `npm ls` that reaches `@babel/core` (including `npm ls --all`) exits 1 with exactly one problem, `invalid: @babel/core@8.x …/node_modules/@babel/core`. This is runtime-harmless: Jest transforms with ts-jest, and its Babel internals keep a nested core 7. Never treat that exit code alone as a failure. To sweep for _new_ invalid edges, run `npm ls --all 2>&1 | grep -oE '"[^"]+" from [^ ,]+' | sort -u | grep -v 'from node_modules/babel-preset-current-node-syntax/node_modules/@babel/plugin-syntax-'`. It must print nothing. Remove this bullet once Jest drops those 7.x syntax plugins.
+- **Accepted `npm audit` residual (bundled in `npm`).** `semantic-release` → `@semantic-release/npm` (`npm ^11.6.2`) installs the `npm` package, which _bundles_ `brace-expansion@5.0.9`, `ip-address@10.5.0` and `undici@6.28.0` (`inBundle`, under `node_modules/npm/node_modules/`). These match GHSA-q2hr-2g5m-vwhr / -qhr7-859c-m2p7 / -6j4f-fj2g-mc7p (brace-expansion <5.0.12), GHSA-rpw4-54j3-4h4q / -2vr4-cq9g-pvrc / -j6r3-76f7-8jcv / -h3mg-xc3c-68pw (ip-address <=10.7.0) and GHSA-3wwx-pv8p-q78v / -r53p-7pc4-xj5r / -rfgv-xxqx-mfg5 (undici <6.28.1). `overrides` cannot reach bundled deps, and as of 2026-10-01 no npm release bundles fixed versions (checked 11.19.1, 11.20.0, 11.21.0 and latest 12.2.0 with `npm pack`); `semantic-release` 25.0.9 and `@semantic-release/npm` 13.2.0 are already latest. They are accepted, unfixable-in-repo residuals and are the only permitted exception to "zero known fixable vulnerabilities" (the code is the release-time `npm` CLI, never shipped in the Docker image). Re-check on each `/dependabot` run: `npm pack npm@<latest in @semantic-release/npm's range>` and read the three bundled `package.json` versions; when a fixed npm ships, move the root `npm@…` override to it and delete this bullet.
 
 ## Coding Standards
 

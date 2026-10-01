@@ -2,11 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
-import type { DiaryEntryDetail } from '@cornerstone/shared';
+import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
 
 // ── API mock ──────────────────────────────────────────────────────────────────
@@ -66,15 +66,81 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 }));
 
 // Mock usePhotos to avoid real API calls
+const photosState = {
+  photos: [] as Photo[],
+  deletePhoto: jest.fn(),
+  updatePhotoInList: jest.fn(),
+};
+
 jest.unstable_mockModule('../../hooks/usePhotos.js', () => ({
   usePhotos: () => ({
-    photos: [],
+    photos: photosState.photos,
     loading: false,
     upload: jest.fn(),
-    deletePhoto: jest.fn(),
+    deletePhoto: (...args: unknown[]) => photosState.deletePhoto(...args),
+    updatePhotoInList: (...args: unknown[]) => photosState.updatePhotoInList(...args),
     reorderPhotos: jest.fn(),
     updateCaption: jest.fn(),
   }),
+}));
+
+// Mock PhotoGrid/PhotoViewer to expose the `editable` prop (#2124 lock behaviour).
+jest.unstable_mockModule('../../components/photos/PhotoGrid.js', () => ({
+  PhotoGrid: ({
+    editable,
+    photos,
+    onPhotoClick,
+    onEdit,
+  }: {
+    editable?: boolean;
+    photos: Photo[];
+    onPhotoClick: (photo: Photo) => void;
+    onEdit: (photo: Photo) => void;
+  }) => (
+    <div data-testid="photo-grid-mock" data-editable={String(editable)}>
+      <button type="button" onClick={() => onPhotoClick(photos[0]!)}>
+        open-photo
+      </button>
+      <button type="button" onClick={() => onEdit(photos[0]!)}>
+        edit-photo
+      </button>
+    </div>
+  ),
+}));
+
+jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
+  PhotoViewer: ({
+    editable,
+    startInAnnotator,
+    initialIndex,
+    onClose,
+    onDelete,
+    onPhotoChanged,
+  }: {
+    editable?: boolean;
+    startInAnnotator?: boolean;
+    initialIndex: number;
+    onClose: () => void;
+    onDelete: (id: string) => void;
+    onPhotoChanged: (photo: Photo) => void;
+  }) => (
+    <div
+      data-testid="photo-viewer-mock"
+      data-editable={String(editable)}
+      data-annotator={String(startInAnnotator)}
+      data-index={initialIndex}
+    >
+      <button type="button" onClick={onClose}>
+        close-viewer
+      </button>
+      <button type="button" onClick={() => onDelete('p1')}>
+        delete-in-viewer
+      </button>
+      <button type="button" onClick={() => onPhotoChanged({ id: 'p1' } as Photo)}>
+        change-in-viewer
+      </button>
+    </div>
+  ),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -150,6 +216,9 @@ describe('DiaryEntryDetailPage', () => {
     }
     mockGetDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    photosState.photos = [];
+    photosState.deletePhoto = jest.fn();
+    photosState.updatePhotoInList = jest.fn();
   });
 
   afterEach(() => {
@@ -541,6 +610,317 @@ describe('DiaryEntryDetailPage', () => {
     renderDetailPage();
     await waitFor(() => {
       expect(screen.getByText(/updated/i)).toBeInTheDocument();
+    });
+  });
+
+  // ─── Signature lock (#2124) ─────────────────────────────────────────────────
+
+  describe('signature lock (#2124)', () => {
+    const sig = {
+      signerName: 'Alice Builder',
+      signerType: 'self' as const,
+      signatureDataUrl: 'data:image/png;base64,SIGDATA',
+      signedAt: '2026-03-14T10:00:00.000Z',
+    };
+    const signedDraft: DiaryEntryDetail = {
+      ...baseDetail,
+      status: 'draft',
+      isSigned: true,
+      metadata: { signatures: [sig] },
+    };
+    const signedSaved: DiaryEntryDetail = { ...signedDraft, status: 'saved' };
+
+    it('signed draft: shows the Edit link and editable photos (mutation: lock on raw isSigned)', async () => {
+      photosState.photos = [{ id: 'p1' } as Photo];
+      mockGetDiaryEntry.mockResolvedValueOnce(signedDraft);
+      renderDetailPage();
+
+      const edit = await screen.findByRole('link', { name: 'Edit' });
+      expect(edit).toHaveAttribute('href', '/diary/de-1/edit');
+      expect(screen.getByTestId('photo-grid-mock')).toHaveAttribute('data-editable', 'true');
+      await userEvent.setup().click(screen.getByText('open-photo'));
+      expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
+        'data-editable',
+        'true',
+      );
+    });
+
+    it('signed saved: Edit is absent, Delete is present, photos are not editable', async () => {
+      photosState.photos = [{ id: 'p1' } as Photo];
+      mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
+      renderDetailPage();
+
+      expect(await screen.findByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('photo-grid-mock')).toHaveAttribute('data-editable', 'false');
+      await userEvent.setup().click(screen.getByText('open-photo'));
+      expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
+        'data-editable',
+        'false',
+      );
+    });
+
+    it('signed saved: the Delete button still opens the delete dialog (#808)', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
+      renderDetailPage();
+      await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
+      expect(await screen.findByRole('dialog', { name: 'Delete Diary Entry' })).toBeInTheDocument();
+    });
+
+    it('signed saved with no photos: the photo section is hidden', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
+      renderDetailPage();
+      await screen.findByRole('button', { name: 'Delete' });
+      expect(screen.queryByText(/^Photos \(/)).not.toBeInTheDocument();
+    });
+
+    it('signed draft with no photos: the photo section and add-photos link stay visible', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(signedDraft);
+      renderDetailPage();
+      expect(await screen.findByText('Photos (0)')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Add photos' })).toBeInTheDocument();
+    });
+
+    it('unsigned saved entry keeps Edit and Delete', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      expect(await screen.findByRole('link', { name: 'Edit' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+    });
+
+    it('an issue entry with signatures renders the SignatureDisplay image', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...signedSaved,
+        entryType: 'issue',
+        metadata: { severity: 'high', resolutionStatus: 'open', signatures: [sig] },
+      });
+      renderDetailPage();
+      const img = await screen.findByAltText('Signature of Alice Builder');
+      expect(img).toHaveAttribute('src', sig.signatureDataUrl);
+      expect(screen.getByText('Signed by Alice Builder')).toBeInTheDocument();
+    });
+  });
+
+  // ─── Delete dialog uses the shared Modal (F13) ──────────────────────────────
+
+  describe('delete dialog (shared Modal)', () => {
+    const DELETE = { name: 'Delete Diary Entry' };
+
+    const openDelete = async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
+      return screen.findByRole('dialog', DELETE);
+    };
+
+    it('portals to document.body and has no fixed #delete-modal-title', async () => {
+      const dialog = await openDelete();
+      expect(dialog.parentElement).toBe(document.body);
+      expect(document.getElementById('delete-modal-title')).toBeNull();
+      expect(within(dialog).getByText(/this action cannot be undone/i)).toBeInTheDocument();
+    });
+
+    it.each([
+      ['Escape', async () => fireEvent.keyDown(document, { key: 'Escape' })],
+      [
+        'the close button',
+        async () => userEvent.setup().click(screen.getByRole('button', { name: 'Close dialog' })),
+      ],
+      [
+        'the backdrop',
+        async () =>
+          fireEvent.click(screen.getByRole('dialog', DELETE).firstElementChild as HTMLElement),
+      ],
+      [
+        'Cancel',
+        async () => userEvent.setup().click(screen.getByRole('button', { name: 'Cancel' })),
+      ],
+    ])('closes via %s', async (_label, close) => {
+      await openDelete();
+      await close();
+      await waitFor(() => expect(screen.queryByRole('dialog', DELETE)).not.toBeInTheDocument());
+    });
+
+    it('Escape does not close the dialog while the delete is in flight', async () => {
+      let resolveDelete: () => void = () => undefined;
+      mockDeleteDiaryEntry.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+      );
+      const dialog = await openDelete();
+      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      await within(dialog).findByRole('button', { name: 'Deleting...' });
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.getByRole('dialog', DELETE)).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDelete();
+      });
+    });
+
+    it('confirming deletes the entry and navigates to /diary', async () => {
+      mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
+      const dialog = await openDelete();
+      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('de-1');
+      expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
+    });
+
+    it('a delete failure shows the error inside the dialog and hides the confirm button', async () => {
+      mockDeleteDiaryEntry.mockRejectedValueOnce(new Error('boom'));
+      const dialog = await openDelete();
+      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+
+      const alert = await within(dialog).findByText(/failed to delete diary entry/i);
+      expect(dialog).toContainElement(alert);
+      expect(within(dialog).queryByRole('button', { name: 'Delete Entry' })).toBeNull();
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+  });
+
+  // ─── Whole-file coverage: guards, photo viewer, source links ────────────────
+
+  describe('route and load guards', () => {
+    it('shows the invalid-id banner when the route has no id param', async () => {
+      render(
+        <MemoryRouter initialEntries={['/diary']}>
+          <Routes>
+            <Route path="/diary" element={<DiaryEntryDetailPage />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+      expect(await screen.findByText('Invalid diary entry ID')).toBeInTheDocument();
+      expect(mockGetDiaryEntry).not.toHaveBeenCalled();
+      expect(screen.getByRole('link', { name: /back to diary/i })).toHaveAttribute(
+        'href',
+        '/diary',
+      );
+    });
+
+    it('shows the not-found message when the API resolves without an entry', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(null as never);
+      renderDetailPage();
+      expect(await screen.findByText(/doesn't exist|not found/i)).toBeInTheDocument();
+      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('photo grid and viewer wiring', () => {
+    const withPhotos = async () => {
+      photosState.photos = [{ id: 'p1' } as Photo];
+      mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+      renderDetailPage();
+      await screen.findByTestId('photo-grid-mock');
+    };
+
+    it('clicking a photo opens the viewer at its index, not in annotator mode', async () => {
+      await withPhotos();
+      await userEvent.setup().click(screen.getByText('open-photo'));
+      const viewer = await screen.findByTestId('photo-viewer-mock');
+      expect(viewer).toHaveAttribute('data-annotator', 'false');
+      expect(viewer).toHaveAttribute('data-index', '0');
+    });
+
+    it('the edit action opens the viewer in annotator mode', async () => {
+      await withPhotos();
+      await userEvent.setup().click(screen.getByText('edit-photo'));
+      expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
+        'data-annotator',
+        'true',
+      );
+    });
+
+    it('closing the viewer removes it and resets annotator mode', async () => {
+      await withPhotos();
+      const user = userEvent.setup();
+      await user.click(screen.getByText('edit-photo'));
+      await user.click(await screen.findByText('close-viewer'));
+      expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+      await user.click(screen.getByText('open-photo'));
+      expect(await screen.findByTestId('photo-viewer-mock')).toHaveAttribute(
+        'data-annotator',
+        'false',
+      );
+    });
+
+    it('deleting from the viewer deletes the photo and closes the viewer', async () => {
+      await withPhotos();
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+      expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
+      expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('photo changes made in the viewer are forwarded to the photo list', async () => {
+      await withPhotos();
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('change-in-viewer'));
+      expect(photosState.updatePhotoInList).toHaveBeenCalledWith({ id: 'p1' });
+    });
+  });
+
+  describe('signature date and source entity links', () => {
+    it('falls back to the entry date when a signature has no signedAt', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...baseDetail,
+        metadata: {
+          signatures: [
+            {
+              signerName: 'Alice',
+              signerType: 'self',
+              signatureDataUrl: 'data:image/png;base64,A',
+            },
+          ],
+        },
+      });
+      renderDetailPage();
+      await screen.findByAltText('Signature of Alice');
+      expect(screen.getAllByText('Mar 14, 2026').length).toBeGreaterThan(0);
+    });
+
+    const auto = (sourceEntityType: string | null, sourceEntityTitle: string | null) =>
+      ({
+        ...baseDetail,
+        id: 'de-auto-src',
+        entryType: 'work_item_status',
+        isAutomatic: true,
+        createdBy: null,
+        sourceEntityType,
+        sourceEntityId: 'src-1',
+        sourceEntityTitle,
+      }) as DiaryEntryDetail;
+
+    it.each([
+      ['work_item', '/project/work-items/src-1'],
+      ['invoice', '/budget/invoices/src-1'],
+      ['milestone', '/project/milestones/src-1'],
+      ['budget_source', '/budget/sources'],
+      ['subsidy_program', '/budget/subsidies'],
+    ])('links a %s source to %s', async (type, href) => {
+      mockGetDiaryEntry.mockResolvedValueOnce(auto(type, 'Source Title'));
+      renderDetailPage('de-auto-src');
+      expect(await screen.findByRole('link', { name: 'Source Title' })).toHaveAttribute(
+        'href',
+        href,
+      );
+    });
+
+    it('uses the translated type label when the source has no title', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(auto('budget_source', null));
+      renderDetailPage('de-auto-src');
+      expect(await screen.findByRole('link', { name: 'Budget Sources' })).toBeInTheDocument();
+    });
+
+    it('renders an unknown source type as plain text using the raw type', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(auto('mystery_type', null));
+      renderDetailPage('de-auto-src');
+      const label = await screen.findByText('mystery_type');
+      expect(label.tagName).toBe('SPAN');
+      expect(screen.queryByRole('link', { name: 'mystery_type' })).not.toBeInTheDocument();
     });
   });
 });

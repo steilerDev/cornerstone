@@ -46,6 +46,8 @@
     "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } },
     "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } },
     "AI": { "de": { "singular": "KI" } },
-    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } }
+    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } },
+    "Claimed": { "de": { "singular": "Eingereicht" } },
+    "Applied": { "de": { "singular": "Beantragt" } }
   }
 }

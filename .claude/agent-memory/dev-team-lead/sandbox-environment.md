@@ -27,6 +27,10 @@ It picks up the root `jest.config` correctly and works across workspaces (client
 the symlink (`rm node_modules`) when done — it's gitignored so leaving it is harmless, but tidy up
 review-only artifacts anyway. This let me directly execute an implementing agent's new tests during
 review (e.g. bug #1833's retry-safety tests) instead of only trusting the agent's self-report.
+When deps live in `/tmp/cs-deps` (no `node_modules/.bin` in the worktree), use
+`NODE_OPTIONS=--experimental-vm-modules npx jest <files> --maxWorkers=1`. Plain `npx jest` without
+the flag silently skips `jest.unstable_mockModule` interception and produces false failures (8/11 in
+#2154) — never report a test failure seen without the flag.
 
 ## Shared Package: Must Compile Before Server Tests
 
@@ -112,3 +116,7 @@ git add <file> && git commit -m "..." && git push origin master
 ```
 
 Then `git add wiki` in the main repo to stage the submodule pointer bump alongside the rest of the commit.
+
+## gh GraphQL rate limit: create PRs via REST
+
+`gh pr create` goes through GraphQL and can fail with "API rate limit already exceeded" even while `gh api rate_limit` shows GraphQL quota left. The REST core limit is separate. Fallback that worked (#2148): `gh api -X POST repos/steilerDev/cornerstone/pulls -f base=beta -f head=<branch> -f "title=..." -F body=@<file> --jq .html_url`. Worktree-isolated sessions also refuse compound/looped git/gh commands, so put retry loops in a script file.

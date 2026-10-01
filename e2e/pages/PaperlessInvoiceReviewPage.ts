@@ -93,6 +93,25 @@ export class PaperlessInvoiceReviewPage {
   /** Clear selection button on vendor SearchPicker */
   readonly vendorClearButton: Locator;
 
+  // ─── Issue #2148: inline vendor creation ─────────────────────────────────────
+
+  /** "Add new vendor" / `Add new vendor "<query>"` row inside the vendor dropdown */
+  readonly vendorCreateOption: Locator;
+  /** VendorCreateModal dialog (title "Add Vendor") */
+  readonly vendorCreateModal: Locator;
+  readonly vendorCreateNameInput: Locator;
+  readonly vendorCreatePhoneInput: Locator;
+  readonly vendorCreateEmailInput: Locator;
+  /** Submit button: "Add Vendor" / "Adding..." */
+  readonly vendorCreateSubmit: Locator;
+  readonly vendorCreateCancel: Locator;
+  /** Server error banner (FormError variant="banner", role="alert") inside the modal */
+  readonly vendorCreateErrorBanner: Locator;
+  /** sr-only polite status region used for the "created and selected" announcement */
+  readonly statusRegion: Locator;
+  readonly invoiceNumberInput: Locator;
+  readonly notesInput: Locator;
+
   /** SuggestionBadge shown when vendor was LLM-suggested */
   readonly vendorSuggestionBadge: Locator;
 
@@ -103,6 +122,9 @@ export class PaperlessInvoiceReviewPage {
    * The outer wrapper <div id="vendor-error"> is a unique, stable anchor for this locator.
    */
   readonly vendorError: Locator;
+
+  /** Invoice Status <select id="invoice-status"> (pending/paid/claimed/quotation) */
+  readonly statusSelect: Locator;
 
   /** "Create Invoice & Itemize" confirm button (text-based locator — works in all layout variants) */
   readonly confirmButton: Locator;
@@ -189,6 +211,7 @@ export class PaperlessInvoiceReviewPage {
     this.errorContainer = page.locator(
       '[role="alert"][class*="errorState"], div[class*="errorState"]',
     );
+    this.statusSelect = page.locator('#invoice-status');
     this.backToInvoicesButton = page.getByRole('button', { name: /Back to Invoices/i });
 
     // Ready state — vendor section
@@ -205,6 +228,25 @@ export class PaperlessInvoiceReviewPage {
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+
+    this.vendorCreateOption = this.vendorPortalDropdown.getByRole('option', {
+      name: /^Add new vendor/,
+    });
+    this.vendorCreateModal = page.getByRole('dialog', { name: 'Add Vendor' });
+    this.vendorCreateNameInput = this.vendorCreateModal.locator('#vendor-name');
+    this.vendorCreatePhoneInput = this.vendorCreateModal.locator('#vendor-phone');
+    this.vendorCreateEmailInput = this.vendorCreateModal.locator('#vendor-email');
+    this.vendorCreateSubmit = this.vendorCreateModal.getByRole('button', {
+      name: /^(Add Vendor|Adding\.\.\.)$/,
+    });
+    this.vendorCreateCancel = this.vendorCreateModal.getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
+    this.vendorCreateErrorBanner = this.vendorCreateModal.locator('[role="alert"]');
+    this.statusRegion = page.locator('[class*="formColumn"] [role="status"]');
+    this.invoiceNumberInput = page.locator('#invoice-number');
+    this.notesInput = page.locator('#notes');
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
 
@@ -310,7 +352,22 @@ export class PaperlessInvoiceReviewPage {
   async setVendor(name: string): Promise<void> {
     await this.vendorInput.fill(name);
     await this.vendorPortalDropdown.waitFor({ state: 'visible' });
-    await this.vendorPortalDropdown.getByRole('option', { name }).click();
+    await this.vendorPortalDropdown.getByRole('option', { name, exact: true }).click();
+  }
+
+  /**
+   * Focus the vendor picker and activate the "Add new vendor" row (opens the create modal).
+   * Pass `query` to type into the picker first (otherwise the dropdown opens on focus).
+   */
+  async openCreateVendor(query?: string): Promise<void> {
+    if (query !== undefined) {
+      await this.vendorInput.fill(query);
+    } else {
+      await this.vendorInput.focus();
+    }
+    await this.vendorPortalDropdown.waitFor({ state: 'visible' });
+    await this.vendorCreateOption.click();
+    await this.vendorCreateModal.waitFor({ state: 'visible' });
   }
 
   /**

@@ -347,6 +347,7 @@
     "signedBy": "Unterzeichnet von",
     "signaturesLabel": "Unterschriften",
     "addSignature": "+ Unterschrift hinzufügen",
+    "limitReached": "Sie können bis zu {{max}} Unterschriften hinzufügen.",
     "signerTypeLabel": "Unterzeichnertyp",
     "signerTypeSelf": "Selbst",
     "signerTypeVendor": "Auftragnehmer",

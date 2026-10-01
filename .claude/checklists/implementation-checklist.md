@@ -63,7 +63,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 ## Frontend — Accessibility & Responsiveness
 
 - [ ] **ARIA labels**: All interactive elements (buttons, links, inputs) must have accessible names via `aria-label`, `aria-labelledby`, or visible text content.
-- [ ] **Keyboard navigation**: All interactive elements must be reachable via Tab. Custom widgets must support arrow-key navigation.
+- [ ] **Keyboard navigation**: All interactive elements must be reachable via Tab. Custom widgets must support arrow-key navigation. **Portaled dropdowns (`FloatingPortal`, e.g. SearchPicker) sit at the end of `<body>`, outside the Tab order** — any spec adding a focusable row to one must specify how the keyboard reaches it (ArrowDown/ArrowUp from the input), and E2E must reach it by keys, never by `.focus()` on the row (#2148).
 - [ ] **Focus-visible styling**: All custom buttons, toggles, and interactive elements must have `:focus-visible { outline: none; box-shadow: var(--shadow-focus); }` styling. This is a recurring review finding — never rely on browser defaults for custom interactive elements.
 - [ ] **Focus management**: Modals must trap focus. Dynamic content must manage focus appropriately.
 - [ ] **Reduced motion**: Any CSS with `transition` or `animation` must include a `@media (prefers-reduced-motion: reduce) { transition: none; animation: none; }` guard.
@@ -124,6 +124,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **`identity-obj-proxy` cannot see `composes`**: in Jest a composed class is the bare key, so a negative assertion on the composed-in class (`not.toBeInTheDocument()` on `.counter` when `.counterOverLimit` composes it) passes while being false in the webpack build. When a PR adds `composes`, grep its tests for such negative assertions (PR #2137).
 - [ ] **Green Jest is not a typecheck of test files**: ts-jest can pass a test file that fails `tsc` under strict mode (e.g. `mock.calls[0][1]` → TS2532 with `noUncheckedIndexedAccess`), and CI's Static Analysis/Docker build then fails. In `[MODE: review]`, run `npx tsc --noEmit -p <workspace>/tsconfig.json` for every workspace whose `.test.ts(x)` files changed. Narrow indexed mock-call reads with a `toBeDefined()` guard, not `!` (PR #2121).
 - [ ] **A docs-only PR's green gates prove nothing**: `Detect Changes` skips every real job, and no workflow in `.github/workflows/ci.yml` builds the docs site at all — the `onBrokenAnchors: 'throw'` Docusaurus build runs only in `release.yml`, so a broken anchor merges clean and fails at release time. Run `npm run docs:build` yourself on any PR that adds or moves an anchor.
+- [ ] **Transpiler/bundler major bumps need a bundle diff, not just a green build**: compare the production bundle against a baseline build (chunk contenthashes, warning counts by category, absence of `jsx-dev-runtime`/`jsxDEV`). Neither the build exit code nor Jest (ts-jest) exercises babel-loader output — Babel 8 shipped dev JSX into a green production build (#1823).
 
 ## Acceptance Criteria & Specs
 

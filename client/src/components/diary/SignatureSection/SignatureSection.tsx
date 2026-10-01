@@ -1,5 +1,7 @@
+import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
+import { MAX_SIGNATURES_PER_ENTRY } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
@@ -35,6 +37,8 @@ export function SignatureSection({
   vendors,
 }: SignatureSectionProps) {
   const { t } = useTranslation('diary');
+  const limitHintId = useId();
+  const limitReached = (signatures?.length ?? 0) >= MAX_SIGNATURES_PER_ENTRY;
   const defaultLabel = label || t('signature.signaturesLabel');
   const handleSignatureUpdate = (index: number, updated: DiarySignatureEntry | null) => {
     onSignatureChange(index, updated);
@@ -91,11 +95,17 @@ export function SignatureSection({
         type="button"
         className={shared.btnSecondary}
         onClick={onAddSignature}
-        disabled={disabled}
+        disabled={disabled || limitReached}
         aria-label={t('signature.addSignature')}
+        aria-describedby={limitReached ? limitHintId : undefined}
       >
         {t('signature.addSignature')}
       </button>
+      {limitReached && (
+        <p id={limitHintId} className={styles.limitHint}>
+          {t('signature.limitReached', { max: MAX_SIGNATURES_PER_ENTRY })}
+        </p>
+      )}
     </div>
   );
 }

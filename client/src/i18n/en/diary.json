@@ -347,6 +347,7 @@
     "signedBy": "Signed by",
     "signaturesLabel": "Signatures",
     "addSignature": "+ Add Signature",
+    "limitReached": "You can add up to {{max}} signatures.",
     "signerTypeLabel": "Signer Type",
     "signerTypeSelf": "Self",
     "signerTypeVendor": "Vendor",
