@@ -119,8 +119,10 @@ describe('householdItemService — configured VAT rate', () => {
 
       const { filterMeta } = householdItemService.listHouseholdItems(db, {}, vatRate);
 
-      expect(filterMeta.plannedCost.min).toBeCloseTo(100, 5);
-      expect(filterMeta.plannedCost.max).toBeCloseTo(gross, 5);
+      expect(filterMeta.plannedCost).toBeDefined();
+      const plannedCost = filterMeta.plannedCost!;
+      expect(plannedCost.min).toBeCloseTo(100, 5);
+      expect(plannedCost.max).toBeCloseTo(gross, 5);
     });
 
     it('plannedCostMin includes the net item exactly at the boundary and excludes just above it', () => {
