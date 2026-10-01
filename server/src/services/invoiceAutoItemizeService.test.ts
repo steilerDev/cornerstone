@@ -2526,6 +2526,92 @@ describe('invoiceAutoItemizeService', () => {
     });
   });
 
+  // ─── Story #2148 — previewAutoItemize extractedVendorName ─────────────────────
+
+  describe('previewAutoItemize extractedVendorName (Story #2148)', () => {
+    async function runPreview(llmPayload: Record<string, unknown>) {
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(makePaperlessRawDoc()))
+        .mockResolvedValueOnce(makeOkFetch(PAPERLESS_TAGS_RESPONSE))
+        .mockResolvedValueOnce(
+          makeOkFetch({
+            choices: [
+              {
+                message: {
+                  content: JSON.stringify({
+                    lines: [{ description: 'Tile', totalAmount: 200, confidence: 0.9 }],
+                    ...llmPayload,
+                  }),
+                },
+              },
+            ],
+          }),
+        );
+      return previewAutoItemize(db, makeConfig(), { paperlessDocumentId: 42 }, PAPERLESS_AUTH);
+    }
+
+    it('returns the extracted issuer name when the vendor does not exist yet', async () => {
+      insertVendor(db, 'Builder Co');
+
+      const result = await runPreview({ vendorName: 'Neue Firma', chosenVendorName: null });
+
+      expect(result.extractedVendorName).toBe('Neue Firma');
+      expect(result.suggestedVendorId).toBeNull();
+    });
+
+    it('prefers the printed vendorName over the matched list name when both are present', async () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+
+      const result = await runPreview({
+        vendorName: 'Builder Co GmbH',
+        chosenVendorName: 'Builder Co',
+      });
+
+      expect(result.extractedVendorName).toBe('Builder Co GmbH');
+      expect(result.suggestedVendorId).toBe(vendorId);
+    });
+
+    it('falls back to chosenVendorName when vendorName is absent', async () => {
+      const vendorId = insertVendor(db, 'Builder Co');
+
+      const result = await runPreview({ chosenVendorName: 'Builder Co' });
+
+      expect(result.extractedVendorName).toBe('Builder Co');
+      expect(result.suggestedVendorId).toBe(vendorId);
+    });
+
+    it('trims the chosenVendorName fallback', async () => {
+      const result = await runPreview({ chosenVendorName: '  Builder Co  ' });
+
+      expect(result.extractedVendorName).toBe('Builder Co');
+    });
+
+    it('cuts a chosenVendorName fallback longer than 200 characters to its first 200', async () => {
+      const long = `${'A'.repeat(150)}${'B'.repeat(100)}`;
+
+      const result = await runPreview({ chosenVendorName: long });
+
+      expect(result.extractedVendorName).toBe(long.slice(0, 200));
+      expect(result.extractedVendorName).toHaveLength(200);
+    });
+
+    it('omits extractedVendorName for a whitespace-only chosenVendorName', async () => {
+      const result = await runPreview({ chosenVendorName: '    ' });
+
+      expect('extractedVendorName' in result).toBe(false);
+    });
+
+    it('omits extractedVendorName when neither vendorName nor chosenVendorName is returned', async () => {
+      insertVendor(db, 'Builder Co');
+
+      const absent = await runPreview({});
+      expect('extractedVendorName' in absent).toBe(false);
+
+      const nulls = await runPreview({ vendorName: null, chosenVendorName: null });
+      expect('extractedVendorName' in nulls).toBe(false);
+    });
+  });
+
   // ─── Story #1679 — previewAutoItemize ─────────────────────────────────────────
 
   describe('previewAutoItemize (Story #1679)', () => {

@@ -304,6 +304,33 @@ describe('buildUserPrompt()', () => {
     });
   });
 
+  // ─── Story #2148 — vendorName extraction ─────────────────────────────────────
+
+  describe('vendorName extraction (Story #2148)', () => {
+    it('SYSTEM_PROMPT schema declares "vendorName": string | null', () => {
+      expect(SYSTEM_PROMPT).toContain('"vendorName": string | null');
+    });
+
+    it('SYSTEM_PROMPT tells the LLM to extract vendorName regardless of any vendor list', () => {
+      expect(SYSTEM_PROMPT).toContain('regardless of any vendor list');
+    });
+
+    it('SYSTEM_PROMPT keeps vendorName and chosenVendorName as separate rules', () => {
+      expect(SYSTEM_PROMPT).toContain('10. vendorName:');
+      expect(SYSTEM_PROMPT).toContain('11. chosenVendorName:');
+    });
+
+    it('SYSTEM_PROMPT empty-extraction fallback includes "vendorName": null', () => {
+      expect(SYSTEM_PROMPT).toContain('"vendorName": null');
+    });
+
+    it('buildUserPrompt closing schema contains "vendorName"', () => {
+      const prompt = buildUserPrompt('ocr text', {});
+      const closing = prompt.slice(prompt.indexOf('Return the extracted data'));
+      expect(closing).toContain('"vendorName": string | null');
+    });
+  });
+
   // ─── Story #1767 — SYSTEM_PROMPT rule 13 ─────────────────────────────────────
 
   describe('SYSTEM_PROMPT — rule 13', () => {

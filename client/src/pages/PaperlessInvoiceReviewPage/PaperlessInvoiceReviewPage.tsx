@@ -1,10 +1,11 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   ExtractedLine,
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
+  Vendor,
 } from '@cornerstone/shared';
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
@@ -21,6 +22,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
+import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
@@ -95,6 +97,9 @@ export function PaperlessInvoiceReviewPage() {
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
 
   const [announceMessage, setAnnounceMessage] = useState('');
+  const [extractedVendorName, setExtractedVendorName] = useState<string | null>(null);
+  const [vendorCreate, setVendorCreate] = useState<{ initialName: string } | null>(null);
+  const createResolverRef = useRef<((v: { id: string; name: string } | null) => void) | null>(null);
 
   const {
     lines,
@@ -175,6 +180,8 @@ export function PaperlessInvoiceReviewPage() {
 
         setLines(linesWithInclude);
 
+        setExtractedVendorName(previewResult.extractedVendorName ?? null);
+
         if (previewResult.suggestedVendorId) {
           setSuggestedVendorId(previewResult.suggestedVendorId);
           setVendorId(previewResult.suggestedVendorId);
@@ -214,6 +221,31 @@ export function PaperlessInvoiceReviewPage() {
   const handleCancel = useCallback(() => {
     navigate('/budget/invoices');
   }, [navigate]);
+
+  const settleCreate = (v: { id: string; name: string } | null) => {
+    const resolve = createResolverRef.current;
+    createResolverRef.current = null;
+    resolve?.(v);
+  };
+
+  const handleRequestCreateVendor = (query: string) =>
+    new Promise<{ id: string; name: string } | null>((resolve) => {
+      createResolverRef.current = resolve;
+      setVendorCreate({ initialName: extractedVendorName ?? query });
+    });
+
+  const handleVendorCreated = (vendor: Vendor) => {
+    const option = { id: vendor.id, name: vendor.name };
+    setVendors((prev) => [...prev, option]);
+    setVendorCreate(null);
+    setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: vendor.name }));
+    settleCreate(option);
+  };
+
+  const handleVendorCreateClose = () => {
+    setVendorCreate(null);
+    settleCreate(null);
+  };
 
   const handleSave = useCallback(async () => {
     if (!documentId || !document) return;
@@ -425,9 +457,18 @@ export function PaperlessInvoiceReviewPage() {
                   renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   placeholder={t('autoItemize.vendorPlaceholder')}
                   initialTitle={suggestedVendorName ?? undefined}
-                  aria-required="true"
-                  aria-invalid={vendorError ? 'true' : undefined}
-                  aria-describedby={vendorError ? 'vendor-error' : undefined}
+                  inputAriaProps={{
+                    'aria-required': true,
+                    'aria-invalid': vendorError ? true : undefined,
+                    'aria-describedby': vendorError ? 'vendor-error' : undefined,
+                  }}
+                  createAction={{
+                    getLabel: (q) =>
+                      q
+                        ? t('autoItemize.addNewVendorNamed', { name: q })
+                        : t('autoItemize.addNewVendor'),
+                    onCreate: handleRequestCreateVendor,
+                  }}
                 />
                 {vendorError && (
                   <div id="vendor-error">
@@ -599,6 +640,14 @@ export function PaperlessInvoiceReviewPage() {
           </div>
         </div>
       </div>
+
+      {vendorCreate && (
+        <VendorCreateModal
+          initialName={vendorCreate.initialName}
+          onCreated={handleVendorCreated}
+          onClose={handleVendorCreateClose}
+        />
+      )}
 
       {/* Budget line picker modal */}
       {picker.pickerState.isOpen && (
