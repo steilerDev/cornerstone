@@ -503,16 +503,13 @@ describe('PaperlessInvoiceReviewPage', () => {
       renderPage();
 
       // The loading layout renders a Spinner (role="img" aria-label="Loading") and
-      // the t('autoItemize.extractionStarted') heading.
+      // the "Analyzing document with AI…" heading.
       // Note: confidence dots also have role="img" in ready state, so we target
       // the Spinner specifically via aria-label="Loading".
       await waitFor(() => {
         const spinners = document.querySelectorAll('[role="img"][aria-label="Loading"]');
         const hasSpinner = spinners.length > 0;
-        const hasLoadingText =
-          screen.queryAllByText(/Analyzing/i).length > 0 ||
-          screen.queryAllByText(/Extraction/i).length > 0 ||
-          screen.queryAllByText(/extractionStarted/i).length > 0;
+        const hasLoadingText = screen.queryAllByText(/Analyzing/i).length > 0;
         expect(hasSpinner || hasLoadingText).toBe(true);
       });
     });
@@ -569,14 +566,14 @@ describe('PaperlessInvoiceReviewPage', () => {
         // Spinner has role="img" aria-label="Loading" (confidence dots also have role="img" but different aria-label)
         expect(
           document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0 ||
-            screen.queryAllByText(/Analyzing/i).length > 0 ||
-            screen.queryAllByText(/extractionStarted/i).length > 0,
+            screen.queryAllByText(/Analyzing/i).length > 0,
         ).toBe(true);
       });
 
-      // The "Create Invoice & Itemize" (createAndItemize) button must not be visible yet
-      expect(screen.queryByRole('button', { name: /Create Invoice/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /createAndItemize/i })).not.toBeInTheDocument();
+      // The "Create Invoice & Itemize" button must not be visible yet
+      expect(
+        screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -598,10 +595,7 @@ describe('PaperlessInvoiceReviewPage', () => {
           const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
           const hasSpinner =
             document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-          const inLoadingState =
-            screen.queryAllByText(/Analyzing/i).length > 0 ||
-            screen.queryAllByText(/Extracting/i).length > 0 ||
-            screen.queryAllByText(/extractionStarted/i).length > 0;
+          const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
           expect(cancelBtn).toBeInTheDocument();
           expect(hasSpinner || inLoadingState).toBe(false);
         },
@@ -609,10 +603,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The create button must be present (disabled when vendorId is empty)
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
       expect(createBtn).toBeInTheDocument();
     });
 
@@ -797,10 +788,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       // Without a vendor the button must NOT be disabled (only disabled when saving)
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn) {
         // The component disables the button via: disabled={pageStatus === 'saving'}
@@ -821,10 +809,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn) {
         // Button is NOT disabled without a vendor (only disabled when saving).
@@ -867,10 +852,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn && !createBtn.hasAttribute('disabled')) {
         await act(async () => {
@@ -922,10 +904,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn && !createBtn.hasAttribute('disabled')) {
         await act(async () => {
@@ -961,10 +940,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
       });
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn && !createBtn.hasAttribute('disabled')) {
         await act(async () => {
@@ -1468,7 +1444,9 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       // The loading spinner should NOT be present (no async fetch started)
       // and no create invoice button should render
-      expect(screen.queryByRole('button', { name: /Create Invoice/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
+      ).not.toBeInTheDocument();
     });
 
     it('does not call previewAutoItemize when no documentId', async () => {
@@ -1543,10 +1521,7 @@ describe('PaperlessInvoiceReviewPage', () => {
           const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
           const hasSpinner =
             document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-          const inLoadingState =
-            screen.queryAllByText(/Analyzing/i).length > 0 ||
-            screen.queryAllByText(/Extracting/i).length > 0 ||
-            screen.queryAllByText(/extractionStarted/i).length > 0;
+          const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
           expect(cancelBtn).toBeInTheDocument();
           expect(hasSpinner || inLoadingState).toBe(false);
         },
@@ -1554,10 +1529,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       );
 
       // The Create Invoice button is not disabled when no vendor (only disabled when saving)
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn) {
         // Click even if it looks disabled — vendor validation fires in handleSave
@@ -1611,10 +1583,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn) {
         await act(async () => {
@@ -1655,10 +1624,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         { timeout: 5000 },
       );
 
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn && !createBtn.hasAttribute('disabled')) {
         await act(async () => {
@@ -1817,10 +1783,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       // The Create Invoice button should be clickable (not disabled) even without a vendor.
       // disabled is only set when pageStatus === 'saving'.
-      const createBtn =
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i });
+      const createBtn = screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 
       if (createBtn) {
         // Button must NOT have the disabled attribute
@@ -1956,11 +1919,7 @@ describe('PaperlessInvoiceReviewPage', () => {
   // failure and success branches, so a retry only re-attempts lines still in draft.
   describe('retry safety — no duplicate budget lines on commit failure (#1833)', () => {
     function findCreateButton() {
-      return (
-        screen.queryByRole('button', { name: /Create Invoice/i }) ||
-        screen.queryByRole('button', { name: /createAndItemize/i }) ||
-        screen.queryByRole('button', { name: /Itemize/i })
-      );
+      return screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
     }
 
     /**

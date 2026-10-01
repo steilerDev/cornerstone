@@ -376,10 +376,7 @@ async function waitForReady() {
     () => {
       const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
       const hasSpinner = document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-      const inLoadingState =
-        screen.queryAllByText(/Analyzing/i).length > 0 ||
-        screen.queryAllByText(/Extracting/i).length > 0 ||
-        screen.queryAllByText(/extractionStarted/i).length > 0;
+      const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
       expect(cancelBtn).toBeInTheDocument();
       expect(hasSpinner || inLoadingState).toBe(false);
     },
