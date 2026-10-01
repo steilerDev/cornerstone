@@ -332,3 +332,32 @@ describe('isOpenAiReasoningModel', () => {
     expect(isOpenAiReasoningModel(model)).toBe(expected);
   });
 });
+
+describe('EXTRACTED_LINES_SCHEMA keys (Story #2148)', () => {
+  const schema = (EXTRACTED_LINES_SCHEMA as unknown as { schema: Record<string, unknown> }).schema;
+  const top = schema as { properties: Record<string, unknown>; required: string[] };
+  const line = (
+    top.properties.lines as {
+      items: { properties: Record<string, unknown>; required: string[] };
+    }
+  ).items;
+
+  it('declares and requires top-level vendorName and chosenVendorName', () => {
+    expect(top.properties).toHaveProperty('vendorName');
+    expect(top.properties).toHaveProperty('chosenVendorName');
+    expect(top.required).toEqual(expect.arrayContaining(['vendorName', 'chosenVendorName']));
+  });
+
+  it('declares and requires the line-level category', () => {
+    expect(line.properties).toHaveProperty('category');
+    expect(line.required).toContain('category');
+  });
+
+  it('requires exactly the declared properties at the top level (strict-mode set equality)', () => {
+    expect(new Set(top.required)).toEqual(new Set(Object.keys(top.properties)));
+  });
+
+  it('requires exactly the declared properties at the line level (strict-mode set equality)', () => {
+    expect(new Set(line.required)).toEqual(new Set(Object.keys(line.properties)));
+  });
+});

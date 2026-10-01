@@ -6,7 +6,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
@@ -426,9 +426,12 @@ describe('VendorsPage', () => {
       expect(form).toBeTruthy();
       fireEvent.submit(form!);
 
+      // The name error is now a field-level error (no role="alert") wired to the input
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText('Vendor name is required.')).toBeInTheDocument();
       });
+      expect(screen.getByLabelText(/name/i)).toHaveAttribute('aria-invalid', 'true');
+      expect(mockCreateVendor).not.toHaveBeenCalled();
     });
 
     it('calls createVendor API with correct data and closes modal on success', async () => {
@@ -482,7 +485,34 @@ describe('VendorsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Vendor already exists')).toBeInTheDocument();
+      });
+      // The create error is translated via translateApiError, not the raw server message
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'A conflict occurred. The resource may already exist.',
+      );
+      expect(screen.queryByText('Vendor already exists')).not.toBeInTheDocument();
+    });
+
+    it('closes the modal and reloads the vendor list after a successful create', async () => {
+      const newVendor = makeVendor({ id: 'vendor-new', name: 'New Vendor' });
+      mockCreateVendor.mockResolvedValueOnce(newVendor);
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse());
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([newVendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('new-vendor-button'));
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'New Vendor' } });
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(mockFetchVendors).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -635,6 +665,28 @@ describe('VendorsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Acme Construction').length).toBeGreaterThan(0);
       });
+    });
+
+    it('renders the delete conflict message in an alert banner (FormError)', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'Vendor has associated invoices' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
+
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('This vendor cannot be deleted');
     });
   });
 });
