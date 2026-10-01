@@ -1005,6 +1005,38 @@ describe('buildReportContent — cover letter', () => {
       expect(contentDe.coverLetter!.closing).toBe('sourceReports.coverLetter.closing');
     });
   });
+
+  describe('opening (#2159)', () => {
+    it.each(['budget-overview', 'claim', 'proof-of-funds'] as const)(
+      'resolves via reportT("sourceReports.coverLetter.opening") for use case %s',
+      (useCase) => {
+        const requested: string[] = [];
+        const trackingT = ((key: string, opts?: Record<string, unknown>) => {
+          requested.push(key);
+          return opts ? `${key}::${JSON.stringify(opts)}` : key;
+        }) as unknown as TFunction;
+        const content = buildReportContent(
+          makeReport([]),
+          new Set(),
+          useCase,
+          trackingT,
+          formatters,
+          { includeCoverLetter: true, household, user },
+        );
+        expect(content.coverLetter!.opening).toBe('sourceReports.coverLetter.opening');
+        expect(requested).toContain('sourceReports.coverLetter.opening');
+      },
+    );
+
+    it('coverLetter is null (so no opening exists) when includeCoverLetter is false', () => {
+      const content = buildReportContent(makeReport([]), new Set(), 'claim', t, formatters, {
+        includeCoverLetter: false,
+        household,
+        user,
+      });
+      expect(content.coverLetter).toBeNull();
+    });
+  });
 });
 
 describe('buildReportContent — t() call tracking sanity', () => {

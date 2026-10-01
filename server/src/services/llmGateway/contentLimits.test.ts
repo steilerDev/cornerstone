@@ -77,7 +77,7 @@ describe('buildReportContentUserPrompt() derives its trailing reminder caps from
   it('reminds the letterBody cap using the constant', () => {
     const result = buildReportContentUserPrompt(buildInput());
     expect(result).toContain(
-      `"letterBody": formal cover letter (max ${REPORT_CONTENT_LIMITS.letterBody} chars) summarizing the report`,
+      `- "letterBody": formal cover letter body text only, without salutation, closing formula, or signature (max ${REPORT_CONTENT_LIMITS.letterBody} chars) summarizing the report`,
     );
   });
 

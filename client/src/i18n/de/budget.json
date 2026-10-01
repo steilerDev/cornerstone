@@ -1328,15 +1328,16 @@
       "reference": "Referenz",
       "subject": {
         "budget-overview": "Budgetübersicht unseres Bauprojekts",
-        "claim": "Einreichungsunterlagen",
+        "claim": "Abruf Kreditmittel",
         "proof-of-funds": "Verwendungsnachweis"
       },
       "body": {
-        "budget-overview": "Anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
-        "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
-        "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
+        "budget-overview": "anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
+        "claim": "hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
+        "proof-of-funds": "anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       },
-      "closing": "Mit freundlichen Grüßen"
+      "closing": "Mit freundlichen Grüßen",
+      "opening": "Sehr geehrte Damen und Herren,"
     },
     "editable": {
       "senderLabel": "Absender",
@@ -1345,6 +1346,7 @@
       "signatureLabel": "Unterschrift",
       "subjectLabel": "Betreff",
       "bodyLabel": "Brieftext",
+      "openingLabel": "Anrede",
       "closingLabel": "Grußformel",
       "attachmentsNoteLabel": "Anhangshinweis",
       "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
