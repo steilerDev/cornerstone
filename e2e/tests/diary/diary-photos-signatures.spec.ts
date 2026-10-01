@@ -16,6 +16,8 @@
  * 9.  Edit/Delete buttons are hidden for a signed entry (mock API — isSigned=true)
  * 10. "Add photos" link is hidden for signed entries (isSigned=true)
  * 11. Unfinished signature blocks promote client-side (#2088)
+ * 12. [responsive] Signed draft survives leave-and-return, promotes, then locks (#2124)
+ * 13. Issue entry with a drawn signature autosaves and promotes (#2125)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -608,6 +610,166 @@ test.describe('Unfinished signature blocks promote (#2088)', () => {
 
       await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
       expect(promoteRequests.length).toBeGreaterThan(0);
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 12: Signed draft survives leave-and-return (#2124)
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TINY_PNG_DATA_URL =
+  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwADhQGAWjR9awAAAABJRU5ErkJggg==';
+
+test.describe('Signed draft survives leave-and-return (#2124)', { tag: '@responsive' }, () => {
+  test('signed draft stays editable, autosaves, reopens from the list, promotes, then locks', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    const diaryPage = new DiaryPage(page);
+    const id = await createDraftDiaryEntryViaApi(page, {
+      entryType: 'daily_log',
+      metadata: {
+        signatures: [
+          {
+            signerName: 'E2E Signer',
+            signerType: 'self',
+            signatureDataUrl: TINY_PNG_DATA_URL,
+          },
+        ],
+      },
+    });
+
+    const forbidden: string[] = [];
+    page.on('response', (resp) => {
+      if (resp.url().includes('/api/diary-entries/') && resp.status() === 403) {
+        forbidden.push(`${resp.request().method()} ${resp.url()}`);
+      }
+    });
+
+    try {
+      await editPage.goto(id);
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
+      await expect(editPage.draftBadge).toBeVisible();
+
+      // Autosave PATCH on blur must succeed (no 403 on a signed draft)
+      const autosave = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${id}`) &&
+          !resp.url().includes('/promote') &&
+          resp.request().method() === 'PATCH',
+      );
+      await editPage.bodyTextarea.fill(`${testPrefix} signed draft body`);
+      await editPage.bodyTextarea.blur();
+      expect((await autosave).status()).toBe(200);
+
+      // Leave and return via the draft card on the list
+      await diaryPage.filterDraftsOnly();
+      await diaryPage.entryCard(id).click();
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
+      await expect(editPage.heading).toBeVisible();
+      await expect(page.getByText('Signed entries cannot be edited')).not.toBeVisible();
+
+      // Promote
+      await editPage.submitButton.click();
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
+      await expect(detailPage.signatureSection).toBeVisible();
+      await expect(detailPage.editButton).not.toBeVisible();
+
+      // Saved + signed is immutable
+      const patch = await page.request.patch(`${API.diaryEntries}/${id}`, {
+        data: { body: 'tampered' },
+      });
+      expect(patch.status()).toBe(403);
+      const patchBody = (await patch.json()) as { error: { code: string } };
+      expect(patchBody.error.code).toBe('IMMUTABLE_ENTRY');
+
+      expect(forbidden).toHaveLength(0);
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 13: Issue entry with a drawn signature (#2125)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Issue entry signatures (#2125)', () => {
+  test('a drawn signature autosaves, promotes, and locks the saved issue', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const detailPage = new DiaryEntryDetailPage(page);
+    const id = await createDraftDiaryEntryViaApi(page, { entryType: 'issue' });
+
+    try {
+      await editPage.goto(id);
+      await editPage.bodyTextarea.fill(`${testPrefix} issue with signature`);
+      await editPage.severitySelect.selectOption('medium');
+      await editPage.resolutionStatusSelect.selectOption('open');
+
+      await editPage.addSignatureButton.click();
+      await expect(editPage.signatureCanvas.first()).toBeVisible();
+
+      const autosave = page.waitForResponse(
+        (resp) =>
+          resp.url().includes(`/api/diary-entries/${id}`) &&
+          !resp.url().includes('/promote') &&
+          resp.request().method() === 'PATCH' &&
+          ((resp.request().postDataJSON() as { metadata?: { signatures?: unknown[] } })?.metadata
+            ?.signatures?.length ?? 0) === 1,
+      );
+      await editPage.drawSignature(0);
+      const resp = await autosave;
+      expect(resp.status()).toBe(200);
+
+      await editPage.submitButton.click();
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}$`));
+      await expect(detailPage.signatureSection).toBeVisible();
+      await expect(detailPage.editButton).not.toBeVisible();
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
+    }
+  });
+
+  test('an unfinished second signature blocks promote client-side', async ({
+    page,
+    testPrefix,
+  }) => {
+    const editPage = new DiaryEntryEditPage(page);
+    const id = await createDraftDiaryEntryViaApi(page, { entryType: 'issue' });
+
+    const promoteRequests: string[] = [];
+    page.on('request', (req) => {
+      if (req.url().includes(`/api/diary-entries/${id}/promote`)) {
+        promoteRequests.push(`${req.method()} ${req.url()}`);
+      }
+    });
+
+    try {
+      await editPage.goto(id);
+      await editPage.bodyTextarea.fill(`${testPrefix} issue with unfinished signature`);
+      await editPage.severitySelect.selectOption('low');
+      await editPage.resolutionStatusSelect.selectOption('open');
+
+      await editPage.addSignatureButton.click();
+      await expect(editPage.signatureCanvas.first()).toBeVisible();
+      await editPage.drawSignature(0);
+
+      await editPage.addSignatureButton.click();
+      await expect(editPage.signatureCanvas.first()).toBeVisible();
+
+      await editPage.submitButton.click();
+
+      await expect(editPage.issueSignatureValidationError).toHaveText(/unfinished signature/i);
+      await expect(page).toHaveURL(new RegExp(`/diary/${id}/edit$`));
+      expect(promoteRequests).toHaveLength(0);
     } finally {
       await deleteDiaryEntryViaApi(page, id);
     }

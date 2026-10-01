@@ -670,4 +670,68 @@ describe('SignatureCapture', () => {
       expect(enLabel).not.toBe(deLabel);
     });
   });
+
+  describe('input length caps (#2152)', () => {
+    const signatory = () =>
+      screen.getByPlaceholderText('Name of person signing on behalf of vendor') as HTMLInputElement;
+
+    it('the free-text vendor name input is capped at 200 characters', () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+      expect(screen.getByPlaceholderText('Enter vendor name')).toHaveAttribute('maxlength', '200');
+    });
+
+    it('the "Other..." vendor name input is capped at 200 characters', () => {
+      render(
+        <SignatureCapture
+          {...makeProps({ signerType: 'vendor', vendors: [{ id: 'v1', name: 'Acme' }] })}
+        />,
+      );
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: '__other__' } });
+      expect(screen.getByPlaceholderText('Enter vendor name')).toHaveAttribute('maxlength', '200');
+    });
+
+    it('the signatory name leaves room for the composed "vendor (signatory)" within 300', () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+      // empty vendor: 300 - 0 - 3 (" (" + ")")
+      expect(signatory()).toHaveAttribute('maxlength', '297');
+      fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
+        target: { value: 'ACME Roofing' },
+      });
+      expect(signatory()).toHaveAttribute('maxlength', String(300 - 12 - 3));
+    });
+
+    it('a 200-character vendor name still leaves the signatory a maxLength of 97', () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+      fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
+        target: { value: 'v'.repeat(200) },
+      });
+      expect(signatory()).toHaveAttribute('maxlength', '97');
+    });
+
+    it('the signatory maxLength never drops below 1', () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+      // fireEvent bypasses the input maxlength, so an over-long vendor name can occur
+      fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
+        target: { value: 'v'.repeat(400) },
+      });
+      expect(signatory()).toHaveAttribute('maxlength', '1');
+    });
+
+    it('the composed name for the longest allowed inputs is exactly 300 characters', () => {
+      const onSignatureChange = jest.fn();
+      render(
+        <SignatureCapture
+          {...makeProps({ onSignatureChange, signerType: 'vendor', vendors: [] })}
+        />,
+      );
+      fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
+        target: { value: 'v'.repeat(200) },
+      });
+      fireEvent.change(signatory(), { target: { value: 's'.repeat(97) } });
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
+      const [entry] = onSignatureChange.mock.calls[0] as [DiarySignatureEntry];
+      expect(entry.signerName).toHaveLength(300);
+    });
+  });
 });

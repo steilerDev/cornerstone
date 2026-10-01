@@ -28,3 +28,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [CI gate design hazards](ci-gate-design.md) — repo-wide checks behind path filters let drift land; skipped!=passed; validate YAML via actionlint + truth table
 - [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale pins, silent workspace overrides, bundled deps, root hoisting anchors for CLI-loaded tools, mixed-major Babel
 - [Account provisioning hazards](account-provisioning-hazards.md) — setup lockout, case-variant email dup, untestable in-process collision path, AppConfig fixture breakage
+- [Parallel frontend split](parallel-frontend-split.md) — en-namespace ownership per FE group, final-step lint rule, 5 error-message leak classes to inventory

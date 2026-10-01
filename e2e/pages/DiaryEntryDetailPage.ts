@@ -20,7 +20,7 @@
  *   - Timestamps footer (Created / Updated)
  * - A "Back to Diary" link (shared.btnSecondary) navigating to /diary
  * - Error state: bannerError div + "Back to Diary" link — shown when 404 or other API error
- * - Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title"):
+ * - Delete confirmation modal (shared Modal, role="dialog", name "Delete Diary Entry"):
  *   - "Delete Diary Entry" heading
  *   - Confirmation text
  *   - Optional error banner (role="alert") if delete fails
@@ -113,7 +113,7 @@ export class DiaryEntryDetailPage {
     this.deleteButton = page.getByRole('button', { name: 'Delete', exact: true });
 
     // Delete confirmation modal (role="dialog")
-    this.deleteModal = page.getByRole('dialog');
+    this.deleteModal = page.getByRole('dialog', { name: 'Delete Diary Entry' });
     // Confirm inside the modal: "Delete Entry" / "Deleting..."
     this.confirmDeleteButton = this.deleteModal.getByRole('button', {
       name: /Delete Entry|Deleting\.\.\./i,

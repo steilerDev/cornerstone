@@ -1800,6 +1800,16 @@ The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise 
 subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
 boundary branch executes.
 
+## A "legacy NULL" branch the schema forbids (PR #2152, #2124)
+
+The shared lock predicate took `status?: DiaryEntryStatus | null` and documented "a null status is a
+legacy row and counts as saved". But `diary_entries.status` has been `NOT NULL DEFAULT 'saved'` since
+migration 0033. The fiction spread to Schema.md, API-Contract.md, a cast in `photos.ts`, and two unit
+tests, while the PR's own service test admitted "not testable: status is NOT NULL". Before accepting
+a legacy-row branch, check the column's migration. If the column is NOT NULL, make the parameter
+required: an optional parameter lets a future caller that forgets the field compile cleanly and
+silently fail closed, so the "defensive" widening is actually a forcing function removed.
+
 ## Split-off test files inherit the sibling suite's dead scaffolding (PR #2156, 2026-10-01)
 
 When a story adds a `Page.<feature>.test.tsx` next to an existing page suite, the author copies the

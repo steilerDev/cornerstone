@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './SignatureDisplay.module.css';
 
@@ -17,7 +16,11 @@ export function SignatureDisplay({
   return (
     <div className={styles.container}>
       <div className={styles.signatureBox}>
-        <img src={signatureDataUrl} alt={`Signature of ${signerName}`} className={styles.image} />
+        <img
+          src={signatureDataUrl}
+          alt={t('signature.altText', { name: signerName })}
+          className={styles.image}
+        />
       </div>
       <div className={styles.info}>
         <div className={styles.label}>

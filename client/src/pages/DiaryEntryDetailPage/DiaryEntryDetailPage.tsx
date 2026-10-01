@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntryDetail, DiarySignatureEntry } from '@cornerstone/shared';
+import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
@@ -16,6 +17,8 @@ import { SignatureDisplay } from '../../components/diary/SignatureDisplay/Signat
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
@@ -49,7 +52,6 @@ export default function DiaryEntryDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const modalRef = useRef<HTMLDivElement>(null);
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -88,39 +90,6 @@ export default function DiaryEntryDetailPage() {
 
     void loadEntry();
   }, [id, t]);
-
-  // Delete modal: focus trap and Escape key handler
-  useEffect(() => {
-    if (!showDeleteModal) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeDeleteModal();
-        return;
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        const focusableArray = Array.from(focusable);
-        if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0]!; // guarded by length check at line 102
-        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 102
-        if (e.shiftKey) {
-          if (document.activeElement === firstEl) {
-            e.preventDefault();
-            lastEl.focus();
-          }
-        } else {
-          if (document.activeElement === lastEl) {
-            e.preventDefault();
-            firstEl.focus();
-          }
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showDeleteModal, isDeleting, deleteError]);
 
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
@@ -171,6 +140,8 @@ export default function DiaryEntryDetailPage() {
     );
   }
 
+  const isLocked = isDiaryEntrySignatureLocked(entry);
+
   return (
     <div className={styles.page}>
       <div className={styles.topBar}>
@@ -183,7 +154,7 @@ export default function DiaryEntryDetailPage() {
           {t('detailPage.backLink')}
         </button>
         <div className={styles.actionButtons}>
-          {!entry.isAutomatic && !entry.isSigned && (
+          {!entry.isAutomatic && !isLocked && (
             <>
               <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
                 {t('detailPage.edit')}
@@ -197,7 +168,7 @@ export default function DiaryEntryDetailPage() {
               </button>
             </>
           )}
-          {entry.isSigned && (
+          {isLocked && (
             <button
               type="button"
               className={styles.deleteButton}
@@ -255,7 +226,7 @@ export default function DiaryEntryDetailPage() {
           ))}
 
         {/* Photos Section */}
-        {!(entry.isSigned && photosResult.photos.length === 0) && !entry.isAutomatic && (
+        {!(isLocked && photosResult.photos.length === 0) && !entry.isAutomatic && (
           <div className={styles.photoSection}>
             <div className={styles.photoSectionHeader}>
               <h2 className={styles.photoHeading}>
@@ -287,7 +258,7 @@ export default function DiaryEntryDetailPage() {
                     setSelectedPhotoIndex(index);
                   }}
                   loading={photosResult.loading}
-                  editable={!entry.isSigned}
+                  editable={!isLocked}
                 />
               </>
             )}
@@ -304,7 +275,7 @@ export default function DiaryEntryDetailPage() {
               setOpenAsAnnotator(false);
             }}
             onPhotoChanged={photosResult.updatePhotoInList}
-            editable={!entry.isSigned}
+            editable={!isLocked}
             startInAnnotator={openAsAnnotator}
             onDelete={(photoId) => {
               photosResult.deletePhoto(photoId);
@@ -343,24 +314,13 @@ export default function DiaryEntryDetailPage() {
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
-          <div className={styles.modalContent} ref={modalRef}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('detailPage.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>{t('detailPage.deleteMessage')}</p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : null}
-            <div className={styles.modalActions}>
+        <Modal
+          title={t('detailPage.deleteTitle')}
+          onClose={() => {
+            if (!isDeleting) closeDeleteModal();
+          }}
+          footer={
+            <>
               <button
                 type="button"
                 className={shared.btnSecondary}
@@ -379,9 +339,12 @@ export default function DiaryEntryDetailPage() {
                   {isDeleting ? t('detailPage.deleting') : t('detailPage.deleteConfirm')}
                 </button>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <FormError message={deleteError || null} />
+          <p>{t('detailPage.deleteMessage')}</p>
+        </Modal>
       )}
     </div>
   );

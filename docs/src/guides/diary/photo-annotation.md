@@ -16,8 +16,8 @@ Annotations are launched from the **photo viewer**, which opens when you click a
 
 If a photo has already been annotated, the viewer shows toggles for **View original** and **View annotated** so you can compare them. Clicking **Annotate** on an annotated photo opens the annotator with your previous shapes in place -- you can continue editing where you left off.
 
-:::caution Signed entries cannot be annotated
-Once a diary entry has been [signed](signatures), the **Annotate** button is disabled. Finalize your annotations before collecting signatures.
+:::caution Saved signed entries cannot be annotated
+Once a [signed](signatures) entry is saved, the **Annotate** button is disabled. Finish annotating before you save.
 :::
 
 ## The Tool Palette
@@ -99,4 +99,4 @@ When you save, the photo thumbnail in the diary entry updates to show the annota
 ## Next Steps
 
 - [Manual Entries](manual-entries) -- attaching and managing photos on diary entries
-- [Signatures](signatures) -- signing entries locks photos and disables annotation
+- [Signatures](signatures) -- saved signed entries lock photos and disable annotation
