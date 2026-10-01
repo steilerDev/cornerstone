@@ -1032,5 +1032,5 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
 
 ## PR #2163 (#2159 claim subject + read-only opening), 2026-10-01: VERDICT REQUEST_CHANGES (comment; own-token PR)
 
-- F1: a prompt-contract change (`letterBody` must exclude salutation/closing/signature) left the API-Contract response *example* demonstrating the now-forbidden output ("Dear Bank Officer,\n\n..."). When a PR edits an LLM prompt, grep API-Contract for the field's example JSON, not just its table row; also note prompt-only (non-validator) enforcement as best-effort.
+- F1: a prompt-contract change (`letterBody` must exclude salutation/closing/signature) left the API-Contract response _example_ demonstrating the now-forbidden output ("Dear Bank Officer,\n\n..."). When a PR edits an LLM prompt, grep API-Contract for the field's example JSON, not just its table row; also note prompt-only (non-validator) enforcement as best-effort.
 - F2: docs guide `bank-reports.md:55` listed closing as editable (stale since #1909/#1924) and lacked the new read-only opening.
