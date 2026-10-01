@@ -95,6 +95,20 @@ Invoices have four statuses:
 Use the **Quotation** status for vendor quotes that you want to track alongside actual invoices. Quotation amounts are treated with a +/- 5% margin in budget projections, reflecting the typical variance from a formal quote.
 :::
 
+### Converting a Quotation to a Final Invoice
+
+When a quotation becomes a finalized invoice from the vendor, you can convert it in one transaction:
+
+1. Open the quotation detail page
+2. Click **Convert to Final Invoice** (only visible on quotations with linked budget lines)
+3. Confirm the conversion dialog -- Cornerstone will:
+   - Change the status from **Quotation** to **Pending**
+   - Preserve all linked budget lines and their itemized amounts
+   - Retain the invoice header information (number, date, vendor)
+   - Keep all associated documents and deposits
+
+The conversion preserves all your cost allocations, so the budget lines stay linked exactly as they were on the quotation -- you do not need to re-link or re-itemize anything.
+
 ### Invoice Detail
 
 Click an invoice to see its full detail page with the invoice amount, current status, the **Deposits** section (for tracking staged payments), and the **Linked Budget Lines** section.
@@ -157,3 +171,16 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 - A budget line can be linked to **at most one invoice** -- each budget line is exclusive to a single invoice
 - An invoice can be linked to **many budget lines** across different work items and household items
 - Itemized amounts are independent of the planned amount on the budget line -- they represent the actual cost attribution from the invoice
+
+### Invoice Amount Validation
+
+When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
+
+- **Itemized amount floor** -- The invoice total cannot be lowered below the sum of all itemized amounts across all linked budget lines. If you have allocated 1000 EUR across budget lines but the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Lowering below that sum is rejected with an error message.
+- **Net deposit floor** -- The invoice total cannot be lowered below the sum of all confirmed deposit amounts. If you have received 500 EUR in deposits that have already been marked as paid, the invoice total must remain at least 500 EUR. This prevents the invoice from dropping below what you have already received.
+
+These guards ensure your budget stays mathematically consistent -- itemized allocations always sum to at most the total invoice amount, and deposits never exceed the final cost.
+
+:::info Date validation
+Cornerstone rejects impossible invoice dates (e.g., dates in the year 5000). Dates must be valid ISO 8601 dates within a reasonable historical and future range.
+:::
