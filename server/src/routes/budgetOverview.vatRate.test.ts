@@ -339,9 +339,8 @@ describe('VAT_RATE is honored by budget routes', () => {
         expect(wi.statusCode).toBe(200);
         expect(hi.statusCode).toBe(200);
         for (const body of [wi.json<Json>(), hi.json<Json>()]) {
-          const payback = body.subsidyPayback ?? body;
-          expect(payback.minTotalPayback).toBeCloseTo(min, 5);
-          expect(payback.maxTotalPayback).toBeCloseTo(max, 5);
+          expect(body.minTotalPayback).toBeCloseTo(min, 5);
+          expect(body.maxTotalPayback).toBeCloseTo(max, 5);
         }
       },
     );
@@ -388,7 +387,7 @@ describe('VAT_RATE is honored by budget routes', () => {
         });
         expect(detail.statusCode).toBe(200);
         const body = detail.json<Json>();
-        expect((body.householdItem ?? body).totalPlannedAmount).toBeCloseTo(gross, 5);
+        expect(body.householdItem.totalPlannedAmount).toBeCloseTo(gross, 5);
       },
     );
   });
