@@ -159,6 +159,14 @@
   box-shadow: var(--shadow-focus);
 }
 
+.fieldControl input:disabled,
+.fieldControl textarea:disabled,
+.fieldControl select:disabled {
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-disabled);
+  cursor: not-allowed;
+}
+
 .fieldControl textarea {
   font-family: inherit;
   resize: vertical;

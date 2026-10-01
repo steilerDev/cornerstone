@@ -123,6 +123,9 @@ export class PaperlessInvoiceReviewPage {
    */
   readonly vendorError: Locator;
 
+  /** Invoice Status <select id="invoice-status"> (pending/paid/claimed/quotation) */
+  readonly statusSelect: Locator;
+
   /** "Create Invoice & Itemize" confirm button (text-based locator — works in all layout variants) */
   readonly confirmButton: Locator;
 
@@ -208,6 +211,7 @@ export class PaperlessInvoiceReviewPage {
     this.errorContainer = page.locator(
       '[role="alert"][class*="errorState"], div[class*="errorState"]',
     );
+    this.statusSelect = page.locator('#invoice-status');
     this.backToInvoicesButton = page.getByRole('button', { name: /Back to Invoices/i });
 
     // Ready state — vendor section

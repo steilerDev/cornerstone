@@ -1641,6 +1641,51 @@ describe('POST /api/invoices/auto-itemize/commit', () => {
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
+  it('returns 400 VALIDATION_ERROR when invoice.status is not a valid status', async () => {
+    const { cookie } = await createUserSession1679(
+      app,
+      'commit-badstatus@test.com',
+      'BadSt',
+      'pass',
+    );
+    const vendorId = createTestVendorForApp(app, 'Bad Status Vendor');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      headers: { cookie },
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId,
+        invoice: { amount: 500, date: '2026-03-01', status: 'bogus' },
+        lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect(response.json<{ error: { code: string } }>().error.code).toBe('VALIDATION_ERROR');
+  });
+
+  it('returns 201 with invoice.status "paid" when status is supplied', async () => {
+    const { cookie } = await createUserSession1679(app, 'commit-paid@test.com', 'PaidSt', 'pass');
+    const vendorId = createTestVendorForApp(app, 'Paid Status Vendor');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/invoices/auto-itemize/commit',
+      headers: { cookie },
+      payload: {
+        paperlessDocumentId: 42,
+        vendorId,
+        invoice: { amount: 500, date: '2026-03-01', status: 'paid' },
+        lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }],
+      },
+    });
+
+    expect(response.statusCode).toBe(201);
+    expect(response.json<{ invoice: { status: string } }>().invoice.status).toBe('paid');
+  });
+
   it('returns 400 ITEMIZED_SUM_EXCEEDS_INVOICE when sum of lines exceeds invoice amount', async () => {
     const { cookie } = await createUserSession1679(
       app,

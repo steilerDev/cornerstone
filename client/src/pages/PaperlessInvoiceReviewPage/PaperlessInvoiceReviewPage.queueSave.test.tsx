@@ -513,10 +513,7 @@ async function waitForReady() {
     () => {
       const cancelBtn = screen.queryByRole('button', { name: /cancel/i });
       const hasSpinner = document.querySelectorAll('[role="img"][aria-label="Loading"]').length > 0;
-      const inLoadingState =
-        screen.queryAllByText(/Analyzing/i).length > 0 ||
-        screen.queryAllByText(/Extracting/i).length > 0 ||
-        screen.queryAllByText(/extractionStarted/i).length > 0;
+      const inLoadingState = screen.queryAllByText(/Analyzing/i).length > 0;
       expect(cancelBtn).toBeInTheDocument();
       expect(hasSpinner || inLoadingState).toBe(false);
     },
@@ -524,13 +521,9 @@ async function waitForReady() {
   );
 }
 
-/** Click the "Create Invoice & Itemize" (or equivalent) save button. */
+/** The save button. */
 function getCreateBtn() {
-  return (
-    screen.queryByRole('button', { name: /Create Invoice/i }) ||
-    screen.queryByRole('button', { name: /createAndItemize/i }) ||
-    screen.queryByRole('button', { name: /Itemize/i })
-  );
+  return screen.queryByRole('button', { name: 'Create Invoice & Itemize' });
 }
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
