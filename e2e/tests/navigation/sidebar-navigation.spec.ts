@@ -39,6 +39,9 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await clickSidebarLink('Schedule');
     await expect(page).toHaveURL(/\/schedule/);
 
+    await clickSidebarLink('Photos');
+    await expect(page).toHaveURL(/\/photos/);
+
     await clickSidebarLink('Settings');
     await expect(page).toHaveURL(/\/settings/);
   });
@@ -78,7 +81,7 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
 
     // Then: All expected navigation items should be present
     // Main nav: Project, Budget, Schedule (links) — Footer: Settings (button)
-    const expectedLinks = ['Project', 'Budget', 'Schedule'];
+    const expectedLinks = ['Project', 'Budget', 'Schedule', 'Photos'];
 
     for (const linkName of expectedLinks) {
       const link = appShell.sidebar.getByRole('link', { name: linkName, exact: true });

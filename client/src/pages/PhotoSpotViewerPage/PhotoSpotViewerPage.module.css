@@ -1,0 +1,21 @@
+.root {
+  min-height: 100dvh;
+}
+
+/* The dark stage only wraps the viewer itself; loading/error/empty states use the themed page. */
+.rootViewer {
+  background: var(--color-photo-stage-bg);
+  color: var(--color-photo-text);
+}
+
+.state {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+  padding: var(--spacing-6);
+}
+
+.retryButton {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}

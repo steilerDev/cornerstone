@@ -16,7 +16,11 @@ import type {
   ReorderPhotosRequest,
   PhotoEntityType,
 } from '@cornerstone/shared';
-import { hasDiarySignatures, isDiaryEntrySignatureLocked } from '@cornerstone/shared';
+import {
+  hasDiarySignatures,
+  isDiaryEntrySignatureLocked,
+  PHOTO_SPOT_NONE,
+} from '@cornerstone/shared';
 import { createReadStream } from 'node:fs';
 import { eq } from 'drizzle-orm';
 import {
@@ -27,6 +31,7 @@ import {
   ImmutableEntryError,
 } from '../errors/AppError.js';
 import * as photoService from '../services/photoService.js';
+import * as photoSpotService from '../services/photoSpotService.js';
 import * as photoAnnotationService from '../services/photoAnnotationService.js';
 import { diaryEntries } from '../db/schema.js';
 
@@ -92,6 +97,18 @@ const listPhotosSchema = {
     properties: {
       entityType: { type: 'string', minLength: 1, maxLength: 50 },
       entityId: { type: 'string', minLength: 1, maxLength: 36 },
+    },
+    additionalProperties: false,
+  },
+};
+
+const listSpotPhotosSchema = {
+  querystring: {
+    type: 'object',
+    required: ['areaId', 'orientationId'],
+    properties: {
+      areaId: { type: 'string', minLength: 1, maxLength: 36 },
+      orientationId: { type: 'string', minLength: 1, maxLength: 36 },
     },
     additionalProperties: false,
   },
@@ -198,6 +215,11 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       throw new ValidationError('Missing required fields: entityType, entityId');
     }
 
+    // Same limits as listPhotosSchema (entityType 1-50 chars, entityId 1-36 chars)
+    if (entityTypeField.value.length > 50 || entityIdField.value.length > 36) {
+      throw new ValidationError('Invalid entityType or entityId');
+    }
+
     const entityType = entityTypeField.value as PhotoEntityType;
     const entityId = entityIdField.value;
     const caption = captionField?.value ?? undefined;
@@ -255,6 +277,50 @@ export default async function photoRoutes(fastify: FastifyInstance): Promise<voi
       const photoList = photoService.getPhotosForEntity(fastify.db, entityType, entityId);
 
       return reply.status(200).send({ photos: photoList });
+    },
+  );
+
+  /**
+   * GET /spots
+   * Aggregate saved-diary-entry photos per spot (area x orientation), plus all
+   * areas and orientations for matrix layout.
+   *
+   * Returns: 200 with { spots, areas, orientations }
+   */
+  fastify.get('/spots', async (request: FastifyRequest, reply: FastifyReply) => {
+    if (!request.user) throw new UnauthorizedError();
+
+    return reply.status(200).send(photoSpotService.listPhotoSpots(fastify.db));
+  });
+
+  /**
+   * GET /spots/photos
+   * List every saved-diary-entry photo of exactly one spot, newest first.
+   *
+   * Query params:
+   *   - areaId: area id or '__none__'
+   *   - orientationId: orientation id or '__none__'
+   *
+   * Returns: 200 with { area, orientation, photos } or 404
+   */
+  fastify.get(
+    '/spots/photos',
+    { schema: listSpotPhotosSchema },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      if (!request.user) throw new UnauthorizedError();
+
+      const { areaId, orientationId } = request.query as {
+        areaId: string;
+        orientationId: string;
+      };
+
+      const result = photoSpotService.listSpotPhotos(
+        fastify.db,
+        areaId === PHOTO_SPOT_NONE ? null : areaId,
+        orientationId === PHOTO_SPOT_NONE ? null : orientationId,
+      );
+
+      return reply.status(200).send(result);
     },
   );
 

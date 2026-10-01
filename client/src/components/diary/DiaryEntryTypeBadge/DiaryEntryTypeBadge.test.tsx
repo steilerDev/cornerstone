@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, render } from '@testing-library/react';
+import { screen, render, act } from '@testing-library/react';
+import i18n from '../../../i18n/index.js';
 import { DiaryEntryTypeBadge } from './DiaryEntryTypeBadge.js';
 
 describe('DiaryEntryTypeBadge', () => {
@@ -98,6 +99,42 @@ describe('DiaryEntryTypeBadge', () => {
       'title',
       'Site Visit',
     );
+  });
+
+  it.each([
+    ['daily_log', 'Daily Log'],
+    ['site_visit', 'Site Visit'],
+    ['delivery', 'Delivery'],
+    ['issue', 'Issue'],
+    ['general_note', 'General Note'],
+    ['work_item_status', 'Work Item Status'],
+    ['invoice_status', 'Invoice Status'],
+    ['invoice_created', 'Invoice Created'],
+    ['milestone_delay', 'Milestone Delay'],
+    ['budget_breach', 'Budget Breach'],
+    ['auto_reschedule', 'Auto Reschedule'],
+    ['subsidy_status', 'Subsidy Status'],
+  ] as const)('title and aria-label come from diary:entryTypes for %s', (type, label) => {
+    render(<DiaryEntryTypeBadge entryType={type} />);
+    const badge = screen.getByTestId(`diary-type-badge-${type}`);
+    expect(badge).toHaveAttribute('title', label);
+    expect(badge).toHaveAttribute('aria-label', `Entry type: ${label}`);
+  });
+
+  it('shows the German label and aria-label when the language is German', async () => {
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    try {
+      render(<DiaryEntryTypeBadge entryType="general_note" />);
+      const badge = screen.getByTestId('diary-type-badge-general_note');
+      expect(badge).toHaveAttribute('title', 'Allgemeine Notiz');
+      expect(badge).toHaveAttribute('aria-label', 'Eintragstyp: Allgemeine Notiz');
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
   });
 
   // ─── size prop ─────────────────────────────────────────────────────────────

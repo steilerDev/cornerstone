@@ -211,7 +211,7 @@
     "orientations": {
       "tabLabel": "Ausrichtungen",
       "createTitle": "Ausrichtung erstellen",
-      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um Fotos mit einer Himmelsrichtung zu kennzeichnen (z. B. Süd – Straße).",
+      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um festzuhalten, wohin ein Foto zeigt (z. B. Süd – Straße, Decke).",
       "nameLabel": "Name",
       "namePlaceholder": "z. B. Süd",
       "descriptionLabel": "Beschreibung",
@@ -220,7 +220,7 @@
       "createButton": "Ausrichtung erstellen",
       "creating": "Wird erstellt…",
       "existingTitle": "Ausrichtungen ({{count}})",
-      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie eine oben, um Ihre Fotos mit einer Himmelsrichtung zu kennzeichnen.",
+      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie oben eine, um festzuhalten, wohin Ihre Fotos zeigen.",
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "save": "Speichern",

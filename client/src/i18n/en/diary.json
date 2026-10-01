@@ -50,6 +50,9 @@
     "searchAriaLabel": "Search diary entries",
     "typeGroupAriaLabel": "Filter by entry type"
   },
+  "entryTypeBadge": {
+    "ariaLabel": "Entry type: {{type}}"
+  },
   "entryTypes": {
     "daily_log": "Daily Log",
     "site_visit": "Site Visit",

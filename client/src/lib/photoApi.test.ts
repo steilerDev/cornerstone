@@ -6,6 +6,8 @@ import {
   getPhotoFileUrl,
   getPhotoThumbnailUrl,
   uploadPhoto,
+  getPhotoSpots,
+  getPhotoSpotPhotos,
 } from './photoApi.js';
 import type { Photo } from '@cornerstone/shared';
 
@@ -560,6 +562,69 @@ describe('photoApi', () => {
       await promise;
 
       expect(onProgress).toHaveBeenCalledWith(33);
+    });
+  });
+  // ─── Photo spots (Story #2162) ────────────────────────────────────────────────
+
+  describe('getPhotoSpots', () => {
+    it('GETs /api/photos/spots and returns the parsed body', async () => {
+      const body = { spots: [], areas: [], orientations: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      const result = await getPhotoSpots();
+
+      expect(result).toEqual(body);
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/photos/spots');
+    });
+  });
+
+  describe('getPhotoSpotPhotos', () => {
+    it('sends areaId and orientationId query params', async () => {
+      const body = { area: null, orientation: null, photos: [] };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      await getPhotoSpotPhotos('a1', 'o1');
+
+      const url = new URL(mockFetch.mock.calls[0]![0] as string, 'http://x');
+      expect(url.pathname).toBe('/api/photos/spots/photos');
+      expect(url.searchParams.get('areaId')).toBe('a1');
+      expect(url.searchParams.get('orientationId')).toBe('o1');
+    });
+
+    it('maps a null area to the __none__ sentinel', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ area: null, orientation: null, photos: [] }),
+      } as Response);
+
+      await getPhotoSpotPhotos(null, 'o1');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe(
+        '/api/photos/spots/photos?areaId=__none__&orientationId=o1',
+      );
+    });
+
+    it('maps a null orientation to the __none__ sentinel', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ area: null, orientation: null, photos: [] }),
+      } as Response);
+
+      await getPhotoSpotPhotos('a1', null);
+
+      expect(mockFetch.mock.calls[0]![0]).toBe(
+        '/api/photos/spots/photos?areaId=a1&orientationId=__none__',
+      );
     });
   });
 });

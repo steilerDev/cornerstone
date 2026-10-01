@@ -66,6 +66,8 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
   deletePhoto: mockDeletePhoto,
   deletePhotosForEntity: mockDeletePhotosForEntity,
   getPhotoFilePath: mockGetPhotoFilePath,
+  // Imported by photoSpotService (Story #2162); never invoked in this file
+  buildPhotoAssetUrls: jest.fn(),
 }));
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
@@ -2251,6 +2253,56 @@ describe('Photo Routes', () => {
   });
 
   // ─── Defensive guards and optional form fields ─────────────────────────────
+
+  describe('POST /api/photos — entityType/entityId length limits', () => {
+    async function postWith(entityType: string, entityId: string) {
+      const { cookie } = await createUserWithSession(
+        `len-${entityType.length}-${entityId.length}@example.com`,
+        'Len',
+        'password',
+      );
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-jpeg'),
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: entityType },
+        { name: 'entityId', value: entityId },
+      ]);
+      return app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+    }
+
+    it('returns 400 "Invalid entityType or entityId" for an entityType over 50 chars', async () => {
+      const response = await postWith('x'.repeat(51), 'entity-1');
+      expect(response.statusCode).toBe(400);
+      const err = response.json<{ error: { code: string; message: string } }>().error;
+      expect(err.code).toBe('VALIDATION_ERROR');
+      expect(err.message).toBe('Invalid entityType or entityId');
+      expect(mockUploadPhoto).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 "Invalid entityType or entityId" for an entityId over 36 chars', async () => {
+      const response = await postWith('test', 'x'.repeat(37));
+      expect(response.statusCode).toBe(400);
+      expect(response.json<{ error: { message: string } }>().error.message).toBe(
+        'Invalid entityType or entityId',
+      );
+      expect(mockUploadPhoto).not.toHaveBeenCalled();
+    });
+
+    it('accepts boundary lengths (entityType 50, entityId 36)', async () => {
+      const response = await postWith('x'.repeat(50), 'y'.repeat(36));
+      expect(response.statusCode).toBe(201);
+      expect(mockUploadPhoto).toHaveBeenCalledTimes(1);
+    });
+  });
 
   describe('POST /api/photos — areaId form field', () => {
     it('passes areaId to the service when provided', async () => {

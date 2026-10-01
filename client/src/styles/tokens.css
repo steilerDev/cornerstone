@@ -484,6 +484,18 @@
   --color-photo-action-primary-bg: rgba(59, 130, 246, 0.9);
   --color-photo-action-danger-bg: rgba(220, 38, 38, 0.9);
 
+  /* Photo spot viewer surfaces (theme-invariant) */
+  --color-photo-stage-bg: #0b0f17;
+  --color-photo-panel-bg: var(--color-gray-900);
+  --color-photo-panel-border: var(--color-gray-800);
+  --color-photo-text: var(--color-gray-50);
+  --color-photo-text-secondary: var(--color-gray-300);
+  --color-photo-text-muted: var(--color-gray-400);
+  --color-photo-link: var(--color-blue-300);
+  --color-photo-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --color-photo-item-current-bg: rgba(255, 255, 255, 0.12);
+  --color-photo-item-current-ring: var(--color-blue-400);
+
   /* ============================================================
    * LAYER 1-B — HOUSEHOLD ITEM GANTT TOKENS
    * ============================================================ */

@@ -48,6 +48,14 @@
     "AI": { "de": { "singular": "KI" } },
     "AI Assistance": { "de": { "singular": "KI-Unterstützung" } },
     "Claimed": { "de": { "singular": "Eingereicht" } },
-    "Applied": { "de": { "singular": "Beantragt" } }
+    "Applied": { "de": { "singular": "Beantragt" } },
+    "Photo": { "de": { "singular": "Foto", "plural": "Fotos" } },
+    "Spot": {
+      "de": {
+        "singular": "Blickpunkt",
+        "plural": "Blickpunkte",
+        "note": "An (area × orientation) combination representing a specific viewpoint for photos in the photo browser. The term 'Blickpunkt' (viewpoint) naturally conveys the sense of a particular perspective from which photos are taken."
+      }
+    }
   }
 }
