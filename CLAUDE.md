@@ -411,6 +411,7 @@ cornerstone/
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
 - **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
+- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` (and `babel-loader`) resolve `webpack-dev-server` / `@babel/core` from their own root-hoisted location, so a workspace that needs a different major than `docs/` (Docusaurus) gets a nested copy that is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack-dev-server`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major.
 
 ## Coding Standards
 
