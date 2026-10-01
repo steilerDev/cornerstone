@@ -1791,8 +1791,11 @@ follow-up when the trap is any root-slot version mismatch (#2138 is a minor-vers
 
 ## SQLite `SUM` is compensated: float-noise boundary tests must make the noise in JS (#2127, PR #2150)
 
-SQLite 3.53's `SUM` uses compensated (Kahan-Babuska-Neumaier) summation, so rows such as `0.1 + 0.2`
-summed in SQL come back clean, and a test that seeds noise that way never reaches the epsilon branch.
+SQLite 3.53's `SUM` uses compensated (Kahan-Babuska-Neumaier) summation, so error that naive JS
+addition accumulates over three or more terms does not appear: `332.85 + 333.04 + 334.11` is
+`1000.0000000000001` in JS but `SUM` returns exactly `1000`. (Two terms such as `0.1 + 0.2` are
+already correctly rounded and give `0.30000000000000004` in both.) A test that seeds noise through
+rows therefore never reaches the epsilon branch.
 The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise on the JS side (a
 subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
 boundary branch executes.
