@@ -42,6 +42,7 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   secureCookies: false,
   trustProxy: false,
   oidcEnabled: false,
+  oidcJitProvisioning: false,
   oidcIssuer: undefined,
   oidcClientId: undefined,
   oidcClientSecret: undefined,

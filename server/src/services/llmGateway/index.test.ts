@@ -27,6 +27,7 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     secureCookies: false,
     trustProxy: false,
     oidcEnabled: false,
+    oidcJitProvisioning: false,
     paperlessEnabled: false,
     photoStoragePath: '/app/data/photos',
     photoMaxFileSizeMb: 20,

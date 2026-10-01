@@ -80,6 +80,13 @@ OIDC is automatically enabled when `OIDC_ISSUER`, `OIDC_CLIENT_ID`, and `OIDC_CL
 | `OIDC_ISSUER` | -- | Your OIDC provider's issuer URL (e.g., `https://auth.example.com/realms/main`) |
 | `OIDC_CLIENT_ID` | -- | Client ID registered with your OIDC provider |
 | `OIDC_CLIENT_SECRET` | -- | Client secret for the OIDC client |
+| `OIDC_JIT_PROVISIONING` | `false` | Opt-in: create a `member` account on first OIDC login with a verified email that matches no account. Off = link-only |
+
+When `OIDC_JIT_PROVISIONING=true`, users who sign in through your identity provider with a verified email that matches no existing account get a new `member` account automatically. The setting has no effect unless OIDC is enabled.
+
+:::warning
+With an open identity provider (for example Google), anyone with an account there can register. Enable this only with a provider that restricts who can sign in.
+:::
 
 The OIDC callback URL is automatically derived as `<EXTERNAL_URL>/api/auth/oidc/callback`. If `EXTERNAL_URL` is not set, it falls back to the request's protocol and host. See [OIDC Setup](../guides/users/oidc-setup) for details on registering this URL with your identity provider.
 
