@@ -112,6 +112,9 @@ export class PaperlessInvoiceReviewPage {
   readonly invoiceNumberInput: Locator;
   readonly notesInput: Locator;
 
+  /** Top-level "Budget source" default select (#invoice-budget-source), Story #2158 */
+  readonly budgetSourceSelect: Locator;
+
   /** SuggestionBadge shown when vendor was LLM-suggested */
   readonly vendorSuggestionBadge: Locator;
 
@@ -247,6 +250,7 @@ export class PaperlessInvoiceReviewPage {
     this.statusRegion = page.locator('[class*="formColumn"] [role="status"]');
     this.invoiceNumberInput = page.locator('#invoice-number');
     this.notesInput = page.locator('#notes');
+    this.budgetSourceSelect = page.locator('#invoice-budget-source');
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
 
@@ -445,6 +449,20 @@ export class PaperlessInvoiceReviewPage {
    */
   lineRow(index: number): Locator {
     return this.page.locator('[role="list"] li[class*="lineCard"]').nth(index);
+  }
+
+  /**
+   * Per-line funding-source select (id="source-<rowId>") of the line card at the given
+   * 0-based index. Only rendered for lines WITHOUT a queued inline draft (drafts expose
+   * `#inline-<rowId>-budget-source` instead — see getInlineDraftSourceSelect()).
+   */
+  lineSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="source-"]');
+  }
+
+  /** Budget-source select inside the inline BudgetLineForm draft of the line at index. */
+  getInlineDraftSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
   }
 
   /**
