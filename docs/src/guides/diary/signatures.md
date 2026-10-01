@@ -21,8 +21,10 @@ Diary entries support multiple signers. To add a signature:
 
 You can add multiple signatures to a single entry -- for example, both a homeowner and a contractor acknowledging an issue.
 
-:::caution Signature completion required
-Each signature must be completed (drawn and saved) before you can save the entry. Unfinished signatures -- ones where you started but did not complete the drawing -- are blocked. If you start a signature and decide not to proceed, click **Remove** to discard the incomplete signature and clear the canvas, then save the entry.
+When selecting a user as the signer, their display name is recorded. If a user's display name is blank, their email address is used as the signer name instead.
+
+:::caution Unfinished signatures are blocked
+An unfinished signature (no signer selected or no drawing yet) cannot be saved to the entry. Save is blocked client-side with a clear message next to the field, and autosave continues working in the background. To discard an incomplete signature, click **Remove** to clear it, then save the entry. Server errors appear translated to your configured language.
 :::
 
 ## Immutability

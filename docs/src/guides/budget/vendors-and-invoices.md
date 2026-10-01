@@ -97,17 +97,15 @@ Use the **Quotation** status for vendor quotes that you want to track alongside 
 
 ### Converting a Quotation to a Final Invoice
 
-When a quotation becomes a finalized invoice from the vendor, you can convert it in one transaction:
+When a quotation becomes a finalized invoice from the vendor, you can convert it to capture the final amounts and details. On the quotation's invoice detail page, click **Convert to final invoice** to open a dialog where you:
 
-1. Open the quotation detail page
-2. Click **Convert to Final Invoice** (only visible on quotations with linked budget lines)
-3. Confirm the conversion dialog -- Cornerstone will:
-   - Change the status from **Quotation** to **Pending**
-   - Preserve all linked budget lines and their itemized amounts
-   - Retain the invoice header information (number, date, vendor)
-   - Keep all associated documents and deposits
+1. **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes (the quoted amount is automatically added as a note)
+2. **Optionally select a Paperless document** -- the document becomes the invoice attachment. If Paperless and an LLM are configured, **Prefill from document** auto-extracts the final details
+3. **Review and edit itemized lines** -- proposed amounts are scaled pro rata to the final amount. You can adjust them or keep the existing itemization; any unallocated amount goes to Discretionary
+4. **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final balance
+5. **Choose payment status** -- mark the invoice as pending or already paid
 
-The conversion preserves all your cost allocations, so the budget lines stay linked exactly as they were on the quotation -- you do not need to re-link or re-itemize anything.
+Conversion is blocked if deposits exceed the final amount (add a refund or increase the amount) or if the itemized total exceeds it. Nothing is saved until you confirm the dialog.
 
 ### Invoice Detail
 
@@ -176,11 +174,11 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 
 When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
 
-- **Itemized amount floor** -- The invoice total cannot be lowered below the sum of all itemized amounts across all linked budget lines. If you have allocated 1000 EUR across budget lines but the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Lowering below that sum is rejected with an error message.
-- **Net deposit floor** -- The invoice total cannot be lowered below the sum of all confirmed deposit amounts. If you have received 500 EUR in deposits that have already been marked as paid, the invoice total must remain at least 500 EUR. This prevents the invoice from dropping below what you have already received.
+- **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. For example, if you have allocated 1000 EUR across budget lines and the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Edits that raise the amount (or leave it unchanged) are never blocked.
+- **Net deposit floor** -- The net of deposits minus refunds must not exceed the invoice amount. This is checked when you add or increase a deposit and when you lower the invoice amount. Raising the amount is never blocked.
 
-These guards ensure your budget stays mathematically consistent -- itemized allocations always sum to at most the total invoice amount, and deposits never exceed the final cost.
+These guards ensure your budget stays mathematically consistent.
 
 :::info Date validation
-Cornerstone rejects impossible invoice dates (e.g., dates in the year 5000). Dates must be valid ISO 8601 dates within a reasonable historical and future range.
+Cornerstone rejects calendar-impossible invoice dates (e.g., 2026-02-31). Dates must be valid ISO 8601 dates.
 :::
