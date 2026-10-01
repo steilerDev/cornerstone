@@ -215,6 +215,9 @@
     "resolutionStatusInProgress": "🟡 In Bearbeitung",
     "resolutionStatusResolved": "✅ Gelöst"
   },
+  "entryTypeBadge": {
+    "ariaLabel": "Eintragstyp: {{type}}"
+  },
   "typeBadge": {
     "dailyLog": "Tägliches Protokoll",
     "siteVisit": "Standortbesuch",

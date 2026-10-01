@@ -52,6 +52,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         >
           {t('nav.diary')}
         </NavLink>
+        <NavLink
+          to="/photos"
+          className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`}
+          onClick={onClose}
+        >
+          {t('nav.photos')}
+        </NavLink>
       </nav>
       <div className={styles.sidebarFooter}>
         <ThemeToggle />

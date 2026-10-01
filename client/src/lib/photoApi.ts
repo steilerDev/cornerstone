@@ -1,5 +1,12 @@
 import { get, patch, del, getBaseUrl, NetworkError } from './apiClient.js';
-import type { Photo, UpdatePhotoRequest } from '@cornerstone/shared';
+import type { RequestOptions } from './apiClient.js';
+import { PHOTO_SPOT_NONE } from '@cornerstone/shared';
+import type {
+  Photo,
+  UpdatePhotoRequest,
+  PhotoSpotsResponse,
+  PhotoSpotPhotosResponse,
+} from '@cornerstone/shared';
 
 /**
  * Upload a photo using XMLHttpRequest for progress tracking.
@@ -124,4 +131,27 @@ export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
  */
 export async function clearAnnotation(id: string): Promise<void> {
   await del<void>(`/photos/${id}/annotation`);
+}
+
+/**
+ * List every photo spot (area x orientation) with counts and the latest photo, plus the
+ * areas and orientations needed to lay out the matrix.
+ */
+export function getPhotoSpots(options?: RequestOptions): Promise<PhotoSpotsResponse> {
+  return get<PhotoSpotsResponse>('/photos/spots', options);
+}
+
+/**
+ * List the photos of one spot, newest first. `null` means "no area" / "no orientation".
+ */
+export function getPhotoSpotPhotos(
+  areaId: string | null,
+  orientationId: string | null,
+  options?: RequestOptions,
+): Promise<PhotoSpotPhotosResponse> {
+  const params = new URLSearchParams({
+    areaId: areaId ?? PHOTO_SPOT_NONE,
+    orientationId: orientationId ?? PHOTO_SPOT_NONE,
+  });
+  return get<PhotoSpotPhotosResponse>(`/photos/spots/photos?${params.toString()}`, options);
 }

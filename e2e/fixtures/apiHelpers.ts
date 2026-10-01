@@ -11,6 +11,8 @@
  * lives here so multiple spec files can share them without duplication.
  */
 
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import type { Page } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { API } from './testData.js';
@@ -221,6 +223,41 @@ export async function createDraftDiaryEntryViaApi(
 
 export async function deleteDiaryEntryViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`${API.diaryEntries}/${id}`);
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Photos
+// ─────────────────────────────────────────────────────────────────────────────
+
+const TEST_PHOTO_PNG = readFileSync(
+  fileURLToPath(new URL('./test-photo-100x100.png', import.meta.url)),
+);
+
+/**
+ * Upload the 100x100 PNG fixture to a diary entry (multipart POST /api/photos),
+ * optionally tagging area / orientation / caption. Returns the new photo id.
+ */
+export async function uploadDiaryPhotoViaApi(
+  page: Page,
+  entryId: string,
+  opts: { areaId?: string | null; orientationId?: string | null; caption?: string } = {},
+): Promise<string> {
+  const multipart: Record<string, string | { name: string; mimeType: string; buffer: Buffer }> = {
+    file: { name: 'test-photo.png', mimeType: 'image/png', buffer: TEST_PHOTO_PNG },
+    entityType: 'diary_entry',
+    entityId: entryId,
+  };
+  if (opts.areaId) multipart.areaId = opts.areaId;
+  if (opts.orientationId) multipart.orientationId = opts.orientationId;
+  if (opts.caption) multipart.caption = opts.caption;
+  const response = await page.request.fetch('/api/photos', { method: 'POST', multipart });
+  expect(response.ok(), `POST /api/photos for diary entry ${entryId}`).toBeTruthy();
+  const body = (await response.json()) as { photo: { id: string } };
+  return body.photo.id;
+}
+
+export async function deletePhotoViaApi(page: Page, id: string): Promise<void> {
+  await page.request.delete(`/api/photos/${id}`);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

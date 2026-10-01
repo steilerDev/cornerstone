@@ -5,7 +5,9 @@
  * using the same polymorphic entity_type + entity_id pattern as document links.
  */
 
-import type { OrientationSummary } from './orientation.js';
+import type { OrientationResponse, OrientationSummary } from './orientation.js';
+import type { AreaResponse, AreaSummary } from './area.js';
+import type { DiaryEntryType } from './diary.js';
 
 export type PhotoEntityType = 'diary_entry' | 'room' | 'surface' | 'test';
 
@@ -52,4 +54,52 @@ export interface ReorderPhotosRequest {
   entityType: string;
   entityId: string;
   photoIds: string[];
+}
+
+/** Query sentinel selecting photos with no area / no orientation (Story #2162). */
+export const PHOTO_SPOT_NONE = '__none__';
+
+export interface PhotoSpotSummary {
+  areaId: string | null;
+  orientationId: string | null;
+  photoCount: number;
+  latestEntryDate: string;
+  latestPhotoId: string;
+  latestThumbnailUrl: string;
+}
+
+export interface PhotoSpotsResponse {
+  spots: PhotoSpotSummary[];
+  areas: AreaResponse[];
+  orientations: OrientationResponse[];
+}
+
+export interface PhotoSpotDiaryEntry {
+  id: string;
+  entryType: DiaryEntryType;
+  title: string | null;
+  entryDate: string;
+}
+
+export interface PhotoSpotPhoto {
+  id: string;
+  caption: string | null;
+  width: number | null;
+  height: number | null;
+  fileUrl: string;
+  thumbnailUrl: string;
+  diaryEntry: PhotoSpotDiaryEntry;
+}
+
+export interface PhotoSpotPhotosResponse {
+  area: AreaSummary | null;
+  orientation: OrientationSummary | null;
+  photos: PhotoSpotPhoto[];
+}
+
+export interface PhotoSpotPhotosQuery {
+  /** Area id, or PHOTO_SPOT_NONE */
+  areaId: string;
+  /** Orientation id, or PHOTO_SPOT_NONE */
+  orientationId: string;
 }

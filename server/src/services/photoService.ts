@@ -51,6 +51,22 @@ function getExtensionForMimeType(mimeType: string): string {
 }
 
 /**
+ * Build cache-busted asset URLs for a photo. The version param is annotatedAt
+ * (if annotated) or updatedAt.
+ */
+export function buildPhotoAssetUrls(
+  id: string,
+  annotatedAt: string | null,
+  updatedAt: string,
+): { fileUrl: string; thumbnailUrl: string } {
+  const v = encodeURIComponent(annotatedAt ?? updatedAt);
+  return {
+    fileUrl: `/api/photos/${id}/file?v=${v}`,
+    thumbnailUrl: `/api/photos/${id}/thumbnail?v=${v}`,
+  };
+}
+
+/**
  * Map a photos DB row + user + orientation to a Photo shape.
  * Includes cache-buster version param in thumbnailUrl based on annotatedAt (or updatedAt as fallback).
  */
@@ -59,9 +75,7 @@ function toPhoto(
   user: typeof users.$inferSelect | null | undefined,
   orientation: typeof orientations.$inferSelect | null | undefined,
 ): Photo {
-  // Use annotatedAt if present (annotation was made), otherwise use updatedAt for cache busting
-  const cacheVersion = row.annotatedAt ?? row.updatedAt;
-  const thumbnailUrl = `/api/photos/${row.id}/thumbnail?v=${encodeURIComponent(cacheVersion)}`;
+  const { thumbnailUrl } = buildPhotoAssetUrls(row.id, row.annotatedAt, row.updatedAt);
 
   return {
     id: row.id,
@@ -133,6 +147,14 @@ export async function uploadPhoto(
   // Validate MIME type
   if (!ALLOWED_MIME_TYPES.has(mimeType)) {
     throw new ValidationError(`MIME type not allowed: ${mimeType}`);
+  }
+
+  // Validate areaId if provided and not null
+  if (areaId !== undefined && areaId !== null) {
+    const area = db.select().from(areas).where(eq(areas.id, areaId)).get();
+    if (!area) {
+      throw new ValidationError('Area not found');
+    }
   }
 
   // Validate orientationId if provided and not null

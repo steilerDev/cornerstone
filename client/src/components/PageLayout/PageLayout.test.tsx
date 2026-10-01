@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import { PageLayout } from './PageLayout.js';
 
@@ -162,5 +163,32 @@ describe('PageLayout', () => {
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
     expect(screen.getByRole('navigation', { name: 'Budget nav' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Row 1' })).toBeInTheDocument();
+  });
+
+  // ── headingRef ────────────────────────────────────────────────────────────
+
+  it('makes the h1 programmatically focusable and exposes it through headingRef', () => {
+    const ref = createRef<HTMLHeadingElement>();
+    render(
+      <PageLayout title="Photos" headingRef={ref}>
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    const h1 = screen.getByRole('heading', { level: 1, name: 'Photos' });
+    expect(h1).toHaveAttribute('tabindex', '-1');
+    expect(ref.current).toBe(h1);
+    ref.current?.focus();
+    expect(document.activeElement).toBe(h1);
+  });
+
+  it('renders no tabindex on the h1 without headingRef', () => {
+    render(
+      <PageLayout title="Photos">
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('tabindex');
   });
 });

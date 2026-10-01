@@ -470,6 +470,8 @@ Before creating a new UI component, check if an existing shared component can be
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
 - `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic, and the `useInfiniteScrollAnnouncements` hook (`client/src/hooks/`), which owns the live-region announcement bookkeeping.
+- `SpotThumbnail` — photo-spot thumbnail link with count overlay and date (`cell`/`card` variants), or a dashed empty placeholder; all text via props, parameterized by `testId`
+- `FilterChipGroup` — pick-one chip group (`aria-pressed` toggle buttons, horizontally scrollable); parameterized by `options`/`ariaLabel`/`testIdPrefix`
 
 **Rules:**
 

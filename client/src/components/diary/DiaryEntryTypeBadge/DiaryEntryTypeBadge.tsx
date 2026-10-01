@@ -1,25 +1,12 @@
+import { useTranslation } from 'react-i18next';
 import type { DiaryEntryType } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
 import styles from './DiaryEntryTypeBadge.module.css';
 
 interface DiaryEntryTypeBadgeProps {
   entryType: DiaryEntryType;
   size?: 'sm' | 'lg';
 }
-
-const ENTRY_TYPE_LABELS: Record<DiaryEntryType, string> = {
-  daily_log: 'Daily Log',
-  site_visit: 'Site Visit',
-  delivery: 'Delivery',
-  issue: 'Issue',
-  general_note: 'Note',
-  work_item_status: 'Work Item Status Changed',
-  invoice_status: 'Invoice Status Changed',
-  invoice_created: 'Invoice Created',
-  milestone_delay: 'Milestone Delayed',
-  budget_breach: 'Budget Overspend',
-  auto_reschedule: 'Schedule Updated',
-  subsidy_status: 'Subsidy Status Changed',
-};
 
 const EMOJI_MAP: Record<DiaryEntryType, string> = {
   daily_log: '📋',
@@ -52,14 +39,16 @@ const BADGE_CLASS_MAP: Record<DiaryEntryType, string> = {
 };
 
 export function DiaryEntryTypeBadge({ entryType, size = 'sm' }: DiaryEntryTypeBadgeProps) {
+  const { t } = useTranslation('diary');
+  const label = t(I18N_UNION_KEYS.diaryEntryType.key(entryType));
   const emoji = EMOJI_MAP[entryType];
   const sizeClass = size === 'lg' ? styles.sizeLg : styles.sizeSm;
 
   return (
     <span
       className={`${styles.badge} ${sizeClass} ${BADGE_CLASS_MAP[entryType]}`}
-      title={ENTRY_TYPE_LABELS[entryType]}
-      aria-label={`Entry type: ${ENTRY_TYPE_LABELS[entryType]}`}
+      title={label}
+      aria-label={t('entryTypeBadge.ariaLabel', { type: label })}
       data-testid={`diary-type-badge-${entryType}`}
     >
       {emoji}

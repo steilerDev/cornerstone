@@ -102,3 +102,11 @@ MEMORY.md previously pointed at a `patterns.md` file that no longer exists in th
 - `SearchPicker` props `createAction` ({getLabel, onCreate: Promise<T|null>}) renders a sticky last "create" option; `inputAriaProps` forwards aria-required/invalid/describedby to the input (hyphenated props passed directly were silently dropped).
 - `Modal` accepts `initialFocusRef` (child autoFocus is overridden by Modal mount effect).
 - SearchPicker supports arrow-key navigation (input ArrowDown/Up enter the list; list Up/Down/Home/End/Escape; Escape returns focus to the input).
+
+## SpotThumbnail & FilterChipGroup (photo browser, #2162)
+
+- `components/SpotThumbnail` (cell 16:9 / card 4:3 link w/ count + date, or dashed empty placeholder) and `components/FilterChipGroup` (`aria-pressed` pick-one chips) are shared, text-via-props, no namespace. Listed in CLAUDE.md shared components.
+- `hooks/useMediaQuery` uses `useSyncExternalStore` (an effect + setState triggers the `set-state-in-effect` lint warning).
+- Photo viewer surfaces use theme-invariant `--color-photo-*` tokens; themed states (loading/error/empty) must render outside the dark stage, so the page only applies the dark bg when the viewer is shown.
+- Area colour dot = `--area-color` custom property inline (documented user-data exception).
+- `PageLayout` has an optional `headingRef` prop (ref + `tabIndex={-1}` on the `<h1>`; unchanged output when omitted), used for focus-restore fallbacks.
