@@ -437,7 +437,7 @@ export function ReportContentEditor({
                         value="deposit"
                       />
                     )}
-                    {row.isSplit && (
+                    {row.isPartial && (
                       <span className={styles.inlineNote}> ({content.labels.splitNote})</span>
                     )}
                     {row.isDepositReduced && (
@@ -557,7 +557,7 @@ export function ReportContentEditor({
                       value="deposit"
                     />
                   )}
-                  {row.isSplit && (
+                  {row.isPartial && (
                     <span className={styles.inlineNote}>({content.labels.splitNote})</span>
                   )}
                   {row.isDepositReduced && (

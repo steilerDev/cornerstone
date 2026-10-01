@@ -33,9 +33,9 @@ function uniqueInOrder<T>(items: T[]): T[] {
  * Returns distinct linked item areaName values, first-seen order, comma-joined, or null when empty.
  */
 function getAreaText(invoice: {
-  budgetLines: Array<{ linkedItem: { areaName: string | null } | null }>;
+  budgetLinesForSource: Array<{ linkedItem: { areaName: string | null } | null }>;
 }): string | null {
-  const areaNames = invoice.budgetLines
+  const areaNames = invoice.budgetLinesForSource
     .map((line) => line.linkedItem?.areaName)
     .filter((name) => name !== null && name !== undefined) as string[];
 
@@ -51,18 +51,18 @@ function getAreaText(invoice: {
  * Returns distinct linked item names if any line has linkedItem; else distinct descriptions; else '—'.
  */
 function getUsageText(invoice: {
-  budgetLines: Array<{ linkedItem: { name: string } | null; description: string | null }>;
+  budgetLinesForSource: Array<{ linkedItem: { name: string } | null; description: string | null }>;
 }): string {
-  const hasLinkedItems = invoice.budgetLines.some((line) => line.linkedItem !== null);
+  const hasLinkedItems = invoice.budgetLinesForSource.some((line) => line.linkedItem !== null);
 
   if (hasLinkedItems) {
-    const linkedNames = invoice.budgetLines
+    const linkedNames = invoice.budgetLinesForSource
       .filter((line) => line.linkedItem !== null)
       .map((line) => line.linkedItem!.name);
     return uniqueInOrder(linkedNames).join(', ');
   }
 
-  const descriptions = invoice.budgetLines
+  const descriptions = invoice.budgetLinesForSource
     .filter((line) => line.description !== null)
     .map((line) => line.description!);
   if (descriptions.length > 0) {
@@ -156,10 +156,10 @@ export function buildReportContent(
   };
 
   // Track invoices for split/deposit markers (#1911: driven by splitKind, not isSplit +
-  // budgetLines/deposits shape — the array-shape gate was unsound: claim reports drop
+  // budgetLinesForSource/depositsVisibleToSource shape — the array-shape gate was unsound: claim reports drop
   // zero-contribution budget lines (§3.1), and a foreign-tagged deposit is filtered out of
-  // deposits[] server-side entirely (§3.2, the bug this story exists to fix).
-  const splitInvoiceIds = new Set<string>();
+  // depositsVisibleToSource[] server-side entirely (§3.2, the bug this story exists to fix).
+  const partialInvoiceIds = new Set<string>();
   const depositReducedInvoiceIds = new Set<string>();
   const depositConstitutedInvoiceIds = new Set<string>();
 
@@ -168,9 +168,9 @@ export function buildReportContent(
       continue;
     }
 
-    // AC 3.1: row.isSplit ⟺ splitKind === 'lines' || splitKind === 'both'
+    // AC 3.1: row.isPartial ⟺ splitKind === 'lines' || splitKind === 'both'
     if (invoice.splitKind === 'lines' || invoice.splitKind === 'both') {
-      splitInvoiceIds.add(invoice.invoiceId);
+      partialInvoiceIds.add(invoice.invoiceId);
     }
 
     // AC 3.2: row.isDepositReduced ⟺ splitKind === 'deposits' || splitKind === 'both'
@@ -179,9 +179,16 @@ export function buildReportContent(
     }
 
     // AC 3.3: row.isDeposit (constituted) trigger is UNCHANGED — still invoice.isSplit &&
-    // hasOwnTaggedDeposit, still read from the visible deposits[]. Decoupling isDeposit from
+    // hasOwnTaggedDeposit, still read from the visible depositsVisibleToSource[]. Decoupling isDeposit from
     // isSplit is an explicit non-goal (§3).
-    const hasOwnTaggedDeposit = invoice.deposits.some((d) => d.budgetSourceId === report.source.id);
+    // Sound by construction (#2018, #2019): this is a SAME-scope predicate ("does THIS source have
+    // a tagged deposit?") over depositsVisibleToSource, whose server-side step-i filter keeps exactly
+    // untagged + this-source deposits. Narrowing that filter (sourceReportService.ts step i) silently
+    // removes the (Deposit) badge — pinned by the "#2018 guard" tests in sourceReportService.test.ts
+    // and buildReportContent.test.ts.
+    const hasOwnTaggedDeposit = invoice.depositsVisibleToSource.some(
+      (d) => d.budgetSourceId === report.source.id,
+    );
     if (invoice.isSplit && hasOwnTaggedDeposit) {
       depositConstitutedInvoiceIds.add(invoice.invoiceId);
     }
@@ -203,7 +210,7 @@ export function buildReportContent(
 
     const statusText = isOverview ? reportT(`sources.lines.invoiceStatus.${status}`) : null;
 
-    const isSplit = splitInvoiceIds.has(invoice.invoiceId);
+    const isPartial = partialInvoiceIds.has(invoice.invoiceId);
     const isDepositReduced = depositReducedInvoiceIds.has(invoice.invoiceId);
     const isDeposit = depositConstitutedInvoiceIds.has(invoice.invoiceId);
     const refundNoteText = reportT('sourceReports.table.refundNote');
@@ -220,7 +227,7 @@ export function buildReportContent(
       statusText,
       invoiceAmountText,
       allocatedAmountValueText,
-      isSplit,
+      isPartial,
       isDepositReduced,
       isDeposit,
       isRefund: invoice.lineKind === 'refund-adjustment',
@@ -246,7 +253,7 @@ export function buildReportContent(
   const footnotes: ReportContentFootnote[] = [];
 
   // Legend footnotes: one sentence per flag, deduplicated by set membership (AC 1.1–1.5)
-  if (splitInvoiceIds.size > 0) {
+  if (partialInvoiceIds.size > 0) {
     footnotes.push({
       id: 'split',
       marker: reportT('sourceReports.table.splitInlineLabel'),

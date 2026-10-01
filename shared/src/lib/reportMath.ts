@@ -24,7 +24,7 @@ export function computeIncludedTotal(
   for (const inv of report.invoices) {
     if (!includedSet.has(inv.invoiceId)) continue;
     let contribution = inv.allocatedAmount;
-    for (const line of inv.budgetLines) {
+    for (const line of inv.budgetLinesForSource) {
       if (excludedLineIds.has(line.id)) {
         contribution -= line.allocatedPortion;
       }

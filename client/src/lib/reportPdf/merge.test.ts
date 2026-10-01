@@ -165,8 +165,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [],
-    deposits: [],
+    budgetLinesForSource: [],
+    depositsVisibleToSource: [],
     ...overrides,
   };
 }

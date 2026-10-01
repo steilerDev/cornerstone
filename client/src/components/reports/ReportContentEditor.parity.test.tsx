@@ -89,8 +89,8 @@ function makeInvoice(overrides: Partial<SourceReportInvoice> = {}): SourceReport
     isSplit: false,
     splitKind: null,
     documents: [],
-    budgetLines: [],
-    deposits: [],
+    budgetLinesForSource: [],
+    depositsVisibleToSource: [],
     ...overrides,
   };
 }
@@ -106,10 +106,10 @@ function makeMaximalReport(): SourceReportResponse {
     lineKind: 'refund-adjustment',
     invoiceAmount: 500,
     allocatedAmount: -150,
-    budgetLines: [
+    budgetLinesForSource: [
       { id: 'bl-maximal', description: 'Materials', allocatedPortion: -150, linkedItem: null },
     ],
-    deposits: [
+    depositsVisibleToSource: [
       {
         id: 'dep-maximal',
         amount: 100,
@@ -295,7 +295,7 @@ describe.each([
     const content = buildContent(getT(), localeStr);
     const row = content.rows[0]!;
     expect(row.isDeposit).toBe(true);
-    expect(row.isSplit).toBe(true);
+    expect(row.isPartial).toBe(true);
     expect(row.isDepositReduced).toBe(true);
     expect(row.isRefund).toBe(true);
     expect(content.footnotes.map((f) => f.id)).toEqual(['split', 'depositReduced']);

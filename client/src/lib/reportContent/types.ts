@@ -13,7 +13,7 @@ export interface ReportContentRow {
   statusText: string | null; // null when useCase !== 'budget-overview'
   invoiceAmountText: string;
   allocatedAmountValueText: string; // formatted currency only — no markers/refund note
-  isSplit: boolean; // splitKind === 'lines' | 'both' → inline "(partial)" label
+  isPartial: boolean; // splitKind === 'lines' | 'both' → inline "(partial)" label
   isDepositReduced: boolean; // splitKind === 'deposits' | 'both' → reduced by a deposit tagged to a DIFFERENT source; inline label. Untagged deposits are apportioned back into this source pro-rata and never set this flag.
   isDeposit: boolean; // constituted-deposit row → inline Deposit badge
   isRefund: boolean;
@@ -59,6 +59,10 @@ export interface ReportContentLabels {
   usage: string;
   attachmentsNote: string;
   deposit: string; // translated in report language
+  // Rendered for rows with `isPartial`. The field name and its i18n keys
+  // (`sourceReports.table.splitInlineLabel` / `splitFootnote`) and the legend footnote id 'split'
+  // are intentionally NOT renamed with the row flag (#2016): they name the user-visible label/legend,
+  // renaming them would churn every locale and the footnote id reaches the DOM.
   splitNote: string; // short inline label for split rows
   depositReducedNote: string; // short inline label for deposit-reduced rows
   source: string;

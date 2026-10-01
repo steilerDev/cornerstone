@@ -223,7 +223,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
         isSplit: false,
         splitKind: null,
         documents: [],
-        budgetLines: [
+        budgetLinesForSource: [
           {
             id: 'bl-1',
             description: 'Original Usage Text',
@@ -231,7 +231,7 @@ function makeReport(overrides: Partial<SourceReportResponse> = {}): SourceReport
             linkedItem: null,
           },
         ],
-        deposits: [],
+        depositsVisibleToSource: [],
       },
     ],
     totalAmount: 1000,
@@ -443,8 +443,8 @@ describe('ReportWizardPage — AI generation (Story #1901, revised by #1931)', (
               isSplit: false,
               splitKind: null,
               documents: [],
-              budgetLines: [],
-              deposits: [],
+              budgetLinesForSource: [],
+              depositsVisibleToSource: [],
             },
           ],
         }),

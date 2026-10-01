@@ -65,10 +65,21 @@ export interface SourceReportInvoice {
    */
   splitKind: 'lines' | 'deposits' | 'both' | null;
   documents: SourceReportDocument[];
-  /** Budget lines allocated to this invoice for the requested source only. Other sources' lines are absent (not present with zero portion). Used as a subtraction basis for line-exclusion math. */
-  budgetLines: SourceReportBudgetLine[];
-  /** Deposit rows: all deposits for this invoice, filtered to untagged-or-this-source only. */
-  deposits: SourceReportDeposit[];
+  /**
+   * Budget lines allocated to this invoice for the requested source only. Other sources' lines are
+   * absent (not present with zero portion). Used as a subtraction basis for line-exclusion math.
+   * Absence semantics: `[]` means "none of this invoice's lines belong to this source (or, for
+   * claim reports, none contribute non-zero)" — NOT "this invoice has no lines". Never derive an
+   * unscoped fact (e.g. "is this invoice split?") from this array; use `isSplit`/`splitKind` (#2017, ADR-036 (#2019)).
+   */
+  budgetLinesForSource: SourceReportBudgetLine[];
+  /**
+   * Deposit rows: all deposits for this invoice, filtered to untagged-or-this-source only.
+   * Deposits tagged to a different source are absent. Absence semantics: `[]` means "no untagged
+   * and no this-source-tagged deposits" — NOT "this invoice has no deposits". Same-scope predicates
+   * (e.g. "does THIS source have a tagged deposit?") are sound over this array; unscoped ones are not (#2017, ADR-036 (#2019)).
+   */
+  depositsVisibleToSource: SourceReportDeposit[];
 }
 
 /** Informational row: matching-status invoice with zero budget lines (not itemized to any source). */

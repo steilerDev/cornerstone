@@ -223,11 +223,11 @@
  * Issue #1959: report PDF/UI polish — inline meta, inline split/deposit labels, column toggles.
  * - `†`/`‡` markers and the footnote LIST are GONE at this point. `buildReportContent.ts` no
  *   longer pushes any `ReportContentFootnote` (`ReportContentRow.allocatedMarkers` was replaced by
- *   `isSplit`/`isDepositReduced` booleans). `footnotesBlock`/`footnoteItems` were retained as
+ *   `isPartial`/`isDepositReduced` booleans). `footnotesBlock`/`footnoteItems` were retained as
  *   negative guards only — until Issue #1965 reinstated the legend (see below).
  *
  * Issue #1965: report PDF legend — `buildReportContent.ts` now pushes legend entries for rows
- *   where `isSplit` or `isDepositReduced` is true, so `footnotesBlock`/`footnoteItems` ARE now
+ *   where `isPartial` or `isDepositReduced` is true, so `footnotesBlock`/`footnoteItems` ARE now
  *   populated in split/deposit-reduced scenarios. `footnotesBlock` contains the legend block (or
  *   is absent from the DOM entirely when no split/deposit-reduced rows appear); `footnoteItems`
  *   are the `<li>` elements inside it, one per deduplicated flag type (so two split invoices
@@ -252,9 +252,9 @@
  *   Not currently covered by any locator/scenario here (coverage gap, deliberately not added on
  *   the #1959 critical path since a new test case reshuffles E2E shard membership).
  *
- * Issue #1911: `splitKind` — `row.isSplit`/`row.isDepositReduced` are now derived purely from the
+ * Issue #1911: `splitKind` — `row.isPartial`/`row.isDepositReduced` are now derived purely from the
  * server's `splitKind: 'lines' | 'deposits' | 'both' | null` (`buildReportContent.ts`), not from
- * the old `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` array-shape
+ * the old `isSplit(raw) && budgetLines.length>0` / `isSplit(raw) && deposits.length>0` (pre-#2016/#2017 names) array-shape
  * gates. Two DOM-visible consequences:
  * - A row whose OWN budget lines are entirely foreign to the reported source (zero-contribution
  *   line case) now DOES carry `(partial)`, even when it ALSO carries the constituted-deposit
@@ -305,7 +305,7 @@
  *   [status Badge `class*="statusChip"`] [amount] [attachment column]. The row is only
  *   expandable (chevron rendered as a real `<button class*="expandButton">` with
  *   `aria-expanded`/`aria-controls="invoice-expand-{invoiceId}"`) when
- *   `budgetLines.length > 0 || deposits.length > 0`; otherwise a bare `aria-hidden` span
+ *   `budgetLinesForSource.length > 0 || depositsVisibleToSource.length > 0`; otherwise a bare `aria-hidden` span
  *   fills the grid cell and there is nothing to expand.
  * - The expansion panel (`class*="expansionPanel"`, `id="invoice-expand-{invoiceId}"`) is a
  *   DOM SIBLING immediately after the row's own `invoiceRow` div (both children of the same
@@ -326,8 +326,8 @@
  *   modal's warning block, see `markClaimedWarningBlock` below).
  * - **Fixed regression (#1892)**: `applyLineExclusions` clamps a fully-excluded invoice's
  *   `allocatedAmount` to exactly `0`. `ReportInvoiceList`'s `allocatedInvoices` filter is
- *   `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLines.length > 0
- *   || inv.deposits.length > 0` — the added `budgetLines.length > 0 || deposits.length > 0`
+ *   `inv.allocatedAmount > 0 || inv.lineKind === 'refund-adjustment' || inv.budgetLinesForSource.length > 0
+ *   || inv.depositsVisibleToSource.length > 0` — the added `budgetLinesForSource.length > 0 || depositsVisibleToSource.length > 0`
  *   clauses keep a fully-line-excluded invoice (net exactly 0, `lineKind` stays `'invoice'`)
  *   visible as a `€0.00` row instead of being filtered out, which also preserves the only UI
  *   path back to un-excluding those lines (the row's own expand toggle). The PDF and the actual
@@ -495,7 +495,7 @@ export class ReportWizardPage {
   // The footnotes block (`.footnotes` / its `<li>` entries). Issue #1959 replaced the `†`/`‡`
   // split + deposit-reduced glyphs with inline labels (see `inlineNote()`), but Issue #1965
   // restored legend population: `buildReportContent.ts` now pushes ONE deduplicated sentence per
-  // active flag (`isSplit` → "Amount shown reflects only the portion allocated to this source.",
+  // active flag (`isPartial` → "Amount shown reflects only the portion allocated to this source.",
   // `isDepositReduced` → the corresponding deposit-reduced sentence) whenever any row in the
   // report carries that flag. Scenarios with split or deposit-reduced rows must assert a positive
   // count; scenarios with neither (e.g., constituted-deposit-only rows — Scenario 17) correctly
@@ -809,7 +809,7 @@ export class ReportWizardPage {
   /**
    * The items (budget lines) sub-table section — always the FIRST `class*="subTableSection"`
    * child of the expansion panel, whether it renders the real `<table>` or the `EmptyState`
-   * fallback (`budgetLines.length === 0`). Structural indexing avoids depending on i18n
+   * fallback (`budgetLinesForSource.length === 0`). Structural indexing avoids depending on i18n
    * heading text.
    */
   itemsSubTable(vendorName: string, invoiceNumber: string): Locator {
@@ -1197,7 +1197,7 @@ export class ReportWizardPage {
    * made up entirely by a deposit tagged to the CURRENTLY reported source.
    *
    * Issue #1911: `isDeposit`'s trigger (`invoice.isSplit(raw) && hasOwnTaggedDeposit`) is
-   * independent of `isSplit`/`isDepositReduced`, which are now driven purely by `splitKind`. The
+   * independent of `isPartial`/`isDepositReduced`, which are now driven purely by `splitKind`. The
    * badge CAN co-occur with an `inlineNote()` `(partial)` label when the invoice's own budget
    * lines are foreign to the reported source (`splitKind: 'lines'` — see Scenario 17 in
    * `reportWizardEditableContent.spec.ts`) — it is no longer guaranteed to be the row's ONLY
@@ -1243,8 +1243,8 @@ export class ReportWizardPage {
   /**
    * The grey inline note(s) (`[class*="inlineNote"]`) appended INSIDE a desktop row's Allocated
    * Amount cell by Issue #1959, which replaced the `†`/`‡` footnote markers: `(partial)` when
-   * `row.isSplit` and `(less deposit)` when `row.isDepositReduced`. Since Issue #1911 both flags
-   * are driven purely by the server's `splitKind` (`'lines'`/`'both'` → `isSplit`;
+   * `row.isPartial` and `(less deposit)` when `row.isDepositReduced`. Since Issue #1911 both flags
+   * are driven purely by the server's `splitKind` (`'lines'`/`'both'` → `isPartial`;
    * `'deposits'`/`'both'` → `isDepositReduced`), independently of `row.isDeposit` (the
    * constituted-deposit badge trigger, unchanged) — a row CAN carry the `depositBadge` AND an
    * inline note simultaneously (e.g. a constituted-deposit row whose own budget lines are
