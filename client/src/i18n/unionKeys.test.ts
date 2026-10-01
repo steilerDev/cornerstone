@@ -48,8 +48,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 8 registered sets', () => {
-    expect(SETS).toHaveLength(8);
+  it('iterates all 9 registered sets', () => {
+    expect(SETS).toHaveLength(9);
   });
 });
 
@@ -105,6 +105,7 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.reportAttachmentType.members).toBe(ATTACHMENT_TYPES);
     expect(I18N_UNION_KEYS.documentAttachmentType.members).toBe(ATTACHMENT_TYPES);
     expect(I18N_UNION_KEYS.diaryEntryType.members).toBe(DIARY_ENTRY_TYPES);
+    expect(I18N_UNION_KEYS.diaryEntryTypeChip.members).toBe(DIARY_ENTRY_TYPES);
   });
 
   it('pins namespaces and literal key shapes', () => {
@@ -112,6 +113,10 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.documentAttachmentType.ns).toBe('documents');
     expect(I18N_UNION_KEYS.diaryEntryType.ns).toBe('diary');
     expect(I18N_UNION_KEYS.diaryEntryType.key('general_note')).toBe('entryTypes.general_note');
+    expect(I18N_UNION_KEYS.diaryEntryTypeChip.ns).toBe('diary');
+    expect(I18N_UNION_KEYS.diaryEntryTypeChip.key('general_note')).toBe(
+      'entryTypeChips.general_note',
+    );
     expect(I18N_UNION_KEYS.invoiceStatus.key('claimed')).toBe(
       'sources.lines.invoiceStatus.claimed',
     );
@@ -123,7 +128,7 @@ describe('I18N_UNION_KEYS registry', () => {
     );
   });
 
-  it('registers the 8 sets in declaration order', () => {
+  it('registers the 9 sets in declaration order', () => {
     expect(Object.keys(I18N_UNION_KEYS)).toEqual([
       'reportTitle',
       'reportCoverLetterSubject',
@@ -133,6 +138,7 @@ describe('I18N_UNION_KEYS registry', () => {
       'reportAttachmentType',
       'documentAttachmentType',
       'diaryEntryType',
+      'diaryEntryTypeChip',
     ]);
   });
 

@@ -71,4 +71,6 @@ export const I18N_UNION_KEYS = {
   documentAttachmentType: unionKeySet('documents', 'documentCard.attachmentType', ATTACHMENT_TYPES),
   /** diary — entry-type label (type badge, photo viewer history list). */
   diaryEntryType: unionKeySet('diary', 'entryTypes', DIARY_ENTRY_TYPES),
+  /** diary — short filter-chip label (DiaryFilterBar). */
+  diaryEntryTypeChip: unionKeySet('diary', 'entryTypeChips', DIARY_ENTRY_TYPES),
 } as const;
