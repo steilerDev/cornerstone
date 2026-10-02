@@ -13,6 +13,8 @@
 - [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
 - [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes (older infra), `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks; **2026-09-07: current sandbox has real per-worktree node_modules — never `rm -rf node_modules` for a single stale package, virtiofs ENOTDIR race on full reinstall, rsync-from-base-repo recovery fallback**
 
+- [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
+
 ## Recent bug/story notes (2026-08)
 
 - [PR #2168 error-message hardening tests](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, LocalizedError, duplicate-banner counts, no jsdom Response

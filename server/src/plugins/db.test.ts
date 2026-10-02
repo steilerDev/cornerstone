@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import {
+  mkdtempSync,
+  rmSync,
+  writeFileSync,
+  mkdirSync,
+  existsSync,
+  readdirSync,
+  readFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import Database from 'better-sqlite3';
@@ -306,6 +314,106 @@ describe('Database Plugin', () => {
     // Then: All requests succeed without "database locked" errors
     writes.forEach((response) => {
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  describe('interrupted restore recovery at startup', () => {
+    /** A real SQLite file holding one row, so we can tell exactly which database got opened. */
+    function writeCanaryDb(file: string, value: string): void {
+      mkdirSync(join(file, '..'), { recursive: true });
+      const db = new Database(file);
+      db.exec('CREATE TABLE canary (v TEXT)');
+      db.prepare('INSERT INTO canary (v) VALUES (?)').run(value);
+      db.close();
+    }
+
+    it('rolls back an interrupted restore BEFORE the database is opened (moving-aside: original db is in pre-restore)', async () => {
+      // The original database was already moved aside; nothing sits at dbPath
+      writeCanaryDb(join(tempDir, '.pre-restore-1', 'test.db'), 'original');
+      writeFileSync(join(tempDir, '.pre-restore-1', 'notes.txt'), 'original notes');
+      mkdirSync(join(tempDir, '.restore-staging-1'));
+      writeFileSync(
+        join(tempDir, '.restore-state.json'),
+        JSON.stringify({
+          phase: 'moving-aside',
+          staging: '.restore-staging-1',
+          preRestore: '.pre-restore-1',
+        }),
+      );
+
+      app = await buildApp();
+
+      // Guards: recovery running after `new Database(dbPath)`: the connection would be bound to a
+      // freshly created empty file while the rollback swaps the original in underneath it
+      expect(app.db.$client.prepare('SELECT v FROM canary').all()).toEqual([{ v: 'original' }]);
+      expect(readFileSync(join(tempDir, 'notes.txt'), 'utf-8')).toBe('original notes');
+      expect(existsSync(join(tempDir, '.pre-restore-1'))).toBe(false);
+      expect(existsSync(join(tempDir, '.restore-staging-1'))).toBe(false);
+      expect(existsSync(join(tempDir, '.restore-state.json'))).toBe(false);
+    });
+
+    it('cleans up a finished restore (swapped) and keeps the restored database', async () => {
+      writeCanaryDb(dbPath, 'restored');
+      writeCanaryDb(join(tempDir, '.pre-restore-1', 'test.db'), 'previous');
+      mkdirSync(join(tempDir, '.restore-staging-1'));
+      writeFileSync(
+        join(tempDir, '.restore-state.json'),
+        JSON.stringify({
+          phase: 'swapped',
+          staging: '.restore-staging-1',
+          preRestore: '.pre-restore-1',
+        }),
+      );
+
+      app = await buildApp();
+
+      // Guards: rolling a completed restore back (the previous database would come back)
+      expect(app.db.$client.prepare('SELECT v FROM canary').all()).toEqual([{ v: 'restored' }]);
+      expect(readdirSync(tempDir).filter((e) => e.startsWith('.'))).toEqual([]);
+    });
+
+    it('sweeps stray backup artifacts left in the data directory when there is no marker', async () => {
+      writeFileSync(join(tempDir, 'cornerstone-backup-old.db'), 'stray');
+      writeFileSync(join(tempDir, 'cornerstone-backup-manifest.json'), '{}');
+      mkdirSync(join(tempDir, '.restore-staging-9'));
+
+      app = await buildApp();
+
+      // Guards: skipping the no-marker sweep (strays would be archived into every later backup)
+      expect(existsSync(join(tempDir, 'cornerstone-backup-old.db'))).toBe(false);
+      expect(existsSync(join(tempDir, 'cornerstone-backup-manifest.json'))).toBe(false);
+      expect(existsSync(join(tempDir, '.restore-staging-9'))).toBe(false);
+      expect(existsSync(dbPath)).toBe(true);
+    });
+
+    it('rejects plugin registration on an invalid marker and opens no database', async () => {
+      writeFileSync(join(tempDir, '.restore-state.json'), '{not json');
+      writeFileSync(join(tempDir, 'cornerstone-backup-old.db'), 'stray');
+
+      // Guards: swallowing the error (guessing which side to delete risks data loss)
+      await expect(buildApp()).rejects.toThrow(/Invalid restore marker/);
+
+      // Guards: opening/creating the database or sweeping before the marker was validated
+      expect(existsSync(dbPath)).toBe(false);
+      expect(existsSync(join(tempDir, 'cornerstone-backup-old.db'))).toBe(true);
+      expect(readFileSync(join(tempDir, '.restore-state.json'), 'utf-8')).toBe('{not json');
+    });
+
+    it('skips recovery for an in-memory database (dirname(":memory:") is the cwd)', async () => {
+      // An invalid marker in the cwd would make recovery throw if it ran for :memory:
+      const originalCwd = process.cwd();
+      writeFileSync(join(tempDir, '.restore-state.json'), '{not json');
+      process.env.DATABASE_URL = ':memory:';
+      process.chdir(tempDir);
+      try {
+        app = await buildApp();
+      } finally {
+        process.chdir(originalCwd);
+      }
+
+      // Guards: dropping the :memory: guard (startup would throw on the cwd's marker)
+      expect(app.db.$client.prepare('SELECT 1 AS v').get()).toEqual({ v: 1 });
+      expect(readFileSync(join(tempDir, '.restore-state.json'), 'utf-8')).toBe('{not json');
     });
   });
 });

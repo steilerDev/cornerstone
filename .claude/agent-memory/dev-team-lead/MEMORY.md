@@ -30,4 +30,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Account provisioning hazards](account-provisioning-hazards.md) — setup lockout, case-variant email dup, untestable in-process collision path, AppConfig fixture breakage
 - [Parallel frontend split](parallel-frontend-split.md) — en-namespace ownership per FE group, final-step lint rule, 5 error-message leak classes to inventory
 - [Global aggregate page specs](global-aggregate-page-specs.md) — shared E2E DB scoping, drafts, disabled-at-end focus drop (useLayoutEffect), scoped document keydown, h1 in every state
+- [Crash-recovery swap specs](crash-recovery-specs.md) — per-loop marker phases, atomic marker, basenames, marker-last, no data-deleting sweep, rw SQLite staging validation
 - [Unmodified-tests constraint](unmodified-tests-constraint.md) — optional props/fields, dynamic import past partial ESM mocks, new test files

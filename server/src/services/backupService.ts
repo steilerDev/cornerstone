@@ -11,9 +11,9 @@ import path from 'node:path';
 import { promises as fs } from 'node:fs';
 import * as tar from 'tar';
 import cron, { type ScheduledTask } from 'node-cron';
-import type { FastifyInstance } from 'fastify';
+import type { FastifyBaseLogger, FastifyInstance } from 'fastify';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 import type { AppConfig } from '../plugins/config.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import {
@@ -22,6 +22,23 @@ import {
   RestoreFailedError,
   BackupFailedError,
 } from '../errors/AppError.js';
+import { listMigrationFiles } from '../db/migrate.js';
+import {
+  BACKUP_MANIFEST_FILE,
+  BACKUP_SNAPSHOT_PATTERN,
+  PRE_RESTORE_PREFIX,
+  RESTORE_STAGING_PREFIX,
+  RESTORE_STATE_FILE,
+  RESTORE_STATE_TMP,
+  dbSidecars,
+  finalizeSwap,
+  isExcludedFromArchive,
+  isRestoreReservedEntry,
+  rollbackSwap,
+  swapIntoDataDir,
+  writeRestoreState,
+  type RestoreState,
+} from './restoreSwap.js';
 
 /**
  * Extract the underlying better-sqlite3 Database instance from a Drizzle ORM wrapper.
@@ -130,7 +147,10 @@ export async function listBackups(backupDir: string): Promise<BackupMeta[]> {
 
 /**
  * Create a backup of the database and associated files.
- * Uses SQLite's backup API to snapshot the live DB, then tars the entire app data directory.
+ *
+ * Writes a v2 archive: a consistent snapshot of the live database (via SQLite's backup API),
+ * a manifest naming that snapshot, and the rest of the data directory. The live database,
+ * its WAL/SHM/journal sidecars, stray snapshots and restore-machinery entries are excluded.
  * Enforces retention policy by deleting oldest archives if count exceeds the limit.
  */
 export async function createBackup(
@@ -147,8 +167,8 @@ export async function createBackup(
     // Ensure backup directory exists and is writable
     const probeFile = path.join(config.backupDir, `.write-check-${Date.now()}`);
     try {
-      await fs.mkdir(config.backupDir, { recursive: true });
-      await fs.writeFile(probeFile, '');
+      await fs.mkdir(config.backupDir, { recursive: true, mode: 0o700 });
+      await fs.writeFile(probeFile, '', { mode: 0o600 });
       await fs.unlink(probeFile);
     } catch (probeErr) {
       throw new BackupFailedError(
@@ -160,31 +180,59 @@ export async function createBackup(
     const filename = generateBackupFilename();
     const backupPath = path.join(config.backupDir, filename);
     const dataDir = path.dirname(config.databaseUrl);
+    const dbName = path.basename(config.databaseUrl);
+    const archiveStem = filename.replace('.tar.gz', '');
+    const snapshotName = `${archiveStem}.db`;
+    const dbSnapshotPath = path.join(dataDir, snapshotName);
+    const manifestPath = path.join(dataDir, BACKUP_MANIFEST_FILE);
 
-    // Use better-sqlite3's backup API to safely snapshot the live database
-    const dbSnapshotPath = path.join(dataDir, filename.replace('.tar.gz', '.db'));
     try {
-      await getClient(db).backup(dbSnapshotPath);
-    } catch (dbErr) {
-      // Remove any partial snapshot file
-      await fs.unlink(dbSnapshotPath).catch(() => {});
-      throw new BackupFailedError('Database snapshot failed', dbErr);
-    }
+      // Use better-sqlite3's backup API to safely snapshot the live database
+      try {
+        await getClient(db).backup(dbSnapshotPath);
+        await fs.chmod(dbSnapshotPath, 0o600);
+      } catch (dbErr) {
+        throw new BackupFailedError('Database snapshot failed', dbErr);
+      }
 
-    // Create tar.gz archive of the entire app data directory
-    try {
-      await tar.create({ gzip: true, file: backupPath, cwd: path.dirname(dataDir) }, [
-        path.basename(dataDir),
-      ]);
-    } catch (tarErr) {
-      // Clean up the snapshot DB file and any partial archive on tar failure
-      await fs.unlink(dbSnapshotPath).catch(() => {});
-      await fs.unlink(backupPath).catch(() => {});
-      throw new BackupFailedError('Backup archive could not be created', tarErr);
-    }
+      try {
+        await fs.writeFile(
+          manifestPath,
+          JSON.stringify({
+            formatVersion: 2,
+            database: snapshotName,
+            createdAt: parseBackupFilename(filename),
+          }),
+          { mode: 0o600 },
+        );
+      } catch (manifestErr) {
+        throw new BackupFailedError('Backup archive could not be created', manifestErr);
+      }
 
-    // Clean up the temporary backup database file
-    await fs.unlink(dbSnapshotPath).catch(() => {});
+      // Archive the data directory, excluding the live DB, its sidecars and restore artifacts.
+      // In create, filter receives cwd-relative paths such as "data/x".
+      try {
+        await tar.create(
+          {
+            gzip: true,
+            file: backupPath,
+            mode: 0o600,
+            cwd: path.dirname(dataDir),
+            filter: (p) => {
+              const parts = p.split('/').filter(Boolean);
+              return parts.length !== 2 || !isExcludedFromArchive(parts[1]!, dbName, snapshotName);
+            },
+          },
+          [path.basename(dataDir)],
+        );
+      } catch (tarErr) {
+        await fs.unlink(backupPath).catch(() => {});
+        throw new BackupFailedError('Backup archive could not be created', tarErr);
+      }
+    } finally {
+      await fs.unlink(dbSnapshotPath).catch(() => {});
+      await fs.unlink(manifestPath).catch(() => {});
+    }
 
     // Get metadata for the created backup
     const stats = await fs.stat(backupPath);
@@ -265,8 +313,210 @@ export async function beginRestore(config: AppConfig, filename: string): Promise
   operationInProgress = true;
 }
 
+/** Phase A failure carrying the path-free message surfaced as RestoreFailedError. */
+class StageError extends Error {
+  constructor(
+    readonly userMessage: string,
+    cause?: unknown,
+  ) {
+    super(userMessage, { cause });
+  }
+}
+
+function flushLogger(logger: FastifyBaseLogger): void {
+  (logger as { flush?: () => void }).flush?.();
+}
+
+/** Remove a staged file together with its SQLite sidecars. */
+async function rmDbWithSidecars(dir: string, dbName: string): Promise<void> {
+  for (const name of [dbName, ...dbSidecars(dbName)]) {
+    await fs.rm(path.join(dir, name), { recursive: true, force: true });
+  }
+}
+
+/** Default cap on archive entries a restore will extract. */
+export const RESTORE_MAX_ENTRIES = 1_000_000;
+/** Default free-space margin required on top of the extracted size. */
+export const RESTORE_FREE_SPACE_MARGIN_BYTES = 64 * 1024 * 1024;
+export const PER_ENTRY_OVERHEAD_BYTES = 4096; // filesystem block per file/dir
+
 /**
- * Extract the archive and swap the app data directory, then exit the process.
+ * Mutable limits read at call time by `preflightArchive`. Exported so tests can lower the entry
+ * cap (e.g. `restoreLimits.maxEntries = 3`) without building a million-entry archive.
+ */
+export const restoreLimits = {
+  maxEntries: RESTORE_MAX_ENTRIES,
+  freeSpaceMarginBytes: RESTORE_FREE_SPACE_MARGIN_BYTES,
+};
+
+/**
+ * List the archive (nothing is written) and reject it when the entry count is excessive or the
+ * data volume cannot hold the extracted size declared by the tar headers.
+ */
+async function preflightArchive(backupPath: string, dataDir: string): Promise<void> {
+  let count = 0;
+  let bytes = 0;
+  try {
+    // Only count inside the callback; node-tar resumes the entry afterwards.
+    await tar.list({
+      file: backupPath,
+      onReadEntry: (entry) => {
+        count += 1;
+        bytes += entry.size ?? 0;
+      },
+    });
+  } catch (e) {
+    throw new StageError('Backup archive could not be extracted', e);
+  }
+  // tar.list resolves without error on non-tar input, yielding zero entries
+  if (count === 0 || count > restoreLimits.maxEntries) {
+    throw new StageError('Backup archive could not be extracted');
+  }
+  const required = bytes + count * PER_ENTRY_OVERHEAD_BYTES + restoreLimits.freeSpaceMarginBytes;
+  const { bavail, bsize } = await fs.statfs(dataDir);
+  if (required > bavail * bsize) {
+    throw new StageError('Not enough free disk space to restore this backup');
+  }
+}
+
+/** Extract the archive into staging, rejecting unsafe or oddly shaped entries. */
+async function extractToStaging(backupPath: string, staging: string): Promise<void> {
+  let root: string | undefined;
+  let layoutError = false;
+  await tar.extract({
+    file: backupPath,
+    cwd: staging,
+    strip: 1,
+    // In extract, filter receives the pre-strip path (e.g. "data/x")
+    filter: (p, entry) => {
+      // Only a trailing slash (directory entries) is dropped; '.', '..' and empty segments are
+      // not normalised, matching tar's strip, which removes exactly the first path component.
+      const parts = p.replace(/\/+$/, '').split('/');
+      const type = (entry as { type?: string }).type;
+      if (root === undefined) root = parts[0];
+      if (
+        parts.some((seg) => seg === '' || seg === '.' || seg === '..') ||
+        parts[0] !== root ||
+        type === 'SymbolicLink' ||
+        type === 'Link'
+      ) {
+        layoutError = true;
+        return false;
+      }
+      if (parts.length < 2) {
+        // The archive's root directory entry itself is expected; anything else is malformed
+        if (type !== 'Directory') layoutError = true;
+        return false;
+      }
+      return true;
+    },
+  });
+  if (layoutError) {
+    throw new StageError('Backup archive could not be extracted');
+  }
+}
+
+/** Pick the snapshot to restore (manifest, then v1 precedence) and normalize it to dbName. */
+async function resolveStagedDatabase(
+  staging: string,
+  dbName: string,
+  archiveStem: string,
+): Promise<void> {
+  const entries = await fs.readdir(staging);
+  const snapshots = entries.filter((e) => BACKUP_SNAPSHOT_PATTERN.test(e));
+  let chosen: string;
+
+  const manifestPath = path.join(staging, BACKUP_MANIFEST_FILE);
+  if (entries.includes(BACKUP_MANIFEST_FILE)) {
+    let manifest: { formatVersion?: unknown; database?: unknown };
+    try {
+      manifest = JSON.parse(await fs.readFile(manifestPath, 'utf-8'));
+    } catch (e) {
+      throw new StageError('Backup manifest is invalid', e);
+    }
+    const database = manifest?.database;
+    if (
+      typeof manifest !== 'object' ||
+      manifest === null ||
+      typeof manifest.formatVersion !== 'number' ||
+      typeof database !== 'string' ||
+      !BACKUP_SNAPSHOT_PATTERN.test(database) ||
+      database.includes('/') ||
+      database.includes('\\') ||
+      !entries.includes(database)
+    ) {
+      throw new StageError('Backup manifest is invalid');
+    }
+    if (manifest.formatVersion > 2) {
+      throw new StageError('Backup is from a newer version of Cornerstone');
+    }
+    chosen = database;
+  } else if (entries.includes(`${archiveStem}.db`)) {
+    chosen = `${archiveStem}.db`;
+  } else if (snapshots.length === 1) {
+    chosen = snapshots[0]!;
+  } else if (entries.includes(dbName)) {
+    chosen = dbName;
+  } else {
+    throw new StageError('Backup archive contains no database');
+  }
+
+  if (chosen !== dbName) {
+    await rmDbWithSidecars(staging, dbName);
+    await fs.rename(path.join(staging, chosen), path.join(staging, dbName));
+  }
+  for (const snapshot of snapshots) {
+    await fs.rm(path.join(staging, snapshot), { force: true });
+  }
+  await fs.rm(manifestPath, { force: true });
+}
+
+/** Open the staged database read-write, check integrity and migration compatibility. */
+function validateStagedDatabase(stagedDb: string): void {
+  let v: Database.Database;
+  try {
+    v = new Database(stagedDb, { fileMustExist: true });
+  } catch (e) {
+    throw new StageError('Backup database failed the integrity check', e);
+  }
+  try {
+    if (v.pragma('quick_check', { simple: true }) !== 'ok') {
+      throw new StageError('Backup database failed the integrity check');
+    }
+    const hasTable = v
+      .prepare(`SELECT 1 FROM sqlite_master WHERE type='table' AND name='_migrations'`)
+      .get();
+    if (!hasTable) {
+      throw new StageError('Backup database failed the integrity check');
+    }
+    const maxApplied = (
+      v.prepare('SELECT MAX(name) AS m FROM _migrations').get() as { m: string | null }
+    ).m;
+    const maxBundled = listMigrationFiles().at(-1) ?? null;
+    if (maxApplied !== null && (maxBundled === null || maxApplied > maxBundled)) {
+      throw new StageError('Backup is from a newer version of Cornerstone');
+    }
+  } catch (e) {
+    throw e instanceof StageError
+      ? e
+      : new StageError('Backup database failed the integrity check', e);
+  } finally {
+    v.close();
+  }
+}
+
+/**
+ * Restore the app data directory from a backup archive, then exit the process.
+ *
+ * Phase A (async, database still open): extract into a staging directory inside the data
+ * volume, resolve and validate the database. Any failure removes staging and rejects with
+ * RestoreFailedError; the server keeps serving the old data.
+ *
+ * Phase B (synchronous): write the restore marker, close the database, move the current
+ * contents aside and the staged contents in (the data directory itself is never renamed, as
+ * it is typically a volume mount point). On failure the swap is rolled back and the process
+ * exits 1; on success it exits 0 so the restarted process opens the restored data.
+ *
  * Requires a prior successful `beginRestore`; releases the lock if the restore fails.
  */
 export async function executeRestore(
@@ -274,42 +524,97 @@ export async function executeRestore(
   db: BetterSQLite3Database<any>,
   config: AppConfig,
   filename: string,
+  logger: FastifyBaseLogger,
 ): Promise<void> {
   try {
     const backupPath = path.join(config.backupDir, filename);
     const dataDir = path.dirname(config.databaseUrl);
+    const dbName = path.basename(config.databaseUrl);
+    const archiveStem = filename.replace('.tar.gz', '');
+    const ts = Date.now();
+    const stagingName = RESTORE_STAGING_PREFIX + ts;
+    const preName = PRE_RESTORE_PREFIX + ts;
+    const staging = path.join(dataDir, stagingName);
 
-    // Create temp directory for extraction
-    const tempDir = path.join(path.dirname(config.backupDir), `.restore-${Date.now()}`);
+    // Phase A: stage and validate while the database stays open
     try {
-      await fs.mkdir(tempDir, { recursive: true });
+      await fs.mkdir(staging, { mode: 0o700 });
+      await preflightArchive(backupPath, dataDir);
+      await extractToStaging(backupPath, staging);
 
-      // Extract tar.gz to temp directory
-      await tar.extract({ file: backupPath, cwd: tempDir });
+      for (const entry of await fs.readdir(staging)) {
+        if (isRestoreReservedEntry(entry)) {
+          await fs.rm(path.join(staging, entry), { recursive: true, force: true });
+        }
+      }
 
-      // Close database connection
-      getClient(db).close();
-
-      // Replace app data directory contents
-      const extractedDataDir = path.join(tempDir, path.basename(dataDir));
-
-      // Rename backup directory to preserve it
-      const backupDataDir = dataDir + '.backup-' + Date.now();
-      await fs.rename(dataDir, backupDataDir);
-
-      // Move extracted data to the app data directory
-      await fs.rename(extractedDataDir, dataDir);
-
-      // Clean up temp directory
-      await fs.rm(tempDir, { recursive: true, force: true });
-
-      // Exit process to reinitialize with restored data
-      process.exit(0);
+      await resolveStagedDatabase(staging, dbName, archiveStem);
+      validateStagedDatabase(path.join(staging, dbName));
     } catch (error) {
-      // Clean up temp directory on error
-      await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
-      throw new RestoreFailedError('Restore failed', error);
+      await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
+      if (error instanceof StageError) {
+        throw new RestoreFailedError(error.userMessage, error.cause ?? error);
+      }
+      throw new RestoreFailedError('Backup archive could not be extracted', error);
     }
+
+    // Phase B: swap the contents of the data directory
+    const state: RestoreState = {
+      phase: 'moving-aside',
+      staging: stagingName,
+      preRestore: preName,
+    };
+    try {
+      writeRestoreState(dataDir, state);
+    } catch (error) {
+      // Still Phase A semantics: database open, nothing moved
+      await fs.rm(path.join(dataDir, RESTORE_STATE_FILE), { force: true }).catch(() => {});
+      await fs.rm(path.join(dataDir, RESTORE_STATE_TMP), { force: true }).catch(() => {});
+      await fs.rm(staging, { recursive: true, force: true }).catch(() => {});
+      throw new RestoreFailedError('Restore could not be started', error);
+    }
+
+    // Marker is durable; from here the restore is committed, so stop scheduled backups
+    stopScheduler();
+    try {
+      getClient(db).close();
+      swapIntoDataDir(dataDir, state);
+    } catch (swapErr) {
+      try {
+        rollbackSwap(dataDir, state);
+        logger.error(
+          { err: swapErr, staging: stagingName, preRestore: preName },
+          'Restore failed during the data swap; original data reinstated, exiting',
+        );
+      } catch (rbErr) {
+        logger.error(
+          {
+            err: swapErr,
+            rollbackErr: rbErr,
+            staging: stagingName,
+            preRestore: preName,
+            phase: state.phase,
+          },
+          'Restore rollback failed; the restore marker was kept and startup recovery will finish the rollback',
+        );
+      }
+      flushLogger(logger);
+      process.exit(1);
+      return;
+    }
+
+    try {
+      finalizeSwap(dataDir, state);
+    } catch (error) {
+      logger.warn({ err: error }, 'Restore cleanup incomplete; startup recovery will finish it');
+    }
+    logger.info(
+      { filename },
+      'Restore completed; exiting so the restarted process opens the restored data',
+    );
+    flushLogger(logger);
+    process.exit(0);
+    return;
   } finally {
     operationInProgress = false;
   }

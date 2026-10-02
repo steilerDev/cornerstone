@@ -13,17 +13,19 @@ This guide walks through configuring the backup directory, scheduling automatic 
 
 A backup is a `tar.gz` archive of the **entire app data directory** -- the same directory that contains your SQLite database file (`cornerstone.db` by default). That means a single archive captures:
 
-- The SQLite database (work items, budgets, users, vendors, diary entries, etc.)
+- A consistent snapshot of the SQLite database (work items, budgets, users, vendors, diary entries, etc.)
 - Diary photo attachments stored under the data directory
 - Any other state Cornerstone keeps next to the database
 
-Cornerstone uses SQLite's online backup API to snapshot the database safely while it is running, so you do not need to stop the container to take a backup.
+Cornerstone uses SQLite's online backup API to snapshot the database safely while it is running, so you do not need to stop the container to take a backup. The snapshot is a frozen point-in-time copy of the database; it never includes the live database file or transaction log (`-wal` or `-shm` files).
 
 Archives are named with a UTC timestamp:
 
 ```
 cornerstone-backup-2026-04-29T143022Z.tar.gz
 ```
+
+Archives created by earlier Cornerstone versions (which contained the live database files alongside snapshots) can still be restored; the restore process automatically detects the archive format and restores all restorable data.
 
 ## Configuration
 
@@ -175,11 +177,11 @@ To restore:
 After the process exits, your container orchestrator (Docker, Compose, Kubernetes, etc.) will restart the container automatically -- and the new instance comes up against the restored data.
 
 :::caution Restoring is destructive
-A restore replaces all current data with the archive contents. There is no automatic "undo." Before restoring, take a fresh manual backup so you can roll forward again if you change your mind. Cornerstone does keep a timestamped copy of the previous data directory next to the original (e.g., `data.backup-1730000000`) until the next restart, but you should not rely on it as a recovery mechanism.
+A restore replaces all current data with the archive contents. This is a **full replacement** -- work items, budgets, photos, and other files added since the backup was taken will be permanently deleted. There is no automatic "undo." Before restoring, take a fresh manual backup of your current data so you can roll forward again if you change your mind. The previous data is removed immediately after the restore succeeds; there is no timestamped copy kept for recovery.
 :::
 
 :::note Restart policy required
-The restore flow exits the Node.js process intentionally so the new data directory is picked up cleanly on the next start. This relies on your container being configured to restart automatically. The default `docker-compose.yml` and `docker run` examples in this documentation use `restart: unless-stopped` (or equivalent). If you run Cornerstone without a restart policy, you will need to start the container yourself after a restore.
+The restore flow exits the Node.js process intentionally so the new data directory is picked up cleanly on the next start. This requires your container restart policy to be set to **`unless-stopped`** or **`always`**. The policy `on-failure` does **not** work for a successful restore, because the process exits with code 0 (which signals "do not restart" to Docker). A bare `docker run` without a `--restart` flag will stop after the restore and stay stopped -- you must start it manually. The default `docker-compose.yml` and `docker run` examples in this documentation use `restart: unless-stopped`, which is correct.
 :::
 
 ### Restoring on a New Host
@@ -194,6 +196,23 @@ To migrate Cornerstone to a different machine using a backup:
 
 The restore flow rebuilds the data directory from the archive, so the new host comes up with the same database, photos, and configuration.
 
+### Restore Failure Handling
+
+If a restore fails:
+
+- **Archive rejected during validation** (corrupt, from a newer version, or missing the database) -- the server logs the failure (`RESTORE_FAILED`), **keeps running** with your current data intact, and another backup or restore can be started. No data is modified. Check the container logs for details and try a different archive. The web interface still shows the 'Server is restarting' message, so if the data looks unchanged after refreshing, check the container logs.
+- **Swap failure** -- if the data swap encounters an error after the archive is validated, the server automatically rolls back to reinstate your original data, logs the error, and exits with code 1. On restart, your original data is restored.
+
+:::info
+If a restore is interrupted by a crash (for example, power loss) during the swap, the next startup detects it automatically. If the swap had not finished, your original data is reinstated. If it had finished, the leftover temporary files are removed and the restored data is kept.
+:::
+
+### Disk Space and Photo Storage Limitations
+
+**Disk space during restore:** A restore checks the available free space before extracting. It needs about the uncompressed archive size plus a small margin (64 MiB, plus about 4 KiB per file). The restore process stages the extracted archive in the data directory, then swaps it in place. If there is insufficient free space, the restore logs "Not enough free disk space to restore this backup" and changes nothing. Archives with more than 1,000,000 files are rejected.
+
+**Photo storage limitation:** If `PHOTO_STORAGE_PATH` is configured to point outside the data directory, photos are neither backed up nor restored. Only the database and files stored within the data directory are included in archives. This is typically only relevant if you have customized the photo storage location.
+
 ## Off-Site Copies
 
 Cornerstone's backup feature manages archives on a single volume. For true disaster recovery, copy archives to a different machine or cloud storage on a regular basis. Some options:
@@ -204,13 +223,17 @@ Cornerstone's backup feature manages archives on a single volume. For true disas
 
 Bind mounts make this easier than named volumes, since the archives live at a known host path you can hand to standard tooling.
 
+:::note Archive file permissions
+New archives are created readable only by the user Cornerstone runs as (the `node` user in the official image; check with `docker exec <container> id -u`), with mode 0600. A copy job that runs as a different, non-root UID (for example an automated off-site sync service) cannot read the archives. Solutions: run the copy job as the same UID or as root, or have the copy job `chmod` the archives itself. Archives created by earlier versions of Cornerstone keep their original mode.
+:::
+
 ## Troubleshooting
 
 ### "The backup could not be created"
 
 Backups are always enabled (`BACKUP_DIR` defaults to `/backups`). This UI message appears when a backup operation fails. Check the container logs for the specific error — the server logs one of three possible lines and the fix depends on which one:
 
-- **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (typically `node`, UID 1000). A bind-mounted or named volume must exist and not be mounted read-only.
+- **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (the `node` user in the official image; check with `docker exec <container> id -u`). A bind-mounted or named volume must exist and not be mounted read-only.
 - **`Database snapshot failed`** — The database backup step failed. The underlying SQLite error (e.g., `SQLITE_FULL`, `SQLITE_CORRUPT`) is appended to this log line in the container log (`docker logs <container>`). Check the container logs for the specific error and ensure sufficient free space on the filesystem.
 - **`Backup archive could not be created`** — The backup archive cannot be written. Verify the filesystem has sufficient free space and the backup directory is writable.
 
@@ -222,7 +245,7 @@ If no host directory or volume is mounted at `BACKUP_DIR`, backup archives land 
 
 ### "The backup archive could not be read, so nothing was restored"
 
-This error occurs when a restore operation finds the backup archive file but cannot read it. The archive exists but is not readable by the container user (typically `node`, UID 1000). Check that:
+This error occurs when a restore operation finds the backup archive file but cannot read it. The archive exists but is not readable by the container user (the `node` user in the official image; check with `docker exec <container> id -u`). Check that:
 
 - The archive file permissions allow the container user to read it
 - The archive file ownership is correct (or the file is world-readable)
@@ -239,3 +262,35 @@ This error occurs when a restore operation finds the backup archive file but can
 ### "Backup in progress"
 
 Only one backup or restore can run at a time. If you trigger a manual backup while a scheduled one is still running -- or while a restore is mid-flight -- the second request is rejected. Wait for the first operation to finish and try again.
+
+### "Invalid restore marker" (server refuses to start)
+
+The server logs this error and refuses to start because it found a damaged `.restore-state.json` file in the data directory. This file tracks the restore process. If it becomes corrupted -- typically due to a crash or unclean shutdown during a restore -- manual intervention is required.
+
+The data directory may contain several restore-related items:
+
+- `.pre-restore-<timestamp>/` -- holds the data from before the restore. **This may be the only copy of your data.**
+- `.restore-staging-<timestamp>/` -- holds the partly-restored data from the archive. This is safe to delete, because the archive can recreate it.
+- `.restore-state.json` and `.restore-state.json.tmp` -- the restore's progress marker and temporary file.
+
+**To fix:**
+
+1. Stop the container.
+2. Open the data volume (or use `docker run --rm -it -v cornerstone-data:/data alpine sh` to access it).
+3. If `.pre-restore-*` exists and is not empty, carefully delete any entries in the data directory's top level that also exist in `.pre-restore-*`. Do not delete `lost+found` or any `.restore-*` and `.pre-restore-*` directories themselves.
+4. Move the contents of `.pre-restore-*` back into the data directory.
+5. Delete `.restore-staging-*`, `.pre-restore-*` (now empty), `.restore-state.json`, and `.restore-state.json.tmp`.
+6. Start the container. If it still refuses to start with the same error, open an issue at https://github.com/steilerDev/cornerstone/issues and describe the contents you found in the data directory. Do not delete `.pre-restore-*` in the meantime.
+
+### "Leftover pre-restore directory found without a restore marker" (server log warning)
+
+The server found a `.pre-restore-<timestamp>` directory during startup but no active restore marker (`.restore-state.json`). This is a leftover from an interrupted restore. The directory may contain data you need.
+
+**To fix:**
+
+Check whether the directory holds data you need:
+
+- **If you need to recover that data:** Stop the container, reinstate it (follow steps 3--5 from the "Invalid restore marker" section above), and start the container.
+- **If you do not need that data:** Stop the container, delete the directory while it is stopped, and start the container. The server will no longer warn about it.
+
+The server leaves such directories on purpose to avoid data loss from a crash. Always verify the directory's contents before deleting it.
