@@ -568,7 +568,7 @@ export default function WorkItemDetailPage() {
     const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
     if (!budgetLine) return;
 
-    setInlineError(null);
+    setBudgetError(null);
 
     // If the line has an invoice link, use the invoice budget line endpoint
     if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
@@ -605,6 +605,7 @@ export default function WorkItemDetailPage() {
     itemizedAmountStr: string,
   ) => {
     if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+    setBudgetError(null);
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {

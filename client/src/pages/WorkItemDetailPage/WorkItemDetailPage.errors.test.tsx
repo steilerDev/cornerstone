@@ -574,6 +574,60 @@ describe('WorkItemDetailPage', () => {
     });
   });
 
+  describe('a new budget action clears a stale budget error', () => {
+    async function failDelete() {
+      mockDeleteWorkItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
+      await confirmDelete();
+      await expectBudgetError(enBudget.budgetLineForm.errors.deleteFailed);
+    }
+
+    it('a successful move clears the banner left by a failed delete', async () => {
+      await load();
+      await failDelete();
+
+      mockUpdateWorkItemBudget.mockResolvedValue(undefined as never);
+      await act(async () => {
+        await capturedBudgetSectionProps.onMoveBudgetLine('bl-1', 'work_item', 'target-1');
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('budget-banner')).toBeNull();
+      });
+      expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
+    });
+
+    it('a successful invoice-line edit clears the banner left by a failed delete', async () => {
+      await load(true);
+      await failDelete();
+
+      mockEditAndMoveBudgetLine.mockResolvedValue(undefined);
+      await act(async () => {
+        await capturedBudgetSectionProps.onInvoiceLineEdit(
+          capturedBudgetSectionProps.budgetLines[0],
+          {
+            description: 'd',
+            plannedAmount: '100',
+            confidence: 'own_estimate',
+            budgetCategoryId: '',
+            budgetSourceId: '',
+            vendorId: '',
+            pricingMode: 'direct',
+            quantity: '',
+            unit: '',
+            unitPrice: '',
+            includesVat: false,
+          },
+          '100',
+        );
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('budget-banner')).toBeNull();
+      });
+      expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
+    });
+  });
+
   describe('move budget line', () => {
     async function move(
       invoiced: boolean,

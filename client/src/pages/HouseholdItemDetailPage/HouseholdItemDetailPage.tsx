@@ -592,6 +592,7 @@ export function HouseholdItemDetailPage() {
     itemizedAmountStr: string,
   ) => {
     if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+    setInlineError(null);
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {

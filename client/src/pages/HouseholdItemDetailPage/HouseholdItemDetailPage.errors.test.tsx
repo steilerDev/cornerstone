@@ -604,6 +604,61 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     });
   });
 
+  describe('a new budget action clears a stale inline error', () => {
+    async function failDelete() {
+      mockDeleteHouseholdItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
+      await confirmDelete();
+      await expectInlineError(enBudget.budgetLineForm.errors.deleteFailed);
+    }
+
+    it('a successful move clears the banner left by a failed delete', async () => {
+      await load();
+      await failDelete();
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+
+      mockUpdateHouseholdItemBudget.mockResolvedValue(undefined);
+      await act(async () => {
+        await capturedBudgetSectionProps.onMoveBudgetLine('bl-1', 'household_item', 'target-1');
+      });
+
+      await waitFor(() => {
+        expect(inlineError() ?? null).toBeNull();
+      });
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+
+    it('a successful invoice-line edit clears the banner left by a failed delete', async () => {
+      await load(true);
+      await failDelete();
+
+      mockEditAndMoveBudgetLine.mockResolvedValue(undefined);
+      await act(async () => {
+        await capturedBudgetSectionProps.onInvoiceLineEdit(
+          capturedBudgetSectionProps.budgetLines[0],
+          {
+            description: 'd',
+            plannedAmount: '100',
+            confidence: 'own_estimate',
+            budgetCategoryId: '',
+            budgetSourceId: '',
+            vendorId: '',
+            pricingMode: 'direct',
+            quantity: '',
+            unit: '',
+            unitPrice: '',
+            includesVat: false,
+          },
+          '100',
+        );
+      });
+
+      await waitFor(() => {
+        expect(inlineError() ?? null).toBeNull();
+      });
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+  });
+
   describe('move budget line', () => {
     async function move(
       invoiced: boolean,
