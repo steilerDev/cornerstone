@@ -302,9 +302,9 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../components/budget/BudgetSection.js', () => ({
-  BudgetSection: (props: unknown) => {
+  BudgetSection: (props: { inlineError?: string | null }) => {
     capturedBudgetSectionProps = props;
-    return null;
+    return props.inlineError ? <div role="alert">{props.inlineError}</div> : null;
   },
 }));
 
@@ -537,6 +537,31 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
         await capturedBudgetSectionProps.onLinkSubsidy();
       });
     }
+
+    it('dismissing the budget banner clears the inline error', async () => {
+      await link(new Error('RAW-LOCAL'));
+      await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
+
+      await act(async () => {
+        capturedBudgetSectionProps.onDismissInlineError();
+      });
+
+      expect(inlineError() ?? null).toBeNull();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+
+    it('a successful budget-line delete clears a stale inline error', async () => {
+      await link(new Error('RAW-LOCAL'));
+      await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
+
+      mockDeleteHouseholdItemBudget.mockResolvedValue(undefined);
+      await confirmDelete();
+
+      await waitFor(() => {
+        expect(inlineError() ?? null).toBeNull();
+      });
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
 
     it('409 shows the already-linked copy', async () => {
       await link(apiError(409, 'CONFLICT'));

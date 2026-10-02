@@ -263,7 +263,11 @@ export default function WorkItemDetailPage() {
       updateBudget: updateWorkItemBudget,
       deleteBudget: deleteWorkItemBudget,
     },
-    reloadBudgetLines,
+    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
+    reloadBudgetLines: async () => {
+      await reloadBudgetLines();
+      setBudgetError(null);
+    },
     reloadSubsidyPayback,
     reloadLinkedSubsidies,
     toFormState: (line: WorkItemBudgetLine): BudgetLineFormState => ({
@@ -1564,6 +1568,7 @@ export default function WorkItemDetailPage() {
               onUnlinkInvoice={handleUnlinkInvoice}
               isUnlinking={isUnlinkingInvoice}
               inlineError={budgetError}
+              onDismissInlineError={() => setBudgetError(null)}
               parentEntityId={workItem?.id}
               parentEntityLabel={workItem?.title}
               onMoveBudgetLine={handleMoveBudgetLine}

@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-10-01"
+    "lastUpdated": "2026-10-02"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -11,6 +11,7 @@
     "Budget Line": { "de": { "singular": "Budgetposition", "plural": "Budgetpositionen" } },
     "Budget Source": { "de": { "singular": "Budgetquelle", "plural": "Budgetquellen" } },
     "Milestone": { "de": { "singular": "Meilenstein", "plural": "Meilensteine" } },
+    "Schedule": { "de": { "singular": "Zeitplan", "plural": "Zeitpläne" } },
     "Invoice": { "de": { "singular": "Rechnung", "plural": "Rechnungen" } },
     "Subsidy": { "de": { "singular": "Förderprogramm", "plural": "Förderprogramme" } },
     "Dependency": { "de": { "singular": "Abhängigkeit", "plural": "Abhängigkeiten" } },

@@ -211,7 +211,7 @@ Bind mounts make this easier than named volumes, since the archives live at a kn
 Backups are always enabled (`BACKUP_DIR` defaults to `/backups`). This UI message appears when a backup operation fails. Check the container logs for the specific error — the server logs one of three possible lines and the fix depends on which one:
 
 - **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (typically `node`, UID 1000). A bind-mounted or named volume must exist and not be mounted read-only.
-- **`Database snapshot failed`** — The database backup step failed, often due to disk space or database corruption. Ensure sufficient free space on the filesystem and check database logs for corruption errors.
+- **`Database snapshot failed`** — The database backup step failed. The underlying SQLite error (e.g., `SQLITE_FULL`, `SQLITE_CORRUPT`) is appended to this log line in the container log (`docker logs <container>`). Check the container logs for the specific error and ensure sufficient free space on the filesystem.
 - **`Backup archive could not be created`** — The backup archive cannot be written. Verify the filesystem has sufficient free space and the backup directory is writable.
 
 :::info

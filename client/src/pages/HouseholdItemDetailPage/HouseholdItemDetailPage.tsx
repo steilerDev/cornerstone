@@ -215,7 +215,11 @@ export function HouseholdItemDetailPage() {
       updateBudget: updateHouseholdItemBudget,
       deleteBudget: deleteHouseholdItemBudget,
     },
-    reloadBudgetLines,
+    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
+    reloadBudgetLines: async () => {
+      await reloadBudgetLines();
+      setInlineError(null);
+    },
     reloadSubsidyPayback,
     reloadLinkedSubsidies,
     toFormState: (line: HouseholdItemBudgetLine): BudgetLineFormState => ({
@@ -956,25 +960,13 @@ export function HouseholdItemDetailPage() {
             <h2 className={styles.cardTitle}>{t('detail.datesDelivery.title')}</h2>
           </div>
           {dateInlineError && (
-            <div
-              className={styles.errorMessage}
-              role="alert"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
+            <div className={styles.errorMessage} role="alert">
               <span>{dateInlineError}</span>
               <button
                 type="button"
+                className={styles.errorMessageClose}
                 onClick={() => setDateInlineError(null)}
                 aria-label={t('detail.closeErrorMessage')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.5rem',
-                  padding: '0 0 0 var(--spacing-4)',
-                  flexShrink: 0,
-                  color: 'inherit',
-                }}
               >
                 ×
               </button>
@@ -1424,6 +1416,7 @@ export function HouseholdItemDetailPage() {
             onUnlinkInvoice={handleUnlinkInvoice}
             isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
+            onDismissInlineError={() => setInlineError(null)}
             parentEntityId={item?.id}
             parentEntityLabel={item?.name}
             onMoveBudgetLine={handleMoveBudgetLine}

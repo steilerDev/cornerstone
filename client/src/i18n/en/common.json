@@ -189,6 +189,7 @@
   "subNav": {
     "project": "Project section navigation",
     "budget": "Budget section navigation",
-    "settings": "Settings section navigation"
+    "settings": "Settings section navigation",
+    "schedule": "Schedule section navigation"
   }
 }

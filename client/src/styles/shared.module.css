@@ -444,6 +444,54 @@
 }
 
 /**
+ * Flex-row layout for a banner that carries a trailing dismiss button
+ * (compose alongside the banner's own colors; see .bannerClose).
+ */
+.bannerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/**
+ * Dismiss ("x") button for an error banner — transparent, danger-colored glyph with a
+ * danger-tinted hover. Pair with .bannerRow and an accessible aria-label.
+ */
+.bannerClose {
+  background: transparent;
+  border: none;
+  color: var(--color-danger-active);
+  font-size: var(--font-size-2xl);
+  line-height: 1;
+  cursor: pointer;
+  padding: var(--spacing-1) var(--spacing-2);
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+
+.bannerClose:hover {
+  background: var(--color-overlay-danger);
+}
+
+.bannerClose:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+@media (max-width: 1024px) {
+  .bannerClose {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bannerClose {
+    transition: none;
+  }
+}
+
+/**
  * Inline warning banner — amber-tinted, displayed for a non-blocking, reversible
  * caution the user should be aware of before proceeding. Not for errors (use
  * .bannerError) and not for actions that cannot be undone (use MassMoveModal's

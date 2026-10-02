@@ -100,11 +100,16 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
 
 jest.unstable_mockModule('../../components/budget/BudgetSection.js', () => ({
   // Mirrors the real BudgetSection: it renders its inlineError prop in its own alert banner
-  BudgetSection: (props: { inlineError?: string | null }) => {
+  BudgetSection: (props: { inlineError?: string | null; onDismissInlineError?: () => void }) => {
     capturedBudgetSectionProps = props;
     return props.inlineError ? (
       <div role="alert" data-testid="budget-banner">
         {props.inlineError}
+        {props.onDismissInlineError && (
+          <button type="button" onClick={props.onDismissInlineError}>
+            dismiss
+          </button>
+        )}
       </div>
     ) : null;
   },
@@ -502,6 +507,31 @@ describe('WorkItemDetailPage', () => {
         await capturedBudgetSectionProps.onLinkSubsidy();
       });
     }
+
+    it('dismissing the budget banner clears the budget error', async () => {
+      await link(new Error('RAW-LOCAL'));
+      await expectBudgetError(enWorkItems.detail.inlineErrors.linkSubsidy);
+
+      await act(async () => {
+        screen.getByRole('button', { name: 'dismiss' }).click();
+      });
+
+      expect(screen.queryByTestId('budget-banner')).toBeNull();
+      expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
+    });
+
+    it('a successful budget-line delete clears a stale budget error', async () => {
+      await link(new Error('RAW-LOCAL'));
+      await expectBudgetError(enWorkItems.detail.inlineErrors.linkSubsidy);
+
+      mockDeleteWorkItemBudget.mockResolvedValue(undefined);
+      await confirmDelete();
+
+      await waitFor(() => {
+        expect(screen.queryByTestId('budget-banner')).toBeNull();
+      });
+      expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
+    });
 
     it('409 shows the already-linked copy', async () => {
       await link(apiError(409, 'CONFLICT'));

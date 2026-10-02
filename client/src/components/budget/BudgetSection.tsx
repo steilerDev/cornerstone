@@ -40,6 +40,8 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   onUnlinkInvoice?: (budgetLineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
+  /** When set, the inline-error banner shows a dismiss button that calls this. */
+  onDismissInlineError?: () => void;
   oversubscribedSubsidyIds?: Set<string>;
   parentEntityId?: string;
   parentEntityLabel?: string;
@@ -74,6 +76,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onUnlinkInvoice,
   isUnlinking,
   inlineError,
+  onDismissInlineError,
   oversubscribedSubsidyIds,
   parentEntityId,
   parentEntityLabel,
@@ -235,6 +238,16 @@ export function BudgetSection<T extends BaseBudgetLine>({
       {inlineError && (
         <div className={styles.errorBanner} role="alert">
           {inlineError}
+          {onDismissInlineError && (
+            <button
+              type="button"
+              className={styles.closeError}
+              onClick={onDismissInlineError}
+              aria-label={tBudget('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
 
