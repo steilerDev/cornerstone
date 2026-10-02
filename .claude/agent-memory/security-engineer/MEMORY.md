@@ -17,7 +17,7 @@
 
 Verified across EPIC-01/02/03/05 — all confirmed STRONG:
 
-- **Argon2id** password hashing (N=65536, t=3, p=4) — OWASP-compliant
+- **scrypt** password hashing (crypto.scrypt, N=131072, r=8, p=1 since #2122; legacy 16384 accepted + rehash on login; Argon2id replaced in PR #72). Residual: legacy-hash accounts verify faster than unknown (timing oracle) — see Security-Audit.md Deviation Log
 - **Session tokens**: 256-bit crypto.randomBytes(32), HttpOnly+Secure+SameSite=strict cookies
 - **OIDC**: openid-client@6.x, 256-bit state param, server-side Map, 10-min TTL, one-time use
 - **RBAC**: requireRole() preHandler, fresh DB lookup every request (no caching)

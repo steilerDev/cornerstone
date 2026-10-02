@@ -304,15 +304,28 @@ export async function buildApp(): Promise<FastifyInstance> {
     return { status: 'ok', timestamp: new Date().toISOString() };
   });
 
+  let hashSelfCheck: Promise<void> | undefined;
+
   // Readiness probe — verifies critical runtime components
   app.get('/api/health/ready', async () => {
     // Verify database is accessible
     app.db.run(sql`SELECT 1`);
 
-    // Verify password hashing round-trip
-    const hash = await hashPassword('healthcheck');
-    const valid = await verifyPassword(hash, 'healthcheck');
-    if (!valid) throw new Error('Password hash verification failed');
+    // Password hashing round-trip: run once (lazily) and cache only a success, because a
+    // scrypt hash is expensive (~128 MiB) and the probe runs every 30 s. A failure clears
+    // the cache so the next probe retries instead of failing until restart.
+    hashSelfCheck ??= (async () => {
+      const hash = await hashPassword('healthcheck');
+      if (!(await verifyPassword(hash, 'healthcheck'))) {
+        throw new Error('Password hash verification failed');
+      }
+    })();
+    try {
+      await hashSelfCheck;
+    } catch (err) {
+      hashSelfCheck = undefined;
+      throw err;
+    }
 
     return { status: 'ready', timestamp: new Date().toISOString() };
   });

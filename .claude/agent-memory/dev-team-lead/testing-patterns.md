@@ -74,3 +74,5 @@ Leaf text nodes inside a `columns` node get `.positions[0].left` (column START x
 line x) and `._calcWidth` after a real `getBlob()` on the held content reference. Right edge of a
 column = `left + _calcWidth`. Use this for "block width matches table" style ACs instead of reading
 declared widths back (#2011).
+
+- **E2E viewport tests need the `@responsive` tag.** The tablet and mobile Playwright projects `grep: /@responsive/`, so a test with `test.skip(project !== 'mobile')` and no `{ tag: '@responsive' }` runs nowhere: it is skipped on desktop and filtered out on mobile (#2122 review). When a spec asks for a mobile scenario, say "tag it `@responsive`". Also: below 767px DataTable hides `.tableContainer` (cards only), so `thead th` locators only work on desktop and tablet.

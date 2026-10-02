@@ -157,15 +157,13 @@ export default async function authRoutes(fastify: FastifyInstance) {
       // Find user by email
       const user = userService.findByEmail(fastify.db, email);
 
-      // If no user found OR user is OIDC (no password_hash), still hash a dummy password
-      // (timing attack prevention)
+      // If no user is found, or the user has no local password (OIDC-provisioned or
+      // admin-created SSO-only account), still hash a dummy password (timing attack
+      // prevention) and return the same generic error.
       if (!user || !user.passwordHash) {
-        // Pre-computed scrypt hash to prevent timing attacks.
-        // Verifying against this ensures constant-time response whether the user exists or not.
-        await userService.verifyPassword(
-          '$scrypt$n=16384,r=8,p=1$eIPA3bA+j890PhMRXL2ALg==$0vGnikxLJhnan8L03D8sFKeoOQ1qqQzXE2vlG92RsGmKFYIU7TukjzGgTIYX5y7Rleq6OAnnx5pR92KVnzj0ag==',
-          password,
-        );
+        // Verify against a dummy hash made with the current scrypt parameters so the
+        // response time is the same whether the account exists or not.
+        await userService.verifyDummyPassword(password);
         throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
       }
 
@@ -191,12 +189,26 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       if (!passwordValid) {
+        // A legacy-parameter hash verifies faster than the dummy used for unknown accounts;
+        // pay the difference so a failure costs at least as much as for an unknown account.
+        if (userService.passwordNeedsRehash(user.passwordHash)) {
+          await userService.verifyDummyPassword(password);
+        }
         userService.recordFailedLogin(fastify.db, user.id);
         throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
       }
 
       // Successful login — reset failed attempts
       userService.resetLoginAttempts(fastify.db, user.id);
+
+      // Upgrade legacy hashes to the current scrypt parameters (best-effort)
+      if (userService.passwordNeedsRehash(user.passwordHash)) {
+        try {
+          await userService.rehashPassword(fastify.db, user.id, user.passwordHash, password);
+        } catch (err) {
+          request.log.warn({ err, userId: user.id }, 'Failed to rehash password after login');
+        }
+      }
 
       // Create session
       const sessionId = sessionService.createSession(

@@ -241,6 +241,44 @@ describe('OIDC Routes', () => {
       expect(linkedUser?.authProvider).toBe('local');
     });
 
+    it('links an admin-created SSO-only account on first login and signs the same user in (issue #2122)', async () => {
+      // Given: An admin-created SSO-only admin account (no password, no subject)
+      const created = userService.createSsoOnlyUser(
+        app.db,
+        'sso@example.com',
+        'SSO Admin',
+        'admin',
+      );
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-sso-only-1',
+        email: 'sso@example.com',
+        emailVerified: true,
+      });
+
+      // When: The OIDC callback is invoked with the verified email
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/callback?code=abc&state=xyz',
+      });
+
+      // Then: A session is issued and the user is redirected into the app
+      expect(response.statusCode).toBe(302);
+      expect(response.headers.location).toBe('/');
+      const setCookieHeader = response.headers['set-cookie'];
+      const cookies = Array.isArray(setCookieHeader) ? setCookieHeader.join(';') : setCookieHeader;
+      expect(cookies).toContain('cornerstone_session=');
+      const cookie = (cookies as string).split(';')[0]!;
+
+      // And: /users/me returns the same account, now linked, with its role intact
+      const me = await app.inject({ method: 'GET', url: '/api/users/me', headers: { cookie } });
+      expect(me.statusCode).toBe(200);
+      const meUser = JSON.parse(me.body);
+      expect(meUser.id).toBe(created.id);
+      expect(meUser.role).toBe('admin');
+      expect(meUser.authProvider).toBe('oidc');
+      expect(meUser.oidcLinked).toBe(true);
+    });
+
     it('redirects to /login?error=oidc_no_matching_account when no account matches by email', async () => {
       // Given: No account exists for this email
       mockHandleCallback.mockResolvedValue({

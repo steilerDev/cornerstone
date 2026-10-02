@@ -11,12 +11,38 @@ interface EditUserData {
   role?: 'admin' | 'member';
 }
 
+interface CreateUserData {
+  email: string;
+  displayName: string;
+  role?: 'admin' | 'member';
+  /** Check the "Single sign-on only" box (password fields are then not rendered). */
+  ssoOnly?: boolean;
+  /** Used for both Password and Confirm Password when not ssoOnly. */
+  password?: string;
+}
+
 export class UserManagementPage {
   readonly page: Page;
   readonly heading: Locator;
   readonly searchInput: Locator;
   readonly table: Locator;
   readonly emptyState: Locator;
+
+  // Add User button + create modal
+  readonly addUserButton: Locator;
+  readonly createModal: Locator;
+  readonly createEmailInput: Locator;
+  readonly createDisplayNameInput: Locator;
+  readonly createRoleSelect: Locator;
+  readonly createSsoOnlyCheckbox: Locator;
+  readonly createSsoOnlyRow: Locator;
+  readonly createPasswordInput: Locator;
+  readonly createConfirmPasswordInput: Locator;
+  readonly createSubmitButton: Locator;
+  readonly createModalError: Locator;
+  readonly createEmailError: Locator;
+  readonly createPasswordError: Locator;
+  readonly createConfirmPasswordError: Locator;
 
   // Edit modal
   readonly editModal: Locator;
@@ -50,6 +76,23 @@ export class UserManagementPage {
     // Use .first() on the EmptyState component container to avoid strict mode with child elements.
     this.emptyState = page.locator('[class*="emptyState"]').first();
 
+    // Add User button + create modal (role="dialog" labelled "Add User")
+    this.addUserButton = page.getByTestId('add-user-button');
+    this.createModal = page.getByRole('dialog', { name: 'Add User' });
+    this.createEmailInput = page.locator('#createEmail');
+    this.createDisplayNameInput = page.locator('#createDisplayName');
+    this.createRoleSelect = page.locator('#createRole');
+    this.createSsoOnlyCheckbox = page.locator('#createSsoOnly');
+    // The checkbox is wrapped in a <label> row (44px min-height on mobile)
+    this.createSsoOnlyRow = this.createSsoOnlyCheckbox.locator('xpath=ancestor::label');
+    this.createPasswordInput = page.locator('#createPassword');
+    this.createConfirmPasswordInput = page.locator('#createConfirmPassword');
+    this.createSubmitButton = page.getByTestId('create-user-submit');
+    this.createModalError = this.createModal.locator('[role="alert"]');
+    this.createEmailError = page.locator('#createEmail-error');
+    this.createPasswordError = page.locator('#createPassword-error');
+    this.createConfirmPasswordError = page.locator('#createConfirmPassword-error');
+
     // Edit modal (uses role="dialog" with aria-label)
     this.editModal = page.getByRole('dialog', { name: 'Edit User' });
     this.editModalHeading = this.editModal.getByRole('heading', { level: 2, name: 'Edit User' });
@@ -81,6 +124,53 @@ export class UserManagementPage {
     // Wait for heading and search input — on tablet the input may take longer to render
     await this.heading.waitFor({ state: 'visible' });
     await this.searchInput.waitFor({ state: 'visible' });
+  }
+
+  async openCreateModal(): Promise<void> {
+    await this.addUserButton.click();
+    await this.createModal.waitFor({ state: 'visible' });
+  }
+
+  /** Fills the open create modal without submitting. */
+  async fillCreateForm(data: CreateUserData): Promise<void> {
+    await this.createEmailInput.fill(data.email);
+    await this.createDisplayNameInput.fill(data.displayName);
+    if (data.role !== undefined) {
+      await this.createRoleSelect.selectOption(data.role);
+    }
+    if (data.ssoOnly) {
+      await this.createSsoOnlyCheckbox.check();
+    } else if (data.password !== undefined) {
+      await this.createPasswordInput.fill(data.password);
+      await this.createConfirmPasswordInput.fill(data.password);
+    }
+  }
+
+  /** Opens the modal, fills it, submits, and waits for the POST response and the dialog to close. */
+  async createUser(data: CreateUserData): Promise<void> {
+    await this.openCreateModal();
+    await this.fillCreateForm(data);
+    const responsePromise = this.page.waitForResponse(
+      (res) => res.url().endsWith('/api/users') && res.request().method() === 'POST',
+    );
+    await this.createSubmitButton.click();
+    await responsePromise;
+    await this.createModal.waitFor({ state: 'hidden' });
+  }
+
+  /** Auth Provider cell for the row with this email; the column is located by its header text. */
+  async getAuthProviderCell(email: string): Promise<Locator> {
+    await this.table.locator('thead th').first().waitFor({ state: 'visible' });
+    const headers = await this.table.locator('thead th').allTextContents();
+    const index = headers.findIndex((h) => h.includes('Auth Provider'));
+    if (index === -1) {
+      throw new Error('Auth Provider column is not visible');
+    }
+    return this.table
+      .locator('tbody tr')
+      .filter({ has: this.page.getByRole('cell', { name: email, exact: true }) })
+      .locator('td')
+      .nth(index);
   }
 
   async searchUsers(query: string): Promise<void> {
