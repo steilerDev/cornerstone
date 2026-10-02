@@ -27,7 +27,7 @@ Building a home means juggling contractors, loans, subsidies, invoices, delivery
 
 **🤖 Let AI handle the paperwork** -- Connect [Paperless-ngx](https://docs.paperless-ngx.com/) and link scanned documents to work items, purchases, and invoices. Optionally plug in any LLM provider (OpenAI, Anthropic, Gemini, Ollama) to read line items straight off an invoice PDF and book them to the right budget lines.
 
-**📸 Document the site** -- Keep a construction diary with daily logs, site visits, and deliveries. Snap photos on your phone, tag them by room and direction, mark up defects right in the browser, and capture signatures on the spot.
+**📸 Document the site** -- Keep a construction diary with daily logs, site visits, and deliveries. Snap photos on your phone, tag them by room and direction, mark up defects right in the browser, and capture signatures on the spot. The photo browser groups every shot by spot, so you can step back through how a wall or a corner changed over time.
 
 **🛋️ Furnish the home** -- Track furniture, appliances, and fixtures alongside the build, with delivery dates tied to the schedule and costs tied to the budget.
 

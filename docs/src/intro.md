@@ -47,7 +47,7 @@ Connect [Paperless-ngx](guides/documents) and link scanned documents to work ite
 
 ### Document the site
 
-Keep a [construction diary](guides/diary) with daily logs, site visits, and deliveries. [Snap photos](guides/diary/photo-capture) on your phone, tag them by room and direction, [mark up defects](guides/diary/photo-annotation) right in the browser, and [capture signatures](guides/diary/signatures) on the spot.
+Keep a [construction diary](guides/diary) with daily logs, site visits, and deliveries. [Snap photos](guides/diary/photo-capture) on your phone, tag them by room and direction, [mark up defects](guides/diary/photo-annotation) right in the browser, and [capture signatures](guides/diary/signatures) on the spot. The [photo browser](guides/photos) groups every shot by spot, so you can step back through how a wall or a corner changed over time.
 
 ### Furnish the home
 
