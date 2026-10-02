@@ -58,7 +58,12 @@ import { test, expect } from '../../fixtures/auth.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
 import { API } from '../../fixtures/testData.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 import type { Page, Route } from '@playwright/test';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1466,12 +1471,19 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
 
     let vendorId = '';
     let workItemId = '';
+    let budgetSourceId = '';
     const mockInvoiceId = `mock-inv-pf-s17-${testPrefix}`;
     const editedDescription = `${testPrefix} PF-S17 Budget Line`;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} PF-S17 Vendor`);
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S17 WI` });
+      // Own budget source: the inline form's Funding Source defaults to the first source in the
+      // list, which a parallel worker may delete before the WI budget POST.
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} PF-S17 Source`,
+        totalAmount: 100000,
+      });
 
       await mockPaperlessConfigured(page);
       await mockConfig(page, true);
@@ -1564,7 +1576,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       const reviewPage = await navigateToReviewPage(page);
 
       // ── Queue create-new on first extraction line ──────────────────────────
-      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`);
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`, { budgetSourceId });
       await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
 
       // ── Edit the description in the inline form ─────────────────────────────
@@ -1599,6 +1611,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });
@@ -1754,6 +1767,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
     let vendorId = '';
     let workItemId = '';
     let preCreatedInvoiceId = '';
+    let budgetSourceId = '';
 
     // Track every POST to the WI-budgets endpoint across BOTH save attempts —
     // this is the actual regression surface (real endpoint, not mocked).
@@ -1769,6 +1783,12 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} PF-S19 Vendor`);
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S19 WI` });
+      // Own budget source: the inline form's Funding Source defaults to the first source in the
+      // list, which a parallel worker may delete before the WI budget POST (400 not found).
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} PF-S19 Source`,
+        totalAmount: 100000,
+      });
 
       // Pre-create a REAL invoice so the second (mocked-success) commit
       // response can point navigation at an invoice detail page that actually
@@ -1845,7 +1865,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       const reviewPage = await navigateToReviewPage(page);
 
       // ── Queue create-new on the single extracted line ──────────────────────
-      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`);
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`, { budgetSourceId });
       await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
@@ -1858,6 +1878,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
           resp.url().includes('/budgets') &&
           resp.request().method() === 'POST' &&
           resp.ok(),
+        { timeout: 30000 },
       );
       const firstCommitPromise = page.waitForResponse(
         (resp) =>
@@ -1945,6 +1966,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       }
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });

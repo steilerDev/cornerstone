@@ -797,6 +797,11 @@ export class AutoItemizePage {
     return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
   }
 
+  /** Funding Source select inside the inline BudgetLineForm draft of the line at index. */
+  getInlineDraftSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
+  }
+
   /**
    * Returns the Description textbox inside the inline BudgetLineForm for the line at index.
    * The inline form uses idPrefix=`inline-${line.rowId}-` so the id is dynamic.
