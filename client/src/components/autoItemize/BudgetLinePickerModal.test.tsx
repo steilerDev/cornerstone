@@ -39,8 +39,7 @@ jest.unstable_mockModule('../../components/ParentPicker/ParentPicker.js', () => 
 }));
 
 jest.unstable_mockModule('../../components/budget/BudgetLineForm.js', () => ({
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  BudgetLineForm: ({ form }: { form?: any }) => (
+  BudgetLineForm: ({ form }: { form?: { description?: string } }) => (
     <div data-testid="budget-line-form">{form?.description ?? 'BudgetLineForm'}</div>
   ),
 }));
@@ -62,6 +61,8 @@ jest.unstable_mockModule('../../lib/budgetConstants.js', () => ({
 // ─── Dynamic import ────────────────────────────────────────────────────────────
 
 import React from 'react';
+import type { ComponentProps } from 'react';
+import type { TFunction } from 'i18next';
 import type * as BudgetLinePickerModalModule from './BudgetLinePickerModal.js';
 import type { PickerState, UseBudgetLinePickerReturn } from '../../hooks/useBudgetLinePicker.js';
 
@@ -105,15 +106,18 @@ const formatCurrency = (v: number) => `€${v.toFixed(2)}`;
 
 function renderModal(
   pickerStateOverrides: Partial<PickerState> = {},
-  callbacks: {
-    onSelectBudgetLine?: (...args: any[]) => void;
-    onCreateNewBudgetLine?: () => void;
-    onBackToStep1?: () => void;
-    onFormChange?: (updates: any) => void;
-    onCancelCreateForm?: () => void;
-    onCreateBudgetLine?: (e: any) => void;
-    handleSelectItem?: (...args: any[]) => Promise<void>;
-  } = {},
+  callbacks: Partial<
+    Pick<
+      ComponentProps<typeof BudgetLinePickerModal>,
+      | 'onSelectBudgetLine'
+      | 'onCreateNewBudgetLine'
+      | 'onBackToStep1'
+      | 'onFormChange'
+      | 'onCancelCreateForm'
+      | 'onCreateBudgetLine'
+      | 'handleSelectItem'
+    >
+  > = {},
 ) {
   const pickerState = makePickerState(pickerStateOverrides);
   const createBudgetLineButtonRef = { current: null } as React.RefObject<HTMLButtonElement | null>;
@@ -139,8 +143,8 @@ function renderModal(
         onFormChange: callbacks.onFormChange ?? jest.fn(),
         onCancelCreateForm: callbacks.onCancelCreateForm ?? jest.fn(),
         onCreateBudgetLine: callbacks.onCreateBudgetLine ?? jest.fn(),
-        t: t as any,
-        tSettings: tSettings as any,
+        t: t as unknown as TFunction,
+        tSettings: tSettings as unknown as TFunction,
         formatCurrency,
       }),
     ),
@@ -186,7 +190,7 @@ describe('BudgetLinePickerModal', () => {
           workItemId: 'wi-2',
           budgetCategory: null,
         },
-      ] as any,
+      ] as unknown as PickerState['budgetLines'],
       showCreateForm: false,
       isLoading: false,
     });
@@ -272,7 +276,7 @@ describe('BudgetLinePickerModal', () => {
     renderModal(
       {
         step: 2,
-        budgetLines: [budgetLine] as any,
+        budgetLines: [budgetLine] as unknown as PickerState['budgetLines'],
         showCreateForm: false,
         isLoading: false,
       },
@@ -291,7 +295,10 @@ describe('BudgetLinePickerModal', () => {
     renderModal({
       step: 2,
       showCreateForm: true,
-      createForm: { description: 'New Budget Line', plannedAmount: '200' } as any,
+      createForm: {
+        description: 'New Budget Line',
+        plannedAmount: '200',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
     });
@@ -338,7 +345,7 @@ describe('BudgetLinePickerModal', () => {
     renderModal({
       step: 2,
       showCreateForm: true,
-      createForm: { description: 'Draft' } as any,
+      createForm: { description: 'Draft' } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
     });
@@ -363,7 +370,7 @@ describe('BudgetLinePickerModal', () => {
           workItemId: 'wi-1',
           budgetCategory: { id: 'bc-floors', name: 'Flooring Category', translationKey: null },
         },
-      ] as any,
+      ] as unknown as PickerState['budgetLines'],
       showCreateForm: false,
       isLoading: false,
     });
@@ -383,7 +390,7 @@ describe('BudgetLinePickerModal', () => {
           workItemId: 'wi-1',
           budgetCategory: null,
         },
-      ] as any,
+      ] as unknown as PickerState['budgetLines'],
       showCreateForm: false,
     });
 
@@ -404,7 +411,7 @@ describe('BudgetLinePickerModal', () => {
           workItemId: 'wi-1',
           budgetCategory: null,
         },
-      ] as any,
+      ] as unknown as PickerState['budgetLines'],
       showCreateForm: false,
       isLoading: false,
     });
@@ -492,7 +499,10 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'household_item',
       showCreateForm: true,
-      createForm: { description: 'HI line', plannedAmount: '100' } as any,
+      createForm: {
+        description: 'HI line',
+        plannedAmount: '100',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
     });
@@ -506,7 +516,10 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'work_item',
       showCreateForm: true,
-      createForm: { description: 'New line', plannedAmount: '200' } as any,
+      createForm: {
+        description: 'New line',
+        plannedAmount: '200',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
       createError: null,
@@ -520,7 +533,10 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'work_item',
       showCreateForm: true,
-      createForm: { description: 'New line', plannedAmount: '200' } as any,
+      createForm: {
+        description: 'New line',
+        plannedAmount: '200',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
       createError: 'Budget line creation failed',
@@ -541,11 +557,16 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'work_item',
       showCreateForm: true,
-      createForm: { description: 'Line with sources', plannedAmount: '300' } as any,
+      createForm: {
+        description: 'Line with sources',
+        plannedAmount: '300',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
-      budgetSources: [{ id: 'src-1', name: 'Main Fund' }] as any,
-      vendors: [{ id: 'v-1', name: 'Builder Corp' }] as any,
+      budgetSources: [
+        { id: 'src-1', name: 'Main Fund' },
+      ] as unknown as PickerState['budgetSources'],
+      vendors: [{ id: 'v-1', name: 'Builder Corp' }] as unknown as PickerState['vendors'],
     });
     expect(screen.getByTestId('budget-line-form')).toBeInTheDocument();
   });
@@ -556,10 +577,13 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'work_item',
       showCreateForm: true,
-      createForm: { description: 'Line with categories', plannedAmount: '400' } as any,
+      createForm: {
+        description: 'Line with categories',
+        plannedAmount: '400',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
-      categories: [{ id: 'bc-1', name: 'Tiles' }] as any,
+      categories: [{ id: 'bc-1', name: 'Tiles' }] as unknown as PickerState['categories'],
     });
     expect(screen.getByTestId('budget-line-form')).toBeInTheDocument();
   });
@@ -570,7 +594,10 @@ describe('BudgetLinePickerModal', () => {
       step: 2,
       type: 'work_item',
       showCreateForm: true,
-      createForm: { description: 'Saving line', plannedAmount: '500' } as any,
+      createForm: {
+        description: 'Saving line',
+        plannedAmount: '500',
+      } as unknown as PickerState['createForm'],
       budgetLines: [],
       isLoading: false,
       isCreatingBudgetLine: true,

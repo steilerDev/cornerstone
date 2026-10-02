@@ -63,6 +63,7 @@ import {
 } from './wizardReducer.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 type PageStatus = 'loading' | 'ready' | 'error';
 
@@ -1199,7 +1200,7 @@ export function ReportWizardPage() {
                 {skippedDocuments.map((doc) => (
                   <div key={`${doc.invoiceId}-${doc.documentId}`} className={styles.skippedItem}>
                     {doc.vendorName} ({doc.invoiceNumber ?? '—'}) —{' '}
-                    {t(`sourceReports.table.${doc.reason}`)}
+                    {t(I18N_UNION_KEYS.reportSkipReason.key(doc.reason))}
                   </div>
                 ))}
               </div>
@@ -1426,7 +1427,7 @@ export function ReportWizardPage() {
               {skippedDocuments.map((doc) => (
                 <div key={`${doc.invoiceId}-${doc.documentId}`} className={styles.skippedItem}>
                   {doc.vendorName} ({doc.invoiceNumber ?? '—'}) —{' '}
-                  {t(`sourceReports.table.${doc.reason}`)}
+                  {t(I18N_UNION_KEYS.reportSkipReason.key(doc.reason))}
                 </div>
               ))}
             </div>

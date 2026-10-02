@@ -282,6 +282,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     displayName: 'Test User',
     role: 'member' as const,
     authProvider: 'local' as const,
+    oidcLinked: false,
     createdAt: '2024-01-01T00:00:00Z',
   };
 

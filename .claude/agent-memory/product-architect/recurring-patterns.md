@@ -1920,3 +1920,13 @@ reconcile step:
 
 When checking the design, verify that every phase of the recovery path can make progress on a 100%-full
 disk.
+
+## A tuple migration that converts one consumer per file leaves a second derivation beside it (PR #2171)
+
+When a PR moves a badge variant map onto an `as const` tuple plus its `I18N_UNION_KEYS` set, the same file
+usually still has hand-listed `enumOptions: [{ value: 'pending', … }]` filter options and `<option value="…">`
+selects for the same union. A new member then gets a badge but no filter or select option. In review, grep
+each touched file for `value: '<member>'` and `<option value="<member>"`, not only for template literals.
+The template-literal guard (`templateLiteralKeys.test.ts`) cannot see these: the keys are literal and
+compile-checked, so only the member list drifts. Also: `new URL(rel, import.meta.url).pathname` in a test is
+percent-encoded, so pass the URL to `readFileSync` directly.

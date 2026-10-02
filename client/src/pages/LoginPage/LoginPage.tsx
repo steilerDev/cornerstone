@@ -1,12 +1,31 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { OidcLoginErrorCode } from '@cornerstone/shared';
+import { OIDC_LOGIN_ERROR_CODES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { Logo } from '../../components/Logo/Logo.js';
 import { login, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../shared/AuthPage.module.css';
 import styles from './LoginPage.module.css';
+
+/** Known OIDC error code from the `?error=` query param, or null (unknown codes are ignored). */
+function readOidcErrorCode(search: string): OidcLoginErrorCode | null {
+  const code = new URLSearchParams(search).get('error');
+  return code !== null && (OIDC_LOGIN_ERROR_CODES as readonly string[]).includes(code)
+    ? (code as OidcLoginErrorCode)
+    : null;
+}
+
+/**
+ * Ref callback: focuses the banner when it attaches. The URL-derived OIDC error is already in the
+ * DOM on first render, and VoiceOver/Safari often don't announce a role="alert" present at load.
+ */
+function focusOnAttach(el: HTMLDivElement | null) {
+  el?.focus();
+}
 
 interface FormErrors {
   email?: string;
@@ -21,6 +40,11 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<FormErrors>({});
   const [apiError, setApiError] = useState<string>('');
+  const [oidcErrorCode, setOidcErrorCode] = useState<OidcLoginErrorCode | null>(() =>
+    readOidcErrorCode(window.location.search),
+  );
+  const bannerError =
+    apiError || (oidcErrorCode ? t(I18N_UNION_KEYS.oidcLoginError.key(oidcErrorCode)) : '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
@@ -43,28 +67,7 @@ export function LoginPage() {
       }
     };
 
-    // Check for OIDC error in URL
-    const params = new URLSearchParams(window.location.search);
-    const errorCode = params.get('error');
-    if (errorCode) {
-      const knownCodes = [
-        'oidc_not_configured',
-        'oidc_error',
-        'invalid_state',
-        'missing_email',
-        'oidc_email_unverified',
-        'account_deactivated',
-        'oidc_no_matching_account',
-      ];
-      if (knownCodes.includes(errorCode)) {
-        /* eslint-disable @eslint-react/set-state-in-effect -- initializing error state from url params */
-        setApiError(t(`login.oidcErrors.${errorCode}`));
-        /* eslint-enable @eslint-react/set-state-in-effect */
-      }
-    }
-
     void loadConfig();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- t is a stable i18n function; adding it would cause unnecessary re-runs on locale-function identity
   }, [navigate]);
 
   const validateForm = (): boolean => {
@@ -85,6 +88,7 @@ export function LoginPage() {
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setApiError('');
+    setOidcErrorCode(null);
 
     if (!validateForm()) {
       return;
@@ -117,9 +121,14 @@ export function LoginPage() {
         <h1 className={sharedStyles.title}>{t('login.title')}</h1>
         <p className={sharedStyles.description}>{t('login.description')}</p>
 
-        {apiError && (
-          <div className={sharedStyles.errorBanner} role="alert">
-            {apiError}
+        {bannerError && (
+          <div
+            className={sharedStyles.errorBanner}
+            role="alert"
+            tabIndex={-1}
+            ref={oidcErrorCode && !apiError ? focusOnAttach : undefined}
+          >
+            {bannerError}
           </div>
         )}
 

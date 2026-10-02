@@ -5,6 +5,8 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
+
 import type { WorkItemSummary } from '@cornerstone/shared';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
@@ -210,6 +212,48 @@ describe('WorkItemsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Ground Floor \u203a Kitchen').length).toBeGreaterThanOrEqual(1);
       });
+    });
+
+    it.each(WORK_ITEM_STATUSES)(
+      'renders the translated status badge label for %s',
+      async (status) => {
+        const label =
+          enWorkItems.create.fields.statusOptions[
+            { not_started: 'notStarted', in_progress: 'inProgress', completed: 'completed' }[
+              status
+            ] as 'notStarted' | 'inProgress' | 'completed'
+          ];
+        mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary({ status })]));
+
+        renderPage();
+
+        await waitFor(() => {
+          expect(screen.getAllByText(label).length).toBeGreaterThanOrEqual(1);
+        });
+      },
+    );
+
+    it('status filter lists WORK_ITEM_STATUSES in order with translated labels', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
+        label.querySelector('input')?.id,
+        label.querySelector('span')?.textContent,
+      ]);
+
+      expect(rows).toEqual(
+        WORK_ITEM_STATUSES.map((status) => [
+          `enum-${status}`,
+          {
+            not_started: enWorkItems.create.fields.statusOptions.notStarted,
+            in_progress: enWorkItems.create.fields.statusOptions.inProgress,
+            completed: enWorkItems.create.fields.statusOptions.completed,
+          }[status],
+        ]),
+      );
     });
 
     it('shows just the area name when area has no ancestors', async () => {

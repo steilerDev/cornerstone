@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -97,6 +98,12 @@ export function HouseholdItemDetailPage() {
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const statusLabels: Record<HouseholdItemStatus, string> = {
+    planned: t('detail.status.planned'),
+    purchased: t('detail.status.purchased'),
+    scheduled: t('detail.status.scheduled'),
+    arrived: t('detail.status.arrived'),
+  };
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -986,10 +993,11 @@ export function HouseholdItemDetailPage() {
               aria-label={t('detail.datesDelivery.purchaseStatus')}
               onChange={(e) => void handleStatusChange(e.target.value as HouseholdItemStatus)}
             >
-              <option value="planned">{t('detail.status.planned')}</option>
-              <option value="purchased">{t('detail.status.purchased')}</option>
-              <option value="scheduled">{t('detail.status.scheduled')}</option>
-              <option value="arrived">{t('detail.status.arrived')}</option>
+              {HOUSEHOLD_ITEM_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
             </select>
           </div>
           <dl className={styles.infoList}>

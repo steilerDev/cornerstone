@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -129,6 +130,15 @@ export default function WorkItemDetailPage() {
       outdoor: t('detail.householdItems.categories.outdoor')!,
       storage: t('detail.householdItems.categories.storage')!,
       other: t('detail.householdItems.categories.other')!,
+    }),
+    [t],
+  );
+
+  const statusLabels: Record<WorkItemStatus, string> = useMemo(
+    () => ({
+      not_started: t('detail.statusOptions.notStarted')!,
+      in_progress: t('detail.statusOptions.inProgress')!,
+      completed: t('detail.statusOptions.completed')!,
     }),
     [t],
   );
@@ -1446,9 +1456,11 @@ export default function WorkItemDetailPage() {
               value={workItem.status}
               onChange={(e) => handleStatusChange(e.target.value as WorkItemStatus)}
             >
-              <option value="not_started">{t('detail.statusOptions.notStarted')}</option>
-              <option value="in_progress">{t('detail.statusOptions.inProgress')}</option>
-              <option value="completed">{t('detail.statusOptions.completed')}</option>
+              {WORK_ITEM_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
             </select>
           </div>
         </div>

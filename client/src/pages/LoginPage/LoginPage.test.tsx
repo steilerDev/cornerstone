@@ -1,8 +1,11 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { OIDC_LOGIN_ERROR_CODES } from '@cornerstone/shared';
+import i18n from '../../i18n/index.js';
+import deAuth from '../../i18n/de/auth.json';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enAuth from '../../i18n/en/auth.json';
@@ -342,5 +345,125 @@ describe('LoginPage', () => {
 
     expect(await screen.findByText(enAuth.login.error)).toBeInTheDocument();
     expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+  });
+
+  describe('derived OIDC error banner', () => {
+    it.each(OIDC_LOGIN_ERROR_CODES)(
+      'renders the English message in role="alert" for ?error=%s',
+      async (code) => {
+        window.history.pushState({}, '', `/login?error=${code}`);
+
+        renderWithAuth(<LoginPage />);
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(enAuth.login.oidcErrors[code]);
+      },
+    );
+
+    it('renders no alert for an unknown ?error= code', async () => {
+      window.history.pushState({}, '', '/login?error=bogus');
+
+      renderWithAuth(<LoginPage />);
+
+      await waitFor(() => {
+        expect(mockGetAuthMe).toHaveBeenCalled();
+      });
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    it('follows a locale switch without a reload', async () => {
+      window.history.pushState({}, '', '/login?error=oidc_error');
+      renderWithAuth(<LoginPage />);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        enAuth.login.oidcErrors.oidc_error,
+      );
+
+      try {
+        await act(async () => {
+          await i18n.changeLanguage('de');
+        });
+
+        expect(screen.getByRole('alert')).toHaveTextContent(deAuth.login.oidcErrors.oidc_error);
+      } finally {
+        await act(async () => {
+          await i18n.changeLanguage('en');
+        });
+      }
+    });
+
+    it('clears the OIDC banner when the form is submitted', async () => {
+      window.history.pushState({}, '', '/login?error=oidc_error');
+      mockLogin.mockResolvedValue({ user: { id: 'test', email: 'test@example.com' } } as never);
+      renderWithAuth(<LoginPage />);
+      await screen.findByRole('alert');
+
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      await waitFor(() => {
+        expect(mockLogin).toHaveBeenCalled();
+      });
+      expect(screen.queryByText(enAuth.login.oidcErrors.oidc_error)).not.toBeInTheDocument();
+    });
+
+    it('replaces the OIDC error banner with the API error after a failed submit', async () => {
+      window.history.pushState({}, '', '/login?error=oidc_error');
+      mockLogin.mockRejectedValue(new Error('boom'));
+      renderWithAuth(<LoginPage />);
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        enAuth.login.oidcErrors.oidc_error,
+      );
+
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      // Submitting clears the OIDC code, so only the API error banner remains (the both-set
+      // state is unreachable from the UI).
+      expect(await screen.findByText(enAuth.login.error)).toBeInTheDocument();
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(screen.queryByText(enAuth.login.oidcErrors.oidc_error)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('OIDC error banner focus', () => {
+    it('focuses the alert after the initial render for a URL-derived error', async () => {
+      window.history.pushState({}, '', '/login?error=oidc_error');
+
+      renderWithAuth(<LoginPage />);
+
+      const alert = await screen.findByRole('alert');
+      expect(document.activeElement).toBe(alert);
+    });
+
+    it('does not auto-focus the API error banner after a failed submit', async () => {
+      mockLogin.mockRejectedValue(new Error('boom'));
+      renderWithAuth(<LoginPage />);
+      await waitFor(() => {
+        expect(mockGetAuthMe).toHaveBeenCalled();
+      });
+
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(enAuth.login.error);
+      expect(document.activeElement).not.toBe(alert);
+    });
+
+    it('does not force focus anywhere when there is no ?error', async () => {
+      renderWithAuth(<LoginPage />);
+      await waitFor(() => {
+        expect(mockGetAuthMe).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(document.body);
+    });
   });
 });

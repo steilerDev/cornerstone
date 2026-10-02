@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useSearchParams } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
@@ -13,6 +13,8 @@ import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import enBudget from '../../i18n/en/budget.json';
 import enErrors from '../../i18n/en/errors.json';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
@@ -1239,6 +1241,115 @@ describe('InvoicesPage', () => {
         const locationEl = screen.getByTestId('location-search');
         expect(locationEl.textContent).not.toContain('create=1');
       });
+    });
+
+    it('(J) status filter lists INVOICE_STATUSES in order with translated labels', async () => {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      renderPage();
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
+        label.querySelector('input')?.id,
+        label.querySelector('span')?.textContent,
+      ]);
+
+      expect(rows).toEqual(
+        INVOICE_STATUSES.map((status) => [
+          `enum-${status}`,
+          enBudget.invoices.statusLabels[status],
+        ]),
+      );
+    });
+
+    // (G) status load fails → Add Invoice is enabled with no spinner and opens the manual modal
+    it('(G) enables Add Invoice with no spinner and opens the manual modal when the status load fails', async () => {
+      mockGetPaperlessStatus.mockRejectedValue(new Error('status down'));
+      mockFetchConfig.mockRejectedValue(new Error('config down'));
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPage();
+
+      const button = screen.getByTestId('new-invoice-button');
+      await waitFor(() => {
+        expect(button).toBeEnabled();
+      });
+      expect(button).toHaveAttribute('aria-disabled', 'false');
+      expect(within(button).queryByRole('status')).not.toBeInTheDocument();
+
+      fireEvent.click(button);
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(
+        document.querySelector('[data-testid="paperless-picker-modal"]'),
+      ).not.toBeInTheDocument();
+    });
+
+    // (H) ?create=1 + status load fails → manual modal auto-opens and create is stripped
+    it('(H) auto-opens the manual modal and strips ?create=1 when the status load fails', async () => {
+      mockGetPaperlessStatus.mockRejectedValue(new Error('status down'));
+      mockFetchConfig.mockRejectedValue(new Error('config down'));
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPageWithCreate();
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByTestId('location-search').textContent).not.toContain('create=1');
+      });
+    });
+
+    // (I) the shortcut is consumed once: re-adding ?create=1 later does not reopen the modal
+    it('(I) opens at most once: a later ?create=1 in the URL does not reopen the modal', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      function ReAddCreate() {
+        const [, setSearchParams] = useSearchParams();
+        return (
+          <button type="button" onClick={() => setSearchParams({ create: '1' })}>
+            re-add create
+          </button>
+        );
+      }
+
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/budget/invoices?create=1']}>
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+            </Routes>
+            <ReAddCreate />
+            <LocationSearchDisplay />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+
+      const dialog = await screen.findByRole('dialog');
+      await waitFor(() => {
+        expect(screen.getByTestId('location-search').textContent).not.toContain('create=1');
+      });
+      // Close the modal, then change the search params again.
+      fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByRole('button', { name: 're-add create' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-search').textContent).toContain('create=1');
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
 

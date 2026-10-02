@@ -19,6 +19,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
 import { API } from '../../fixtures/testData.js';
+import { defined } from '../../fixtures/assertions.js';
 
 // Default categories after EPIC-05 seeding + EPIC-18 migration 0028
 // (Equipment, Landscaping, Utilities, Insurance, Contingency conditionally deleted; Waste added)
@@ -405,7 +406,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     // Get the category id from the edit form inputs (id="edit-name-{id}")
     const editNameInputs = await page.locator('[id^="edit-name-"]').all();
     expect(editNameInputs.length).toBe(1);
-    const inputId = await editNameInputs[0].getAttribute('id');
+    const inputId = await defined(editNameInputs[0], 'edit name input').getAttribute('id');
     const categoryId = inputId?.replace('edit-name-', '') ?? '';
     expect(categoryId).toBeTruthy();
 
@@ -438,7 +439,10 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     // Cleanup: restore the original empty description
     await categoriesPage.openEditForm('Design');
     const editInputsAfterReload = await page.locator('[id^="edit-name-"]').all();
-    const editInputIdAfterReload = await editInputsAfterReload[0].getAttribute('id');
+    const editInputIdAfterReload = await defined(
+      editInputsAfterReload[0],
+      'edit name input',
+    ).getAttribute('id');
     const categoryIdAfterReload = editInputIdAfterReload?.replace('edit-name-', '') ?? '';
     await categoriesPage.fillEditForm(categoryIdAfterReload, {
       description: originalDescription === 'Design' ? '' : originalDescription,
@@ -458,7 +462,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     await categoriesPage.openEditForm('Waste');
 
     const editInputs = await page.locator('[id^="edit-name-"]').all();
-    const inputId = await editInputs[0].getAttribute('id');
+    const inputId = await defined(editInputs[0], 'edit name input').getAttribute('id');
     const categoryId = inputId?.replace('edit-name-', '') ?? '';
 
     // And: I change the name but click Cancel
@@ -483,7 +487,7 @@ test.describe('Edit category (Scenario 8 & 9)', { tag: '@responsive' }, () => {
     await categoriesPage.openEditForm('Other');
 
     const editInputs = await page.locator('[id^="edit-name-"]').all();
-    const inputId = await editInputs[0].getAttribute('id');
+    const inputId = await defined(editInputs[0], 'edit name input').getAttribute('id');
     const categoryId = inputId?.replace('edit-name-', '') ?? '';
 
     // When: I clear the name field
@@ -886,7 +890,7 @@ test.describe('Responsive layout (Scenario 9)', { tag: '@responsive' }, () => {
     expect(rows.length).toBeGreaterThan(0);
 
     // The first row (Materials) has Edit and Delete buttons
-    const firstRow = rows[0];
+    const firstRow = defined(rows[0], 'first category row');
     const firstNameEl = firstRow.locator('[class*="itemName"]');
     const firstName = (await firstNameEl.textContent())?.trim() ?? '';
 

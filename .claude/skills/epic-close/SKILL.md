@@ -56,7 +56,7 @@ If any story is still open, stop and inform the user. All stories must be comple
 
 ### 2a. Lint Health Check
 
-There is no CI job that runs lint (`ci.yml`'s Quality Gates covers typecheck + test + build + audit only; lint cleanliness is enforced per-PR by implementing agents and dev-team-lead's review per CLAUDE.md's Local Validation Policy). Run a full-repo lint pass directly to catch any cumulative drift across the epic's merged PRs:
+CI's Static Analysis job runs `npx eslint . --max-warnings=0` on every PR (and Stylelint when app paths change), so lint drift should not reach `beta`. Run a full-repo lint pass anyway as a cheap confirmation that no cumulative drift slipped through across the epic's merged PRs:
 
 ```bash
 npm run lint

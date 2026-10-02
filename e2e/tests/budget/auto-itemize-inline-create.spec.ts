@@ -49,6 +49,7 @@ import {
 } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
+import { defined } from '../../fixtures/assertions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers
@@ -405,7 +406,7 @@ test(
         listBody.budgets.length,
         `Expected 1 budget line under WI ${workItemId}, got ${listBody.budgets.length}`,
       ).toBe(1);
-      const budget = listBody.budgets[0];
+      const budget = defined(listBody.budgets[0], 'budget line');
       expect(
         budget.plannedAmount,
         `Expected plannedAmount≈200 but was ${budget.plannedAmount}`,

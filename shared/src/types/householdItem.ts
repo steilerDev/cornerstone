@@ -66,8 +66,12 @@ export interface UpdateHouseholdItemCategoryRequest {
 
 /**
  * Household item status enum - lifecycle status of a purchase.
+ *
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
  */
-export type HouseholdItemStatus = 'planned' | 'purchased' | 'scheduled' | 'arrived';
+export const HOUSEHOLD_ITEM_STATUSES = ['planned', 'purchased', 'scheduled', 'arrived'] as const;
+
+export type HouseholdItemStatus = (typeof HOUSEHOLD_ITEM_STATUSES)[number];
 
 /**
  * Vendor summary shape used in household item responses.

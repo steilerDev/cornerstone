@@ -150,6 +150,7 @@ describe('BackupsPage', () => {
         displayName: 'Admin',
         role: 'admin' as const,
         authProvider: 'local' as const,
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,

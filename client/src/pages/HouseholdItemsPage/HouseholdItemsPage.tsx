@@ -20,6 +20,8 @@ import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
 
@@ -205,15 +207,9 @@ export function HouseholdItemsPage() {
   // Household item status badge variants
   const hiStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: Array<'planned' | 'purchased' | 'scheduled' | 'arrived'> = [
-      'planned',
-      'purchased',
-      'scheduled',
-      'arrived',
-    ];
-    for (const status of statuses) {
+    for (const status of HOUSEHOLD_ITEM_STATUSES) {
       variants[status] = {
-        label: t(`status.${status}`),
+        label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
         className: `badge-${status}`,
       };
     }
@@ -267,12 +263,10 @@ export function HouseholdItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          { value: 'planned', label: t('status.planned') },
-          { value: 'purchased', label: t('status.purchased') },
-          { value: 'scheduled', label: t('status.scheduled') },
-          { value: 'arrived', label: t('status.arrived') },
-        ],
+        enumOptions: HOUSEHOLD_ITEM_STATUSES.map((status) => ({
+          value: status,
+          label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
+        })),
         render: (item) => <Badge variants={hiStatusVariants} value={item.status} />,
       },
       {

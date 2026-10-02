@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   UserResponse,
   WorkItemStatus,
@@ -55,6 +56,11 @@ function buildAreaSummary(
 export default function WorkItemCreatePage() {
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
+  const statusLabels: Record<WorkItemStatus, string> = {
+    not_started: t('create.fields.statusOptions.notStarted'),
+    in_progress: t('create.fields.statusOptions.inProgress'),
+    completed: t('create.fields.statusOptions.completed'),
+  };
   const { areas, isLoading: areasLoading } = useAreas();
 
   const [title, setTitle] = useState('');
@@ -282,9 +288,11 @@ export default function WorkItemCreatePage() {
               onChange={(e) => setStatus(e.target.value as WorkItemStatus)}
               disabled={isSubmitting}
             >
-              <option value="not_started">{t('create.fields.statusOptions.notStarted')}</option>
-              <option value="in_progress">{t('create.fields.statusOptions.inProgress')}</option>
-              <option value="completed">{t('create.fields.statusOptions.completed')}</option>
+              {WORK_ITEM_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
             </select>
           </div>
 

@@ -12,6 +12,8 @@ import type {
   PaperlessStatusResponse,
   Vendor,
 } from '@cornerstone/shared';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import enBudget from '../../i18n/en/budget.json';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
@@ -503,6 +505,25 @@ describe('InvoiceDetailPage', () => {
   });
 
   describe('edit modal no longer contains legacy budget pickers', () => {
+    it('edit modal status select lists INVOICE_STATUSES in order with translated labels', async () => {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      screen.getByRole('button', { name: /^Edit$/i }).click();
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument(),
+      );
+
+      const select = document.getElementById('edit-status') as HTMLSelectElement;
+
+      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
+        INVOICE_STATUSES.map((status) => [status, enBudget.invoiceDetail.statusLabels[status]]),
+      );
+    });
+
     it('edit modal does not render a work item picker', async () => {
       renderPage();
       await waitFor(() =>

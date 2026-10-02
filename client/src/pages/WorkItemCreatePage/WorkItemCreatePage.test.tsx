@@ -5,7 +5,9 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { UserResponse } from '@cornerstone/shared';
+import enWorkItems from '../../i18n/en/workItems.json';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
@@ -110,6 +112,7 @@ describe('WorkItemCreatePage', () => {
       displayName: 'Active User',
       role: 'member',
       authProvider: 'local',
+      oidcLinked: false,
       createdAt: '2024-01-01T00:00:00Z',
     },
     {
@@ -118,6 +121,7 @@ describe('WorkItemCreatePage', () => {
       displayName: 'Deactivated User',
       role: 'member',
       authProvider: 'local',
+      oidcLinked: false,
       createdAt: '2024-01-01T00:00:00Z',
       deactivatedAt: '2024-06-01T00:00:00Z',
     },
@@ -249,6 +253,19 @@ describe('WorkItemCreatePage', () => {
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
       });
+    });
+
+    it('status select lists WORK_ITEM_STATUSES in order with translated labels', async () => {
+      renderPage();
+
+      const select = (await screen.findByLabelText(/status/i)) as HTMLSelectElement;
+
+      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual([
+        ['not_started', enWorkItems.create.fields.statusOptions.notStarted],
+        ['in_progress', enWorkItems.create.fields.statusOptions.inProgress],
+        ['completed', enWorkItems.create.fields.statusOptions.completed],
+      ]);
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([...WORK_ITEM_STATUSES]);
     });
 
     it('filters out deactivated users from assignment dropdown', async () => {

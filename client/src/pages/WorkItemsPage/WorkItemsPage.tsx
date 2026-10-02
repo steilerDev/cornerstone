@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
+import type {
+  WorkItemSummary,
+  WorkItemListQuery,
+  WorkItemStatus,
+  FilterMeta,
+} from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -202,24 +208,28 @@ export function WorkItemsPage() {
     }
   };
 
+  // Status labels: literal keys (not a template) so extraction sees them; the Record makes a new
+  // status a type error. Shared by the badge variants and the status filter options.
+  const wiStatusLabels = useMemo(
+    (): Record<WorkItemStatus, string> => ({
+      not_started: t('create.fields.statusOptions.notStarted'),
+      in_progress: t('create.fields.statusOptions.inProgress'),
+      completed: t('create.fields.statusOptions.completed'),
+    }),
+    [t],
+  );
+
   // Work item status badge variants
   const wiStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: Array<'not_started' | 'in_progress' | 'completed'> = [
-      'not_started',
-      'in_progress',
-      'completed',
-    ];
-    for (const status of statuses) {
+    for (const status of WORK_ITEM_STATUSES) {
       variants[status] = {
-        label: t(
-          `create.fields.statusOptions.${status === 'not_started' ? 'notStarted' : status === 'in_progress' ? 'inProgress' : 'completed'}`,
-        ),
+        label: wiStatusLabels[status],
         className: `badge-${status}`,
       };
     }
     return variants;
-  }, [t]);
+  }, [wiStatusLabels]);
 
   // Column definitions
   const columns = useMemo(
@@ -248,11 +258,10 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          { value: 'not_started', label: t('create.fields.statusOptions.notStarted') },
-          { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
-          { value: 'completed', label: t('create.fields.statusOptions.completed') },
-        ],
+        enumOptions: WORK_ITEM_STATUSES.map((status) => ({
+          value: status,
+          label: wiStatusLabels[status],
+        })),
         render: (item) => <Badge variants={wiStatusVariants} value={item.status} />,
       },
       {
@@ -327,7 +336,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, tCommon, formatDate, wiStatusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, wiStatusVariants, wiStatusLabels, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key

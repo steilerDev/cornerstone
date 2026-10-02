@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "npx playwright test",
+    "typecheck": "tsc --noEmit",
     "test:smoke": "npx playwright test --grep @smoke --project desktop",
     "test:shard": "npx playwright test --shard=$SHARD_INDEX/$SHARD_TOTAL",
     "test:report": "npx playwright show-report",

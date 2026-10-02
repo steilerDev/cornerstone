@@ -6,7 +6,8 @@ import styles from './OverflowMenu.module.css';
 export const SCROLL_CLOSE_THRESHOLD_PX = 8;
 
 export interface OverflowMenuItem {
-  id?: string;
+  /** Stable, unique within the menu; used as the React key. */
+  id: string;
   label: string;
   onClick: () => void;
   disabled?: boolean;
@@ -218,9 +219,9 @@ export function OverflowMenu({
           : undefined
       }
     >
-      {items.map((item, i) => (
+      {items.map((item) => (
         <button
-          key={item.id || `item-${i}`}
+          key={item.id}
           type="button"
           role="menuitem"
           className={`${styles.item} ${item.variant === 'destructive' ? styles.itemDanger : ''}`}

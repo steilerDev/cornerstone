@@ -48,7 +48,8 @@ export interface ReportContentCoverLetter {
   closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)
 }
 
-export type ReportSkipReason = 'footnoteFetchFailed' | 'footnoteInvalidPdf';
+export const REPORT_SKIP_REASONS = ['footnoteFetchFailed', 'footnoteInvalidPdf'] as const;
+export type ReportSkipReason = (typeof REPORT_SKIP_REASONS)[number];
 
 export interface ReportContentLabels {
   vendor: string;

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DocumentLinkWithMetadata, AttachmentType } from '@cornerstone/shared';
+import { ATTACHMENT_TYPES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { getDocumentThumbnailUrl } from '../../lib/paperlessApi.js';
@@ -17,6 +19,13 @@ interface LinkedDocumentCardProps {
   onAttachmentTypeChange?: (link: DocumentLinkWithMetadata, type: AttachmentType | null) => void;
   isUpdatingAttachmentType?: boolean;
 }
+
+/** Badge class per attachment type; a Record so a new member is a type error, not a missing badge. */
+const ATTACHMENT_TYPE_CLASSNAMES: Record<AttachmentType, string | undefined> = {
+  quotation: badgeStyles.attachmentQuotation,
+  deposit: badgeStyles.attachmentDeposit,
+  invoice: badgeStyles.attachmentInvoice,
+};
 
 export function LinkedDocumentCard({
   link,
@@ -36,20 +45,13 @@ export function LinkedDocumentCard({
   const created = link.document?.created ?? null;
   const tags = link.document?.tags ?? [];
 
-  const ATTACHMENT_TYPE_VARIANTS: BadgeVariantMap = {
-    quotation: {
-      label: t('documentCard.attachmentType.quotation'),
-      className: badgeStyles.attachmentQuotation,
-    },
-    deposit: {
-      label: t('documentCard.attachmentType.deposit'),
-      className: badgeStyles.attachmentDeposit,
-    },
-    invoice: {
-      label: t('documentCard.attachmentType.invoice'),
-      className: badgeStyles.attachmentInvoice,
-    },
-  };
+  const ATTACHMENT_TYPE_VARIANTS: BadgeVariantMap = {};
+  for (const type of ATTACHMENT_TYPES) {
+    ATTACHMENT_TYPE_VARIANTS[type] = {
+      label: t(I18N_UNION_KEYS.documentAttachmentType.key(type)),
+      className: ATTACHMENT_TYPE_CLASSNAMES[type],
+    };
+  }
 
   return (
     <div className={styles.card}>
@@ -107,9 +109,11 @@ export function LinkedDocumentCard({
               disabled={isUpdatingAttachmentType}
             >
               <option value="">{t('documentCard.attachmentType.none')}</option>
-              <option value="quotation">{t('documentCard.attachmentType.quotation')}</option>
-              <option value="deposit">{t('documentCard.attachmentType.deposit')}</option>
-              <option value="invoice">{t('documentCard.attachmentType.invoice')}</option>
+              {ATTACHMENT_TYPES.map((type) => (
+                <option key={type} value={type}>
+                  {t(I18N_UNION_KEYS.documentAttachmentType.key(type))}
+                </option>
+              ))}
             </select>
           </div>
         )}

@@ -34,6 +34,7 @@ import type {
   ConfidenceLevel,
   MoveBudgetLinesRequest,
   MoveBudgetLinesResponse,
+  InvoiceStatus,
 } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '@cornerstone/shared';
 import {
@@ -871,7 +872,7 @@ function getWorkItemLineInvoiceLink(db: DbType, lineId: string): BudgetLineInvoi
     invoiceId: row.invoice_id,
     invoiceNumber: row.invoice_number,
     invoiceDate: row.date,
-    invoiceStatus: row.status,
+    invoiceStatus: row.status as InvoiceStatus,
     itemizedAmount: row.itemized_amount,
     vendorId: row.vendor_id,
     vendorName: row.vendor_name,
@@ -908,7 +909,7 @@ function getHouseholdItemLineInvoiceLink(db: DbType, lineId: string): BudgetLine
     invoiceId: row.invoice_id,
     invoiceNumber: row.invoice_number,
     invoiceDate: row.date,
-    invoiceStatus: row.status,
+    invoiceStatus: row.status as InvoiceStatus,
     itemizedAmount: row.itemized_amount,
     vendorId: row.vendor_id,
     vendorName: row.vendor_name,

@@ -39,6 +39,8 @@ import {
 import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
 
 type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
 
@@ -676,9 +678,9 @@ export function AutoItemizePage() {
                       }))
                     }
                   >
-                    {(['pending', 'paid', 'claimed', 'quotation'] as InvoiceStatus[]).map((s) => (
+                    {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {t(`invoices.statusLabels.${s}`)}
+                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(s))}
                       </option>
                     ))}
                   </select>

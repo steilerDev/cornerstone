@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetSourceBudgetLinesResponse, BudgetSourceBudgetLine } from '@cornerstone/shared';
 import type { AreaAncestor } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
@@ -221,17 +222,12 @@ function getInvoiceStatusLabel(line: BudgetSourceBudgetLine, t: (key: string) =>
   if (line.invoiceLink === null) {
     return t('sources.lines.invoiceStatus.none');
   }
-  const status = line.invoiceLink.invoiceStatus;
-  const statusKey = `sources.lines.invoiceStatus.${status}`;
-  const translated = t(statusKey);
-  // If translation key not found, t() returns the key itself; fallback to the status
-  return translated.startsWith('sources.lines.invoiceStatus') ? status : translated;
+  return t(I18N_UNION_KEYS.invoiceStatus.key(line.invoiceLink.invoiceStatus));
 }
 
 // Helper to get the confidence label
 function getConfidenceLabel(line: BudgetSourceBudgetLine, t: (key: string) => string): string {
-  const confidenceKey = `sources.lines.confidence.${line.confidence}`;
-  return t(confidenceKey);
+  return t(I18N_UNION_KEYS.confidenceLevel.key(line.confidence));
 }
 
 // Helper to collect all descendant line IDs from an area and its children (recursive)

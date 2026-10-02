@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
+import { WORK_ITEM_STATUSES } from './workItem.js';
 import type {
   WorkItemStatus,
   UserSummary,
@@ -716,5 +717,11 @@ describe('WorkItem entity interface', () => {
     expect(item.createdBy).toBeNull();
     expect(item.startDate).toBeNull();
     expect(item.endDate).toBeNull();
+  });
+});
+
+describe('WORK_ITEM_STATUSES', () => {
+  it('lists every work item status in lifecycle order', () => {
+    expect([...WORK_ITEM_STATUSES]).toEqual(['not_started', 'in_progress', 'completed']);
   });
 });

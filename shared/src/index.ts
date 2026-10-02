@@ -9,7 +9,14 @@
 export type { ApiError, ApiErrorResponse } from './types/api.js';
 export type { ErrorCode } from './types/errors.js';
 export { ERROR_CODES } from './types/errors.js';
-export type { User, UserResponse, UserRole, AuthProvider } from './types/user.js';
+export type {
+  User,
+  UserResponse,
+  UserRole,
+  AuthProvider,
+  OidcLoginErrorCode,
+} from './types/user.js';
+export { OIDC_LOGIN_ERROR_CODES } from './types/user.js';
 
 // Pagination
 export type { PaginationMeta, PaginatedResponse } from './types/pagination.js';
@@ -68,6 +75,7 @@ export type {
   MilestoneSummaryForWorkItem,
   WorkItemMilestones,
 } from './types/workItem.js';
+export { WORK_ITEM_STATUSES } from './types/workItem.js';
 
 // Subtasks
 export type {
@@ -262,7 +270,11 @@ export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
 // Runtime union tuples (#2029)
 export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
 export { BUDGET_SOURCE_TYPES } from './types/budgetSource.js';
-export { INVOICE_STATUSES } from './types/invoice.js';
+export { INVOICE_STATUSES, INVOICE_DEPOSIT_ENTRY_TYPES } from './types/invoice.js';
+export { SUBSIDY_APPLICATION_STATUSES } from './types/subsidyProgram.js';
+export { HOUSEHOLD_ITEM_STATUSES } from './types/householdItem.js';
+export { DIARY_SOURCE_ENTITY_TYPES } from './types/diary.js';
+export { CONFIDENCE_LEVELS } from './types/budget.js';
 export { ATTACHMENT_TYPES } from './types/document.js';
 export {
   DIARY_ENTRY_TYPES,

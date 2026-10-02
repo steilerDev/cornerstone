@@ -78,6 +78,7 @@ const makeUser = (overrides: Partial<UserResponse> = {}): UserResponse => ({
   email: 'alice@example.com',
   role: 'admin',
   authProvider: 'local',
+  oidcLinked: false,
   createdAt: '2026-01-01T00:00:00.000Z',
   deactivatedAt: null,
   ...overrides,

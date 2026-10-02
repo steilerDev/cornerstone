@@ -1076,8 +1076,8 @@ test.describe('Add dropdown — Diary Entry and Invoice shortcuts (Scenario 13, 
         'dashboard-add-diary-entry',
         'dashboard-add-invoice',
       ];
-      for (let i = 0; i < expectedTestIds.length; i++) {
-        await expect(menuItems.nth(i)).toHaveAttribute('data-testid', expectedTestIds[i]);
+      for (const [i, testId] of expectedTestIds.entries()) {
+        await expect(menuItems.nth(i)).toHaveAttribute('data-testid', testId);
       }
     } finally {
       await uninterceptDashboardApis(page);

@@ -605,10 +605,12 @@ export function InvoiceBudgetLinesSection({
                     <OverflowMenu
                       items={[
                         {
+                          id: 'edit',
                           label: t('invoiceDetail.budgetLines.menu.edit'),
                           onClick: () => openEditBudgetLineModal(line),
                         },
                         {
+                          id: 'remove',
                           label: t('invoiceDetail.budgetLines.menu.remove'),
                           onClick: () => openRemoveBudgetLineModal(line),
                           variant: 'destructive',
