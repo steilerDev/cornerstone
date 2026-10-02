@@ -13,6 +13,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
+import Database from 'better-sqlite3';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
@@ -435,13 +436,66 @@ describe('Backup Routes', () => {
       expect(released).toBe(true);
       // (the poll above took the lock itself via beginRestore, proving executeRestore had released it)
       await expect(
-        backupService.executeRestore(appWithBackup.db, appWithBackup.config, filename),
-      ).rejects.toMatchObject({ code: 'RESTORE_FAILED', message: 'Restore failed' });
+        backupService.executeRestore(
+          appWithBackup.db,
+          appWithBackup.config,
+          filename,
+          appWithBackup.log,
+        ),
+      ).rejects.toMatchObject({
+        code: 'RESTORE_FAILED',
+        message: 'Backup archive could not be extracted',
+      });
 
       // Lock is free again once the restore pipeline has finished
       await expect(
         backupService.createBackup(appWithBackup.db, appWithBackup.config),
       ).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
+    });
+
+    it('POST /api/backups/:filename/restore runs a real restore through the route: logs via the server logger and exits 0', async () => {
+      const cookie = await createAdminWithSession();
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+      const infoSpy = jest.spyOn(appWithBackup.log, 'info');
+      const created = await appWithBackup.inject({
+        method: 'POST',
+        url: '/api/backups',
+        headers: { cookie },
+      });
+      expect(created.statusCode).toBe(201);
+      const { filename } = created.json<{ backup: { filename: string } }>().backup;
+      // Mutate after the backup: this row must be gone after the restore
+      appWithBackup.db.$client.exec(
+        "INSERT INTO users (id, email, display_name, role, auth_provider, created_at, updated_at) VALUES ('late', 'late@test.com', 'Late', 'member', 'local', datetime('now'), datetime('now'))",
+      );
+
+      const response = await appWithBackup.inject({
+        method: 'POST',
+        url: `/api/backups/${filename}/restore`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(202);
+
+      for (let i = 0; i < 200 && exitSpy.mock.calls.length === 0; i++) {
+        await new Promise<void>((resolve) => setTimeout(resolve, 25));
+      }
+
+      // Guards: the route not passing a logger as the 4th argument (executeRestore would throw a
+      // TypeError on `logger.info`, process.exit would never be reached) or passing another logger
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      expect(infoSpy).toHaveBeenCalledWith(
+        { filename },
+        'Restore completed; exiting so the restarted process opens the restored data',
+      );
+      const restored = new Database(join(tempDir.path, 'test.db'), { readonly: true });
+      try {
+        expect(restored.prepare("SELECT id FROM users WHERE id = 'late'").get()).toBeUndefined();
+        expect(
+          restored.prepare("SELECT COUNT(*) AS n FROM users WHERE email = 'admin@test.com'").get(),
+        ).toEqual({ n: 1 });
+      } finally {
+        restored.close();
+      }
     });
 
     it('POST /api/backups/:filename/restore returns 404 BACKUP_NOT_FOUND when the archive does not exist', async () => {

@@ -211,7 +211,8 @@ export default async function backupRoutes(fastify: FastifyInstance) {
    * POST /api/backups/:filename/restore
    *
    * Restore the database and app data from a backup.
-   * Validates first (404/409/500 are returned), then returns 202 and restores asynchronously and exits.
+   * Validates (404/409/500), replies 202, stages and validates inside the data volume,
+   * swaps data-dir contents, exits 0; on a swap failure rolls back and exits 1.
    * Admin only.
    */
   fastify.post<{ Params: { filename: string }; Reply: RestoreInitiatedResponse }>(
@@ -236,7 +237,12 @@ export default async function backupRoutes(fastify: FastifyInstance) {
       // regardless of what happens to the send. The immediate still fires after the send.
       setImmediate(async () => {
         try {
-          await backupService.executeRestore(fastify.db, fastify.config, request.params.filename);
+          await backupService.executeRestore(
+            fastify.db,
+            fastify.config,
+            request.params.filename,
+            fastify.log,
+          );
         } catch (error) {
           fastify.log.error(error, 'Restore failed');
         }

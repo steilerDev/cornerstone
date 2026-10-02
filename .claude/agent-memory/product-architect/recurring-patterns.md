@@ -1889,3 +1889,34 @@ keyword reads like a rejection. **How to apply:** never write a "400 on unknown 
 alone; probe with `app.inject` (a throwaway `.mjs` under `server/` resolves the workspace `fastify`).
 Also: ADR-010 said argon2 for 8 months after PR #72 switched to `crypto.scrypt` — implementation-side
 swaps of an ADR's "Chosen" library need an ADR amendment, grep ADRs for the removed package name.
+
+## Crash-recovery rollbacks must be re-runnable (ADR-037, 2026-10-02)
+
+A phase marker is only as good as the invariant each phase guarantees, and the ROLLBACK changes the
+directory too. `rollbackSwap` in phase `moving-in` first deletes every non-reserved `dataDir` entry
+("all restored"), then moves originals back. If it dies mid move-back (exception -> marker kept, exit 1,
+or SIGKILL), the marker still says `moving-in` while originals sit in `dataDir`, and the next startup
+rollback deletes them. Fix: flip the marker to the phase whose invariant now holds (`moving-aside`)
+between the destructive loop and the restoring loop. **Review rule:** for every recovery routine, ask
+"what does the marker say if this dies on line N, and does re-running from that marker destroy data?"
+Also from the same spec: a side effect placed before a fallible "not started yet" step (here
+`stopScheduler()` before the marker write) survives that step's failure path silently.
+
+## A "re-assert state" step writes only when the disk differs, and recovery frees space first (PR #2169)
+
+`rollbackSwap` began with an unconditional marker rewrite. It was added to close the "disk one flip
+ahead" path, where a flip's rename landed but the directory `fsync` threw. At startup, though, recovery
+calls it with a state it has just read from disk, so the write is always redundant there. It still needs
+a free block, and a full volume is exactly the state a restore leaves behind, because staging just
+filled it. The result is `ENOSPC` on every startup and a crash loop under `restart: unless-stopped`,
+even though the rollback itself would have freed the space.
+**How to apply:** for any hardening step in a recovery routine, ask "which resource does this step need,
+and is that resource the likely cause of the failure being recovered?" For a re-assert or
+reconcile step:
+
+- (a) write only when the persisted state differs from memory (`readState()?.phase !== state.phase`);
+- (b) first delete regenerable data that is never the only copy (here staging: the archive persists,
+  and the originals are in `.pre-restore-*`), so later writes have room.
+
+When checking the design, verify that every phase of the recovery path can make progress on a 100%-full
+disk.

@@ -3,7 +3,8 @@ import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { mkdirSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { basename, dirname } from 'node:path';
+import { recoverInterruptedRestore } from '../services/restoreSwap.js';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 
@@ -20,6 +21,11 @@ export default fp(
 
     // Ensure parent directory exists
     mkdirSync(dirname(dbPath), { recursive: true });
+
+    // Finish or roll back an interrupted restore before the database is opened
+    if (dbPath !== ':memory:') {
+      recoverInterruptedRestore(dirname(dbPath), basename(dbPath), fastify.log);
+    }
 
     fastify.log.info({ dbPath }, 'Opening SQLite database');
 
