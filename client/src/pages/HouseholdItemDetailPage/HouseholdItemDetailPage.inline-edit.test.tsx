@@ -5,7 +5,8 @@
  * Story #467: Inline date and dependency editing on Household Item Detail Page.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
@@ -94,7 +95,10 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   deleteHouseholdItem: mockDeleteHouseholdItem,
 }));
 
+class MockNetworkError extends Error {}
+
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+  NetworkError: MockNetworkError,
   ApiClientError: MockApiClientError,
   get: jest.fn(),
   post: jest.fn(),
@@ -771,6 +775,34 @@ describe('HouseholdItemDetailPage — inline date editing (Story #467)', () => {
       });
 
       expect(screen.getByRole('alert')).toHaveTextContent(/failed to update order date/i);
+    });
+
+    it('dismisses the date error banner via its close button, which is styled by a CSS class', async () => {
+      const item = makeItem({ orderDate: '2026-02-15' });
+      mockGetHouseholdItem.mockResolvedValue(item);
+      mockUpdateHouseholdItem.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      renderPage();
+      await waitForPageLoad();
+
+      const orderDateInput = screen.getByLabelText('Order Date') as HTMLInputElement;
+      fireEvent.change(orderDateInput, { target: { value: '2026-03-15' } });
+      fireEvent.blur(orderDateInput);
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(/failed to update order date/i);
+      const close = within(alert).getByRole('button', {
+        name: enHouseholdItems.detail.closeErrorMessage,
+      });
+      // Styling comes from a CSS-module class, not an inline style attribute
+      expect(close).not.toHaveAttribute('style');
+      expect(close.className).not.toBe('');
+
+      fireEvent.click(close);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('alert')).toBeNull();
+      });
     });
 
     it('shows an inline error message when updateHouseholdItem rejects on actual delivery blur', async () => {

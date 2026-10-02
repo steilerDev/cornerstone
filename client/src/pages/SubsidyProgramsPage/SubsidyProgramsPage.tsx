@@ -17,6 +17,7 @@ import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
@@ -93,6 +94,8 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
 
 export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
@@ -157,7 +160,7 @@ export function SubsidyProgramsPage() {
       setOversubscribedIds(ids);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('subsidies.errorMessage'));
       }
@@ -270,7 +273,7 @@ export function SubsidyProgramsPage() {
       setSuccessMessage(t('subsidies.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('subsidies.messages.createError'));
       }
@@ -337,7 +340,7 @@ export function SubsidyProgramsPage() {
       setSuccessMessage(t('subsidies.messages.updated', { name: updated.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(translateApiError(err.error.code, tErrors));
       } else {
         setUpdateError(t('subsidies.messages.updateError'));
       }
@@ -374,7 +377,7 @@ export function SubsidyProgramsPage() {
         if (err.statusCode === 409) {
           setDeleteError(t('subsidies.modal.deleteError'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setDeleteError(t('subsidies.messages.deleteError'));
@@ -400,7 +403,7 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading}>{t('subsidies.loading')}</div>
       </PageLayout>
@@ -411,7 +414,7 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
@@ -442,10 +445,10 @@ export function SubsidyProgramsPage() {
           {t('subsidies.addProgram')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}

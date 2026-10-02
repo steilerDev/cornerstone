@@ -137,6 +137,14 @@
     "common": {
       "emptyDefault": "No data available",
       "retry": "Retry"
+    },
+    "loadErrors": {
+      "budgetOverview": "Failed to load budget overview",
+      "budgetSources": "Failed to load budget sources",
+      "subsidyPrograms": "Failed to load subsidy programs",
+      "timeline": "Failed to load timeline",
+      "invoices": "Failed to load invoices",
+      "diary": "Failed to load diary entries"
     }
   }
 }

@@ -15,12 +15,16 @@ import type { ReactNode } from 'react';
 import type * as BackupsApiTypes from '../../lib/backupsApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enSettings from '../../i18n/en/settings.json';
+import enCommon from '../../i18n/en/common.json';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import type {
   BackupListResponse,
   BackupResponse,
   RestoreInitiatedResponse,
   BackupSchedulerStatusResponse,
+  ApiError,
 } from '@cornerstone/shared';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -108,8 +112,7 @@ const backup2 = {
   sizeBytes: 81920,
 };
 
-const makeNotConfiguredError = () =>
-  new ApiClientError(503, { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' });
+const SENTINEL = 'RAW-SERVER-SENTINEL';
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
 
@@ -167,37 +170,202 @@ describe('BackupsPage', () => {
     );
   }
 
-  // ─── 503 Not Configured ──────────────────────────────────────────────────
+  // ─── Translated API errors (#2129) ───────────────────────────────────────
 
-  describe('when listBackups returns 503 BACKUP_NOT_CONFIGURED', () => {
-    it('renders the not-configured EmptyState and no Create Backup button', async () => {
-      mockListBackups.mockRejectedValueOnce(makeNotConfiguredError());
+  describe('API errors are translated, never raw server text', () => {
+    const apiError = (status: number, code: ApiError['code']) =>
+      new ApiClientError(status, { code, message: SENTINEL });
 
+    function expectTranslated(code: keyof typeof enErrors) {
+      expect(screen.getByText(enErrors[code])).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    }
+
+    it('translates an ApiClientError from listBackups', async () => {
+      mockListBackups.mockRejectedValueOnce(apiError(500, 'INTERNAL_ERROR'));
       renderPage();
-
-      // Wait for loading to complete
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-
-      // Should show not-configured message
-      expect(screen.getByText(/backup is not configured/i)).toBeInTheDocument();
-
-      // Should NOT show the Create Backup button
-      expect(screen.queryByRole('button', { name: /create backup/i })).not.toBeInTheDocument();
+      expectTranslated('INTERNAL_ERROR');
     });
 
-    it('shows the BACKUP_DIR configuration description', async () => {
-      mockListBackups.mockRejectedValueOnce(makeNotConfiguredError());
+    it('uses the loadError fallback for a non-API listBackups failure', async () => {
+      mockListBackups.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      expect(screen.getByRole('alert').textContent).toBe(enSettings.backups.loadError);
+    });
 
+    it('translates an ApiClientError from createBackup', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockCreateBackup.mockRejectedValueOnce(apiError(500, 'BACKUP_FAILED'));
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /create backup/i }));
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expectTranslated('BACKUP_FAILED');
+    });
+
+    it('uses the createError fallback for a non-API createBackup failure', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockCreateBackup.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /create backup/i }));
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      expect(screen.getByRole('alert').textContent).toBe(enSettings.backups.createError);
+    });
+
+    it('translates an ApiClientError from deleteBackup', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockDeleteBackup.mockRejectedValueOnce(apiError(404, 'BACKUP_NOT_FOUND'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      const confirmButtons = await screen.findAllByRole('button', { name: /^delete$/i });
+      await user.click(confirmButtons[confirmButtons.length - 1]!);
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.BACKUP_NOT_FOUND)).toBeInTheDocument();
+      });
+      expectTranslated('BACKUP_NOT_FOUND');
+    });
+
+    it('uses the delete fallback for a non-API deleteBackup failure', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockDeleteBackup.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      const confirmButtons = await screen.findAllByRole('button', { name: /^delete$/i });
+      await user.click(confirmButtons[confirmButtons.length - 1]!);
+      await waitFor(() => {
+        expect(screen.getByText(enSettings.backups.deleteModal.error)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+
+    it('translates an ApiClientError from restoreBackup', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockRestoreBackup.mockRejectedValueOnce(apiError(409, 'BACKUP_IN_PROGRESS'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.BACKUP_IN_PROGRESS)).toBeInTheDocument();
+      });
+      expectTranslated('BACKUP_IN_PROGRESS');
+    });
+
+    it('shows the RESTORE_FAILED copy from errors.json when the restore is rejected with RESTORE_FAILED', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockRestoreBackup.mockRejectedValueOnce(apiError(500, 'RESTORE_FAILED'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.RESTORE_FAILED)).toBeInTheDocument();
+      });
+      expectTranslated('RESTORE_FAILED');
+    });
+
+    it('uses the restore fallback for a non-API restoreBackup failure', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockRestoreBackup.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await waitFor(() => {
+        expect(screen.getByText(enSettings.backups.restoreModal.error)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+
+    it('translates an ApiClientError from getSchedulerStatus', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      mockGetSchedulerStatus.mockRejectedValueOnce(apiError(500, 'INTERNAL_ERROR'));
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expectTranslated('INTERNAL_ERROR');
+    });
+  });
+
+  // ─── Modal cancel / dismiss ───────────────────────────────────────────────
+
+  describe('navigation', () => {
+    it('labels the settings sub-navigation with common.subNav.settings', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
       renderPage();
 
+      expect(
+        await screen.findByRole('navigation', { name: enCommon.subNav.settings }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  describe('modal dismissal', () => {
+    it('closes the delete modal via Cancel and via Escape without calling the API', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      renderPage();
+      await screen.findByText(backup1.filename);
+
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      await user.click(
+        await screen.findByRole('button', { name: enSettings.backups.deleteModal.cancel }),
+      );
       await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       });
 
-      // Description text from settings.json
-      expect(screen.getByText(/set the BACKUP_DIR environment variable/i)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      await screen.findByRole('dialog');
+      await user.keyboard('{Escape}');
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockDeleteBackup).not.toHaveBeenCalled();
+    });
+
+    it('closes the restore modal via Cancel and via Escape without calling the API', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      renderPage();
+      await screen.findByText(backup1.filename);
+
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await user.click(
+        await screen.findByRole('button', { name: enSettings.backups.restoreModal.cancel }),
+      );
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await screen.findByRole('dialog');
+      await user.keyboard('{Escape}');
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockRestoreBackup).not.toHaveBeenCalled();
     });
   });
 
@@ -403,10 +571,7 @@ describe('BackupsPage', () => {
       const user = userEvent.setup();
       mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
       mockCreateBackup.mockRejectedValueOnce(
-        new ApiClientError(503, {
-          code: 'BACKUP_NOT_CONFIGURED',
-          message: 'Backup is not configured',
-        }),
+        new ApiClientError(500, { code: 'BACKUP_FAILED', message: 'Backup failed' }),
       );
 
       renderPage();
@@ -738,7 +903,7 @@ describe('BackupsPage', () => {
       expect(failedBadge.className).toContain(badgeStyles.error);
     });
 
-    it('shows an error banner when the scheduler status fails to load with a non-503 error', async () => {
+    it('shows an error banner when the scheduler status fails to load with an API error', async () => {
       mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
       mockGetSchedulerStatus.mockRejectedValueOnce(
         new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Something went wrong' }),
@@ -750,7 +915,8 @@ describe('BackupsPage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
 
-      expect(screen.getByText('Something went wrong')).toBeInTheDocument();
+      expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText('Something went wrong')).not.toBeInTheDocument();
     });
 
     it('shows the generic scheduler load error translation when a non-ApiClientError is thrown', async () => {
@@ -766,40 +932,6 @@ describe('BackupsPage', () => {
       expect(
         screen.getByText(/Failed to load scheduler status\. Please try again\./i),
       ).toBeInTheDocument();
-    });
-
-    it('silently swallows a 503 BACKUP_NOT_CONFIGURED scheduler error (no banner shown)', async () => {
-      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
-      mockGetSchedulerStatus.mockRejectedValueOnce(makeNotConfiguredError());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /create backup/i })).toBeInTheDocument();
-      });
-
-      // No alert banner and no lingering skeleton in the scheduler section
-      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole('status', { name: /loading scheduler status/i }),
-      ).not.toBeInTheDocument();
-    });
-
-    it('does not render the scheduler status section when backups are not configured at the page level', async () => {
-      mockListBackups.mockRejectedValueOnce(makeNotConfiguredError());
-      mockGetSchedulerStatus.mockResolvedValueOnce({
-        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
-      } as BackupSchedulerStatusResponse);
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      });
-
-      expect(
-        screen.queryByRole('heading', { name: /automatic backup schedule/i }),
-      ).not.toBeInTheDocument();
     });
 
     it('renders scheduler badges using the real Badge.module.css classes (not hardcoded literals)', async () => {

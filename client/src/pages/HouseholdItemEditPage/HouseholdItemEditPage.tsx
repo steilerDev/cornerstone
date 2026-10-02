@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { ApiClientError } from '../../lib/apiClient.js';
 import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
 import { getHouseholdItem, updateHouseholdItem } from '../../lib/householdItemsApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -62,15 +63,10 @@ export function HouseholdItemEditPage() {
         setUrl(item.url || '');
       } catch (err) {
         console.error('Failed to load data:', err);
-        if (
-          err instanceof Error &&
-          (err.message.includes('404') ||
-            err.message.includes('not found') ||
-            err.message.includes('Not found'))
-        ) {
+        if (err instanceof ApiClientError && err.statusCode === 404) {
           setNotFound(true);
         } else {
-          setError('Failed to load form data. Please try again.');
+          setError(t('edit.errors.loadFailed'));
         }
       } finally {
         setIsLoadingData(false);
@@ -80,7 +76,7 @@ export function HouseholdItemEditPage() {
     if (id) {
       loadData();
     }
-  }, [id]);
+  }, [id, t]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};

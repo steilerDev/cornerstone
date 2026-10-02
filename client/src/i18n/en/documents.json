@@ -22,8 +22,6 @@
       "batchAppendedAndEndAnnouncement_other": "{{count}} more documents loaded. You've reached the end.",
       "endOfListAnnouncement": "You've reached the end of the document list."
     },
-    "loadErrorNetwork": "Network error: Unable to connect to the server.",
-    "loadErrorUnexpected": "An unexpected error occurred.",
     "searchPlaceholder": "Search documents...",
     "searchDocumentsAriaLabel": "Search documents",
     "hideLinked": "Hide already-linked documents",
@@ -59,6 +57,8 @@
     "addDocumentModal": "Add Document",
     "selectDocumentSubtitle": "Select a document from Paperless-ngx to link to {{entity}}.",
     "closeDocumentPicker": "Close document picker",
+    "thisDocument": "This document",
+    "unnamedDocument": "document",
     "unlinkDocument": "Unlink Document?",
     "unlinkConfirmation": "\"{{title}}\" will be removed from {{entity}}. The document will remain in Paperless-ngx.",
     "unlinkButton": "Unlink",

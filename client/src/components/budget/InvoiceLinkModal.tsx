@@ -6,6 +6,8 @@ import {
   createInvoiceBudgetLine,
   fetchInvoiceBudgetLines,
 } from '../../lib/invoiceBudgetLinesApi.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
@@ -35,6 +37,8 @@ export function InvoiceLinkModal({
   onClose,
 }: InvoiceLinkModalProps) {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const { formatCurrency, formatDate: _formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
@@ -183,20 +187,22 @@ export function InvoiceLinkModal({
 
       onSuccess();
     } catch (err) {
-      if (err instanceof Error) {
-        if (err.message.includes('BUDGET_LINE_ALREADY_LINKED')) {
+      if (err instanceof ApiClientError) {
+        if (err.error.code === 'BUDGET_LINE_ALREADY_LINKED') {
           setError({
             field: 'invoice',
             message: t('invoiceLinkModal.errors.alreadyLinked'),
           });
-        } else if (err.message.includes('ITEMIZED_SUM_EXCEEDS_INVOICE')) {
+        } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
           setError({
             field: 'amount',
             message: t('invoiceLinkModal.errors.exceedsInvoiceTotal'),
           });
         } else {
-          setError({ message: err.message || t('invoiceLinkModal.errors.linkFailed') });
+          setError({ message: translateApiError(err.error.code, tErrors) });
         }
+      } else if (err instanceof NetworkError) {
+        setError({ message: tCommon('requestErrors.network') });
       } else {
         setError({ message: t('invoiceLinkModal.errors.unexpected') });
       }

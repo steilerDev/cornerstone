@@ -2,9 +2,19 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
-import type { WorkItemDetail, WorkItemSummary } from '@cornerstone/shared';
+import type {
+  WorkItemDetail,
+  WorkItemSummary,
+  MilestoneSummary,
+  ErrorCode,
+} from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enWorkItems from '../../i18n/en/workItems.json';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
@@ -164,6 +174,16 @@ jest.unstable_mockModule('../../lib/workItemMilestonesApi.js', () => ({
   removeRequiredMilestone: mockRemoveRequiredMilestone,
   addLinkedMilestone: mockAddLinkedMilestone,
   removeLinkedMilestone: mockRemoveLinkedMilestone,
+}));
+
+// The linked-documents section loads on mount; without this mock its real fetch fails with a
+// NetworkError whose banner reuses the common network copy and skews error-copy counts.
+jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({
+  listDocumentLinks: jest.fn(() => Promise.resolve([])),
+  createDocumentLink: jest.fn(),
+  deleteDocumentLink: jest.fn(),
+  listAllLinkedDocumentIds: jest.fn(() => Promise.resolve([])),
+  updateDocumentLinkAttachmentType: jest.fn(),
 }));
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
@@ -420,7 +440,9 @@ describe('WorkItemDetailPage', () => {
 
   describe('error states', () => {
     it('shows error message when work item not found', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 
@@ -1161,6 +1183,521 @@ describe('WorkItemDetailPage', () => {
         screen.getByText('This item will no longer block "Roofing". This action cannot be undone.'),
       ).toBeInTheDocument();
       expect(screen.getAllByText(/This action cannot be undone\./)).toHaveLength(1);
+    });
+  });
+
+  // ── #2129 / #2131: translated error handling (never raw server text) ────────
+
+  describe('translated API errors (#2129, #2131)', () => {
+    const SENTINEL = 'RAW-SERVER-SENTINEL';
+    const apiError = (status: number, code: ErrorCode) =>
+      new ApiClientError(status, { code, message: SENTINEL });
+
+    const milestone: MilestoneSummary = {
+      id: 7,
+      title: 'Roof Done',
+      description: null,
+      targetDate: '2024-06-01',
+      isCompleted: false,
+      completedAt: null,
+      color: null,
+      workItemCount: 0,
+      dependentWorkItemCount: 0,
+      createdBy: null,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    };
+
+    const predecessorCandidate: WorkItemSummary = {
+      id: 'wi-other',
+      title: 'Foundation',
+      status: 'completed',
+      startDate: null,
+      endDate: null,
+      durationDays: null,
+      actualStartDate: null,
+      actualEndDate: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+      budgetLineCount: 0,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    };
+
+    async function submitDependency() {
+      const user = userEvent.setup();
+      mockListWorkItems.mockResolvedValue({
+        items: [predecessorCandidate],
+        pagination: { page: 1, pageSize: 15, totalItems: 1, totalPages: 1 },
+      });
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Dependencies')).toBeInTheDocument());
+      const inputs = screen.getAllByPlaceholderText('Search work items...');
+      await user.click(inputs[0]!);
+      await waitFor(() => expect(screen.getByText('Foundation')).toBeInTheDocument());
+      await user.click(screen.getByText('Foundation'));
+      let scope: HTMLElement | null = screen.getByRole('combobox', {
+        name: /predecessor verb/i,
+      }).parentElement;
+      while (scope && within(scope).queryAllByRole('button', { name: 'Add' }).length === 0) {
+        scope = scope.parentElement;
+      }
+      await user.click(within(scope as HTMLElement).getAllByRole('button', { name: 'Add' })[0]!);
+    }
+
+    it('shows the circular-dependency copy for 409 CIRCULAR_DEPENDENCY on add dependency', async () => {
+      mockCreateDependency.mockRejectedValue(apiError(409, 'CIRCULAR_DEPENDENCY'));
+      await submitDependency();
+      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('shows the duplicate-dependency copy for 409 DUPLICATE_DEPENDENCY on add dependency', async () => {
+      mockCreateDependency.mockRejectedValue(apiError(409, 'DUPLICATE_DEPENDENCY'));
+      await submitDependency();
+      expect(await screen.findAllByText(enErrors.DUPLICATE_DEPENDENCY)).toHaveLength(1);
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('shows the network copy for a NetworkError on add dependency', async () => {
+      mockCreateDependency.mockRejectedValue(new NetworkError('RAW-LOCAL', new Error('cause')));
+      await submitDependency();
+      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('shows the fallback copy for a plain Error on add dependency', async () => {
+      mockCreateDependency.mockRejectedValue(new Error('RAW-LOCAL'));
+      await submitDependency();
+      expect(
+        await screen.findAllByText(enWorkItems.detail.inlineErrors.addDependency),
+      ).toHaveLength(1);
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    async function pickMilestone(
+      ariaLabel: string,
+      rejection: unknown,
+      addMock: typeof mockAddRequiredMilestone,
+    ) {
+      mockListMilestones.mockResolvedValue([milestone]);
+      addMock.mockRejectedValue(rejection);
+      renderPage();
+      const select = await screen.findByLabelText(ariaLabel);
+      fireEvent.change(select, { target: { value: '7' } });
+      const row = select.parentElement as HTMLElement;
+      const buttonName =
+        ariaLabel === enWorkItems.detail.constraints.selectLinkedMilestoneAriaLabel
+          ? enWorkItems.detail.constraints.linkMilestone
+          : enWorkItems.detail.constraints.addMilestone;
+      fireEvent.click(within(row).getByRole('button', { name: buttonName }));
+    }
+
+    const requiredLabel = enWorkItems.detail.constraints.selectRequiredMilestoneAriaLabel;
+    const linkedLabel = enWorkItems.detail.constraints.selectLinkedMilestoneAriaLabel;
+
+    it('required milestone 409 DUPLICATE_DEPENDENCY shows the already-linked copy', async () => {
+      await pickMilestone(
+        requiredLabel,
+        apiError(409, 'DUPLICATE_DEPENDENCY'),
+        mockAddRequiredMilestone,
+      );
+      expect(
+        await screen.findAllByText(enWorkItems.detail.inlineErrors.requiredMilestoneAlreadyLinked),
+      ).toHaveLength(1);
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('required milestone 409 CIRCULAR_DEPENDENCY shows the circular copy, not already-linked', async () => {
+      await pickMilestone(
+        requiredLabel,
+        apiError(409, 'CIRCULAR_DEPENDENCY'),
+        mockAddRequiredMilestone,
+      );
+      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
+      expect(
+        screen.queryByText(enWorkItems.detail.inlineErrors.requiredMilestoneAlreadyLinked),
+      ).toBeNull();
+    });
+
+    it('required milestone NetworkError and plain Error use network / fallback copy', async () => {
+      await pickMilestone(
+        requiredLabel,
+        new NetworkError('RAW-LOCAL', new Error('cause')),
+        mockAddRequiredMilestone,
+      );
+      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
+    });
+
+    it('required milestone plain Error uses the fallback copy', async () => {
+      await pickMilestone(requiredLabel, new Error('RAW-LOCAL'), mockAddRequiredMilestone);
+      expect(
+        await screen.findAllByText(enWorkItems.detail.inlineErrors.addRequiredMilestone),
+      ).toHaveLength(1);
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('linked milestone 409 DUPLICATE_DEPENDENCY shows the already-linked copy', async () => {
+      await pickMilestone(
+        linkedLabel,
+        apiError(409, 'DUPLICATE_DEPENDENCY'),
+        mockAddLinkedMilestone,
+      );
+      expect(
+        await screen.findAllByText(enWorkItems.detail.inlineErrors.linkedMilestoneAlreadyLinked),
+      ).toHaveLength(1);
+    });
+
+    it('linked milestone 409 CIRCULAR_DEPENDENCY shows the circular copy', async () => {
+      await pickMilestone(
+        linkedLabel,
+        apiError(409, 'CIRCULAR_DEPENDENCY'),
+        mockAddLinkedMilestone,
+      );
+      expect(await screen.findAllByText(enErrors.CIRCULAR_DEPENDENCY)).toHaveLength(1);
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('linked milestone NetworkError shows network copy; plain Error shows fallback', async () => {
+      await pickMilestone(
+        linkedLabel,
+        new NetworkError('RAW-LOCAL', new Error('cause')),
+        mockAddLinkedMilestone,
+      );
+      expect(await screen.findAllByText(enCommon.requestErrors.network)).toHaveLength(1);
+    });
+
+    it('linked milestone plain Error shows the fallback copy', async () => {
+      await pickMilestone(linkedLabel, new Error('RAW-LOCAL'), mockAddLinkedMilestone);
+      expect(
+        await screen.findAllByText(enWorkItems.detail.inlineErrors.addLinkedMilestone),
+      ).toHaveLength(1);
+    });
+
+    it('shows the translated load-failed copy (not the server text) when loading fails', async () => {
+      mockGetWorkItem.mockRejectedValue(apiError(500, 'INTERNAL_ERROR'));
+      renderPage();
+      expect(await screen.findAllByText(enWorkItems.detail.inlineErrors.loadFailed)).toHaveLength(
+        1,
+      );
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+  });
+
+  // ── #2129 (D4): every mutation failure shows operation-specific translated copy ──
+
+  describe('mutation failures show translated operation-specific copy (#2129)', () => {
+    const ie = enWorkItems.detail.inlineErrors;
+
+    async function expectInlineError(text: string) {
+      const matches = await screen.findAllByText(text);
+      expect(matches).toHaveLength(1);
+      // Page-level errors live in the top banner, outside every section (not in BudgetSection)
+      expect(matches[0]!.closest('[role="alert"]')!.closest('section')).toBeNull();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    }
+
+    const sampleNote = {
+      id: 'note-1',
+      content: 'First note',
+      createdBy: { id: 'user-1', displayName: 'Test User' },
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    };
+
+    const sampleSubtask = (id: string, title: string, sortOrder: number) => ({
+      id,
+      title,
+      isCompleted: false,
+      sortOrder,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    });
+
+    beforeEach(() => {
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    it('a budget-originated error (link subsidy) renders exactly once, in the BudgetSection banner and not the top banner', async () => {
+      const user = userEvent.setup();
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [
+          {
+            id: 'sub-1',
+            name: 'Energy Grant',
+            description: null,
+            eligibility: null,
+            reductionType: 'percentage',
+            reductionValue: 10,
+            applicationStatus: 'eligible',
+            applicationDeadline: null,
+            notes: null,
+            maximumAmount: null,
+            applicableCategories: [],
+            includesNoCategoryItems: true,
+            createdBy: null,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      });
+      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+
+      await user.selectOptions(
+        await screen.findByRole('combobox', { name: /select subsidy program to link/i }),
+        'sub-1',
+      );
+      await user.click(screen.getByRole('button', { name: 'Add Subsidy' }));
+
+      const matches = await screen.findAllByText(ie.linkSubsidy);
+      expect(matches).toHaveLength(1);
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      const banner = matches[0]!.closest('[role="alert"]');
+      expect(banner).toBe(screen.getByRole('alert'));
+      // The budget banner lives inside the budget section; the top banner is outside any section
+      expect(banner!.closest('section')).not.toBeNull();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    async function renderLoaded() {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+    }
+
+    it('title save failure', async () => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(screen.getByRole('heading', { name: 'Test Work Item', level: 1 }));
+      fireEvent.change(screen.getByDisplayValue('Test Work Item'), {
+        target: { value: 'Renamed' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await expectInlineError(ie.updateTitle);
+    });
+
+    it('description save failure', async () => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(screen.getByText('This is a test work item'));
+      fireEvent.change(screen.getByDisplayValue('This is a test work item'), {
+        target: { value: 'Changed' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: enWorkItems.detail.description.save }));
+      await expectInlineError(ie.updateDescription);
+    });
+
+    it('status change failure', async () => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.change(screen.getByDisplayValue(enWorkItems.detail.statusOptions.inProgress), {
+        target: { value: 'completed' },
+      });
+      await expectInlineError(ie.updateStatus);
+    });
+
+    it('duration blur failure', async () => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      const input = screen.getByDisplayValue('30');
+      fireEvent.change(input, { target: { value: '31' } });
+      fireEvent.blur(input);
+      await expectInlineError(ie.updateDuration);
+    });
+
+    it.each([
+      ['Start After', 'startAfter', ie.updateStartAfter],
+      ['Start Before', 'startBefore', ie.updateStartBefore],
+      [enWorkItems.detail.constraints.actualStart, 'actualStart', ie.updateActualStartDate],
+      [enWorkItems.detail.constraints.actualEnd, 'actualEnd', ie.updateActualEndDate],
+    ])('%s blur failure shows its own copy (%s)', async (label, _field, expected) => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      const input = screen
+        .getByText(label)
+        .parentElement?.querySelector('input[type="date"]') as HTMLInputElement;
+      fireEvent.change(input, { target: { value: '2024-03-01' } });
+      fireEvent.blur(input);
+      await expectInlineError(expected);
+    });
+
+    it('assignment change failure', async () => {
+      mockListUsers.mockResolvedValue({
+        users: [
+          {
+            id: 'user-1',
+            displayName: 'Assigned User',
+            email: 'assigned@example.com',
+            role: 'member',
+            authProvider: 'local',
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+            deactivatedAt: null,
+          },
+        ],
+      });
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      await screen.findByRole('option', { name: 'Assigned User' });
+      fireEvent.change(screen.getByRole('combobox', { name: enCommon.aria.selectAssignment }), {
+        target: { value: '' },
+      });
+      await expectInlineError(ie.updateAssignment);
+    });
+
+    it('area change failure', async () => {
+      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.focus(screen.getByPlaceholderText(enCommon.aria.selectArea));
+      fireEvent.click(await screen.findByText(enCommon.aria.noArea));
+      await expectInlineError(ie.updateArea);
+    });
+
+    it('add note failure', async () => {
+      mockCreateNote.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.change(screen.getByPlaceholderText(enWorkItems.detail.notes.placeholder), {
+        target: { value: 'New note' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: enWorkItems.detail.notes.addNote }));
+      await expectInlineError(ie.addNote);
+    });
+
+    it('update note failure', async () => {
+      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
+      mockUpdateNote.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(await screen.findByRole('button', { name: 'Edit' }));
+      fireEvent.change(screen.getByDisplayValue('First note'), { target: { value: 'Edited' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await expectInlineError(ie.updateNote);
+    });
+
+    it('delete note failure', async () => {
+      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
+      mockDeleteNote.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+      const buttons = await screen.findAllByRole('button', {
+        name: enWorkItems.detail.modals.deleteNote.delete,
+      });
+      fireEvent.click(buttons[buttons.length - 1]!);
+      await expectInlineError(ie.deleteNote);
+    });
+
+    it('add subtask failure', async () => {
+      mockCreateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      const input = screen.getByPlaceholderText(enWorkItems.detail.subtasks.placeholder);
+      fireEvent.change(input, { target: { value: 'New subtask' } });
+      fireEvent.submit(input.closest('form')!);
+      await expectInlineError(ie.addSubtask);
+    });
+
+    it('toggle subtask failure', async () => {
+      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
+      mockUpdateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(await screen.findByRole('checkbox'));
+      await expectInlineError(ie.updateSubtask);
+    });
+
+    it('rename subtask failure', async () => {
+      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
+      mockUpdateSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(await screen.findByText('Sub one'));
+      fireEvent.change(screen.getByDisplayValue('Sub one'), { target: { value: 'Sub two' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await expectInlineError(ie.updateSubtask);
+    });
+
+    it('delete subtask failure', async () => {
+      mockListSubtasks.mockResolvedValue({ subtasks: [sampleSubtask('st-1', 'Sub one', 0)] });
+      mockDeleteSubtask.mockRejectedValue(new Error('RAW-LOCAL'));
+      const { container } = renderPage();
+      await screen.findByText('Sub one');
+      fireEvent.click(container.querySelector('.subtaskItem .deleteButton')!);
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+      await expectInlineError(ie.deleteSubtask);
+    });
+
+    it('reorder subtasks failure', async () => {
+      mockListSubtasks.mockResolvedValue({
+        subtasks: [sampleSubtask('st-1', 'Sub one', 0), sampleSubtask('st-2', 'Sub two', 1)],
+      });
+      mockReorderSubtasks.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      await screen.findByText('Sub two');
+      fireEvent.click(screen.getAllByTitle(enWorkItems.detail.subtasks.moveUp)[1]!);
+      await expectInlineError(ie.reorderSubtasks);
+    });
+
+    it('remove dependency failure', async () => {
+      const predecessor: WorkItemSummary = {
+        id: 'work-0',
+        title: 'Foundation work',
+        status: 'completed',
+        startDate: null,
+        endDate: null,
+        durationDays: null,
+        actualStartDate: null,
+        actualEndDate: null,
+        assignedUser: null,
+        assignedVendor: null,
+        area: null,
+        budgetLineCount: 0,
+        createdAt: '2024-01-01T00:00:00Z',
+        updatedAt: '2024-01-01T00:00:00Z',
+      };
+      mockGetDependencies.mockResolvedValue({
+        predecessors: [
+          { workItem: predecessor, dependencyType: 'finish_to_start', leadLagDays: 0 },
+        ],
+        successors: [],
+      });
+      mockDeleteDependency.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Remove dependency on Foundation work' }),
+      );
+      fireEvent.click(await screen.findByRole('button', { name: 'Remove' }));
+      await expectInlineError(ie.removeDependency);
+    });
+
+    it('delete work item failure', async () => {
+      mockDeleteWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(
+        screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
+      );
+      fireEvent.click(
+        await screen.findByRole('button', {
+          name: enWorkItems.detail.modals.deleteWorkItem.delete,
+        }),
+      );
+      await expectInlineError(ie.deleteWorkItem);
+    });
+
+    it('remove required / linked milestone failures', async () => {
+      mockGetWorkItemMilestones.mockResolvedValue({
+        required: [{ id: 1, name: 'M-req', targetDate: null }],
+        linked: [{ id: 2, name: 'M-link', targetDate: null }],
+      });
+      mockRemoveRequiredMilestone.mockRejectedValue(new Error('RAW-LOCAL'));
+      mockRemoveLinkedMilestone.mockRejectedValue(new Error('RAW-LOCAL'));
+      await renderLoaded();
+      fireEvent.click(
+        await screen.findByRole('button', { name: 'Remove required milestone: M-req' }),
+      );
+      await expectInlineError(ie.removeRequiredMilestone);
+      fireEvent.click(screen.getByRole('button', { name: 'Remove linked milestone: M-link' }));
+      await expectInlineError(ie.removeLinkedMilestone);
     });
   });
 });

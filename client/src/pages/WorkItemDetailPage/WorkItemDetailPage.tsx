@@ -30,7 +30,9 @@ import {
   unlinkWorkItemSubsidy,
   fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import {
   fetchWorkItemBudgets,
   createWorkItemBudget,
@@ -85,6 +87,11 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import styles from './WorkItemDetailPage.module.css';
 
+const CONSTRAINT_ERROR_KEYS = {
+  startAfter: 'detail.inlineErrors.updateStartAfter',
+  startBefore: 'detail.inlineErrors.updateStartBefore',
+} as const;
+
 interface DeletingDependency {
   type: 'predecessor' | 'successor';
   workItemId: string;
@@ -107,6 +114,8 @@ export default function WorkItemDetailPage() {
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const { areas } = useAreas();
 
   // Household item labels (moved from module level to use i18n)
@@ -206,6 +215,7 @@ export default function WorkItemDetailPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
 
   // Auto-scroll to top when error appears
   useEffect(() => {
@@ -253,7 +263,11 @@ export default function WorkItemDetailPage() {
       updateBudget: updateWorkItemBudget,
       deleteBudget: deleteWorkItemBudget,
     },
-    reloadBudgetLines,
+    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
+    reloadBudgetLines: async () => {
+      await reloadBudgetLines();
+      setBudgetError(null);
+    },
     reloadSubsidyPayback,
     reloadLinkedSubsidies,
     toFormState: (line: WorkItemBudgetLine): BudgetLineFormState => ({
@@ -381,10 +395,10 @@ export default function WorkItemDetailPage() {
         setSubsidyPayback(subsidyPaybackData);
         setLinkedHouseholdItems(linkedHouseholdItemsData);
       } catch (err: unknown) {
-        if ((err as { statusCode?: number })?.statusCode === 404) {
+        if (err instanceof ApiClientError && err.statusCode === 404) {
           setIs404(true);
         } else {
-          setError('Failed to load work item. Please try again.');
+          setError(t('detail.inlineErrors.loadFailed'));
         }
         console.error('Failed to load work item:', err);
       } finally {
@@ -393,7 +407,7 @@ export default function WorkItemDetailPage() {
     }
 
     loadData();
-  }, [id]);
+  }, [id, t]);
 
   // Reload work item details after changes
   const reloadWorkItem = async () => {
@@ -467,8 +481,13 @@ export default function WorkItemDetailPage() {
     try {
       await confirmDeleteBudgetLine();
     } catch (err) {
-      const error = err as Error;
-      setInlineError(error.message);
+      if (err instanceof ApiClientError) {
+        setBudgetError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setBudgetError(tCommon('requestErrors.network'));
+      } else {
+        setBudgetError(tBudget('budgetLineForm.errors.deleteFailed'));
+      }
     }
   };
 
@@ -476,7 +495,7 @@ export default function WorkItemDetailPage() {
 
   const handleLinkSubsidy = async () => {
     if (!id || !selectedSubsidyId) return;
-    setInlineError(null);
+    setBudgetError(null);
     try {
       await linkWorkItemSubsidy(id, selectedSubsidyId);
       await hookHandleLinkSubsidy();
@@ -484,12 +503,14 @@ export default function WorkItemDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setInlineError('This subsidy program is already linked');
+          setBudgetError(t('detail.inlineErrors.alreadyLinkedSubsidy'));
         } else {
-          setInlineError(err.error.message);
+          setBudgetError(translateApiError(err.error.code, tErrors));
         }
+      } else if (err instanceof NetworkError) {
+        setBudgetError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to link subsidy program');
+        setBudgetError(t('detail.inlineErrors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
     }
@@ -497,13 +518,13 @@ export default function WorkItemDetailPage() {
 
   const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
     if (!id) return;
-    setInlineError(null);
+    setBudgetError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
       await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      setInlineError('Failed to unlink subsidy program');
+      setBudgetError(t('detail.inlineErrors.unlinkSubsidy'));
       console.error('Failed to unlink subsidy:', err);
     }
   };
@@ -520,13 +541,13 @@ export default function WorkItemDetailPage() {
     if (!invoiceLink) return;
 
     setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
-    setInlineError(null);
+    setBudgetError(null);
 
     try {
       await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to unlink budget line from invoice');
+      setBudgetError(t('detail.inlineErrors.unlinkInvoice'));
       console.error('Failed to unlink invoice:', err);
     } finally {
       setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
@@ -547,42 +568,35 @@ export default function WorkItemDetailPage() {
     const budgetLine = budgetLines.find((line) => line.id === budgetLineId);
     if (!budgetLine) return;
 
-    setInlineError(null);
+    setBudgetError(null);
 
-    try {
-      // If the line has an invoice link, use the invoice budget line endpoint
-      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-        const moveData =
-          newParentType === 'work_item'
-            ? { newWorkItemId: newParentId }
-            : { newHouseholdItemId: newParentId };
+    // If the line has an invoice link, use the invoice budget line endpoint
+    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+      const moveData =
+        newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId };
 
-        await editAndMoveBudgetLine(
-          budgetLine.invoiceLink.invoiceId,
-          budgetLine.invoiceLink.invoiceBudgetLineId,
-          moveData,
-        );
-      } else {
-        // No invoice link — check if it's a same-table or cross-table move
-        if (newParentType === 'household_item') {
-          // Cross-table move without invoice link is not supported
-          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-        }
-
-        // Same-table work item to work item move
-        await updateWorkItemBudget(workItem!.id, budgetLineId, {
-          newWorkItemId: newParentId,
-        });
+      await editAndMoveBudgetLine(
+        budgetLine.invoiceLink.invoiceId,
+        budgetLine.invoiceLink.invoiceBudgetLineId,
+        moveData,
+      );
+    } else {
+      // No invoice link — check if it's a same-table or cross-table move
+      if (newParentType === 'household_item') {
+        // Cross-table move without invoice link is not supported
+        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
       }
 
-      // Reload budget lines to reflect the move
-      await reloadBudgetLines();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
-      setInlineError(message);
-      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+      // Same-table work item to work item move
+      await updateWorkItemBudget(workItem!.id, budgetLineId, {
+        newWorkItemId: newParentId,
+      });
     }
+
+    // Reload budget lines to reflect the move
+    await reloadBudgetLines();
   };
 
   const handleInvoiceLineEdit = async (
@@ -591,10 +605,11 @@ export default function WorkItemDetailPage() {
     itemizedAmountStr: string,
   ) => {
     if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+    setBudgetError(null);
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {
-      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
     }
 
     // Compute plannedAmount from form
@@ -640,11 +655,16 @@ export default function WorkItemDetailPage() {
       setSelectedRequiredMilestoneId('');
       await reloadWorkItemMilestones();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This milestone is already a required dependency');
+      if (err instanceof ApiClientError) {
+        setInlineError(
+          err.error.code === 'DUPLICATE_DEPENDENCY'
+            ? t('detail.inlineErrors.requiredMilestoneAlreadyLinked')
+            : translateApiError(err.error.code, tErrors),
+        );
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to add required milestone');
+        setInlineError(t('detail.inlineErrors.addRequiredMilestone'));
       }
       console.error('Failed to add required milestone:', err);
     } finally {
@@ -659,7 +679,7 @@ export default function WorkItemDetailPage() {
       await removeRequiredMilestone(id, milestoneId);
       await reloadWorkItemMilestones();
     } catch (err) {
-      setInlineError('Failed to remove required milestone');
+      setInlineError(t('detail.inlineErrors.removeRequiredMilestone'));
       console.error('Failed to remove required milestone:', err);
     }
   };
@@ -673,11 +693,16 @@ export default function WorkItemDetailPage() {
       setSelectedLinkedMilestoneId('');
       await reloadWorkItemMilestones();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError('This milestone is already linked');
+      if (err instanceof ApiClientError) {
+        setInlineError(
+          err.error.code === 'DUPLICATE_DEPENDENCY'
+            ? t('detail.inlineErrors.linkedMilestoneAlreadyLinked')
+            : translateApiError(err.error.code, tErrors),
+        );
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to add linked milestone');
+        setInlineError(t('detail.inlineErrors.addLinkedMilestone'));
       }
       console.error('Failed to add linked milestone:', err);
     } finally {
@@ -692,7 +717,7 @@ export default function WorkItemDetailPage() {
       await removeLinkedMilestone(id, milestoneId);
       await reloadWorkItemMilestones();
     } catch (err) {
-      setInlineError('Failed to remove linked milestone');
+      setInlineError(t('detail.inlineErrors.removeLinkedMilestone'));
       console.error('Failed to remove linked milestone:', err);
     }
   };
@@ -712,7 +737,7 @@ export default function WorkItemDetailPage() {
       setIsEditingTitle(false);
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update title');
+      setInlineError(t('detail.inlineErrors.updateTitle'));
       console.error('Failed to update title:', err);
     }
   };
@@ -737,7 +762,7 @@ export default function WorkItemDetailPage() {
       setIsEditingDescription(false);
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update description');
+      setInlineError(t('detail.inlineErrors.updateDescription'));
       console.error('Failed to update description:', err);
     }
   };
@@ -755,7 +780,7 @@ export default function WorkItemDetailPage() {
       await updateWorkItem(id, { status: newStatus });
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update status');
+      setInlineError(t('detail.inlineErrors.updateStatus'));
       console.error('Failed to update status:', err);
     }
   };
@@ -772,7 +797,7 @@ export default function WorkItemDetailPage() {
       });
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update assignment');
+      setInlineError(t('detail.inlineErrors.updateAssignment'));
       console.error('Failed to update assignment:', err);
     }
   };
@@ -784,7 +809,7 @@ export default function WorkItemDetailPage() {
       await updateWorkItem(id, { areaId: areaId || null });
       await reloadWorkItem();
     } catch (err) {
-      setInlineError('Failed to update area');
+      setInlineError(t('detail.inlineErrors.updateArea'));
       console.error('Failed to update area:', err);
     }
   };
@@ -809,7 +834,7 @@ export default function WorkItemDetailPage() {
     } catch (err) {
       setAutosaveDuration('error');
       triggerAutosaveReset(setAutosaveDuration, 'duration');
-      setInlineError('Failed to update duration');
+      setInlineError(t('detail.inlineErrors.updateDuration'));
       console.error('Failed to update duration:', err);
     }
   };
@@ -834,7 +859,7 @@ export default function WorkItemDetailPage() {
     } catch (err) {
       setter('error');
       triggerAutosaveReset(setter, field);
-      setInlineError(`Failed to update ${field}`);
+      setInlineError(t(CONSTRAINT_ERROR_KEYS[field]));
       console.error(`Failed to update ${field}:`, err);
     }
   };
@@ -860,7 +885,9 @@ export default function WorkItemDetailPage() {
       setter('error');
       triggerAutosaveReset(setter, field);
       setInlineError(
-        `Failed to update ${field === 'actualStartDate' ? 'actual start date' : 'actual end date'}`,
+        field === 'actualStartDate'
+          ? t('detail.inlineErrors.updateActualStartDate')
+          : t('detail.inlineErrors.updateActualEndDate'),
       );
       console.error(`Failed to update ${field}:`, err);
     }
@@ -878,7 +905,7 @@ export default function WorkItemDetailPage() {
       setNewNoteContent('');
       await reloadNotes();
     } catch (err) {
-      setInlineError('Failed to add note');
+      setInlineError(t('detail.inlineErrors.addNote'));
       console.error('Failed to add note:', err);
     } finally {
       setIsAddingNote(false);
@@ -899,7 +926,7 @@ export default function WorkItemDetailPage() {
       setEditedNoteContent('');
       await reloadNotes();
     } catch (err) {
-      setInlineError('Failed to update note');
+      setInlineError(t('detail.inlineErrors.updateNote'));
       console.error('Failed to update note:', err);
     }
   };
@@ -922,7 +949,7 @@ export default function WorkItemDetailPage() {
       setDeletingNoteId(null);
       await reloadNotes();
     } catch (err) {
-      setInlineError('Failed to delete note');
+      setInlineError(t('detail.inlineErrors.deleteNote'));
       console.error('Failed to delete note:', err);
     }
   };
@@ -939,7 +966,7 @@ export default function WorkItemDetailPage() {
       setNewSubtaskTitle('');
       await reloadSubtasks();
     } catch (err) {
-      setInlineError('Failed to add subtask');
+      setInlineError(t('detail.inlineErrors.addSubtask'));
       console.error('Failed to add subtask:', err);
     } finally {
       setIsAddingSubtask(false);
@@ -953,7 +980,7 @@ export default function WorkItemDetailPage() {
       await updateSubtask(id, subtaskId, { isCompleted });
       await reloadSubtasks();
     } catch (err) {
-      setInlineError('Failed to update subtask');
+      setInlineError(t('detail.inlineErrors.updateSubtask'));
       console.error('Failed to update subtask:', err);
     }
   };
@@ -972,7 +999,7 @@ export default function WorkItemDetailPage() {
       setEditedSubtaskTitle('');
       await reloadSubtasks();
     } catch (err) {
-      setInlineError('Failed to update subtask');
+      setInlineError(t('detail.inlineErrors.updateSubtask'));
       console.error('Failed to update subtask:', err);
     }
   };
@@ -995,7 +1022,7 @@ export default function WorkItemDetailPage() {
       setDeletingSubtaskId(null);
       await reloadSubtasks();
     } catch (err) {
-      setInlineError('Failed to delete subtask');
+      setInlineError(t('detail.inlineErrors.deleteSubtask'));
       console.error('Failed to delete subtask:', err);
     }
   };
@@ -1015,7 +1042,7 @@ export default function WorkItemDetailPage() {
       await reorderSubtasks(id, { subtaskIds: reordered.map((s) => s.id) });
       await reloadSubtasks();
     } catch (err) {
-      setInlineError('Failed to reorder subtasks');
+      setInlineError(t('detail.inlineErrors.reorderSubtasks'));
       console.error('Failed to reorder subtasks:', err);
     }
   };
@@ -1047,13 +1074,12 @@ export default function WorkItemDetailPage() {
       }
       await reloadDependencies();
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        setInlineError(
-          apiErr.message || 'This dependency already exists or would create a circular reference',
-        );
+      if (err instanceof ApiClientError) {
+        setInlineError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to add dependency');
+        setInlineError(t('detail.inlineErrors.addDependency'));
       }
       console.error('Failed to add dependency:', err);
     } finally {
@@ -1083,7 +1109,7 @@ export default function WorkItemDetailPage() {
       setDeletingDependency(null);
       await reloadDependencies();
     } catch (err) {
-      setInlineError('Failed to remove dependency');
+      setInlineError(t('detail.inlineErrors.removeDependency'));
       console.error('Failed to remove dependency:', err);
     }
   };
@@ -1097,7 +1123,7 @@ export default function WorkItemDetailPage() {
       await deleteWorkItem(id);
       navigate('/project/work-items');
     } catch (err) {
-      setInlineError('Failed to delete work item');
+      setInlineError(t('detail.inlineErrors.deleteWorkItem'));
       console.error('Failed to delete work item:', err);
       setIsDeleting(false);
     }
@@ -1542,7 +1568,8 @@ export default function WorkItemDetailPage() {
               onLinkInvoice={handleLinkInvoice}
               onUnlinkInvoice={handleUnlinkInvoice}
               isUnlinking={isUnlinkingInvoice}
-              inlineError={inlineError}
+              inlineError={budgetError}
+              onDismissInlineError={() => setBudgetError(null)}
               parentEntityId={workItem?.id}
               parentEntityLabel={workItem?.title}
               onMoveBudgetLine={handleMoveBudgetLine}

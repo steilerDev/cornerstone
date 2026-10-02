@@ -106,23 +106,23 @@ export function InvoiceDepositFormModal({
 
     const amount = parseFloat(form.amount);
     if (isNaN(amount) || amount <= 0) {
-      setError(t('common:validation.amountRequired'));
+      setError(t('invoiceDetail.deposits.errors.amountRequired'));
       return;
     }
 
     if (!form.dueDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.dueDateRequired'));
       return;
     }
 
     // Validate conditional dates
     if (form.status !== 'pending' && !form.paidDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.paidDateRequired'));
       return;
     }
 
     if (form.status === 'claimed' && !form.claimedDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.claimedDateRequired'));
       return;
     }
 

@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
 import { updatePhoto } from '../../lib/photoApi.js';
 import { fetchAreas } from '../../lib/areasApi.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { AreaPicker } from '../AreaPicker/index.js';
 import { OrientationPicker } from '../OrientationPicker/index.js';
@@ -27,6 +29,8 @@ export function PhotoMetadataSidepanel({
   isAnnotating = false,
 }: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
   const [caption, setCaption] = useState(photo.caption ?? '');
@@ -79,12 +83,17 @@ export function PhotoMetadataSidepanel({
       onPhotoUpdated?.(updated);
       setError(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Failed to save metadata';
-      setError(message);
+      if (err instanceof ApiClientError) {
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
+      } else {
+        setError(t('saveError'));
+      }
     } finally {
       setIsSaving(false);
     }
-  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated]);
+  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated, t, tErrors, tCommon]);
 
   // Hide sidepanel entirely when annotation mode is active
   if (isAnnotating) {

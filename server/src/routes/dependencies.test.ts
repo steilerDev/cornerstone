@@ -263,9 +263,9 @@ describe('Dependency Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('DUPLICATE_DEPENDENCY');
       expect(body.error.message).toContain('Dependency already exists');
-      expect(body.error.details?.code).toBe('DUPLICATE_DEPENDENCY');
+      expect(body.error.details?.code).toBeUndefined();
     });
 
     it('should return 409 with CIRCULAR_DEPENDENCY when circular dependency detected', async () => {
@@ -295,10 +295,10 @@ describe('Dependency Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('CIRCULAR_DEPENDENCY');
       expect(body.error.message).toContain('Circular dependency detected');
-      expect(body.error.details?.code).toBe('CIRCULAR_DEPENDENCY');
-      expect(body.error.details?.cycle).toBeDefined();
+      expect(body.error.details?.code).toBeUndefined();
+      expect(Array.isArray(body.error.details?.cycle)).toBe(true);
     });
 
     it('should return 400 when dependencyType is invalid', async () => {

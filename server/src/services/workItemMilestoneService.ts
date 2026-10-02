@@ -13,7 +13,11 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { workItems, milestones, milestoneWorkItems, workItemMilestoneDeps } from '../db/schema.js';
 import type { WorkItemMilestones, MilestoneSummaryForWorkItem } from '@cornerstone/shared';
-import { NotFoundError, ConflictError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  DuplicateDependencyError,
+  CircularDependencyError,
+} from '../errors/AppError.js';
 import { autoReschedule } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -71,7 +75,7 @@ export function getWorkItemMilestones(db: DbType, workItemId: string): WorkItemM
  * The milestone must complete before the work item can start.
  *
  * @throws NotFoundError if work item or milestone does not exist
- * @throws ConflictError if the dependency already exists
+ * @throws DuplicateDependencyError if the dependency already exists
  */
 export function addRequiredMilestone(
   db: DbType,
@@ -103,7 +107,7 @@ export function addRequiredMilestone(
     .get();
 
   if (existing) {
-    throw new ConflictError('Work item already depends on this milestone');
+    throw new DuplicateDependencyError('Work item already depends on this milestone');
   }
 
   // Cross-validate: cannot require a milestone that the work item already contributes to
@@ -119,7 +123,9 @@ export function addRequiredMilestone(
     .get();
 
   if (crossLink) {
-    throw new ConflictError('Cannot require milestone that this work item contributes to');
+    throw new CircularDependencyError(
+      'Cannot require milestone that this work item contributes to',
+    );
   }
 
   db.insert(workItemMilestoneDeps).values({ workItemId, milestoneId }).run();
@@ -181,7 +187,7 @@ export function removeRequiredMilestone(db: DbType, workItemId: string, mileston
  * Delegates to the existing milestone_work_items table.
  *
  * @throws NotFoundError if work item or milestone does not exist
- * @throws ConflictError if the link already exists
+ * @throws DuplicateDependencyError if the link already exists
  */
 export function addLinkedMilestone(
   db: DbType,
@@ -213,7 +219,7 @@ export function addLinkedMilestone(
     .get();
 
   if (existing) {
-    throw new ConflictError('Work item is already linked to this milestone');
+    throw new DuplicateDependencyError('Work item is already linked to this milestone');
   }
 
   // Cross-validate: cannot contribute to a milestone that the work item already depends on
@@ -229,7 +235,9 @@ export function addLinkedMilestone(
     .get();
 
   if (crossDep) {
-    throw new ConflictError('Cannot contribute to milestone that this work item depends on');
+    throw new CircularDependencyError(
+      'Cannot contribute to milestone that this work item depends on',
+    );
   }
 
   db.insert(milestoneWorkItems).values({ milestoneId, workItemId }).run();

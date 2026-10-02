@@ -17,7 +17,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
@@ -33,6 +34,7 @@ export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -111,7 +113,9 @@ export function HouseholdItemsPage() {
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
       } else {
         setError(t('error'));
       }
@@ -187,7 +191,9 @@ export function HouseholdItemsPage() {
       await loadHouseholdItems();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteError(tCommon('requestErrors.network'));
       } else {
         setDeleteError(t('deleteError'));
       }
@@ -464,7 +470,7 @@ export function HouseholdItemsPage() {
           {t('newButton')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<HouseholdItemSummary>
         pageKey="householdItems"

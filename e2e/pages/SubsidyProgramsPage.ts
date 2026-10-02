@@ -18,7 +18,7 @@
  *   - "Create Program" / Cancel buttons
  * - A programs list (class `.programsList`) with inline edit forms per row
  * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
- * - Success/error banners (role="alert")
+ * - Success banners (role="status"), error banners (role="alert")
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -135,13 +135,10 @@ export class SubsidyProgramsPage {
 
     // Global banners
     this.successBanner = page
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: /successfully/i })
       .first();
-    this.errorBanner = page
-      .locator('[role="alert"]')
-      .filter({ hasText: /failed|error/i })
-      .first();
+    this.errorBanner = page.locator('[role="alert"]').first();
 
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Subsidy Program' });
@@ -375,7 +372,7 @@ export class SubsidyProgramsPage {
     const heading = this.page.getByRole('heading', { level: 2, name: /^Programs \(/ });
     const text = await heading.textContent();
     const match = text?.match(/\((\d+)\)/);
-    return match ? parseInt(match[1], 10) : 0;
+    return match?.[1] ? parseInt(match[1], 10) : 0;
   }
 
   /**

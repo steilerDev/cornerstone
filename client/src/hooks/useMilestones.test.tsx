@@ -15,6 +15,10 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render, renderHook, screen, waitFor, act } from '@testing-library/react';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type React from 'react';
+import i18n from '../i18n/index.js';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
+import deErrors from '../i18n/de/errors.json';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -210,45 +214,63 @@ describe('useMilestones', () => {
     });
 
     it('surfaces ApiClientError message', async () => {
-      setupFetchError(500, 'INTERNAL_ERROR', 'Server is down');
+      setupFetchError(500, 'INTERNAL_ERROR', 'RAW-SERVER-SENTINEL');
 
       render(<TestComponent />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Server is down');
+        expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
       });
+      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-SERVER-SENTINEL');
     });
 
-    it('surfaces NetworkError message containing "network error"', async () => {
+    it('re-fetches and re-translates the error when the language changes', async () => {
+      setupFetchError(500, 'INTERNAL_ERROR', 'RAW-SERVER-SENTINEL');
+
+      render(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
+      });
+      const callsBefore = mockFetch.mock.calls.length;
+
+      try {
+        await act(async () => {
+          await i18n.changeLanguage('de');
+        });
+
+        await waitFor(() => {
+          expect(screen.getByTestId('error')).toHaveTextContent(deErrors.INTERNAL_ERROR);
+        });
+        expect(mockFetch.mock.calls.length).toBeGreaterThan(callsBefore);
+      } finally {
+        await act(async () => {
+          await i18n.changeLanguage('en');
+        });
+      }
+    });
+
+    it('surfaces the common network copy for a NetworkError', async () => {
       setupFetchNetworkFailure();
 
       render(<TestComponent />);
 
       await waitFor(() => {
         const errorText = screen.getByTestId('error').textContent ?? '';
-        expect(errorText.toLowerCase()).toContain('network error');
-      });
-    });
-
-    it('NetworkError message contains "unable to connect"', async () => {
-      setupFetchNetworkFailure();
-
-      render(<TestComponent />);
-
-      await waitFor(() => {
-        const errorText = screen.getByTestId('error').textContent ?? '';
-        expect(errorText.toLowerCase()).toContain('unable to connect');
+        expect(errorText).toBe(enCommon.requestErrors.network);
+        expect(errorText).not.toContain('Failed to fetch');
       });
     });
 
     it('shows 404 error message from ApiClientError', async () => {
-      setupFetchError(404, 'NOT_FOUND', 'Milestone not found');
+      setupFetchError(404, 'NOT_FOUND', 'RAW-SERVER-SENTINEL');
 
       render(<TestComponent />);
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Milestone not found');
+        expect(screen.getByTestId('error')).toHaveTextContent(enErrors.NOT_FOUND);
       });
+      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-SERVER-SENTINEL');
     });
 
     it('clears milestones array when load fails', async () => {

@@ -13,6 +13,7 @@
  * - Empty notes: "No notes yet. Use the form above to add one."
  * - Empty subtasks: "No subtasks yet. Add one above."
  */
+import { ApiClientError } from '../../lib/apiClient.js';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
@@ -411,7 +412,9 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
 
   describe('404 not found error state', () => {
     it('renders an element with role="alert" for 404 errors', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 
@@ -421,7 +424,9 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     });
 
     it('shows "Work Item Not Found" heading for 404 errors', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 
@@ -431,7 +436,9 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     });
 
     it('shows "Back to Work Items" button for 404 errors', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 
@@ -441,7 +448,9 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
     });
 
     it('does NOT show a "Retry" button for 404 errors', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 

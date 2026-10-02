@@ -97,6 +97,35 @@ export default tseslint.config(
     rules: { 'no-console': 'off' },
   },
 
+  // #2129: the server's error.message is untranslated English developer text. UI code must
+  // translate by code via translateApiError(err.error.code, tErrors) or a code-specific t() key.
+  {
+    files: ['client/src/**/*.{ts,tsx}'],
+    ignores: ['client/src/**/*.test.{ts,tsx}', 'client/src/test/**'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector:
+            "MemberExpression[property.name='message'][object.type='MemberExpression'][object.property.name='error']",
+          message:
+            'Do not read `.error.message` from an API error response: it is untranslated server text. Use translateApiError(err.error.code, tErrors) from lib/errorTranslation.js or a code-specific t() key (#2129).',
+        },
+        {
+          selector:
+            "VariableDeclarator[init.type='MemberExpression'][init.property.name='error'] > ObjectPattern > Property[key.name='message']",
+          message:
+            'Do not destructure `message` from an API error response: it is untranslated server text. Use translateApiError(err.error.code, tErrors) (#2129).',
+        },
+        {
+          selector: "Property[key.name='error'] > ObjectPattern > Property[key.name='message']",
+          message:
+            'Do not destructure `message` from an API error body: it is untranslated server text. Use translateApiError(err.error.code, tErrors) (#2129).',
+        },
+      ],
+    },
+  },
+
   // Test files (unit + integration) — relax React-Compiler-focused rules
   // that don't apply to mocks and test scaffolding. These rules optimize
   // production rendering; test code never ships.

@@ -3,6 +3,9 @@ import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enAuth from '../../i18n/en/auth.json';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
@@ -308,5 +311,36 @@ describe('LoginPage', () => {
 
     // After successful login, the component redirects via window.location.href = '/'
     // In jsdom this triggers navigation; verify the login was called correctly above
+  });
+
+  async function submitCredentials() {
+    renderWithAuth(<LoginPage />);
+    await waitFor(() => {
+      expect(mockGetAuthMe).toHaveBeenCalled();
+    });
+    const user = userEvent.setup();
+    await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+    await user.type(screen.getByLabelText(/password/i), 'password123');
+    await user.click(screen.getByRole('button', { name: /sign in/i }));
+  }
+
+  it('shows the translated error for an ApiClientError, never the server text', async () => {
+    mockLogin.mockRejectedValue(
+      new ApiClientError(401, { code: 'INVALID_CREDENTIALS', message: 'RAW-SERVER-SENTINEL' }),
+    );
+
+    await submitCredentials();
+
+    expect(await screen.findByText(enErrors.INVALID_CREDENTIALS)).toBeInTheDocument();
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+  });
+
+  it('shows the fallback login error for a non-API failure, never its message', async () => {
+    mockLogin.mockRejectedValue(new Error('RAW-LOCAL'));
+
+    await submitCredentials();
+
+    expect(await screen.findByText(enAuth.login.error)).toBeInTheDocument();
+    expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
   });
 });

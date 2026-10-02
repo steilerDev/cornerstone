@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import type { TradeResponse, CreateTradeRequest, UpdateTradeRequest } from '@cornerstone/shared';
 import { fetchTrades, createTrade, updateTrade, deleteTrade } from '../lib/tradesApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseTradesResult {
   trades: TradeResponse[];
@@ -19,6 +21,9 @@ export interface UseTradesResult {
  * Mutation methods refetch the list after success.
  */
 export function useTrades(): UseTradesResult {
+  const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [trades, setTrades] = useState<TradeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +44,11 @@ export function useTrades(): UseTradesResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load trades.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(tCommon('requestErrors.network'));
           } else {
-            setError('An unexpected error occurred while loading trades.');
+            setError(t('manage.trades.loadError'));
           }
         }
       } finally {
@@ -58,7 +63,7 @@ export function useTrades(): UseTradesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount]);
+  }, [fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

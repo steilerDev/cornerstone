@@ -1,4 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
+import * as errorModule from './AppError.js';
 import {
   AppError,
   NotFoundError,
@@ -6,6 +7,8 @@ import {
   UnauthorizedError,
   ForbiddenError,
   ConflictError,
+  DuplicateDependencyError,
+  CircularDependencyError,
   VendorInUseError,
   BudgetSourceInUseError,
   SubsidyProgramInUseError,
@@ -15,6 +18,9 @@ import {
   OidcNoMatchingAccountError,
   OidcEmailUnverifiedError,
   OidcMissingEmailError,
+  BackupNotFoundError,
+  BackupFailedError,
+  RestoreFailedError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -35,6 +41,64 @@ describe('AppError', () => {
     const error = new AppError('VALIDATION_ERROR', 400, 'Bad input', details);
 
     expect(error.details).toEqual(details);
+  });
+});
+
+describe('AppError cause', () => {
+  it('passes the cause through to Error#cause', () => {
+    const cause = new Error('ENOSPC: no space left on device');
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops', undefined, false, cause);
+
+    expect(error.cause).toBe(cause);
+  });
+
+  it('leaves cause unset when none is given', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops');
+
+    expect(error).not.toHaveProperty('cause');
+  });
+
+  it('keeps a falsy but defined cause', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops', undefined, false, null);
+
+    expect(error.cause).toBeNull();
+  });
+});
+
+describe('BackupNotFoundError', () => {
+  it('has the fixed message with no filename and no details', () => {
+    const error = new BackupNotFoundError();
+
+    expect(error.code).toBe('BACKUP_NOT_FOUND');
+    expect(error.statusCode).toBe(404);
+    expect(error.message).toBe('Backup not found');
+    expect(error.details).toBeUndefined();
+  });
+});
+
+describe.each([
+  ['BackupFailedError', BackupFailedError, 'BACKUP_FAILED', 'Backup operation failed'],
+  ['RestoreFailedError', RestoreFailedError, 'RESTORE_FAILED', 'Restore operation failed'],
+] as const)('%s', (name, Ctor, code, defaultMessage) => {
+  it('carries the original error as cause and never exposes details', () => {
+    const cause = new Error('EACCES: permission denied, open /secret/path');
+    const error = new Ctor('Fixed message', cause);
+
+    expect(error.name).toBe(name);
+    expect(error.code).toBe(code);
+    expect(error.statusCode).toBe(500);
+    expect(error.message).toBe('Fixed message');
+    expect(error.cause).toBe(cause);
+    expect(error.details).toBeUndefined();
+    expect(error.message).not.toContain('/secret/path');
+  });
+
+  it('uses its default message and has no cause when constructed without arguments', () => {
+    const error = new Ctor();
+
+    expect(error.message).toBe(defaultMessage);
+    expect(error).not.toHaveProperty('cause');
+    expect(error.details).toBeUndefined();
   });
 });
 
@@ -236,5 +300,66 @@ describe('OidcMissingEmailError', () => {
 
   it('accepts a custom message', () => {
     expect(new OidcMissingEmailError('x').message).toBe('x');
+  });
+});
+
+describe('DuplicateDependencyError', () => {
+  it('has correct defaults', () => {
+    const error = new DuplicateDependencyError();
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('DuplicateDependencyError');
+    expect(error.code).toBe('DUPLICATE_DEPENDENCY');
+    expect(error.statusCode).toBe(409);
+    expect(error.message).toBe('Dependency already exists');
+    expect(error.details).toBeUndefined();
+  });
+
+  it('accepts a custom message and passes details through', () => {
+    const error = new DuplicateDependencyError('Already linked', { id: 'x' });
+
+    expect(error.message).toBe('Already linked');
+    expect(error.details).toEqual({ id: 'x' });
+  });
+});
+
+describe('CircularDependencyError', () => {
+  it('uses the top-level CIRCULAR_DEPENDENCY code with 409', () => {
+    const error = new CircularDependencyError('loop', { cycle: ['a', 'b'] });
+
+    expect(error.code).toBe('CIRCULAR_DEPENDENCY');
+    expect(error.statusCode).toBe(409);
+    expect(error.details).toEqual({ cycle: ['a', 'b'] });
+  });
+});
+
+describe('every AppError subclass', () => {
+  type ErrorCtor = new (...args: unknown[]) => AppError;
+  const subclasses = Object.entries(errorModule).filter(
+    ([name, value]) => name !== 'AppError' && typeof value === 'function',
+  ) as [string, ErrorCtor][];
+
+  it('is discovered (guards against the table silently becoming empty)', () => {
+    expect(subclasses).toHaveLength(44);
+  });
+
+  it.each(subclasses)(
+    '%s extends AppError with a matching name and a valid HTTP status',
+    (name, Ctor) => {
+      const error = new Ctor('2026-01-01T00:00:00.000Z');
+
+      expect(error).toBeInstanceOf(AppError);
+      expect(error).toBeInstanceOf(Error);
+      expect(error.name).toBe(name);
+      expect(error.code).toMatch(/^[A-Z][A-Z_]+$/);
+      expect(error.statusCode).toBeGreaterThanOrEqual(400);
+      expect(error.statusCode).toBeLessThan(600);
+      expect(error.message.length).toBeGreaterThan(0);
+    },
+  );
+
+  it('removed legacy classes are no longer exported', () => {
+    expect(Object.keys(errorModule)).not.toContain('BackupNotConfiguredError');
+    expect(Object.keys(errorModule)).not.toContain('MutuallyExclusiveBudgetLinkError');
   });
 });

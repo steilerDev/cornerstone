@@ -30,6 +30,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
@@ -130,6 +131,8 @@ function renderInvoiceNumberCell(
 
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
 
@@ -271,7 +274,7 @@ export function InvoicesPage() {
       setHasOverdue(response.summary.overdue.count > 0);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('invoices.errorMessage'));
       }
@@ -422,7 +425,7 @@ export function InvoicesPage() {
       await loadInvoices();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('invoices.messages.createError'));
       }
@@ -919,7 +922,7 @@ export function InvoicesPage() {
           {t('invoices.addInvoice')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {headerContent}
       <DataTable<Invoice, InvoiceDeposit>

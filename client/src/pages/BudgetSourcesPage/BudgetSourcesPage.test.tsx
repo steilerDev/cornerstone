@@ -8,6 +8,8 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enBudget from '../../i18n/en/budget.json';
 import type {
   BudgetSource,
   BudgetSourceListResponse,
@@ -520,15 +522,16 @@ describe('BudgetSourcesPage', () => {
   describe('error state', () => {
     it('shows error state when API call fails and no sources loaded', async () => {
       mockFetchBudgetSources.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Server error')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error message for non-ApiClientError failures', async () => {
@@ -851,7 +854,7 @@ describe('BudgetSourcesPage', () => {
       mockCreateBudgetSource.mockRejectedValueOnce(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Total amount must be a positive number',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -870,8 +873,9 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/total amount must be a positive number/i)).toBeInTheDocument();
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic create error for non-ApiClientError failures', async () => {
@@ -1146,7 +1150,7 @@ describe('BudgetSourcesPage', () => {
       mockUpdateBudgetSource.mockRejectedValueOnce(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Budget source name must be between 1 and 200 characters',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -1166,10 +1170,9 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /^save$/i }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText(/budget source name must be between 1 and 200 characters/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic update error for non-ApiClientError failures', async () => {
@@ -1461,7 +1464,7 @@ describe('BudgetSourcesPage', () => {
     it('shows error from ApiClientError message for non-409 delete failures', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
       mockDeleteBudgetSource.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server exploded' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const user = userEvent.setup();
@@ -1475,8 +1478,9 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /delete source/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Server exploded')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
   });
 
@@ -1504,8 +1508,10 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        const successAlert = alerts.find((el) => el.textContent?.includes('created successfully'));
+        const statuses = screen.getAllByRole('status');
+        const successAlert = statuses.find((el) =>
+          el.textContent?.includes('created successfully'),
+        );
         expect(successAlert).toBeInTheDocument();
       });
     });
@@ -1532,8 +1538,10 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        const successAlert = alerts.find((el) => el.textContent?.includes('created successfully'));
+        const statuses = screen.getAllByRole('status');
+        const successAlert = statuses.find((el) =>
+          el.textContent?.includes('created successfully'),
+        );
         expect(successAlert).toBeInTheDocument();
       });
 
@@ -1859,6 +1867,55 @@ describe('BudgetSourcesPage', () => {
       workItemLines: [],
       householdItemLines: [],
     };
+
+    it('a failed lines fetch shows the translated error (not the server message); retry re-translates', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      mockFetchBudgetLinesForSource
+        .mockRejectedValueOnce(
+          new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+        )
+        .mockRejectedValueOnce(
+          new ApiClientError(403, { code: 'FORBIDDEN', message: 'RAW-SERVER-SENTINEL' }),
+        );
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /expand budget lines for home loan/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+
+      await user.click(screen.getByRole('button', { name: /retry|try again/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.FORBIDDEN)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('a non-API lines fetch failure shows the translated fallback, not the thrown text', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      mockFetchBudgetLinesForSource.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Home Loan')).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /expand budget lines for home loan/i }));
+
+      await waitFor(() => {
+        expect(screen.getByText(enBudget.sources.lines.fetchError)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
 
     it('clicking "Show lines" expands the panel and calls fetchBudgetLinesForSource once', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });

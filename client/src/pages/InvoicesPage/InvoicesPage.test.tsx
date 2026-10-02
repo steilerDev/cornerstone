@@ -13,6 +13,7 @@ import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import enErrors from '../../i18n/en/errors.json';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -394,7 +395,7 @@ describe('InvoicesPage', () => {
       // Use mockRejectedValue (not Once) so ALL calls fail consistently —
       // useTableState may trigger multiple loadInvoices calls
       mockFetchAllInvoices.mockRejectedValue(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Service unavailable' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
@@ -403,7 +404,8 @@ describe('InvoicesPage', () => {
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
-      expect(screen.getByText('Service unavailable')).toBeInTheDocument();
+      expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error for non-ApiClientError', async () => {
@@ -593,7 +595,7 @@ describe('InvoicesPage', () => {
       mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
       mockCreateInvoice.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Creation failed' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
@@ -625,8 +627,9 @@ describe('InvoicesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Creation failed')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('closes modal when Cancel is clicked', async () => {

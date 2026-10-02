@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   BaseBudgetLine,
   ConfidenceLevel,
   CreateBudgetLineRequest,
   UpdateBudgetLineRequest,
 } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 /**
  * Form state for creating or editing a budget line.
@@ -133,6 +136,10 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     defaultBudgetSourceId,
   } = options;
 
+  const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
+
   const emptyForm: BudgetLineFormState = {
     description: '',
     plannedAmount: '',
@@ -190,7 +197,7 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     if (budgetForm.pricingMode === 'direct') {
       plannedAmount = parseFloat(budgetForm.plannedAmount);
       if (isNaN(plannedAmount) || plannedAmount < 0) {
-        setBudgetFormError('Planned amount must be a valid non-negative number.');
+        setBudgetFormError(t('invoiceDetail.budgetLines.picker.error.plannedAmountInvalid'));
         return;
       }
     } else {
@@ -199,11 +206,11 @@ export function useBudgetSection<T extends BaseBudgetLine>(
       const price = parseFloat(budgetForm.unitPrice);
 
       if (isNaN(qty) || qty <= 0) {
-        setBudgetFormError('Quantity must be a valid positive number.');
+        setBudgetFormError(t('invoiceDetail.budgetLines.picker.error.quantityInvalid'));
         return;
       }
       if (isNaN(price) || price < 0) {
-        setBudgetFormError('Unit price must be a valid non-negative number.');
+        setBudgetFormError(t('invoiceDetail.budgetLines.picker.error.unitPriceInvalid'));
         return;
       }
 
@@ -226,8 +233,13 @@ export function useBudgetSection<T extends BaseBudgetLine>(
       closeBudgetForm();
       await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
-      const apiErr = err as { statusCode?: number; message?: string };
-      setBudgetFormError(apiErr.message ?? 'Failed to save budget line. Please try again.');
+      if (err instanceof ApiClientError) {
+        setBudgetFormError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setBudgetFormError(tCommon('requestErrors.network'));
+      } else {
+        setBudgetFormError(t('budgetLineForm.errors.saveFailed'));
+      }
       console.error('Failed to save budget line:', err);
     } finally {
       setIsSavingBudget(false);
@@ -247,14 +259,8 @@ export function useBudgetSection<T extends BaseBudgetLine>(
       await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
     } catch (err) {
       setDeletingBudgetId(null);
-      const apiErr = err as { statusCode?: number; message?: string };
-      if (apiErr.statusCode === 409) {
-        throw new Error(apiErr.message || 'Budget line cannot be deleted because it is in use', {
-          cause: err,
-        });
-      } else {
-        throw new Error('Failed to delete budget line', { cause: err });
-      }
+      // Rethrow the original error; the page translates it for display.
+      throw err;
     }
   };
 

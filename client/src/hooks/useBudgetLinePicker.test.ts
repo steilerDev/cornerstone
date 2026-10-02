@@ -11,6 +11,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
+import enErrors from '../i18n/en/errors.json';
 import type * as WorkItemBudgetsApiModule from '../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiModule from '../lib/householdItemBudgetsApi.js';
 import type * as BudgetCategoriesApiModule from '../lib/budgetCategoriesApi.js';
@@ -875,7 +876,7 @@ describe('useBudgetLinePicker', () => {
       );
     });
 
-    it('sets createError with ApiClientError message when API returns non-ITEMIZED error', async () => {
+    it('sets createError to the translated message when API returns non-ITEMIZED error', async () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
@@ -885,7 +886,7 @@ describe('useBudgetLinePicker', () => {
       });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockRejectedValue(
-        new MockApiClientError(409, { code: 'CONFLICT', message: 'Line already exists' }),
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
       );
       mockFetchWorkItemBudgets.mockResolvedValue([]);
 
@@ -921,7 +922,7 @@ describe('useBudgetLinePicker', () => {
         await result.current.handleCreateBudgetLine(makeFormEvent());
       });
 
-      expect(result.current.pickerState.createError).toBe('Line already exists');
+      expect(result.current.pickerState.createError).toBe(enErrors.CONFLICT);
     });
 
     it('sets error and resets form when API returns BUDGET_LINE_ALREADY_LINKED', async () => {
@@ -993,9 +994,9 @@ describe('useBudgetLinePicker', () => {
       expect(result.current.pickerState.budgetLines).toHaveLength(0);
     });
 
-    it('sets ApiClientError message when fetchWorkItemBudgets throws ApiClientError', async () => {
+    it('sets the translated message when fetchWorkItemBudgets throws ApiClientError', async () => {
       mockFetchWorkItemBudgets.mockRejectedValue(
-        new MockApiClientError(500, { code: 'SERVER_ERROR', message: 'Internal server error' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
@@ -1003,14 +1004,14 @@ describe('useBudgetLinePicker', () => {
         await result.current.handleSelectItem('wi-42', 'work_item');
       });
 
-      expect(result.current.pickerState.error).toBe('Internal server error');
+      expect(result.current.pickerState.error).toBe(enErrors.INTERNAL_ERROR);
     });
   });
 
   describe('showCreateBudgetLineForm error path', () => {
     it('sets error when fetchBudgetCategories throws ApiClientError', async () => {
       mockFetchBudgetCategories.mockRejectedValue(
-        new MockApiClientError(500, { code: 'SERVER_ERROR', message: 'Categories unavailable' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
       mockFetchVendors.mockResolvedValue({
@@ -1024,7 +1025,7 @@ describe('useBudgetLinePicker', () => {
         await result.current.showCreateBudgetLineForm();
       });
 
-      expect(result.current.pickerState.error).toBe('Categories unavailable');
+      expect(result.current.pickerState.error).toBe(enErrors.INTERNAL_ERROR);
       expect(result.current.pickerState.showCreateForm).toBe(false);
     });
   });

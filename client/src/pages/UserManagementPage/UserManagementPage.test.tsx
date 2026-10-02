@@ -14,6 +14,8 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type { UserResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enSettings from '../../i18n/en/settings.json';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
@@ -274,24 +276,26 @@ describe('UserManagementPage', () => {
 
   describe('error state', () => {
     it('shows error message when listUsers fails with ApiClientError', async () => {
-      const error = new ApiClientError(403, { code: 'FORBIDDEN', message: 'Access denied' });
+      const error = new ApiClientError(403, { code: 'FORBIDDEN', message: 'RAW-SERVER-SENTINEL' });
       mockListUsers.mockRejectedValueOnce(error);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Access denied')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.FORBIDDEN)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
 
     it('shows generic error when non-ApiClientError is thrown', async () => {
-      mockListUsers.mockRejectedValueOnce(new Error('Network error'));
+      mockListUsers.mockRejectedValueOnce(new Error('RAW-LOCAL'));
 
       renderPage();
 
       await waitFor(() => {
-        expect(mockListUsers).toHaveBeenCalled();
+        expect(screen.getByText(enSettings.userManagement.loadError)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
     });
   });
 
@@ -542,7 +546,7 @@ describe('UserManagementPage', () => {
       });
     });
 
-    it('shows API error when adminUpdateUser fails', async () => {
+    it('shows the emailInUse copy when adminUpdateUser fails with 409 CONFLICT', async () => {
       const user = makeUser({
         id: 'user-1',
         displayName: 'Alice Admin',
@@ -551,7 +555,7 @@ describe('UserManagementPage', () => {
       mockListUsers.mockResolvedValueOnce({ users: [user] });
       const apiError = new ApiClientError(409, {
         code: 'CONFLICT',
-        message: 'Email already in use',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockAdminUpdateUser.mockRejectedValueOnce(apiError);
 
@@ -576,8 +580,39 @@ describe('UserManagementPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Email already in use')).toBeInTheDocument();
+        expect(screen.getByText(enSettings.userManagement.errors.emailInUse)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+
+    it('translates a non-CONFLICT adminUpdateUser ApiClientError by code', async () => {
+      const user = makeUser({
+        id: 'user-1',
+        displayName: 'Alice Admin',
+        email: 'alice@example.com',
+      });
+      mockListUsers.mockResolvedValueOnce({ users: [user] });
+      mockAdminUpdateUser.mockRejectedValueOnce(
+        new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
+      await waitFor(() => {
+        expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
+      });
+      fireEvent.change(screen.getByLabelText(/email/i), { target: { value: 'other@example.com' } });
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
 
     it('closes modal when cancel is clicked', async () => {
@@ -670,9 +705,9 @@ describe('UserManagementPage', () => {
     it('shows error when deactivateUser API fails', async () => {
       const user = makeUser({ id: 'user-1', displayName: 'Alice Admin' });
       mockListUsers.mockResolvedValueOnce({ users: [user] });
-      const error = new ApiClientError(403, {
-        code: 'FORBIDDEN',
-        message: 'Cannot deactivate last admin',
+      const error = new ApiClientError(409, {
+        code: 'LAST_ADMIN',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockDeactivateUser.mockRejectedValueOnce(error);
 
@@ -699,8 +734,9 @@ describe('UserManagementPage', () => {
 
       await waitFor(() => {
         expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
-        expect(screen.getByText('Cannot deactivate last admin')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.LAST_ADMIN)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
   });
 });

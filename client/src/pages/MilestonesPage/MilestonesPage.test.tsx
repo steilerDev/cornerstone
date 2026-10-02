@@ -7,6 +7,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type * as MilestonesPageTypes from './MilestonesPage.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
@@ -212,13 +213,14 @@ describe('MilestonesPage', () => {
   describe('error state', () => {
     it('shows API error message when listMilestones fails with ApiClientError', async () => {
       mockListMilestones.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server unavailable' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Server unavailable')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
 
@@ -378,10 +380,62 @@ describe('MilestonesPage', () => {
       });
     });
 
+    it('shows the translated copy when reloading after a successful delete fails', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+      mockDeleteMilestone.mockResolvedValueOnce(undefined);
+      mockListMilestones.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+
+      const deleteConfirmBtn = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.match(/delete milestone/i));
+      fireEvent.click(deleteConfirmBtn!);
+
+      await waitFor(() => {
+        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('shows the generic reload error when reloading after a delete fails with a plain Error', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+      mockDeleteMilestone.mockResolvedValueOnce(undefined);
+      mockListMilestones.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+
+      const deleteConfirmBtn = screen
+        .getAllByRole('button')
+        .find((btn) => btn.textContent?.match(/delete milestone/i));
+      fireEvent.click(deleteConfirmBtn!);
+
+      await waitFor(() => {
+        expect(screen.getAllByRole('alert')).toHaveLength(1);
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
     it('shows error banner when deleteMilestone fails', async () => {
       mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
       mockDeleteMilestone.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Delete failed' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
@@ -398,7 +452,8 @@ describe('MilestonesPage', () => {
       if (deleteConfirmBtn) fireEvent.click(deleteConfirmBtn);
 
       await waitFor(() => {
-        expect(screen.getAllByText('Delete failed')[0]!).toBeInTheDocument();
+        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
   });

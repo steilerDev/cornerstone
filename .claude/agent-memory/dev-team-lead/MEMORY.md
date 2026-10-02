@@ -24,7 +24,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Shared-component extension specs](shared-component-extension-specs.md) — the 3 host-infrastructure hazards to pre-empt when a page-mode extends DataTable (useTableState filter sweep, column-pref wipe, API param whitelist) + 2 found late
 - [Infinite-scroll consumer hazards](infinite-scroll-consumer-hazards.md) — scroll root, IO re-observe, client-filter empty batches, focus loss on disable/hide/unmount (incl. hide-guard fixes), jsdom IO
 - [Form prefill hazards](form-prefill-hazards.md) — seeded-from-entity fields are protected from AI overwrite; initial-state/cross-field errors must be visible when submit is disabled
-- [Review-round discipline](review-round-discipline.md) — re-derive "accepted deviation" severity yourself; a green Jest suite proves attributes, not rendering; E2E "collecting" ≠ passing; tsc the test files; verify typography by code point
+- [Review-round discipline](review-round-discipline.md) — re-derive "accepted deviation" severity; green Jest ≠ rendering; tsc test files (--pretty false); scripted i18n key resolution; read code beside the diff
 - [CI gate design hazards](ci-gate-design.md) — repo-wide checks behind path filters let drift land; skipped!=passed; validate YAML via actionlint + truth table
 - [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale pins, silent workspace overrides, bundled deps, root hoisting anchors for CLI-loaded tools, mixed-major Babel
 - [Account provisioning hazards](account-provisioning-hazards.md) — setup lockout, case-variant email dup, untestable in-process collision path, AppConfig fixture breakage

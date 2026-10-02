@@ -197,7 +197,7 @@ async function mockPreview(
         status: opts.errorStatus,
         contentType: 'application/json',
         body: JSON.stringify({
-          error: { code: 'LLM_EXTRACTION_FAILED', message: 'Extraction failed', details: {} },
+          error: { code: 'LLM_INVALID_RESPONSE', message: 'Extraction failed', details: {} },
         }),
       });
       return;

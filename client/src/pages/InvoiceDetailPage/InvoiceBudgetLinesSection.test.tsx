@@ -28,6 +28,8 @@ import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoiceBudgetLinesSectionTypes from './InvoiceBudgetLinesSection.js';
+import enErrors from '../../i18n/en/errors.json';
+import enBudget from '../../i18n/en/budget.json';
 import type {
   InvoiceBudgetLineDetailResponse,
   InvoiceBudgetLineListDetailResponse,
@@ -473,11 +475,12 @@ describe('InvoiceBudgetLinesSection', () => {
   describe('error state', () => {
     it('renders error banner with ApiClientError message when fetch rejects', async () => {
       mockFetchInvoiceBudgetLines.mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Database unavailable' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       renderSection();
       await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
-      expect(screen.getByText('Database unavailable')).toBeInTheDocument();
+      expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('renders generic error message when non-ApiClientError is thrown', async () => {
@@ -1048,7 +1051,7 @@ describe('InvoiceBudgetLinesSection', () => {
       mockCreateWorkItemBudget.mockRejectedValue(
         new MockApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Failed to create budget line.',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
       await openCreateFormWorkItemEmpty();
@@ -1058,8 +1061,9 @@ describe('InvoiceBudgetLinesSection', () => {
       });
       await waitFor(() => expect(screen.getByTestId('budget-line-form')).toBeInTheDocument());
       await waitFor(() =>
-        expect(screen.getByTestId('form-error')).toHaveTextContent('Failed to create budget line.'),
+        expect(screen.getByTestId('form-error')).toHaveTextContent(enErrors.VALIDATION_ERROR),
       );
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
     });
 
@@ -1067,7 +1071,7 @@ describe('InvoiceBudgetLinesSection', () => {
       mockCreateWorkItemBudget.mockRejectedValue(
         new MockApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Description is required.',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -1084,8 +1088,9 @@ describe('InvoiceBudgetLinesSection', () => {
 
       // Error is shown in the form
       await waitFor(() =>
-        expect(screen.getByTestId('form-error')).toHaveTextContent('Description is required.'),
+        expect(screen.getByTestId('form-error')).toHaveTextContent(enErrors.VALIDATION_ERROR),
       );
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
 
       // The link call was never made
       expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
@@ -1237,6 +1242,71 @@ describe('InvoiceBudgetLinesSection', () => {
       // Focus was NOT moved to the new line row (setTimeout block only runs on success path)
       // Verified implicitly: the dialog is still open so closePicker was never called
       expect(screen.queryByRole('dialog')).toBeInTheDocument();
+    });
+  });
+
+  describe('link failure messages when adding existing lines (#2129)', () => {
+    async function addExistingLineRejecting(error: unknown) {
+      const existingLine = makeBudgetLineStub('wib-fail-001', 300);
+      mockFetchWorkItemBudgets.mockResolvedValue([existingLine]);
+      mockFetchInvoiceBudgetLines
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL))
+        .mockResolvedValueOnce(makeListResponse([], INVOICE_TOTAL));
+      mockCreateInvoiceBudgetLine.mockRejectedValue(error);
+
+      renderSection(INVOICE_ID, INVOICE_TOTAL);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('checkbox'));
+      });
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Itemized amount for/i }), {
+        target: { value: '300' },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Add Selected Lines/i }));
+      });
+      await waitFor(() => expect(mockFetchInvoiceBudgetLines).toHaveBeenCalledTimes(2));
+    }
+
+    it('ITEMIZED_SUM_EXCEEDS_INVOICE shows the exceedsTotal copy', async () => {
+      await addExistingLineRejecting(
+        new MockApiClientError(400, {
+          code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+          message: 'RAW-SERVER-SENTINEL',
+        }),
+      );
+
+      expect(
+        await screen.findByText(enBudget.invoiceDetail.budgetLines.picker.error.exceedsTotal),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('any other API code shows the translated errors.json text, never the server message', async () => {
+      await addExistingLineRejecting(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      expect(await screen.findByText(enErrors.CONFLICT)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('a non-API failure shows the linkFailed copy, never the thrown text', async () => {
+      await addExistingLineRejecting(new Error('RAW-LOCAL'));
+
+      expect(
+        await screen.findByText(enBudget.invoiceDetail.budgetLines.picker.error.linkFailed),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
   });
 

@@ -10,6 +10,7 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as HouseholdItemEditPageTypes from './HouseholdItemEditPage.js';
 import type React from 'react';
+import { ApiClientError } from '../../lib/apiClient.js';
 
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
@@ -518,7 +519,9 @@ describe('HouseholdItemEditPage', () => {
 
   describe('item not found', () => {
     it('shows not found heading when item does not exist', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('404 Not found'));
+      mockGetHouseholdItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Not found' }),
+      );
 
       renderPage('hi-missing');
 
@@ -530,7 +533,9 @@ describe('HouseholdItemEditPage', () => {
     });
 
     it('shows not found message and does not render the form', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('404 Not found'));
+      mockGetHouseholdItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Not found' }),
+      );
 
       renderPage('hi-missing');
 
@@ -543,16 +548,33 @@ describe('HouseholdItemEditPage', () => {
       expect(screen.queryByRole('button', { name: /save changes/i })).not.toBeInTheDocument();
     });
 
-    it('shows not found for "not found" error message variant', async () => {
-      mockGetHouseholdItem.mockRejectedValue(new Error('Not found'));
+    it('does NOT show not-found for a plain Error whose message says "404 Not found"', async () => {
+      mockGetHouseholdItem.mockRejectedValue(new Error('404 Not found'));
 
       renderPage('hi-missing');
 
       await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: 'Household Item Not Found' }),
-        ).toBeInTheDocument();
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
+      expect(
+        screen.queryByRole('heading', { name: 'Household Item Not Found' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('does NOT show not-found for a 500 ApiClientError whose message contains "not found"', async () => {
+      mockGetHouseholdItem.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Resource not found upstream' }),
+      );
+
+      renderPage('hi-missing');
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
+      });
+      expect(
+        screen.queryByRole('heading', { name: 'Household Item Not Found' }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByText(/not found upstream/)).not.toBeInTheDocument();
     });
   });
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import {
   listMilestones,
@@ -10,6 +11,7 @@ import {
 } from '../lib/milestonesApi.js';
 import type { CreateMilestoneRequest, UpdateMilestoneRequest } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseMilestonesResult {
   milestones: MilestoneSummary[];
@@ -29,6 +31,9 @@ export interface UseMilestonesResult {
  * Mutation methods refetch the list after success.
  */
 export function useMilestones(): UseMilestonesResult {
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const [milestones, setMilestones] = useState<MilestoneSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +54,11 @@ export function useMilestones(): UseMilestonesResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load milestones.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(tCommon('requestErrors.network'));
           } else {
-            setError('An unexpected error occurred while loading milestones.');
+            setError(t('milestones.errors.loadFailed'));
           }
         }
       } finally {
@@ -68,7 +73,7 @@ export function useMilestones(): UseMilestonesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount]);
+  }, [fetchCount, t, tCommon, tErrors]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

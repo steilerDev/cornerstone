@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
 
 const mockListVendorContacts = jest.fn<() => Promise<unknown>>();
 const mockCreateVendorContact = jest.fn<() => Promise<unknown>>();
@@ -110,12 +111,12 @@ describe('useVendorContacts', () => {
 
   it('sets error message on ApiClientError; contacts stays empty', async () => {
     mockListVendorContacts.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server unavailable' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useVendorContacts('vendor-1'));
 
-    await waitFor(() => expect(result.current.error).toBe('Server unavailable'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.contacts).toEqual([]);
   });
@@ -207,7 +208,7 @@ describe('useVendorContacts', () => {
     it('sets error and re-throws on ApiClientError', async () => {
       mockListVendorContacts.mockResolvedValue({ contacts: [] });
       mockCreateVendorContact.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'VALIDATION_ERROR', message: 'Name required' }),
+        new MockApiClientError(400, { code: 'VALIDATION_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const { result } = renderHook(() => useVendorContacts('vendor-1'));
@@ -223,7 +224,7 @@ describe('useVendorContacts', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Name required');
+      expect(result.current.error).toBe(enErrors.VALIDATION_ERROR);
     });
 
     it('sets generic error and re-throws on unknown error', async () => {
@@ -290,7 +291,7 @@ describe('useVendorContacts', () => {
     it('sets error and re-throws on ApiClientError', async () => {
       mockListVendorContacts.mockResolvedValue({ contacts: [] });
       mockUpdateVendorContact.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Contact not found' }),
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const { result } = renderHook(() => useVendorContacts('vendor-1'));
@@ -306,7 +307,7 @@ describe('useVendorContacts', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Contact not found');
+      expect(result.current.error).toBe(enErrors.NOT_FOUND);
     });
 
     it('sets generic error and re-throws on unknown error', async () => {
@@ -367,7 +368,7 @@ describe('useVendorContacts', () => {
     it('sets error and re-throws on ApiClientError', async () => {
       mockListVendorContacts.mockResolvedValue({ contacts: [] });
       mockDeleteVendorContact.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Contact not found' }),
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const { result } = renderHook(() => useVendorContacts('vendor-1'));
@@ -383,7 +384,7 @@ describe('useVendorContacts', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Contact not found');
+      expect(result.current.error).toBe(enErrors.NOT_FOUND);
     });
 
     it('sets generic error and re-throws on unknown error', async () => {

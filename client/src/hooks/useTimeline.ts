@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimelineResponse } from '@cornerstone/shared';
 import { getTimeline } from '../lib/timelineApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseTimelineResult {
   data: TimelineResponse | null;
@@ -15,6 +17,9 @@ export interface UseTimelineResult {
  * Returns loading, error, and data states following the project's hook conventions.
  */
 export function useTimeline(): UseTimelineResult {
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const [data, setData] = useState<TimelineResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,13 +40,11 @@ export function useTimeline(): UseTimelineResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load timeline data.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError(
-              'Network error: Unable to connect to the server. Please check your connection.',
-            );
+            setError(tCommon('requestErrors.network'));
           } else {
-            setError('An unexpected error occurred while loading the timeline.');
+            setError(t('timeline.errors.loadFailed'));
           }
         }
       } finally {
@@ -56,7 +59,7 @@ export function useTimeline(): UseTimelineResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount]);
+  }, [fetchCount, t, tCommon, tErrors]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

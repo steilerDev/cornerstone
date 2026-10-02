@@ -271,7 +271,9 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Then: The Settings sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
     // Vendors moved from Budget section to Settings section (Story #1283).
     // The Settings sub-nav link is the reliable indicator that the page is in German and loaded.
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
+    const subNav = page.getByRole('navigation', {
+      name: 'Navigation im Bereich Einstellungen',
+    });
     await expect(subNav.getByRole('link', { name: 'Auftragnehmer' })).toBeVisible();
   });
 
@@ -283,10 +285,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     await page.goto(ROUTES.workItems);
     await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
 
-    // Then: The page renders with German page heading — the ProjectSubNav aria-label is a
-    // hardcoded English string ("Project section navigation") not yet translated.
-    // We assert the German h1 heading is present, confirming i18n is applied.
+    // Then: The page renders with the German h1 heading and the translated Project sub-nav name
     await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
+    await expect(
+      page.getByRole('navigation', { name: 'Navigation im Bereich Projekt' }),
+    ).toBeVisible();
   });
 });
 

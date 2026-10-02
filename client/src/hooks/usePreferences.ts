@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback } from 'react';
 import type { UserPreference } from '@cornerstone/shared';
 import { listPreferences, upsertPreference, deletePreference } from '../lib/preferencesApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UsePreferencesResult {
   preferences: UserPreference[];
@@ -17,6 +19,8 @@ export interface UsePreferencesResult {
  * Handles fetching the list, upserting, and removing preferences.
  */
 export function usePreferences(): UsePreferencesResult {
+  const { t } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const [preferences, setPreferences] = useState<UserPreference[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,11 +42,11 @@ export function usePreferences(): UsePreferencesResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load preferences.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(t('requestErrors.network'));
           } else {
-            setError('An unexpected error occurred.');
+            setError(t('requestErrors.unexpected'));
           }
         }
       } finally {
@@ -56,7 +60,7 @@ export function usePreferences(): UsePreferencesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount]);
+  }, [fetchCount, t, tErrors]);
 
   const upsert = useCallback(async (key: string, value: string) => {
     await upsertPreference(key, value);

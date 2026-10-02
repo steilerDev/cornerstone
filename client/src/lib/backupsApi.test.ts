@@ -89,14 +89,14 @@ describe('backupsApi', () => {
       expect(result.backups[0]!.sizeBytes).toBe(102400);
     });
 
-    it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
+    it('throws ApiClientError when server returns 500 INTERNAL_ERROR', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        status: 503,
+        status: 500,
         json: async () => ({
           error: {
-            code: 'BACKUP_NOT_CONFIGURED',
-            message: 'Backup is not configured',
+            code: 'INTERNAL_ERROR',
+            message: 'Internal error',
           },
         }),
       } as Response);
@@ -165,12 +165,12 @@ describe('backupsApi', () => {
       expect(result.backup.sizeBytes).toBe(204800);
     });
 
-    it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
+    it('throws ApiClientError when server returns 500 INTERNAL_ERROR', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        status: 503,
+        status: 500,
         json: async () => ({
-          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
+          error: { code: 'INTERNAL_ERROR', message: 'Internal error' },
         }),
       } as Response);
 
@@ -318,12 +318,12 @@ describe('backupsApi', () => {
       await expect(restoreBackup('cornerstone-backup-2099-01-01T000000Z.tar.gz')).rejects.toThrow();
     });
 
-    it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
+    it('throws ApiClientError when server returns 500 INTERNAL_ERROR', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        status: 503,
+        status: 500,
         json: async () => ({
-          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
+          error: { code: 'INTERNAL_ERROR', message: 'Internal error' },
         }),
       } as Response);
 
@@ -408,12 +408,12 @@ describe('backupsApi', () => {
       expect(result.scheduler.lastRun?.success).toBe(false);
     });
 
-    it('throws ApiClientError when server returns 503 BACKUP_NOT_CONFIGURED', async () => {
+    it('throws ApiClientError when server returns 500 INTERNAL_ERROR', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
-        status: 503,
+        status: 500,
         json: async () => ({
-          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
+          error: { code: 'INTERNAL_ERROR', message: 'Internal error' },
         }),
       } as Response);
 

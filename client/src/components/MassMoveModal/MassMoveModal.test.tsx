@@ -6,6 +6,7 @@ import { render, screen, fireEvent, waitFor, act } from '@testing-library/react'
 import type React from 'react';
 import type { BudgetSource, BudgetSourceListResponse } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type { MassMoveModalProps } from './MassMoveModal.js';
 import type * as MassMoveModalModule from './MassMoveModal.js';
 
@@ -37,12 +38,6 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
   deleteBudgetSource: jest.fn(),
   fetchBudgetLinesForSource: jest.fn(),
   moveBudgetLinesBetweenSources: mockMoveBudgetLinesBetweenSources,
-}));
-
-// ─── Mock: errorTranslation ───────────────────────────────────────────────────
-
-jest.unstable_mockModule('../../lib/errorTranslation.js', () => ({
-  translateApiError: (_code: string, _t: unknown) => 'Translated error',
 }));
 
 // ─── Mock: SearchPicker — simple input that stores callbacks ─────────────────
@@ -477,7 +472,7 @@ describe('MassMoveModal', () => {
   describe('API error path', () => {
     it('shows FormError banner when moveBudgetLinesBetweenSources throws ApiClientError', async () => {
       mockMoveBudgetLinesBetweenSources.mockRejectedValue(
-        new ApiClientError(400, { code: 'SAME_SOURCE', message: 'Source and target must differ' }),
+        new ApiClientError(400, { code: 'SAME_SOURCE', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       render(<MassMoveModal {...buildProps({ claimedCount: 0 })} />);
@@ -495,6 +490,8 @@ describe('MassMoveModal', () => {
       await waitFor(() => {
         expect(screen.getByTestId('form-error')).toBeInTheDocument();
       });
+      expect(screen.getByTestId('form-error')).toHaveTextContent(enErrors.SAME_SOURCE);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('modal stays open (onClose not called) after API error', async () => {

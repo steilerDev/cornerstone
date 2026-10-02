@@ -13,10 +13,8 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
 import * as householdItemService from './householdItemService.js';
-// ValidationError and MutuallyExclusiveBudgetLinkError were used by old budget FK validation
-// (pre-Story-15.1). Budget linking now happens via the invoice_budget_lines junction table,
-// not via direct FK columns on invoices. These error types are no longer triggered by
-// createInvoice / updateInvoice.
+// Budget linking happens via the invoice_budget_lines junction table (Story 15.1), not via
+// direct FK columns on invoices, so createInvoice / updateInvoice do not validate budget IDs.
 
 describe('Invoice Service - Household Item Budget Linking', () => {
   let sqlite: Database.Database;
@@ -194,8 +192,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       // expect(result.budgetLines?.[0]?.householdItemBudget?.confidence).toBe('professional_estimate');
     });
 
-    // NOTE: The following tests for ValidationError on missing householdItemBudgetId and
-    // MutuallyExclusiveBudgetLinkError have been removed. Story 15.1 moved budget linking
+    // NOTE: Budget-FK validation tests were removed. Story 15.1 moved budget linking
     // from direct FK columns on invoices to the invoice_budget_lines junction table.
     // The invoiceService.createInvoice() no longer validates budget IDs — that validation
     // now happens in the routes layer when creating junction rows.
@@ -245,8 +242,7 @@ describe('Invoice Service - Household Item Budget Linking', () => {
       // expect(updated.budgetLines?.[0]?.householdItemBudget?.householdItemName).toBe('Kitchen Appliance');
     });
 
-    // NOTE: The test for MutuallyExclusiveBudgetLinkError on update has been removed.
-    // Story 15.1 moved budget linking from direct FK columns on invoices to the
+    // NOTE: Budget-FK validation on update was removed. Story 15.1 moved budget linking from direct FK columns on invoices to the
     // invoice_budget_lines junction table. updateInvoice() no longer validates budget IDs.
 
     it('successfully clears householdItemBudgetId by setting it to null', () => {

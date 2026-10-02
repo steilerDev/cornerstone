@@ -100,6 +100,9 @@
       "confirm": "Deaktivieren",
       "confirming": "Wird deaktiviert...",
       "error": "Benutzer konnte nicht deaktiviert werden. Bitte versuchen Sie es erneut."
+    },
+    "errors": {
+      "emailInUse": "Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet."
     }
   },
   "manage": {
@@ -164,7 +167,8 @@
         "createError": "Bereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da er derzeit verwendet wird."
+        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da er derzeit verwendet wird.",
+        "duplicateName": "Ein Bereich mit diesem Namen existiert bereits auf dieser Ebene."
       }
     },
     "trades": {
@@ -205,7 +209,8 @@
         "createError": "Gewerk konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird."
+        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird.",
+        "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits."
       }
     },
     "orientations": {
@@ -242,7 +247,8 @@
         "createError": "Ausrichtung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Ausrichtung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Ausrichtung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "loadError": "Ausrichtungen konnten nicht geladen werden."
+        "loadError": "Ausrichtungen konnten nicht geladen werden.",
+        "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
       }
     },
     "budgetCategories": {
@@ -286,7 +292,8 @@
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen verwendet wird."
+        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen verwendet wird.",
+        "duplicateName": "Eine Budgetkategorie mit diesem Namen existiert bereits."
       }
     },
     "householdItemCategories": {
@@ -328,7 +335,8 @@
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Haushaltsartikeln verwendet wird."
+        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Haushaltsartikeln verwendet wird.",
+        "duplicateName": "Eine Haushaltsartikel-Kategorie mit diesem Namen existiert bereits."
       }
     }
   },
@@ -349,7 +357,12 @@
     "loading": "DAV-Zugang wird geladen...",
     "generating": "Wird generiert...",
     "revoking": "Wird widerrufen...",
-    "hideTokenDisplay": "Token-Anzeige ausblenden"
+    "hideTokenDisplay": "Token-Anzeige ausblenden",
+    "errors": {
+      "loadFailed": "Token-Status konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "generateFailed": "Token konnte nicht generiert werden. Bitte versuchen Sie es erneut.",
+      "revokeFailed": "Token konnte nicht widerrufen werden. Bitte versuchen Sie es erneut."
+    }
   },
   "trades": {
     "plumbing": "Sanitär",
@@ -398,8 +411,6 @@
     "createButton": "Sicherung erstellen",
     "creating": "Sicherung wird erstellt...",
     "loading": "Sicherungen werden geladen...",
-    "notConfiguredMessage": "Sicherung ist nicht konfiguriert",
-    "notConfiguredDescription": "Um Sicherungen zu aktivieren, setzen Sie die Umgebungsvariable BACKUP_DIR auf ein Verzeichnis außerhalb des Anwendungsdatenverzeichnisses.",
     "emptyStateMessage": "Noch keine Sicherungen vorhanden",
     "emptyStateDescription": "Klicken Sie auf 'Sicherung erstellen', um Ihre erste Sicherung anzulegen.",
     "tableHeaders": {
@@ -475,7 +486,13 @@
       "createContactSubmit": "Kontakt erstellen",
       "saving": "Speichern...",
       "saveChanges": "Änderungen speichern",
-      "loading": "Kontakte werden geladen..."
+      "loading": "Kontakte werden geladen...",
+      "errors": {
+        "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "deleteFailed": "Kontakt konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+      }
     }
   }
 }

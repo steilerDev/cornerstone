@@ -68,7 +68,7 @@ export function HouseholdItemCreatePage() {
           setCategory(categoriesResponse.categories[0]!.id as HouseholdItemCategory); // guarded by length check
         }
       } catch (err) {
-        setError('Failed to load form data. Please try again.');
+        setError(t('create.errors.loadFailed'));
         console.error('Failed to load data:', err);
       } finally {
         setIsLoadingData(false);
@@ -76,7 +76,7 @@ export function HouseholdItemCreatePage() {
     }
 
     loadData();
-  }, []);
+  }, [t]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};

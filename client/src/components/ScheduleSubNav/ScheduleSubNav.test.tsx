@@ -4,6 +4,7 @@
 import { describe, it, expect } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import enCommon from '../../i18n/en/common.json';
 import { ScheduleSubNav } from './ScheduleSubNav.js';
 
 function renderNav(initialPath = '/schedule/gantt') {
@@ -24,12 +25,10 @@ describe('ScheduleSubNav', () => {
     expect(screen.getByText('Calendar')).toBeInTheDocument();
   });
 
-  it('renders nav with aria-label="Schedule section navigation"', () => {
+  it('renders nav labelled with common.subNav.schedule', () => {
     renderNav();
 
-    expect(
-      screen.getByRole('navigation', { name: 'Schedule section navigation' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: enCommon.subNav.schedule })).toBeInTheDocument();
   });
 
   it('renders data-testid="schedule-view-gantt" on Gantt tab', () => {

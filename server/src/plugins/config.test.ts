@@ -40,7 +40,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
-        backupEnabled: true,
         // LLM auto-itemization fields (Story #1546)
         llmBaseUrl: undefined,
         llmApiKey: undefined,
@@ -93,7 +92,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
-        backupEnabled: true,
         // LLM auto-itemization fields (Story #1546)
         llmBaseUrl: undefined,
         llmApiKey: undefined,
@@ -148,7 +146,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
-        backupEnabled: true,
         // LLM auto-itemization fields (Story #1546)
         llmBaseUrl: undefined,
         llmApiKey: undefined,
@@ -198,7 +195,6 @@ describe('Configuration Module - loadConfig() Pure Function', () => {
         backupDir: '/backups',
         backupCadence: undefined,
         backupRetention: undefined,
-        backupEnabled: true,
         // LLM auto-itemization fields (Story #1546)
         llmBaseUrl: undefined,
         llmApiKey: undefined,

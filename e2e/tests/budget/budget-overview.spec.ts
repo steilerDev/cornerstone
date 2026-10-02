@@ -182,7 +182,7 @@ test.describe('Error state', { tag: '@responsive' }, () => {
           status: 500,
           contentType: 'application/json',
           body: JSON.stringify({
-            error: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' },
+            error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
           }),
         });
       } else {

@@ -5,6 +5,7 @@ import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
@@ -16,6 +17,8 @@ import styles from './BudgetOverviewPage.module.css';
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
@@ -209,7 +212,7 @@ export function BudgetOverviewPage() {
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('overview.errorMessage'));
       }
@@ -269,7 +272,7 @@ export function BudgetOverviewPage() {
       <PageLayout
         title={t('overview.title')}
         action={actionDropdown}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
           {t('overview.loading')}
@@ -284,7 +287,7 @@ export function BudgetOverviewPage() {
       <PageLayout
         title={t('overview.title')}
         action={actionDropdown}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
@@ -307,7 +310,7 @@ export function BudgetOverviewPage() {
     <PageLayout
       title={t('overview.title')}
       action={actionDropdown}
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {/* Empty state */}
       {!hasData && (

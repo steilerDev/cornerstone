@@ -1121,13 +1121,11 @@ describe('InvoiceDepositsSection', () => {
     });
 
     it('other ApiClientError codes still go through translateApiError', async () => {
-      mockDeleteDeposit.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'DEPOSIT_NOT_FOUND' }),
-      );
+      mockDeleteDeposit.mockRejectedValueOnce(new MockApiClientError(404, { code: 'NOT_FOUND' }));
       await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
 
       await waitFor(() => {
-        expect(screen.getByTestId('form-error').textContent).toBe('translated:DEPOSIT_NOT_FOUND');
+        expect(screen.getByTestId('form-error').textContent).toBe('translated:NOT_FOUND');
       });
     });
   });
@@ -1562,7 +1560,9 @@ describe('InvoiceDepositsSection', () => {
         const alerts = screen.getAllByRole('alert');
         expect(alerts.length).toBeGreaterThan(0);
         const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain('Network error');
+        expect(alertText).toContain(
+          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
+        );
       });
     });
 

@@ -14,6 +14,7 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { assignBudgetLine } from '../../lib/budgetLineAssignApi.js';
 import type { BudgetLineAssignRequest } from '@cornerstone/shared';
+import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -100,14 +101,14 @@ export function InvoiceBudgetLinesSection({
       setRemainingAmount(response.remainingAmount);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('invoiceDetail.budgetLines.loadError'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [invoiceId, t]);
+  }, [invoiceId, t, tErrors]);
 
   // Use the picker hook — eagerLinkInvoice defaults to true so the create-new flow
   // calls createInvoiceBudgetLine automatically before invoking onLineCreated.
@@ -232,7 +233,7 @@ export function InvoiceBudgetLinesSection({
           } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
             errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
           } else {
-            errorMsg = err.error.message;
+            errorMsg = translateApiError(err.error.code, tErrors);
           }
         }
 
@@ -360,7 +361,7 @@ export function InvoiceBudgetLinesSection({
 
       const newAmount = parseFloat(budgetLineItemizedAmount);
       if (isNaN(newAmount) || newAmount <= 0) {
-        throw new Error(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+        throw new LocalizedError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
       }
 
       let plannedAmount: number;

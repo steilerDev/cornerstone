@@ -1,5 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 
 const mockListDocumentLinks = jest.fn<() => Promise<unknown>>();
 const mockCreateDocumentLink = jest.fn<() => Promise<unknown>>();
@@ -120,26 +122,24 @@ describe('useDocumentLinks', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('sets error string and isLoading=false on ApiClientError; links stays empty', async () => {
+  it('sets the translated error (not the server message) on ApiClientError; links stays empty', async () => {
     mockListDocumentLinks.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.links).toEqual([]);
   });
 
-  it('uses fallback error message when ApiClientError has no message', async () => {
-    mockListDocumentLinks.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR' }),
-    );
+  it('translates by error code even when the ApiClientError carries no message', async () => {
+    mockListDocumentLinks.mockRejectedValueOnce(new MockApiClientError(404, { code: 'NOT_FOUND' }));
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toBe('Failed to load documents.'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.NOT_FOUND));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -148,16 +148,16 @@ describe('useDocumentLinks', () => {
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toContain('Network error'));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.isLoading).toBe(false);
   });
 
   it('sets generic error message on unknown error', async () => {
-    mockListDocumentLinks.mockRejectedValueOnce(new Error('Something unexpected'));
+    mockListDocumentLinks.mockRejectedValueOnce(new Error('RAW-LOCAL'));
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toBe('An unexpected error occurred.'));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.unexpected));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -588,7 +588,7 @@ describe('useAllLinkedDocumentIds', () => {
 
   it('handles ApiClientError — sets error to the error message, isLoading=false, ids unchanged', async () => {
     mockListAllLinkedDocumentIds.mockRejectedValueOnce(
-      new MockApiClientError(401, { code: 'UNAUTHORIZED', message: 'Not authenticated' }),
+      new MockApiClientError(401, { code: 'UNAUTHORIZED', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useAllLinkedDocumentIds());
@@ -597,12 +597,12 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toBe('Not authenticated');
+    expect(result.current.error).toBe(enErrors.UNAUTHORIZED);
     expect(result.current.isLoading).toBe(false);
     expect(result.current.ids).toEqual([]);
   });
 
-  it('handles ApiClientError with no message — uses fallback message', async () => {
+  it('handles ApiClientError with no message — still translates by code', async () => {
     mockListAllLinkedDocumentIds.mockRejectedValueOnce(
       new MockApiClientError(500, { code: 'INTERNAL_ERROR' }),
     );
@@ -613,7 +613,7 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toBe('Failed to load linked document IDs.');
+    expect(result.current.error).toBe(enErrors.INTERNAL_ERROR);
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -626,12 +626,12 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toContain('Network error');
+    expect(result.current.error).toBe(enCommon.requestErrors.network);
     expect(result.current.isLoading).toBe(false);
   });
 
   it('handles unknown error — sets error to generic message', async () => {
-    mockListAllLinkedDocumentIds.mockRejectedValueOnce(new Error('Something unexpected'));
+    mockListAllLinkedDocumentIds.mockRejectedValueOnce(new Error('RAW-LOCAL'));
 
     const { result } = renderHook(() => useAllLinkedDocumentIds());
 
@@ -639,7 +639,8 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toBe('An unexpected error occurred.');
+    expect(result.current.error).toBe(enCommon.requestErrors.unexpected);
+    expect(result.current.error).not.toContain('RAW-LOCAL');
     expect(result.current.isLoading).toBe(false);
   });
 

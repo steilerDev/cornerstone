@@ -116,6 +116,9 @@
     "closeDialog": "Close dialog or cancel"
   },
   "create": {
+    "errors": {
+      "loadFailed": "Failed to load form data. Please try again."
+    },
     "title": "New Household Item",
     "backButton": "← Back to Household Items",
     "loading": "Loading...",
@@ -187,6 +190,9 @@
     "success": "Household item created successfully"
   },
   "edit": {
+    "errors": {
+      "loadFailed": "Failed to load form data. Please try again."
+    },
     "title": "Edit Household Item",
     "backButton": "← Back to Item",
     "loading": "Loading...",
@@ -317,7 +323,8 @@
       "warning": "This action cannot be undone.",
       "cancel": "Cancel",
       "delete": "Delete Item",
-      "deleting": "Deleting..."
+      "deleting": "Deleting...",
+      "deleted": "Household item deleted successfully"
     },
     "status": {
       "planned": "Planned",
@@ -325,6 +332,7 @@
       "scheduled": "Scheduled",
       "arrived": "Arrived",
       "late": "Late",
+      "updated": "Status updated",
       "updateFailed": "Failed to update status. Please try again."
     },
     "budget": {
@@ -336,6 +344,15 @@
       "plannedAmountLabel": "Planned Amount",
       "actualCostLabel": "Actual Cost",
       "paybackLabel": "Payback"
+    },
+    "errors": {
+      "itemNotFound": "Item not found",
+      "loadFailed": "Failed to load household item. Please try again.",
+      "deleteFailed": "Failed to delete household item. Please try again.",
+      "alreadyLinkedSubsidy": "This subsidy program is already linked",
+      "linkSubsidy": "Failed to link subsidy program",
+      "unlinkSubsidy": "Failed to unlink subsidy program",
+      "unlinkInvoice": "Failed to unlink budget line from invoice"
     },
     "closeErrorMessage": "Close error message"
   }

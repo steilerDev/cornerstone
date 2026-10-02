@@ -394,7 +394,7 @@
     "invoiceForm": {
       "title": "Rechnung Hinzufügen",
       "invoiceNumber": "Rechnung #",
-      "invoiceNumberPlaceholder": "z. B. ReCH-001",
+      "invoiceNumberPlaceholder": "z. B. RE-001",
       "amount": "Betrag",
       "invoiceDate": "Rechnungsdatum",
       "dueDate": "Fälligkeitsdatum",
@@ -482,7 +482,7 @@
       "notes": "Notizen",
       "required": "*",
       "placeholders": {
-        "invoiceNumber": "z. B. ReCH-001",
+        "invoiceNumber": "z. B. RE-001",
         "vendor": "Auftragnehmer suchen…"
       },
       "noVendorsFound": "Keine Auftragnehmer gefunden"
@@ -591,7 +591,8 @@
           "alreadyLinked": "Diese Budgetposition ist bereits mit einer anderen Rechnung verknüpft.",
           "linkFailed": "Budgetposition konnte nicht verknüpft werden. Bitte versuchen Sie es erneut.",
           "createFailed": "Budgetposition konnte nicht erstellt werden."
-        }
+        },
+        "selectAriaLabel": "{{description}} auswählen"
       },
       "remainingAriaLabel": "Verbleibender Betrag: {{amount}}",
       "loadError": "Budgetpositionen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -683,8 +684,12 @@
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
         "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
-        "revertNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
-        "stateConfirmNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+        "revertNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht zurückgesetzt werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "stateConfirmNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht aktualisiert werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
+        "claimedDateRequired": "„Eingereicht am“ ist erforderlich.",
+        "amountRequired": "Betrag muss eine positive Zahl sein.",
+        "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
       },
       "stateConfirm": {
         "paidDateLabel": "Bezahlt am",
@@ -934,7 +939,11 @@
     "moveCrossTableHintReverse": "Das Verschieben zu einem Arbeitspaket überträgt diese Budgetposition in das Arbeitspaketbudget.",
     "itemizedAmountLabel": "Aufgeschlüsselter Betrag ({{currencySymbol}}) *",
     "moveCrossTableNoInvoiceError": "Tabellenübergreifende Verschiebungen erfordern eine Rechnungsverknüpfung. Entfernen Sie entweder die Verschiebung oder verknüpfen Sie diese Budgetposition zuerst mit einer Rechnung.",
-    "addBudgetLineAriaLabel": "Budgetposition hinzufügen"
+    "addBudgetLineAriaLabel": "Budgetposition hinzufügen",
+    "errors": {
+      "saveFailed": "Budgetposition konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+    }
   },
   "invoiceLinkModal": {
     "title": "Mit Rechnung verknüpfen",
@@ -960,7 +969,6 @@
       "exceedsBalance": "Betrag übersteigt den verfügbaren Saldo ({{amount}} verfügbar)",
       "alreadyLinked": "Diese Budgetposition ist bereits mit einer Rechnung verknüpft",
       "exceedsInvoiceTotal": "Der aufgeschlüsselte Betrag übersteigt den Rechnungsgesamtbetrag",
-      "linkFailed": "Budgetposition konnte nicht verknüpft werden",
       "unexpected": "Ein unerwarteter Fehler ist aufgetreten"
     }
   },
@@ -1039,7 +1047,7 @@
       "required": "*",
       "placeholders": {
         "vendor": "Auftragnehmer auswählen...",
-        "invoiceNumber": "z. B. ReCH-001",
+        "invoiceNumber": "z. B. RE-001",
         "amount": "0.00",
         "notes": "Optionale Notizen zu dieser Rechnung"
       }
@@ -1241,7 +1249,9 @@
     "mergeErrorMessage": "Diese Positionen konnten nicht zusammengeführt werden.",
     "mergeErrorBadge": "Zusammenführen fehlgeschlagen",
     "mergeRetryButton": "Erneut versuchen",
-    "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen"
+    "mergeUndoButton": "Ursprüngliche Positionen wiederherstellen",
+    "invoiceNumberPlaceholder": "z. B. RE-001",
+    "notesPlaceholder": "Optionale Notizen"
   },
   "sourceReports": {
     "title": "Bankberichte",
@@ -1330,7 +1340,6 @@
     "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
     "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
-    "subNavAriaLabel": "Budget-Abschnittsnavigation",
     "parts": {
       "letter": {
         "identifier": "{{title}} – {{source}}, {{date}}",
@@ -1528,6 +1537,7 @@
     "remove": "Entfernen",
     "close": "Schließen",
     "submit": "Absenden",
-    "required": "*"
+    "required": "*",
+    "budgetSectionTitle": "Budget"
   }
 }

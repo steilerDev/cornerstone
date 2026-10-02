@@ -36,6 +36,8 @@ import { ANNOTATION_FONT_FAMILY, drawShapeOnCanvas } from './canvasRenderer.js';
 import { FormError } from '../../FormError/FormError.js';
 import { getBaseUrl } from '../../../lib/apiClient.js';
 import { uploadAnnotation } from '../../../lib/photoApi.js';
+import { ApiClientError, NetworkError } from '../../../lib/apiClient.js';
+import { translateApiError } from '../../../lib/errorTranslation.js';
 import styles from './PhotoAnnotator.module.css';
 
 interface PhotoAnnotatorProps {
@@ -63,6 +65,8 @@ interface DraftShape {
 
 export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps) {
   const { t } = useTranslation('photoAnnotator');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const { state, dispatch, undoStack } = useAnnotator();
 
   const [isSaving, setIsSaving] = useState(false);
@@ -691,15 +695,21 @@ export function PhotoAnnotator({ photo, onSave, onCancel }: PhotoAnnotatorProps)
       }
 
       onSave(updatedPhoto);
-    } catch {
-      setSaveError(t('saveError'));
+    } catch (err) {
+      const message =
+        err instanceof ApiClientError
+          ? translateApiError(err.error.code, tErrors)
+          : err instanceof NetworkError
+            ? tCommon('requestErrors.network')
+            : t('saveError');
+      setSaveError(message);
       if (liveRegion) {
-        liveRegion.textContent = t('saveError');
+        liveRegion.textContent = message;
       }
     } finally {
       setIsSaving(false);
     }
-  }, [photo, canonicalUrl, undoStack, onSave, t]);
+  }, [photo, canonicalUrl, undoStack, onSave, t, tErrors, tCommon]);
 
   const handleCancel = useCallback(() => {
     onCancel();

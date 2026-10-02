@@ -1369,7 +1369,7 @@ describe('DiaryEntryEditPage', () => {
       expect(banner).toHaveAttribute('role', 'alert');
     });
 
-    it('promote VALIDATION_ERROR with fieldErrors maps onto the field, without a banner', async () => {
+    it('promote VALIDATION_ERROR with fieldErrors shows the translated banner and never the raw field text', async () => {
       const { ApiClientError } = await import('../../lib/apiClient.js');
       await loadDraft(draftDailyLog);
       mockPromoteDiaryEntry.mockRejectedValueOnce(
@@ -1381,9 +1381,10 @@ describe('DiaryEntryEditPage', () => {
       );
       await clickPromote();
 
-      const fieldError = await screen.findByText('Server says body is bad');
-      expect(fieldError).toHaveAttribute('id', 'body-error');
-      expect(screen.queryByText(VALIDATION_ERROR_MSG)).not.toBeInTheDocument();
+      const banner = await screen.findByText(VALIDATION_ERROR_MSG);
+      expect(banner).toHaveAttribute('role', 'alert');
+      expect(screen.queryByText(/Server says body is bad/)).not.toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('Server says body is bad');
     });
 
     it('promote with a non-API error shows the generic update error', async () => {

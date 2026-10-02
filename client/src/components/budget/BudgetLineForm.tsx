@@ -10,6 +10,9 @@ import type {
 } from '@cornerstone/shared';
 import { effectiveLineAmount } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
@@ -83,6 +86,8 @@ export function BudgetLineForm({
 }: BudgetLineFormProps) {
   const { t } = useTranslation('budget');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const { formatCurrency, getCurrencySymbol } = useFormatters();
   const { vatRate } = useLocale();
   const prefix = idPrefix ?? '';
@@ -147,7 +152,7 @@ export function BudgetLineForm({
       };
       await onAssign(body);
     } catch {
-      setParentPickerError(t('budgetLineForm.parentPickerError') || 'Failed to assign budget line');
+      setParentPickerError(t('budgetLineForm.parentPickerError'));
     } finally {
       setIsAssigning(false);
     }
@@ -164,8 +169,16 @@ export function BudgetLineForm({
       setIsPickerExpanded(false);
       setSelectedParentId(null);
     } catch (err) {
-      const msg =
-        err instanceof Error && err.message ? err.message : t('budgetLineForm.parentPickerError');
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        msg = tCommon('requestErrors.network');
+      } else if (err instanceof LocalizedError) {
+        msg = err.message;
+      } else {
+        msg = t('budgetLineForm.parentPickerError');
+      }
       setMovePickerError(msg);
     } finally {
       setIsMoving(false);

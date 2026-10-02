@@ -413,19 +413,7 @@ export default function DiaryEntryEditPage() {
       showToast('success', t('editPage.updateSuccess'));
       navigate(`/diary/${promoted.id}`);
     } catch (err) {
-      if (
-        err instanceof ApiClientError &&
-        err.error.code === 'VALIDATION_ERROR' &&
-        err.error.details &&
-        typeof err.error.details === 'object' &&
-        'fieldErrors' in err.error.details
-      ) {
-        // Handle field-level validation errors from promote
-        const errors: Record<string, string> = {};
-        const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
-        Object.assign(errors, fieldErrors);
-        setValidationErrors(errors);
-      } else if (err instanceof ApiClientError) {
+      if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
         console.error('Failed to promote diary entry:', err);
       } else {

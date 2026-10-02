@@ -1769,8 +1769,8 @@ describe('Household Item Routes', () => {
 
       expect(second.statusCode).toBe(409);
       const error = JSON.parse(second.body) as ApiErrorResponse;
-      // ConflictError uses 'CONFLICT' as the API error code (details carry 'DUPLICATE_DEPENDENCY')
-      expect(error.error.code).toBe('CONFLICT');
+      expect(error.error.code).toBe('DUPLICATE_DEPENDENCY');
+      expect(error.error.details?.code).toBeUndefined();
     });
 
     it('returns 401 when not authenticated', async () => {

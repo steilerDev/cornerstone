@@ -10,6 +10,7 @@ import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import {
   listBackups,
@@ -23,6 +24,8 @@ import styles from './BackupsPage.module.css';
 
 export function BackupsPage() {
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const { formatDate, formatDateTime, formatFileSize } = useFormatters();
   const { user } = useAuth();
 
@@ -49,7 +52,6 @@ export function BackupsPage() {
   // Data state
   const [backups, setBackups] = useState<BackupMeta[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isNotConfigured, setIsNotConfigured] = useState(false);
   const [loadError, setLoadError] = useState<string>('');
 
   // Create backup state
@@ -77,18 +79,13 @@ export function BackupsPage() {
     const loadBackupsData = async () => {
       setIsLoading(true);
       setLoadError('');
-      setIsNotConfigured(false);
 
       try {
         const response = await listBackups();
         setBackups(response.backups);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          if (err.statusCode === 503 && err.error.code === 'BACKUP_NOT_CONFIGURED') {
-            setIsNotConfigured(true);
-          } else {
-            setLoadError(err.error.message);
-          }
+          setLoadError(translateApiError(err.error.code, tErrors));
         } else {
           setLoadError(t('backups.loadError'));
         }
@@ -98,7 +95,7 @@ export function BackupsPage() {
     };
 
     void loadBackupsData();
-  }, [t]);
+  }, [t, tErrors]);
 
   // Load scheduler status independently
   useEffect(() => {
@@ -109,13 +106,8 @@ export function BackupsPage() {
         const response = await getSchedulerStatus();
         setSchedulerStatus(response.scheduler);
       } catch (err) {
-        // A 503 here means backups aren't configured at all — the page-level
-        // isNotConfigured branch already hides this whole section in that case.
-        if (err instanceof ApiClientError && err.error.code === 'BACKUP_NOT_CONFIGURED') {
-          return;
-        }
         if (err instanceof ApiClientError) {
-          setSchedulerError(err.error.message);
+          setSchedulerError(translateApiError(err.error.code, tErrors));
         } else {
           setSchedulerError(t('backups.scheduler.loadError'));
         }
@@ -125,7 +117,7 @@ export function BackupsPage() {
     };
 
     void loadSchedulerStatus();
-  }, [t]);
+  }, [t, tErrors]);
 
   const schedulerEnabledVariants = useMemo(
     (): BadgeVariantMap => ({
@@ -152,7 +144,7 @@ export function BackupsPage() {
       setBackups([response.backup, ...backups]);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('backups.createError'));
       }
@@ -173,7 +165,7 @@ export function BackupsPage() {
       setDeleteTarget(null);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteError(t('backups.deleteModal.error'));
       }
@@ -194,7 +186,7 @@ export function BackupsPage() {
       setRestoreTarget(null);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setRestoreError(err.error.message);
+        setRestoreError(translateApiError(err.error.code, tErrors));
       } else {
         setRestoreError(t('backups.restoreModal.error'));
       }
@@ -209,26 +201,9 @@ export function BackupsPage() {
       <PageLayout
         maxWidth="narrow"
         title={t('backups.pageTitle')}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
-      </PageLayout>
-    );
-  }
-
-  // If backup is not configured, show informational empty state
-  if (isNotConfigured && !isLoading) {
-    return (
-      <PageLayout
-        maxWidth="narrow"
-        title={t('backups.pageTitle')}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
-      >
-        <EmptyState
-          icon="⚙️"
-          message={t('backups.notConfiguredMessage')}
-          description={t('backups.notConfiguredDescription')}
-        />
       </PageLayout>
     );
   }
@@ -241,7 +216,7 @@ export function BackupsPage() {
     <PageLayout
       maxWidth="narrow"
       title={t('backups.pageTitle')}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       {/* Loading state */}
       {isLoading && <Skeleton lines={5} loadingLabel={t('backups.loading')} />}
@@ -254,7 +229,7 @@ export function BackupsPage() {
       )}
 
       {/* Backups content */}
-      {!isLoading && !isNotConfigured && (
+      {!isLoading && (
         <>
           <section className={styles.schedulerStatus} aria-labelledby="scheduler-status-heading">
             <h2 id="scheduler-status-heading" className={styles.schedulerStatusHeading}>

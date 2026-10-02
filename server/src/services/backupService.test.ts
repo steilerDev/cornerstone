@@ -5,7 +5,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { writeFileSync, chmodSync, existsSync } from 'node:fs';
+import { writeFileSync, chmodSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTasks } from 'node-cron';
@@ -23,6 +23,8 @@ import {
   listBackups,
   deleteBackup,
   createBackup,
+  beginRestore,
+  executeRestore,
   initScheduler,
   getSchedulerStatus,
   stopScheduler,
@@ -58,7 +60,6 @@ const makeConfig = (overrides: Partial<AppConfig> = {}): AppConfig => ({
   diaryDraftRetentionDays: 30,
   currency: 'EUR',
   vatRate: 0.19,
-  backupEnabled: true,
   backupDir: '/tmp/test-backups',
   backupCadence: undefined,
   backupRetention: undefined,
@@ -96,6 +97,27 @@ const mockLogger = {
 function getRegisteredSchedulerTask(): ScheduledTask | undefined {
   const matches = [...getTasks().values()].filter((t) => t.name === 'backup-scheduler');
   return matches[matches.length - 1];
+}
+
+/**
+ * Asserts a service failure carries only the fixed, client-safe message: no `details`, the original
+ * error attached as `cause`, and none of the given sensitive fragments (paths, raw FS text) leaked.
+ */
+function expectSanitizedFailure(
+  error: unknown,
+  expected: { code: string; message: string },
+  forbidden: string[],
+): void {
+  expect(error).toMatchObject({ code: expected.code, statusCode: 500, message: expected.message });
+  const appError = error as Error & { details?: unknown; cause?: unknown };
+  expect(appError.details).toBeUndefined();
+  expect(appError).toHaveProperty('cause');
+  // Jest's VM realm can make fs errors fail `instanceof Error`, so check the shape instead
+  expect(appError.cause).toMatchObject({ message: expect.any(String) });
+  for (const fragment of forbidden) {
+    expect(appError.message).not.toContain(fragment);
+  }
+  expect(appError.message).not.toMatch(/ENOTDIR|ENOENT|EEXIST|EACCES|EISDIR|disk full/);
 }
 
 // ─── Tests ──────────────────────────────────────────────────────────────────
@@ -385,20 +407,6 @@ describe('backupService', () => {
     });
   });
 
-  // ─── createBackup — operation guard ──────────────────────────────────────
-
-  describe('createBackup() — guard conditions', () => {
-    it('throws BackupNotConfiguredError (code BACKUP_NOT_CONFIGURED) when backupEnabled is false', async () => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Minimal mock db for this guard test
-      const db = {} as any;
-      const config = makeConfig({ backupEnabled: false });
-
-      await expect(createBackup(db, config)).rejects.toMatchObject({
-        code: 'BACKUP_NOT_CONFIGURED',
-      });
-    });
-  });
-
   // ─── createBackup — execution path ───────────────────────────────────────
 
   describe('createBackup() — execution path', () => {
@@ -430,7 +438,6 @@ describe('backupService', () => {
       const config = makeConfig({
         databaseUrl: join(tempDir.path, 'test.db'),
         backupDir: backupTempDir.path,
-        backupEnabled: true,
         backupRetention: undefined,
       });
 
@@ -462,7 +469,6 @@ describe('backupService', () => {
       const config = makeConfig({
         databaseUrl: join(tempDir.path, 'test.db'),
         backupDir: backupTempDir.path,
-        backupEnabled: true,
       });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
@@ -485,7 +491,6 @@ describe('backupService', () => {
       const config = makeConfig({
         databaseUrl: join(tempDir.path, 'test.db'),
         backupDir: backupTempDir.path,
-        backupEnabled: true,
       });
 
       await expect(createBackup(db, config)).rejects.toMatchObject({
@@ -500,7 +505,6 @@ describe('backupService', () => {
       const config = makeConfig({
         databaseUrl: join(tempDir.path, 'test.db'),
         backupDir: backupTempDir.path,
-        backupEnabled: true,
         backupRetention: 2,
       });
 
@@ -525,6 +529,415 @@ describe('backupService', () => {
 
   // ─── initScheduler / getSchedulerStatus / stopScheduler ──────────────────
 
+  // ─── Directory failures (real filesystem, no internal mocks) ──────────────
+
+  describe('backup directory failures', () => {
+    let tempDir: DisposableTempDir;
+    let backupTempDir: DisposableTempDir;
+
+    beforeEach(() => {
+      tempDir = disposableTempDir('cornerstone-backup-dirfail-appdata-');
+      backupTempDir = disposableTempDir('cornerstone-backup-dirfail-backups-');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      tempDir[Symbol.dispose]();
+      backupTempDir[Symbol.dispose]();
+    });
+
+    /** A path whose parent is a regular file, so mkdir/stat on it fail with ENOTDIR. */
+    function pathUnderRegularFile(): string {
+      const blocker = join(backupTempDir.path, 'not-a-directory');
+      writeFileSync(blocker, 'x');
+      return join(blocker, 'backups');
+    }
+
+    it('createBackup maps an uncreatable backup directory to BACKUP_FAILED and releases the operation lock', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: pathUnderRegularFile(),
+      });
+
+      const failure = await createBackup(db, config).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'BackupFailedError' });
+      expectSanitizedFailure(
+        failure,
+        {
+          code: 'BACKUP_FAILED',
+          message: 'Backup directory could not be created or is not writable',
+        },
+        [config.backupDir, backupTempDir.path],
+      );
+
+      // A second call must fail the same way, never with BACKUP_IN_PROGRESS (lock released)
+      await expect(createBackup(db, config)).rejects.toMatchObject({
+        code: 'BACKUP_FAILED',
+        statusCode: 500,
+      });
+    });
+
+    it('beginRestore throws RESTORE_FAILED when the backup path cannot be stat-ed for a reason other than ENOENT', async () => {
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: pathUnderRegularFile(),
+      });
+
+      const failure = await beginRestore(
+        config,
+        'cornerstone-backup-2026-01-15T020000Z.tar.gz',
+      ).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'RestoreFailedError' });
+      expectSanitizedFailure(
+        failure,
+        { code: 'RESTORE_FAILED', message: 'Backup archive could not be read' },
+        [config.backupDir, backupTempDir.path],
+      );
+
+      // The lock was never taken: a backup into a usable directory is not rejected as in progress
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      await expect(
+        createBackup(
+          drizzle(rawDb),
+          makeConfig({ databaseUrl: join(tempDir.path, 'test.db'), backupDir: backupTempDir.path }),
+        ),
+      ).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
+    });
+
+    // chmod cannot make a file unreadable for root, so this case only runs unprivileged
+    (process.getuid?.() === 0 ? it.skip : it)(
+      'beginRestore throws RESTORE_FAILED for an unreadable archive and leaves the lock free',
+      async () => {
+        const backupDir = join(backupTempDir.path, 'backups');
+        mkdirSync(backupDir);
+        const filename = 'cornerstone-backup-2026-01-15T020000Z.tar.gz';
+        const archivePath = join(backupDir, filename);
+        writeFileSync(archivePath, 'archive');
+        chmodSync(archivePath, 0o000);
+        const config = makeConfig({ databaseUrl: join(tempDir.path, 'test.db'), backupDir });
+
+        try {
+          const failure = await beginRestore(config, filename).catch((e: unknown) => e);
+          expectSanitizedFailure(
+            failure,
+            { code: 'RESTORE_FAILED', message: 'Backup archive could not be read' },
+            [backupDir, filename],
+          );
+        } finally {
+          chmodSync(archivePath, 0o644);
+        }
+
+        // The lock was never taken: a backup is not rejected as in progress
+        using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+        await expect(createBackup(drizzle(rawDb), config)).resolves.toMatchObject({
+          filename: expect.stringMatching(/\.tar\.gz$/),
+        });
+      },
+    );
+
+    it('beginRestore still throws BACKUP_NOT_FOUND when the archive is simply missing (ENOENT)', async () => {
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+      });
+
+      await expect(
+        beginRestore(config, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'),
+      ).rejects.toMatchObject({
+        code: 'BACKUP_NOT_FOUND',
+        statusCode: 404,
+        message: 'Backup not found',
+        details: undefined,
+      });
+    });
+
+    it('executeRestore throws RESTORE_FAILED when the temporary extraction directory cannot be created, and releases the lock', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const backupDir = join(backupTempDir.path, 'backups');
+      mkdirSync(backupDir);
+      const filename = 'cornerstone-backup-2026-01-15T020000Z.tar.gz';
+      writeFileSync(join(backupDir, filename), 'not a real archive');
+      const config = makeConfig({ databaseUrl: join(tempDir.path, 'test.db'), backupDir });
+
+      // Pin Date.now so the temp dir name is predictable, then occupy it with a regular file
+      // so mkdir fails with EEXIST.
+      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      writeFileSync(join(backupTempDir.path, '.restore-1700000000000'), 'x');
+
+      await beginRestore(config, filename);
+      const failure = await executeRestore(db, config, filename).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'RestoreFailedError' });
+      expectSanitizedFailure(failure, { code: 'RESTORE_FAILED', message: 'Restore failed' }, [
+        backupTempDir.path,
+        '.restore-1700000000000',
+      ]);
+
+      // The lock taken by beginRestore was released by executeRestore's finally
+      jest.restoreAllMocks();
+      await expect(beginRestore(config, filename)).resolves.toBeUndefined();
+      // release again so the module-level lock does not leak into other tests
+      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      await expect(executeRestore(db, config, filename)).rejects.toMatchObject({
+        code: 'RESTORE_FAILED',
+      });
+    });
+  });
+
+  describe('deleteBackup / listBackups non-ENOENT filesystem errors', () => {
+    let dir: DisposableTempDir;
+    beforeEach(() => {
+      dir = disposableTempDir('cornerstone-backup-fserr-');
+    });
+    afterEach(() => {
+      dir[Symbol.dispose]();
+    });
+
+    it('deleteBackup rethrows a non-ENOENT unlink error instead of reporting not-found', async () => {
+      const filename = 'cornerstone-backup-2026-01-15T020000Z.tar.gz';
+      // A directory with the archive's name: unlink fails with EISDIR/EPERM, not ENOENT
+      mkdirSync(join(dir.path, filename));
+      const result = await deleteBackup(dir.path, filename).catch((e: unknown) => e);
+
+      expect(result).toBeDefined();
+      expect((result as { code?: string }).code).not.toBe('BACKUP_NOT_FOUND');
+    });
+
+    it('listBackups rethrows a non-ENOENT readdir error', async () => {
+      const blocker = join(dir.path, 'file');
+      writeFileSync(blocker, 'x');
+      await expect(listBackups(join(blocker, 'sub'))).rejects.toBeDefined();
+    });
+  });
+
+  describe('operation guard and restore flow (real filesystem)', () => {
+    let tempDir: DisposableTempDir;
+    let backupTempDir: DisposableTempDir;
+
+    beforeEach(() => {
+      tempDir = disposableTempDir('cornerstone-backup-restore-appdata-');
+      backupTempDir = disposableTempDir('cornerstone-backup-restore-backups-');
+    });
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+      tempDir[Symbol.dispose]();
+      backupTempDir[Symbol.dispose]();
+    });
+
+    it('createBackup maps a tar failure to BACKUP_FAILED and removes the temporary DB snapshot', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+      });
+
+      // Freeze only Date so the archive filename is predictable, then occupy the archive
+      // path with a directory so tar cannot create the file.
+      jest.useFakeTimers({
+        now: new Date('2026-01-15T02:00:00.000Z'),
+        doNotFake: [
+          'nextTick',
+          'setImmediate',
+          'clearImmediate',
+          'setInterval',
+          'clearInterval',
+          'setTimeout',
+          'clearTimeout',
+          'queueMicrotask',
+          'hrtime',
+          'performance',
+        ],
+      });
+      try {
+        mkdirSync(join(backupTempDir.path, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'));
+
+        const failure = await createBackup(db, config).catch((e: unknown) => e);
+        expect(failure).toMatchObject({ name: 'BackupFailedError' });
+        expectSanitizedFailure(
+          failure,
+          { code: 'BACKUP_FAILED', message: 'Backup archive could not be created' },
+          [backupTempDir.path, tempDir.path],
+        );
+      } finally {
+        jest.useRealTimers();
+      }
+
+      // The temporary snapshot DB must not be left behind in the data directory
+      expect(existsSync(join(tempDir.path, 'cornerstone-backup-2026-01-15T020000Z.db'))).toBe(
+        false,
+      );
+      expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
+      // No archive is listed (the occupying directory is not a file)
+      expect(await listBackups(backupTempDir.path)).toEqual([]);
+    });
+
+    it('createBackup removes a partial database snapshot when the snapshot fails, leaving no archive behind', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+      });
+      // Simulate SQLite writing a partial snapshot file and then failing
+      jest.spyOn(rawDb, 'backup').mockImplementation(((destination: string) => {
+        writeFileSync(destination, 'partial snapshot');
+        return Promise.reject(new Error('disk full'));
+      }) as never);
+
+      const failure = await createBackup(db, config).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'BackupFailedError' });
+      expectSanitizedFailure(
+        failure,
+        { code: 'BACKUP_FAILED', message: 'Database snapshot failed' },
+        [backupTempDir.path, tempDir.path],
+      );
+      expect((failure as Error).cause).toMatchObject({ message: 'disk full' });
+
+      expect(await listBackups(backupTempDir.path)).toEqual([]);
+      expect(readdirSync(backupTempDir.path)).toEqual([]);
+      expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
+    });
+
+    // chmod cannot make a file unreadable for root, so this real-failure case only runs unprivileged
+    (process.getuid?.() === 0 ? it.skip : it)(
+      'createBackup removes the partial archive and snapshot when tar fails midway',
+      async () => {
+        using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+        const db = drizzle(rawDb);
+        const config = makeConfig({
+          databaseUrl: join(tempDir.path, 'test.db'),
+          backupDir: backupTempDir.path,
+        });
+        const unreadable = join(tempDir.path, 'unreadable.bin');
+        writeFileSync(unreadable, 'secret');
+        chmodSync(unreadable, 0o000);
+
+        try {
+          const failure = await createBackup(db, config).catch((e: unknown) => e);
+          expectSanitizedFailure(
+            failure,
+            { code: 'BACKUP_FAILED', message: 'Backup archive could not be created' },
+            [backupTempDir.path, tempDir.path, 'unreadable.bin'],
+          );
+        } finally {
+          chmodSync(unreadable, 0o644);
+        }
+
+        expect(readdirSync(backupTempDir.path)).toEqual([]);
+        expect(await listBackups(backupTempDir.path)).toEqual([]);
+        expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
+      },
+    );
+
+    it('rejects a concurrent backup and restore with BACKUP_IN_PROGRESS (409) while a backup runs', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+      });
+
+      const first = createBackup(db, config);
+      await expect(createBackup(db, config)).rejects.toMatchObject({
+        code: 'BACKUP_IN_PROGRESS',
+        statusCode: 409,
+      });
+      await expect(
+        beginRestore(config, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'),
+      ).rejects.toMatchObject({ code: 'BACKUP_IN_PROGRESS', statusCode: 409 });
+
+      await expect(first).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
+    });
+
+    it('beginRestore rejects an invalid filename with BACKUP_NOT_FOUND (404) without touching the filesystem', async () => {
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: backupTempDir.path,
+      });
+
+      await expect(beginRestore(config, '../../etc/passwd')).rejects.toMatchObject({
+        code: 'BACKUP_NOT_FOUND',
+        statusCode: 404,
+      });
+    });
+
+    it('beginRestore rejects with BACKUP_IN_PROGRESS when a backup takes the lock while it awaits the stat', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: join(backupTempDir.path, 'backups'),
+      });
+      const existing = await createBackup(db, config);
+
+      // beginRestore passes the first lock check, then suspends on fs.stat; createBackup
+      // takes the lock synchronously in between, so the re-check after the await must fire.
+      const restore = beginRestore(config, existing.filename);
+      const backup = createBackup(db, config);
+
+      await expect(restore).rejects.toMatchObject({ code: 'BACKUP_IN_PROGRESS', statusCode: 409 });
+      await expect(backup).resolves.toMatchObject({
+        filename: expect.stringMatching(/\.tar\.gz$/),
+      });
+    });
+
+    it('beginRestore takes the lock on success: backups and further restores are rejected until executeRestore finishes', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: join(backupTempDir.path, 'backups'),
+      });
+      const created = await createBackup(db, config);
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+      await beginRestore(config, created.filename);
+
+      await expect(createBackup(db, config)).rejects.toMatchObject({
+        code: 'BACKUP_IN_PROGRESS',
+        statusCode: 409,
+      });
+      await expect(beginRestore(config, created.filename)).rejects.toMatchObject({
+        code: 'BACKUP_IN_PROGRESS',
+        statusCode: 409,
+      });
+
+      await executeRestore(db, config, created.filename);
+      expect(exitSpy).toHaveBeenCalledWith(0);
+
+      // Lock released again after executeRestore
+      await expect(beginRestore(config, created.filename)).resolves.toBeUndefined();
+      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+      writeFileSync(join(backupTempDir.path, '.restore-1700000000000'), 'x');
+      await expect(executeRestore(db, config, created.filename)).rejects.toMatchObject({
+        code: 'RESTORE_FAILED',
+      });
+    });
+
+    it('executeRestore extracts a real archive over the data directory and then exits the process', async () => {
+      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+      const db = drizzle(rawDb);
+      const config = makeConfig({
+        databaseUrl: join(tempDir.path, 'test.db'),
+        backupDir: join(backupTempDir.path, 'backups'),
+      });
+      const created = await createBackup(db, config);
+      const exitSpy = jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
+
+      await beginRestore(config, created.filename);
+      await executeRestore(db, config, created.filename);
+
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      // The restored data directory exists again and the pre-restore copy was preserved
+      expect(existsSync(tempDir.path)).toBe(true);
+      expect(existsSync(join(tempDir.path, 'test.db'))).toBe(true);
+    });
+  });
+
   describe('scheduler (initScheduler / getSchedulerStatus / stopScheduler)', () => {
     beforeEach(() => {
       (mockLogger.debug as jest.Mock).mockClear();
@@ -539,7 +952,7 @@ describe('backupService', () => {
     });
 
     it('a valid cadence enables the scheduler and reports two upcoming run times', () => {
-      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      const config = makeConfig({ backupCadence: '0 2 * * *' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
       const db = {} as any;
 
@@ -554,7 +967,7 @@ describe('backupService', () => {
     });
 
     it('an invalid cadence logs a field-level error and leaves the scheduler disabled', () => {
-      const config = makeConfig({ backupEnabled: true, backupCadence: '70 * * * *' });
+      const config = makeConfig({ backupCadence: '70 * * * *' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
       const db = {} as any;
 
@@ -569,7 +982,7 @@ describe('backupService', () => {
     });
 
     it('no cadence configured returns the disabled shape without logging an error', () => {
-      const config = makeConfig({ backupEnabled: true, backupCadence: undefined });
+      const config = makeConfig({ backupCadence: undefined });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- initScheduler returns before touching db
       const db = {} as any;
 
@@ -580,7 +993,7 @@ describe('backupService', () => {
     });
 
     it('reports lastRun as null immediately after the scheduler starts (never run yet)', () => {
-      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      const config = makeConfig({ backupCadence: '0 2 * * *' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
       const db = {} as any;
 
@@ -590,7 +1003,7 @@ describe('backupService', () => {
     });
 
     it('stopScheduler stops the cron task and getSchedulerStatus reports disabled', () => {
-      const config = makeConfig({ backupEnabled: true, backupCadence: '0 2 * * *' });
+      const config = makeConfig({ backupCadence: '0 2 * * *' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any -- callback never invoked in this test
       const db = {} as any;
 
@@ -635,7 +1048,6 @@ describe('backupService', () => {
         const config = makeConfig({
           databaseUrl: join(tempDir.path, 'test.db'),
           backupDir: backupTempDir.path,
-          backupEnabled: true,
           backupCadence: '0 2 * * *',
         });
 
@@ -658,21 +1070,23 @@ describe('backupService', () => {
         const config = makeConfig({
           databaseUrl: join(tempDir.path, 'test.db'),
           backupDir: backupTempDir.path,
-          backupEnabled: true,
           backupCadence: '0 2 * * *',
         });
 
         initScheduler(db, config, mockLogger);
 
         // Force the next createBackup() call (invoked by the scheduled callback) to
-        // fail — config is captured by reference in the scheduled closure, so
-        // mutating it after initScheduler() affects the next invocation.
-        config.backupEnabled = false;
+        // fail without mocking internals: config is captured by reference in the
+        // scheduled closure, so pointing backupDir at a regular file after
+        // initScheduler() makes the directory creation fail on the next invocation.
+        const blocker = join(tempDir.path, 'not-a-directory');
+        writeFileSync(blocker, 'x');
+        config.backupDir = join(blocker, 'backups');
 
         const task = getRegisteredSchedulerTask();
         expect(task).toBeDefined();
 
-        await expect(task!.execute()).rejects.toMatchObject({ code: 'BACKUP_NOT_CONFIGURED' });
+        await expect(task!.execute()).rejects.toThrow();
 
         const status = getSchedulerStatus();
         expect(status.lastRun).not.toBeNull();

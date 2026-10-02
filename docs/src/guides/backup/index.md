@@ -206,17 +206,29 @@ Bind mounts make this easier than named volumes, since the archives live at a kn
 
 ## Troubleshooting
 
-### "Backup not configured"
+### "The backup could not be created"
 
-The backup feature is enabled whenever `BACKUP_DIR` is set -- which it is by default (`/backups`). If you see a "not configured" message on the Backups page, your container does not have the default in effect. Confirm `BACKUP_DIR` is set to a valid path and that the path is mounted with write permissions.
+Backups are always enabled (`BACKUP_DIR` defaults to `/backups`). This UI message appears when a backup operation fails. Check the container logs for the specific error — the server logs one of three possible lines and the fix depends on which one:
 
-### "Backup directory is not writable"
+- **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (typically `node`, UID 1000). A bind-mounted or named volume must exist and not be mounted read-only.
+- **`Database snapshot failed`** — The database backup step failed. The underlying SQLite error (e.g., `SQLITE_FULL`, `SQLITE_CORRUPT`) is appended to this log line in the container log (`docker logs <container>`). Check the container logs for the specific error and ensure sufficient free space on the filesystem.
+- **`Backup archive could not be created`** — The backup archive cannot be written. Verify the filesystem has sufficient free space and the backup directory is writable.
 
-Cornerstone probes the backup directory for write access before each backup. If the probe fails, the backup is aborted. Check that:
+:::info
+If no host directory or volume is mounted at `BACKUP_DIR`, backup archives land in Docker's anonymous `/backups` volume and are lost if the container is removed with its volumes. Always bind-mount or use a named volume at `BACKUP_DIR` to persist backups.
+:::
 
-- The host directory or volume mounted at `BACKUP_DIR` exists
-- The container user (typically `node`, UID 1000) has write permissions on the directory
-- The volume is not mounted read-only
+**To fix:** Check container logs to identify which error occurred above, then apply the corresponding fix. `BACKUP_DIR` and its parent must be creatable and writable by the container user.
+
+### "The backup archive could not be read, so nothing was restored"
+
+This error occurs when a restore operation finds the backup archive file but cannot read it. The archive exists but is not readable by the container user (typically `node`, UID 1000). Check that:
+
+- The archive file permissions allow the container user to read it
+- The archive file ownership is correct (or the file is world-readable)
+- The filesystem allows the container user to access the file
+
+**To fix:** Adjust the archive file's permissions or ownership so the container user can read it, then retry the restore.
 
 ### A scheduled backup didn't run
 

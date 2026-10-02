@@ -361,7 +361,7 @@ test.describe(
         await responsePromise;
 
         // Success banner appears
-        const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+        const successBanner = panel.locator('[class*="successBanner"][role="status"]');
         await expect(successBanner).toBeVisible();
 
         // Save button becomes disabled again once saved values match the form (no longer dirty)
@@ -408,7 +408,7 @@ test.describe(
         await saveButton.click();
         await responsePromise;
 
-        const successBanner = panel.locator('[class*="successBanner"][role="alert"]');
+        const successBanner = panel.locator('[class*="successBanner"][role="status"]');
         await expect(successBanner).toBeVisible();
 
         // Reload — both fields must be empty
@@ -522,7 +522,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
       areaId = body.area.id;
 
       // Success banner visible
-      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      const successBanner = page.locator('[class*="successBanner"][role="status"]');
       await expect(successBanner).toBeVisible();
 
       // Area appears in the "Existing Areas" list
@@ -655,7 +655,7 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
       tradeId = body.trade.id;
 
       // Success banner visible
-      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      const successBanner = page.locator('[class*="successBanner"][role="status"]');
       await expect(successBanner).toBeVisible();
 
       // Trade appears in the list
@@ -794,7 +794,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
       catId = body.id;
 
       // Success banner
-      const successBanner = page.locator('[class*="successBanner"][role="alert"]');
+      const successBanner = page.locator('[class*="successBanner"][role="status"]');
       await expect(successBanner).toBeVisible();
 
       // Category appears in list

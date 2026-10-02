@@ -10,6 +10,7 @@ import { Modal } from '../Modal/Modal.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { FormError } from '../FormError/FormError.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import styles from './VendorContactsSection.module.css';
 
 interface ContactFormState {
@@ -36,6 +37,7 @@ interface VendorContactsSectionProps {
 
 export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const { contacts, isLoading, error, addContact, editContact, removeContact } =
     useVendorContacts(vendorId);
 
@@ -96,7 +98,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       setLiveAnnouncement(t('vendors.contacts.contactAdded', { name: displayName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('vendors.contacts.saveError'));
       }
@@ -154,7 +156,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       setLiveAnnouncement(t('vendors.contacts.contactUpdated', { name: displayName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setEditErrorMsg(err.error.message);
+        setEditErrorMsg(translateApiError(err.error.code, tErrors));
       } else {
         setEditErrorMsg(t('vendors.contacts.saveError'));
       }

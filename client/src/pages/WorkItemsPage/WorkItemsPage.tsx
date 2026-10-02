@@ -19,7 +19,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemsPage.module.css';
 
@@ -33,6 +34,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
   const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -113,7 +115,9 @@ export function WorkItemsPage() {
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
       } else {
         setError(t('list.errors.loadFailed'));
       }
@@ -187,9 +191,11 @@ export function WorkItemsPage() {
       await loadWorkItems();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteError(tCommon('requestErrors.network'));
       } else {
-        setDeleteError(t('list.deleteModal.title'));
+        setDeleteError(t('list.errors.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -439,7 +445,7 @@ export function WorkItemsPage() {
           {t('list.newWorkItem')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<WorkItemSummary>
         pageKey="workItems"

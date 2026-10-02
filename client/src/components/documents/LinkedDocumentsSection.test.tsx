@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
+import enDocuments from '../../i18n/en/documents.json';
 import { jest } from '@jest/globals';
 import type {
   UseDocumentLinksResult,
@@ -588,6 +589,68 @@ describe('LinkedDocumentsSection', () => {
       await waitFor(() =>
         expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument(),
       );
+    });
+  });
+
+  describe('unlink failure', () => {
+    it('shows the translated unlink failure message and never the raw error text', async () => {
+      const removeLink = jest.fn<() => Promise<void>>().mockRejectedValue(new Error('RAW-LOCAL'));
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeLink('link-1')], isLoading: false, removeLink }),
+      );
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Unlink$/i }));
+      });
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        enDocuments.linkedDocuments.failedToUnlink,
+      );
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+  });
+
+  describe('unlink of a link whose document metadata is unavailable', () => {
+    const makeMetadataLessLink = (id: string): DocumentLinkWithMetadata => ({
+      ...makeLink(id),
+      document: null,
+    });
+
+    it('falls back to the translated "This document" label in the confirmation body', async () => {
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeMetadataLessLink('link-9')], isLoading: false }),
+      );
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-9')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-9/i }));
+
+      const dialog = screen.getByRole('dialog', { name: /Unlink Document/i });
+      expect(dialog).toHaveTextContent(`\u201C${enDocuments.linkedDocuments.thisDocument}\u201D`);
+    });
+
+    it('announces the translated "document" fallback after a confirmed unlink', async () => {
+      const removeLink = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+      mockUseDocumentLinks.mockReturnValue(
+        makeHook({ links: [makeMetadataLessLink('link-9')], isLoading: false, removeLink }),
+      );
+      render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
+      await waitFor(() => expect(screen.getByTestId('linked-card-link-9')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: /Unlink link-9/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Unlink$/i }));
+      });
+
+      await waitFor(() => {
+        const liveRegion = document.querySelector('[aria-live="polite"]');
+        expect(liveRegion).toHaveTextContent(
+          `Document unlinked: ${enDocuments.linkedDocuments.unnamedDocument}`,
+        );
+      });
     });
   });
 
