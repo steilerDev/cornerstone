@@ -120,10 +120,7 @@ export class BudgetSourcesPage {
       .locator('[role="status"]')
       .filter({ hasText: /successfully/i })
       .first();
-    this.errorBanner = page
-      .locator('[role="alert"]')
-      .filter({ hasText: /failed|error/i })
-      .first();
+    this.errorBanner = page.locator('[role="alert"]').first();
 
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Budget Source' });

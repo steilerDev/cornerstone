@@ -87,10 +87,7 @@ export class BudgetCategoriesPage {
       .locator('[role="status"]')
       .filter({ hasText: /successfully/i })
       .first();
-    this.errorBanner = tabPanel
-      .locator('[role="alert"]')
-      .filter({ hasText: /error|failed/i })
-      .first();
+    this.errorBanner = tabPanel.locator('[role="alert"]').first();
 
     // Create form — always visible (visual cleanup #1185); h2 text is "Create New Budget Category"
     this.createFormSection = tabPanel
@@ -343,7 +340,7 @@ export class BudgetCategoriesPage {
     try {
       // The success banner has role="status" and appears in the main content area
       const banner = this.page
-        .locator('[role="alert"]')
+        .locator('[role="status"]')
         .filter({ hasText: /successfully/i })
         .first();
       await banner.waitFor({ state: 'visible' });

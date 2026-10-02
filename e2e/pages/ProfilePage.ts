@@ -63,9 +63,7 @@ export class ProfilePage {
     this.displayNameSuccessBanner = this.displayNameSection
       .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
-    this.displayNameErrorBanner = this.displayNameSection
-      .locator('[role="alert"]')
-      .filter({ hasNotText: 'successfully' });
+    this.displayNameErrorBanner = this.displayNameSection.locator('[role="alert"]');
 
     // Password form
     this.currentPasswordInput = page.locator('#currentPassword');
@@ -77,9 +75,7 @@ export class ProfilePage {
     this.passwordSuccessBanner = this.passwordSection
       .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
-    this.passwordErrorBanner = this.passwordSection
-      .locator('[role="alert"]')
-      .filter({ hasNotText: 'successfully' });
+    this.passwordErrorBanner = this.passwordSection.locator('[role="alert"]');
 
     // OIDC message
     this.oidcMessage = page.getByText('Your credentials are managed by your identity provider.');
