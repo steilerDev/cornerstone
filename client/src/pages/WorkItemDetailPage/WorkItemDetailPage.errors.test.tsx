@@ -300,6 +300,7 @@ describe('WorkItemDetailPage', () => {
     displayName: 'Test User',
     role: 'member' as const,
     authProvider: 'local' as const,
+    oidcLinked: false,
     createdAt: '2024-01-01T00:00:00Z',
   };
 
@@ -427,7 +428,7 @@ describe('WorkItemDetailPage', () => {
           invoiceId: 'inv-1',
           invoiceNumber: null,
           invoiceDate: '2026-01-01',
-          invoiceStatus: 'pending',
+          invoiceStatus: 'pending' as const,
           itemizedAmount: 500,
           vendorId: null,
           vendorName: null,

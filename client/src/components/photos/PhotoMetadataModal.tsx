@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AreaResponse } from '@cornerstone/shared';
 import { Modal } from '../Modal/Modal.js';
@@ -30,13 +30,19 @@ export function PhotoMetadataModal({
   const [caption, setCaption] = useState('');
   const [areaId, setAreaId] = useState('');
   const [orientationId, setOrientationId] = useState('');
-  const [objectUrl, setObjectUrl] = useState<string | null>(null);
 
-  useEffect(() => {
-    const url = URL.createObjectURL(file);
-    setObjectUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  // Ref callback with cleanup (React 19): creates the object URL when the <img> attaches and
+  // revokes it on detach or when `file` changes. A useMemo + effect-cleanup pair would revoke
+  // the memoized URL under StrictMode's effect double-invoke and leave a dead src.
+  const previewRef = useCallback(
+    (img: HTMLImageElement | null) => {
+      if (!img) return;
+      const url = URL.createObjectURL(file);
+      img.src = url;
+      return () => URL.revokeObjectURL(url);
+    },
+    [file],
+  );
 
   const handleSave = () => {
     onSave({
@@ -70,11 +76,9 @@ export function PhotoMetadataModal({
       }
     >
       <div className={styles.formBody}>
-        {objectUrl && (
-          <div className={styles.photoPreview}>
-            <img src={objectUrl} alt={file.name} className={styles.photoPreviewImage} />
-          </div>
-        )}
+        <div className={styles.photoPreview}>
+          <img ref={previewRef} alt={file.name} className={styles.photoPreviewImage} />
+        </div>
         {/* Description textarea */}
         <div>
           <label htmlFor="modal-photo-caption" className={styles.fieldLabel}>

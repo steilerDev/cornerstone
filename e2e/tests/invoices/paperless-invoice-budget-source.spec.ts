@@ -43,6 +43,7 @@ import {
   mockTags,
 } from '../../fixtures/paperlessInvoiceMocks.js';
 import type { Page } from '@playwright/test';
+import { defined } from '../../fixtures/assertions.js';
 
 const THREE_LINES = [
   ...MOCK_EXTRACTED_LINES,
@@ -226,7 +227,7 @@ test.describe('Paperless invoice review: default budget source (#2158)', () => {
         budgets: Array<{ budgetSource: { id: string } | null }>;
       };
       expect(budgets).toHaveLength(1);
-      expect(budgets[0].budgetSource?.id).toBe(a);
+      expect(defined(budgets[0], 'budget line').budgetSource?.id).toBe(a);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);

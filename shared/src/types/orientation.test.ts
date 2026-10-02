@@ -78,7 +78,7 @@ describe('OrientationResponse interface', () => {
       updatedAt: '2026-01-01T00:00:00.000Z',
     };
 
-    expect((response as any).color).toBeUndefined();
+    expect(response).not.toHaveProperty('color');
   });
 });
 

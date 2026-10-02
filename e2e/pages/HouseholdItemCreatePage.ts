@@ -184,7 +184,7 @@ export class HouseholdItemCreatePage {
     // Extract the ID from the URL path
     const url = this.page.url();
     const match = url.match(/\/project\/household-items\/([^/]+)$/);
-    return match ? match[1] : '';
+    return match?.[1] ?? '';
   }
 
   /**

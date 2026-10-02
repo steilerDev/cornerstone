@@ -9,9 +9,13 @@ import {
 import enBudget from './en/budget.json';
 import enDocuments from './en/documents.json';
 import enDiary from './en/diary.json';
+import enHouseholdItems from './en/householdItems.json';
+import enAuth from './en/auth.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
+import deHouseholdItems from './de/householdItems.json';
+import deAuth from './de/auth.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -20,6 +24,8 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   budget: { en: enBudget, de: deBudget },
   documents: { en: enDocuments, de: deDocuments },
   diary: { en: enDiary, de: deDiary },
+  householdItems: { en: enHouseholdItems, de: deHouseholdItems },
+  auth: { en: enAuth, de: deAuth },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -48,8 +54,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 9 registered sets', () => {
-    expect(SETS).toHaveLength(9);
+  it('iterates all 20 registered sets', () => {
+    expect(SETS).toHaveLength(20);
   });
 });
 
@@ -128,7 +134,7 @@ describe('I18N_UNION_KEYS registry', () => {
     );
   });
 
-  it('registers the 9 sets in declaration order', () => {
+  it('registers the 20 sets in declaration order', () => {
     expect(Object.keys(I18N_UNION_KEYS)).toEqual([
       'reportTitle',
       'reportCoverLetterSubject',
@@ -139,6 +145,17 @@ describe('I18N_UNION_KEYS registry', () => {
       'documentAttachmentType',
       'diaryEntryType',
       'diaryEntryTypeChip',
+      'reportUseCase',
+      'reportUseCaseHelper',
+      'invoicesStatusLabel',
+      'invoiceDetailStatusLabel',
+      'depositEntryType',
+      'subsidyApplicationStatus',
+      'confidenceLevel',
+      'reportSkipReason',
+      'householdItemStatus',
+      'diarySourceType',
+      'oidcLoginError',
     ]);
   });
 

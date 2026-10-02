@@ -28,6 +28,7 @@
  * - Source badge visible at all viewports
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage, BUDGET_OVERVIEW_ROUTE } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -776,8 +777,6 @@ function makeBreakdownWithSubsidyFiltered() {
 // Route mount helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-type PageParam = Parameters<typeof test>[1]['page'];
-
 /**
  * Mount route mocks for /budget/overview and /budget/breakdown.
  *
@@ -788,7 +787,7 @@ type PageParam = Parameters<typeof test>[1]['page'];
  * URL format: ?deselectedSources=id1,id2 (comma-separated, URL-encoded).
  */
 async function mountOverviewRoutes(
-  page: PageParam,
+  page: Page,
   overviewBody: object,
   breakdownBody: object,
   filteredBreakdownBody?: object,

@@ -13,6 +13,7 @@
  * Desktop viewport only (no @responsive tag — smoke, not full viewport matrix).
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -170,11 +171,7 @@ function breakdownWithSourceBadge() {
  * and GET /api/budget-sources.
  * Returns a teardown function that must be called in a finally block.
  */
-async function mountRoutes(
-  page: Parameters<typeof test>[1]['page'],
-  overviewBody: object,
-  breakdownBody: object,
-) {
+async function mountRoutes(page: Page, overviewBody: object, breakdownBody: object) {
   await page.route(`${API.budgetOverview}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({

@@ -110,6 +110,7 @@ describe('WorkItemCreatePage', () => {
       displayName: 'Active User',
       role: 'member',
       authProvider: 'local',
+      oidcLinked: false,
       createdAt: '2024-01-01T00:00:00Z',
     },
     {
@@ -118,6 +119,7 @@ describe('WorkItemCreatePage', () => {
       displayName: 'Deactivated User',
       role: 'member',
       authProvider: 'local',
+      oidcLinked: false,
       createdAt: '2024-01-01T00:00:00Z',
       deactivatedAt: '2024-06-01T00:00:00Z',
     },

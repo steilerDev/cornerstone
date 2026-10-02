@@ -17,6 +17,7 @@ import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import styles from './VendorDetailPage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 // INVOICE_STATUS_LABELS will be dynamically generated from i18n
 
@@ -682,7 +683,7 @@ export function VendorDetailPage() {
                           <span
                             className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                           >
-                            {t(`invoices.statusLabels.${invoice.status}`)}
+                            {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
                           </span>
                         </td>
                         <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
@@ -722,7 +723,7 @@ export function VendorDetailPage() {
                       <span
                         className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                       >
-                        {t(`invoices.statusLabels.${invoice.status}`)}
+                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
                       </span>
                     </div>
                     <div className={styles.invoiceCardRow}>

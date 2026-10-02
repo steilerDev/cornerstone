@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
+import type {
+  WorkItemSummary,
+  WorkItemListQuery,
+  WorkItemStatus,
+  FilterMeta,
+} from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -205,16 +211,15 @@ export function WorkItemsPage() {
   // Work item status badge variants
   const wiStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: Array<'not_started' | 'in_progress' | 'completed'> = [
-      'not_started',
-      'in_progress',
-      'completed',
-    ];
-    for (const status of statuses) {
+    // Literal keys (not a template) so extraction sees them; the Record makes a new status a type error.
+    const labels: Record<WorkItemStatus, string> = {
+      not_started: t('create.fields.statusOptions.notStarted'),
+      in_progress: t('create.fields.statusOptions.inProgress'),
+      completed: t('create.fields.statusOptions.completed'),
+    };
+    for (const status of WORK_ITEM_STATUSES) {
       variants[status] = {
-        label: t(
-          `create.fields.statusOptions.${status === 'not_started' ? 'notStarted' : status === 'in_progress' ? 'inProgress' : 'completed'}`,
-        ),
+        label: labels[status],
         className: `badge-${status}`,
       };
     }

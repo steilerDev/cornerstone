@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { ATTACHMENT_TYPES } from '@cornerstone/shared';
 import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
@@ -479,9 +480,11 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                     }
                   >
                     <option value="">{t('documentCard.attachmentType.none')}</option>
-                    <option value="quotation">{t('documentCard.attachmentType.quotation')}</option>
-                    <option value="deposit">{t('documentCard.attachmentType.deposit')}</option>
-                    <option value="invoice">{t('documentCard.attachmentType.invoice')}</option>
+                    {ATTACHMENT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {t(I18N_UNION_KEYS.documentAttachmentType.key(type))}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}

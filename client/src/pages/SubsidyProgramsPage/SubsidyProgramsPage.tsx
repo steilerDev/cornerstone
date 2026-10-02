@@ -24,6 +24,7 @@ import { SubNav } from '../../components/SubNav/SubNav.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './SubsidyProgramsPage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 // ---- Display helpers ----
 
@@ -1074,7 +1075,11 @@ export function SubsidyProgramsPage() {
                           <span
                             className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
                           >
-                            {t(`subsidies.statusLabels.${program.applicationStatus}`)}
+                            {t(
+                              I18N_UNION_KEYS.subsidyApplicationStatus.key(
+                                program.applicationStatus,
+                              ),
+                            )}
                           </span>
                           <span className={styles.reductionBadge}>
                             {formatReduction(

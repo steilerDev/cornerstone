@@ -5,13 +5,23 @@
  */
 
 import type { BudgetCategory } from './budgetCategory.js';
+import type { InvoiceStatus } from './invoice.js';
 import type { UserSummary, VendorSummary } from './workItem.js';
 
 /**
  * Confidence level for a budget line estimate.
  * Determines the expected cost margin/buffer applied on top of the planned amount.
+ *
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
  */
-export type ConfidenceLevel = 'own_estimate' | 'professional_estimate' | 'quote' | 'invoice';
+export const CONFIDENCE_LEVELS = [
+  'own_estimate',
+  'professional_estimate',
+  'quote',
+  'invoice',
+] as const;
+
+export type ConfidenceLevel = (typeof CONFIDENCE_LEVELS)[number];
 
 /**
  * Cost margin factors for each confidence level.
@@ -46,7 +56,7 @@ export interface BudgetLineInvoiceLink {
   invoiceId: string;
   invoiceNumber: string | null;
   invoiceDate: string;
-  invoiceStatus: string;
+  invoiceStatus: InvoiceStatus;
   itemizedAmount: number;
   vendorId: string | null;
   vendorName: string | null;

@@ -8,6 +8,8 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
+import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
+import enDiary from '../../i18n/en/diary.json';
 import enErrors from '../../i18n/en/errors.json';
 
 // ── API mock ──────────────────────────────────────────────────────────────────
@@ -917,12 +919,15 @@ describe('DiaryEntryDetailPage', () => {
       expect(await screen.findByRole('link', { name: 'Budget Sources' })).toBeInTheDocument();
     });
 
-    it('renders an unknown source type as plain text using the raw type', async () => {
-      mockGetDiaryEntry.mockResolvedValueOnce(auto('mystery_type', null));
-      renderDetailPage('de-auto-src');
-      const label = await screen.findByText('mystery_type');
-      expect(label.tagName).toBe('SPAN');
-      expect(screen.queryByRole('link', { name: 'mystery_type' })).not.toBeInTheDocument();
-    });
+    it.each(DIARY_SOURCE_ENTITY_TYPES)(
+      'labels an untitled %s source with its translated type label',
+      async (type) => {
+        mockGetDiaryEntry.mockResolvedValueOnce(auto(type, null));
+        renderDetailPage('de-auto-src');
+        expect(
+          await screen.findByRole('link', { name: enDiary.detailPage.sourceType[type] }),
+        ).toBeInTheDocument();
+      },
+    );
   });
 });

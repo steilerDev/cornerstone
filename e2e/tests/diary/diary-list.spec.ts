@@ -25,6 +25,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
+import { defined } from '../../fixtures/assertions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers — minimal mock entry shapes used for API route mocks
@@ -58,6 +59,7 @@ async function stubIntersectionObserver(page: Page): Promise<void> {
     class StubIntersectionObserver implements IntersectionObserver {
       readonly root: Element | Document | null = null;
       readonly rootMargin = '';
+      readonly scrollMargin = '';
       readonly thresholds: ReadonlyArray<number> = [];
       constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
       disconnect(): void {}
@@ -326,10 +328,10 @@ test.describe('Search filter (Scenario 6)', { tag: '@responsive' }, () => {
       await diaryPage.search(`${testPrefix} Alpha`);
 
       // Alpha entry card should be present
-      await expect(diaryPage.entryCard(created[0])).toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[0], 'created entry 0'))).toBeVisible();
 
       // Beta entry card should not be visible
-      await expect(diaryPage.entryCard(created[1])).not.toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[1], 'created entry 1'))).not.toBeVisible();
     } finally {
       for (const id of created) {
         await deleteDiaryEntryViaApi(page, id);
@@ -364,8 +366,8 @@ test.describe('Search filter (Scenario 6)', { tag: '@responsive' }, () => {
 
       // Narrow to just alpha
       await diaryPage.search(`${testPrefix} Clear Alpha`);
-      await expect(diaryPage.entryCard(created[0])).toBeVisible();
-      await expect(diaryPage.entryCard(created[1])).not.toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[0], 'created entry 0'))).toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[1], 'created entry 1'))).not.toBeVisible();
 
       // Clear the search and wait for the list to reload
       await diaryPage.clearSearch();
@@ -374,8 +376,8 @@ test.describe('Search filter (Scenario 6)', { tag: '@responsive' }, () => {
       await diaryPage.search(testPrefix);
 
       // Both entries should be visible again
-      await expect(diaryPage.entryCard(created[0])).toBeVisible();
-      await expect(diaryPage.entryCard(created[1])).toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[0], 'created entry 0'))).toBeVisible();
+      await expect(diaryPage.entryCard(defined(created[1], 'created entry 1'))).toBeVisible();
     } finally {
       for (const id of created) {
         await deleteDiaryEntryViaApi(page, id);

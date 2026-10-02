@@ -3105,7 +3105,9 @@ describe('invoiceAutoItemizeService', () => {
           invoiceId,
           vendorId,
           'user-1',
-          [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }] as any,
+          [
+            { description: 'Tile work', totalAmount: 300, confidence: 0.9 },
+          ] as unknown as ExtractedLine[],
           1000,
           0.19,
         );
@@ -3133,7 +3135,7 @@ describe('invoiceAutoItemizeService', () => {
             [
               { description: 'Line A', totalAmount: 300, confidence: 0.9 },
               { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
-            ] as any,
+            ] as unknown as ExtractedLine[],
             500,
             0.19,
           );
@@ -3150,7 +3152,15 @@ describe('invoiceAutoItemizeService', () => {
       const invoiceId = insertInvoice(db, vendorId, 500);
 
       const result = db.transaction(() => {
-        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500, 0.19);
+        return persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [] as unknown as ExtractedLine[],
+          500,
+          0.19,
+        );
       });
 
       expect(result.totalItemized).toBe(0);
@@ -3400,7 +3410,7 @@ describe('invoiceAutoItemizeService', () => {
         lines: [
           { description: 'Tile work', totalAmount: 400, confidence: 0.9 },
           { description: 'Grout', totalAmount: 100, confidence: 0.85 },
-        ] as any,
+        ] as unknown as Parameters<typeof commitAutoItemizeCreate>[3]['lines'],
       })) as { invoice: unknown; budgetLines: unknown; remainingAmount: number };
 
       // All rows created
@@ -3426,7 +3436,9 @@ describe('invoiceAutoItemizeService', () => {
         paperlessDocumentId: 123,
         vendorId,
         invoice: { amount: 200, date: '2026-03-01' },
-        lines: [{ description: 'Item', totalAmount: 200, confidence: 0.9 }] as any,
+        lines: [
+          { description: 'Item', totalAmount: 200, confidence: 0.9 },
+        ] as unknown as Parameters<typeof commitAutoItemizeCreate>[3]['lines'],
       });
 
       const link = db
@@ -3471,7 +3483,9 @@ describe('invoiceAutoItemizeService', () => {
           paperlessDocumentId: 99,
           vendorId: 'nonexistent-vendor',
           invoice: { amount: 500, date: '2026-03-01' },
-          lines: [{ description: 'Item', totalAmount: 100, confidence: 0.9 }] as any,
+          lines: [
+            { description: 'Item', totalAmount: 100, confidence: 0.9 },
+          ] as unknown as Parameters<typeof commitAutoItemizeCreate>[3]['lines'],
         }),
       ).rejects.toThrow(NotFoundError);
     });
@@ -3490,7 +3504,7 @@ describe('invoiceAutoItemizeService', () => {
           lines: [
             { description: 'Line A', totalAmount: 400, confidence: 0.9 },
             { description: 'Line B', totalAmount: 200, confidence: 0.8 }, // 600 > 500
-          ] as any,
+          ] as unknown as Parameters<typeof commitAutoItemizeCreate>[3]['lines'],
         });
       } catch {
         // expected
@@ -3562,7 +3576,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineType: 'work_item',
               includesVat: true,
             },
-          ] as any,
+          ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
         },
         PAPERLESS_AUTH,
       );
@@ -3623,7 +3637,7 @@ describe('invoiceAutoItemizeService', () => {
               assignedBudgetLineType: 'work_item',
               includesVat: false,
             },
-          ] as any,
+          ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
         },
         PAPERLESS_AUTH,
       );
@@ -3661,7 +3675,7 @@ describe('invoiceAutoItemizeService', () => {
               confidence: 0.9,
               includesVat: true,
             },
-          ] as any,
+          ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
         },
         PAPERLESS_AUTH,
       );
@@ -3701,7 +3715,7 @@ describe('invoiceAutoItemizeService', () => {
               confidence: 0.9,
               includesVat: false,
             },
-          ] as any,
+          ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
         },
         PAPERLESS_AUTH,
       );
@@ -3740,7 +3754,7 @@ describe('invoiceAutoItemizeService', () => {
                 confidence: 0.9,
                 includesVat: false,
               },
-            ] as any,
+            ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
           },
           PAPERLESS_AUTH,
         ),
@@ -3770,7 +3784,7 @@ describe('invoiceAutoItemizeService', () => {
                 confidence: 0.9,
                 includesVat: false,
               },
-            ] as any,
+            ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
           },
           PAPERLESS_AUTH,
         ),
@@ -3827,7 +3841,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-            ] as any,
+            ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
           },
           PAPERLESS_AUTH,
         ),
@@ -3884,7 +3898,7 @@ describe('invoiceAutoItemizeService', () => {
                 assignedBudgetLineType: 'work_item',
                 includesVat: false,
               },
-            ] as any,
+            ] as unknown as Parameters<typeof autoItemize>[4]['lines'],
           },
           PAPERLESS_AUTH,
         ),

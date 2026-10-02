@@ -1,7 +1,9 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
-import type { SourceReportResponse, InvoiceStatus } from '@cornerstone/shared';
+import type { SourceReportResponse } from '@cornerstone/shared';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import { Badge } from '../Badge/Badge.js';
 import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
@@ -42,10 +44,9 @@ export function ReportInvoiceList({
   // Invoice status badge variants
   const invoiceStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: InvoiceStatus[] = ['pending', 'paid', 'claimed', 'quotation'];
-    for (const status of statuses) {
+    for (const status of INVOICE_STATUSES) {
       variants[status] = {
-        label: t(`sources.lines.invoiceStatus.${status}`),
+        label: t(I18N_UNION_KEYS.invoiceStatus.key(status)),
         className: styles[status]!,
       };
     }
@@ -147,7 +148,7 @@ export function ReportInvoiceList({
       {allocatedInvoices.length > 0 && (
         <p className={styles.attachmentsNote}>
           {t('sourceReports.attachmentsNote', {
-            reportType: t(`sourceReports.useCase.${report.type}`),
+            reportType: t(I18N_UNION_KEYS.reportUseCase.key(report.type)),
           })}
         </p>
       )}
@@ -510,7 +511,7 @@ export function ReportInvoiceList({
                                 <Badge
                                   variants={{
                                     [deposit.status]: {
-                                      label: t(`sources.lines.invoiceStatus.${deposit.status}`),
+                                      label: t(I18N_UNION_KEYS.invoiceStatus.key(deposit.status)),
                                       className: styles[deposit.status]!,
                                     },
                                   }}
@@ -587,7 +588,7 @@ export function ReportInvoiceList({
                             <Badge
                               variants={{
                                 [deposit.status]: {
-                                  label: t(`sources.lines.invoiceStatus.${deposit.status}`),
+                                  label: t(I18N_UNION_KEYS.invoiceStatus.key(deposit.status)),
                                   className: styles[deposit.status]!,
                                 },
                               }}

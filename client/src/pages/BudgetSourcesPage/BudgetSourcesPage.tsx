@@ -1317,6 +1317,7 @@ export function BudgetSourcesPage() {
                         <OverflowMenu
                           items={[
                             {
+                              id: 'generate-report',
                               label: t('sources.generateReport'),
                               onClick: () => navigate(`/budget/reports?sourceId=${source.id}`),
                             },

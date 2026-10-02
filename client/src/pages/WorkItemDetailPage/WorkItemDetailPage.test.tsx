@@ -286,6 +286,7 @@ describe('WorkItemDetailPage', () => {
     displayName: 'Test User',
     role: 'member' as const,
     authProvider: 'local' as const,
+    oidcLinked: false,
     createdAt: '2024-01-01T00:00:00Z',
   };
 
@@ -1535,6 +1536,7 @@ describe('WorkItemDetailPage', () => {
             email: 'assigned@example.com',
             role: 'member',
             authProvider: 'local',
+            oidcLinked: false,
             createdAt: '2024-01-01T00:00:00Z',
             updatedAt: '2024-01-01T00:00:00Z',
             deactivatedAt: null,

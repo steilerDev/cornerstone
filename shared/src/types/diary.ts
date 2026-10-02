@@ -135,9 +135,20 @@ export type DiaryEntryMetadata =
 
 // ─── Source Entity Types ──────────────────────────────────────────────────────
 
-/** Entity types that can trigger automatic diary entries. */
-export type DiarySourceEntityType =
-  'work_item' | 'invoice' | 'milestone' | 'budget_source' | 'subsidy_program';
+/**
+ * Entity types that can trigger automatic diary entries.
+ *
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const DIARY_SOURCE_ENTITY_TYPES = [
+  'work_item',
+  'invoice',
+  'milestone',
+  'budget_source',
+  'subsidy_program',
+] as const;
+
+export type DiarySourceEntityType = (typeof DIARY_SOURCE_ENTITY_TYPES)[number];
 
 // ─── Status ───────────────────────────────────────────────────────────────────
 

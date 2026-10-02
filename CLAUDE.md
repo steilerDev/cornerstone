@@ -253,7 +253,7 @@ Cornerstone uses a two-tier release model:
 
 Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (errors), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (zero warnings), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ### Local Validation Policy
 
@@ -262,10 +262,10 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 ```bash
 npm run lint:fix    # auto-fix all fixable issues
 npm run format      # apply Prettier formatting
-npm run lint        # must report zero errors (CI-enforced)
+npm run lint        # must report zero warnings or errors (CI-enforced)
 ```
 
-If `npm run lint` still reports errors after auto-fix, they must be resolved before handback. Existing warnings are tracked in #2118; do not add new warnings in files you touch. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
+If `npm run lint` still reports warnings or errors after auto-fix, they must be resolved before handback. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
 
 **Do NOT run `npm test`, `npm run typecheck`, or `npm run build` manually.** CI Quality Gates (typecheck + test + build) run on every PR and own full validation.
 
@@ -438,7 +438,7 @@ cornerstone/
 - Use `type` imports: `import type { Foo } from './foo.js'` (enforced by ESLint `consistent-type-imports`)
 - ESM throughout (`"type": "module"` in all package.json files)
 - Include `.js` extension in import paths (required for ESM Node.js)
-- No `any` types without justification (ESLint warns on `@typescript-eslint/no-explicit-any`)
+- No `any` types without justification (ESLint `@typescript-eslint/no-explicit-any` warns, and CI fails on any warning)
 - Prefer `interface` for object shapes, `type` for unions/intersections
 
 ### Linting & Formatting
@@ -493,7 +493,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
 - **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, `formatFileSizeDecimal` (1 MB = 1,000,000 B; used for the report size limit and the sizes shown beside it), and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
-- **Union-derived keys**: A union enumerated at runtime is a shared `as const` tuple with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key in new code (pre-existing template-literal sites are tracked in #2136) — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029).
+- **Union-derived keys**: A union enumerated at runtime is an exported `as const` tuple (in `shared/`, or client-local when only the client enumerates it, e.g. `REPORT_SKIP_REASONS`) with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029), and `templateLiteralKeys.test.ts` fails on a new template-literal key outside its allow-list.
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
 
@@ -552,7 +552,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 | `npm run test:collect`     | List all tests (suites + names) without executing them      |
 | `npm run lint`             | Lint all code                                               |
 | `npm run format`           | Format all code                                             |
-| `npm run typecheck`        | Type-check all packages                                     |
+| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)       |
 | `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                 |
 | `npm run db:migrate`       | Run pending SQL migrations                                  |
 | `npm run docs:dev`         | Start docs site dev server (port 3001)                      |

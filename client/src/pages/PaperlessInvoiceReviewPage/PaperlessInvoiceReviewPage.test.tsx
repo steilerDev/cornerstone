@@ -118,7 +118,7 @@ jest.unstable_mockModule('../../lib/householdItemBudgetsApi.js', () => ({
 let mockPickerStateOverride: Record<string, unknown> = {};
 
 const mockShowCreateBudgetLineForm = jest
-  .fn<(...args: any[]) => Promise<void>>()
+  .fn<(...args: unknown[]) => Promise<void>>()
   .mockResolvedValue(undefined);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type OnLineCreatedFn = (...args: any[]) => void;

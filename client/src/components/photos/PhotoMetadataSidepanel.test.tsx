@@ -345,9 +345,11 @@ describe('PhotoMetadataSidepanel', () => {
     };
 
     rerender(
-      React.createElement(LocaleProvider, {
-        children: React.createElement(PhotoMetadataSidepanel, { photo: newPhoto }),
-      }),
+      React.createElement(
+        LocaleProvider,
+        null,
+        React.createElement(PhotoMetadataSidepanel, { photo: newPhoto }),
+      ),
     );
 
     // After rerender, component should reflect the new photo's orientationId

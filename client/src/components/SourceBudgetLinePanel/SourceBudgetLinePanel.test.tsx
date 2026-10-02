@@ -6,6 +6,8 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import enBudget from '../../i18n/en/budget.json';
 import type { BudgetSourceBudgetLine, BudgetSourceBudgetLinesResponse } from '@cornerstone/shared';
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
@@ -447,6 +449,24 @@ describe('SourceBudgetLinePanel', () => {
       renderPanel({ data: makeResponse([line], []) });
 
       expect(screen.getByText('Claimed')).toBeInTheDocument();
+    });
+
+    it.each(INVOICE_STATUSES)('renders the translated label for a %s invoice', (status) => {
+      const line = makeLine({
+        invoiceLink: {
+          invoiceBudgetLineId: 'ibl-1',
+          invoiceId: 'inv-1',
+          invoiceNumber: 'INV-001',
+          invoiceDate: '2026-01-01',
+          invoiceStatus: status,
+          itemizedAmount: 100,
+          vendorId: null,
+          vendorName: null,
+        },
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      expect(screen.getByText(enBudget.sources.lines.invoiceStatus[status])).toBeInTheDocument();
     });
 
     it('renders status as "Not invoiced" when invoiceLink is null', () => {

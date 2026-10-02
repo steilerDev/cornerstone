@@ -400,18 +400,14 @@ describe('PhotoMetadataModal', () => {
       expect(formBody.firstElementChild).toBe(photoPreviewDiv);
     });
 
-    it('no preview img when createObjectURL returns an empty string (falsy objectUrl)', async () => {
-      // Override the mock to return an empty string so the conditional `{objectUrl && ...}`
-      // evaluates to falsy and the img is not rendered.
-      (URL.createObjectURL as ReturnType<typeof jest.fn>).mockReturnValue('');
+    it('renders the preview img synchronously on mount (no objectUrl gate) with its src set by the ref callback', () => {
+      renderModal({ file: makeFile('sync.jpg') });
 
-      renderModal();
-
-      // Give the effect a chance to run then assert no img is present.
-      await waitFor(() => {
-        expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
-      });
-      expect(screen.queryByRole('img')).toBeNull();
+      // No waitFor/findBy: the <img> is always rendered; only its src is assigned by the ref.
+      const img = screen.getByRole('img');
+      expect(img).toHaveAttribute('alt', 'sync.jpg');
+      expect(img).toHaveAttribute('src', 'blob:mock-url');
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     });
 
     it('URL.revokeObjectURL is called with blob:mock-url on unmount', async () => {
@@ -428,6 +424,7 @@ describe('PhotoMetadataModal', () => {
 
       expect(URL.revokeObjectURL).toHaveBeenCalledTimes(1);
       expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:mock-url');
+      expect(URL.createObjectURL).toHaveBeenCalledTimes(1);
     });
 
     it('revokes old URL and creates new one when file prop changes', async () => {

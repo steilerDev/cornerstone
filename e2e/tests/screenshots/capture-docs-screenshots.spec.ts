@@ -14,6 +14,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { test, expect } from '@playwright/test';
+import type { Page, APIRequestContext } from '@playwright/test';
 import { ROUTES, API } from '../../fixtures/testData.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -21,18 +22,14 @@ const SCREENSHOTS_DIR = path.resolve(__dirname, '../../../docs/static/img/screen
 
 // Helpers
 
-async function setTheme(page: Parameters<typeof test>[1], theme: 'light' | 'dark') {
+async function setTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((t) => {
     localStorage.setItem('color-theme', t);
     document.documentElement.setAttribute('data-theme', t);
   }, theme);
 }
 
-async function saveScreenshot(
-  page: Parameters<typeof test>[1],
-  name: string,
-  theme: 'light' | 'dark',
-) {
+async function saveScreenshot(page: Page, name: string, theme: 'light' | 'dark') {
   const filename = `${name}-${theme}.png`;
   await page.screenshot({
     path: path.join(SCREENSHOTS_DIR, filename),
@@ -42,7 +39,7 @@ async function saveScreenshot(
 
 // Seed data via API to make pages look populated
 
-async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: string) {
+async function seedWorkItems(request: APIRequestContext, baseUrl: string) {
   // Note: tags were removed in EPIC-18 (tagging system removed)
   const workItems = [
     {
@@ -114,11 +111,7 @@ async function seedWorkItems(request: Parameters<typeof test>[2], baseUrl: strin
   return createdIds;
 }
 
-async function seedBudgetData(
-  request: Parameters<typeof test>[2],
-  baseUrl: string,
-  workItemIds: number[],
-) {
+async function seedBudgetData(request: APIRequestContext, baseUrl: string, workItemIds: number[]) {
   // Create budget categories
   const categories = [
     { name: 'Electrical', description: 'All electrical work and materials' },
@@ -268,7 +261,7 @@ async function seedBudgetData(
 }
 
 async function seedTimelineData(
-  request: Parameters<typeof test>[2],
+  request: APIRequestContext,
   baseUrl: string,
   workItemIds: number[],
 ) {
@@ -306,7 +299,7 @@ async function seedTimelineData(
   await request.post(`${baseUrl}${API.schedule}/auto`);
 }
 
-async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: string) {
+async function seedHouseholdItems(request: APIRequestContext, baseUrl: string) {
   // Note: room field removed in EPIC-18 (replaced by AreaPicker; areas are not seeded here)
   const items = [
     {
@@ -357,7 +350,7 @@ async function seedHouseholdItems(request: Parameters<typeof test>[2], baseUrl: 
   return householdItemIds;
 }
 
-async function seedDiaryEntries(request: Parameters<typeof test>[2], baseUrl: string) {
+async function seedDiaryEntries(request: APIRequestContext, baseUrl: string) {
   const entries = [
     {
       type: 'daily_log',

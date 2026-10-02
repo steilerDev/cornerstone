@@ -143,30 +143,31 @@ const MOCK_DOCUMENTS_FILTERED = {
   pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
 };
 
-const MOCK_EXTRACTED_LINES = [
-  {
-    description: 'Bathroom tiles (600x600mm)',
-    quantity: 20,
-    unit: 'm²',
-    unitPrice: 45.0,
-    totalAmount: 900.0,
-    includesVat: false,
-    vatRate: 0.19,
-    vendorName: 'Builder Co',
-    confidence: 0.95,
-  },
-  {
-    description: 'Installation labor',
-    quantity: 8,
-    unit: 'h',
-    unitPrice: 85.0,
-    totalAmount: 680.0,
-    includesVat: false,
-    vatRate: 0.19,
-    vendorName: null,
-    confidence: 0.88,
-  },
-];
+const MOCK_LINE_UNIT_PRICED = {
+  description: 'Bathroom tiles (600x600mm)',
+  quantity: 20,
+  unit: 'm²',
+  unitPrice: 45.0,
+  totalAmount: 900.0,
+  includesVat: false,
+  vatRate: 0.19,
+  vendorName: 'Builder Co',
+  confidence: 0.95,
+};
+
+const MOCK_LINE_HOURLY = {
+  description: 'Installation labor',
+  quantity: 8,
+  unit: 'h',
+  unitPrice: 85.0,
+  totalAmount: 680.0,
+  includesVat: false,
+  vatRate: 0.19,
+  vendorName: null,
+  confidence: 0.88,
+};
+
+const MOCK_EXTRACTED_LINES = [MOCK_LINE_UNIT_PRICED, MOCK_LINE_HOURLY];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route-intercept helpers
@@ -1495,7 +1496,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       // unit-pricing mode (pricingMode='unit'). The description textbox is always visible.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Mock commit: returns a fake invoice — prevents real server from needing document link
@@ -1600,7 +1601,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       }
 
       // ── Assert WI budget payload ────────────────────────────────────────────
-      // totalAmount from MOCK_EXTRACTED_LINES[0] = 900, includesVat=false
+      // totalAmount from MOCK_LINE_UNIT_PRICED = 900, includesVat=false
       expect(capturedWIBudgetPayload, 'Expected WI budget POST to have been called').not.toBeNull();
       // The description is from the edited inline form
       expect(capturedWIBudgetPayload!.description).toBe(editedDescription);
@@ -1659,7 +1660,7 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
       // We will clear the unitPrice field to trigger the invalid-amount path.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Monitor API calls that should NOT happen
@@ -1815,7 +1816,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       // Single line: totalAmount=900, includesVat=false → effective gross = 1071.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Mock the commit endpoint's RESPONSE only — call 1 fails with a genuine

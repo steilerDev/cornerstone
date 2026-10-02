@@ -548,6 +548,7 @@ test.describe('Document Browser — infinite scroll (Scenarios 9–14)', { tag: 
       class StubIntersectionObserver implements IntersectionObserver {
         readonly root: Element | Document | null = null;
         readonly rootMargin = '';
+        readonly scrollMargin = '';
         readonly thresholds: ReadonlyArray<number> = [];
         constructor(_callback: IntersectionObserverCallback, _options?: IntersectionObserverInit) {}
         disconnect(): void {}

@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { DiaryEntryDetail, DiarySignatureEntry } from '@cornerstone/shared';
+import type {
+  DiaryEntryDetail,
+  DiarySignatureEntry,
+  DiarySourceEntityType,
+} from '@cornerstone/shared';
 import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -20,6 +24,7 @@ import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
 import styles from './DiaryEntryDetailPage.module.css';
 
@@ -353,7 +358,7 @@ export default function DiaryEntryDetailPage() {
 }
 
 interface SourceEntityLinkProps {
-  sourceType: string;
+  sourceType: DiarySourceEntityType;
   sourceId: string;
   sourceTitle?: string | null;
 }
@@ -378,20 +383,8 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
     }
   };
 
-  const getDefaultLabel = (): string => {
-    try {
-      const key = `detailPage.sourceType.${sourceType}`;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic i18n key constructed at runtime, not in static namespace type
-      const label = t(key as any);
-      // If translation key not found, it returns the key itself, so fallback to sourceType
-      return label === key ? sourceType : label;
-    } catch {
-      return sourceType;
-    }
-  };
-
   const route = getRoute();
-  const label = sourceTitle ?? getDefaultLabel();
+  const label = sourceTitle ?? t(I18N_UNION_KEYS.diarySourceType.key(sourceType));
 
   if (!route) {
     return <span>{label}</span>;

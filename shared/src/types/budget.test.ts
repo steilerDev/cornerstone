@@ -10,7 +10,12 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { CONFIDENCE_MARGINS, effectiveLineAmount, effectivePlannedAmount } from './budget.js';
+import {
+  CONFIDENCE_LEVELS,
+  CONFIDENCE_MARGINS,
+  effectiveLineAmount,
+  effectivePlannedAmount,
+} from './budget.js';
 import type {
   ConfidenceLevel,
   BudgetSourceSummary,
@@ -1016,5 +1021,20 @@ describe('HouseholdItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', 
 
     expect(base.subsidyProgramId).toBe('sp-cross');
     expect(hiEntry.name).toBe('Cross-type Test');
+  });
+});
+
+describe('CONFIDENCE_LEVELS tuple', () => {
+  it('lists every confidence level in order', () => {
+    expect([...CONFIDENCE_LEVELS]).toEqual([
+      'own_estimate',
+      'professional_estimate',
+      'quote',
+      'invoice',
+    ]);
+  });
+
+  it('has exactly the keys of CONFIDENCE_MARGINS', () => {
+    expect(Object.keys(CONFIDENCE_MARGINS).sort()).toEqual([...CONFIDENCE_LEVELS].sort());
   });
 });

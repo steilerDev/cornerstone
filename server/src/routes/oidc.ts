@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { OidcLoginErrorCode } from '@cornerstone/shared';
 import {
   AppError,
   OidcEmailUnverifiedError,
@@ -20,6 +21,11 @@ import { COOKIE_NAME } from '../constants.js';
  */
 function isSafeRedirect(redirect: string): boolean {
   return redirect.startsWith('/') && !redirect.startsWith('//') && !redirect.includes('://');
+}
+
+/** Builds the `/login?error=<code>` redirect target; the code set is a compile-time contract with the client. */
+function loginErrorPath(code: OidcLoginErrorCode): string {
+  return `/login?error=${code}`;
 }
 
 export const OIDC_CALLBACK_PATH = '/api/auth/oidc/callback';
@@ -86,7 +92,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
   fastify.get('/callback', async (request, reply) => {
     // Check if OIDC is enabled
     if (!fastify.config.oidcEnabled) {
-      return reply.redirect('/login?error=oidc_not_configured');
+      return reply.redirect(loginErrorPath('oidc_not_configured'));
     }
 
     const query = request.query as {
@@ -98,20 +104,20 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
     // Handle OIDC provider error
     if (query.error) {
       fastify.log.warn({ error: query.error }, 'OIDC provider returned an error');
-      return reply.redirect('/login?error=oidc_error');
+      return reply.redirect(loginErrorPath('oidc_error'));
     }
 
     // Validate state parameter
     const state = query.state;
     if (!state) {
       fastify.log.warn('Missing state parameter in OIDC callback');
-      return reply.redirect('/login?error=invalid_state');
+      return reply.redirect(loginErrorPath('invalid_state'));
     }
 
     const appRedirect = oidcService.consumeState(state);
     if (!appRedirect) {
       fastify.log.warn({ state }, 'Invalid or expired state parameter');
-      return reply.redirect('/login?error=invalid_state');
+      return reply.redirect(loginErrorPath('invalid_state'));
     }
 
     let sub: string | undefined;
@@ -160,7 +166,7 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
       // Check if user is deactivated
       if (user.deactivatedAt) {
         fastify.log.warn({ userId: user.id }, 'Deactivated user attempted OIDC login');
-        return reply.redirect('/login?error=account_deactivated');
+        return reply.redirect(loginErrorPath('account_deactivated'));
       }
 
       // Create session
@@ -184,18 +190,18 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
     } catch (error) {
       if (error instanceof OidcNoMatchingAccountError) {
         fastify.log.warn({ error, sub }, 'OIDC login rejected: no matching account for email');
-        return reply.redirect('/login?error=oidc_no_matching_account');
+        return reply.redirect(loginErrorPath('oidc_no_matching_account'));
       }
       if (error instanceof OidcMissingEmailError) {
         fastify.log.warn({ sub }, 'OIDC user missing email claim');
-        return reply.redirect('/login?error=missing_email');
+        return reply.redirect(loginErrorPath('missing_email'));
       }
       if (error instanceof OidcEmailUnverifiedError) {
         fastify.log.warn({ sub }, 'OIDC login rejected: email not verified by IdP');
-        return reply.redirect('/login?error=oidc_email_unverified');
+        return reply.redirect(loginErrorPath('oidc_email_unverified'));
       }
       fastify.log.error({ error }, 'OIDC callback error');
-      return reply.redirect('/login?error=oidc_error');
+      return reply.redirect(loginErrorPath('oidc_error'));
     }
   });
 }
