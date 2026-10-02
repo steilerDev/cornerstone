@@ -28,6 +28,7 @@ import {
   usableColumnWidth,
   headerFootprint,
   PDF_STYLES,
+  PDF_DEFAULT_STYLE,
 } from './pageGeometry.js';
 
 describe('pageGeometry — page constants', () => {
@@ -191,5 +192,19 @@ describe('pageGeometry — printableHeight (scenario 5)', () => {
   it('is a sane positive printable height for an A4 page', () => {
     expect(printableHeight()).toBeGreaterThan(600);
     expect(printableHeight()).toBeLessThan(PAGE_HEIGHT);
+  });
+});
+
+describe('pageGeometry — PDF_DEFAULT_STYLE (#2161)', () => {
+  it('is the Roboto 11pt style with the shared line height', () => {
+    expect(PDF_DEFAULT_STYLE).toEqual({
+      font: 'Roboto',
+      fontSize: 11,
+      lineHeight: DEFAULT_LINE_HEIGHT,
+    });
+  });
+
+  it('keeps the base font size equal to the "normal" style font size', () => {
+    expect(PDF_DEFAULT_STYLE.fontSize).toBe(PDF_STYLES.normal?.fontSize);
   });
 });

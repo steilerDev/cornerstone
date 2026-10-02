@@ -21,6 +21,14 @@ interface Step5ActionsProps {
   onFinishWithoutMarking?: () => void;
   onUploadPaperless: () => void;
   activeAction: 'preview' | 'download' | 'paperless' | null;
+  /** Number of generated PDF files (multi-PDF split, #2161). Default 1 = unchanged labels. */
+  partCount?: number;
+  /** Number of parts whose last upload failed; > 0 turns "Upload all" into "Retry failed". */
+  retryFailedCount?: number;
+  /** Transfer progress line (e.g. "Uploading 2 of 3…"). */
+  statusMessage?: string | null;
+  /** Disables every action (e.g. while the parts are being prepared). */
+  disabled?: boolean;
   t: TFunction;
 }
 
@@ -40,12 +48,36 @@ export function Step5Actions({
   onFinishWithoutMarking,
   onUploadPaperless,
   activeAction,
+  partCount = 1,
+  retryFailedCount = 0,
+  statusMessage = null,
+  disabled = false,
   t,
 }: Step5ActionsProps) {
   const isClaim = useCase === 'claim';
+  const isBusy = activeAction !== null || disabled;
+  const isMultiPart = partCount > 1;
+  const isRetry = isMultiPart && retryFailedCount > 0;
+  const downloadLabel = isMultiPart
+    ? t('sourceReports.parts.downloadAll', { count: partCount })
+    : t('sourceReports.download');
+  let uploadLabel = t('sourceReports.uploadPaperless');
+  if (isRetry) {
+    uploadLabel = t('sourceReports.parts.retryFailed', { count: retryFailedCount });
+  } else if (isMultiPart) {
+    uploadLabel = t('sourceReports.parts.uploadAll', { count: partCount });
+  }
 
   return (
     <div className={styles.actionsContainer}>
+      {/* Persistent live region: always mounted so text changes are announced. */}
+      <p
+        className={statusMessage ? styles.transferStatus : sharedStyles.srOnly}
+        role="status"
+        aria-atomic="true"
+      >
+        {statusMessage}
+      </p>
       {claimSuccess ? (
         <div className={sharedStyles.bannerSuccess}>
           <div>
@@ -66,7 +98,7 @@ export function Step5Actions({
             type="button"
             className={sharedStyles.btnSecondary}
             onClick={onPreviewPdf}
-            disabled={activeAction !== null}
+            disabled={isBusy}
           >
             {activeAction === 'preview' && (
               <span aria-hidden="true">
@@ -80,14 +112,14 @@ export function Step5Actions({
             type="button"
             className={sharedStyles.btnPrimary}
             onClick={onDownload}
-            disabled={activeAction !== null}
+            disabled={isBusy}
           >
             {activeAction === 'download' && (
               <span aria-hidden="true">
                 <Spinner size="sm" color="muted" />
               </span>
             )}
-            {t('sourceReports.download')}
+            {downloadLabel}
           </button>
 
           {isClaim && (
@@ -96,7 +128,7 @@ export function Step5Actions({
                 type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={onMarkClaimed}
-                disabled={activeAction !== null || isMarkingClaimed}
+                disabled={isBusy || isMarkingClaimed}
               >
                 {t('sourceReports.markClaimed', { count: selectedInvoiceCount })}
               </button>
@@ -105,7 +137,7 @@ export function Step5Actions({
                 type="button"
                 className={sharedStyles.btnSecondaryCompact}
                 onClick={onFinishWithoutMarking}
-                disabled={activeAction !== null}
+                disabled={isBusy}
               >
                 {t('sourceReports.finishWithoutMarking')}
               </button>
@@ -115,16 +147,16 @@ export function Step5Actions({
           {paperlessStatus?.configured && paperlessStatus?.reachable && (
             <button
               type="button"
-              className={sharedStyles.btnSecondary}
+              className={isRetry ? sharedStyles.btnPrimary : sharedStyles.btnSecondary}
               onClick={onUploadPaperless}
-              disabled={activeAction !== null}
+              disabled={isBusy}
             >
               {activeAction === 'paperless' && (
                 <span aria-hidden="true">
                   <Spinner size="sm" color="muted" />
                 </span>
               )}
-              {t('sourceReports.uploadPaperless')}
+              {uploadLabel}
             </button>
           )}
         </>

@@ -180,3 +180,13 @@ export const PAGE_TOP_MARGIN = Math.ceil(headerFootprint() + HEADER_TOP_GAP); //
 export function printableHeight(): number {
   return PAGE_HEIGHT - PAGE_TOP_MARGIN - PAGE_MARGIN_BOTTOM;
 }
+
+/**
+ * Shared pdfmake `defaultStyle` literal, extracted so merge.ts, parts.ts and tests all pass the
+ * identical value to `createPdf()` (#1929 AC11, #2161).
+ */
+export const PDF_DEFAULT_STYLE: Style = {
+  font: 'Roboto',
+  fontSize: 11,
+  lineHeight: 1.4,
+};
