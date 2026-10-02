@@ -46,6 +46,7 @@ Excluding a line item narrows the amount shown in the report but does not change
 
 - **Report language** -- choose the language the exported PDF is written in, independent of your own UI language. This only affects the report content (table captions, cover letter, footnotes); the wizard's own controls stay in your UI language.
 - **Attach invoice PDFs** -- append each selected invoice's source document as a PDF appendix. Which document types qualify depends on the report type (quotations qualify for a Budget Overview, but not for a Claim or Proof of Funds report -- so a document that would undercut the report's evidentiary value is never silently attached).
+- **Max file size (optional)** -- set a maximum file size in MB. If the final report exceeds this size, it will be automatically split into multiple PDF files, each with its own continuation cover letter. The first file notes that the report spans multiple attachments; continuation files reference the report without repeating the full table. If unset, the report is generated as a single file regardless of size.
 - **Include cover letter** -- adds a formal letter ahead of the report table, addressed using the source's contact details. Disabled if the source has no contact address or reference number configured.
 
 ### 5. Preview & Export
@@ -57,10 +58,19 @@ The final step shows an editable HTML preview of the report -- this is what gene
 - **Enhance with AI** -- if your instance has an LLM provider configured (see [Auto-itemize Invoices](auto-itemize)), a button generates usage descriptions and a full cover letter draft in one batched call, in the report language you selected. Regenerating -- or changing report type, source, or invoice selection while a generation is in progress -- asks for confirmation before discarding your edits or cancelling the in-flight request.
 - **Preview PDF** opens the exact rendered PDF in a modal before you commit to downloading it.
 
+#### Multi-File Reports
+
+If you set a max file size in step 4 and the report exceeds it, the report is automatically split across multiple PDF files. The first file's cover letter notes "This report is sent in multiple attachments." Continuation files each have their own cover letter (with reference, date, closing, and signature fields) but no repeated totals or table headers -- they continue directly from where the previous file left off.
+
+When downloading or uploading multi-file reports, all files are handled together:
+
+- **Download PDF** -- if split, all files are packaged and downloaded (browser-dependent; most modern browsers can handle multi-file downloads)
+- **Upload to Paperless** -- all files are uploaded sequentially with automatic retry on failure; progress is shown for each file
+
 From here you can:
 
-- **Download PDF** -- saves the report to your device
-- **Upload to Paperless** -- if [Paperless-ngx integration](../documents/setup) is configured, uploads the generated PDF directly into your document library
+- **Download PDF(s)** -- saves the report to your device
+- **Upload to Paperless** -- if [Paperless-ngx integration](../documents/setup) is configured, uploads the generated PDF(s) directly into your document library
 
 ## Marking Invoices as Claimed
 

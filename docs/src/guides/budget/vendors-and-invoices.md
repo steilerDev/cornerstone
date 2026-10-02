@@ -68,11 +68,18 @@ Budget lines are linked to the invoice after creation from the invoice detail pa
 
 If you have both [Paperless-ngx](/guides/documents/setup) and [Auto-itemize](auto-itemize) configured, **New Invoice** becomes a faster, document-first flow. Instead of the blank form, it opens a **document picker**: choose the scanned PDF the vendor sent you, and Cornerstone reads the invoice straight off the page.
 
-Picking a document takes you to a review screen that:
+Picking a document takes you a multi-step review screen:
+
+**Step 1: Vendor & Status**
+
+- **Vendor picker** -- Pick the matching vendor (the picker pre-suggests one based on the document). If the vendor doesn't exist, you can create one inline by typing a new name and confirming.
+- **Invoice status** -- Choose the initial status: Quotation, Pending, Paid, or Claimed. Defaults to **Pending**.
+- **Default budget source (optional)** -- If set, all extracted line items are assigned to this source. You can still override the source for individual lines in step 2. This field is useful when you know the entire invoice comes from a single financing source.
+
+**Step 2: Metadata & Lines**
 
 - **Pre-fills the invoice metadata** (number, amount, date, due date, notes) from the document, each with a one-click suggestion to apply the extracted value.
-- **Suggests the vendor** -- pick the matching vendor (the picker pre-suggests one based on the document); this field is required.
-- **Lists the extracted line items**, each ready to include, edit, categorise, fund, and assign to a work item or household item -- exactly like the [Auto-itemize](auto-itemize) review page. Net line items are grossed up by VAT so the totals match the invoice.
+- **Lists the extracted line items**, each ready to include, edit, categorise, fund, and assign to a work item or household item -- exactly like the [Auto-itemize](auto-itemize) review page. Net line items are grossed up by VAT so the totals match the invoice. If you specified a default budget source in step 1, each line uses that source by default but can be overridden.
 
 Click **Create Invoice & Itemize** to create the invoice and all its budget lines in one step. The new-invoice review screen and the existing-invoice [Auto-itemize](auto-itemize) page share the same review interface, so the line-item editing, assignment, and funding-source behaviour is identical in both -- including the queued-on-save **Create Budget Line** flow: choosing to create a new work-item budget line drops an inline "Creating New" draft onto the row (with a **Discard** button) and materialises it when you save, rather than creating it up front. See [Assign each line](auto-itemize#6-assign-each-line-and-set-its-category-and-funding-source) for the details.
 

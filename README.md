@@ -46,6 +46,7 @@ A self-hosted home building project management tool for homeowners. Track work i
 - **Household Items** -- Track furniture, appliances, and fixtures with categories, area assignment, delivery scheduling, budget integration, and work item linking
 - **Project Dashboard** -- At-a-glance project health with budget, timeline, invoice, and subsidy cards, mini Gantt preview, and customizable layout
 - **Construction Diary** -- Daily logs (with optional vendor and work start/end time plus computed duration), site visits, delivery records, automatic system events, mobile-first photo capture tagged with area and compass orientation, in-browser touch-enabled annotation (rectangles, arrows, text, measurements, freehand), auto-saved drafts, and digital signature capture
+- **Photo Browser** -- Organize all diary photos by area and orientation (compass direction) in an indexed table or grid, then open any spot to step through photos chronologically with keyboard navigation and a history list of diary entries
 - **Document Integration** -- Browse and link documents from Paperless-ngx to work items, household items, and invoices, with a system-wide "hide already-linked" filter to surface unfiled documents and a discoverable unlink action on each linked-document card
 - **Advanced List Views** -- Filter, sort, paginate, and customize columns across all list pages with the shared DataTable system
 - **Backup & Restore** -- Manual and scheduled backups with configurable retention, restore from the settings UI
@@ -92,6 +93,7 @@ Open `http://localhost:3000` -- the setup wizard will guide you through creating
 - [x] Backup & Restore
 - [x] Auto-itemize Invoices (LLM)
 - [x] Photo Annotation Editor (Shottr-style markup on diary photos)
+- [x] Photo Browser (spots by area and orientation with history viewer)
 - [ ] **EPIC-16**: Floor Plans & Utility Tracking
 
 Track live progress on the [GitHub Projects board](https://github.com/users/steilerDev/projects/4).

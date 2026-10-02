@@ -93,6 +93,12 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Photos',
+      link: { type: 'doc', id: 'guides/photos/index' },
+      items: [],
+    },
+    {
+      type: 'category',
       label: 'Calendar & Contact Feeds',
       link: { type: 'doc', id: 'guides/feeds/index' },
       items: ['guides/feeds/subscribing'],
