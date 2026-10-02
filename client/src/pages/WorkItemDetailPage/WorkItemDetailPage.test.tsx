@@ -12,6 +12,7 @@ import type {
   ErrorCode,
 } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enWorkItems from '../../i18n/en/workItems.json';
@@ -400,6 +401,24 @@ describe('WorkItemDetailPage', () => {
       await waitFor(() => {
         expect(screen.queryByText('Loading work item...')).not.toBeInTheDocument();
       });
+    });
+
+    it('status select lists WORK_ITEM_STATUSES in order with translated labels', async () => {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+
+      const select = screen
+        .getAllByRole('combobox')
+        .find((el) =>
+          Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'not_started'),
+        ) as HTMLSelectElement;
+
+      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual([
+        ['not_started', enWorkItems.detail.statusOptions.notStarted],
+        ['in_progress', enWorkItems.detail.statusOptions.inProgress],
+        ['completed', enWorkItems.detail.statusOptions.completed],
+      ]);
+      expect(Array.from(select.options).map((o) => o.value)).toEqual([...WORK_ITEM_STATUSES]);
     });
 
     it('renders work item title after loading', async () => {

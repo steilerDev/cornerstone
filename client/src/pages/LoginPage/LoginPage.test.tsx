@@ -428,4 +428,42 @@ describe('LoginPage', () => {
       expect(screen.queryByText(enAuth.login.oidcErrors.oidc_error)).not.toBeInTheDocument();
     });
   });
+
+  describe('OIDC error banner focus', () => {
+    it('focuses the alert after the initial render for a URL-derived error', async () => {
+      window.history.pushState({}, '', '/login?error=oidc_error');
+
+      renderWithAuth(<LoginPage />);
+
+      const alert = await screen.findByRole('alert');
+      expect(document.activeElement).toBe(alert);
+    });
+
+    it('does not auto-focus the API error banner after a failed submit', async () => {
+      mockLogin.mockRejectedValue(new Error('boom'));
+      renderWithAuth(<LoginPage />);
+      await waitFor(() => {
+        expect(mockGetAuthMe).toHaveBeenCalled();
+      });
+
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(enAuth.login.error);
+      expect(document.activeElement).not.toBe(alert);
+    });
+
+    it('does not force focus anywhere when there is no ?error', async () => {
+      renderWithAuth(<LoginPage />);
+      await waitFor(() => {
+        expect(mockGetAuthMe).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(document.body);
+    });
+  });
 });

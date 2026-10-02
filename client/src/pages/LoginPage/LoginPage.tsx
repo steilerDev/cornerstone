@@ -19,6 +19,14 @@ function readOidcErrorCode(search: string): OidcLoginErrorCode | null {
     : null;
 }
 
+/**
+ * Ref callback: focuses the banner when it attaches. The URL-derived OIDC error is already in the
+ * DOM on first render, and VoiceOver/Safari often don't announce a role="alert" present at load.
+ */
+function focusOnAttach(el: HTMLDivElement | null) {
+  el?.focus();
+}
+
 interface FormErrors {
   email?: string;
   password?: string;
@@ -114,7 +122,12 @@ export function LoginPage() {
         <p className={sharedStyles.description}>{t('login.description')}</p>
 
         {bannerError && (
-          <div className={sharedStyles.errorBanner} role="alert">
+          <div
+            className={sharedStyles.errorBanner}
+            role="alert"
+            tabIndex={-1}
+            ref={oidcErrorCode && !apiError ? focusOnAttach : undefined}
+          >
             {bannerError}
           </div>
         )}

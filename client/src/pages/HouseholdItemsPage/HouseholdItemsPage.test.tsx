@@ -16,6 +16,8 @@ import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
@@ -264,6 +266,23 @@ describe('HouseholdItemsPage', () => {
         expect(screen.getAllByText('Living Room Sofa').length).toBeGreaterThan(0);
         expect(screen.getAllByText('Dining Table').length).toBeGreaterThan(0);
       });
+    });
+
+    it('status filter lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
+      renderPage();
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
+        label.querySelector('input')?.id,
+        label.querySelector('span')?.textContent,
+      ]);
+
+      expect(rows).toEqual(
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [
+          `enum-${status}`,
+          enHouseholdItems.status[status],
+        ]),
+      );
     });
 
     it('calls listHouseholdItems on mount', async () => {

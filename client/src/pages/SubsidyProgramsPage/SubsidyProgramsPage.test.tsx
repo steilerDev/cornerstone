@@ -10,6 +10,8 @@ import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
+import enBudget from '../../i18n/en/budget.json';
 import enErrors from '../../i18n/en/errors.json';
 import type {
   SubsidyProgram,
@@ -629,6 +631,40 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /add program/i }));
 
       expect(screen.getByRole('heading', { name: /new subsidy program/i })).toBeInTheDocument();
+    });
+
+    it('create form status select lists SUBSIDY_APPLICATION_STATUSES in order with labels', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /add program/i }));
+
+      const select = document.getElementById('applicationStatus') as HTMLSelectElement;
+
+      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
+        SUBSIDY_APPLICATION_STATUSES.map((status) => [
+          status,
+          enBudget.subsidies.statusLabels[status],
+        ]),
+      );
+    });
+
+    it('edit form status select lists SUBSIDY_APPLICATION_STATUSES in order with labels', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /edit energy rebate/i }));
+
+      const select = document.getElementById(
+        `edit-status-${sampleProgram1.id}`,
+      ) as HTMLSelectElement;
+
+      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
+        SUBSIDY_APPLICATION_STATUSES.map((status) => [
+          status,
+          enBudget.subsidies.statusLabels[status],
+        ]),
+      );
     });
 
     it('disables "Add Program" button when create form is open', async () => {

@@ -605,10 +605,10 @@ export function InvoicesPage() {
         filterType: 'enum',
         filterParamKey: 'status',
         enumOptions: [
-          { value: 'pending', label: t('invoices.statusLabels.pending') },
-          { value: 'paid', label: t('invoices.statusLabels.paid') },
-          { value: 'claimed', label: t('invoices.statusLabels.claimed') },
-          { value: 'quotation', label: t('invoices.statusLabels.quotation') },
+          ...INVOICE_STATUSES.map((status) => ({
+            value: status,
+            label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
+          })),
         ],
         render: (inv, surface) => (
           <Badge
@@ -1138,10 +1138,11 @@ export function InvoicesPage() {
                 className={styles.select}
                 disabled={isCreating}
               >
-                <option value="pending">{t('invoices.statusLabels.pending')}</option>
-                <option value="paid">{t('invoices.statusLabels.paid')}</option>
-                <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
-                <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
+                {INVOICE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(I18N_UNION_KEYS.invoicesStatusLabel.key(status))}
+                  </option>
+                ))}
               </select>
             </div>
 

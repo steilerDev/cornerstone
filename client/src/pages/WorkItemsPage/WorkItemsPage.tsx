@@ -208,23 +208,28 @@ export function WorkItemsPage() {
     }
   };
 
-  // Work item status badge variants
-  const wiStatusVariants = useMemo((): BadgeVariantMap => {
-    const variants: BadgeVariantMap = {};
-    // Literal keys (not a template) so extraction sees them; the Record makes a new status a type error.
-    const labels: Record<WorkItemStatus, string> = {
+  // Status labels: literal keys (not a template) so extraction sees them; the Record makes a new
+  // status a type error. Shared by the badge variants and the status filter options.
+  const wiStatusLabels = useMemo(
+    (): Record<WorkItemStatus, string> => ({
       not_started: t('create.fields.statusOptions.notStarted'),
       in_progress: t('create.fields.statusOptions.inProgress'),
       completed: t('create.fields.statusOptions.completed'),
-    };
+    }),
+    [t],
+  );
+
+  // Work item status badge variants
+  const wiStatusVariants = useMemo((): BadgeVariantMap => {
+    const variants: BadgeVariantMap = {};
     for (const status of WORK_ITEM_STATUSES) {
       variants[status] = {
-        label: labels[status],
+        label: wiStatusLabels[status],
         className: `badge-${status}`,
       };
     }
     return variants;
-  }, [t]);
+  }, [wiStatusLabels]);
 
   // Column definitions
   const columns = useMemo(
@@ -254,9 +259,10 @@ export function WorkItemsPage() {
         filterType: 'enum',
         filterParamKey: 'status',
         enumOptions: [
-          { value: 'not_started', label: t('create.fields.statusOptions.notStarted') },
-          { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
-          { value: 'completed', label: t('create.fields.statusOptions.completed') },
+          ...WORK_ITEM_STATUSES.map((status) => ({
+            value: status,
+            label: wiStatusLabels[status],
+          })),
         ],
         render: (item) => <Badge variants={wiStatusVariants} value={item.status} />,
       },
@@ -332,7 +338,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, tCommon, formatDate, wiStatusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, wiStatusVariants, wiStatusLabels, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key

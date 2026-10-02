@@ -13,6 +13,8 @@ import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import enBudget from '../../i18n/en/budget.json';
 import enErrors from '../../i18n/en/errors.json';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
@@ -1239,6 +1241,24 @@ describe('InvoicesPage', () => {
         const locationEl = screen.getByTestId('location-search');
         expect(locationEl.textContent).not.toContain('create=1');
       });
+    });
+
+    it('(J) status filter lists INVOICE_STATUSES in order with translated labels', async () => {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      renderPage();
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
+        label.querySelector('input')?.id,
+        label.querySelector('span')?.textContent,
+      ]);
+
+      expect(rows).toEqual(
+        INVOICE_STATUSES.map((status) => [
+          `enum-${status}`,
+          enBudget.invoices.statusLabels[status],
+        ]),
+      );
     });
 
     // (G) status load fails → Add Invoice is enabled with no spinner and opens the manual modal

@@ -24,6 +24,7 @@ import { SubNav } from '../../components/SubNav/SubNav.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './SubsidyProgramsPage.module.css';
+import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 // ---- Display helpers ----
@@ -551,15 +552,9 @@ export function SubsidyProgramsPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  {Object.entries({
-                    eligible: t('subsidies.statusLabels.eligible')!,
-                    applied: t('subsidies.statusLabels.applied')!,
-                    approved: t('subsidies.statusLabels.approved')!,
-                    received: t('subsidies.statusLabels.received')!,
-                    rejected: t('subsidies.statusLabels.rejected')!,
-                  }).map(([value, label]) => (
+                  {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {label}
+                      {t(I18N_UNION_KEYS.subsidyApplicationStatus.key(value))}
                     </option>
                   ))}
                 </select>
@@ -858,15 +853,9 @@ export function SubsidyProgramsPage() {
                           className={styles.select}
                           disabled={isUpdating}
                         >
-                          {Object.entries({
-                            eligible: t('subsidies.statusLabels.eligible')!,
-                            applied: t('subsidies.statusLabels.applied')!,
-                            approved: t('subsidies.statusLabels.approved')!,
-                            received: t('subsidies.statusLabels.received')!,
-                            rejected: t('subsidies.statusLabels.rejected')!,
-                          }).map(([value, label]) => (
+                          {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                             <option key={value} value={value}>
-                              {label}
+                              {t(I18N_UNION_KEYS.subsidyApplicationStatus.key(value))}
                             </option>
                           ))}
                         </select>

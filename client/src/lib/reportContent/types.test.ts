@@ -8,10 +8,7 @@ describe('REPORT_SKIP_REASONS', () => {
   });
 
   it('contains every reason attachments.ts emits via skip()', () => {
-    const source = readFileSync(
-      new URL('../reportPdf/attachments.ts', import.meta.url).pathname,
-      'utf8',
-    );
+    const source = readFileSync(new URL('../reportPdf/attachments.ts', import.meta.url), 'utf8');
     const emitted = new Set([...source.matchAll(/\bskip\('(\w+)'\)/g)].map((m) => m[1]));
 
     expect(emitted.size).toBeGreaterThan(0);

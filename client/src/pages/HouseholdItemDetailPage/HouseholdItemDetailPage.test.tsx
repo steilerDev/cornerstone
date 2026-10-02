@@ -13,6 +13,7 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enHouseholdItems from '../../i18n/en/householdItems.json';
@@ -1097,7 +1098,7 @@ describe('HouseholdItemDetailPage', () => {
       expect(statusSelect).toHaveValue('purchased');
     });
 
-    it('status dropdown has all four options', async () => {
+    it('status dropdown lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
@@ -1108,12 +1109,13 @@ describe('HouseholdItemDetailPage', () => {
 
       const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
 
-      // Check that all four options are present
-      const options = Array.from(statusSelect.querySelectorAll('option')).map((o) => o.value);
-      expect(options).toContain('planned');
-      expect(options).toContain('purchased');
-      expect(options).toContain('scheduled');
-      expect(options).toContain('arrived');
+      const options = Array.from(statusSelect.querySelectorAll('option')).map((o) => [
+        o.getAttribute('value'),
+        o.textContent,
+      ]);
+      expect(options).toEqual(
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [status, enHouseholdItems.detail.status[status]]),
+      );
     });
 
     it('selecting a new status calls updateHouseholdItem', async () => {
