@@ -33,7 +33,6 @@ export interface AppConfig {
   backupDir: string;
   backupCadence?: string;
   backupRetention?: number;
-  backupEnabled: boolean;
   llmBaseUrl?: string;
   llmApiKey?: string;
   llmModel?: string;
@@ -299,21 +298,17 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
   }
 
   // Validate that BACKUP_DIR is not a child of the app data directory
-  if (backupDir) {
-    const dataDir = path.dirname(databaseUrl);
-    const resolvedBackupDir = path.resolve(backupDir);
-    const resolvedDataDir = path.resolve(dataDir);
-    if (
-      resolvedBackupDir.startsWith(resolvedDataDir + path.sep) ||
-      resolvedBackupDir === resolvedDataDir
-    ) {
-      errors.push(
-        `BACKUP_DIR must not be the same as or a subdirectory of the app data directory (${dataDir})`,
-      );
-    }
+  const dataDir = path.dirname(databaseUrl);
+  const resolvedBackupDir = path.resolve(backupDir);
+  const resolvedDataDir = path.resolve(dataDir);
+  if (
+    resolvedBackupDir.startsWith(resolvedDataDir + path.sep) ||
+    resolvedBackupDir === resolvedDataDir
+  ) {
+    errors.push(
+      `BACKUP_DIR must not be the same as or a subdirectory of the app data directory (${dataDir})`,
+    );
   }
-
-  const backupEnabled = !!backupDir;
 
   // LLM configuration (for auto-itemization via OpenAI-compatible gateway)
   const llmBaseUrl = getValue('LLM_BASE_URL');
@@ -435,7 +430,6 @@ export function loadConfig(env: Record<string, string | undefined>): AppConfig {
     backupDir,
     backupCadence,
     backupRetention,
-    backupEnabled,
     llmBaseUrl,
     llmApiKey,
     llmModel,
@@ -478,7 +472,6 @@ export default fp(
         diaryDraftRetentionDays: config.diaryDraftRetentionDays,
         currency: config.currency,
         vatRate: config.vatRate,
-        backupEnabled: config.backupEnabled,
         backupDir: config.backupDir,
         autoItemizeEnabled: config.autoItemizeEnabled,
         llmProvider: config.llmProvider,

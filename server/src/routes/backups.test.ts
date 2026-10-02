@@ -10,12 +10,13 @@
  *   POST   /api/backups/:filename/restore
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { writeFileSync, chmodSync } from 'node:fs';
 import { join } from 'node:path';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
+import * as backupService from '../services/backupService.js';
 import { disposableTempDir } from '../test-helpers/disposables.js';
 import type { FastifyInstance } from 'fastify';
 import type {
@@ -143,6 +144,27 @@ describe('Backup Routes', () => {
     });
   });
 
+  describe('GET /api/backups with default config (no BACKUP_DIR env)', () => {
+    it('is always enabled: responds 200 with a backups array for an admin', async () => {
+      expect(process.env.BACKUP_DIR).toBeUndefined();
+      const { cookie } = await createUserWithSession(
+        'admin-default@test.com',
+        'Admin',
+        'password',
+        'admin',
+      );
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/backups',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(Array.isArray(response.json<{ backups: unknown[] }>().backups)).toBe(true);
+    });
+  });
+
   // ─── GET /api/backups/scheduler-status — without BACKUP_DIR ──────────────
 
   describe('GET /api/backups/scheduler-status', () => {
@@ -257,6 +279,7 @@ describe('Backup Routes', () => {
     });
 
     afterEach(async () => {
+      jest.restoreAllMocks();
       if (appWithBackup) {
         await appWithBackup.close();
       }
@@ -383,6 +406,8 @@ describe('Backup Routes', () => {
       mkdirSync(backupTempDir.path, { recursive: true });
       const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
       writeFileSync(join(backupTempDir.path, filename), 'backup content');
+      // Never let a (hypothetically successful) restore terminate the test process
+      jest.spyOn(process, 'exit').mockImplementation((() => undefined) as never);
 
       const response = await appWithBackup.inject({
         method: 'POST',
@@ -394,6 +419,76 @@ describe('Backup Routes', () => {
       expect(response.statusCode).toBe(202);
       const body = response.json<{ message: string }>();
       expect(body.message).toBeTruthy();
+
+      // The post-reply executeRestore fails on the bogus archive and must release the lock;
+      // wait for that so nothing touches the temp dirs after teardown.
+      let released = false;
+      for (let i = 0; i < 100 && !released; i++) {
+        try {
+          await backupService.beginRestore(appWithBackup.config, filename);
+          released = true;
+        } catch (error) {
+          expect((error as { code?: string }).code).toBe('BACKUP_IN_PROGRESS');
+          await new Promise<void>((resolve) => setTimeout(resolve, 20));
+        }
+      }
+      expect(released).toBe(true);
+      await expect(
+        backupService.executeRestore(appWithBackup.db, appWithBackup.config, filename),
+      ).rejects.toMatchObject({ code: 'RESTORE_FAILED' });
+    });
+
+    it('POST /api/backups/:filename/restore returns 404 BACKUP_NOT_FOUND when the archive does not exist', async () => {
+      const cookie = await createAdminWithSession();
+
+      const response = await appWithBackup.inject({
+        method: 'POST',
+        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz/restore',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('BACKUP_NOT_FOUND');
+    });
+
+    it('POST /api/backups/:filename/restore returns 409 BACKUP_IN_PROGRESS while a backup holds the lock', async () => {
+      const cookie = await createAdminWithSession();
+      const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
+      writeFileSync(join(backupTempDir.path, filename), 'backup content');
+
+      // createBackup takes the module-level lock synchronously, before its first await
+      const running = backupService.createBackup(appWithBackup.db, appWithBackup.config);
+      const response = await appWithBackup.inject({
+        method: 'POST',
+        url: `/api/backups/${filename}/restore`,
+        headers: { cookie },
+      });
+      await running;
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('BACKUP_IN_PROGRESS');
+    });
+
+    it('POST /api/backups/:filename/restore returns 500 RESTORE_FAILED when the archive cannot be stat-ed', async () => {
+      const cookie = await createAdminWithSession();
+      // Point the live config at a path under a regular file so stat fails with ENOTDIR
+      const blocker = join(backupTempDir.path, 'not-a-directory');
+      writeFileSync(blocker, 'x');
+      const originalDir = appWithBackup.config.backupDir;
+      appWithBackup.config.backupDir = join(blocker, 'backups');
+
+      try {
+        const response = await appWithBackup.inject({
+          method: 'POST',
+          url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz/restore',
+          headers: { cookie },
+        });
+
+        expect(response.statusCode).toBe(500);
+        expect(response.json<ApiErrorResponse>().error.code).toBe('RESTORE_FAILED');
+      } finally {
+        appWithBackup.config.backupDir = originalDir;
+      }
     });
 
     it('POST /api/backups returns 500 BACKUP_FAILED when backup directory exists but is read-only', async () => {

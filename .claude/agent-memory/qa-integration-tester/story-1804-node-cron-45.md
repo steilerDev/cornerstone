@@ -1,6 +1,6 @@
 ---
 name: story-1804-node-cron-45
-description: node-cron 4.5 scheduler-status testing patterns; discovered BACKUP_NOT_CONFIGURED is unreachable in production
+description: node-cron 4.5 scheduler-status testing patterns; scheduler-status testing; BACKUP_NOT_CONFIGURED was later removed (#2132); how to force scheduler failure without mocks
 metadata:
   type: project
 ---
@@ -22,19 +22,15 @@ await task!.execute(); // resolves/rejects for real; updates task.lastRun()
 
 `getTasks()` returns a `Map` keyed by a random `task.id` (NOT `task.name`), so you must filter by `.name`. `stopScheduler()` (production code) only calls `.stop()`, never `.destroy()`, so previously-started tasks with the same name accumulate in node-cron's global registry across tests in one file — always pick the last match. This avoids the ESM `jest.unstable_mockModule` + static-import ordering trap entirely (see [[jest-esm-flag-gotcha]]) since backupService.test.ts keeps its existing static-import structure unchanged.
 
-**To force a scheduled run to fail without mocking**: mutate the `config` object in place _after_ calling `initScheduler(db, config, logger)` (e.g. `config.backupEnabled = false`) — the scheduled closure captures `config` by reference, so the next `.execute()` naturally throws `BackupNotConfiguredError` and node-cron records `lastRun().error`.
+**To force a scheduled run to fail without mocking**: mutate the `config` object in place _after_ calling `initScheduler(db, config, logger)` by pointing `config.backupDir` at a path under a regular file (e.g. `join(<regular file>, 'backups')`) — the scheduled closure captures `config` by reference, so the next `.execute()` fails (mkdir ENOTDIR -> `BACKUP_FAILED`) and node-cron records `lastRun().error`. (`backupEnabled` / `BackupNotConfiguredError` no longer exist, see #2132 below.)
 
 **node-cron's injected `Logger` interface requires 4 methods (info/warn/error/debug) but only `.warn` (missed-execution/overlap, heartbeat-only) and `.error` (task failure) are ever actually invoked internally** — `.info` and `.debug` on a custom logger wrapper passed via `TaskOptions.logger` are permanently dead code from a coverage perspective; don't chase 100% on those two lines, they're unreachable via any real node-cron execution path (confirmed by reading `node_modules/node-cron/dist/node-cron.js` and `_shared.js`).
 
-## RESOLVED (was: "confirmed pre-existing bug") — `BACKUP_NOT_CONFIGURED` (503) is INTENTIONALLY unreachable, not a bug
+## `BACKUP_NOT_CONFIGURED` / `backupEnabled` were REMOVED (error-code bundle #2132, 2026-10)
 
-`server/src/plugins/config.ts` line ~241: `const backupDir = getValue('BACKUP_DIR') ?? '/backups';` then `backupEnabled = !!backupDir`. Since `getValue()` treats `''` as `undefined`, there is no env value that makes `backupDir` falsy — `backupEnabled` is always `true`. I initially wrote a test asserting the route's docstring-claimed 503 contract and flagged it as a bug.
+`BACKUP_DIR` always defaults to `/backups` (since PR #1202), so the 503 path and the `backupEnabled` config flag were dead and have been deleted (code, `AppConfig` field, route/service guards, client "not configured" branch). Never re-add a 503 test or a `backupEnabled` fixture field. `backups.test.ts` instead has a default-config case (GET /api/backups as admin -> 200).
 
-**dev-team-lead review (2026-07-07) corrected this**: the `?? '/backups'` default was a **deliberate** change in commit c44b40f3 (PR #1202, "feat(backup): set sensible default for BACKUP_DIR", Fixes #1199) — that same PR removed the equivalent 503 tests for the other 4 backup endpoints (`POST/GET /api/backups`, `DELETE /api/backups/:filename`, `POST /api/backups/:filename/restore`) for exactly this reason. The route file's docstring and the wiki API-Contract page are **stale documentation** describing the pre-#1202 contract, not a current defect. My test was correct against the (wrong) spec I was matching, but the spec itself was outdated — diagnosis: TEST_BUG, not a production bug.
-
-**Action taken**: deleted the entire `'GET /api/backups/scheduler-status — BACKUP_DIR not configured'` describe block from `server/src/routes/backups.test.ts` (beforeEach/afterEach + the single `it`), mirroring the PR #1202 precedent of outright removal (no `.skip`/TODO). Verified 19/19 tests green after removal; `npx eslint server/src/routes/backups.test.ts` clean.
-
-**Lingering doc debt (not mine to fix)**: `server/src/routes/backups.ts`'s docstring and the wiki API-Contract page still claim "All endpoints return 503 BACKUP_NOT_CONFIGURED if BACKUP_DIR is not set" — this is stale and should eventually be corrected by product-architect/backend-developer to reflect the always-defaulted `BACKUP_DIR` behavior from PR #1202. Do not re-add a 503-BACKUP_NOT_CONFIGURED test for any backup endpoint unless `config.ts`'s default-fallback behavior actually changes.
+**Forcing a scheduled-run failure without mocking internals**: the scheduled closure holds `config` by reference, so after `initScheduler()` set `config.backupDir = join(<regular file>, 'backups')`; `createBackup` then fails (mkdir ENOTDIR -> `BACKUP_FAILED`) and `task.execute()` rejects. A path under a regular file also works as a root-safe "unwritable" simulation (chmod is ignored when running as root). For restore's temp-dir mkdir failure: pin `Date.now` via `jest.spyOn` and pre-create a regular file named `.restore-<pinned ts>` next to the backup dir.
 
 ## Test file gotchas
 

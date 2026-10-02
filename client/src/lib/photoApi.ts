@@ -1,5 +1,22 @@
-import { get, patch, del, getBaseUrl, NetworkError } from './apiClient.js';
-import type { Photo, UpdatePhotoRequest } from '@cornerstone/shared';
+import { get, patch, del, getBaseUrl, ApiClientError, NetworkError } from './apiClient.js';
+import type { ApiError, Photo, UpdatePhotoRequest } from '@cornerstone/shared';
+
+/**
+ * Build an ApiClientError for a non-2xx upload response. Uses the server's
+ * `{ error: { code, message } }` body when present; otherwise derives a code from the
+ * HTTP status so the UI can still translate it.
+ */
+function buildUploadError(status: number, body: unknown): ApiClientError {
+  const apiError = (body as { error?: Partial<ApiError> } | null)?.error;
+  if (apiError && typeof apiError.code === 'string') {
+    return new ApiClientError(status, apiError as ApiError);
+  }
+  return new ApiClientError(status, {
+    code:
+      status === 413 ? 'PAYLOAD_TOO_LARGE' : status >= 500 ? 'INTERNAL_ERROR' : 'VALIDATION_ERROR',
+    message: `Upload failed (${status})`,
+  });
+}
 
 /**
  * Upload a photo using XMLHttpRequest for progress tracking.
@@ -34,12 +51,13 @@ export function uploadPhoto(
           reject(new Error('Failed to parse upload response'));
         }
       } else {
+        let errBody: unknown = null;
         try {
-          const errBody = JSON.parse(xhr.responseText);
-          reject(new Error(errBody.error?.message ?? `Upload failed (${xhr.status})`));
+          errBody = JSON.parse(xhr.responseText);
         } catch {
-          reject(new Error(`Upload failed (${xhr.status})`));
+          // Non-JSON body: fall back to a status-derived error
         }
+        reject(buildUploadError(xhr.status, errBody));
       }
     });
 
@@ -104,15 +122,20 @@ export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
   const formData = new FormData();
   formData.append('file', blob, 'annotated.webp');
 
-  const response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
-    method: 'PUT',
-    body: formData,
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
+      method: 'PUT',
+      body: formData,
+      credentials: 'include',
+    });
+  } catch (error) {
+    throw new NetworkError('Network request failed', error);
+  }
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new Error(body.error?.message ?? `Upload failed (${response.status})`);
+    const body: unknown = await response.json().catch(() => null);
+    throw buildUploadError(response.status, body);
   }
 
   const data = (await response.json()) as { photo: Photo };

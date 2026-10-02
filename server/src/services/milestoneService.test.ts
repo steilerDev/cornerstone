@@ -6,7 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as milestoneService from './milestoneService.js';
-import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import { NotFoundError, ValidationError, DuplicateDependencyError } from '../errors/AppError.js';
 import type { CreateMilestoneRequest } from '@cornerstone/shared';
 
 describe('Milestone Service', () => {
@@ -996,7 +996,7 @@ describe('Milestone Service', () => {
       ).toThrow('Work item not found');
     });
 
-    it('should throw ConflictError when work item is already linked to this milestone', () => {
+    it('should throw DuplicateDependencyError when work item is already linked to this milestone', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       const workItem = createTestWorkItem(userId, 'Work Item');
       const milestone = milestoneService.createMilestone(
@@ -1008,9 +1008,9 @@ describe('Milestone Service', () => {
       // Link once — should succeed
       milestoneService.linkWorkItem(db, milestone.id, workItem);
 
-      // Link again — should fail with ConflictError
+      // Link again — should fail with DuplicateDependencyError
       expect(() => milestoneService.linkWorkItem(db, milestone.id, workItem)).toThrow(
-        ConflictError,
+        DuplicateDependencyError,
       );
       expect(() => milestoneService.linkWorkItem(db, milestone.id, workItem)).toThrow(
         'already linked',

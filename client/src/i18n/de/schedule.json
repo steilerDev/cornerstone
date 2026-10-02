@@ -1,5 +1,8 @@
 {
   "timeline": {
+    "errors": {
+      "loadFailed": "Beim Laden des Zeitplans ist ein unerwarteter Fehler aufgetreten."
+    },
     "page": {
       "title": "Zeitplan"
     },
@@ -140,6 +143,9 @@
     "weeklyCalendarAriaLabel": "Wochenkalender"
   },
   "milestones": {
+    "errors": {
+      "loadFailed": "Beim Laden der Meilensteine ist ein unerwarteter Fehler aufgetreten."
+    },
     "page": {
       "title": "Projekt"
     },
@@ -193,6 +199,9 @@
       "closeDialog": "Dialog schließen oder abbrechen"
     },
     "create": {
+      "errors": {
+        "createFailed": "Meilenstein konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+      },
       "title": "Meilenstein erstellen",
       "backLink": "← Meilensteine",
       "form": {

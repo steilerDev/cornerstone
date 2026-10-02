@@ -3,7 +3,8 @@ import { useTranslation } from 'react-i18next';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
 import { uploadPhoto } from '../../lib/photoApi.js';
 import { fetchAreas } from '../../lib/areasApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import PhotoMetadataModal from './PhotoMetadataModal.js';
 import styles from './PhotoUpload.module.css';
 
@@ -34,6 +35,8 @@ export function PhotoUpload({
   onUploadingCountChange,
 }: PhotoUploadProps) {
   const { t } = useTranslation('diary');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const libraryInputRef = useRef<HTMLInputElement>(null);
@@ -138,9 +141,9 @@ export function PhotoUpload({
       } catch (err) {
         let errorMessage = t('photoUpload.unknownError');
         if (err instanceof ApiClientError) {
-          errorMessage = err.error.message;
-        } else if (err instanceof Error) {
-          errorMessage = err.message;
+          errorMessage = translateApiError(err.error.code, tErrors);
+        } else if (err instanceof NetworkError) {
+          errorMessage = tCommon('requestErrors.network');
         }
 
         setPhotoQueue((prev) =>
@@ -152,7 +155,7 @@ export function PhotoUpload({
         uploadingCountRef.current -= 1;
       }
     },
-    [entityType, entityId, onUpload, onError, t],
+    [entityType, entityId, onUpload, onError, t, tErrors, tCommon],
   );
 
   // Flip all queued entries to 'uploading' and kick them off in parallel.

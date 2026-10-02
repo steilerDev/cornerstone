@@ -6,11 +6,13 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enSchedule from '../../i18n/en/schedule.json';
 import type React from 'react';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
-import type { MilestoneDetail, WorkItemSummary } from '@cornerstone/shared';
+import type { MilestoneDetail, WorkItemSummary, HouseholdItemSummary } from '@cornerstone/shared';
 import type * as MilestoneDetailPageTypes from './MilestoneDetailPage.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
@@ -482,7 +484,7 @@ describe('MilestoneDetailPage', () => {
       const user = userEvent.setup();
       mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
       mockUpdateMilestone.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Update failed' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
@@ -496,7 +498,8 @@ describe('MilestoneDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Update failed')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
 
@@ -592,7 +595,7 @@ describe('MilestoneDetailPage', () => {
       const user = userEvent.setup();
       mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
       mockDeleteMilestone.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Delete failed' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
@@ -606,7 +609,8 @@ describe('MilestoneDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Delete failed')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
   });
@@ -785,6 +789,177 @@ describe('MilestoneDetailPage', () => {
       });
 
       expect(screen.getByText('No area')).toBeInTheDocument();
+    });
+  });
+
+  // ─── #2131: household-item quick-link and dependent-work-item errors ────────
+
+  describe('translated link errors (#2129, #2131)', () => {
+    const householdItem: HouseholdItemSummary = {
+      id: 'hi-1',
+      name: 'Kitchen Island',
+      description: null,
+      category: 'hic-furniture',
+      status: 'planned',
+      vendor: null,
+      area: null,
+      quantity: 1,
+      orderDate: null,
+      actualDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+      targetDeliveryDate: null,
+      isLate: false,
+      url: null,
+      budgetLineCount: 0,
+      totalPlannedAmount: 0,
+      budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
+      createdBy: null,
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    };
+
+    async function quickLinkHouseholdItem(rejection: unknown) {
+      const user = userEvent.setup();
+      makeDefaultListResponses();
+      mockListHouseholdItems.mockResolvedValue({
+        items: [householdItem],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      mockCreateHouseholdItemDep.mockRejectedValue(rejection as never);
+      renderPage();
+      const input = await screen.findByTestId('item-search-input');
+      await user.type(input, 'Kitchen');
+      await user.click(await screen.findByRole('button', { name: /Kitchen Island/ }));
+    }
+
+    it('household item quick-link 409 CIRCULAR_DEPENDENCY shows the circular copy', async () => {
+      await quickLinkHouseholdItem(
+        new ApiClientError(409, { code: 'CIRCULAR_DEPENDENCY', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      expect(await screen.findByText(enErrors.CIRCULAR_DEPENDENCY)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('household item quick-link 409 DUPLICATE_DEPENDENCY shows the duplicate copy', async () => {
+      await quickLinkHouseholdItem(
+        new ApiClientError(409, { code: 'DUPLICATE_DEPENDENCY', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      expect(await screen.findByText(enErrors.DUPLICATE_DEPENDENCY)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('household item quick-link plain Error shows the fallback copy, not the local text', async () => {
+      await quickLinkHouseholdItem(new Error('RAW-LOCAL'));
+      expect(await screen.findByRole('alert')).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    describe('work item link / dependent handlers', () => {
+      const sentinelError = () =>
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' });
+
+      async function expectAlertText(text: string) {
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(text);
+        expect(alert).not.toHaveTextContent(/RAW-/);
+      }
+
+      beforeEach(() => {
+        makeDefaultListResponses();
+        mockListWorkItems.mockResolvedValue({
+          items: [{ ...sampleWorkItemSummary, id: 'wi-200', title: 'Install Windows' }],
+          pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+        });
+      });
+
+      it('quick-link work item: ApiClientError shows the code copy, plain Error the failedLink copy', async () => {
+        const user = userEvent.setup();
+        mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+        mockLinkWorkItem.mockRejectedValueOnce(sentinelError());
+        mockLinkWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+        renderPage();
+        const input = await screen.findByTestId('item-search-input');
+        await user.type(input, 'Install');
+        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await expectAlertText(enErrors.INTERNAL_ERROR);
+        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(
+            enSchedule.milestones.detail.failedLink,
+          );
+        });
+      });
+
+      it('unlink work item: ApiClientError shows the code copy, plain Error the failedUnlink copy', async () => {
+        mockGetMilestone.mockResolvedValue(sampleMilestoneDetail);
+        mockUnlinkWorkItem.mockRejectedValueOnce(sentinelError());
+        mockUnlinkWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+        renderPage();
+        fireEvent.click(await screen.findByTestId('unlink-work-item-wi-100'));
+        await expectAlertText(enErrors.INTERNAL_ERROR);
+        fireEvent.click(screen.getByTestId('unlink-work-item-wi-100'));
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(
+            enSchedule.milestones.detail.failedUnlink,
+          );
+        });
+      });
+
+      it('unlink household item: ApiClientError shows the code copy, plain Error the failedUnlink copy', async () => {
+        mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+        mockFetchMilestoneLinkedHouseholdItems.mockResolvedValue([
+          { id: 'hi-9', name: 'Sofa', category: 'hic-furniture', status: 'planned' } as never,
+        ]);
+        mockDeleteHouseholdItemDep.mockRejectedValueOnce(sentinelError() as never);
+        mockDeleteHouseholdItemDep.mockRejectedValueOnce(new Error('RAW-LOCAL') as never);
+        renderPage();
+        fireEvent.click(await screen.findByTestId('unlink-household-item-hi-9'));
+        await expectAlertText(enErrors.INTERNAL_ERROR);
+        fireEvent.click(screen.getByTestId('unlink-household-item-hi-9'));
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(
+            enSchedule.milestones.detail.failedUnlink,
+          );
+        });
+      });
+
+      it('add dependent work item: ApiClientError shows the code copy, plain Error the failedAddDependent copy', async () => {
+        const user = userEvent.setup();
+        mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+        mockAddDependentWorkItem.mockRejectedValueOnce(sentinelError());
+        mockAddDependentWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+        renderPage();
+        const input = await screen.findByTestId('dep-search-input');
+        await user.type(input, 'Install');
+        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await expectAlertText(enErrors.INTERNAL_ERROR);
+        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(
+            enSchedule.milestones.detail.failedAddDependent,
+          );
+        });
+      });
+
+      it('remove dependent work item: ApiClientError shows the code copy, plain Error the failedRemoveDependent copy', async () => {
+        mockGetMilestone.mockResolvedValue({
+          ...emptyMilestoneDetail,
+          dependentWorkItems: [sampleWorkItemSummary],
+        });
+        mockRemoveDependentWorkItem.mockRejectedValueOnce(sentinelError());
+        mockRemoveDependentWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+        renderPage();
+        fireEvent.click(await screen.findByTestId('remove-dep-work-item-wi-100'));
+        await expectAlertText(enErrors.INTERNAL_ERROR);
+        fireEvent.click(screen.getByTestId('remove-dep-work-item-wi-100'));
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(
+            enSchedule.milestones.detail.failedRemoveDependent,
+          );
+        });
+      });
     });
   });
 });

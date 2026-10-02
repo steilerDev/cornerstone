@@ -100,14 +100,14 @@ export function InvoiceBudgetLinesSection({
       setRemainingAmount(response.remainingAmount);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('invoiceDetail.budgetLines.loadError'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [invoiceId, t]);
+  }, [invoiceId, t, tErrors]);
 
   // Use the picker hook — eagerLinkInvoice defaults to true so the create-new flow
   // calls createInvoiceBudgetLine automatically before invoking onLineCreated.
@@ -232,7 +232,7 @@ export function InvoiceBudgetLinesSection({
           } else if (err.error.code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
             errorMsg = t('invoiceDetail.budgetLines.picker.error.exceedsTotal');
           } else {
-            errorMsg = err.error.message;
+            errorMsg = translateApiError(err.error.code, tErrors);
           }
         }
 

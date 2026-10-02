@@ -5,6 +5,7 @@ import type { BudgetOverview, BudgetBreakdown, BudgetSource } from '@cornerstone
 import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
@@ -16,6 +17,7 @@ import styles from './BudgetOverviewPage.module.css';
 
 export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
@@ -209,7 +211,7 @@ export function BudgetOverviewPage() {
       }
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('overview.errorMessage'));
       }

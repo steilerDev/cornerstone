@@ -32,7 +32,7 @@ jest.unstable_mockModule('./errorTranslation.js', () => ({
 // ApiClientError mock — has .error.code
 class MockApiClientError extends Error {
   statusCode = 500;
-  error = { code: 'SERVER_ERROR', message: 'Server error' };
+  error = { code: 'INTERNAL_ERROR', message: 'Server error' };
 }
 
 jest.unstable_mockModule('./apiClient.js', () => ({

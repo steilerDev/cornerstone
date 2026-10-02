@@ -17,7 +17,6 @@ import type Database from 'better-sqlite3';
 import type { AppConfig } from '../plugins/config.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import {
-  BackupNotConfiguredError,
   BackupInProgressError,
   BackupNotFoundError,
   RestoreFailedError,
@@ -139,27 +138,21 @@ export async function createBackup(
   db: BetterSQLite3Database<any>,
   config: AppConfig,
 ): Promise<BackupMeta> {
-  if (!config.backupEnabled) {
-    throw new BackupNotConfiguredError();
-  }
-
   if (operationInProgress) {
     throw new BackupInProgressError();
   }
 
   operationInProgress = true;
   try {
-    // Ensure backup directory exists
-    await fs.mkdir(config.backupDir, { recursive: true });
-
-    // Verify backup directory is writable
+    // Ensure backup directory exists and is writable
     const probeFile = path.join(config.backupDir, `.write-check-${Date.now()}`);
     try {
+      await fs.mkdir(config.backupDir, { recursive: true });
       await fs.writeFile(probeFile, '');
       await fs.unlink(probeFile);
     } catch (probeErr) {
       throw new BackupFailedError(
-        `Backup directory is not writable: ${(probeErr as Error).message}`,
+        `Backup directory could not be created or is not writable: ${(probeErr as Error).message}`,
         { backupDir: config.backupDir },
       );
     }
@@ -173,6 +166,8 @@ export async function createBackup(
     try {
       await getClient(db).backup(dbSnapshotPath);
     } catch (dbErr) {
+      // Remove any partial snapshot file
+      await fs.unlink(dbSnapshotPath).catch(() => {});
       throw new BackupFailedError(`Database backup failed: ${(dbErr as Error).message}`, {
         code: (dbErr as { code?: string }).code,
       });
@@ -184,8 +179,9 @@ export async function createBackup(
         path.basename(dataDir),
       ]);
     } catch (tarErr) {
-      // Clean up the snapshot DB file on tar failure
+      // Clean up the snapshot DB file and any partial archive on tar failure
       await fs.unlink(dbSnapshotPath).catch(() => {});
+      await fs.unlink(backupPath).catch(() => {});
       throw new BackupFailedError(`Backup archive creation failed: ${(tarErr as Error).message}`);
     }
 
@@ -241,48 +237,57 @@ export async function deleteBackup(backupDir: string, filename: string): Promise
 }
 
 /**
- * Restore the database and app data from a backup archive.
- * Closes the DB connection, extracts the archive to replace app data directory, then exits.
+ * Validate a restore request and take the operation lock.
+ * Runs before the HTTP reply so 404/409/500 errors reach the client.
+ * On success the caller owns the lock and MUST call `executeRestore`, which releases it on failure.
  */
-export async function restoreBackup(
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema generic deliberately erased to accept any schema
-  db: BetterSQLite3Database<any>,
-  config: AppConfig,
-  filename: string,
-): Promise<void> {
-  if (!config.backupEnabled) {
-    throw new BackupNotConfiguredError();
+export async function beginRestore(config: AppConfig, filename: string): Promise<void> {
+  if (!validateBackupFilename(filename)) {
+    throw new BackupNotFoundError(filename);
   }
 
   if (operationInProgress) {
     throw new BackupInProgressError();
   }
 
-  if (!validateBackupFilename(filename)) {
-    throw new BackupNotFoundError(filename);
+  const backupPath = path.join(config.backupDir, filename);
+  try {
+    await fs.stat(backupPath);
+  } catch (error) {
+    if ((error as unknown as { code: string }).code === 'ENOENT') {
+      throw new BackupNotFoundError(filename);
+    }
+    throw new RestoreFailedError(
+      error instanceof Error ? error.message : 'Unknown error during restore',
+    );
   }
 
+  // Re-check after the await: another operation may have started meanwhile
+  if (operationInProgress) {
+    throw new BackupInProgressError();
+  }
   operationInProgress = true;
+}
 
+/**
+ * Extract the archive and swap the app data directory, then exit the process.
+ * Requires a prior successful `beginRestore`; releases the lock if the restore fails.
+ */
+export async function executeRestore(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Schema generic deliberately erased to accept any schema
+  db: BetterSQLite3Database<any>,
+  config: AppConfig,
+  filename: string,
+): Promise<void> {
   try {
     const backupPath = path.join(config.backupDir, filename);
     const dataDir = path.dirname(config.databaseUrl);
 
-    // Verify backup exists
-    try {
-      await fs.stat(backupPath);
-    } catch (error) {
-      if ((error as unknown as { code: string }).code === 'ENOENT') {
-        throw new BackupNotFoundError(filename);
-      }
-      throw error;
-    }
-
     // Create temp directory for extraction
     const tempDir = path.join(path.dirname(config.backupDir), `.restore-${Date.now()}`);
-    await fs.mkdir(tempDir, { recursive: true });
-
     try {
+      await fs.mkdir(tempDir, { recursive: true });
+
       // Extract tar.gz to temp directory
       await tar.extract({ file: backupPath, cwd: tempDir });
 
@@ -328,7 +333,7 @@ export function initScheduler(
   config: AppConfig,
   logger: FastifyInstance['log'],
 ): void {
-  if (!config.backupCadence || !config.backupEnabled) {
+  if (!config.backupCadence) {
     return;
   }
 

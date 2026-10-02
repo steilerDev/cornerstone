@@ -28,7 +28,7 @@ import {
   createPreviewUrl,
   uploadToPaperless,
 } from '../../lib/reportPdf/index.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -408,6 +408,8 @@ export function ReportWizardPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         showToast('error', translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        showToast('error', t('common:requestErrors.network'));
       } else {
         showToast('error', t('sourceReports.uploadFailed'));
       }

@@ -12,6 +12,10 @@ import {
   waitFor,
   within,
 } from '@testing-library/react';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enBudget from '../../i18n/en/budget.json';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineAssignRequest } from '@cornerstone/shared';
@@ -436,6 +440,62 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     });
   });
 
+  // ─── #2129: move failures never display raw server text ─────────────────────
+
+  describe('move failure messages (#2129)', () => {
+    async function moveRejectingWith(error: unknown) {
+      const onMove = jest
+        .fn<(newParentType: 'work_item' | 'household_item', newParentId: string) => Promise<void>>()
+        .mockRejectedValue(error);
+      const props = buildBaseProps({
+        currentParentType: 'work_item',
+        currentParentId: 'wi-1',
+        currentParentLabel: 'Test WI',
+        onMove,
+      });
+
+      render(React.createElement(BudgetLineForm, props));
+      fireEvent.click(getChangeButton());
+      act(() => {
+        capturedWorkItemPickerOnChange!('wi-2');
+      });
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /Move to selected item/i })).not.toBeDisabled();
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Move to selected item/i }));
+      });
+    }
+
+    it('an ApiClientError shows the translated errors.json text, never the server message', async () => {
+      await moveRejectingWith(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('a NetworkError shows the common network message', async () => {
+      await moveRejectingWith(new NetworkError('RAW-LOCAL', new Error('cause')));
+
+      await waitFor(() => {
+        expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('a messageless Error falls back to the translated picker error', async () => {
+      await moveRejectingWith(new Error(''));
+
+      await waitFor(() => {
+        expect(screen.getByText(enBudget.budgetLineForm.parentPickerError)).toBeInTheDocument();
+      });
+    });
+  });
+
   // ─── #2067: collapsed row hides, and focus moves deliberately ───────────────
 
   describe('focus management when toggling the picker (#2067)', () => {
@@ -598,6 +658,32 @@ describe('BudgetLineForm — parent picker (edit-move affordance)', () => {
     expect(screen.getByTestId('work-item-picker')).toBeInTheDocument();
     // Move affordance should NOT be rendered (no currentParentId/onMove)
     expect(screen.queryByRole('button', { name: /^Change$/i })).not.toBeInTheDocument();
+  });
+
+  // #2129: a failed assign shows the translated picker error, never the thrown text
+  it('onAssign rejecting shows the translated picker error and not the thrown message', async () => {
+    const onAssign = jest
+      .fn<(body: BudgetLineAssignRequest) => Promise<void>>()
+      .mockRejectedValue(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+    const props = buildBaseProps({ isUnassigned: true, onAssign, assignBudgetLineId: 'wib-1' });
+
+    render(React.createElement(BudgetLineForm, props));
+    act(() => {
+      capturedWorkItemPickerOnChange!('wi-2');
+    });
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Assign$/ })).not.toBeDisabled();
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: /^Assign$/ }));
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText(enBudget.budgetLineForm.parentPickerError)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
   // Scenario 11: When onMove is not provided, parent picker section not rendered

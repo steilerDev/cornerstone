@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { Logo } from '../../components/Logo/Logo.js';
 import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../shared/AuthPage.module.css';
 import styles from './SetupPage.module.css';
 
@@ -17,6 +18,7 @@ interface FormErrors {
 export function SetupPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
+  const { t: tErrors } = useTranslation('errors');
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -87,7 +89,7 @@ export function SetupPage() {
       navigate('/login', { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setApiError(error.error.message);
+        setApiError(translateApiError(error.error.code, tErrors));
       } else {
         setApiError(t('setup.error'));
       }

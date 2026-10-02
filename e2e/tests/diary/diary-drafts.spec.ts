@@ -476,7 +476,7 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
               status: 500,
               contentType: 'application/json',
               body: JSON.stringify({
-                error: { code: 'INTERNAL_SERVER_ERROR', message: 'Upload failed' },
+                error: { code: 'INTERNAL_ERROR', message: 'Upload failed' },
               }),
             });
           } else {

@@ -180,5 +180,9 @@
   "chunkError": {
     "message": "The application could not load a required file. This usually happens after an update.",
     "refreshButton": "Refresh page"
+  },
+  "requestErrors": {
+    "network": "Network error: Unable to connect to the server.",
+    "unexpected": "An unexpected error occurred. Please try again."
   }
 }

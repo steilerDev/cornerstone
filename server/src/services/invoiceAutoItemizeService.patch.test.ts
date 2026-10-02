@@ -74,7 +74,6 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     currency: 'EUR',
     vatRate: 0.19,
     backupDir: '/backups',
-    backupEnabled: false,
     llmBaseUrl: 'http://llm.test.local',
     llmApiKey: 'llm-key',
     llmModel: 'gpt-4o',

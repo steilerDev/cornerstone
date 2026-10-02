@@ -115,7 +115,7 @@ AreaPicker.buildTree() converts flat areas to depth-first order:
 ### Error Handling
 
 - 409 status code → conflict message (item in use)
-- ApiClientError → display error.message
+- ApiClientError → `translateApiError(err.error.code, tErrors)` (never display `error.message`; server text is not localized, see #2129)
 - Network/other errors → generic translated messages
 
 ### Accessibility

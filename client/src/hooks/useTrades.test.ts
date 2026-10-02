@@ -1,5 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
+import enSettings from '../i18n/en/settings.json';
 
 const mockFetchTrades = jest.fn<() => Promise<unknown>>();
 const mockCreateTrade = jest.fn<() => Promise<unknown>>();
@@ -105,22 +107,22 @@ describe('useTrades', () => {
 
   it('sets error string and isLoading=false on ApiClientError; trades stays empty', async () => {
     mockFetchTrades.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useTrades());
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.trades).toEqual([]);
   });
 
-  it('uses fallback error message when ApiClientError has no message', async () => {
+  it('translates the error code when ApiClientError has no message', async () => {
     mockFetchTrades.mockRejectedValueOnce(new MockApiClientError(401, { code: 'UNAUTHORIZED' }));
 
     const { result } = renderHook(() => useTrades());
 
-    await waitFor(() => expect(result.current.error).toBe('Failed to load trades.'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.UNAUTHORIZED));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -140,9 +142,7 @@ describe('useTrades', () => {
 
     const { result } = renderHook(() => useTrades());
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('An unexpected error occurred while loading trades.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enSettings.manage.trades.loadError));
     expect(result.current.isLoading).toBe(false);
   });
 

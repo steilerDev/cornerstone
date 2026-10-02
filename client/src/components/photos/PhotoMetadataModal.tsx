@@ -79,7 +79,7 @@ export function PhotoMetadataModal({
         <div>
           <label htmlFor="modal-photo-caption" className={styles.fieldLabel}>
             {t('photoMetadataModal.descriptionLabel')}
-            <span className={styles.fieldOptional}>{t('common.optional')}</span>
+            <span className={styles.fieldOptional}>{t('common:optional')}</span>
           </label>
           <textarea
             id="modal-photo-caption"

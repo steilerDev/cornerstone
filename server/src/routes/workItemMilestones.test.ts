@@ -329,10 +329,10 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 409 CONFLICT
+      // Then: 409
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('DUPLICATE_DEPENDENCY');
     });
 
     it('returns 409 when cross-linking: work item already contributes to this milestone', async () => {
@@ -355,10 +355,10 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 409 CONFLICT
+      // Then: 409
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('CIRCULAR_DEPENDENCY');
     });
 
     it('returns 400 when milestoneId is not an integer', async () => {
@@ -625,10 +625,10 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 409 CONFLICT
+      // Then: 409
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('DUPLICATE_DEPENDENCY');
     });
 
     it('returns 409 when cross-linking: work item already depends on this milestone as required', async () => {
@@ -651,10 +651,10 @@ describe('Work Item Milestone Routes', () => {
         headers: { cookie },
       });
 
-      // Then: 409 CONFLICT
+      // Then: 409
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('CIRCULAR_DEPENDENCY');
     });
 
     it('returns 400 when milestoneId is not an integer', async () => {

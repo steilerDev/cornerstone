@@ -426,7 +426,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.amountRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.amountRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -435,7 +437,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.dueDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -446,7 +450,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.paidDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -463,7 +469,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.claimedDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -684,17 +692,21 @@ describe('InvoiceDepositFormModal', () => {
     });
 
     it('translates other API error codes', async () => {
-      await submitWithError(new ApiClientError(500, { code: 'LLM_UNREACHABLE', message: 'x' }));
+      await submitWithError(
+        new ApiClientError(500, { code: 'LLM_UNREACHABLE', message: 'RAW-SERVER-SENTINEL' }),
+      );
 
       expect(screen.getByText(tr('errors:LLM_UNREACHABLE'))).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows the generic save error for non-API failures', async () => {
-      await submitWithError(new Error('network'));
+      await submitWithError(new Error('RAW-LOCAL'));
 
       expect(
         screen.getByText(tr('budget:invoiceDetail.deposits.errors.saveError')),
       ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
   });
 

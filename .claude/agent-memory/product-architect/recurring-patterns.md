@@ -1347,13 +1347,15 @@ cannot see. That is how the "all four OIDC variables" sentence survived.
 - **#2023** — `Architecture.md` "Backup & Restore": `BACKUP_DIR` is documented as default `(none)` with
   "Backup functionality is enabled when `BACKUP_DIR` is set. If unset, all `/api/backups/*` endpoints
   return 503." Both halves are wrong — `config.ts:259` is `getValue('BACKUP_DIR') ?? '/backups'`, so
-  `backupEnabled = !!backupDir` (line 288) is **unconditionally true** and the 503 path is dead.
-  CLAUDE.md already documents the `/backups` default, so the wiki is the outlier.
-- **#2024** — `npm run format` reformats `wiki/*.md`: `.prettierignore` excludes `docs/` but **not**
-  `wiki/`, while `format`/`format:check` glob `**/*.{...,md}`. Surfaced via `API-Contract.md`
-  lines ~3681-3720 (the `invoices[].splitKind` table from #1911/PR #2015), whose type cell overflows
-  the table's padded width — the only prettier-dirty region of that file, and a latent format-check
-  failure sitting on `beta`.
+  the `backupEnabled = !!backupDir` guard was **unconditionally true** and the 503 path was dead.
+  **RESOLVED: #2132 removed `backupEnabled` from `AppConfig` and deleted the guard, and
+  `BACKUP_NOT_CONFIGURED` no longer exists. No backup endpoint has a 503 path.** Backups are always on.
+  Backup failures are 500 `BACKUP_FAILED` (write probe, snapshot, or tar). Restore validates before
+  its 202 (`beginRestore`: 404/409/500 `RESTORE_FAILED`), per #2129.
+- **#2024** — RESOLVED: `.prettierignore` now excludes `wiki/` (CLAUDE.md agrees). The wiki is still
+  prettier-padded by convention, so format a page you edit with
+  `node_modules/.bin/prettier --config .prettierrc --write <page>`. Then revert any unrelated hunks it
+  reflows, because other agents' rows are not always clean.
 - **Ruled a CODE defect and handed to the coordinator to file** (issue number unknown at write time —
   search issues for `oidc.ts:106` / `redirect_uri` before filing anything) — the two OIDC legs derive the
   callback URL differently: `oidc.ts:45` uses `externalUrl || request-origin`, `oidc.ts:106` uses the

@@ -1,6 +1,9 @@
-import { createContext, use, useState, useEffect, type ReactNode } from 'react';
+import { createContext, use, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { getAuthMe, logout as logoutApi, type AuthMeResponse } from '../lib/authApi.js';
 import type { UserResponse } from '@cornerstone/shared';
+import { useTranslation } from 'react-i18next';
+import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface AuthContextValue {
   user: UserResponse | null;
@@ -18,6 +21,9 @@ interface AuthProviderProps {
 }
 
 export function AuthProvider({ children }: AuthProviderProps) {
+  const { t } = useTranslation('auth');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [authState, setAuthState] = useState<{
     user: UserResponse | null;
     oidcEnabled: boolean;
@@ -30,7 +36,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     error: null,
   });
 
-  const loadAuth = async () => {
+  const loadAuth = useCallback(async () => {
     try {
       const response: AuthMeResponse = await getAuthMe();
       setAuthState({
@@ -40,18 +46,26 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
       });
     } catch (error) {
+      let message: string;
+      if (error instanceof ApiClientError) {
+        message = translateApiError(error.error.code, tErrors);
+      } else if (error instanceof NetworkError) {
+        message = tCommon('requestErrors.network');
+      } else {
+        message = t('session.loadError');
+      }
       setAuthState({
         user: null,
         oidcEnabled: false,
         isLoading: false,
-        error: error instanceof Error ? error.message : 'Failed to load authentication state',
+        error: message,
       });
     }
-  };
+  }, [t, tErrors, tCommon]);
 
   useEffect(() => {
     void loadAuth();
-  }, []);
+  }, [loadAuth]);
 
   const refreshAuth = async () => {
     await loadAuth();

@@ -70,7 +70,10 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
 }));
 
+class MockNetworkError extends Error {}
+
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+  NetworkError: MockNetworkError,
   ApiClientError: MockApiClientError,
   get: jest.fn(),
   post: jest.fn(),

@@ -137,6 +137,14 @@
     "common": {
       "emptyDefault": "Keine Daten verfügbar",
       "retry": "Erneut versuchen"
+    },
+    "loadErrors": {
+      "budgetOverview": "Budgetübersicht konnte nicht geladen werden",
+      "budgetSources": "Budgetquellen konnten nicht geladen werden",
+      "subsidyPrograms": "Förderprogramme konnten nicht geladen werden",
+      "timeline": "Zeitplan konnte nicht geladen werden",
+      "invoices": "Rechnungen konnten nicht geladen werden",
+      "diary": "Tagebucheinträge konnten nicht geladen werden"
     }
   }
 }

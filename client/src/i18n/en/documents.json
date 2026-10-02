@@ -59,6 +59,8 @@
     "addDocumentModal": "Add Document",
     "selectDocumentSubtitle": "Select a document from Paperless-ngx to link to {{entity}}.",
     "closeDocumentPicker": "Close document picker",
+    "thisDocument": "This document",
+    "unnamedDocument": "document",
     "unlinkDocument": "Unlink Document?",
     "unlinkConfirmation": "\"{{title}}\" will be removed from {{entity}}. The document will remain in Paperless-ngx.",
     "unlinkButton": "Unlink",

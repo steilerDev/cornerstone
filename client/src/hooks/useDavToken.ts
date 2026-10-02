@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback } from 'react';
 import type { DavTokenStatus } from '@cornerstone/shared';
 import { getDavTokenStatus, generateDavToken, revokeDavToken } from '../lib/davTokensApi.js';
 import { ApiClientError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseDavTokenResult {
   status: DavTokenStatus | null;
@@ -18,6 +20,8 @@ export interface UseDavTokenResult {
  * Shows the token once after generation, then never again.
  */
 export function useDavToken(): UseDavTokenResult {
+  const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const [status, setStatus] = useState<DavTokenStatus | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -34,9 +38,9 @@ export function useDavToken(): UseDavTokenResult {
         setStatus(data);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
-          setError('Failed to load token status. Please try again.');
+          setError(t('dav.errors.loadFailed'));
         }
       } finally {
         setIsLoading(false);
@@ -44,7 +48,7 @@ export function useDavToken(): UseDavTokenResult {
     };
 
     void loadStatus();
-  }, []);
+  }, [t, tErrors]);
 
   const generate = useCallback(async () => {
     setError(null);
@@ -57,13 +61,13 @@ export function useDavToken(): UseDavTokenResult {
       setStatus(updatedStatus);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
-        setError('Failed to generate token. Please try again.');
+        setError(t('dav.errors.generateFailed'));
       }
       throw err;
     }
-  }, []);
+  }, [t, tErrors]);
 
   const revoke = useCallback(async () => {
     setError(null);
@@ -76,13 +80,13 @@ export function useDavToken(): UseDavTokenResult {
       setStatus(updatedStatus);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
-        setError('Failed to revoke token. Please try again.');
+        setError(t('dav.errors.revokeFailed'));
       }
       throw err;
     }
-  }, []);
+  }, [t, tErrors]);
 
   const clearNewToken = useCallback(() => {
     setNewToken(null);

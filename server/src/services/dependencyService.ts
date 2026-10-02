@@ -9,7 +9,12 @@ import type {
   WorkItemDependenciesResponse,
   DependencyResponse,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  DuplicateDependencyError,
+  CircularDependencyError,
+} from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
@@ -86,8 +91,8 @@ function detectCycle(db: DbType, successorId: string, predecessorId: string): st
  * Create a dependency where workItemId is the successor (depends on predecessorId).
  * @throws NotFoundError if either work item does not exist
  * @throws ValidationError if workItemId === predecessorId (self-reference)
- * @throws ConflictError if dependency already exists (DUPLICATE_DEPENDENCY)
- * @throws ConflictError if circular dependency would be created (CIRCULAR_DEPENDENCY)
+ * @throws DuplicateDependencyError if dependency already exists (DUPLICATE_DEPENDENCY)
+ * @throws CircularDependencyError if circular dependency would be created (CIRCULAR_DEPENDENCY)
  */
 export function createDependency(
   db: DbType,
@@ -118,7 +123,7 @@ export function createDependency(
     .get();
 
   if (existing) {
-    throw new ConflictError('Dependency already exists', { code: 'DUPLICATE_DEPENDENCY' });
+    throw new DuplicateDependencyError();
   }
 
   // Perform circular dependency detection
@@ -134,10 +139,10 @@ export function createDependency(
       return wi ? `"${wi.title}"` : id;
     });
 
-    throw new ConflictError(`Circular dependency detected: ${cycleWithTitles.join(' → ')}`, {
-      code: 'CIRCULAR_DEPENDENCY',
-      cycle,
-    });
+    throw new CircularDependencyError(
+      `Circular dependency detected: ${cycleWithTitles.join(' → ')}`,
+      { cycle },
+    );
   }
 
   // Create dependency

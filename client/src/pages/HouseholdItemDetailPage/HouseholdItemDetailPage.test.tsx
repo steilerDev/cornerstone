@@ -13,6 +13,9 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemDepsApiTypes from '../../lib/householdItemDepsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -67,7 +70,10 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
 }));
 
 // Mock ApiClientError so instanceof checks work in the component
+class MockNetworkError extends Error {}
+
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+  NetworkError: MockNetworkError,
   ApiClientError: MockApiClientError,
   get: jest.fn(),
   post: jest.fn(),
@@ -1846,6 +1852,201 @@ describe('HouseholdItemDetailPage', () => {
 
       // "No area" appears in the compact breadcrumb inside the dep search dropdown result.
       expect(screen.getByText('No area')).toBeInTheDocument();
+    });
+  });
+
+  // ─── #2129 / #2131: translated errors, never raw server text ────────────────
+
+  describe('translated API errors (#2129, #2131)', () => {
+    const SENTINEL = 'RAW-SERVER-SENTINEL';
+    const apiError = (status: number, code: string) =>
+      new MockApiClientError(status, { code, message: SENTINEL });
+
+    async function addDependencyWith(rejection: unknown) {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockCreateHouseholdItemDep.mockRejectedValue(rejection);
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-x',
+            title: 'Electrical Rough-In',
+            status: 'not_started' as const,
+            startDate: null,
+            endDate: null,
+            durationDays: null,
+            actualStartDate: null,
+            actualEndDate: null,
+            assignedUser: null,
+            assignedVendor: null,
+            area: null,
+            budgetLineCount: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
+      );
+      await user.type(screen.getByTestId('dep-search-input'), 'Elec');
+      await user.click(await screen.findByRole('button', { name: /Electrical Rough-In/ }));
+    }
+
+    it('add dependency 409 CIRCULAR_DEPENDENCY shows the circular copy, not the server text', async () => {
+      await addDependencyWith(apiError(409, 'CIRCULAR_DEPENDENCY'));
+      expect(await screen.findByText(enErrors.CIRCULAR_DEPENDENCY)).toBeInTheDocument();
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('add dependency 409 DUPLICATE_DEPENDENCY shows the duplicate copy', async () => {
+      await addDependencyWith(apiError(409, 'DUPLICATE_DEPENDENCY'));
+      expect(await screen.findByText(enErrors.DUPLICATE_DEPENDENCY)).toBeInTheDocument();
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('add dependency with a non-API error toasts the translated fallback', async () => {
+      await addDependencyWith(new Error('RAW-LOCAL'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          enHouseholdItems.detail.dependencies.failedAdd,
+        ),
+      );
+    });
+
+    it('a successful add dependency toasts the translated success copy', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue({
+        items: [
+          {
+            id: 'wi-x',
+            title: 'Electrical Rough-In',
+            status: 'not_started' as const,
+            startDate: null,
+            endDate: null,
+            durationDays: null,
+            actualStartDate: null,
+            actualEndDate: null,
+            assignedUser: null,
+            assignedVendor: null,
+            area: null,
+            budgetLineCount: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+        pagination: { page: 1, pageSize: 100, totalItems: 1, totalPages: 1 },
+      });
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
+      );
+      await user.type(screen.getByTestId('dep-search-input'), 'Elec');
+      await user.click(await screen.findByRole('button', { name: /Electrical Rough-In/ }));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'success',
+          enHouseholdItems.detail.dependencies.addedSuccess,
+        ),
+      );
+    });
+
+    async function removeDependency(rejection?: unknown) {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          predecessor: {
+            id: 'wi-1',
+            title: 'Foundation Work',
+            status: 'in_progress',
+            endDate: null,
+          },
+        } as HouseholdItemDepDetail,
+      ]);
+      if (rejection) mockDeleteHouseholdItemDep.mockRejectedValue(rejection);
+      renderPage();
+      await waitFor(() => expect(screen.getByText('Foundation Work')).toBeInTheDocument());
+      await user.click(
+        screen.getByRole('button', { name: /Remove dependency on Foundation Work/i }),
+      );
+      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+    }
+
+    it('a successful remove dependency toasts the translated success copy', async () => {
+      await removeDependency();
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'success',
+          enHouseholdItems.detail.dependencies.removedSuccess,
+        ),
+      );
+    });
+
+    it('a failed remove dependency toasts the translated failure copy, not the server text', async () => {
+      await removeDependency(apiError(500, 'INTERNAL_ERROR'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          enHouseholdItems.detail.dependencies.failedRemove,
+        ),
+      );
+    });
+
+    it('load failure with an ApiClientError shows the translated code copy only', async () => {
+      mockGetHouseholdItem.mockRejectedValue(apiError(500, 'INTERNAL_ERROR'));
+      renderPage();
+      expect(await screen.findByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('load failure with a NetworkError shows the network copy', async () => {
+      mockGetHouseholdItem.mockRejectedValue(new MockNetworkError('RAW-LOCAL'));
+      renderPage();
+      expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    async function deleteWith(rejection: unknown) {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockDeleteHouseholdItem.mockRejectedValue(rejection);
+      renderPage();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument(),
+      );
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      await user.click(
+        await within(await screen.findByRole('dialog')).findByRole('button', {
+          name: /delete item/i,
+        }),
+      );
+    }
+
+    it('delete failure with ApiClientError shows translated copy, not the server text', async () => {
+      await deleteWith(apiError(409, 'CONFLICT'));
+      expect(await screen.findByText(enErrors.CONFLICT)).toBeInTheDocument();
+      expect(screen.queryByText(new RegExp(SENTINEL))).toBeNull();
+    });
+
+    it('delete failure with NetworkError shows the network copy', async () => {
+      await deleteWith(new MockNetworkError('RAW-LOCAL'));
+      expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
+    });
+
+    it('delete failure with a plain Error shows the fallback copy, not the local text', async () => {
+      await deleteWith(new Error('RAW-LOCAL'));
+      expect(
+        await screen.findByText(enHouseholdItems.detail.errors.deleteFailed),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
   });
 });

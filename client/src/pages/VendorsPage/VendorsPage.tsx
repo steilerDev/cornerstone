@@ -18,11 +18,13 @@ import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { fetchVendors, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -101,7 +103,7 @@ export function VendorsPage() {
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('vendors.errorMessage'));
       }
@@ -172,7 +174,7 @@ export function VendorsPage() {
         if (err.statusCode === 409) {
           setDeleteError(t('vendors.modal.deleteError'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setDeleteError(t('vendors.messages.deleteError'));
@@ -302,7 +304,7 @@ export function VendorsPage() {
         type="button"
         className={styles.menuButton}
         onClick={() => setActiveMenuId(activeMenuId === vendor.id ? null : vendor.id)}
-        aria-label={t('common:menu.actions')}
+        aria-label={t('common:actions')}
         data-testid={dataTableTestId('vendor-menu-button', vendor.id, surface)}
       >
         ⋮

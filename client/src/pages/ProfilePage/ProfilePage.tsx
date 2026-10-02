@@ -2,6 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useLocale, type LocalePreference } from '../../contexts/LocaleContext.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -18,6 +19,7 @@ interface PasswordFormErrors {
 
 export function ProfilePage() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -98,7 +100,7 @@ export function ProfilePage() {
       setDisplayNameSuccess(t('profile.displayNameUpdatedSuccess'));
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setDisplayNameError(error.error.message);
+        setDisplayNameError(translateApiError(error.error.code, tErrors));
       } else {
         setDisplayNameError(t('profile.displayNameUpdateFailed'));
       }
@@ -150,7 +152,7 @@ export function ProfilePage() {
       setConfirmPassword('');
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setPasswordApiError(error.error.message);
+        setPasswordApiError(translateApiError(error.error.code, tErrors));
       } else {
         setPasswordApiError(t('profile.passwordChangeFailed'));
       }

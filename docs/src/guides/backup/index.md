@@ -206,15 +206,25 @@ Bind mounts make this easier than named volumes, since the archives live at a kn
 
 ## Troubleshooting
 
-### "Backup not configured"
+### "The backup could not be created"
 
-The backup feature is enabled whenever `BACKUP_DIR` is set -- which it is by default (`/backups`). If you see a "not configured" message on the Backups page, your container does not have the default in effect. Confirm `BACKUP_DIR` is set to a valid path and that the path is mounted with write permissions.
+Backups are always enabled (`BACKUP_DIR` defaults to `/backups`). This error appears when the backup operation fails, most commonly because:
+
+- `BACKUP_DIR` points to a path that cannot be created (its parent directory is not writable) or is not writable by the container user
+- The volume is mounted read-only
+- The filesystem is full
+
+:::info
+If no host directory or volume is mounted at `BACKUP_DIR`, backup archives land in Docker's anonymous `/backups` volume and are lost if the container is removed with its volumes. Always bind-mount or use a named volume at `BACKUP_DIR` to persist backups.
+:::
+
+**To fix:** Ensure the mounted directory has write permissions for the container user, is not read-only, and has sufficient free space. Check container logs for more details.
 
 ### "Backup directory is not writable"
 
 Cornerstone probes the backup directory for write access before each backup. If the probe fails, the backup is aborted. Check that:
 
-- The host directory or volume mounted at `BACKUP_DIR` exists
+- A host directory or volume is mounted at `BACKUP_DIR`
 - The container user (typically `node`, UID 1000) has write permissions on the directory
 - The volume is not mounted read-only
 

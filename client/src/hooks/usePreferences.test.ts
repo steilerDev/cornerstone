@@ -1,5 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 
 const mockListPreferences = jest.fn<() => Promise<unknown>>();
 const mockUpsertPreference = jest.fn<() => Promise<unknown>>();
@@ -98,24 +100,24 @@ describe('usePreferences', () => {
 
   it('sets error string and isLoading=false on ApiClientError; preferences stays empty', async () => {
     mockListPreferences.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => usePreferences());
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.preferences).toEqual([]);
   });
 
-  it('uses fallback error message when ApiClientError has no message', async () => {
+  it('translates the error code when ApiClientError has no message', async () => {
     mockListPreferences.mockRejectedValueOnce(
       new MockApiClientError(401, { code: 'UNAUTHORIZED' }),
     );
 
     const { result } = renderHook(() => usePreferences());
 
-    await waitFor(() => expect(result.current.error).toBe('Failed to load preferences.'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.UNAUTHORIZED));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -135,7 +137,7 @@ describe('usePreferences', () => {
 
     const { result } = renderHook(() => usePreferences());
 
-    await waitFor(() => expect(result.current.error).toBe('An unexpected error occurred.'));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.unexpected));
     expect(result.current.isLoading).toBe(false);
   });
 

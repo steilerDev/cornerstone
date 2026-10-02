@@ -26,6 +26,10 @@ import type {
   Vendor,
   BudgetCategory,
 } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enBudget from '../../i18n/en/budget.json';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type { BudgetSectionProps } from './BudgetSection.js';
@@ -783,6 +787,111 @@ describe('BudgetSection — invoice-edit wiring', () => {
       expect(alert).toBeTruthy();
       // Production code: non-Error rejection → tBudget('invoiceDetail.budgetLines.editError.saveFailed')
       expect(alert?.textContent).toBe('Failed to update budget line. Please try again.');
+    });
+  });
+
+  // ─── #2129: API errors are translated, never raw server text ──────────────
+
+  describe('translated edit errors (#2129)', () => {
+    async function saveWithRejection(rejection: unknown) {
+      const onInvoiceLineEdit = jest
+        .fn<
+          (line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>
+        >()
+        .mockImplementation(() => Promise.reject(rejection));
+      const link = buildInvoiceLink('inv-1', 'ibl-1', { itemizedAmount: 500 });
+      const line = buildLine('line-translated', link);
+
+      renderSection(<BudgetSection {...buildProps([line], { onInvoiceLineEdit })} />);
+      triggerLineEdit(line);
+
+      await act(async () => {
+        const saveBtn = screen.queryByTestId('form-save');
+        if (saveBtn) {
+          fireEvent.click(saveBtn);
+        } else {
+          const formEl = document.querySelector('form');
+          if (formEl) fireEvent.submit(formEl);
+        }
+      });
+      return screen.findByRole('alert');
+    }
+
+    it('ApiClientError shows the translated code copy and never the server text', async () => {
+      const alert = await saveWithRejection(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      expect(alert).toHaveTextContent(enErrors.CONFLICT);
+      expect(alert).not.toHaveTextContent('RAW-SERVER-SENTINEL');
+    });
+
+    it('NetworkError shows the network copy', async () => {
+      const alert = await saveWithRejection(new NetworkError('RAW-LOCAL', new Error('cause')));
+      expect(alert).toHaveTextContent(enCommon.requestErrors.network);
+      expect(alert).not.toHaveTextContent('RAW-LOCAL');
+    });
+
+    async function moveWithRejection(rejection: unknown) {
+      const onInvoiceLineMove = jest
+        .fn<
+          (
+            budgetLineId: string,
+            newParentType: 'work_item' | 'household_item',
+            newParentId: string,
+          ) => Promise<void>
+        >()
+        .mockImplementation(() => Promise.reject(rejection));
+      const link = buildInvoiceLink('inv-1');
+      const line = buildLine('line-move-translated', link);
+
+      renderSection(
+        <BudgetSection
+          {...buildProps([line], {
+            onInvoiceLineEdit: jest
+              .fn<
+                (
+                  line: BaseBudgetLine,
+                  form: BudgetLineFormState,
+                  itemizedAmount: string,
+                ) => Promise<void>
+              >()
+              .mockResolvedValue(undefined),
+            onInvoiceLineMove,
+          })}
+        />,
+      );
+      triggerLineEdit(line);
+
+      const moveBtn = screen.getByTestId('form-move');
+      await act(async () => {
+        fireEvent.click(moveBtn);
+        await new Promise<void>((r) => setTimeout(r, 50));
+      });
+      return screen.findByRole('alert');
+    }
+
+    it('move: ApiClientError shows the translated code copy and never the server text', async () => {
+      const alert = await moveWithRejection(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      expect(alert).toHaveTextContent(enErrors.NOT_FOUND);
+      expect(alert).not.toHaveTextContent('RAW-SERVER-SENTINEL');
+    });
+
+    it('move: NetworkError shows the network copy', async () => {
+      const alert = await moveWithRejection(new NetworkError('RAW-LOCAL', new Error('cause')));
+      expect(alert).toHaveTextContent(enCommon.requestErrors.network);
+      expect(alert).not.toHaveTextContent('RAW-LOCAL');
+    });
+
+    it('move: a pre-translated local Error message is passed through', async () => {
+      const alert = await moveWithRejection(new Error('Pre-translated local message'));
+      expect(alert).toHaveTextContent('Pre-translated local message');
+    });
+
+    it('move: a non-Error rejection shows the parent-picker fallback copy', async () => {
+      const alert = await moveWithRejection('plain string');
+      expect(alert).toHaveTextContent(enBudget.budgetLineForm.parentPickerError);
     });
   });
 

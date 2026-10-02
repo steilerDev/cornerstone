@@ -215,8 +215,24 @@ jest.unstable_mockModule('../../../lib/apiClient.js', () => ({
   post: jest.fn(),
   patch: jest.fn(),
   del: jest.fn(),
-  NetworkError: class NetworkError extends Error {},
-  ApiClientError: class ApiClientError extends Error {},
+  NetworkError: class NetworkError extends Error {
+    constructor(
+      message: string,
+      public cause: unknown,
+    ) {
+      super(message);
+      this.name = 'NetworkError';
+    }
+  },
+  ApiClientError: class ApiClientError extends Error {
+    constructor(
+      public statusCode: number,
+      public error: { code: string; message: string; details?: unknown },
+    ) {
+      super(error.message);
+      this.name = 'ApiClientError';
+    }
+  },
 }));
 
 // ─── Mock FormError component ─────────────────────────────────────────────────
@@ -687,6 +703,81 @@ describe('PhotoAnnotator', () => {
 
     // Component should still be in the DOM (no fatal crash)
     expect(screen.getByRole('button', { name: /Save annotations/i })).toBeInTheDocument();
+  });
+
+  // ─── Save failure: error messages are translated, never raw server text ─────
+
+  describe('save failure messaging', () => {
+    const RAW_SERVER_MESSAGE = 'SQLITE_CONSTRAINT: raw internal server detail';
+
+    async function clickSaveExpectingFailure(rejection: unknown) {
+      mockUploadAnnotation.mockRejectedValueOnce(rejection);
+      await renderAnnotator({ width: 800, height: 600 });
+
+      const origCreateElement = document.createElement.bind(document);
+      const mockCanvas = {
+        width: 0,
+        height: 0,
+        getContext: jest.fn().mockReturnValue({
+          drawImage: jest.fn(),
+          strokeRect: jest.fn(),
+          fillRect: jest.fn(),
+          strokeStyle: '',
+          lineWidth: 0,
+          fillStyle: '',
+          globalAlpha: 1,
+        }),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        toBlob: jest.fn().mockImplementation((cb: any) => {
+          cb(new Blob(['webp'], { type: 'image/webp' }));
+        }),
+      };
+      jest.spyOn(document, 'createElement').mockImplementation((tag: string) => {
+        if (tag === 'canvas') return mockCanvas as unknown as HTMLCanvasElement;
+        return origCreateElement(tag);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Save annotations/i }));
+        await new Promise<void>((resolve) => setTimeout(resolve, 20));
+      });
+
+      jest.spyOn(document, 'createElement').mockRestore();
+    }
+
+    it('shows the translated message for an ApiClientError and never the raw server message', async () => {
+      const { ApiClientError } = await import('../../../lib/apiClient.js');
+      const apiErr = new ApiClientError(403, {
+        code: 'IMMUTABLE_ENTRY',
+        message: RAW_SERVER_MESSAGE,
+      });
+
+      await clickSaveExpectingFailure(apiErr);
+
+      expect(screen.getByTestId('form-error')).toHaveTextContent(
+        'This diary entry cannot be modified.',
+      );
+      expect(document.body.textContent).not.toContain(RAW_SERVER_MESSAGE);
+    });
+
+    it('shows the common network message for a NetworkError', async () => {
+      const { NetworkError } = await import('../../../lib/apiClient.js');
+      const netErr = new NetworkError(RAW_SERVER_MESSAGE, new Error('cause'));
+
+      await clickSaveExpectingFailure(netErr);
+
+      expect(screen.getByTestId('form-error')).toHaveTextContent(
+        'Network error: Unable to connect to the server.',
+      );
+      expect(document.body.textContent).not.toContain(RAW_SERVER_MESSAGE);
+    });
+
+    it('shows the generic saveError text for a plain Error and never its message', async () => {
+      await clickSaveExpectingFailure(new Error(RAW_SERVER_MESSAGE));
+
+      expect(screen.getByTestId('form-error')).toHaveTextContent('Could not save annotation');
+      expect(document.body.textContent).not.toContain(RAW_SERVER_MESSAGE);
+    });
   });
 
   // ─── Accessibility: Live Region Announcements ──────────────────────────────

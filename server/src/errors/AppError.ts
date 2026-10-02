@@ -121,13 +121,10 @@ export class CircularDependencyError extends AppError {
   }
 }
 
-export class MutuallyExclusiveBudgetLinkError extends AppError {
-  constructor(
-    message = 'An invoice can only be linked to one budget line (work item or household item, not both)',
-    details?: Record<string, unknown>,
-  ) {
-    super('MUTUALLY_EXCLUSIVE_BUDGET_LINK', 400, message, details);
-    this.name = 'MutuallyExclusiveBudgetLinkError';
+export class DuplicateDependencyError extends AppError {
+  constructor(message = 'Dependency already exists', details?: Record<string, unknown>) {
+    super('DUPLICATE_DEPENDENCY', 409, message, details);
+    this.name = 'DuplicateDependencyError';
   }
 }
 
@@ -249,13 +246,6 @@ export class TradeInUseError extends AppError {
   ) {
     super('TRADE_IN_USE', 409, message, details, true);
     this.name = 'TradeInUseError';
-  }
-}
-
-export class BackupNotConfiguredError extends AppError {
-  constructor(message = 'Backup is not configured. Set BACKUP_DIR environment variable.') {
-    super('BACKUP_NOT_CONFIGURED', 503, message);
-    this.name = 'BackupNotConfiguredError';
   }
 }
 

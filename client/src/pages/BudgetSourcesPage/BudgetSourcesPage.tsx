@@ -16,6 +16,7 @@ import {
   fetchBudgetLinesForSource,
 } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -270,6 +271,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
@@ -348,7 +350,7 @@ export function BudgetSourcesPage() {
       setSources(response.budgetSources);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('sources.errorMessage'));
       }
@@ -416,7 +418,7 @@ export function BudgetSourcesPage() {
       setSuccessMessage(t('sources.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('sources.messages.createError'));
       }
@@ -485,7 +487,7 @@ export function BudgetSourcesPage() {
       setSuccessMessage(t('sources.messages.updated', { name: updated.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(translateApiError(err.error.code, tErrors));
       } else {
         setUpdateError(t('sources.messages.updateError'));
       }
@@ -522,7 +524,7 @@ export function BudgetSourcesPage() {
         if (err.statusCode === 409) {
           setDeleteError(t('sources.deleteModal.conflictError'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setDeleteError(t('sources.messages.deleteError'));
@@ -559,7 +561,7 @@ export function BudgetSourcesPage() {
         } catch (err) {
           let errorMsg = t('sources.lines.fetchError');
           if (err instanceof ApiClientError) {
-            errorMsg = err.error.message;
+            errorMsg = translateApiError(err.error.code, tErrors);
           }
           setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
         } finally {
@@ -598,7 +600,7 @@ export function BudgetSourcesPage() {
     } catch (err) {
       let errorMsg = t('sources.lines.fetchError');
       if (err instanceof ApiClientError) {
-        errorMsg = err.error.message;
+        errorMsg = translateApiError(err.error.code, tErrors);
       }
       setLinesError((prev) => new Map(prev).set(sourceId, errorMsg));
     } finally {

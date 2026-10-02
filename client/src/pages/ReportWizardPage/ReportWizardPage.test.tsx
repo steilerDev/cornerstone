@@ -1739,6 +1739,39 @@ describe('ReportWizardPage', () => {
       });
     });
 
+    it('a Paperless upload NetworkError shows the common network message, not the raw error text', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      const apiClientModule = await import('../../lib/apiClient.js');
+      mockUploadToPaperless.mockRejectedValueOnce(
+        new apiClientModule.NetworkError('raw socket hang up detail', new TypeError('x')),
+      );
+
+      renderPage();
+      const user = userEvent.setup();
+      await goToStep5(user);
+      await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          'Network error: Unable to connect to the server.',
+        );
+      });
+      expect(mockShowToast).not.toHaveBeenCalledWith('error', 'raw socket hang up detail');
+      expect(mockShowToast).not.toHaveBeenCalledWith(
+        'error',
+        'Upload to Paperless failed. Please try again.',
+      );
+    });
+
     it('a generation failure during Paperless upload shows an error toast instead of uploading', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetPaperlessStatus.mockResolvedValue({

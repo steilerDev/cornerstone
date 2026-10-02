@@ -21,6 +21,7 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listHouseholdItems } from '../../lib/householdItemsApi.js';
 import { createHouseholdItemDep, deleteHouseholdItemDep } from '../../lib/householdItemDepsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
@@ -33,6 +34,7 @@ export function MilestoneDetailPage() {
     formatDateTime: _formatDateTime,
   } = useFormatters();
   const { t } = useTranslation('schedule');
+  const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -129,7 +131,7 @@ export function MilestoneDetailPage() {
         if (err instanceof ApiClientError && err.statusCode === 404) {
           setIs404(true);
         } else if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
           setError(t('milestones.detail.error'));
         }
@@ -139,7 +141,7 @@ export function MilestoneDetailPage() {
     };
 
     loadMilestone();
-  }, [milestoneId, t]);
+  }, [milestoneId, t, tErrors]);
 
   // Load available work items and household items, and linked household items
   useEffect(() => {
@@ -197,7 +199,7 @@ export function MilestoneDetailPage() {
       setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedLink'));
       }
@@ -230,7 +232,7 @@ export function MilestoneDetailPage() {
       setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedLink'));
       }
@@ -257,7 +259,7 @@ export function MilestoneDetailPage() {
       setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedUnlink'));
       }
@@ -285,7 +287,7 @@ export function MilestoneDetailPage() {
       setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedUnlink'));
       }
@@ -309,7 +311,7 @@ export function MilestoneDetailPage() {
       setShowDepDropdown(false);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedAddDependent'));
       }
@@ -331,7 +333,7 @@ export function MilestoneDetailPage() {
       setMilestone(updated);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedRemoveDependent'));
       }
@@ -417,7 +419,7 @@ export function MilestoneDetailPage() {
       setMilestone(updated);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedSave'));
       }
@@ -437,7 +439,7 @@ export function MilestoneDetailPage() {
       navigate('/project/milestones');
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.detail.failedDelete'));
       }

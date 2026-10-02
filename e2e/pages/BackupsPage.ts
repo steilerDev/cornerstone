@@ -12,7 +12,6 @@ export class BackupsPage {
   readonly createBackupButton: Locator;
   readonly backupTable: Locator;
   readonly emptyState: Locator;
-  readonly notConfiguredState: Locator;
   readonly errorBanner: Locator;
 
   // Delete modal (conditionally rendered — use .not.toBeVisible() for absent checks)
@@ -28,9 +27,8 @@ export class BackupsPage {
   readonly restoreCancelButton: Locator;
   readonly restoreWarningText: Locator;
 
-  // Scheduler status section (only rendered when the page is configured — i.e. NOT the
-  // isNotConfigured branch). Scoped via aria-labelledby to avoid collisions with other
-  // page content.
+  // Scheduler status section (Scoped via aria-labelledby to avoid collisions with other
+  // page content.)
   readonly schedulerSection: Locator;
   readonly schedulerHeading: Locator;
   readonly schedulerErrorBanner: Locator;
@@ -43,7 +41,6 @@ export class BackupsPage {
     this.createBackupButton = page.getByRole('button', { name: /Create Backup|Creating backup/i });
     this.backupTable = page.locator('table');
     this.emptyState = page.getByText('No backups yet', { exact: false });
-    this.notConfiguredState = page.getByText('Backup is not configured', { exact: false });
     this.errorBanner = page.locator('[role="alert"]');
 
     this.schedulerSection = page.locator('section[aria-labelledby="scheduler-status-heading"]');
@@ -86,12 +83,11 @@ export class BackupsPage {
   }
 
   /**
-   * Wait for the page to finish loading (not-configured state, empty state, or table visible).
-   * Races between the three possible loaded states.
+   * Wait for the page to finish loading (empty state, table, or error banner visible).
+   * Races between the possible loaded states.
    */
   async waitForLoaded(): Promise<void> {
     await Promise.race([
-      this.notConfiguredState.waitFor({ state: 'visible' }),
       this.emptyState.waitFor({ state: 'visible' }),
       this.backupTable.waitFor({ state: 'visible' }),
       this.errorBanner.waitFor({ state: 'visible' }),
@@ -112,13 +108,17 @@ export class BackupsPage {
 
   async clickDeleteForRow(index: number): Promise<void> {
     const rows = await this.getBackupRows();
-    await rows[index].getByRole('button', { name: 'Delete' }).click();
+    const row = rows[index];
+    if (!row) throw new Error(`No backup row at index ${index}`);
+    await row.getByRole('button', { name: 'Delete' }).click();
     await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   async clickRestoreForRow(index: number): Promise<void> {
     const rows = await this.getBackupRows();
-    await rows[index].getByRole('button', { name: 'Restore' }).click();
+    const row = rows[index];
+    if (!row) throw new Error(`No backup row at index ${index}`);
+    await row.getByRole('button', { name: 'Restore' }).click();
     await this.restoreModal.waitFor({ state: 'visible' });
   }
 
@@ -157,9 +157,8 @@ export class BackupsPage {
   }
 
   /**
-   * Wait for the scheduler status section to finish loading — races between the three
-   * possible terminal states (status rendered, error banner, or the section being entirely
-   * absent when backups are not configured at all).
+   * Wait for the scheduler status section to finish loading — races between the possible
+   * terminal states (status rendered or error banner).
    */
   async waitForSchedulerLoaded(): Promise<void> {
     await Promise.race([

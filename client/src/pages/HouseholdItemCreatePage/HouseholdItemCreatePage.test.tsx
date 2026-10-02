@@ -474,6 +474,22 @@ describe('HouseholdItemCreatePage', () => {
     });
   });
 
+  describe('data loading failure messaging', () => {
+    it('shows the translated loadFailed message and never renders the raw error message', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchVendors.mockRejectedValue(new Error('SQLITE_BUSY: raw internal detail'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
+      });
+      expect(document.body.textContent).not.toContain('SQLITE_BUSY');
+      expect(document.body.textContent).not.toContain('raw internal detail');
+      consoleSpy.mockRestore();
+    });
+  });
+
   describe('Accessibility - Form input ARIA attributes', () => {
     it('name input has aria-required="true"', async () => {
       renderPage();

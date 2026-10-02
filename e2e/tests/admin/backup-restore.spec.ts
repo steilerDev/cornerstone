@@ -4,20 +4,18 @@
  * Coverage:
  * 1. [smoke] Admin can navigate to Backups page and see the heading
  * 2. Backups tab is not visible in SettingsSubNav for non-admin (member) users
- * 3. Not-configured empty state shown when API returns 503 (mocked)
- * 4. Create backup — requires BACKUP_DIR configured; covered via API mock
- * 5. Delete backup confirmation modal — cancel closes without deleting; delete removes row
- * 6. Restore confirmation modal shows warning text; cancel closes modal
- * 7. Scheduler status section (Issue #1804):
- *    7a. Real (unmocked) environment shows Disabled state with hint (no BACKUP_CADENCE configured)
- *    7b. Mocked enabled + successful last run + two next runs
- *    7c. Mocked enabled + failed last run shows Failed badge
- *    7d. Mocked enabled + lastRun null shows "no runs yet" message
- *    7e. Mocked network failure shows the generic scheduler load-error banner
- *    7f. Not-configured (503) state — scheduler section is entirely absent
+ * 3. Create backup — covered via mocked API responses
+ * 4. Delete backup confirmation modal — cancel closes without deleting; delete removes row
+ * 5. Restore confirmation modal shows warning text; cancel closes modal
+ * 6. Scheduler status section (Issue #1804):
+ *    6a. Real (unmocked) environment shows Disabled state with hint (no BACKUP_CADENCE configured)
+ *    6b. Mocked enabled + successful last run + two next runs
+ *    6c. Mocked enabled + failed last run shows Failed badge
+ *    6d. Mocked enabled + lastRun null shows "no runs yet" message
+ *    6e. Mocked network failure shows the generic scheduler load-error banner
  *
  * Environment note: BACKUP_DIR defaults to /backups, so the testcontainer always
- * has backups enabled. Scenarios 3–7 use page.route() to mock /api/backups responses.
+ * has backups enabled. Scenarios 3–6 use page.route() to mock /api/backups responses.
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -130,54 +128,12 @@ test.describe('Backups tab — member access control', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Not-configured state (default in E2E environment)
+// Scenarios 3–5: Mocked backup list and API responses
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Backups page — not-configured state', () => {
-  test('Shows not-configured message when API returns 503', async ({ page }) => {
-    const backupsPage = new BackupsPage(page);
-
-    // Mock GET /api/backups to return 503 BACKUP_NOT_CONFIGURED
-    // (BACKUP_DIR now defaults to /backups, so we must mock to test this UI state)
-    await page.route(`**${API.backups}`, async (route) => {
-      await route.fulfill({
-        status: 503,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          error: { code: 'BACKUP_NOT_CONFIGURED', message: 'Backup is not configured' },
-        }),
-      });
-    });
-
-    // When: Admin navigates to /settings/backups
-    await backupsPage.goto();
-    await backupsPage.waitForLoaded();
-
-    // Then: "Backup is not configured" empty state is visible
-    await expect(backupsPage.notConfiguredState).toBeVisible();
-
-    // And: The page describes how to enable backups
-    await expect(page.getByText('BACKUP_DIR', { exact: false })).toBeVisible();
-
-    // And: Create Backup button is NOT visible (feature not available)
-    await expect(backupsPage.createBackupButton).not.toBeVisible();
-
-    // And: No backup table is visible
-    await expect(backupsPage.backupTable).not.toBeVisible();
-
-    // And: The scheduler status section is entirely absent (Issue #1804 — the
-    // not-configured branch returns early and never renders the section)
-    await expect(backupsPage.schedulerSection).not.toBeVisible();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenarios 4–6: Mocked configured state (BACKUP_DIR set)
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Backups page — configured state (mocked)', () => {
+test.describe('Backups page — mocked API responses', () => {
   test.beforeEach(async ({ page }) => {
-    // Mock GET /api/backups to return two backup entries (simulates BACKUP_DIR configured)
+    // Mock GET /api/backups to return two backup entries (mocked backup list)
     await page.route(`**${API.backups}`, async (route, request) => {
       if (request.method() === 'GET') {
         await route.fulfill({
@@ -191,7 +147,7 @@ test.describe('Backups page — configured state (mocked)', () => {
     });
   });
 
-  // ─── Scenario 4: Create backup ────────────────────────────────────────────
+  // ─── Scenario 3: Create backup ────────────────────────────────────────────
 
   test('Create backup adds new entry to the list', async ({ page }) => {
     const newBackup = {
@@ -235,10 +191,12 @@ test.describe('Backups page — configured state (mocked)', () => {
     expect(updatedRows).toHaveLength(3);
 
     // And: The new backup filename is visible in the first row
-    await expect(updatedRows[0]).toContainText(newBackup.filename);
+    const [newestRow] = updatedRows;
+    if (!newestRow) throw new Error('Expected a backup row after creating a backup');
+    await expect(newestRow).toContainText(newBackup.filename);
   });
 
-  // ─── Scenario 5: Delete backup confirmation modal ─────────────────────────
+  // ─── Scenario 4: Delete backup confirmation modal ─────────────────────────
 
   test('Delete confirmation modal shows filename and warning', async ({ page }) => {
     const backupsPage = new BackupsPage(page);
@@ -335,10 +293,12 @@ test.describe('Backups page — configured state (mocked)', () => {
     expect(rows).toHaveLength(1);
 
     // And: The remaining backup is MOCK_BACKUP_2
-    await expect(rows[0]).toContainText(MOCK_BACKUP_2.filename);
+    const [remainingRow] = rows;
+    if (!remainingRow) throw new Error('Expected one remaining backup row');
+    await expect(remainingRow).toContainText(MOCK_BACKUP_2.filename);
   });
 
-  // ─── Scenario 6: Restore confirmation modal ───────────────────────────────
+  // ─── Scenario 5: Restore confirmation modal ───────────────────────────────
 
   test('Restore confirmation modal shows warning text', async ({ page }) => {
     const backupsPage = new BackupsPage(page);
@@ -382,11 +342,11 @@ test.describe('Backups page — configured state (mocked)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 7: Automatic backup scheduler status section (Issue #1804)
+// Scenario 6: Automatic backup scheduler status section (Issue #1804)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Backups page — scheduler status section', () => {
-  // ─── 7a: Real (unmocked) default environment ──────────────────────────────
+  // ─── 6a: Real (unmocked) default environment ──────────────────────────────
 
   test('Scheduler section shows Disabled state by default (no BACKUP_CADENCE configured)', async ({
     page,
@@ -407,7 +367,7 @@ test.describe('Backups page — scheduler status section', () => {
     await expect(backupsPage.schedulerNextRunValue).not.toBeVisible();
   });
 
-  // ─── 7b: Mocked enabled state with successful last run and two next runs ──
+  // ─── 6b: Mocked enabled state with successful last run and two next runs ──
 
   test('Scheduler section shows Enabled state with successful last run and both next runs', async ({
     page,
@@ -435,7 +395,7 @@ test.describe('Backups page — scheduler status section', () => {
     await expect(backupsPage.schedulerNextRunValue).toContainText('then');
   });
 
-  // ─── 7c: Mocked failed last run ────────────────────────────────────────────
+  // ─── 6c: Mocked failed last run ────────────────────────────────────────────
 
   test('Scheduler section shows Failed badge when the last scheduled run failed', async ({
     page,
@@ -453,7 +413,7 @@ test.describe('Backups page — scheduler status section', () => {
     await expect(backupsPage.schedulerLastRunValue).toContainText('Failed');
   });
 
-  // ─── 7d: Mocked enabled with lastRun null ─────────────────────────────────
+  // ─── 6d: Mocked enabled with lastRun null ─────────────────────────────────
 
   test('Scheduler section shows "no runs yet" message when the scheduler has never run', async ({
     page,
@@ -473,7 +433,7 @@ test.describe('Backups page — scheduler status section', () => {
     await expect(backupsPage.schedulerNextRunValue).toContainText('2026');
   });
 
-  // ─── 7e: Network failure shows the generic load-error banner ─────────────
+  // ─── 6e: Network failure shows the generic load-error banner ─────────────
 
   test('Scheduler section shows load-error banner when the status request fails', async ({
     page,

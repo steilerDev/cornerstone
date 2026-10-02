@@ -6,6 +6,7 @@ import { SearchPicker } from '../SearchPicker/SearchPicker.js';
 import { FormError } from '../FormError/FormError.js';
 import { fetchBudgetSources, moveBudgetLinesBetweenSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import styles from './MassMoveModal.module.css';
 
 export interface MassMoveModalProps {
@@ -30,6 +31,7 @@ export function MassMoveModal({
   onSuccess,
 }: MassMoveModalProps) {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const [targetSourceId, setTargetSourceId] = useState<string>('');
   const [targetSourceName, setTargetSourceName] = useState<string>('');
   const [understood, setUnderstood] = useState(false);
@@ -67,7 +69,7 @@ export function MassMoveModal({
       onClose();
     } catch (error) {
       if (error instanceof ApiClientError) {
-        setApiError(error.error.message || t('sources.budgetLines.move.genericError'));
+        setApiError(translateApiError(error.error.code, tErrors));
       } else {
         setApiError(t('sources.budgetLines.move.genericError'));
       }
@@ -84,6 +86,7 @@ export function MassMoveModal({
     targetSourceName,
     onClose,
     t,
+    tErrors,
   ]);
 
   const handleSelectTarget = useCallback((item: { id: string; label: string }) => {

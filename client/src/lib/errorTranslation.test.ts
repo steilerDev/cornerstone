@@ -89,6 +89,10 @@ describe('translateApiError', () => {
       expect(result).toBe('Unknown Code');
     });
 
+    it('a code removed from the ErrorCode union (OIDC_ERROR) is no longer translated and title-cases', () => {
+      expect(translateApiError('OIDC_ERROR', tEn)).toBe('Oidc Error');
+    });
+
     it('single word code is title-cased', () => {
       const result = translateApiError('MYERROR', tEn);
       expect(result).toBe('Myerror');

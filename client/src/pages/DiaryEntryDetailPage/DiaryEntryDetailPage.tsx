@@ -5,6 +5,7 @@ import type { DiaryEntryDetail, DiarySignatureEntry } from '@cornerstone/shared'
 import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -32,6 +33,7 @@ export default function DiaryEntryDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation('diary');
+  const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
   const { user: _user } = useAuth();
   const [_vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
@@ -78,7 +80,7 @@ export default function DiaryEntryDetailPage() {
           if (err.statusCode === 404) {
             setError(t('detailPage.entryNotFound'));
           } else {
-            setError(err.error.message);
+            setError(translateApiError(err.error.code, tErrors));
           }
         } else {
           setError(t('detail.errorMessage'));
@@ -89,7 +91,7 @@ export default function DiaryEntryDetailPage() {
     };
 
     void loadEntry();
-  }, [id, t]);
+  }, [id, t, tErrors]);
 
   const closeDeleteModal = () => {
     setShowDeleteModal(false);

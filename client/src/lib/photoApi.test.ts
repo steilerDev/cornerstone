@@ -6,7 +6,10 @@ import {
   getPhotoFileUrl,
   getPhotoThumbnailUrl,
   uploadPhoto,
+  uploadAnnotation,
+  clearAnnotation,
 } from './photoApi.js';
+import { ApiClientError, NetworkError } from './apiClient.js';
 import type { Photo } from '@cornerstone/shared';
 
 // ─── Shared photo fixture ──────────────────────────────────────────────────────
@@ -426,36 +429,81 @@ describe('photoApi', () => {
       expect(result).toEqual(photo);
     });
 
-    it('rejects with an error message from the server on non-201 status', async () => {
+    it('rejects with an ApiClientError carrying the server body code, status and details on non-201 status', async () => {
       mockXhr.status = 400;
       mockXhr.responseText = JSON.stringify({
-        error: { message: 'File type not supported' },
+        error: { code: 'VALIDATION_ERROR', message: 'File type not supported' },
       });
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
       xhrEventHandlers['load']!();
 
-      await expect(promise).rejects.toThrow('File type not supported');
+      const err = await promise.catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(400);
+      expect((err as ApiClientError).error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('rejects with generic upload failed message when server error body has no message', async () => {
+    it('derives INTERNAL_ERROR for a 5xx whose error body has no code', async () => {
       mockXhr.status = 500;
       mockXhr.responseText = JSON.stringify({ error: {} });
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
       xhrEventHandlers['load']!();
 
-      await expect(promise).rejects.toThrow('Upload failed (500)');
+      const err = await promise.catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(500);
+      expect((err as ApiClientError).error.code).toBe('INTERNAL_ERROR');
     });
 
-    it('rejects with generic upload failed message when server response is not JSON', async () => {
+    it('derives INTERNAL_ERROR when a 5xx response is not JSON', async () => {
       mockXhr.status = 502;
       mockXhr.responseText = 'Bad Gateway';
 
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
       xhrEventHandlers['load']!();
 
-      await expect(promise).rejects.toThrow('Upload failed (502)');
+      const err = await promise.catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(502);
+      expect((err as ApiClientError).error.code).toBe('INTERNAL_ERROR');
+    });
+
+    it('derives PAYLOAD_TOO_LARGE for an HTML (proxy) 413 response', async () => {
+      mockXhr.status = 413;
+      mockXhr.responseText = '<html><body>413 Request Entity Too Large</body></html>';
+
+      const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
+      xhrEventHandlers['load']!();
+
+      const err = await promise.catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(413);
+      expect((err as ApiClientError).error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('derives VALIDATION_ERROR for a 4xx with an unparseable body', async () => {
+      mockXhr.status = 400;
+      mockXhr.responseText = 'nope';
+
+      const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
+      xhrEventHandlers['load']!();
+
+      const err = await promise.catch((e: unknown) => e);
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('ignores a JSON error body whose code is not a string and derives from the status', async () => {
+      mockXhr.status = 413;
+      mockXhr.responseText = JSON.stringify({ error: { code: 42, message: 'x' } });
+
+      const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
+      xhrEventHandlers['load']!();
+
+      const err = await promise.catch((e: unknown) => e);
+      expect((err as ApiClientError).error.code).toBe('PAYLOAD_TOO_LARGE');
     });
 
     it('rejects with parse error when 201 response is not valid JSON', async () => {
@@ -472,6 +520,7 @@ describe('photoApi', () => {
       const promise = uploadPhoto('diary_entry', 'entry-1', makeFile());
       xhrEventHandlers['error']!();
 
+      await expect(promise).rejects.toBeInstanceOf(NetworkError);
       await expect(promise).rejects.toThrow('Network error during upload');
     });
 
@@ -560,6 +609,107 @@ describe('photoApi', () => {
       await promise;
 
       expect(onProgress).toHaveBeenCalledWith(33);
+    });
+  });
+  // ─── uploadAnnotation ────────────────────────────────────────────────────────
+
+  describe('uploadAnnotation', () => {
+    const blob = new Blob(['x'], { type: 'image/webp' });
+    const samplePhoto = makePhoto();
+
+    it('PUTs the blob and resolves with the photo on success', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({ photo: samplePhoto }),
+      } as Response);
+
+      const result = await uploadAnnotation('photo-1', blob);
+
+      expect(result).toEqual(samplePhoto);
+      const [url, init] = mockFetch.mock.calls[0]!;
+      expect(String(url)).toContain('/photos/photo-1/annotation');
+      expect(init?.method).toBe('PUT');
+    });
+
+    it('rejects with an ApiClientError built from the server error body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 403,
+        json: async () => ({ error: { code: 'IMMUTABLE_ENTRY', message: 'locked' } }),
+      } as Response);
+
+      const err = await uploadAnnotation('photo-1', blob).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(403);
+      expect((err as ApiClientError).error.code).toBe('IMMUTABLE_ENTRY');
+    });
+
+    it('derives PAYLOAD_TOO_LARGE for an unparseable 413 body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 413,
+        json: async () => {
+          throw new SyntaxError('Unexpected token <');
+        },
+      } as unknown as Response);
+
+      const err = await uploadAnnotation('photo-1', blob).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).error.code).toBe('PAYLOAD_TOO_LARGE');
+    });
+
+    it('clearAnnotation sends DELETE to the annotation endpoint', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, status: 204, text: async () => '' } as Response);
+
+      await clearAnnotation('photo-1');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/photos/photo-1/annotation',
+        expect.objectContaining({ method: 'DELETE' }),
+      );
+    });
+
+    it('converts a fetch rejection into a NetworkError carrying the cause', async () => {
+      const cause = new TypeError('Failed to fetch');
+      mockFetch.mockRejectedValueOnce(cause);
+
+      const err = await uploadAnnotation('photo-1', blob).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(NetworkError);
+      expect((err as NetworkError).message).toBe('Network request failed');
+      expect((err as NetworkError).cause).toBe(cause);
+    });
+
+    it('derives VALIDATION_ERROR for a 4xx body without an error code', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { message: 'raw server text' } }),
+      } as Response);
+
+      const err = await uploadAnnotation('photo-1', blob).catch((e: unknown) => e);
+
+      expect(err).toBeInstanceOf(ApiClientError);
+      expect((err as ApiClientError).statusCode).toBe(400);
+      expect((err as ApiClientError).error.code).toBe('VALIDATION_ERROR');
+      expect((err as ApiClientError).error.message).toBe('Upload failed (400)');
+    });
+
+    it('derives INTERNAL_ERROR for an unparseable 500 body', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new SyntaxError('bad');
+        },
+      } as unknown as Response);
+
+      const err = await uploadAnnotation('photo-1', blob).catch((e: unknown) => e);
+
+      expect((err as ApiClientError).error.code).toBe('INTERNAL_ERROR');
     });
   });
 });

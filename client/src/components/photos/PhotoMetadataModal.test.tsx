@@ -26,6 +26,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import React from 'react';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import type { AreaResponse } from '@cornerstone/shared';
+import enCommon from '../../i18n/en/common.json';
 import type { PhotoMetadataModalProps } from './PhotoMetadataModal.js';
 
 // ─── Initialize real i18n ─────────────────────────────────────────────────────
@@ -193,6 +194,14 @@ describe('PhotoMetadataModal', () => {
     await waitFor(() => {
       expect(screen.getByRole('heading', { name: 'Add photo details' })).toBeInTheDocument();
     });
+  });
+
+  it('renders the translated common "(optional)" hint (not a raw key) in the description label', () => {
+    renderModal();
+    const label = document.querySelector('label[for="modal-photo-caption"]');
+    expect(label).toHaveTextContent(enCommon.optional);
+    expect(label).not.toHaveTextContent('common.optional');
+    expect(label).not.toHaveTextContent('optional.optional');
   });
 
   it('renders the description textarea with id="modal-photo-caption"', () => {

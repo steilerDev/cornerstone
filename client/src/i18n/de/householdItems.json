@@ -116,6 +116,9 @@
     "closeDialog": "Dialog schließen oder abbrechen"
   },
   "create": {
+    "errors": {
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    },
     "title": "Neuer Haushaltsartikel",
     "backButton": "← Zurück zu Haushaltsartikeln",
     "loading": "Wird geladen...",
@@ -187,6 +190,9 @@
     "success": "Haushaltsartikel erfolgreich erstellt"
   },
   "edit": {
+    "errors": {
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
+    },
     "title": "Haushaltsartikel bearbeiten",
     "backButton": "← Zurück zum Artikel",
     "loading": "Wird geladen...",
@@ -317,7 +323,8 @@
       "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "cancel": "Abbrechen",
       "delete": "Artikel löschen",
-      "deleting": "Wird gelöscht..."
+      "deleting": "Wird gelöscht...",
+      "deleted": "Haushaltsartikel erfolgreich gelöscht"
     },
     "status": {
       "planned": "Geplant",
@@ -325,6 +332,7 @@
       "scheduled": "Geplant",
       "arrived": "Angekommen",
       "late": "Verspätet",
+      "updated": "Status aktualisiert",
       "updateFailed": "Fehler beim Aktualisieren des Status. Bitte versuchen Sie es erneut."
     },
     "budget": {
@@ -336,6 +344,15 @@
       "plannedAmountLabel": "Geplanter Betrag",
       "actualCostLabel": "Tatsächliche Kosten",
       "paybackLabel": "Rückzahlung"
+    },
+    "errors": {
+      "itemNotFound": "Artikel nicht gefunden",
+      "loadFailed": "Haushaltsartikel konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+      "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
+      "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
+      "unlinkSubsidy": "Förderprogramm konnte nicht getrennt werden",
+      "unlinkInvoice": "Budgetposition konnte nicht von Rechnung getrennt werden"
     },
     "closeErrorMessage": "Fehlermeldung schließen"
   }

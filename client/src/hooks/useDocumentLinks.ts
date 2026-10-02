@@ -11,7 +11,9 @@ import {
   listAllLinkedDocumentIds,
   updateDocumentLinkAttachmentType,
 } from '../lib/documentLinksApi.js';
+import { useTranslation } from 'react-i18next';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseDocumentLinksResult {
   links: DocumentLinkWithMetadata[];
@@ -31,6 +33,8 @@ export function useDocumentLinks(
   entityType: DocumentLinkEntityType,
   entityId: string,
 ): UseDocumentLinksResult {
+  const { t } = useTranslation('documents');
+  const { t: tErrors } = useTranslation('errors');
   const [links, setLinks] = useState<DocumentLinkWithMetadata[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,11 +56,11 @@ export function useDocumentLinks(
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load documents.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(t('browser.loadErrorNetwork'));
           } else {
-            setError('An unexpected error occurred.');
+            setError(t('browser.loadErrorUnexpected'));
           }
         }
       } finally {
@@ -70,7 +74,7 @@ export function useDocumentLinks(
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId, fetchCount]);
+  }, [entityType, entityId, fetchCount, t, tErrors]);
 
   const addLink = useCallback(
     async (paperlessDocumentId: number, attachmentType?: AttachmentType | null) => {
@@ -132,6 +136,8 @@ export interface UseAllLinkedDocumentIdsResult {
  * Does NOT fetch on mount — call `.fetch()` to trigger a load (e.g. on picker open).
  */
 export function useAllLinkedDocumentIds(): UseAllLinkedDocumentIdsResult {
+  const { t } = useTranslation('documents');
+  const { t: tErrors } = useTranslation('errors');
   const [ids, setIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,16 +150,16 @@ export function useAllLinkedDocumentIds(): UseAllLinkedDocumentIdsResult {
       setIds(fetched);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message ?? 'Failed to load linked document IDs.');
+        setError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
-        setError('Network error: Unable to connect to the server.');
+        setError(t('browser.loadErrorNetwork'));
       } else {
-        setError('An unexpected error occurred.');
+        setError(t('browser.loadErrorUnexpected'));
       }
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [t, tErrors]);
 
   return { ids, isLoading, error, fetch };
 }

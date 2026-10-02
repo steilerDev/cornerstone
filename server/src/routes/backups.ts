@@ -8,11 +8,11 @@
  * POST   /api/backups/:filename/restore — Restore from backup (admin only)
  * DELETE /api/backups/:filename    — Delete backup file (admin only)
  *
- * All endpoints return 503 BACKUP_NOT_CONFIGURED if BACKUP_DIR is not set.
+ * Backups are always enabled: BACKUP_DIR defaults to /backups (an empty value falls back to the default).
  */
 
 import type { FastifyInstance } from 'fastify';
-import { UnauthorizedError, BackupNotConfiguredError } from '../errors/AppError.js';
+import { UnauthorizedError } from '../errors/AppError.js';
 import { requireRole } from '../plugins/auth.js';
 import * as backupService from '../services/backupService.js';
 import type {
@@ -133,10 +133,6 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      if (!fastify.config.backupEnabled) {
-        throw new BackupNotConfiguredError();
-      }
-
       const backup = await backupService.createBackup(fastify.db, fastify.config);
       return reply.status(201).send({ backup });
     },
@@ -158,10 +154,6 @@ export default async function backupRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       if (!request.user) {
         throw new UnauthorizedError();
-      }
-
-      if (!fastify.config.backupEnabled) {
-        throw new BackupNotConfiguredError();
       }
 
       const backups = await backupService.listBackups(fastify.config.backupDir);
@@ -187,10 +179,6 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      if (!fastify.config.backupEnabled) {
-        throw new BackupNotConfiguredError();
-      }
-
       const scheduler = backupService.getSchedulerStatus();
       return reply.status(200).send({ scheduler });
     },
@@ -214,10 +202,6 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      if (!fastify.config.backupEnabled) {
-        throw new BackupNotConfiguredError();
-      }
-
       await backupService.deleteBackup(fastify.config.backupDir, request.params.filename);
       return reply.status(204).send();
     },
@@ -227,7 +211,7 @@ export default async function backupRoutes(fastify: FastifyInstance) {
    * POST /api/backups/:filename/restore
    *
    * Restore the database and app data from a backup.
-   * Returns 202 Accepted immediately, then restores asynchronously and exits.
+   * Validates first (404/409/500 are returned), then returns 202 and restores asynchronously and exits.
    * Admin only.
    */
   fastify.post<{ Params: { filename: string }; Reply: RestoreInitiatedResponse }>(
@@ -244,19 +228,17 @@ export default async function backupRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      if (!fastify.config.backupEnabled) {
-        throw new BackupNotConfiguredError();
-      }
+      // Validate (filename, existing archive, lock) before answering; errors reach the client
+      await backupService.beginRestore(fastify.config, request.params.filename);
 
-      // Send 202 Accepted immediately
       reply.status(202).send({
         message: 'Restore initiated. Server is restarting.',
       });
 
-      // Start restore asynchronously after response is sent
+      // Extract and swap asynchronously after the response is sent
       setImmediate(async () => {
         try {
-          await backupService.restoreBackup(fastify.db, fastify.config, request.params.filename);
+          await backupService.executeRestore(fastify.db, fastify.config, request.params.filename);
         } catch (error) {
           fastify.log.error(error, 'Restore failed');
         }

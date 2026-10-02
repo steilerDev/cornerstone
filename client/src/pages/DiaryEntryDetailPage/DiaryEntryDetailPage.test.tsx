@@ -8,6 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
+import enErrors from '../../i18n/en/errors.json';
 
 // ── API mock ──────────────────────────────────────────────────────────────────
 
@@ -564,12 +565,13 @@ describe('DiaryEntryDetailPage', () => {
   it('shows the API error message for non-404 errors', async () => {
     const { ApiClientError } = await import('../../lib/apiClient.js');
     mockGetDiaryEntry.mockRejectedValueOnce(
-      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Database is down' }),
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
     renderDetailPage();
     await waitFor(() => {
-      expect(screen.getByText('Database is down')).toBeInTheDocument();
+      expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
     });
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
   it('shows generic error message for non-ApiClientError', async () => {

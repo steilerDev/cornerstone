@@ -1,4 +1,5 @@
 import type { ApiError, ApiErrorResponse } from './api.js';
+import { ERROR_CODES } from './errors.js';
 import type { ErrorCode } from './errors.js';
 
 describe('API types', () => {
@@ -57,11 +58,6 @@ describe('ErrorCode type', () => {
       expect(code).toBe('OIDC_NOT_CONFIGURED');
     });
 
-    it('should include OIDC_ERROR error code', () => {
-      const code: ErrorCode = 'OIDC_ERROR';
-      expect(code).toBe('OIDC_ERROR');
-    });
-
     it('should include OIDC_NO_MATCHING_ACCOUNT error code', () => {
       const code: ErrorCode = 'OIDC_NO_MATCHING_ACCOUNT';
       expect(code).toBe('OIDC_NO_MATCHING_ACCOUNT');
@@ -85,20 +81,18 @@ describe('ErrorCode type', () => {
         'SELF_DEACTIVATION',
         'LAST_ADMIN',
         'OIDC_NOT_CONFIGURED',
-        'OIDC_ERROR',
         'OIDC_NO_MATCHING_ACCOUNT',
         'OIDC_EMAIL_UNVERIFIED',
         'OIDC_MISSING_EMAIL',
       ];
 
-      expect(authCodes).toHaveLength(10);
+      expect(authCodes).toHaveLength(9);
       expect(authCodes).toContain('SETUP_COMPLETE');
       expect(authCodes).toContain('INVALID_CREDENTIALS');
       expect(authCodes).toContain('ACCOUNT_DEACTIVATED');
       expect(authCodes).toContain('SELF_DEACTIVATION');
       expect(authCodes).toContain('LAST_ADMIN');
       expect(authCodes).toContain('OIDC_NOT_CONFIGURED');
-      expect(authCodes).toContain('OIDC_ERROR');
       expect(authCodes).toContain('OIDC_NO_MATCHING_ACCOUNT');
       expect(authCodes).toContain('OIDC_EMAIL_UNVERIFIED');
       expect(authCodes).toContain('OIDC_MISSING_EMAIL');
@@ -121,6 +115,24 @@ describe('ErrorCode type', () => {
       expect(codes).toContain('NOT_FOUND');
       expect(codes).toContain('VALIDATION_ERROR');
       expect(codes).toContain('INTERNAL_ERROR');
+    });
+  });
+
+  describe('ERROR_CODES runtime tuple', () => {
+    it('contains no duplicates', () => {
+      expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
+    });
+
+    it.each(['OIDC_ERROR', 'MUTUALLY_EXCLUSIVE_BUDGET_LINK', 'BACKUP_NOT_CONFIGURED'])(
+      'no longer includes the removed code %s',
+      (removed) => {
+        expect(ERROR_CODES as readonly string[]).not.toContain(removed);
+      },
+    );
+
+    it('includes the dependency conflict codes', () => {
+      expect(ERROR_CODES).toContain('DUPLICATE_DEPENDENCY');
+      expect(ERROR_CODES).toContain('CIRCULAR_DEPENDENCY');
     });
   });
 });

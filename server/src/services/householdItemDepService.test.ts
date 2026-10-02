@@ -17,7 +17,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as householdItemDepService from './householdItemDepService.js';
-import { NotFoundError, ConflictError } from '../errors/AppError.js';
+import { NotFoundError, DuplicateDependencyError } from '../errors/AppError.js';
 
 function futureDateStr(daysFromNow: number): string {
   const d = new Date();
@@ -375,7 +375,7 @@ describe('householdItemDepService', () => {
       ).toThrow('Milestone not found');
     });
 
-    it('throws ConflictError with DUPLICATE_DEPENDENCY code for duplicate dep', () => {
+    it('throws DuplicateDependencyError (DUPLICATE_DEPENDENCY, 409) for duplicate dep', () => {
       const userId = insertUser(db);
       const hiId = insertHouseholdItem(db);
       const wiId = insertWorkItem(db, userId);
@@ -387,17 +387,19 @@ describe('householdItemDepService', () => {
       });
 
       // Try to create the same dependency again
-      let error: ConflictError | undefined;
+      let error: DuplicateDependencyError | undefined;
       try {
         householdItemDepService.createDep(db, hiId, {
           predecessorType: 'work_item',
           predecessorId: wiId,
         });
       } catch (err) {
-        error = err as ConflictError;
+        error = err as DuplicateDependencyError;
       }
 
-      expect(error).toBeInstanceOf(ConflictError);
+      expect(error).toBeInstanceOf(DuplicateDependencyError);
+      expect(error?.code).toBe('DUPLICATE_DEPENDENCY');
+      expect(error?.statusCode).toBe(409);
       expect(error?.message).toMatch(/already exists/i);
     });
 

@@ -736,6 +736,7 @@
         "plannedLabel": "Planned: {{amount}}",
         "itemizedAmountAriaLabel": "Itemized amount for {{description}}",
         "budgetLineGeneric": "budget line",
+        "selectAriaLabel": "Select {{description}}",
         "remainingToAllocate": "Remaining to allocate:",
         "addSelectedLines": "Add Selected Lines",
         "backButton": "← Back",
@@ -832,7 +833,11 @@
         "deleteError": "Failed to delete deposit. Please try again.",
         "revertError": "Failed to revert deposit status. Please try again.",
         "revertNetworkError": "Network error — could not revert deposit status. Please try again.",
-        "stateConfirmNetworkError": "Network error — could not update deposit status. Please try again."
+        "stateConfirmNetworkError": "Network error — could not update deposit status. Please try again.",
+        "amountRequired": "Amount must be a positive number.",
+        "dueDateRequired": "Due date is required.",
+        "paidDateRequired": "Paid date is required.",
+        "claimedDateRequired": "Claimed date is required."
       },
       "stateConfirm": {
         "paidDateLabel": "Paid date",
@@ -1082,7 +1087,12 @@
     "moveCrossTableHintReverse": "Moving to a work item will transfer this budget line to the work item budget.",
     "itemizedAmountLabel": "Itemized Amount ({{currencySymbol}}) *",
     "moveCrossTableNoInvoiceError": "Cross-table moves require an invoice link. Either remove the move or link this budget line to an invoice first.",
-    "addBudgetLineAriaLabel": "Add budget line"
+    "addBudgetLineAriaLabel": "Add budget line",
+    "errors": {
+      "saveFailed": "Failed to save budget line. Please try again.",
+      "deleteFailed": "Failed to delete budget line. Please try again.",
+      "moveFailed": "Failed to move budget line. Please try again."
+    }
   },
   "invoiceLinkModal": {
     "title": "Link to Invoice",
@@ -1108,7 +1118,6 @@
       "exceedsBalance": "Amount exceeds available balance ({{amount}} available)",
       "alreadyLinked": "This budget line is already linked to an invoice",
       "exceedsInvoiceTotal": "The itemized amount exceeds the invoice total",
-      "linkFailed": "Failed to link budget line",
       "unexpected": "An unexpected error occurred"
     }
   },
@@ -1230,7 +1239,9 @@
     "mergeErrorMessage": "Couldn't merge these line items.",
     "mergeErrorBadge": "Merge failed",
     "mergeRetryButton": "Retry",
-    "mergeUndoButton": "Restore original lines"
+    "mergeUndoButton": "Restore original lines",
+    "invoiceNumberPlaceholder": "e.g., INV-001",
+    "notesPlaceholder": "Optional notes"
   },
   "sourceReports": {
     "title": "Bank Reports",
@@ -1449,6 +1460,7 @@
     "remove": "Remove",
     "close": "Close",
     "submit": "Submit",
-    "required": "*"
+    "required": "*",
+    "budgetSectionTitle": "Budget"
   }
 }

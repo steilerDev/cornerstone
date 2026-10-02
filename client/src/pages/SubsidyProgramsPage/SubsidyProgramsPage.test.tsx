@@ -10,6 +10,7 @@ import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type {
   SubsidyProgram,
   SubsidyProgramListResponse,
@@ -388,14 +389,15 @@ describe('SubsidyProgramsPage', () => {
 
     it('shows ApiClientError message on load failure', async () => {
       mockFetchSubsidyPrograms.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Custom API error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Custom API error')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows Retry button in error state', async () => {
@@ -825,7 +827,7 @@ describe('SubsidyProgramsPage', () => {
     it('shows error when createSubsidyProgram API call fails', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
       mockCreateSubsidyProgram.mockRejectedValueOnce(
-        new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'Program already exists' }),
+        new ApiClientError(400, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
       );
       const user = userEvent.setup();
 
@@ -842,8 +844,9 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /create program/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Program already exists')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error for non-ApiClientError create failures', async () => {
@@ -1152,7 +1155,7 @@ describe('SubsidyProgramsPage', () => {
     it('shows update error when updateSubsidyProgram API call fails', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       mockUpdateSubsidyProgram.mockRejectedValueOnce(
-        new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'Validation failed' }),
+        new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       const user = userEvent.setup();
 
@@ -1169,8 +1172,9 @@ describe('SubsidyProgramsPage', () => {
 
       await waitFor(() => {
         expect(within(form).getByRole('alert')).toBeInTheDocument();
-        expect(within(form).getByText('Validation failed')).toBeInTheDocument();
+        expect(within(form).getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error for non-ApiClientError update failures', async () => {
@@ -1525,7 +1529,7 @@ describe('SubsidyProgramsPage', () => {
     it('shows non-409 ApiClientError message on delete failure', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       mockDeleteSubsidyProgram.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       const user = userEvent.setup();
 
@@ -1541,8 +1545,9 @@ describe('SubsidyProgramsPage', () => {
       await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('modal is not closeable while deletion is in progress', async () => {

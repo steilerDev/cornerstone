@@ -2,6 +2,10 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import type { BaseBudgetLine, CreateBudgetLineRequest } from '@cornerstone/shared';
 import type { BudgetLineFormState } from './useBudgetSection.js';
+import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import enBudget from '../i18n/en/budget.json';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 
 type TestBudgetLine = BaseBudgetLine;
 
@@ -460,7 +464,7 @@ describe('handleSaveBudgetLine', () => {
     });
 
     expect(result.current.budgetFormError).toBe(
-      'Planned amount must be a valid non-negative number.',
+      enBudget.invoiceDetail.budgetLines.picker.error.plannedAmountInvalid,
     );
   });
 
@@ -490,7 +494,7 @@ describe('handleSaveBudgetLine', () => {
     });
 
     expect(result.current.budgetFormError).toBe(
-      'Planned amount must be a valid non-negative number.',
+      enBudget.invoiceDetail.budgetLines.picker.error.plannedAmountInvalid,
     );
   });
 
@@ -645,7 +649,7 @@ describe('handleSaveBudgetLine', () => {
       unitPrice: '',
       includesVat: true,
     });
-    mockUpdateBudget.mockRejectedValueOnce(new Error('Server rejected the request'));
+    mockUpdateBudget.mockRejectedValueOnce(new Error('RAW-LOCAL'));
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
@@ -657,7 +661,8 @@ describe('handleSaveBudgetLine', () => {
       await result.current.handleSaveBudgetLine(makeFormEvent());
     });
 
-    expect(result.current.budgetFormError).toBe('Server rejected the request');
+    expect(result.current.budgetFormError).toBe(enBudget.budgetLineForm.errors.saveFailed);
+    expect(result.current.budgetFormError).not.toContain('RAW-LOCAL');
     expect(result.current.showBudgetForm).toBe(true);
   });
 
@@ -687,7 +692,7 @@ describe('handleSaveBudgetLine', () => {
       await result.current.handleSaveBudgetLine(makeFormEvent());
     });
 
-    expect(result.current.budgetFormError).toBe('Failed to save budget line. Please try again.');
+    expect(result.current.budgetFormError).toBe(enBudget.budgetLineForm.errors.saveFailed);
   });
 
   it('resets isSavingBudget to false after successful save', async () => {
@@ -1001,11 +1006,12 @@ describe('confirmDeleteBudgetLine', () => {
     expect(result.current.deletingBudgetId).toBeNull();
   });
 
-  it('throws an error with the API message on 409 conflict', async () => {
-    mockDeleteBudget.mockRejectedValueOnce({
-      statusCode: 409,
-      message: 'Budget line is linked to an invoice',
+  it('rethrows the very same ApiClientError instance on 409 (no wrapping, no server text)', async () => {
+    const original = new ApiClientError(409, {
+      code: 'CONFLICT',
+      message: 'RAW-SERVER-SENTINEL',
     });
+    mockDeleteBudget.mockRejectedValueOnce(original);
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
@@ -1022,35 +1028,12 @@ describe('confirmDeleteBudgetLine', () => {
       }
     });
 
-    expect(thrownError).toBeInstanceOf(Error);
-    expect((thrownError as Error).message).toBe('Budget line is linked to an invoice');
+    expect(thrownError).toBe(original);
   });
 
-  it('throws a fallback 409 message when API 409 has no message', async () => {
-    mockDeleteBudget.mockRejectedValueOnce({ statusCode: 409 }); // no message
-
-    const { result } = renderHook(() => useBudgetSection(makeOptions()));
-
-    act(() => {
-      result.current.handleDeleteBudgetLine('bl-conflict');
-    });
-
-    let thrownError: unknown;
-    await act(async () => {
-      try {
-        await result.current.confirmDeleteBudgetLine();
-      } catch (err) {
-        thrownError = err;
-      }
-    });
-
-    expect((thrownError as Error).message).toBe(
-      'Budget line cannot be deleted because it is in use',
-    );
-  });
-
-  it('throws a generic message on non-409 error', async () => {
-    mockDeleteBudget.mockRejectedValueOnce({ statusCode: 500, message: 'Internal server error' });
+  it('rethrows the very same error instance for non-API failures', async () => {
+    const original = new Error('boom');
+    mockDeleteBudget.mockRejectedValueOnce(original);
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
 
@@ -1067,7 +1050,8 @@ describe('confirmDeleteBudgetLine', () => {
       }
     });
 
-    expect((thrownError as Error).message).toBe('Failed to delete budget line');
+    expect(thrownError).toBe(original);
+    expect(result.current.deletingBudgetId).toBeNull();
   });
 });
 
@@ -1221,3 +1205,65 @@ describe('handleUnlinkSubsidy', () => {
 // Need React import for FormEvent type reference in the test
 import React from 'react';
 void React; // Prevent unused import lint warning
+
+// ─── #2129: translated save errors and validation copy ───────────────────────
+
+describe('handleSaveBudgetLine error translation (#2129)', () => {
+  const formState = (overrides: Partial<BudgetLineFormState> = {}): BudgetLineFormState => ({
+    description: '',
+    plannedAmount: '1000',
+    confidence: 'invoice',
+    budgetCategoryId: '',
+    budgetSourceId: '',
+    vendorId: '',
+    pricingMode: 'direct',
+    quantity: '',
+    unit: '',
+    unitPrice: '',
+    includesVat: true,
+    ...overrides,
+  });
+
+  async function save(form: BudgetLineFormState) {
+    mockToFormState.mockReturnValue(form);
+    const { result } = renderHook(() => useBudgetSection(makeOptions()));
+    act(() => {
+      result.current.openEditBudgetForm(makeLine({ id: 'bl-existing' }));
+    });
+    await act(async () => {
+      await result.current.handleSaveBudgetLine(makeFormEvent());
+    });
+    return result;
+  }
+
+  it('shows the translated code copy for an ApiClientError, never the server text', async () => {
+    mockUpdateBudget.mockRejectedValueOnce(
+      new ApiClientError(400, { code: 'VALIDATION_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    );
+    const result = await save(formState());
+    expect(result.current.budgetFormError).toBe(enErrors.VALIDATION_ERROR);
+    expect(result.current.budgetFormError).not.toContain('RAW-SERVER-SENTINEL');
+  });
+
+  it('shows the network copy for a NetworkError', async () => {
+    mockUpdateBudget.mockRejectedValueOnce(new NetworkError('RAW-LOCAL', new Error('cause')));
+    const result = await save(formState());
+    expect(result.current.budgetFormError).toBe(enCommon.requestErrors.network);
+  });
+
+  it('shows the quantity validation copy for a non-positive quantity in unit mode', async () => {
+    const result = await save(formState({ pricingMode: 'unit', quantity: '0', unitPrice: '5' }));
+    expect(result.current.budgetFormError).toBe(
+      enBudget.invoiceDetail.budgetLines.picker.error.quantityInvalid,
+    );
+    expect(mockUpdateBudget).not.toHaveBeenCalled();
+  });
+
+  it('shows the unit-price validation copy for a negative unit price in unit mode', async () => {
+    const result = await save(formState({ pricingMode: 'unit', quantity: '2', unitPrice: '-1' }));
+    expect(result.current.budgetFormError).toBe(
+      enBudget.invoiceDetail.budgetLines.picker.error.unitPriceInvalid,
+    );
+    expect(mockUpdateBudget).not.toHaveBeenCalled();
+  });
+});

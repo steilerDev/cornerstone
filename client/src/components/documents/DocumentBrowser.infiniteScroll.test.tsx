@@ -9,6 +9,7 @@
  */
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import enErrors from '../../i18n/en/errors.json';
 import type { ReactElement } from 'react';
 import type * as DocumentBrowserModule from './DocumentBrowser.js';
 import type * as ApiClientModule from '../../lib/apiClient.js';
@@ -481,14 +482,15 @@ describe('DocumentBrowser infinite scroll (integration)', () => {
   });
 
   describe('AC16: first-batch failure', () => {
-    it('shows the ApiClientError message and Try Again re-requests page 1', async () => {
+    it('shows the translated ApiClientError copy (not the server message) and Try Again re-requests page 1', async () => {
       mockListPaperlessDocuments.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Paperless exploded' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       render(<DocumentBrowser />);
 
       const alert = await screen.findByRole('alert');
-      expect(alert).toHaveTextContent('Paperless exploded');
+      expect(alert).toHaveTextContent(enErrors.INTERNAL_ERROR);
+      expect(alert).not.toHaveTextContent(/RAW-SERVER-SENTINEL/);
       expect(cardCount()).toBe(0);
 
       fireEvent.click(screen.getByRole('button', { name: /try again/i }));

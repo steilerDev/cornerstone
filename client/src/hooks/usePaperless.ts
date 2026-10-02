@@ -11,6 +11,7 @@ import {
   listPaperlessTags,
 } from '../lib/paperlessApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 import { useInfiniteScroll } from './useInfiniteScroll.js';
 import type { InfiniteScrollStatus } from './useInfiniteScroll.js';
 
@@ -59,6 +60,7 @@ export interface UsePaperlessResult {
  */
 export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult {
   const { t } = useTranslation('documents');
+  const { t: tErrors } = useTranslation('errors');
   const [status, setStatus] = useState<PaperlessStatusResponse | null>(null);
   const [tags, setTags] = useState<PaperlessTag[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -141,12 +143,12 @@ export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult 
   const errorMessage = useCallback(
     (err: unknown): string => {
       if (err instanceof ApiClientError) {
-        return err.error.message ?? t('browser.loadErrorUnexpected');
+        return translateApiError(err.error.code, tErrors);
       }
       if (err instanceof NetworkError) return t('browser.loadErrorNetwork');
       return t('browser.loadErrorUnexpected');
     },
-    [t],
+    [t, tErrors],
   );
 
   const list = useInfiniteScroll<PaperlessDocumentSearchResult>({

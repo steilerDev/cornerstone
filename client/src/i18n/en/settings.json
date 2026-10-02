@@ -100,6 +100,9 @@
       "confirm": "Deactivate",
       "confirming": "Deactivating...",
       "error": "Failed to deactivate user. Please try again."
+    },
+    "errors": {
+      "emailInUse": "This email address is already used by another account."
     }
   },
   "manage": {
@@ -164,7 +167,8 @@
         "createError": "Failed to create area. Please try again.",
         "updateError": "Failed to update area. Please try again.",
         "deleteError": "Failed to delete area. Please try again.",
-        "deleteConflict": "This area cannot be deleted because it is currently in use."
+        "deleteConflict": "This area cannot be deleted because it is currently in use.",
+        "duplicateName": "An area with this name already exists at this level."
       }
     },
     "trades": {
@@ -205,7 +209,8 @@
         "createError": "Failed to create trade. Please try again.",
         "updateError": "Failed to update trade. Please try again.",
         "deleteError": "Failed to delete trade. Please try again.",
-        "deleteConflict": "This trade cannot be deleted because it is currently in use."
+        "deleteConflict": "This trade cannot be deleted because it is currently in use.",
+        "duplicateName": "A trade with this name already exists."
       }
     },
     "orientations": {
@@ -242,7 +247,8 @@
         "createError": "Failed to create orientation. Please try again.",
         "updateError": "Failed to update orientation. Please try again.",
         "deleteError": "Failed to delete orientation. Please try again.",
-        "loadError": "Failed to load orientations."
+        "loadError": "Failed to load orientations.",
+        "duplicateName": "An orientation with this name already exists."
       }
     },
     "budgetCategories": {
@@ -286,7 +292,8 @@
         "createError": "Failed to create category. Please try again.",
         "updateError": "Failed to update category. Please try again.",
         "deleteError": "Failed to delete category. Please try again.",
-        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more budget entries."
+        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more budget entries.",
+        "duplicateName": "A budget category with this name already exists."
       }
     },
     "householdItemCategories": {
@@ -328,7 +335,8 @@
         "createError": "Failed to create category. Please try again.",
         "updateError": "Failed to update category. Please try again.",
         "deleteError": "Failed to delete category. Please try again.",
-        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more household items."
+        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more household items.",
+        "duplicateName": "A household item category with this name already exists."
       }
     }
   },
@@ -349,7 +357,12 @@
     "loading": "Loading DAV access status...",
     "generating": "Generating...",
     "revoking": "Revoking...",
-    "hideTokenDisplay": "Hide token display"
+    "hideTokenDisplay": "Hide token display",
+    "errors": {
+      "loadFailed": "Failed to load token status. Please try again.",
+      "generateFailed": "Failed to generate token. Please try again.",
+      "revokeFailed": "Failed to revoke token. Please try again."
+    }
   },
   "trades": {
     "plumbing": "Plumbing",
@@ -398,8 +411,6 @@
     "createButton": "Create Backup",
     "creating": "Creating backup...",
     "loading": "Loading backups...",
-    "notConfiguredMessage": "Backup is not configured",
-    "notConfiguredDescription": "To enable backups, set the BACKUP_DIR environment variable to a directory outside the application data directory.",
     "emptyStateMessage": "No backups yet",
     "emptyStateDescription": "Click 'Create Backup' to create your first backup.",
     "tableHeaders": {
@@ -475,7 +486,13 @@
       "loading": "Loading contacts...",
       "contactAdded": "Contact {{name}} added",
       "contactUpdated": "Contact {{name}} updated",
-      "contactDeleted": "Contact {{name}} deleted"
+      "contactDeleted": "Contact {{name}} deleted",
+      "errors": {
+        "loadFailed": "Failed to load contacts. Please try again.",
+        "createFailed": "Failed to create contact. Please try again.",
+        "updateFailed": "Failed to update contact. Please try again.",
+        "deleteFailed": "Failed to delete contact. Please try again."
+      }
     }
   }
 }

@@ -170,7 +170,7 @@ describe('budgetOverviewApi', () => {
         ok: false,
         status: 500,
         json: async () => ({
-          error: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal Server Error' },
+          error: { code: 'INTERNAL_ERROR', message: 'Internal Server Error' },
         }),
       } as Response);
 

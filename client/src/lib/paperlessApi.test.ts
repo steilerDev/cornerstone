@@ -344,6 +344,21 @@ describe('paperlessApi', () => {
       }
     });
 
+    it('converts a fetch rejection into a NetworkError carrying the cause', async () => {
+      mockFetch.mockRejectedValueOnce(new TypeError('Failed to fetch'));
+
+      try {
+        await paperlessApi.uploadPaperlessDocument(new Blob(['x']), 'title');
+        throw new Error('expected rejection');
+      } catch (err) {
+        // The mocked NetworkError class does not retain `cause`; the real class is covered
+        // in apiClient.test.ts. Assert the thrown type and message here.
+        const netErr = err as Error;
+        expect(netErr.constructor.name).toBe('NetworkError');
+        expect(netErr.message).toBe('Network request failed');
+      }
+    });
+
     it('uses getBaseUrl() for the upload URL', async () => {
       mockGetBaseUrl.mockReturnValue('https://example.com/api');
       mockFetch.mockResolvedValueOnce({

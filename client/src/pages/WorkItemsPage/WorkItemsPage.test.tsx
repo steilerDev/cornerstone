@@ -12,6 +12,10 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as WorkItemsPageTypes from './WorkItemsPage.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enWorkItems from '../../i18n/en/workItems.json';
 
 // ─── Module-scope mock functions ─────────────────────────────────────────────
 
@@ -309,6 +313,68 @@ describe('WorkItemsPage', () => {
       expect(screen.getAllByText('Living Room').length).toBeGreaterThanOrEqual(1);
       // "No area" should appear for Item B
       expect(screen.getAllByText('No area').length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  // ── #2129: translated errors, never raw server text ───────────────────────
+
+  describe('translated errors (#2129)', () => {
+    it('list failure with ApiClientError shows the code copy, never the server text', async () => {
+      mockListWorkItems.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      renderPage();
+      expect(await screen.findByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('list failure with NetworkError shows the network copy', async () => {
+      mockListWorkItems.mockRejectedValue(new NetworkError('RAW-LOCAL', new Error('cause')));
+      renderPage();
+      expect(await screen.findByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('list failure with a plain Error shows the loadFailed fallback', async () => {
+      mockListWorkItems.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+      expect(await screen.findByText(enWorkItems.list.errors.loadFailed)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    async function deleteWith(rejection: unknown) {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([makeWorkItemSummary({ id: 'wi-1', title: 'Lay Foundation' })]),
+      );
+      mockDeleteWorkItem.mockRejectedValue(rejection);
+      renderPage();
+      await waitFor(() => expect(screen.getByTestId('wi-menu-button-wi-1')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('wi-menu-button-wi-1'));
+      fireEvent.click(screen.getByTestId('wi-delete-wi-1'));
+      const confirm = await screen.findByRole('button', {
+        name: enWorkItems.list.deleteModal.deleteLabel,
+      });
+      fireEvent.click(confirm);
+      return screen.findByRole('alert');
+    }
+
+    it('delete failure with ApiClientError shows the code copy, never the server text', async () => {
+      const alert = await deleteWith(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      expect(alert).toHaveTextContent(enErrors.CONFLICT);
+      expect(alert).not.toHaveTextContent('RAW-SERVER-SENTINEL');
+    });
+
+    it('delete failure with NetworkError shows the network copy', async () => {
+      const alert = await deleteWith(new NetworkError('RAW-LOCAL', new Error('cause')));
+      expect(alert).toHaveTextContent(enCommon.requestErrors.network);
+    });
+
+    it('delete failure with a plain Error shows the deleteFailed fallback (not the modal title)', async () => {
+      const alert = await deleteWith(new Error('RAW-LOCAL'));
+      expect(alert).toHaveTextContent(enWorkItems.list.errors.deleteFailed);
+      expect(alert).not.toHaveTextContent('RAW-LOCAL');
     });
   });
 });

@@ -180,5 +180,9 @@
   "chunkError": {
     "message": "Die Anwendung konnte eine erforderliche Datei nicht laden. Dies passiert normalerweise nach einem Update.",
     "refreshButton": "Seite neu laden"
+  },
+  "requestErrors": {
+    "network": "Netzwerkfehler: Verbindung zum Server konnte nicht hergestellt werden.",
+    "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
   }
 }

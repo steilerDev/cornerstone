@@ -1,5 +1,6 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
 
 const mockGetDavTokenStatus = jest.fn<() => Promise<unknown>>();
 const mockGenerateDavToken = jest.fn<() => Promise<unknown>>();
@@ -86,12 +87,12 @@ describe('useDavToken', () => {
 
   it('sets error message on ApiClientError; status stays null', async () => {
     mockGetDavTokenStatus.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useDavToken());
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.status).toBeNull();
   });
@@ -173,7 +174,7 @@ describe('useDavToken', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       mockGenerateDavToken.mockRejectedValueOnce(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Token generation failed' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       let thrownError: unknown;
@@ -186,7 +187,7 @@ describe('useDavToken', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Token generation failed');
+      expect(result.current.error).toBe(enErrors.INTERNAL_ERROR);
     });
 
     it('sets generic error and re-throws on unknown error', async () => {
@@ -294,7 +295,7 @@ describe('useDavToken', () => {
       await waitFor(() => expect(result.current.isLoading).toBe(false));
 
       mockRevokeDavToken.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Token not found' }),
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       let thrownError: unknown;
@@ -307,7 +308,7 @@ describe('useDavToken', () => {
       });
 
       expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Token not found');
+      expect(result.current.error).toBe(enErrors.NOT_FOUND);
     });
 
     it('sets generic error and re-throws on unknown error', async () => {

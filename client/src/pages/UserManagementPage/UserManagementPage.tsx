@@ -17,6 +17,7 @@ import {
   type AdminUpdateUserPayload,
 } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -38,6 +39,7 @@ interface FieldErrors {
 export function UserManagementPage() {
   const { formatDate } = useFormatters();
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const { user: currentUser } = useAuth();
 
   const isAdmin = currentUser?.role === 'admin';
@@ -105,7 +107,7 @@ export function UserManagementPage() {
         setUsers(response.users);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
           setError(t('userManagement.loadError'));
         }
@@ -115,7 +117,7 @@ export function UserManagementPage() {
     };
 
     void loadUsersData();
-  }, [t]);
+  }, [t, tErrors]);
 
   const reloadUsers = async () => {
     setIsLoading(true);
@@ -126,7 +128,7 @@ export function UserManagementPage() {
       setUsers(response.users);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('userManagement.loadError'));
       }
@@ -203,7 +205,11 @@ export function UserManagementPage() {
       closeEditModal();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setEditApiError(err.error.message);
+        setEditApiError(
+          err.error.code === 'CONFLICT'
+            ? t('userManagement.errors.emailInUse')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setEditApiError(t('userManagement.editModal.error'));
       }
@@ -237,7 +243,7 @@ export function UserManagementPage() {
       closeDeactivateModal();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeactivateError(err.error.message);
+        setDeactivateError(translateApiError(err.error.code, tErrors));
       } else {
         setDeactivateError(t('userManagement.deactivateModal.error'));
       }

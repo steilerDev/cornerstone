@@ -7,6 +7,8 @@ import type {
   BudgetCategory,
   SubsidyProgram,
 } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
@@ -79,6 +81,8 @@ export function BudgetSection<T extends BaseBudgetLine>({
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
 
   // Invoice edit modal state
   const [invoiceEditLine, setInvoiceEditLine] = useState<T | null>(null);
@@ -120,10 +124,17 @@ export function BudgetSection<T extends BaseBudgetLine>({
       setInvoiceEditForm(null);
       setInvoiceEditItemizedAmount('');
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        msg = tCommon('requestErrors.network');
+      } else if (err instanceof Error && err.message) {
+        // Only pre-translated local errors thrown by the parent handlers reach this branch.
+        msg = err.message;
+      } else {
+        msg = tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      }
       setInvoiceEditError(msg);
     } finally {
       setInvoiceEditMutating(false);
@@ -145,7 +156,17 @@ export function BudgetSection<T extends BaseBudgetLine>({
       setInvoiceEditForm(null);
       setInvoiceEditItemizedAmount('');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : tBudget('budgetLineForm.parentPickerError');
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        msg = tCommon('requestErrors.network');
+      } else if (err instanceof Error && err.message) {
+        // Only pre-translated local errors thrown by the parent handlers reach this branch.
+        msg = err.message;
+      } else {
+        msg = tBudget('budgetLineForm.parentPickerError');
+      }
       setInvoiceEditError(msg);
     } finally {
       setInvoiceEditMutating(false);
@@ -205,7 +226,9 @@ export function BudgetSection<T extends BaseBudgetLine>({
   return (
     <>
       <h2 className={styles.sectionTitle}>
-        {budgetLineType === 'household_item' ? t('detail.budget.title') : 'Budget'}
+        {budgetLineType === 'household_item'
+          ? t('detail.budget.title')
+          : tBudget('common.budgetSectionTitle')}
       </h2>
 
       {inlineError && (

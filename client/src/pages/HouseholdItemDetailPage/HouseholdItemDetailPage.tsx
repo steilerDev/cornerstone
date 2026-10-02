@@ -48,7 +48,8 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { Badge } from '../../components/Badge/Badge.js';
@@ -93,6 +94,8 @@ export function HouseholdItemDetailPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -344,12 +347,14 @@ export function HouseholdItemDetailPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
           setIs404(true);
-          setError('Item not found');
+          setError(t('detail.errors.itemNotFound'));
         } else {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         }
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
       } else {
-        setError('Failed to load household item. Please try again.');
+        setError(t('detail.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -403,12 +408,12 @@ export function HouseholdItemDetailPage() {
       setItem(newItem);
       setDepSearchInput('');
       setShowDepDropdown(false);
-      showToast('success', 'Dependency added successfully');
+      showToast('success', t('detail.dependencies.addedSuccess'));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDepError(err.error.message ?? 'Failed to add dependency');
+        setDepError(translateApiError(err.error.code, tErrors));
       } else {
-        showToast('error', 'Failed to add dependency');
+        showToast('error', t('detail.dependencies.failedAdd'));
       }
     } finally {
       setIsAddingDep(false);
@@ -424,9 +429,9 @@ export function HouseholdItemDetailPage() {
       const newItem = await getHouseholdItem(id);
       setItem(newItem);
       setRemovingDepKey(null);
-      showToast('success', 'Dependency removed');
+      showToast('success', t('detail.dependencies.removedSuccess'));
     } catch {
-      showToast('error', 'Failed to remove dependency');
+      showToast('error', t('detail.dependencies.failedRemove'));
     }
   };
 
@@ -456,8 +461,13 @@ export function HouseholdItemDetailPage() {
     try {
       await confirmDeleteBudgetLine();
     } catch (err) {
-      const error = err as Error;
-      setInlineError(error.message);
+      if (err instanceof ApiClientError) {
+        setInlineError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
+      } else {
+        setInlineError(tBudget('budgetLineForm.errors.deleteFailed'));
+      }
     }
   };
 
@@ -473,12 +483,14 @@ export function HouseholdItemDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setInlineError('This subsidy program is already linked');
+          setInlineError(t('detail.errors.alreadyLinkedSubsidy'));
         } else {
-          setInlineError(err.error.message);
+          setInlineError(translateApiError(err.error.code, tErrors));
         }
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to link subsidy program');
+        setInlineError(t('detail.errors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
     }
@@ -492,7 +504,7 @@ export function HouseholdItemDetailPage() {
       await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      setInlineError('Failed to unlink subsidy program');
+      setInlineError(t('detail.errors.unlinkSubsidy'));
       console.error('Failed to unlink subsidy:', err);
     }
   };
@@ -517,7 +529,7 @@ export function HouseholdItemDetailPage() {
       setItem(fresh);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to unlink budget line from invoice');
+      setInlineError(t('detail.errors.unlinkInvoice'));
       console.error('Failed to unlink invoice:', err);
     } finally {
       setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
@@ -569,8 +581,17 @@ export function HouseholdItemDetailPage() {
       // Reload budget lines to reflect the move
       await reloadBudgetLines();
     } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
+      let message: string;
+      if (err instanceof ApiClientError) {
+        message = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        message = tCommon('requestErrors.network');
+      } else if (err instanceof Error && err.message) {
+        // Only pre-translated local errors thrown above reach this branch.
+        message = err.message;
+      } else {
+        message = tBudget('budgetLineForm.errors.moveFailed');
+      }
       setInlineError(message);
       throw err; // Re-throw so BudgetSection's handleMove can display inline error
     }
@@ -712,7 +733,7 @@ export function HouseholdItemDetailPage() {
     try {
       const updated = await updateHouseholdItem(id, { status: newStatus });
       setItem(updated);
-      showToast('success', 'Status updated');
+      showToast('success', t('detail.status.updated'));
     } catch (err) {
       setInlineError(t('detail.status.updateFailed'));
       console.error('Failed to update status:', err);
@@ -740,13 +761,15 @@ export function HouseholdItemDetailPage() {
     setDeleteError('');
     try {
       await deleteHouseholdItem(item.id);
-      showToast('success', 'Household item deleted successfully');
+      showToast('success', t('detail.delete.deleted'));
       navigate('/project/household-items');
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteError(tCommon('requestErrors.network'));
       } else {
-        setDeleteError('Failed to delete household item. Please try again.');
+        setDeleteError(t('detail.errors.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);

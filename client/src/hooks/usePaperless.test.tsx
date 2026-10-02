@@ -6,6 +6,7 @@
  */
 import { renderHook, render, act, waitFor } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
 
 const mockGetPaperlessStatus = jest.fn<() => Promise<unknown>>();
 const mockListPaperlessDocuments = jest.fn<(params: unknown) => Promise<unknown>>();
@@ -223,18 +224,18 @@ describe('usePaperless', () => {
   // ─── Errors ────────────────────────────────────────────────────────────────
 
   describe('error handling', () => {
-    it('surfaces the ApiClientError message and sets listStatus "error"', async () => {
+    it('surfaces the translated ApiClientError code (not the server text) and sets listStatus "error"', async () => {
       const { ApiClientError } = await import('../lib/apiClient.js');
       mockListPaperlessDocuments.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       const { result } = renderHook(() => usePaperless());
 
       await waitFor(() => expect(result.current.listStatus).toBe('error'));
-      expect(result.current.error).toBe('Server error');
+      expect(result.current.error).toBe(enErrors.INTERNAL_ERROR);
     });
 
-    it('falls back to the unexpected-error copy when ApiClientError has no message', async () => {
+    it('translates the code even when ApiClientError has no message', async () => {
       const { ApiClientError } = await import('../lib/apiClient.js');
       mockListPaperlessDocuments.mockRejectedValueOnce(
         new ApiClientError(500, { code: 'INTERNAL_ERROR' } as never),
@@ -242,7 +243,7 @@ describe('usePaperless', () => {
       const { result } = renderHook(() => usePaperless());
 
       await waitFor(() => expect(result.current.listStatus).toBe('error'));
-      expect(result.current.error).toBe('An unexpected error occurred.');
+      expect(result.current.error).toBe(enErrors.INTERNAL_ERROR);
     });
 
     it('surfaces the network-error copy on NetworkError', async () => {

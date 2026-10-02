@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect, useCallback } from 'react';
 import type {
   VendorContact,
@@ -11,6 +12,7 @@ import {
   deleteVendorContact,
 } from '../lib/vendorContactsApi.js';
 import { ApiClientError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseVendorContactsResult {
   contacts: VendorContact[];
@@ -27,6 +29,8 @@ export interface UseVendorContactsResult {
  * Provides CRUD operations for vendor contacts.
  */
 export function useVendorContacts(vendorId: string): UseVendorContactsResult {
+  const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const [contacts, setContacts] = useState<VendorContact[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -55,9 +59,9 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
         setContacts(data.contacts);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
-          setError('Failed to load contacts. Please try again.');
+          setError(t('vendors.contacts.errors.loadFailed'));
         }
       } finally {
         setIsLoading(false);
@@ -65,7 +69,7 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
     };
 
     void loadContacts();
-  }, [vendorId, fetchCount]);
+  }, [vendorId, fetchCount, t, tErrors]);
 
   const addContact = useCallback(
     async (data: CreateVendorContactRequest) => {
@@ -77,14 +81,14 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
         refresh();
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
-          setError('Failed to create contact. Please try again.');
+          setError(t('vendors.contacts.errors.createFailed'));
         }
         throw err;
       }
     },
-    [vendorId, refresh],
+    [vendorId, refresh, t, tErrors],
   );
 
   const editContact = useCallback(
@@ -97,14 +101,14 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
         refresh();
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
-          setError('Failed to update contact. Please try again.');
+          setError(t('vendors.contacts.errors.updateFailed'));
         }
         throw err;
       }
     },
-    [vendorId, refresh],
+    [vendorId, refresh, t, tErrors],
   );
 
   const removeContact = useCallback(
@@ -117,14 +121,14 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
         refresh();
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
-          setError('Failed to delete contact. Please try again.');
+          setError(t('vendors.contacts.errors.deleteFailed'));
         }
         throw err;
       }
     },
-    [vendorId, refresh],
+    [vendorId, refresh, t, tErrors],
   );
 
   return {

@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import styles from './MilestoneCreatePage.module.css';
 
@@ -16,6 +17,7 @@ const PROJECT_TABS: SubNavTab[] = [
 
 export function MilestoneCreatePage() {
   const { t } = useTranslation('schedule');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -58,9 +60,9 @@ export function MilestoneCreatePage() {
       navigate(`/project/milestones/${milestone.id}`);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
-        setError('Failed to create milestone. Please try again.');
+        setError(t('milestones.create.errors.createFailed'));
       }
     } finally {
       setIsSubmitting(false);

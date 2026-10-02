@@ -18,6 +18,7 @@ import type {
   UpdateOrientationRequest,
 } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { fetchHouseholdSettings, updateHouseholdSettings } from '../../lib/settingsApi.js';
 import { generateRandomColor } from '../../lib/colorUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
@@ -57,6 +58,7 @@ type Tab =
 
 function HouseholdTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const [name, setName] = useState('');
   const [address, setAddress] = useState('');
   const [savedName, setSavedName] = useState('');
@@ -85,7 +87,7 @@ function HouseholdTab() {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setLoadError(err.error.message ?? t('manage.household.loadError'));
+            setLoadError(translateApiError(err.error.code, tErrors));
           } else {
             setLoadError(t('manage.household.loadError'));
           }
@@ -101,7 +103,7 @@ function HouseholdTab() {
     return () => {
       cancelled = true;
     };
-  }, [t]);
+  }, [t, tErrors]);
 
   const handleSave = async (event: FormEvent) => {
     event.preventDefault();
@@ -119,7 +121,7 @@ function HouseholdTab() {
       setSuccessMessage(t('manage.household.saveSuccess'));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message ?? t('manage.household.saveFailed'));
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('manage.household.saveFailed'));
       }
@@ -218,6 +220,7 @@ type EditingArea = {
 
 function AreasTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const {
     areas,
     isLoading,
@@ -246,11 +249,13 @@ function AreasTab() {
   // Delete confirmation state
   const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>('');
 
   const handleCreateArea = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
@@ -281,7 +286,11 @@ function AreasTab() {
       setSuccessMessage(t('manage.areas.messages.created', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.areas.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setCreateError(t('manage.areas.messages.createError'));
       }
@@ -301,6 +310,7 @@ function AreasTab() {
     });
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
   };
 
   const cancelEdit = () => {
@@ -314,6 +324,7 @@ function AreasTab() {
 
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = editingArea.name.trim();
     if (!trimmedName) {
@@ -340,7 +351,11 @@ function AreasTab() {
       setSuccessMessage(t('manage.areas.messages.updated', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.areas.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setUpdateError(t('manage.areas.messages.updateError'));
       }
@@ -352,6 +367,7 @@ function AreasTab() {
   const handleDeleteArea = async (areaId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
+    setDeleteError('');
 
     try {
       const deletedArea = areas.find((a) => a.id === areaId);
@@ -361,12 +377,12 @@ function AreasTab() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setSuccessMessage(t('manage.areas.messages.deleteConflict'));
+          setDeleteError(t('manage.areas.messages.deleteConflict'));
         } else {
-          setSuccessMessage(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
-        setSuccessMessage(t('manage.areas.messages.deleteError'));
+        setDeleteError(t('manage.areas.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -386,6 +402,12 @@ function AreasTab() {
       {successMessage && (
         <div className={styles.successBanner} role="alert">
           {successMessage}
+        </div>
+      )}
+
+      {deleteError && (
+        <div className={styles.errorBanner} role="alert">
+          {deleteError}
         </div>
       )}
 
@@ -739,6 +761,7 @@ type EditingTrade = {
 
 function TradesTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const {
     trades,
     isLoading,
@@ -766,11 +789,13 @@ function TradesTab() {
   // Delete confirmation state
   const [deletingTradeId, setDeletingTradeId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>('');
 
   const handleCreateTrade = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
@@ -799,7 +824,11 @@ function TradesTab() {
       setSuccessMessage(t('manage.trades.messages.created', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.trades.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setCreateError(t('manage.trades.messages.createError'));
       }
@@ -818,6 +847,7 @@ function TradesTab() {
     });
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
   };
 
   const cancelEdit = () => {
@@ -831,6 +861,7 @@ function TradesTab() {
 
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = editingTrade.name.trim();
     if (!trimmedName) {
@@ -856,7 +887,11 @@ function TradesTab() {
       setSuccessMessage(t('manage.trades.messages.updated', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.trades.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setUpdateError(t('manage.trades.messages.updateError'));
       }
@@ -868,6 +903,7 @@ function TradesTab() {
   const handleDeleteTrade = async (tradeId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
+    setDeleteError('');
 
     try {
       const deletedTrade = trades.find((t) => t.id === tradeId);
@@ -877,12 +913,12 @@ function TradesTab() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setSuccessMessage(t('manage.trades.messages.deleteConflict'));
+          setDeleteError(t('manage.trades.messages.deleteConflict'));
         } else {
-          setSuccessMessage(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
-        setSuccessMessage(t('manage.trades.messages.deleteError'));
+        setDeleteError(t('manage.trades.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -902,6 +938,12 @@ function TradesTab() {
       {successMessage && (
         <div className={styles.successBanner} role="alert">
           {successMessage}
+        </div>
+      )}
+
+      {deleteError && (
+        <div className={styles.errorBanner} role="alert">
+          {deleteError}
         </div>
       )}
 
@@ -1222,6 +1264,7 @@ type EditingOrientation = {
 
 function OrientationsTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const {
     orientations,
     isLoading,
@@ -1248,11 +1291,13 @@ function OrientationsTab() {
   // Delete confirmation state
   const [deletingOrientationId, setDeletingOrientationId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string>('');
 
   const handleCreateOrientation = async (event: FormEvent) => {
     event.preventDefault();
     setCreateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = newName.trim();
     if (!trimmedName) {
@@ -1279,7 +1324,11 @@ function OrientationsTab() {
       setSuccessMessage(t('manage.orientations.messages.created', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.orientations.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setCreateError(t('manage.orientations.messages.createError'));
       }
@@ -1297,6 +1346,7 @@ function OrientationsTab() {
     });
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
   };
 
   const cancelEdit = () => {
@@ -1310,6 +1360,7 @@ function OrientationsTab() {
 
     setUpdateError('');
     setSuccessMessage('');
+    setDeleteError('');
 
     const trimmedName = editingOrientation.name.trim();
     if (!trimmedName) {
@@ -1334,7 +1385,11 @@ function OrientationsTab() {
       setSuccessMessage(t('manage.orientations.messages.updated', { name: trimmedName }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.orientations.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setUpdateError(t('manage.orientations.messages.updateError'));
       }
@@ -1346,6 +1401,7 @@ function OrientationsTab() {
   const handleDeleteOrientation = async (orientationId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
+    setDeleteError('');
 
     try {
       const deletedOrientation = orientations.find((o) => o.id === orientationId);
@@ -1356,9 +1412,9 @@ function OrientationsTab() {
       );
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setSuccessMessage(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
-        setSuccessMessage(t('manage.orientations.messages.deleteError'));
+        setDeleteError(t('manage.orientations.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -1378,6 +1434,12 @@ function OrientationsTab() {
       {successMessage && (
         <div className={styles.successBanner} role="alert">
           {successMessage}
+        </div>
+      )}
+
+      {deleteError && (
+        <div className={styles.errorBanner} role="alert">
+          {deleteError}
         </div>
       )}
 
@@ -1661,6 +1723,7 @@ type EditingBudgetCategory = {
 
 function BudgetCategoriesTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -1692,7 +1755,7 @@ function BudgetCategoriesTab() {
       setCategories(response.categories);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('manage.budgetCategories.loadError'));
       }
@@ -1740,9 +1803,13 @@ function BudgetCategoriesTab() {
       setSuccessMessage(t('manage.budgetCategories.messages.created', { name: created.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.budgetCategories.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
-        setCreateError('Failed to create category. Please try again.');
+        setCreateError(t('manage.budgetCategories.messages.createError'));
       }
     } finally {
       setIsCreating(false);
@@ -1802,9 +1869,13 @@ function BudgetCategoriesTab() {
       setSuccessMessage(t('manage.budgetCategories.messages.updated', { name: updated.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.budgetCategories.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
-        setUpdateError('Failed to update category. Please try again.');
+        setUpdateError(t('manage.budgetCategories.messages.updateError'));
       }
     } finally {
       setIsUpdating(false);
@@ -1839,10 +1910,10 @@ function BudgetCategoriesTab() {
         if (err.statusCode === 409) {
           setDeleteError(t('manage.budgetCategories.messages.deleteConflict'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
-        setDeleteError('Failed to delete category. Please try again.');
+        setDeleteError(t('manage.budgetCategories.messages.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -2219,6 +2290,7 @@ type EditingHICategory = {
 
 function HouseholdItemCategoriesTab() {
   const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -2249,7 +2321,7 @@ function HouseholdItemCategoriesTab() {
       setCategories(response.categories);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('manage.householdItemCategories.loadError'));
       }
@@ -2297,7 +2369,11 @@ function HouseholdItemCategoriesTab() {
       );
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.householdItemCategories.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setCreateError(t('manage.householdItemCategories.messages.createError'));
       }
@@ -2359,7 +2435,11 @@ function HouseholdItemCategoriesTab() {
       );
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setUpdateError(err.error.message);
+        setUpdateError(
+          err.error.code === 'CONFLICT'
+            ? t('manage.householdItemCategories.messages.duplicateName')
+            : translateApiError(err.error.code, tErrors),
+        );
       } else {
         setUpdateError(t('manage.householdItemCategories.messages.updateError'));
       }
@@ -2398,7 +2478,7 @@ function HouseholdItemCategoriesTab() {
         if (err.statusCode === 409) {
           setDeleteError(t('manage.householdItemCategories.messages.deleteConflict'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setDeleteError(t('manage.householdItemCategories.messages.deleteError'));

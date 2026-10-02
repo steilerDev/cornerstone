@@ -13,6 +13,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -29,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function MilestonesPage() {
   const { formatDate } = useFormatters();
   const { t } = useTranslation('schedule');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
   // Data state
@@ -67,7 +69,7 @@ export function MilestonesPage() {
         setMilestones(data);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         } else {
           setError(t('milestones.error'));
         }
@@ -77,7 +79,7 @@ export function MilestonesPage() {
     };
 
     loadMilestones();
-  }, [t]);
+  }, [t, tErrors]);
 
   const reloadMilestones = async () => {
     setIsLoading(true);
@@ -88,7 +90,7 @@ export function MilestonesPage() {
       setMilestones(data);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.error'));
       }
@@ -113,7 +115,7 @@ export function MilestonesPage() {
       reloadMilestones();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('milestones.deleteError'));
       }

@@ -1,4 +1,4 @@
-import { get, getBaseUrl, ApiClientError } from './apiClient.js';
+import { get, getBaseUrl, ApiClientError, NetworkError } from './apiClient.js';
 import type {
   PaperlessStatusResponse,
   PaperlessDocumentListResponse,
@@ -77,6 +77,7 @@ export function getDocumentPreviewUrl(id: number): string {
 /**
  * Uploads a document to Paperless-ngx.
  * @throws {ApiClientError} On 4xx/5xx responses
+ * @throws {NetworkError} When the request fails due to network issues
  */
 export async function uploadPaperlessDocument(
   document: Blob,
@@ -86,11 +87,16 @@ export async function uploadPaperlessDocument(
   formData.set('document', document);
   formData.set('title', title);
 
-  const response = await fetch(`${getBaseUrl()}/paperless/documents`, {
-    method: 'POST',
-    body: formData,
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getBaseUrl()}/paperless/documents`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+  } catch (error) {
+    throw new NetworkError('Network request failed', error);
+  }
 
   if (!response.ok) {
     let apiError: ApiError = { code: 'INTERNAL_ERROR', message: 'Upload failed' };
