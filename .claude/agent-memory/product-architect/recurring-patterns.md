@@ -1880,6 +1880,16 @@ client surface**. Re-read its en/de message and the UI branch that renders it, a
 asserts the rendered copy, not just the status code. A status-code-only test cannot tell you that the
 message says something false.
 
+## `additionalProperties: false` strips, it does not reject (found 2026-10-02, #2122)
+
+`buildApp` passes no `ajv` options, so Fastify's default `removeAdditional: true` applies: an unknown body
+property or query parameter is silently dropped and the request succeeds. I documented "unknown property
+-> 400" for `POST /api/users` and `GET /api/users` in the #2120 pass without checking. **Why:** the schema
+keyword reads like a rejection. **How to apply:** never write a "400 on unknown field" row from the schema
+alone; probe with `app.inject` (a throwaway `.mjs` under `server/` resolves the workspace `fastify`).
+Also: ADR-010 said argon2 for 8 months after PR #72 switched to `crypto.scrypt` — implementation-side
+swaps of an ADR's "Chosen" library need an ADR amendment, grep ADRs for the removed package name.
+
 ## Crash-recovery rollbacks must be re-runnable (ADR-037, 2026-10-02)
 
 A phase marker is only as good as the invariant each phase guarantees, and the ROLLBACK changes the

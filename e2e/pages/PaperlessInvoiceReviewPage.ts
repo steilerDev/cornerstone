@@ -594,9 +594,16 @@ export class PaperlessInvoiceReviewPage {
    * On return: picker is closed and the line card shows the inline form.
    *
    * @param workItemTitle - The title to search and select in step 1
-   * @param lineIndex - 0-based index of the extraction line card (default: 0)
+   * @param options.lineIndex - 0-based index of the extraction line card (default: 0)
+   * @param options.budgetSourceId - When set, explicitly selects this budget source in the
+   *   inline form's Funding Source select. Pass it for any flow that saves the draft: the
+   *   select otherwise defaults to the first source, which a parallel worker may delete.
    */
-  async queueCreateNewBudgetLine(workItemTitle: string, lineIndex = 0): Promise<void> {
+  async queueCreateNewBudgetLine(
+    workItemTitle: string,
+    options: { lineIndex?: number; budgetSourceId?: string } = {},
+  ): Promise<void> {
+    const lineIndex = options.lineIndex ?? 0;
     const assignBtn = this.lineAssignButton(lineIndex);
     await expect(assignBtn).toBeVisible();
     await assignBtn.click();
@@ -624,6 +631,13 @@ export class PaperlessInvoiceReviewPage {
     // gone once we moved to step 2 — it would pass immediately without
     // confirming the picker actually closed.
     await expect(this.pickerStep2Modal()).not.toBeVisible();
+
+    if (options.budgetSourceId) {
+      const sourceSelect = this.getInlineDraftSourceSelect(lineIndex);
+      await expect(sourceSelect).toBeVisible();
+      await sourceSelect.selectOption(options.budgetSourceId);
+      await expect(sourceSelect).toHaveValue(options.budgetSourceId);
+    }
   }
 
   // ─── Story #1797: Merge multiple extracted line items ────────────────────────

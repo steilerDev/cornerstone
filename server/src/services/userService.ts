@@ -9,6 +9,7 @@ import type { UserResponse } from '@cornerstone/shared';
 import {
   ConflictError,
   OidcEmailUnverifiedError,
+  PasswordHashingBusyError,
   OidcMissingEmailError,
   OidcNoMatchingAccountError,
 } from '../errors/AppError.js';
@@ -18,20 +19,121 @@ export { ConflictError };
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
-const scryptAsync = promisify(scryptCb) as (
+const scryptRaw = promisify(scryptCb) as (
   password: BinaryLike,
   salt: BinaryLike,
   keylen: number,
   options: ScryptOptions,
 ) => Promise<Buffer>;
 
-const SCRYPT_N = 16384;
-const SCRYPT_R = 8;
-const SCRYPT_P = 1;
+// Each scrypt run at N=2^17 holds ~128 MiB on the libuv threadpool. Cap concurrency so
+// unauthenticated login floods cannot exhaust memory or the pool: peak is about
+// MAX_CONCURRENT_SCRYPT * 128 MiB = ~256 MiB. Every hash/verify path goes through
+// scryptAsync below. Waiters are served in FIFO order. The queue is bounded: once
+// MAX_SCRYPT_QUEUE_LENGTH callers are waiting, further calls reject immediately with
+// PasswordHashingBusyError (429 RATE_LIMIT_EXCEEDED, handled by the global error handler)
+// instead of building a backlog that starves real logins.
+const MAX_CONCURRENT_SCRYPT = 2;
+export const MAX_SCRYPT_QUEUE_LENGTH = 50;
+let activeScrypt = 0;
+const scryptWaiters: Array<() => void> = [];
+
+async function scryptAsync(
+  password: BinaryLike,
+  salt: BinaryLike,
+  keylen: number,
+  options: ScryptOptions,
+): Promise<Buffer> {
+  if (activeScrypt >= MAX_CONCURRENT_SCRYPT) {
+    if (scryptWaiters.length >= MAX_SCRYPT_QUEUE_LENGTH) throw new PasswordHashingBusyError();
+    // The releasing run hands its slot directly to the next waiter (activeScrypt unchanged).
+    await new Promise<void>((resolve) => scryptWaiters.push(resolve));
+  } else {
+    activeScrypt++;
+  }
+  try {
+    return await scryptRaw(password, salt, keylen, options);
+  } finally {
+    const next = scryptWaiters.shift();
+    if (next) next();
+    else activeScrypt--;
+  }
+}
+
+export interface ScryptParams {
+  n: number;
+  r: number;
+  p: number;
+}
+
+// OWASP minimum for scrypt: N=2^17, r=8, p=1 (~128 MiB per hash).
+const PRODUCTION_SCRYPT_PARAMS: ScryptParams = { n: 131072, r: 8, p: 1 };
+// Pre-hardening parameters; hashes using them stay verifiable until rehashed on login.
+const LEGACY_SCRYPT_PARAMS: ScryptParams = { n: 16384, r: 8, p: 1 };
 const KEY_LEN = 64;
 const SALT_LEN = 16;
-// OpenSSL requires slightly more than 128*N*r; use 128*r*(N+p+2) as safe minimum
-const MAX_MEM = 128 * SCRYPT_R * (SCRYPT_N + SCRYPT_P + 2);
+
+// Parameters used for NEW hashes. Fixed in production; overridable only under NODE_ENV=test.
+let currentScryptParams: ScryptParams = PRODUCTION_SCRYPT_PARAMS;
+
+/**
+ * Test-only: change the scrypt parameters used for new hashes (and the "current" set that
+ * rehash detection compares against). Throws unless NODE_ENV === 'test'. Call with no
+ * argument to restore the production parameters. The accepted-parameter set for
+ * verification always contains production, legacy and the current override.
+ */
+export function setPasswordHashParamsForTesting(params?: ScryptParams): void {
+  if (process.env.NODE_ENV !== 'test') {
+    throw new Error('setPasswordHashParamsForTesting is only available when NODE_ENV=test');
+  }
+  currentScryptParams = params ?? PRODUCTION_SCRYPT_PARAMS;
+  dummyHashPromise = undefined;
+}
+
+/**
+ * Parameter sets accepted when verifying a stored hash. Anything else is rejected so a
+ * tampered row cannot request absurd memory/CPU.
+ */
+function isAcceptedScryptParams(n: number, r: number, p: number): boolean {
+  return [PRODUCTION_SCRYPT_PARAMS, LEGACY_SCRYPT_PARAMS, currentScryptParams].some(
+    (a) => a.n === n && a.r === r && a.p === p,
+  );
+}
+
+// OpenSSL requires slightly more than 128*N*r; use 128*r*(N+p+2) plus 128 MiB headroom.
+function maxMemFor(n: number, r: number, p: number): number {
+  return 128 * r * (n + p + 2) + 128 * 1024 * 1024;
+}
+
+interface ParsedScryptHash {
+  n: number;
+  r: number;
+  p: number;
+  salt: Buffer;
+  expected: Buffer;
+}
+
+function parseScryptHash(hash: string): ParsedScryptHash | null {
+  const parts = hash.split('$'); // ['', 'scrypt', 'n=...,r=...,p=...', '<salt>', '<hash>']
+  if (parts.length !== 5 || parts[1] !== 'scrypt') return null;
+
+  const params = Object.fromEntries(
+    parts[2]!.split(',').map((p) => {
+      const [key = '', value = ''] = p.split('=');
+      return [key, value] as [string, string];
+    }),
+  );
+  const n = Number(params.n);
+  const r = Number(params.r);
+  const p = Number(params.p);
+  if (!isAcceptedScryptParams(n, r, p)) return null;
+
+  const salt = Buffer.from(parts[3]!, 'base64');
+  const expected = Buffer.from(parts[4]!, 'base64');
+  // Only hashes of exactly the shape we produce; never derive a key of attacker-chosen length.
+  if (salt.length !== SALT_LEN || expected.length !== KEY_LEN) return null;
+  return { n, r, p, salt, expected };
+}
 
 /**
  * Hash a password using Node.js crypto.scrypt.
@@ -42,46 +144,93 @@ const MAX_MEM = 128 * SCRYPT_R * (SCRYPT_N + SCRYPT_P + 2);
  */
 export async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(SALT_LEN);
+  const { n, r, p } = currentScryptParams;
   const derived = (await scryptAsync(password, salt, KEY_LEN, {
-    N: SCRYPT_N,
-    r: SCRYPT_R,
-    p: SCRYPT_P,
-    maxmem: MAX_MEM,
+    N: n,
+    r,
+    p,
+    maxmem: maxMemFor(n, r, p),
   })) as Buffer;
-  return `$scrypt$n=${SCRYPT_N},r=${SCRYPT_R},p=${SCRYPT_P}$${salt.toString('base64')}$${derived.toString('base64')}`;
+  return `$scrypt$n=${n},r=${r},p=${p}$${salt.toString('base64')}$${derived.toString('base64')}`;
 }
 
 /**
  * Verify a password against a scrypt PHC-format hash using timing-safe comparison.
+ * Cost parameters are read from the stored hash, but only known parameter sets are
+ * accepted; a hash with any other parameters (or a malformed one) verifies as false.
  *
  * @param hash - The scrypt PHC-format password hash
  * @param password - The plain text password to verify
  * @returns True if password matches, false otherwise
  */
 export async function verifyPassword(hash: string, password: string): Promise<boolean> {
-  const parts = hash.split('$'); // ['', 'scrypt', 'n=...,r=...,p=...', '<salt>', '<hash>']
-  if (parts.length !== 5 || parts[1] !== 'scrypt') return false;
-
-  const params = Object.fromEntries(
-    parts[2]!.split(',').map((p) => {
-      const [key = '', value = ''] = p.split('=');
-      return [key, value] as [string, string];
-    }),
-  );
-  const salt = Buffer.from(parts[3]!, 'base64');
-  const expected = Buffer.from(parts[4]!, 'base64');
-  const n = Number(params.n);
-  const r = Number(params.r);
-  const p = Number(params.p);
+  const parsed = parseScryptHash(hash);
+  if (!parsed) return false;
+  const { n, r, p, salt, expected } = parsed;
 
   const derived = (await scryptAsync(password, salt, expected.length, {
     N: n,
     r,
     p,
-    maxmem: 128 * r * (n + p + 2),
+    maxmem: maxMemFor(n, r, p),
   })) as Buffer;
 
   return timingSafeEqual(derived, expected);
+}
+
+/**
+ * Whether a valid stored hash uses parameters other than the current ones and should be
+ * re-hashed after a successful verification. Unparseable or unaccepted hashes return false
+ * (they never verify).
+ */
+export function passwordNeedsRehash(hash: string): boolean {
+  const parsed = parseScryptHash(hash);
+  if (!parsed) return false;
+  const { n, r, p } = currentScryptParams;
+  return parsed.n !== n || parsed.r !== r || parsed.p !== p;
+}
+
+/**
+ * Re-hash a just-verified password with the current parameters and store it.
+ * Compare-and-swap on the old hash: if the stored hash changed meanwhile (e.g. a concurrent
+ * password change) nothing is written. Does not touch updatedAt (not a user-visible change).
+ * Callers treat this as best-effort.
+ *
+ * @returns true if the hash was replaced, false if the stored hash had changed
+ */
+export async function rehashPassword(
+  db: DbType,
+  userId: string,
+  oldHash: string,
+  password: string,
+): Promise<boolean> {
+  const newHash = await hashPassword(password);
+  const result = db
+    .update(users)
+    .set({ passwordHash: newHash })
+    .where(and(eq(users.id, userId), eq(users.passwordHash, oldHash)))
+    .run();
+  return result.changes > 0;
+}
+
+let dummyHashPromise: Promise<string> | undefined;
+
+/**
+ * Burn the same CPU/memory as a real verification at the current parameters, for logins
+ * against unknown or password-less accounts (timing-attack prevention). The dummy hash is
+ * generated once per process with the current parameters, so it can never drift from them.
+ */
+export async function verifyDummyPassword(password: string): Promise<void> {
+  const pending = (dummyHashPromise ??= hashPassword(randomBytes(16).toString('hex')));
+  let dummyHash: string;
+  try {
+    dummyHash = await pending;
+  } catch (err) {
+    // Do not cache a rejection; the next call retries.
+    if (dummyHashPromise === pending) dummyHashPromise = undefined;
+    throw err;
+  }
+  await verifyPassword(dummyHash, password);
 }
 
 /**
@@ -141,6 +290,27 @@ export async function createLocalUser(
   // Return the inserted row
   const row = db.select().from(users).where(eq(users.id, id)).get();
   return row!;
+}
+
+/**
+ * Create an admin-provisioned SSO-only account: authProvider 'oidc', no password,
+ * no OIDC subject yet. The subject is bound on the user's first verified-email OIDC
+ * login (findOrLinkOidcUser step 6). Local login is refused (no password hash).
+ */
+export function createSsoOnlyUser(
+  db: DbType,
+  email: string,
+  displayName: string,
+  role: 'admin' | 'member' = 'member',
+): typeof users.$inferSelect {
+  const now = new Date().toISOString();
+  const id = randomUUID();
+
+  db.insert(users)
+    .values({ id, email, displayName, role, authProvider: 'oidc', createdAt: now, updatedAt: now })
+    .run();
+
+  return db.select().from(users).where(eq(users.id, id)).get()!;
 }
 
 /**
@@ -289,6 +459,7 @@ function isOidcSubjectUniqueViolation(err: unknown): boolean {
 
 /**
  * Create a `member` account for an OIDC identity (no password, SSO only).
+ * Admin-created SSO-only accounts share this representation (see `createSsoOnlyUser`).
  * The caller must hold the transaction.
  *
  * Catching the insert error inside the transaction is safe: SQLite's default
@@ -355,6 +526,8 @@ export function provisionOidcUser(db: DbType, identity: OidcIdentity): OidcResol
  *      different subject it is re-bound ('relinked') — this lets an IdP
  *      migration self-heal, since there is no link/unlink UI. Otherwise
  *      'linked'. `authProvider` and `passwordHash` are left untouched.
+ *      This includes admin-created SSO-only accounts (`authProvider 'oidc'`, no
+ *      subject yet), which become linked here.
  *
  * @param db - Database instance
  * @param identity - Subject, email, email-verified flag and name claims from the IdP

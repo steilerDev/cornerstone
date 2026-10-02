@@ -64,7 +64,8 @@
     "authProviders": {
       "local": "Local",
       "oidc": "OIDC",
-      "localAndOidc": "Local + OIDC"
+      "localAndOidc": "Local + OIDC",
+      "oidcPending": "OIDC (awaiting first sign-in)"
     },
     "status": {
       "active": "Active",
@@ -85,6 +86,30 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "error": "Failed to update user. Please try again."
+    },
+    "addUser": "Add User",
+    "createModal": {
+      "title": "Add User",
+      "emailLabel": "Email",
+      "displayNameLabel": "Display Name",
+      "roleLabel": "Role",
+      "ssoOnlyLabel": "Single sign-on only (no password)",
+      "ssoOnlyHint": "The user signs in with single sign-on. No password is created; the account is linked the first time they sign in with a verified email.",
+      "passwordLabel": "Password",
+      "confirmPasswordLabel": "Confirm Password",
+      "passwordHint": "At least 12 characters.",
+      "cancel": "Cancel",
+      "create": "Create User",
+      "creating": "Creating...",
+      "error": "Failed to create user. Please try again."
+    },
+    "createValidation": {
+      "emailTooLong": "Email must be 255 characters or less",
+      "passwordRequired": "Password is required",
+      "passwordTooShort": "Password must be at least 12 characters",
+      "passwordTooLong": "Password must be 255 characters or less",
+      "confirmPasswordRequired": "Please confirm the password",
+      "passwordsDoNotMatch": "Passwords do not match"
     },
     "editValidation": {
       "displayNameRequired": "Display name is required",

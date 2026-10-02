@@ -13,9 +13,10 @@ import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type { UserResponse } from '@cornerstone/shared';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSettings from '../../i18n/en/settings.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
@@ -45,10 +46,12 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockAdminUpdateUser = jest.fn<typeof UsersApiTypes.adminUpdateUser>();
 const mockDeactivateUser = jest.fn<typeof UsersApiTypes.deactivateUser>();
+const mockCreateUser = jest.fn<typeof UsersApiTypes.createUser>();
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   listUsers: mockListUsers,
   adminUpdateUser: mockAdminUpdateUser,
+  createUser: mockCreateUser,
   deactivateUser: mockDeactivateUser,
   getProfile: jest.fn(),
   updateProfile: jest.fn(),
@@ -111,6 +114,7 @@ describe('UserManagementPage', () => {
     mockListUsers.mockReset();
     mockAdminUpdateUser.mockReset();
     mockDeactivateUser.mockReset();
+    mockCreateUser.mockReset();
     mockListPreferencesUsers.mockReset();
     mockListPreferencesUsers.mockResolvedValue([]);
     mockUseAuth.mockReturnValue({
@@ -159,7 +163,7 @@ describe('UserManagementPage', () => {
         },
       ]);
 
-    it('is hidden by default', async () => {
+    it('is visible by default with no stored column preferences', async () => {
       mockListUsers.mockResolvedValueOnce({
         users: [makeUser({ displayName: 'Alice Admin', authProvider: 'local' })],
       });
@@ -167,10 +171,47 @@ describe('UserManagementPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Alice Admin').length).toBeGreaterThan(0);
+        expect(
+          screen.getAllByText(enSettings.userManagement.tableHeaders.authProvider).length,
+        ).toBeGreaterThan(0);
       });
-      expect(screen.queryByText('Local + OIDC')).not.toBeInTheDocument();
-      expect(screen.queryByText('OIDC')).not.toBeInTheDocument();
+      expect(
+        screen.getAllByText(enSettings.userManagement.authProviders.local).length,
+      ).toBeGreaterThan(0);
+    });
+
+    it('shows the pending label for an oidc account that has not signed in yet', async () => {
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ authProvider: 'oidc', oidcLinked: false })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText(enSettings.userManagement.authProviders.oidcPending).length,
+        ).toBeGreaterThan(0);
+      });
+      expect(
+        screen.queryByText(enSettings.userManagement.authProviders.oidc, { exact: true }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('shows plain "OIDC" for an oidc account that is linked', async () => {
+      mockListUsers.mockResolvedValueOnce({
+        users: [makeUser({ authProvider: 'oidc', oidcLinked: true })],
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(
+          screen.getAllByText(enSettings.userManagement.authProviders.oidc, { exact: true }).length,
+        ).toBeGreaterThan(0);
+      });
+      expect(
+        screen.queryByText(enSettings.userManagement.authProviders.oidcPending),
+      ).not.toBeInTheDocument();
     });
 
     it('shows "Local" for a local account without an OIDC link', async () => {
@@ -737,6 +778,691 @@ describe('UserManagementPage', () => {
         expect(screen.getByText(enErrors.LAST_ADMIN)).toBeInTheDocument();
       });
       expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('create user modal (issue #2122)', () => {
+    const cm = enSettings.userManagement.createModal;
+    const cv = enSettings.userManagement.createValidation;
+    const ev = enSettings.userManagement.editValidation;
+
+    const withOidc = (oidcEnabled: boolean) =>
+      mockUseAuth.mockReturnValue({
+        user: adminUser,
+        oidcEnabled,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn<() => Promise<void>>(),
+        logout: jest.fn<() => Promise<void>>(),
+      });
+
+    async function openCreate() {
+      const rendered = renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('add-user-button')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('add-user-button'));
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: cm.title })).toBeInTheDocument();
+      });
+      return rendered;
+    }
+
+    const field = (id: string) => document.getElementById(id) as HTMLInputElement;
+    const type = (id: string, value: string) => fireEvent.change(field(id), { target: { value } });
+    const submit = () => fireEvent.click(screen.getByTestId('create-user-submit'));
+
+    function fillValidLocal() {
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', 'New Person');
+      type('createPassword', 'twelve-chars!');
+      type('createConfirmPassword', 'twelve-chars!');
+    }
+
+    const createdUser = makeUser({
+      id: 'created-1',
+      displayName: 'New Person',
+      email: 'new@example.com',
+      role: 'member',
+    });
+
+    it('shows the Add User button to admins and opens a dialog with the five local fields', async () => {
+      await openCreate();
+
+      expect(field('createEmail')).toBeInTheDocument();
+      expect(field('createDisplayName')).toBeInTheDocument();
+      expect(field('createRole')).toBeInTheDocument();
+      expect(field('createPassword')).toBeInTheDocument();
+      expect(field('createConfirmPassword')).toBeInTheDocument();
+      expect(screen.getByTestId('add-user-button')).toHaveTextContent(
+        enSettings.userManagement.addUser,
+      );
+    });
+
+    it('does not show the Add User button to a member', async () => {
+      mockUseAuth.mockReturnValue({
+        user: makeUser({ id: 'm', role: 'member' }),
+        oidcEnabled: true,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn<() => Promise<void>>(),
+        logout: jest.fn<() => Promise<void>>(),
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByTestId('add-user-button')).not.toBeInTheDocument();
+    });
+
+    it('moves focus to the Email field when the dialog opens', async () => {
+      await openCreate();
+
+      expect(document.activeElement).toBe(field('createEmail'));
+    });
+
+    it('omits the SSO-only checkbox when OIDC is disabled', async () => {
+      withOidc(false);
+      await openCreate();
+
+      expect(field('createSsoOnly')).toBeNull();
+    });
+
+    it('shows an unchecked SSO-only checkbox when OIDC is enabled', async () => {
+      withOidc(true);
+      await openCreate();
+
+      expect(field('createSsoOnly')).toBeInTheDocument();
+      expect(field('createSsoOnly').checked).toBe(false);
+      expect(screen.getByText(cm.ssoOnlyLabel)).toBeInTheDocument();
+    });
+
+    it('removes the password inputs when SSO-only is checked and submits exactly the oidc payload', async () => {
+      withOidc(true);
+      mockCreateUser.mockResolvedValueOnce({ ...createdUser, authProvider: 'oidc' });
+      await openCreate();
+
+      fireEvent.click(field('createSsoOnly'));
+      expect(field('createPassword')).toBeNull();
+      expect(field('createConfirmPassword')).toBeNull();
+
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', 'New Person');
+      fireEvent.change(field('createRole'), { target: { value: 'admin' } });
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+      const payload = mockCreateUser.mock.calls[0]?.[0];
+      expect(payload).toBeDefined();
+      expect(payload).toEqual({
+        email: 'new@example.com',
+        displayName: 'New Person',
+        role: 'admin',
+        authProvider: 'oidc',
+      });
+      expect(payload).not.toHaveProperty('password');
+    });
+
+    it('restores empty password fields without stale errors after checking then unchecking SSO-only', async () => {
+      withOidc(true);
+      await openCreate();
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', 'New Person');
+      type('createPassword', 'short');
+      submit();
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordTooShort)).toBeInTheDocument();
+      });
+      expect(screen.getByText(cv.confirmPasswordRequired)).toBeInTheDocument();
+
+      fireEvent.click(field('createSsoOnly'));
+      fireEvent.click(field('createSsoOnly'));
+
+      expect(field('createPassword').value).toBe('');
+      expect(field('createConfirmPassword').value).toBe('');
+      expect(screen.queryByText(cv.passwordTooShort)).not.toBeInTheDocument();
+      expect(screen.queryByText(cv.confirmPasswordRequired)).not.toBeInTheDocument();
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('sends the password and no authProvider key for a local create, trimming the name', async () => {
+      withOidc(true);
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      await openCreate();
+
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', '  New Person  ');
+      type('createPassword', 'twelve-chars!');
+      type('createConfirmPassword', 'twelve-chars!');
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+      const payload = mockCreateUser.mock.calls[0]?.[0];
+      expect(payload).toEqual({
+        email: 'new@example.com',
+        displayName: 'New Person',
+        role: 'member',
+        password: 'twelve-chars!',
+      });
+      expect(payload).not.toHaveProperty('authProvider');
+    });
+
+    it('trims a padded email before sending it', async () => {
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      await openCreate();
+
+      fillValidLocal();
+      type('createEmail', '  new@example.com  ');
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+      expect(mockCreateUser.mock.calls[0]?.[0]).toMatchObject({ email: 'new@example.com' });
+    });
+
+    it('validates and sends a padded email trimmed, independent of the browser email sanitizer', async () => {
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      await openCreate();
+      fillValidLocal();
+      // Flip the input to text at event time so the padded value reaches React state; the
+      // browser's type=email sanitizer would otherwise trim it before the component sees it.
+      field('createEmail').setAttribute('type', 'text');
+      type('createEmail', '  new@example.com  ');
+
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+      expect(mockCreateUser.mock.calls[0]?.[0]).toMatchObject({ email: 'new@example.com' });
+      expect(screen.queryByText(ev.emailInvalid)).not.toBeInTheDocument();
+    });
+
+    it('rejects a whitespace-only email as required, not as invalid', async () => {
+      await openCreate();
+      fillValidLocal();
+      field('createEmail').setAttribute('type', 'text');
+      type('createEmail', '   ');
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(ev.emailRequired)).toBeInTheDocument();
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('treats a ticked SSO-only box as local once OIDC is disabled while the modal is open', async () => {
+      withOidc(true);
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      const { rerender } = await openCreate();
+      fireEvent.click(field('createSsoOnly'));
+      expect(field('createSsoOnly').checked).toBe(true);
+      expect(document.getElementById('createPassword')).toBeNull();
+
+      // OIDC is switched off while the stale ssoOnly flag is still true in the form state.
+      withOidc(false);
+      rerender(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/settings/users']}>
+            <UserManagementPage />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+
+      expect(document.getElementById('createSsoOnly')).toBeNull();
+      expect(field('createPassword')).toBeInTheDocument();
+      expect(field('createConfirmPassword')).toBeInTheDocument();
+
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', 'New Person');
+      submit();
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordRequired)).toBeInTheDocument();
+      });
+      expect(screen.getByText(cv.confirmPasswordRequired)).toBeInTheDocument();
+      expect(mockCreateUser).not.toHaveBeenCalled();
+
+      type('createPassword', 'twelve-chars!');
+      type('createConfirmPassword', 'twelve-chars!');
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+      const payload = mockCreateUser.mock.calls[0]?.[0];
+      expect(payload).toEqual({
+        email: 'new@example.com',
+        displayName: 'New Person',
+        role: 'member',
+        password: 'twelve-chars!',
+      });
+      expect(payload).not.toHaveProperty('authProvider');
+    });
+
+    it('shows required errors for empty fields, focuses the first invalid field and does not call the API', async () => {
+      await openCreate();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(ev.emailRequired)).toBeInTheDocument();
+      });
+      expect(screen.getByText(ev.displayNameRequired)).toBeInTheDocument();
+      expect(screen.getByText(cv.passwordRequired)).toBeInTheDocument();
+      expect(screen.getByText(cv.confirmPasswordRequired)).toBeInTheDocument();
+      expect(document.activeElement).toBe(field('createEmail'));
+      expect(screen.getByTestId('create-user-submit')).not.toBeDisabled();
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects an invalid email format', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createEmail', 'not-an-email');
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(ev.emailInvalid)).toBeInTheDocument();
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects an email longer than 255 characters', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createEmail', `${'a'.repeat(250)}@b.com`);
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cv.emailTooLong)).toBeInTheDocument();
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects a 101-character display name', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createDisplayName', 'n'.repeat(101));
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(ev.displayNameTooLong)).toBeInTheDocument();
+      });
+      expect(document.activeElement).toBe(field('createDisplayName'));
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects an 11-character password', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createPassword', 'a'.repeat(11));
+      type('createConfirmPassword', 'a'.repeat(11));
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordTooShort)).toBeInTheDocument();
+      });
+      expect(document.activeElement).toBe(field('createPassword'));
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('counts password length in code points: 6 astral emoji (12 UTF-16 units) is too short', async () => {
+      await openCreate();
+      fillValidLocal();
+      const emoji = '\u{1F600}'.repeat(6);
+      expect(emoji.length).toBe(12);
+      type('createPassword', emoji);
+      type('createConfirmPassword', emoji);
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordTooShort)).toBeInTheDocument();
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('accepts 12 astral emoji (12 code points) as a password', async () => {
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      await openCreate();
+      fillValidLocal();
+      const emoji = '\u{1F600}'.repeat(12);
+      type('createPassword', emoji);
+      type('createConfirmPassword', emoji);
+
+      submit();
+
+      await waitFor(() => {
+        expect(mockCreateUser).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('rejects a password longer than 255 code points', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createPassword', 'p'.repeat(256));
+      type('createConfirmPassword', 'p'.repeat(256));
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordTooLong)).toBeInTheDocument();
+      });
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('rejects a confirm-password mismatch', async () => {
+      await openCreate();
+      fillValidLocal();
+      type('createConfirmPassword', 'different-pass!');
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordsDoNotMatch)).toBeInTheDocument();
+      });
+      expect(document.activeElement).toBe(field('createConfirmPassword'));
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('sets maxLength 255 on email, 100 on name, and 255 on both password fields', async () => {
+      await openCreate();
+
+      expect(field('createEmail')).toHaveAttribute('maxlength', '255');
+      expect(field('createDisplayName')).toHaveAttribute('maxlength', '100');
+      expect(field('createPassword')).toHaveAttribute('maxlength', '255');
+      expect(field('createConfirmPassword')).toHaveAttribute('maxlength', '255');
+    });
+
+    it('shows the emailInUse field error on a 409 CONFLICT, keeps the dialog open and hides the server text', async () => {
+      mockCreateUser.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(enSettings.userManagement.errors.emailInUse)).toBeInTheDocument();
+      });
+      expect(screen.getByRole('dialog', { name: cm.title })).toBeInTheDocument();
+      expect(document.activeElement).toBe(field('createEmail'));
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+
+    it.each([
+      ['OIDC_NOT_CONFIGURED', enErrors.OIDC_NOT_CONFIGURED],
+      ['VALIDATION_ERROR', enErrors.VALIDATION_ERROR],
+    ] as const)('shows the translated banner for a %s ApiClientError', async (code, copy) => {
+      mockCreateUser.mockRejectedValueOnce(
+        new ApiClientError(400, { code, message: 'RAW-SERVER-SENTINEL' }),
+      );
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(copy)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: cm.title })).toBeInTheDocument();
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+
+    it('never renders details strings from an ApiClientError', async () => {
+      mockCreateUser.mockRejectedValueOnce(
+        new ApiClientError(400, {
+          code: 'VALIDATION_ERROR',
+          message: 'RAW-SERVER-SENTINEL',
+          details: { field: 'RAW-DETAILS-SENTINEL' },
+        }),
+      );
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-DETAILS-SENTINEL/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+
+    it('shows the network banner for a NetworkError', async () => {
+      mockCreateUser.mockRejectedValueOnce(new NetworkError('RAW-LOCAL', new Error('offline')));
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+    });
+
+    it('shows the generic create error for an unknown error', async () => {
+      mockCreateUser.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByText(cm.error)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+
+    it('clears a previous banner on the next submit attempt', async () => {
+      mockCreateUser
+        .mockRejectedValueOnce(new Error('RAW-LOCAL'))
+        .mockResolvedValueOnce(createdUser);
+      await openCreate();
+      fillValidLocal();
+      submit();
+      await waitFor(() => {
+        expect(screen.getByText(cm.error)).toBeInTheDocument();
+      });
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(screen.queryByText(cm.error)).not.toBeInTheDocument();
+      expect(mockCreateUser).toHaveBeenCalledTimes(2);
+    });
+
+    it('disables the form while creating', async () => {
+      let resolveCreate: (u: UserResponse) => void = () => {};
+      mockCreateUser.mockImplementationOnce(
+        () => new Promise<UserResponse>((resolve) => (resolveCreate = resolve)),
+      );
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('create-user-submit')).toBeDisabled();
+      });
+      expect(screen.getByTestId('create-user-submit')).toHaveTextContent(cm.creating);
+      expect(field('createEmail')).toBeDisabled();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.getByRole('dialog', { name: cm.title })).toBeInTheDocument();
+
+      resolveCreate(createdUser);
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+    });
+
+    it('adds the new row, closes the dialog and returns focus to the Add User button on success', async () => {
+      mockCreateUser.mockResolvedValueOnce(createdUser);
+      await openCreate();
+      fillValidLocal();
+
+      submit();
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(screen.getAllByText('New Person').length).toBeGreaterThan(0);
+      await waitFor(() => {
+        expect(document.activeElement).toBe(screen.getByTestId('add-user-button'));
+      });
+    });
+
+    it('returns focus to the Add User button when closed with Escape', async () => {
+      await openCreate();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(document.activeElement).toBe(screen.getByTestId('add-user-button'));
+      expect(mockCreateUser).not.toHaveBeenCalled();
+    });
+
+    it('returns focus to the Add User button when Cancel is clicked', async () => {
+      await openCreate();
+
+      fireEvent.click(screen.getByRole('button', { name: cm.cancel }));
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(document.activeElement).toBe(screen.getByTestId('add-user-button'));
+    });
+
+    it('resets the form when the dialog is reopened', async () => {
+      await openCreate();
+      type('createEmail', 'leftover@example.com');
+      submit();
+      await waitFor(() => {
+        expect(screen.getByText(ev.displayNameRequired)).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByRole('button', { name: cm.cancel }));
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+
+      fireEvent.click(screen.getByTestId('add-user-button'));
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog', { name: cm.title })).toBeInTheDocument();
+      });
+      expect(field('createEmail').value).toBe('');
+      expect(screen.queryByText(ev.displayNameRequired)).not.toBeInTheDocument();
+    });
+
+    it('has no duplicate test ids with the create modal open', async () => {
+      mockListUsers.mockResolvedValueOnce({ users: [makeUser({ id: 'user-1' })] });
+      withOidc(true);
+      const { container } = await openCreate();
+
+      expect(findDuplicateTestIds(container)).toEqual([]);
+      expect(findDuplicateTestIds(document.body)).toEqual([]);
+    });
+  });
+
+  describe('edit user modal trimming (issue #2122)', () => {
+    const alice = makeUser({
+      id: 'user-1',
+      displayName: 'Alice Admin',
+      email: 'alice@example.com',
+      role: 'admin',
+    });
+
+    async function openEdit() {
+      mockListUsers.mockResolvedValueOnce({ users: [alice] });
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-edit-user-1'));
+      await waitFor(() => {
+        expect(document.getElementById('editEmail')).toBeInTheDocument();
+      });
+    }
+
+    const editField = (id: string) => document.getElementById(id) as HTMLInputElement;
+
+    it('sends a padded email trimmed, bypassing the browser email sanitizer', async () => {
+      mockAdminUpdateUser.mockResolvedValueOnce({ ...alice, email: 'other@example.com' });
+      await openEdit();
+      editField('editEmail').setAttribute('type', 'text');
+      fireEvent.change(editField('editEmail'), { target: { value: '  other@example.com  ' } });
+
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(mockAdminUpdateUser).toHaveBeenCalledTimes(1);
+      });
+      expect(mockAdminUpdateUser).toHaveBeenCalledWith('user-1', { email: 'other@example.com' });
+    });
+
+    it('sends no PATCH when the edit changes only whitespace', async () => {
+      await openEdit();
+      editField('editEmail').setAttribute('type', 'text');
+      fireEvent.change(editField('editEmail'), { target: { value: ' alice@example.com ' } });
+      fireEvent.change(editField('editDisplayName'), { target: { value: '  Alice Admin  ' } });
+
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockAdminUpdateUser).not.toHaveBeenCalled();
+    });
+
+    it('counts the edit display name in code points: 100 emoji pass, 101 are rejected', async () => {
+      mockAdminUpdateUser.mockResolvedValueOnce({ ...alice, displayName: 'x' });
+      await openEdit();
+      const hundred = '\u{1F600}'.repeat(100);
+      expect(hundred.length).toBe(200);
+      fireEvent.change(editField('editDisplayName'), { target: { value: hundred } });
+      fireEvent.submit(document.querySelector('form')!);
+      await waitFor(() => {
+        expect(mockAdminUpdateUser).toHaveBeenCalledTimes(1);
+      });
+      expect(mockAdminUpdateUser).toHaveBeenCalledWith('user-1', { displayName: hundred });
+    });
+
+    it('rejects an edit display name of 101 emoji as too long', async () => {
+      await openEdit();
+      fireEvent.change(editField('editDisplayName'), {
+        target: { value: '\u{1F600}'.repeat(101) },
+      });
+
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(enSettings.userManagement.editValidation.displayNameTooLong),
+        ).toBeInTheDocument();
+      });
+      expect(mockAdminUpdateUser).not.toHaveBeenCalled();
     });
   });
 });

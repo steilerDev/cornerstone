@@ -367,6 +367,276 @@ describe('User Service', () => {
     });
   });
 
+  describe('createSsoOnlyUser() (issue #2122)', () => {
+    it('creates an oidc account with no password hash, no subject and matching timestamps', () => {
+      const user = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO Person', 'admin');
+
+      expect(user.authProvider).toBe('oidc');
+      expect(user.passwordHash).toBeNull();
+      expect(user.oidcSubject).toBeNull();
+      expect(user.role).toBe('admin');
+      expect(user.displayName).toBe('SSO Person');
+      expect(user.email).toBe('sso@example.com');
+      expect(user.deactivatedAt).toBeNull();
+      expect(user.createdAt).toBe(user.updatedAt);
+      expect(userService.findById(db, user.id)?.id).toBe(user.id);
+    });
+
+    it('defaults the role to member', () => {
+      const user = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO Person');
+
+      expect(user.role).toBe('member');
+    });
+  });
+
+  describe('SSO-only accounts and findOrLinkOidcUser() (issue #2122)', () => {
+    const verified = (sub: string, email: string) => ({ sub, email, emailVerified: true });
+
+    it('links an SSO-only admin on first verified login, keeping role and provider, then matches the subject', () => {
+      const created = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO Admin', 'admin');
+
+      const first = userService.findOrLinkOidcUser(db, verified('s1', created.email));
+
+      expect(first.outcome).toBe('linked');
+      expect(first.user.id).toBe(created.id);
+      expect(first.user.role).toBe('admin');
+      expect(first.user.authProvider).toBe('oidc');
+      expect(first.user.passwordHash).toBeNull();
+      expect(first.user.oidcSubject).toBe('s1');
+
+      const second = userService.findOrLinkOidcUser(db, verified('s1', created.email));
+      expect(second.outcome).toBe('matched_subject');
+      expect(second.user.id).toBe(created.id);
+    });
+
+    it('links (never provisions) an SSO-only account when JIT provisioning is on', () => {
+      const created = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO', 'member');
+      const before = userService.countUsers(db);
+
+      const result = userService.findOrLinkOidcUser(db, verified('s2', created.email), {
+        jitProvisioning: true,
+      });
+
+      expect(result.outcome).toBe('linked');
+      expect(result.user.id).toBe(created.id);
+      expect(userService.countUsers(db)).toBe(before);
+    });
+
+    it('links case-insensitively on the email', () => {
+      const created = userService.createSsoOnlyUser(db, 'bob@x.test', 'Bob', 'member');
+
+      const result = userService.findOrLinkOidcUser(db, verified('s3', 'Bob@x.test'));
+
+      expect(result.outcome).toBe('linked');
+      expect(result.user.id).toBe(created.id);
+    });
+
+    it('rejects an unverified email and leaves the subject null', () => {
+      const created = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO', 'member');
+
+      expect(() =>
+        userService.findOrLinkOidcUser(db, {
+          sub: 's4',
+          email: created.email,
+          emailVerified: false,
+        }),
+      ).toThrow(OidcEmailUnverifiedError);
+      expect(userService.findById(db, created.id)?.oidcSubject).toBeNull();
+    });
+
+    it('does not link a deactivated SSO-only account', () => {
+      const created = userService.createSsoOnlyUser(db, 'sso@example.com', 'SSO', 'member');
+      userService.deactivateUser(db, created.id);
+
+      const result = userService.findOrLinkOidcUser(db, verified('s5', created.email));
+
+      expect(result.outcome).toBe('deactivated_not_linked');
+      expect(userService.findById(db, created.id)?.oidcSubject).toBeNull();
+    });
+  });
+
+  describe('password hash hardening', () => {
+    const TEST_PARAMS = { n: 16384, r: 8, p: 1 };
+    const PROD_PARAMS = { n: 131072, r: 8, p: 1 };
+
+    afterEach(() => {
+      userService.setPasswordHashParamsForTesting(TEST_PARAMS);
+    });
+
+    function replaceParams(hash: string, params: string): string {
+      const parts = hash.split('$');
+      parts[2] = params;
+      return parts.join('$');
+    }
+
+    describe('hashPassword() / passwordNeedsRehash()', () => {
+      it('hashes with the current (test) parameters and reports no rehash needed', async () => {
+        const hash = await userService.hashPassword('MySecurePassword123');
+
+        expect(hash).toMatch(/^\$scrypt\$n=16384,r=8,p=1\$/);
+        expect(userService.passwordNeedsRehash(hash)).toBe(false);
+      });
+
+      it('restores the production parameters when the setter is called without arguments', async () => {
+        userService.setPasswordHashParamsForTesting();
+
+        const hash = await userService.hashPassword('MySecurePassword123');
+
+        expect(hash).toMatch(/^\$scrypt\$n=131072,r=8,p=1\$/);
+        expect(userService.passwordNeedsRehash(hash)).toBe(false);
+        await expect(userService.verifyPassword(hash, 'MySecurePassword123')).resolves.toBe(true);
+      });
+
+      it('flags a legacy-parameter hash for rehash once the current parameters are production', async () => {
+        const legacy = await userService.hashPassword('MySecurePassword123');
+        userService.setPasswordHashParamsForTesting(PROD_PARAMS);
+
+        expect(userService.passwordNeedsRehash(legacy)).toBe(true);
+        // Legacy hashes stay verifiable until upgraded.
+        await expect(userService.verifyPassword(legacy, 'MySecurePassword123')).resolves.toBe(true);
+      });
+
+      it('does not flag malformed or unaccepted-parameter hashes', () => {
+        expect(userService.passwordNeedsRehash('garbage')).toBe(false);
+        expect(userService.passwordNeedsRehash('')).toBe(false);
+        expect(
+          userService.passwordNeedsRehash(
+            '$scrypt$n=1048576,r=8,p=1$AAAAAAAAAAAAAAAAAAAAAA==$AA==',
+          ),
+        ).toBe(false);
+      });
+    });
+
+    describe('verifyPassword() rejects unsafe or malformed hashes without throwing', () => {
+      it.each([
+        ['n above the accepted set', 'n=1048576,r=8,p=1'],
+        ['r below the accepted set', 'n=16384,r=1,p=1'],
+        ['p above the accepted set', 'n=16384,r=8,p=16'],
+        ['a valid but unaccepted n', 'n=32768,r=8,p=1'],
+        ['missing params', 'n=16384'],
+        ['non-numeric params', 'n=abc,r=8,p=1'],
+      ])('returns false for %s', async (_label, params) => {
+        const hash = await userService.hashPassword('MySecurePassword123');
+
+        await expect(
+          userService.verifyPassword(replaceParams(hash, params), 'MySecurePassword123'),
+        ).resolves.toBe(false);
+      });
+
+      it.each([
+        ['empty string', ''],
+        ['garbage', 'not-a-hash'],
+        ['too few segments', '$scrypt$n=16384,r=8,p=1$AAAA'],
+        ['too many segments', '$scrypt$n=16384,r=8,p=1$AAAA$BBBB$CCCC'],
+        ['another algorithm', '$argon2id$n=16384,r=8,p=1$AAAA$BBBB'],
+      ])('returns false for a malformed hash: %s', async (_label, hash) => {
+        await expect(userService.verifyPassword(hash, 'whatever')).resolves.toBe(false);
+      });
+
+      it('returns false for valid params with a salt that is not 16 bytes', async () => {
+        const hash = await userService.hashPassword('MySecurePassword123');
+        const parts = hash.split('$');
+        parts[3] = Buffer.alloc(8, 1).toString('base64');
+
+        await expect(
+          userService.verifyPassword(parts.join('$'), 'MySecurePassword123'),
+        ).resolves.toBe(false);
+      });
+
+      it.each([
+        ['empty', Buffer.alloc(0)],
+        ['32 bytes', Buffer.alloc(32, 1)],
+        ['1 MiB', Buffer.alloc(1024 * 1024, 1)],
+      ])('returns false for valid params with a %s derived key', async (_label, key) => {
+        const hash = await userService.hashPassword('MySecurePassword123');
+        const parts = hash.split('$');
+        parts[4] = key.toString('base64');
+
+        await expect(
+          userService.verifyPassword(parts.join('$'), 'MySecurePassword123'),
+        ).resolves.toBe(false);
+      });
+    });
+
+    describe('setPasswordHashParamsForTesting()', () => {
+      it('throws when NODE_ENV is not "test" and leaves the parameters unchanged', async () => {
+        const original = process.env.NODE_ENV;
+        try {
+          process.env.NODE_ENV = 'production';
+          expect(() => userService.setPasswordHashParamsForTesting(PROD_PARAMS)).toThrow(
+            /only available when NODE_ENV=test/,
+          );
+        } finally {
+          process.env.NODE_ENV = original;
+        }
+
+        const hash = await userService.hashPassword('MySecurePassword123');
+        expect(hash).toMatch(/n=16384,/);
+      });
+    });
+
+    describe('rehashPassword()', () => {
+      async function seedLegacyUser() {
+        const user = await userService.createLocalUser(
+          db,
+          'rehash@example.com',
+          'Rehash User',
+          'MySecurePassword123',
+        );
+        userService.setPasswordHashParamsForTesting(PROD_PARAMS);
+        return user;
+      }
+
+      it('upgrades the stored hash to the current parameters, still verifies, and keeps updatedAt', async () => {
+        const user = await seedLegacyUser();
+
+        const replaced = await userService.rehashPassword(
+          db,
+          user.id,
+          user.passwordHash!,
+          'MySecurePassword123',
+        );
+
+        expect(replaced).toBe(true);
+        const after = userService.findById(db, user.id)!;
+        expect(after.passwordHash).not.toBe(user.passwordHash);
+        expect(after.passwordHash).toMatch(/^\$scrypt\$n=131072,r=8,p=1\$/);
+        expect(userService.passwordNeedsRehash(after.passwordHash!)).toBe(false);
+        await expect(
+          userService.verifyPassword(after.passwordHash!, 'MySecurePassword123'),
+        ).resolves.toBe(true);
+        expect(after.updatedAt).toBe(user.updatedAt);
+      });
+
+      it('does not overwrite a password that changed between verification and update', async () => {
+        const user = await seedLegacyUser();
+        const changedHash = await userService.hashPassword('ChangedMeanwhile456');
+        db.update(users).set({ passwordHash: changedHash }).where(eq(users.id, user.id)).run();
+
+        const replaced = await userService.rehashPassword(
+          db,
+          user.id,
+          user.passwordHash!,
+          'MySecurePassword123',
+        );
+
+        expect(replaced).toBe(false);
+        expect(userService.findById(db, user.id)?.passwordHash).toBe(changedHash);
+      });
+
+      it('returns false for an unknown user without throwing', async () => {
+        const replaced = await userService.rehashPassword(
+          db,
+          'no-such-user',
+          'old-hash',
+          'MySecurePassword123',
+        );
+
+        expect(replaced).toBe(false);
+      });
+    });
+  });
+
   describe('verifyPassword()', () => {
     it('returns true for matching password', async () => {
       // Given: User with known password

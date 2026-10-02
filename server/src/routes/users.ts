@@ -1,5 +1,11 @@
 import type { FastifyInstance } from 'fastify';
-import { AppError, UnauthorizedError, ForbiddenError, NotFoundError } from '../errors/AppError.js';
+import {
+  AppError,
+  UnauthorizedError,
+  ForbiddenError,
+  NotFoundError,
+  ValidationError,
+} from '../errors/AppError.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { requireRole } from '../plugins/auth.js';
@@ -42,16 +48,17 @@ const listUsersSchema = {
   },
 };
 
-// JSON schema for POST /api/users (admin: create local user)
+// JSON schema for POST /api/users (admin: create local or SSO-only user)
 const createUserSchema = {
   body: {
     type: 'object',
-    required: ['email', 'displayName', 'password', 'role'],
+    required: ['email', 'displayName', 'role'],
     properties: {
       email: { type: 'string', format: 'email', maxLength: 255 },
-      displayName: { type: 'string', minLength: 1, maxLength: 255 },
-      password: { type: 'string', minLength: 8, maxLength: 255 },
+      displayName: { type: 'string', minLength: 1, maxLength: 100 },
+      password: { type: 'string', minLength: 12, maxLength: 255 },
       role: { type: 'string', enum: ['admin', 'member'] },
+      authProvider: { type: 'string', enum: ['local', 'oidc'] },
     },
     additionalProperties: false,
   },
@@ -161,19 +168,44 @@ export default async function userRoutes(fastify: FastifyInstance) {
   /**
    * POST /api/users
    *
-   * Create a new local authentication user (admin only).
-   * Requires: email, displayName, password (min 8 chars), role (admin or member).
+   * Create a user (admin only). `authProvider` 'local' (default) requires `password`
+   * (12-255 chars); 'oidc' creates an SSO-only account with no password and requires
+   * OIDC to be enabled.
    */
   fastify.post(
     '/',
     { schema: createUserSchema, preHandler: requireRole('admin') },
     async (request, reply) => {
-      const { email, displayName, password, role } = request.body as {
+      const {
+        email,
+        displayName,
+        password,
+        role,
+        authProvider = 'local',
+      } = request.body as {
         email: string;
         displayName: string;
-        password: string;
+        password?: string;
         role: 'admin' | 'member';
+        authProvider?: 'local' | 'oidc';
       };
+
+      let localPassword: string | undefined;
+      if (authProvider === 'oidc') {
+        if (password !== undefined) {
+          throw new ValidationError('A password cannot be set for an SSO-only account', {
+            field: 'password',
+          });
+        }
+        if (!fastify.config.oidcEnabled) {
+          throw new AppError('OIDC_NOT_CONFIGURED', 400, 'OIDC is not configured');
+        }
+      } else {
+        if (password === undefined) {
+          throw new ValidationError('Password is required', { field: 'password' });
+        }
+        localPassword = password;
+      }
 
       // Check if email is already in use
       const existingUser = userService.findByEmail(fastify.db, email);
@@ -181,14 +213,12 @@ export default async function userRoutes(fastify: FastifyInstance) {
         throw new AppError('CONFLICT', 409, 'Email already in use', { email });
       }
 
-      // Create the new local user
-      const createdUser = await userService.createLocalUser(
-        fastify.db,
-        email,
-        displayName,
-        password,
-        role,
-      );
+      const createdUser =
+        localPassword === undefined
+          ? userService.createSsoOnlyUser(fastify.db, email, displayName, role)
+          : await userService.createLocalUser(fastify.db, email, displayName, localPassword, role);
+
+      request.log.info({ userId: createdUser.id, authProvider }, 'User created by admin');
 
       return reply.status(201).send({ user: userService.toUserResponse(createdUser) });
     },

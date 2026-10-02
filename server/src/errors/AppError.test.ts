@@ -15,6 +15,7 @@ import {
   BudgetLineInUseError,
   CategoryInUseError,
   AccountLockedError,
+  PasswordHashingBusyError,
   OidcNoMatchingAccountError,
   OidcEmailUnverifiedError,
   OidcMissingEmailError,
@@ -255,6 +256,19 @@ describe('AccountLockedError', () => {
   });
 });
 
+describe('PasswordHashingBusyError', () => {
+  it('has correct defaults', () => {
+    const error = new PasswordHashingBusyError();
+
+    expect(error).toBeInstanceOf(AppError);
+    expect(error.name).toBe('PasswordHashingBusyError');
+    expect(error.code).toBe('RATE_LIMIT_EXCEEDED');
+    expect(error.statusCode).toBe(429);
+    expect(error.message).toBe('Too many requests. Please try again shortly.');
+    expect(error.details).toBeUndefined();
+  });
+});
+
 describe('OidcNoMatchingAccountError', () => {
   it('has the OIDC_NO_MATCHING_ACCOUNT code, 403 status and a default message', () => {
     const error = new OidcNoMatchingAccountError();
@@ -340,7 +354,7 @@ describe('every AppError subclass', () => {
   ) as [string, ErrorCtor][];
 
   it('is discovered (guards against the table silently becoming empty)', () => {
-    expect(subclasses).toHaveLength(44);
+    expect(subclasses).toHaveLength(45);
   });
 
   it.each(subclasses)(

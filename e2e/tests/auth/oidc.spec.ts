@@ -203,10 +203,13 @@ test.describe('OIDC SSO Flow', () => {
       expect(cells[0]).toContain(TEST_MEMBER.displayName); // Name
       expect(cells[1]).toBe(TEST_MEMBER.email); // Email
       expect(cells[2]).toBe('Member'); // Role
-      // cells[3] = Member Since (date) — not asserted (format varies by locale)
-      expect(cells[4]).toBe('Active'); // Status
-      // Note: Auth Provider column has defaultVisible: false — not rendered in table by default
+      // Member Since (date) — not asserted (format varies by locale)
     }
+    // Status and Auth Provider are located by header text, not position
+    await expect(await userManagementPage.getStatusCell(TEST_MEMBER.email)).toHaveText('Active');
+    await expect(await userManagementPage.getAuthProviderCell(TEST_MEMBER.email)).toHaveText(
+      'Local + OIDC',
+    );
 
     await adminContext.close();
   });

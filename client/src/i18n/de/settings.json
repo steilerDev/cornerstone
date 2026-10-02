@@ -64,7 +64,8 @@
     "authProviders": {
       "local": "Lokal",
       "oidc": "OIDC",
-      "localAndOidc": "Lokal + OIDC"
+      "localAndOidc": "Lokal + OIDC",
+      "oidcPending": "OIDC (wartet auf erste Anmeldung)"
     },
     "status": {
       "active": "Aktiv",
@@ -85,6 +86,30 @@
       "save": "Änderungen speichern",
       "saving": "Wird gespeichert...",
       "error": "Benutzer konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
+    },
+    "addUser": "Benutzer hinzufügen",
+    "createModal": {
+      "title": "Benutzer hinzufügen",
+      "emailLabel": "E-Mail",
+      "displayNameLabel": "Anzeigename",
+      "roleLabel": "Rolle",
+      "ssoOnlyLabel": "Nur Single Sign-On (kein Passwort)",
+      "ssoOnlyHint": "Der Benutzer meldet sich mit Single Sign-On an. Es wird kein Passwort erstellt; das Konto wird beim ersten Anmelden mit einer bestätigten E-Mail verknüpft.",
+      "passwordLabel": "Passwort",
+      "confirmPasswordLabel": "Passwort bestätigen",
+      "passwordHint": "Mindestens 12 Zeichen.",
+      "cancel": "Abbrechen",
+      "create": "Benutzer erstellen",
+      "creating": "Wird erstellt...",
+      "error": "Benutzer konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+    },
+    "createValidation": {
+      "emailTooLong": "E-Mail darf maximal 255 Zeichen lang sein",
+      "passwordRequired": "Passwort ist erforderlich",
+      "passwordTooShort": "Passwort muss mindestens 12 Zeichen lang sein",
+      "passwordTooLong": "Passwort darf maximal 255 Zeichen lang sein",
+      "confirmPasswordRequired": "Bitte bestätigen Sie das Passwort",
+      "passwordsDoNotMatch": "Passwörter stimmen nicht überein"
     },
     "editValidation": {
       "displayNameRequired": "Anzeigename ist erforderlich",

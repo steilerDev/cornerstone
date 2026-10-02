@@ -307,6 +307,25 @@ export async function createLocalUserViaApi(
   return body.user;
 }
 
+export interface CreateSsoOnlyUserData {
+  email: string;
+  displayName: string;
+  role?: 'admin' | 'member';
+}
+
+/** Admin-creates an SSO-only account (authProvider 'oidc', no password). OIDC must be enabled. */
+export async function createSsoOnlyUserViaApi(
+  page: Page,
+  data: CreateSsoOnlyUserData,
+): Promise<{ id: string; email: string }> {
+  const response = await page.request.post(API.users, {
+    data: { role: 'member', ...data, authProvider: 'oidc' },
+  });
+  expect(response.ok(), `POST SSO-only user "${data.email}"`).toBeTruthy();
+  const body = (await response.json()) as { user: { id: string; email: string } };
+  return body.user;
+}
+
 export async function deleteUserViaApi(page: Page, userId: string): Promise<void> {
   await page.request.delete(`${API.users}/${userId}`);
 }

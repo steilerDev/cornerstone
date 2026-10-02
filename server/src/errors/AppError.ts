@@ -181,6 +181,18 @@ export class AccountLockedError extends AppError {
   }
 }
 
+/**
+ * Thrown when the password-hashing queue is full (see userService scryptAsync). Fails fast
+ * with the same 429 the auth rate limiter emits; identical for every account, so it leaks
+ * nothing about account existence.
+ */
+export class PasswordHashingBusyError extends AppError {
+  constructor() {
+    super('RATE_LIMIT_EXCEEDED', 429, 'Too many requests. Please try again shortly.');
+    this.name = 'PasswordHashingBusyError';
+  }
+}
+
 export class OidcNoMatchingAccountError extends AppError {
   constructor(message = 'No existing account matches this identity provider email address') {
     super('OIDC_NO_MATCHING_ACCOUNT', 403, message);
