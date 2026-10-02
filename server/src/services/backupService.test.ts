@@ -18,6 +18,7 @@ import fs, {
 } from 'node:fs';
 import { join, basename, dirname, resolve } from 'node:path';
 import * as tar from 'tar';
+import { gzipSync } from 'node:zlib';
 import BetterSqlite3 from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import { getTasks } from 'node-cron';
@@ -48,6 +49,10 @@ import {
   initScheduler,
   getSchedulerStatus,
   stopScheduler,
+  restoreLimits,
+  RESTORE_MAX_ENTRIES,
+  RESTORE_FREE_SPACE_MARGIN_BYTES,
+  PER_ENTRY_OVERHEAD_BYTES,
 } from './backupService.js';
 
 import type { AppConfig } from '../plugins/config.js';
@@ -1401,6 +1406,33 @@ describe('createBackup() v2 archive', () => {
     expect(names).toContain(`${root}/photos/${DB_NAME}`);
   });
 
+  const itNonRoot = process.getuid?.() === 0 ? it.skip : it;
+
+  itNonRoot(
+    'creates the archive 0600, its snapshot and manifest entries 0600, and a new backup dir 0700',
+    async () => {
+      using live = seedLive(env, ['x']);
+      expect(existsSync(env.backupDir)).toBe(false);
+
+      const created = await createBackup(drizzle(live), env.config);
+
+      const archive = join(env.backupDir, created.filename);
+      // Guards: default 0666 & ~umask (0644) on any of these
+      expect(statSync(archive).mode & 0o777).toBe(0o600);
+      expect(statSync(env.backupDir).mode & 0o777).toBe(0o700);
+      const stem = created.filename.replace('.tar.gz', '');
+      const modes: Record<string, number> = {};
+      await tar.list({
+        file: archive,
+        onReadEntry: (entry) => {
+          modes[entry.path.split('/').slice(1).join('/')] = (entry.mode ?? 0) & 0o777;
+        },
+      });
+      expect(modes[`${stem}.db`]).toBe(0o600);
+      expect(modes[BACKUP_MANIFEST_FILE]).toBe(0o600);
+    },
+  );
+
   it('maps a manifest write failure to BACKUP_FAILED and still removes the snapshot', async () => {
     using live = seedLive(env, ['x']);
     const realWrite = fs.promises.writeFile.bind(fs.promises);
@@ -1441,6 +1473,8 @@ describe('executeRestore() in place', () => {
   afterEach(() => {
     jest.restoreAllMocks();
     stopScheduler();
+    restoreLimits.maxEntries = RESTORE_MAX_ENTRIES;
+    restoreLimits.freeSpaceMarginBytes = RESTORE_FREE_SPACE_MARGIN_BYTES;
     // Tests may chmod directories read-only
     for (const dir of [appData.path, backups.path, dirname(env.backupDir)]) {
       try {
@@ -2056,11 +2090,79 @@ describe('executeRestore() in place', () => {
       );
     });
 
-    it('rejects a file that is not an archive at all', async () => {
+    it('rejects a file that is not an archive at all, in the pre-pass (no free-space check, nothing extracted)', async () => {
+      const statfsSpy = jest.spyOn(fs.promises, 'statfs');
       await expectPhaseAFailure(() => {
         mkdirSync(env.backupDir, { recursive: true });
         writeFileSync(join(env.backupDir, V1_ARCHIVE), 'not a real archive');
       }, 'Backup archive could not be extracted');
+      // Guards: a pre-pass that lets zero-entry input through (it would reach statfs and extraction)
+      expect(statfsSpy).not.toHaveBeenCalled();
+    });
+
+    it('rejects a valid but empty tar (zero entries) in the pre-pass', async () => {
+      const statfsSpy = jest.spyOn(fs.promises, 'statfs');
+      await expectPhaseAFailure(() => {
+        mkdirSync(env.backupDir, { recursive: true });
+        // An empty tar is just the two zero-filled end-of-archive blocks
+        writeFileSync(join(env.backupDir, V1_ARCHIVE), gzipSync(Buffer.alloc(1024)));
+      }, 'Backup archive could not be extracted');
+      // Guards: dropping the `count === 0` rejection (the empty archive would otherwise fail later
+      // with "contains no database", after statfs and extraction)
+      expect(statfsSpy).not.toHaveBeenCalled();
+    });
+
+    /** Count and declared byte size of the archive, as the pre-pass computes them. */
+    async function archiveTotals(file: string): Promise<{ count: number; bytes: number }> {
+      let count = 0;
+      let bytes = 0;
+      await tar.list({
+        file,
+        onReadEntry: (entry) => {
+          count += 1;
+          bytes += entry.size ?? 0;
+        },
+      });
+      return { count, bytes };
+    }
+
+    it('rejects with "Not enough free disk space" when required is one byte more than available', async () => {
+      restoreLimits.freeSpaceMarginBytes = 5;
+      await expectPhaseAFailure(async () => {
+        await buildArchive(env, V1_ARCHIVE, (root) => {
+          validDb(root);
+          put(root, 'data/photos/a.jpg', 'x'.repeat(10_000));
+        });
+        const { count, bytes } = await archiveTotals(join(env.backupDir, V1_ARCHIVE));
+        const required = bytes + count * PER_ENTRY_OVERHEAD_BYTES + 5;
+        expect(bytes).toBeGreaterThan(10_000); // the size term is really non-zero
+        jest
+          .spyOn(fs.promises, 'statfs')
+          .mockResolvedValue({ bavail: required - 1, bsize: 1 } as never);
+      }, 'Not enough free disk space to restore this backup');
+      // Guards: required dropping the entries' size, the per-entry overhead or the margin
+      // (each lowers `required` below available, so the restore would go ahead and exit)
+    });
+
+    it('rejects when the volume has no free blocks at all', async () => {
+      await expectPhaseAFailure(async () => {
+        await buildArchive(env, V1_ARCHIVE, (root) => validDb(root));
+        jest.spyOn(fs.promises, 'statfs').mockResolvedValue({ bavail: 0, bsize: 4096 } as never);
+      }, 'Not enough free disk space to restore this backup');
+    });
+
+    it('rejects an archive with more entries than the cap, with the extraction message', async () => {
+      await expectPhaseAFailure(async () => {
+        await buildArchive(env, V1_ARCHIVE, (root) => {
+          validDb(root);
+          put(root, 'data/a.txt', 'a');
+          put(root, 'data/b.txt', 'b');
+        });
+        const { count } = await archiveTotals(join(env.backupDir, V1_ARCHIVE));
+        expect(count).toBeGreaterThan(3);
+        restoreLimits.maxEntries = count - 1;
+      }, 'Backup archive could not be extracted');
+      // Guards: ignoring the cap (the archive is otherwise perfectly restorable)
     });
 
     it('rejects when the staging directory cannot be created because the data dir is read-only', async () => {
@@ -2128,6 +2230,78 @@ describe('executeRestore() in place', () => {
 
     // Guards: stopping the scheduler before Phase A succeeded
     expect(getSchedulerStatus().enabled).toBe(true);
+  });
+
+  describe('pre-pass boundaries (restores that must still succeed)', () => {
+    it('restores when required equals available exactly (required === available passes)', async () => {
+      const { rawDb, filename } = await backupStateA();
+      using _db = rawDb;
+      restoreLimits.freeSpaceMarginBytes = 5;
+      let count = 0;
+      let bytes = 0;
+      await tar.list({
+        file: join(env.backupDir, filename),
+        onReadEntry: (entry) => {
+          count += 1;
+          bytes += entry.size ?? 0;
+        },
+      });
+      const statfsSpy = jest.spyOn(fs.promises, 'statfs').mockResolvedValue({
+        bavail: bytes + count * PER_ENTRY_OVERHEAD_BYTES + 5,
+        bsize: 1,
+      } as never);
+
+      await restore(drizzle(rawDb), filename);
+
+      // Guards: an off-by-one `>=` in the free-space comparison
+      expect(statfsSpy).toHaveBeenCalledWith(env.dataDir);
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      expect(readItems(env.dbPath)).toEqual(['A']);
+    });
+
+    it('restores when the entry count equals the cap exactly', async () => {
+      const { rawDb, filename } = await backupStateA();
+      using _db = rawDb;
+      const names = await listArchive(join(env.backupDir, filename));
+      restoreLimits.maxEntries = names.length;
+
+      await restore(drizzle(rawDb), filename);
+
+      // Guards: an off-by-one `>=` in the entry cap
+      expect(exitSpy).toHaveBeenCalledWith(0);
+      expect(readItems(env.dbPath)).toEqual(['A']);
+    });
+  });
+
+  describe('file modes', () => {
+    const itNonRoot = process.getuid?.() === 0 ? it.skip : it;
+
+    itNonRoot(
+      'creates the swap directories with mode 0700 (captured while the swap runs)',
+      async () => {
+        const { rawDb, filename } = await backupStateA();
+        using _db = rawDb;
+        let stagingMode: number | undefined;
+        let preMode: number | undefined;
+        const real = fs.renameSync.bind(fs);
+        jest.spyOn(fs, 'renameSync').mockImplementation(((src: string, dest: string) => {
+          if (preMode === undefined && String(dest).includes('.pre-restore-')) {
+            const names = readdirSync(env.dataDir);
+            const staging = names.find((n) => n.startsWith('.restore-staging-'))!;
+            const pre = names.find((n) => n.startsWith('.pre-restore-'))!;
+            stagingMode = statSync(join(env.dataDir, staging)).mode & 0o777;
+            preMode = statSync(join(env.dataDir, pre)).mode & 0o777;
+          }
+          return real(src, dest);
+        }) as typeof fs.renameSync);
+
+        await restore(drizzle(rawDb), filename);
+
+        // Guards: default 0777 & ~umask (typically 0755) for staging or pre-restore
+        expect(stagingMode).toBe(0o700);
+        expect(preMode).toBe(0o700);
+      },
+    );
   });
 
   // ─── Scenarios 11-13: Phase B rollback, end to end ─────────────────────────

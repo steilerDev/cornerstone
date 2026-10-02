@@ -590,10 +590,10 @@ describe('rollback that itself fails, then startup recovery', () => {
     using dir = disposableTempDir('swap-rb-flip-fail-');
     const { state, originalSnapshot } = buildDataDir(dir.path);
     failSwapDuringMovingIn(dir.path, state);
-    // Fail the marker's atomic rename (tmp -> marker) during the rollback's flip: the 1st marker
-    // rename is the up-front re-assert (succeeds), the 2nd is the moving-aside flip
-    let markerRenames = 0;
-    failRenameOnce((src) => src.endsWith(RESTORE_STATE_TMP) && ++markerRenames === 2);
+    // Fail the marker's atomic rename (tmp -> marker) during the rollback's flip
+    // (disk and memory agree on moving-in, so the up-front re-assert is skipped: the 1st marker
+    // write is the moving-aside flip itself)
+    failRenameOnce((src) => src.endsWith(RESTORE_STATE_TMP));
 
     expect(() => rollbackSwap(dir.path, state)).toThrow('injected rename failure');
     jest.restoreAllMocks();
@@ -650,22 +650,32 @@ function failMarkerRenames(failOn: number[]): void {
   }) as typeof fs.renameSync);
 }
 
-const withoutTmp = (snap: Record<string, string>): Record<string, string> =>
-  Object.fromEntries(Object.entries(snap).filter(([k]) => k !== RESTORE_STATE_TMP));
+/** Snapshot minus the marker tmp file and the (now eagerly deleted) staging directory. */
+const withoutTmpAndStaging = (
+  snap: Record<string, string>,
+  staging: string,
+): Record<string, string> =>
+  Object.fromEntries(
+    Object.entries(snap).filter(
+      ([k]) => k !== RESTORE_STATE_TMP && k.split(path.sep)[0] !== staging,
+    ),
+  );
 
 describe('rollbackSwap() when the marker on disk is ahead of the in-memory phase', () => {
   it('touches nothing when the re-assert write fails, and recovery then finalizes keeping the restored data', () => {
     using dir = disposableTempDir('swap-ahead-reassert-fail-');
     const { state } = diskAheadOfMemory(dir.path);
-    const before = withoutTmp(snapshotTree(dir.path));
+    const before = withoutTmpAndStaging(snapshotTree(dir.path), state.staging);
     failMarkerRenames([1]);
 
     expect(() => rollbackSwap(dir.path, state)).toThrow('injected marker rename failure');
     jest.restoreAllMocks();
 
     // Guards: a rollback that deletes restored entries before re-asserting the phase (the disk
-    // says 'swapped', so the restored data would be gone and recovery would finalize an empty dir)
-    expect(withoutTmp(snapshotTree(dir.path))).toEqual(before);
+    // says 'swapped', so the restored data would be gone and recovery would finalize an empty dir).
+    // Staging (empty here, never the only copy of anything) is deleted first by design.
+    expect(withoutTmpAndStaging(snapshotTree(dir.path), state.staging)).toEqual(before);
+    expect(fs.existsSync(path.join(dir.path, state.staging))).toBe(false);
     expect(readRestoreState(dir.path)?.phase).toBe('swapped');
 
     recoverInterruptedRestore(dir.path, 'cornerstone.db', makeLogger().asFastify);
@@ -698,6 +708,167 @@ describe('rollbackSwap() when the marker on disk is ahead of the in-memory phase
     expect(fs.existsSync(path.join(dir.path, state.preRestore))).toBe(false);
     expect(fs.existsSync(path.join(dir.path, state.staging))).toBe(false);
     expect(fs.existsSync(path.join(dir.path, RESTORE_STATE_FILE))).toBe(false);
+  });
+});
+
+// ─── D1: rollback/recovery on a full volume ─────────────────────────────────
+
+const enospc = () =>
+  Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
+
+/** Spy on openSync: records marker-tmp opens in `events` and throws ENOSPC while `failWhile()`. */
+function enospcOnMarkerTmp(failWhile: () => boolean, events: string[] = []) {
+  const real = fs.openSync as unknown as (...a: unknown[]) => number;
+  return jest.spyOn(fs, 'openSync').mockImplementation(((p: fs.PathLike, ...rest: unknown[]) => {
+    if (String(p).endsWith(RESTORE_STATE_TMP)) {
+      events.push('open-tmp');
+      if (failWhile()) throw enospc();
+    }
+    return real.call(fs, p, ...rest);
+  }) as typeof fs.openSync);
+}
+
+/** moving-aside: the "photos" original was already moved into pre-restore; staging is populated. */
+function halfAside(root: string) {
+  const { state, originalSnapshot } = buildDataDir(root);
+  const pre = path.join(root, state.preRestore);
+  fs.mkdirSync(pre);
+  fs.renameSync(path.join(root, 'photos'), path.join(pre, 'photos'));
+  return { state, originalSnapshot, pre };
+}
+
+/** moving-in: all originals in pre-restore, half of the staged entries already moved in. */
+function halfIn(root: string) {
+  const { state, originalSnapshot } = buildDataDir(root);
+  const pre = path.join(root, state.preRestore);
+  fs.mkdirSync(pre);
+  for (const e of ['cornerstone.db', 'photos', 'notes.txt']) {
+    fs.renameSync(path.join(root, e), path.join(pre, e));
+  }
+  fs.renameSync(
+    path.join(root, state.staging, 'cornerstone.db'),
+    path.join(root, 'cornerstone.db'),
+  );
+  fs.renameSync(path.join(root, state.staging, 'extra.txt'), path.join(root, 'extra.txt'));
+  writeRestoreState(root, { ...state, phase: 'moving-in' });
+  return { state: { ...state, phase: 'moving-in' as const }, originalSnapshot, pre };
+}
+
+describe('rollback and startup recovery on a full volume (D1)', () => {
+  it('recovers a moving-aside restore although every marker write fails with ENOSPC', () => {
+    using dir = disposableTempDir('swap-enospc-aside-');
+    const { state, originalSnapshot } = halfAside(dir.path);
+    const events: string[] = [];
+    enospcOnMarkerTmp(() => true, events);
+
+    expect(() =>
+      recoverInterruptedRestore(dir.path, 'cornerstone.db', makeLogger().asFastify),
+    ).not.toThrow();
+
+    // Guards: an unconditional re-assert write (disk and memory agree, so no write is needed;
+    // on a full volume it would fail every startup before anything is reinstated)
+    expect(events).toEqual([]);
+    expect(originalsOnly(dir.path)).toEqual(originalSnapshot);
+    expect(fs.existsSync(path.join(dir.path, state.staging))).toBe(false);
+    expect(fs.existsSync(path.join(dir.path, state.preRestore))).toBe(false);
+    expect(fs.existsSync(path.join(dir.path, RESTORE_STATE_FILE))).toBe(false);
+  });
+
+  it('moving-in: deletes staging BEFORE the first marker write, so the flip fits once staging space is freed', () => {
+    using dir = disposableTempDir('swap-enospc-in-');
+    const { state, originalSnapshot } = halfIn(dir.path);
+    const stagingPath = path.join(dir.path, state.staging);
+    const events: string[] = [];
+    // ENOSPC only while staging still occupies the volume
+    enospcOnMarkerTmp(() => fs.existsSync(stagingPath), events);
+    const realRm = fs.rmSync.bind(fs);
+    jest.spyOn(fs, 'rmSync').mockImplementation(((p: fs.PathLike, o?: fs.RmOptions) => {
+      if (String(p) === stagingPath) events.push('rm-staging');
+      return realRm(p, o);
+    }) as typeof fs.rmSync);
+
+    recoverInterruptedRestore(dir.path, 'cornerstone.db', makeLogger().asFastify);
+
+    // Guards: deleting staging after (or without) freeing it first: the marker write would hit ENOSPC
+    expect(events[0]).toBe('rm-staging');
+    expect(events.indexOf('rm-staging')).toBeLessThan(events.indexOf('open-tmp'));
+    expect(events).toContain('open-tmp'); // the moving-aside flip really happened
+    expect(originalsOnly(dir.path)).toEqual(originalSnapshot);
+    expect(fs.existsSync(stagingPath)).toBe(false);
+    expect(fs.existsSync(path.join(dir.path, state.preRestore))).toBe(false);
+    expect(fs.existsSync(path.join(dir.path, RESTORE_STATE_FILE))).toBe(false);
+  });
+
+  it('makes zero marker writes when the disk phase already equals the in-memory phase (moving-aside)', () => {
+    using dir = disposableTempDir('swap-nowrite-');
+    const { state, originalSnapshot } = halfAside(dir.path);
+    expect(readRestoreState(dir.path)?.phase).toBe(state.phase);
+    const events: string[] = [];
+    enospcOnMarkerTmp(() => false, events); // record only
+
+    rollbackSwap(dir.path, state);
+
+    // Guards: a redundant write when nothing differs
+    expect(events).toEqual([]);
+    expect(originalsOnly(dir.path)).toEqual(originalSnapshot);
+  });
+
+  it('still writes the marker when the disk is ahead of memory (the re-assert is not skipped)', () => {
+    using dir = disposableTempDir('swap-write-when-ahead-');
+    const { state } = diskAheadOfMemory(dir.path);
+    const events: string[] = [];
+    enospcOnMarkerTmp(() => false, events);
+
+    rollbackSwap(dir.path, state);
+
+    // Guards: dropping the re-assert altogether (b and c would then also fail)
+    expect(events.length).toBeGreaterThanOrEqual(1);
+  });
+});
+
+// ─── Marker file mode ───────────────────────────────────────────────────────
+
+const itNonRoot = process.getuid?.() === 0 ? it.skip : it;
+
+describe('writeRestoreState() file mode', () => {
+  /** Mode of the tmp file at the moment it is renamed over the marker. */
+  function captureTmpModeAtRename(): { modes: number[] } {
+    const captured: { modes: number[] } = { modes: [] };
+    const real = fs.renameSync.bind(fs);
+    jest.spyOn(fs, 'renameSync').mockImplementation(((src: string, dest: string) => {
+      if (String(src).endsWith(RESTORE_STATE_TMP))
+        captured.modes.push(fs.statSync(src).mode & 0o777);
+      return real(src, dest);
+    }) as typeof fs.renameSync);
+    return captured;
+  }
+
+  itNonRoot('creates the tmp file with mode 0600', () => {
+    using dir = disposableTempDir('swap-mode-new-');
+    const captured = captureTmpModeAtRename();
+
+    writeRestoreState(dir.path, STATE);
+
+    // Guards: openSync(tmp, 'w') with the default 0666 & ~umask
+    expect(captured.modes).toEqual([0o600]);
+    expect(fs.statSync(path.join(dir.path, RESTORE_STATE_FILE)).mode & 0o777).toBe(0o600);
+  });
+
+  itNonRoot('replaces a stale 0644 tmp file instead of reusing its mode and content', () => {
+    using dir = disposableTempDir('swap-mode-stale-');
+    const stale = path.join(dir.path, RESTORE_STATE_TMP);
+    fs.writeFileSync(
+      stale,
+      'stale crash leftover that is much longer than the new marker body'.repeat(5),
+    );
+    fs.chmodSync(stale, 0o644);
+    const captured = captureTmpModeAtRename();
+
+    writeRestoreState(dir.path, STATE);
+
+    // Guards: no unlink before open (an existing file keeps its 0644 mode; 'w' truncates only content)
+    expect(captured.modes).toEqual([0o600]);
+    expect(readRestoreState(dir.path)).toEqual(STATE);
   });
 });
 

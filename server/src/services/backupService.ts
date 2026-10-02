@@ -167,8 +167,8 @@ export async function createBackup(
     // Ensure backup directory exists and is writable
     const probeFile = path.join(config.backupDir, `.write-check-${Date.now()}`);
     try {
-      await fs.mkdir(config.backupDir, { recursive: true });
-      await fs.writeFile(probeFile, '');
+      await fs.mkdir(config.backupDir, { recursive: true, mode: 0o700 });
+      await fs.writeFile(probeFile, '', { mode: 0o600 });
       await fs.unlink(probeFile);
     } catch (probeErr) {
       throw new BackupFailedError(
@@ -190,6 +190,7 @@ export async function createBackup(
       // Use better-sqlite3's backup API to safely snapshot the live database
       try {
         await getClient(db).backup(dbSnapshotPath);
+        await fs.chmod(dbSnapshotPath, 0o600);
       } catch (dbErr) {
         throw new BackupFailedError('Database snapshot failed', dbErr);
       }
@@ -202,6 +203,7 @@ export async function createBackup(
             database: snapshotName,
             createdAt: parseBackupFilename(filename),
           }),
+          { mode: 0o600 },
         );
       } catch (manifestErr) {
         throw new BackupFailedError('Backup archive could not be created', manifestErr);
@@ -214,6 +216,7 @@ export async function createBackup(
           {
             gzip: true,
             file: backupPath,
+            mode: 0o600,
             cwd: path.dirname(dataDir),
             filter: (p) => {
               const parts = p.split('/').filter(Boolean);
@@ -328,6 +331,51 @@ function flushLogger(logger: FastifyBaseLogger): void {
 async function rmDbWithSidecars(dir: string, dbName: string): Promise<void> {
   for (const name of [dbName, ...dbSidecars(dbName)]) {
     await fs.rm(path.join(dir, name), { recursive: true, force: true });
+  }
+}
+
+/** Default cap on archive entries a restore will extract. */
+export const RESTORE_MAX_ENTRIES = 1_000_000;
+/** Default free-space margin required on top of the extracted size. */
+export const RESTORE_FREE_SPACE_MARGIN_BYTES = 64 * 1024 * 1024;
+export const PER_ENTRY_OVERHEAD_BYTES = 4096; // filesystem block per file/dir
+
+/**
+ * Mutable limits read at call time by `preflightArchive`. Exported so tests can lower the entry
+ * cap (e.g. `restoreLimits.maxEntries = 3`) without building a million-entry archive.
+ */
+export const restoreLimits = {
+  maxEntries: RESTORE_MAX_ENTRIES,
+  freeSpaceMarginBytes: RESTORE_FREE_SPACE_MARGIN_BYTES,
+};
+
+/**
+ * List the archive (nothing is written) and reject it when the entry count is excessive or the
+ * data volume cannot hold the extracted size declared by the tar headers.
+ */
+async function preflightArchive(backupPath: string, dataDir: string): Promise<void> {
+  let count = 0;
+  let bytes = 0;
+  try {
+    // Only count inside the callback; node-tar resumes the entry afterwards.
+    await tar.list({
+      file: backupPath,
+      onReadEntry: (entry) => {
+        count += 1;
+        bytes += entry.size ?? 0;
+      },
+    });
+  } catch (e) {
+    throw new StageError('Backup archive could not be extracted', e);
+  }
+  // tar.list resolves without error on non-tar input, yielding zero entries
+  if (count === 0 || count > restoreLimits.maxEntries) {
+    throw new StageError('Backup archive could not be extracted');
+  }
+  const required = bytes + count * PER_ENTRY_OVERHEAD_BYTES + restoreLimits.freeSpaceMarginBytes;
+  const { bavail, bsize } = await fs.statfs(dataDir);
+  if (required > bavail * bsize) {
+    throw new StageError('Not enough free disk space to restore this backup');
   }
 }
 
@@ -490,7 +538,8 @@ export async function executeRestore(
 
     // Phase A: stage and validate while the database stays open
     try {
-      await fs.mkdir(staging);
+      await fs.mkdir(staging, { mode: 0o700 });
+      await preflightArchive(backupPath, dataDir);
       await extractToStaging(backupPath, staging);
 
       for (const entry of await fs.readdir(staging)) {

@@ -209,7 +209,7 @@ If a restore is interrupted by a crash (for example, power loss) during the swap
 
 ### Disk Space and Photo Storage Limitations
 
-**Disk space during restore:** A restore temporarily needs free space on the data volume about equal to the extracted archive size. The restore process stages the extracted archive in the data directory, then swaps it in place. If the volume runs out of space during extraction, the restore fails and your original data is not modified.
+**Disk space during restore:** A restore checks the available free space before extracting. It needs about the uncompressed archive size plus a small margin (64 MiB, plus about 4 KiB per file). The restore process stages the extracted archive in the data directory, then swaps it in place. If there is insufficient free space, the restore logs "Not enough free disk space to restore this backup" and changes nothing. Archives with more than 1,000,000 files are rejected.
 
 **Photo storage limitation:** If `PHOTO_STORAGE_PATH` is configured to point outside the data directory, photos are neither backed up nor restored. Only the database and files stored within the data directory are included in archives. This is typically only relevant if you have customized the photo storage location.
 
@@ -223,13 +223,17 @@ Cornerstone's backup feature manages archives on a single volume. For true disas
 
 Bind mounts make this easier than named volumes, since the archives live at a known host path you can hand to standard tooling.
 
+:::note Archive file permissions
+New archives are created readable only by the user Cornerstone runs as (the `node` user in the official image; check with `docker exec <container> id -u`), with mode 0600. A copy job that runs as a different, non-root UID (for example an automated off-site sync service) cannot read the archives. Solutions: run the copy job as the same UID or as root, or have the copy job `chmod` the archives itself. Archives created by earlier versions of Cornerstone keep their original mode.
+:::
+
 ## Troubleshooting
 
 ### "The backup could not be created"
 
 Backups are always enabled (`BACKUP_DIR` defaults to `/backups`). This UI message appears when a backup operation fails. Check the container logs for the specific error — the server logs one of three possible lines and the fix depends on which one:
 
-- **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (typically `node`, UID 1000). A bind-mounted or named volume must exist and not be mounted read-only.
+- **`Backup directory could not be created or is not writable`** — `BACKUP_DIR` or its parent directory must be creatable and writable by the container user (the `node` user in the official image; check with `docker exec <container> id -u`). A bind-mounted or named volume must exist and not be mounted read-only.
 - **`Database snapshot failed`** — The database backup step failed. The underlying SQLite error (e.g., `SQLITE_FULL`, `SQLITE_CORRUPT`) is appended to this log line in the container log (`docker logs <container>`). Check the container logs for the specific error and ensure sufficient free space on the filesystem.
 - **`Backup archive could not be created`** — The backup archive cannot be written. Verify the filesystem has sufficient free space and the backup directory is writable.
 
@@ -241,7 +245,7 @@ If no host directory or volume is mounted at `BACKUP_DIR`, backup archives land 
 
 ### "The backup archive could not be read, so nothing was restored"
 
-This error occurs when a restore operation finds the backup archive file but cannot read it. The archive exists but is not readable by the container user (typically `node`, UID 1000). Check that:
+This error occurs when a restore operation finds the backup archive file but cannot read it. The archive exists but is not readable by the container user (the `node` user in the official image; check with `docker exec <container> id -u`). Check that:
 
 - The archive file permissions allow the container user to read it
 - The archive file ownership is correct (or the file is world-readable)
@@ -258,3 +262,35 @@ This error occurs when a restore operation finds the backup archive file but can
 ### "Backup in progress"
 
 Only one backup or restore can run at a time. If you trigger a manual backup while a scheduled one is still running -- or while a restore is mid-flight -- the second request is rejected. Wait for the first operation to finish and try again.
+
+### "Invalid restore marker" (server refuses to start)
+
+The server logs this error and refuses to start because it found a damaged `.restore-state.json` file in the data directory. This file tracks the restore process. If it becomes corrupted -- typically due to a crash or unclean shutdown during a restore -- manual intervention is required.
+
+The data directory may contain several restore-related items:
+
+- `.pre-restore-<timestamp>/` -- holds the data from before the restore. **This may be the only copy of your data.**
+- `.restore-staging-<timestamp>/` -- holds the partly-restored data from the archive. This is safe to delete, because the archive can recreate it.
+- `.restore-state.json` and `.restore-state.json.tmp` -- the restore's progress marker and temporary file.
+
+**To fix:**
+
+1. Stop the container.
+2. Open the data volume (or use `docker run --rm -it -v cornerstone-data:/data alpine sh` to access it).
+3. If `.pre-restore-*` exists and is not empty, carefully delete any entries in the data directory's top level that also exist in `.pre-restore-*`. Do not delete `lost+found` or any `.restore-*` and `.pre-restore-*` directories themselves.
+4. Move the contents of `.pre-restore-*` back into the data directory.
+5. Delete `.restore-staging-*`, `.pre-restore-*` (now empty), `.restore-state.json`, and `.restore-state.json.tmp`.
+6. Start the container. If it still refuses to start with the same error, open an issue at https://github.com/steilerDev/cornerstone/issues and describe the contents you found in the data directory. Do not delete `.pre-restore-*` in the meantime.
+
+### "Leftover pre-restore directory found without a restore marker" (server log warning)
+
+The server found a `.pre-restore-<timestamp>` directory during startup but no active restore marker (`.restore-state.json`). This is a leftover from an interrupted restore. The directory may contain data you need.
+
+**To fix:**
+
+Check whether the directory holds data you need:
+
+- **If you need to recover that data:** Stop the container, reinstate it (follow steps 3--5 from the "Invalid restore marker" section above), and start the container.
+- **If you do not need that data:** Stop the container, delete the directory while it is stopped, and start the container. The server will no longer warn about it.
+
+The server leaves such directories on purpose to avoid data loss from a crash. Always verify the directory's contents before deleting it.

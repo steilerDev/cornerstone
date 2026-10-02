@@ -64,7 +64,9 @@ function isBareName(value: unknown, prefix: string): value is string {
 export function writeRestoreState(dataDir: string, state: RestoreState): void {
   const tmpPath = path.join(dataDir, RESTORE_STATE_TMP);
   const markerPath = path.join(dataDir, RESTORE_STATE_FILE);
-  const fd = fs.openSync(tmpPath, 'w');
+  // A crash-leftover tmp file would keep its old mode
+  fs.rmSync(tmpPath, { force: true });
+  const fd = fs.openSync(tmpPath, 'w', 0o600);
   try {
     fs.writeFileSync(fd, JSON.stringify(state));
     fs.fsyncSync(fd);
@@ -125,7 +127,7 @@ export function swapIntoDataDir(dataDir: string, state: RestoreState): void {
   const staging = path.join(dataDir, state.staging);
   const pre = path.join(dataDir, state.preRestore);
 
-  fs.mkdirSync(pre);
+  fs.mkdirSync(pre, { mode: 0o700 });
   for (const entry of fs.readdirSync(dataDir)) {
     if (isRestoreReservedEntry(entry)) continue;
     fs.renameSync(path.join(dataDir, entry), path.join(pre, entry));
@@ -148,11 +150,17 @@ export function rollbackSwap(dataDir: string, state: RestoreState): void {
   const staging = path.join(dataDir, state.staging);
   const pre = path.join(dataDir, state.preRestore);
 
-  // Re-assert the phase being rolled back from on disk BEFORE any destructive step. The disk may
-  // be one flip ahead of memory (a flip whose rename landed but whose fsync threw). If this write
-  // throws, nothing has been touched and whatever the marker says remains consistent with the
-  // data: 'swapped' means every staged entry was moved in, so finalizing keeps the restored data.
-  writeRestoreState(dataDir, { ...state });
+  // Step 0a: free space first. Staging is never the only copy of anything (the archive persists;
+  // the originals are in pre), and freeing it relieves the ENOSPC that most likely caused this.
+  fs.rmSync(staging, { recursive: true, force: true });
+  // Step 0b: re-assert the phase being rolled back from, BEFORE any destructive step, but only
+  // when the disk differs from memory (a flip whose rename landed but whose fsync threw). A
+  // redundant write on a full volume would turn every startup recovery into ENOSPC. If this
+  // write throws, nothing else has been touched and the marker stays consistent with the data:
+  // 'swapped' means every staged entry was moved in, so finalizing keeps the restored data.
+  if (readRestoreState(dataDir)?.phase !== state.phase) {
+    writeRestoreState(dataDir, { ...state });
+  }
 
   if (state.phase === 'moving-in') {
     for (const entry of fs.readdirSync(dataDir)) {

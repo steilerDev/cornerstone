@@ -23,6 +23,13 @@ file, check these before emitting the spec (found in the backup restore-in-place
 - **Validate a staged SQLite file with a read-write open.** A readonly open of a WAL-mode file
   can leave `-wal`/`-shm` behind. A read-write open plus a clean close also checkpoints any
   staged WAL into the file.
+- **Recovery must work on a full volume.** Staging usually caused the full volume. Delete
+  regenerable data (staging, which the archive can recreate) before any write. Write the marker
+  only when the disk phase differs from memory. Otherwise ENOSPC on a redundant write becomes a
+  crash loop under `restart: unless-stopped` (PR #2169, D1).
+- **Staging lives on the live volume, so cap it.** Add a header-size and entry-count pre-pass plus
+  a `statfs` free-space check before extracting. Give sensitive artifacts (archive, snapshot,
+  staging, pre-restore) mode 0600/0700 (PR #2169, S1 and S2).
 - **Skip the recovery sweep for `:memory:`**, because `dirname(':memory:')` is the cwd.
 
 **Why:** the architect's design had a single `swapping` phase plus a no-marker sweep that deleted
