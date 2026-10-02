@@ -64,13 +64,13 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders 4 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
+  it('renders 5 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
 
     const links = screen.getAllByRole('link');
-    // 4 main nav links (Project, Budget, Schedule, Diary) + 1 logo link (Go to project overview)
+    // 5 main nav links (Project, Budget, Schedule, Diary, Photos) + 1 logo link (Go to project overview)
     // + 1 GitHub link in the footer (Settings is now a button, not a link)
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
   });
 
   it('logo link navigates to /project and has aria-label', () => {
@@ -142,6 +142,38 @@ describe('Sidebar', () => {
 
     const diaryLink = screen.getByRole('link', { name: /^diary$/i });
     expect(diaryLink).toHaveClass('active');
+  });
+
+  it('photos link points to /photos', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveAttribute('href', '/photos');
+  });
+
+  it('photos link is active at /photos', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/photos'],
+    });
+
+    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveClass('active');
+  });
+
+  it('photos link stays active on the spot viewer route', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/photos/spot/x/y'],
+    });
+
+    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveClass('active');
+    expect(screen.getByRole('link', { name: /^diary$/i })).not.toHaveClass('active');
+  });
+
+  it('clicking the photos link calls onClose', async () => {
+    const user = userEvent.setup();
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+
+    await user.click(screen.getByRole('link', { name: /^photos$/i }));
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
   });
 
   it('settings button is active at /settings', () => {
@@ -292,9 +324,9 @@ describe('Sidebar', () => {
     const links = screen.getAllByRole('link');
     const buttons = screen.getAllByRole('button');
 
-    // 4 main nav links (Project, Budget, Schedule, Diary) + 1 logo link + 1 GitHub link
+    // 5 main nav links (Project, Budget, Schedule, Diary, Photos) + 1 logo link + 1 GitHub link
     // (Settings is now a button, not a link)
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
     // 3 buttons: theme toggle + settings button + logout button
     expect(buttons).toHaveLength(3);
     expect(buttons[0]!).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));

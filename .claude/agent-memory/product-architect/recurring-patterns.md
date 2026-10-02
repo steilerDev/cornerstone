@@ -1802,6 +1802,20 @@ The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise 
 subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
 boundary branch executes.
 
+## "Idempotent" junction insert = a silent drop of same-batch duplicates (PR #2151, #2149)
+
+`persistLines` does select-then-insert to keep one `invoice_budget_lines` row per `(invoice, budget line)`.
+Inside one transaction the select sees the batch's own earlier insert, so a second extracted line linked
+to the same budget line is skipped. Its amount still counts toward `totalItemized` and the UI total, but
+it is never persisted. "Retry idempotency" is no justification here: a failed save rolls back and leaves
+no junction behind. When a write guard is described as "idempotent", ask which caller actually produces a
+second write. If the only caller is the user, the dedup is data loss. Separate same-call dedup from
+cross-call dedup; the cross-call case is a product decision (add or reject).
+Round 2: once the fix sums into an existing junction, check every caller **mode** before accepting it.
+`mode: 'replace'` deletes only `origin='auto'` lines, so junctions to manual lines survive it. Summing then
+double-counts a line that is re-linked under replace. The rule is "add" in append mode and "reset, then
+add" in replace mode. An accumulate rule is only correct relative to what the previous step cleared.
+
 ## A "legacy NULL" branch the schema forbids (PR #2152, #2124)
 
 The shared lock predicate took `status?: DiaryEntryStatus | null` and documented "a null status is a
@@ -1827,3 +1841,14 @@ When a raw-key/fallback lookup is removed, sweep the **same** pass for the guard
 `if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
 `if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
 assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).
+
+## Removing a helper's default parameter only finds the helper's callers (PR #2165, 2026-10-01)
+
+Making `vatRate` required on `effectivePlannedAmount`/`effectiveLineAmount` caught every call to the helpers.
+It could not catch the aggregations that never called them: raw `SUM(planned_amount)` in SQL, or
+`line.plannedAmount * margin` in TS. PR #2165 left three of those with VAT ignored: budget-source `usedAmount`
+(`computeUsedAmount`), `subsidyPaybackServiceFactory` (the per-entity payback endpoints), and the
+household-item `totalPlannedAmount`/summary/plannedCost filter.
+**How to apply:** when you review a rate or basis fix that claims to cover "all X math", grep for the
+raw column (`planned_amount`, `plannedAmount \*`) as well as for the helper's name. Then check that two endpoints showing the same
+figure (list vs detail, overview vs per-entity) still agree.

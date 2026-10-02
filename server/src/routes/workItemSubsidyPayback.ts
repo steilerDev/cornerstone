@@ -31,6 +31,7 @@ export default async function workItemSubsidyPaybackRoutes(fastify: FastifyInsta
       const result = subsidyPaybackService.getWorkItemSubsidyPayback(
         fastify.db,
         request.params.workItemId,
+        fastify.config.vatRate,
       );
       return reply.status(200).send(result);
     },

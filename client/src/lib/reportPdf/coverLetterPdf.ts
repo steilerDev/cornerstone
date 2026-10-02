@@ -5,7 +5,15 @@
 import type { Content } from 'pdfmake/build/pdfmake';
 import type { ReportContent } from '../reportContent/index.js';
 
-export function buildCoverLetterContent(reportContent: ReportContent): Content[] {
+export interface CoverLetterOptions {
+  /** Multi-PDF notice (#2161) printed as the last body paragraph of part 1. */
+  partsNotice?: string;
+}
+
+export function buildCoverLetterContent(
+  reportContent: ReportContent,
+  options?: CoverLetterOptions,
+): Content[] {
   const content: Content[] = [];
   const coverLetter = reportContent.coverLetter;
 
@@ -55,22 +63,33 @@ export function buildCoverLetterContent(reportContent: ReportContent): Content[]
     margin: [0, 0, 0, 16],
   });
 
+  // Opening salutation (#2159) — own line between subject and body; 16pt bottom margin mirrors the
+  // subject→opening gap (≈ one blank line at 11pt/1.4, DIN 5008). Plain node: pdfmake 0.3 has no
+  // keepWithNext, and it always lands on page 1 directly above the first body line.
+  content.push({ text: coverLetter.opening, style: 'normal', margin: [0, 0, 0, 16] });
+
   // Body text — split on double newlines so AI-generated paragraphs render with spacing
+  const partsNotice = options?.partsNotice;
+  const lastBodyMargin = partsNotice ? 8 : 32;
   const paragraphs = coverLetter.body.split(/\n\n+/).filter(Boolean);
   if (paragraphs.length <= 1) {
     content.push({
       text: coverLetter.body,
       style: 'normal',
-      margin: [0, 0, 0, 32],
+      margin: [0, 0, 0, lastBodyMargin],
     });
   } else {
     for (let i = 0; i < paragraphs.length; i++) {
       content.push({
         text: paragraphs[i]!,
         style: 'normal',
-        margin: [0, 0, 0, i === paragraphs.length - 1 ? 32 : 8],
+        margin: [0, 0, 0, i === paragraphs.length - 1 ? lastBodyMargin : 8],
       });
     }
+  }
+
+  if (partsNotice) {
+    content.push({ text: partsNotice, style: 'normal', margin: [0, 0, 0, 32] });
   }
 
   // Signature block — closing + reserved blank space + name are ALWAYS emitted together (AC 2.4),

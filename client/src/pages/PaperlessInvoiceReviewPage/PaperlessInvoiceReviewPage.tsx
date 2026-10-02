@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import type {
-  ExtractedLine,
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
   Vendor,
@@ -12,6 +12,10 @@ import type {
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import {
+  applyBudgetSourceToNewLines,
+  buildCommitLines,
+  effectiveRowAmount,
+  isNewBudgetLineRow,
   materializeInlineDrafts,
   mergeMaterializedLines,
 } from '../../lib/autoItemizeDraftUtils.js';
@@ -63,6 +67,9 @@ export function PaperlessInvoiceReviewPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { vatRate } = useLocale();
+  const vatRateRef = useRef(vatRate);
+  vatRateRef.current = vatRate;
   const { formatCurrency } = useFormatters();
 
   const state = (location.state || {}) as LocationState;
@@ -102,6 +109,7 @@ export function PaperlessInvoiceReviewPage() {
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
 
   const [announceMessage, setAnnounceMessage] = useState('');
+  const [defaultBudgetSourceId, setDefaultBudgetSourceId] = useState('');
   const [extractedVendorName, setExtractedVendorName] = useState<string | null>(null);
   const [vendorCreate, setVendorCreate] = useState<{ initialName: string } | null>(null);
   const createResolverRef = useRef<((v: { id: string; name: string } | null) => void) | null>(null);
@@ -124,7 +132,19 @@ export function PaperlessInvoiceReviewPage() {
     documentSummary: metadataEdits.notes,
     onMergeStart: (count) => setAnnounceMessage(t('autoItemize.mergeAnnounceStart', { count })),
     onMergeSuccess: () => setAnnounceMessage(t('autoItemize.mergeAnnounceSuccess')),
+    defaultBudgetSourceId: defaultBudgetSourceId || null,
   });
+
+  const handleDefaultBudgetSourceChange = (sourceId: string) => {
+    setDefaultBudgetSourceId(sourceId);
+    if (!sourceId) return;
+    const appliedCount = lines.filter(isNewBudgetLineRow).length;
+    setLines((prev) => applyBudgetSourceToNewLines(prev, sourceId));
+    if (appliedCount === 0) return;
+    const name =
+      (picker.pickerState.budgetSources ?? []).find((s) => s.id === sourceId)?.name ?? '';
+    setAnnounceMessage(t('autoItemize.budgetSourceApplied', { count: appliedCount, name }));
+  };
 
   // Load vendors for the SearchPicker on mount.
   useEffect(() => {
@@ -196,7 +216,10 @@ export function PaperlessInvoiceReviewPage() {
         const computedTotal = linesWithInclude.reduce(
           (sum, line) =>
             sum +
-            effectiveLineAmount({ amount: line.totalAmount ?? 0, includesVat: line.includesVat }),
+            effectiveLineAmount(
+              { amount: line.totalAmount ?? 0, includesVat: line.includesVat },
+              vatRateRef.current,
+            ),
           0,
         );
 
@@ -303,27 +326,7 @@ export function PaperlessInvoiceReviewPage() {
         notes: metadataEdits.notes ?? null,
       };
 
-      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
-        description: l.description,
-        quantity: l.quantity,
-        unit: l.unit,
-        unitPrice: l.unitPrice,
-        totalAmount: l.totalAmount,
-        includesVat: l.includesVat,
-        vendorName: l.vendorName,
-        confidence: l.confidence,
-        budgetCategoryId: l.budgetCategoryId,
-        budgetSourceId: l.budgetSourceId || undefined,
-        ...(l.assignedBudgetLineId && l.assignedBudgetLineType
-          ? {
-              assignedBudgetLineId: l.assignedBudgetLineId,
-              assignedBudgetLineType: l.assignedBudgetLineType,
-              assignmentMode: 'assign-existing' as const,
-            }
-          : {
-              assignmentMode: 'create-new' as const,
-            }),
-      }));
+      const linesPayload = buildCommitLines(workingLines, vatRate);
 
       const result = await commitAutoItemizeCreate({
         paperlessDocumentId: documentId,
@@ -341,19 +344,24 @@ export function PaperlessInvoiceReviewPage() {
       }
       setPageStatus('ready');
     }
-  }, [documentId, document, vendorId, lines, metadataEdits, navigate, setLines, t, tErrors]);
+  }, [
+    documentId,
+    document,
+    vendorId,
+    lines,
+    metadataEdits,
+    navigate,
+    setLines,
+    t,
+    tErrors,
+    vatRate,
+  ]);
 
   // Compute totals and variance (must be before any early returns for React rules)
   const computedTotal = useMemo(
     () =>
-      lines
-        .filter((l) => l.included)
-        .reduce(
-          (sum, l) =>
-            sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
-          0,
-        ),
-    [lines],
+      lines.filter((l) => l.included).reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0),
+    [lines, vatRate],
   );
 
   const { variance, variancePercent } = useMemo(() => {
@@ -589,6 +597,26 @@ export function PaperlessInvoiceReviewPage() {
                     {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
                         {t(I18N_UNION_KEYS.invoiceStatus.key(s))}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className={styles.fieldRow}>
+                <label htmlFor="invoice-budget-source" className={styles.label}>
+                  {t('autoItemize.budgetSource')}
+                </label>
+                <div className={styles.fieldControl}>
+                  <select
+                    id="invoice-budget-source"
+                    value={defaultBudgetSourceId}
+                    disabled={isSaving}
+                    onChange={(e) => handleDefaultBudgetSourceChange(e.target.value)}
+                  >
+                    <option value="">{t('autoItemize.budgetSourceNone')}</option>
+                    {(picker.pickerState.budgetSources ?? []).map((src) => (
+                      <option key={src.id} value={src.id}>
+                        {src.name}
                       </option>
                     ))}
                   </select>

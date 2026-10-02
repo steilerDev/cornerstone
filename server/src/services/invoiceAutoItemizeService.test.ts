@@ -28,6 +28,7 @@ import {
   ValidationError,
   ItemizedSumExceedsInvoiceError,
   LlmNotConfiguredError,
+  BudgetLineAlreadyLinkedError,
 } from '../errors/AppError.js';
 import type { AppConfig } from '../plugins/config.js';
 import type { ExtractedLine } from '@cornerstone/shared';
@@ -1375,8 +1376,8 @@ describe('invoiceAutoItemizeService', () => {
       expect(newWib.plannedAmount).toBe(500);
       // WIB.includesVat reflects the extracted line flag (false = VAT not included)
       expect(newWib.includesVat).toBe(false);
-      // IBL.itemizedAmount is ALWAYS stored GROSS = effectiveLineAmount(500, false)
-      // = round(500 * 1.19 * 100) / 100 = 595
+      // IBL.itemizedAmount is ALWAYS stored GROSS:
+      // effectiveLineAmount(500, false, vatRate 0.19 from makeConfig()) = round(500 * 1.19 * 100) / 100 = 595
       expect(newIbl.itemizedAmount).toBe(595);
     });
 
@@ -1996,218 +1997,847 @@ describe('invoiceAutoItemizeService', () => {
     });
   });
 
-  describe('assign-existing: diff + update + idempotent junction (#1589)', () => {
-    /**
-     * Helper: insert a stand-alone WIB (no IBL) so assign-existing can target it.
-     */
-    function insertStandaloneWIB(
-      dbb: typeof db,
-      opts: { description?: string; plannedAmount?: number } = {},
-    ): string {
-      const wibId = uid('wib');
+  describe('assign-existing: link only, budget line never modified (#2149)', () => {
+    type LinkTarget = 'work_item' | 'household_item';
+
+    function insertCategory(dbb: typeof db, name: string): string {
+      const id = uid('cat');
       const t = ts();
       dbb
-        .insert(schema.workItemBudgets)
+        .insert(schema.budgetCategories)
         .values({
-          id: wibId,
-          workItemId: null,
-          description: opts.description ?? 'Existing budget line',
-          plannedAmount: opts.plannedAmount ?? 400,
-          confidence: 'own_estimate',
-          budgetCategoryId: null,
-          budgetSourceId: 'discretionary-system',
-          vendorId: null,
-          quantity: null,
-          unit: null,
-          unitPrice: null,
-          includesVat: true,
+          id,
+          name,
+          description: null,
+          color: null,
+          translationKey: null,
+          sortOrder: 0,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+      return id;
+    }
+
+    function insertSource(dbb: typeof db, name: string): string {
+      const id = uid('src');
+      const t = ts();
+      dbb
+        .insert(schema.budgetSources)
+        .values({
+          id,
+          name,
+          sourceType: 'savings',
+          totalAmount: 100000,
+          interestRate: null,
+          terms: null,
+          notes: null,
+          reference: null,
+          contactAddress: null,
+          status: 'active',
+          isDiscretionary: false,
           createdBy: null,
           createdAt: t,
           updatedAt: t,
-          origin: 'manual',
         })
         .run();
-      return wibId;
+      return id;
     }
 
-    it('assign-existing with identical fields → no UPDATE, junction row created', async () => {
+    function insertHouseholdItem(dbb: typeof db): string {
+      const id = uid('hi');
+      const t = ts();
+      dbb
+        .insert(schema.householdItems)
+        .values({
+          id,
+          name: 'Sofa',
+          description: null,
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+      return id;
+    }
+
+    /** Insert a fully-populated stand-alone budget line of the requested family. */
+    function insertTargetLine(
+      dbb: typeof db,
+      type: LinkTarget,
+      categoryId: string,
+      sourceId: string,
+    ): string {
+      const id = uid(type === 'work_item' ? 'wib' : 'hib');
+      const t = '2026-01-01T00:00:00.000Z';
+      const common = {
+        id,
+        description: 'Original description',
+        plannedAmount: 5000,
+        confidence: 'quote' as const,
+        budgetCategoryId: categoryId,
+        budgetSourceId: sourceId,
+        vendorId: null,
+        quantity: 2,
+        unit: 'pcs',
+        unitPrice: 2500,
+        includesVat: false,
+        createdBy: null,
+        createdAt: t,
+        updatedAt: t,
+        origin: 'manual' as const,
+      };
+      if (type === 'work_item') {
+        dbb
+          .insert(schema.workItemBudgets)
+          .values({ ...common, workItemId: null })
+          .run();
+      } else {
+        dbb
+          .insert(schema.householdItemBudgets)
+          .values({ ...common, householdItemId: insertHouseholdItem(dbb) })
+          .run();
+      }
+      return id;
+    }
+
+    function readLine(dbb: typeof db, type: LinkTarget, id: string) {
+      return type === 'work_item'
+        ? dbb.select().from(schema.workItemBudgets).where(eq(schema.workItemBudgets.id, id)).get()
+        : dbb
+            .select()
+            .from(schema.householdItemBudgets)
+            .where(eq(schema.householdItemBudgets.id, id))
+            .get();
+    }
+
+    function countLines(dbb: typeof db, type: LinkTarget): number {
+      return type === 'work_item'
+        ? dbb.select().from(schema.workItemBudgets).all().length
+        : dbb.select().from(schema.householdItemBudgets).all().length;
+    }
+
+    function junctionsFor(dbb: typeof db, type: LinkTarget, id: string) {
+      return dbb
+        .select()
+        .from(schema.invoiceBudgetLines)
+        .where(
+          eq(
+            type === 'work_item'
+              ? schema.invoiceBudgetLines.workItemBudgetId
+              : schema.invoiceBudgetLines.householdItemBudgetId,
+            id,
+          ),
+        )
+        .all();
+    }
+
+    /** An extracted line whose every extracted field differs from the stored line. */
+    function divergentLine(
+      type: LinkTarget,
+      id: string,
+      otherCategoryId: string,
+      otherSourceId: string,
+      overrides: Partial<ExtractedLine> = {},
+    ): ExtractedLine {
+      return {
+        description: 'Totally different extracted description',
+        quantity: 99,
+        unit: 'm2',
+        unitPrice: 12.5,
+        totalAmount: 1200,
+        includesVat: true,
+        confidence: 0.9,
+        budgetCategoryId: otherCategoryId,
+        budgetSourceId: otherSourceId,
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: id,
+        assignedBudgetLineType: type,
+        ...overrides,
+      };
+    }
+
+    function setup() {
       const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 500);
+      const invoiceId = insertInvoice(db, vendorId, 5000);
       linkDocument(db, invoiceId, 42);
-      // Pre-create a WIB to assign to
-      const existingWibId = insertStandaloneWIB(db, {
-        description: 'Existing line',
-        plannedAmount: 300,
+      const catA = insertCategory(db, 'Cat A');
+      const catB = insertCategory(db, 'Cat B');
+      const srcA = insertSource(db, 'Src A');
+      const srcB = insertSource(db, 'Src B');
+      return { vendorId, invoiceId, catA, catB, srcA, srcB };
+    }
+
+    async function commit(invoiceId: string, lines: ExtractedLine[]) {
+      return autoItemize(
+        db,
+        makeConfig(),
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: false, lines },
+        PAPERLESS_AUTH,
+      );
+    }
+
+    /** Run fn (sync or async) and return whatever it throws (undefined when it does not throw). */
+    async function captureError(fn: () => unknown): Promise<unknown> {
+      try {
+        await fn();
+      } catch (e) {
+        return e;
+      }
+      return undefined;
+    }
+
+    /** Assert a 409 BUDGET_LINE_ALREADY_LINKED with the given reason for the given budget line. */
+    function expectAlreadyLinked(
+      err: unknown,
+      lineId: string,
+      type: LinkTarget,
+      reason: 'duplicate_in_request' | 'linked_to_other_invoice' | 'linked_to_this_invoice',
+    ): void {
+      expect(err).toBeInstanceOf(BudgetLineAlreadyLinkedError);
+      const e = err as BudgetLineAlreadyLinkedError;
+      expect(e.statusCode).toBe(409);
+      expect(e.code).toBe('BUDGET_LINE_ALREADY_LINKED');
+      expect(e.details).toMatchObject({ budgetLineId: lineId, budgetLineType: type, reason });
+    }
+
+    /** Insert a junction linking an existing budget line to an invoice. */
+    function linkJunction(
+      dbb: typeof db,
+      type: LinkTarget,
+      invoiceId: string,
+      lineId: string,
+      amount: number,
+    ): string {
+      const id = uid('ibl');
+      const t = '2026-01-01T00:00:00.000Z';
+      dbb
+        .insert(schema.invoiceBudgetLines)
+        .values({
+          id,
+          invoiceId,
+          workItemBudgetId: type === 'work_item' ? lineId : null,
+          householdItemBudgetId: type === 'household_item' ? lineId : null,
+          itemizedAmount: amount,
+          createdAt: t,
+          updatedAt: t,
+        })
+        .run();
+      return id;
+    }
+
+    describe.each<LinkTarget>(['work_item', 'household_item'])('target family: %s', (type) => {
+      it('leaves the whole budget line row untouched (incl. updatedAt) even when every extracted field differs', async () => {
+        const { invoiceId, catA, catB, srcA, srcB } = setup();
+        const lineId = insertTargetLine(db, type, catA, srcA);
+        const before = { ...readLine(db, type, lineId)! };
+
+        await commit(invoiceId, [divergentLine(type, lineId, catB, srcB)]);
+
+        expect(readLine(db, type, lineId)).toEqual(before);
       });
-      const config = makeConfig();
 
-      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+      it('does not change the number of budget line rows', async () => {
+        const { invoiceId, catA, catB, srcA, srcB } = setup();
+        const lineId = insertTargetLine(db, type, catA, srcA);
+        const countBefore = countLines(db, type);
 
-      await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
+        await commit(invoiceId, [divergentLine(type, lineId, catB, srcB)]);
 
-          lines: [
-            {
-              description: 'Existing line', // same as stored
-              totalAmount: 300, // same as stored plannedAmount
-              confidence: 0.9,
-              assignmentMode: 'assign-existing',
-              assignedBudgetLineId: existingWibId,
-              assignedBudgetLineType: 'work_item',
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
-          ] as any,
-        },
-        PAPERLESS_AUTH,
-      );
-
-      // Junction row should be created
-      const iblCountAfter = db.select().from(schema.invoiceBudgetLines).all().length;
-      expect(iblCountAfter).toBe(iblCountBefore + 1);
-
-      // The WIB's updatedAt should NOT have changed (no hasChanges = true)
-      const wib = db
-        .select()
-        .from(schema.workItemBudgets)
-        .where(eq(schema.workItemBudgets.id, existingWibId))
-        .get()!;
-      expect(wib.description).toBe('Existing line');
-      expect(wib.plannedAmount).toBe(300);
-    });
-
-    it('assign-existing with description changed → UPDATE executed', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 500);
-      linkDocument(db, invoiceId, 42);
-      const existingWibId = insertStandaloneWIB(db, {
-        description: 'Old description',
-        plannedAmount: 300,
+        expect(countLines(db, type)).toBe(countBefore);
       });
-      const config = makeConfig();
 
-      await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
+      it('net amount (includesVat=false) is grossed up in the junction itemizedAmount (500 -> 595)', async () => {
+        const { invoiceId, catA, srcA, catB, srcB } = setup();
+        const lineId = insertTargetLine(db, type, catA, srcA);
 
-          lines: [
-            {
-              description: 'New description', // different from stored
-              totalAmount: 300,
-              confidence: 0.9,
-              assignmentMode: 'assign-existing',
-              assignedBudgetLineId: existingWibId,
-              assignedBudgetLineType: 'work_item',
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
-          ] as any,
+        await commit(invoiceId, [
+          divergentLine(type, lineId, catB, srcB, { totalAmount: 500, includesVat: false }),
+        ]);
+
+        const junctions = junctionsFor(db, type, lineId);
+        expect(junctions).toHaveLength(1);
+        expect(junctions[0]!.itemizedAmount).toBe(595);
+      });
+
+      it.each([true, undefined])(
+        'itemizedAmount equals totalAmount verbatim when includesVat=%s (500 -> 500)',
+        async (includesVat) => {
+          const { invoiceId, catA, srcA, catB, srcB } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+
+          await commit(invoiceId, [
+            divergentLine(type, lineId, catB, srcB, { totalAmount: 500, includesVat }),
+          ]);
+
+          expect(junctionsFor(db, type, lineId)[0]!.itemizedAmount).toBe(500);
         },
-        PAPERLESS_AUTH,
       );
 
-      const wib = db
-        .select()
-        .from(schema.workItemBudgets)
-        .where(eq(schema.workItemBudgets.id, existingWibId))
-        .get()!;
-      expect(wib.description).toBe('New description');
+      it('same-call duplicates: two rows for one budget line are rejected with 409 duplicate_in_request and write nothing', async () => {
+        const { vendorId, invoiceId, catA, catB, srcA, srcB } = setup();
+        const lineId = insertTargetLine(db, type, catA, srcA);
+        const before = { ...readLine(db, type, lineId)! };
+
+        const err = await captureError(() =>
+          db.transaction(() =>
+            persistLines(
+              db,
+              invoiceId,
+              vendorId,
+              'user-1',
+              [
+                divergentLine(type, lineId, catB, srcB, { totalAmount: 300 }),
+                divergentLine(type, lineId, catB, srcB, { totalAmount: 200 }),
+              ],
+              5000,
+              0.19,
+            ),
+          ),
+        );
+
+        expectAlreadyLinked(err, lineId, type, 'duplicate_in_request');
+        expect((err as BudgetLineAlreadyLinkedError).message).toBe(
+          `Budget line ${lineId} is assigned more than once in this request`,
+        );
+        expect(junctionsFor(db, type, lineId)).toHaveLength(0);
+        expect(readLine(db, type, lineId)).toEqual(before);
+      });
+
+      it('earlier save: re-linking a line already linked to this invoice (append) is rejected with 409 linked_to_this_invoice; junction unchanged', async () => {
+        const { vendorId, invoiceId, catA, catB, srcA, srcB } = setup();
+        const lineId = insertTargetLine(db, type, catA, srcA);
+        const before = { ...readLine(db, type, lineId)! };
+        const oldTs = '2026-01-01T00:00:00.000Z';
+        db.insert(schema.invoiceBudgetLines)
+          .values({
+            id: uid('ibl'),
+            invoiceId,
+            workItemBudgetId: type === 'work_item' ? lineId : null,
+            householdItemBudgetId: type === 'household_item' ? lineId : null,
+            itemizedAmount: 400,
+            createdAt: oldTs,
+            updatedAt: oldTs,
+          })
+          .run();
+        const junctionBefore = { ...junctionsFor(db, type, lineId)[0]! };
+        const countBefore = countLines(db, type);
+
+        const err = await captureError(() =>
+          db.transaction(() =>
+            persistLines(
+              db,
+              invoiceId,
+              vendorId,
+              'user-1',
+              [divergentLine(type, lineId, catB, srcB, { totalAmount: 300 })],
+              5000,
+              0.19,
+            ),
+          ),
+        );
+
+        expectAlreadyLinked(err, lineId, type, 'linked_to_this_invoice');
+        expect((err as BudgetLineAlreadyLinkedError).message).toBe(
+          'Budget line is already linked to this invoice',
+        );
+        const junctions = junctionsFor(db, type, lineId);
+        expect(junctions).toHaveLength(1);
+        expect(junctions[0]).toEqual(junctionBefore);
+        expect(junctions[0]!.itemizedAmount).toBe(400);
+        expect(junctions[0]!.updatedAt).toBe(oldTs);
+        expect(countLines(db, type)).toBe(countBefore);
+        expect(readLine(db, type, lineId)).toEqual(before);
+      });
+
+      it('throws NotFoundError for an unknown budget line id', async () => {
+        const { invoiceId, catB, srcB } = setup();
+
+        await expect(
+          commit(invoiceId, [divergentLine(type, 'does-not-exist', catB, srcB)]),
+        ).rejects.toThrow(NotFoundError);
+      });
     });
 
-    it('assign-existing with budgetSourceId changed → UPDATE executed', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 500);
-      linkDocument(db, invoiceId, 42);
-      const existingWibId = insertStandaloneWIB(db, { plannedAmount: 300 });
-      const config = makeConfig();
+    describe.each<LinkTarget>(['work_item', 'household_item'])(
+      'replace-mode overwrite of an existing junction: %s',
+      (type) => {
+        function preLink(invoiceId: string, lineId: string, amount: number) {
+          const t = '2026-01-01T00:00:00.000Z';
+          db.insert(schema.invoiceBudgetLines)
+            .values({
+              id: uid('ibl'),
+              invoiceId,
+              workItemBudgetId: type === 'work_item' ? lineId : null,
+              householdItemBudgetId: type === 'household_item' ? lineId : null,
+              itemizedAmount: amount,
+              createdAt: t,
+              updatedAt: t,
+            })
+            .run();
+        }
 
-      await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        {
-          paperlessDocumentId: 42,
-          mode: 'append',
-          dryRun: false,
+        function rows(lineId: string, amounts: number[]): ExtractedLine[] {
+          return amounts.map((a) => ({
+            description: 'x',
+            totalAmount: a,
+            includesVat: true,
+            confidence: 0.9,
+            assignmentMode: 'assign-existing' as const,
+            assignedBudgetLineId: lineId,
+            assignedBudgetLineType: type,
+          }));
+        }
 
-          lines: [
-            {
-              description: 'Existing budget line',
-              totalAmount: 300,
-              confidence: 0.9,
-              assignmentMode: 'assign-existing',
-              assignedBudgetLineId: existingWibId,
-              assignedBudgetLineType: 'work_item',
-              budgetSourceId: 'discretionary-system', // same, no change
-            },
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Partial mock LLM result for test
-          ] as any,
-        },
-        PAPERLESS_AUTH,
-      );
+        function persist(
+          invoiceId: string,
+          vendorId: string,
+          lines: ExtractedLine[],
+          reset: boolean,
+          invoiceAmount = 5000,
+        ) {
+          db.transaction(() =>
+            persistLines(db, invoiceId, vendorId, 'user-1', lines, invoiceAmount, 0.19, reset),
+          );
+        }
 
-      // Verify WIB still exists and budgetSourceId unchanged (no actual change)
-      const wib = db
-        .select()
-        .from(schema.workItemBudgets)
-        .where(eq(schema.workItemBudgets.id, existingWibId))
-        .get()!;
-      expect(wib.budgetSourceId).toBe('discretionary-system');
-    });
+        it('(a) replace: a line pre-linked at 1000 re-linked with one row of 400 has its single junction overwritten to 400', () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          preLink(invoiceId, lineId, 1000);
 
-    it('assign-existing called twice with same (invoiceId, budgetLineId) → idempotent (no duplicate junction row)', async () => {
-      const vendorId = insertVendor(db);
-      const invoiceId = insertInvoice(db, vendorId, 1000);
-      linkDocument(db, invoiceId, 42);
-      const existingWibId = insertStandaloneWIB(db, { plannedAmount: 300 });
-      const config = makeConfig();
-      const linePayload: ExtractedLine[] = [
-        {
-          description: 'Existing budget line',
-          totalAmount: 300,
+          persist(invoiceId, vendorId, rows(lineId, [400]), true);
+
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]!.itemizedAmount).toBe(400);
+          expect(junctions[0]!.updatedAt).not.toBe('2026-01-01T00:00:00.000Z');
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('(b) replace: two rows for the same line are rejected with 409 duplicate_in_request; pre-existing junction stays 1000', async () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          preLink(invoiceId, lineId, 1000);
+          const junctionBefore = { ...junctionsFor(db, type, lineId)[0]! };
+
+          const err = await captureError(() =>
+            persist(invoiceId, vendorId, rows(lineId, [300, 200]), true),
+          );
+
+          expectAlreadyLinked(err, lineId, type, 'duplicate_in_request');
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]).toEqual(junctionBefore);
+          expect(junctions[0]!.itemizedAmount).toBe(1000);
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('(c) append: re-linking a line already linked to this invoice is rejected with 409; junction stays 1000', async () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          preLink(invoiceId, lineId, 1000);
+          const junctionBefore = { ...junctionsFor(db, type, lineId)[0]! };
+
+          const err = await captureError(() =>
+            persist(invoiceId, vendorId, rows(lineId, [300]), false),
+          );
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_this_invoice');
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]).toEqual(junctionBefore);
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('(d) autoItemize mode=replace overwrites (1000 -> 400); a following mode=append re-link is rejected and stays 400', async () => {
+          const { invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          preLink(invoiceId, lineId, 1000);
+          const send = (mode: 'append' | 'replace', amounts: number[]) =>
+            autoItemize(
+              db,
+              makeConfig(),
+              invoiceId,
+              'user-1',
+              { paperlessDocumentId: 42, mode, dryRun: false, lines: rows(lineId, amounts) },
+              PAPERLESS_AUTH,
+            );
+
+          await send('replace', [400]);
+          expect(junctionsFor(db, type, lineId)).toHaveLength(1);
+          expect(junctionsFor(db, type, lineId)[0]!.itemizedAmount).toBe(400);
+
+          const err = await captureError(() => send('append', [300]));
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_this_invoice');
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]!.itemizedAmount).toBe(400);
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+      },
+    );
+
+    describe('stored-total sum check (ITEMIZED_SUM_EXCEEDS_INVOICE)', () => {
+      it('append: a second save (on a different budget line) pushing the stored total over the invoice amount throws and rolls back', async () => {
+        const vendorId = insertVendor(db);
+        const invoiceId = insertInvoice(db, vendorId, 1000);
+        linkDocument(db, invoiceId, 42);
+        const catA = insertCategory(db, 'Cat A');
+        const srcA = insertSource(db, 'Src A');
+        const firstLineId = insertTargetLine(db, 'work_item', catA, srcA);
+        const secondLineId = insertTargetLine(db, 'work_item', catA, srcA);
+        const link = (lineId: string, amount: number): ExtractedLine => ({
+          description: 'x',
+          totalAmount: amount,
+          includesVat: true,
           confidence: 0.9,
-          assignmentMode: 'assign-existing' as const,
-          assignedBudgetLineId: existingWibId,
-          assignedBudgetLineType: 'work_item' as const,
+          assignmentMode: 'assign-existing',
+          assignedBudgetLineId: lineId,
+          assignedBudgetLineType: 'work_item',
+        });
+
+        await commit(invoiceId, [link(firstLineId, 600)]);
+        await expect(commit(invoiceId, [link(secondLineId, 500)])).rejects.toThrow(
+          ItemizedSumExceedsInvoiceError,
+        );
+
+        const junctions = junctionsFor(db, 'work_item', firstLineId);
+        expect(junctions).toHaveLength(1);
+        expect(junctions[0]!.itemizedAmount).toBe(600);
+        expect(junctionsFor(db, 'work_item', secondLineId)).toHaveLength(0);
+      });
+
+      it('replace: deleting auto lines frees room so a larger new set succeeds', async () => {
+        const vendorId = insertVendor(db);
+        const invoiceId = insertInvoice(db, vendorId, 1000);
+        linkDocument(db, invoiceId, 42);
+        insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 600 });
+
+        await autoItemize(
+          db,
+          makeConfig(),
+          invoiceId,
+          'user-1',
+          {
+            paperlessDocumentId: 42,
+            mode: 'replace',
+            dryRun: false,
+            lines: [{ description: 'New', totalAmount: 700, confidence: 0.9 }],
+          },
+          PAPERLESS_AUTH,
+        );
+
+        const stored = db
+          .select()
+          .from(schema.invoiceBudgetLines)
+          .where(eq(schema.invoiceBudgetLines.invoiceId, invoiceId))
+          .all();
+        expect(stored.map((r) => r.itemizedAmount)).toEqual([700]);
+      });
+
+      it('append with the same lines would exceed (control for the replace case)', async () => {
+        const vendorId = insertVendor(db);
+        const invoiceId = insertInvoice(db, vendorId, 1000);
+        linkDocument(db, invoiceId, 42);
+        insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 600 });
+
+        await expect(
+          commit(invoiceId, [{ description: 'New', totalAmount: 700, confidence: 0.9 }]),
+        ).rejects.toThrow(ItemizedSumExceedsInvoiceError);
+      });
+
+      it('same-call duplicates 600+500 on one budget line are rejected as duplicate_in_request (not as a sum overflow)', async () => {
+        const vendorId = insertVendor(db);
+        const invoiceId = insertInvoice(db, vendorId, 1000);
+        const catA = insertCategory(db, 'Cat A');
+        const srcA = insertSource(db, 'Src A');
+        const lineId = insertTargetLine(db, 'work_item', catA, srcA);
+        const link = (amount: number): ExtractedLine => ({
+          description: 'x',
+          totalAmount: amount,
+          includesVat: true,
+          confidence: 0.9,
+          assignmentMode: 'assign-existing',
+          assignedBudgetLineId: lineId,
+          assignedBudgetLineType: 'work_item',
+        });
+
+        const err = await captureError(() =>
+          db.transaction(() =>
+            persistLines(db, invoiceId, vendorId, 'user-1', [link(600), link(500)], 1000, 0.19),
+          ),
+        );
+
+        expectAlreadyLinked(err, lineId, 'work_item', 'duplicate_in_request');
+        expect(junctionsFor(db, 'work_item', lineId)).toHaveLength(0);
+      });
+    });
+
+    describe.each<LinkTarget>(['work_item', 'household_item'])(
+      'a budget line is never linked twice: %s',
+      (type) => {
+        function otherInvoiceWithLink(vendorId: string, lineId: string, amount: number) {
+          const otherInvoiceId = insertInvoice(db, vendorId, 5000);
+          const junctionId = linkJunction(db, type, otherInvoiceId, lineId, amount);
+          return { otherInvoiceId, junctionId };
+        }
+
+        function link(lineId: string, amount = 100): ExtractedLine {
+          return {
+            description: 'x',
+            totalAmount: amount,
+            includesVat: true,
+            confidence: 0.9,
+            assignmentMode: 'assign-existing',
+            assignedBudgetLineId: lineId,
+            assignedBudgetLineType: type,
+          };
+        }
+
+        function send(invoiceId: string, mode: 'append' | 'replace', lines: ExtractedLine[]) {
+          return autoItemize(
+            db,
+            makeConfig(),
+            invoiceId,
+            'user-1',
+            { paperlessDocumentId: 42, mode, dryRun: false, lines },
+            PAPERLESS_AUTH,
+          );
+        }
+
+        it('append: a line linked to a different invoice is rejected with 409 linked_to_other_invoice; the other junction is unchanged', async () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          const { junctionId } = otherInvoiceWithLink(vendorId, lineId, 700);
+          const junctionBefore = { ...junctionsFor(db, type, lineId)[0]! };
+
+          const err = await captureError(() => send(invoiceId, 'append', [link(lineId, 300)]));
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_other_invoice');
+          expect((err as BudgetLineAlreadyLinkedError).message).toBe(
+            'Budget line is already linked to a different invoice',
+          );
+          const junctions = junctionsFor(db, type, lineId);
+          expect(junctions).toHaveLength(1);
+          expect(junctions[0]!.id).toBe(junctionId);
+          expect(junctions[0]).toEqual(junctionBefore);
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('replace: a line linked to a different invoice is rejected with 409 and the auto lines replace would delete are rolled back', async () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const before = { ...readLine(db, type, lineId)! };
+          const auto = insertWIB(db, invoiceId, { origin: 'auto', plannedAmount: 200 });
+          otherInvoiceWithLink(vendorId, lineId, 700);
+          const junctionBefore = { ...junctionsFor(db, type, lineId)[0]! };
+
+          const err = await captureError(() => send(invoiceId, 'replace', [link(lineId, 300)]));
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_other_invoice');
+          // The origin='auto' row (and its junction) that replace deleted is back after rollback
+          expect(
+            db
+              .select()
+              .from(schema.workItemBudgets)
+              .where(eq(schema.workItemBudgets.id, auto.wibId))
+              .get(),
+          ).toBeDefined();
+          expect(
+            db
+              .select()
+              .from(schema.invoiceBudgetLines)
+              .where(eq(schema.invoiceBudgetLines.id, auto.iblId))
+              .get(),
+          ).toBeDefined();
+          expect(junctionsFor(db, type, lineId)[0]).toEqual(junctionBefore);
+          expect(readLine(db, type, lineId)).toEqual(before);
+        });
+
+        it('commitAutoItemizeCreate: a line linked to another invoice is rejected with 409; no invoice or document link is created', async () => {
+          const { vendorId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          otherInvoiceWithLink(vendorId, lineId, 700);
+          const invoicesBefore = db.select().from(schema.invoices).all().length;
+          const linksBefore = db.select().from(schema.documentLinks).all().length;
+          const junctionsBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+          const err = await captureError(() =>
+            commitAutoItemizeCreate(db, makeConfig(), 'user-1', {
+              paperlessDocumentId: 77,
+              vendorId,
+              invoice: { amount: 5000, date: '2026-03-01' },
+              lines: [link(lineId, 300)],
+            }),
+          );
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_other_invoice');
+          expect(db.select().from(schema.invoices).all()).toHaveLength(invoicesBefore);
+          expect(db.select().from(schema.documentLinks).all()).toHaveLength(linksBefore);
+          expect(
+            db
+              .select()
+              .from(schema.documentLinks)
+              .where(eq(schema.documentLinks.paperlessDocumentId, 77))
+              .all(),
+          ).toHaveLength(0);
+          expect(db.select().from(schema.invoiceBudgetLines).all()).toHaveLength(junctionsBefore);
+        });
+
+        it('commitAutoItemizeCreate: the same line twice is rejected with 409 duplicate_in_request; nothing is created', async () => {
+          const { vendorId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          const invoicesBefore = db.select().from(schema.invoices).all().length;
+
+          const err = await captureError(() =>
+            commitAutoItemizeCreate(db, makeConfig(), 'user-1', {
+              paperlessDocumentId: 77,
+              vendorId,
+              invoice: { amount: 5000, date: '2026-03-01' },
+              lines: [link(lineId, 300), link(lineId, 200)],
+            }),
+          );
+
+          expectAlreadyLinked(err, lineId, type, 'duplicate_in_request');
+          expect(db.select().from(schema.invoices).all()).toHaveLength(invoicesBefore);
+          expect(junctionsFor(db, type, lineId)).toHaveLength(0);
+        });
+
+        it('a create-new row before an invalid assign-existing row writes nothing (validation precedes any write)', async () => {
+          const { vendorId, invoiceId, catA, srcA } = setup();
+          const lineId = insertTargetLine(db, type, catA, srcA);
+          otherInvoiceWithLink(vendorId, lineId, 700);
+          const wibBefore = db.select().from(schema.workItemBudgets).all().length;
+          const junctionsBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+          const err = await captureError(() =>
+            send(invoiceId, 'append', [
+              {
+                description: 'Brand new',
+                totalAmount: 100,
+                includesVat: true,
+                confidence: 0.9,
+                assignmentMode: 'create-new',
+              },
+              link(lineId, 200),
+            ]),
+          );
+
+          expectAlreadyLinked(err, lineId, type, 'linked_to_other_invoice');
+          expect(db.select().from(schema.workItemBudgets).all()).toHaveLength(wibBefore);
+          expect(db.select().from(schema.invoiceBudgetLines).all()).toHaveLength(junctionsBefore);
+        });
+      },
+    );
+
+    it('a work_item and a household_item budget line sharing the same id string are not duplicates', async () => {
+      const { invoiceId, catA, srcA } = setup();
+      const wibId = insertTargetLine(db, 'work_item', catA, srcA);
+      const hibId = insertTargetLine(db, 'household_item', catA, srcA);
+      db.update(schema.householdItemBudgets)
+        .set({ id: wibId })
+        .where(eq(schema.householdItemBudgets.id, hibId))
+        .run();
+      const mk = (type: LinkTarget, amount: number): ExtractedLine => ({
+        description: 'x',
+        totalAmount: amount,
+        includesVat: true,
+        confidence: 0.9,
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: wibId,
+        assignedBudgetLineType: type,
+      });
+
+      await commit(invoiceId, [mk('work_item', 300), mk('household_item', 200)]);
+
+      expect(junctionsFor(db, 'work_item', wibId).map((j) => j.itemizedAmount)).toEqual([300]);
+      expect(junctionsFor(db, 'household_item', wibId).map((j) => j.itemizedAmount)).toEqual([200]);
+    });
+
+    it('mixed batch: create-new adds exactly one origin=auto row with extracted values; assigned row is unchanged', async () => {
+      const { invoiceId, catA, catB, srcA, srcB } = setup();
+      const lineId = insertTargetLine(db, 'work_item', catA, srcA);
+      const before = { ...readLine(db, 'work_item', lineId)! };
+      const countBefore = countLines(db, 'work_item');
+
+      await commit(invoiceId, [
+        divergentLine('work_item', lineId, catB, srcB),
+        {
+          description: 'Brand new line',
+          quantity: 3,
+          unit: 'h',
+          unitPrice: 50,
+          totalAmount: 150,
+          includesVat: true,
+          confidence: 0.8,
+          budgetCategoryId: catB,
+          budgetSourceId: srcB,
+          assignmentMode: 'create-new',
         },
-      ];
+      ]);
 
-      // First call — creates the junction row
-      await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: false, lines: linePayload },
-        PAPERLESS_AUTH,
-      );
+      expect(countLines(db, 'work_item')).toBe(countBefore + 1);
+      expect(readLine(db, 'work_item', lineId)).toEqual(before);
+      const created = db
+        .select()
+        .from(schema.workItemBudgets)
+        .all()
+        .filter((w) => w.id !== lineId);
+      expect(created).toHaveLength(1);
+      expect(created[0]).toMatchObject({
+        origin: 'auto',
+        description: 'Brand new line',
+        plannedAmount: 150,
+        quantity: 3,
+        unit: 'h',
+        unitPrice: 50,
+        budgetCategoryId: catB,
+        budgetSourceId: srcB,
+      });
+    });
 
-      const iblCountAfterFirst = db.select().from(schema.invoiceBudgetLines).all().length;
+    it('commitAutoItemizeCreate: assign-existing leaves the budget line unchanged and creates the junction', async () => {
+      const { vendorId, catA, catB, srcA, srcB } = setup();
+      const lineId = insertTargetLine(db, 'work_item', catA, srcA);
+      const before = { ...readLine(db, 'work_item', lineId)! };
 
-      // Second call with identical payload — must be idempotent (no second junction row)
-      await autoItemize(
-        db,
-        config,
-        invoiceId,
-        'user-1',
-        { paperlessDocumentId: 42, mode: 'append', dryRun: false, lines: linePayload },
-        PAPERLESS_AUTH,
-      );
+      await commitAutoItemizeCreate(db, makeConfig(), 'user-1', {
+        paperlessDocumentId: 77,
+        vendorId,
+        invoice: { amount: 5000, date: '2026-03-01' },
+        lines: [divergentLine('work_item', lineId, catB, srcB, { totalAmount: 700 })],
+      });
 
-      const iblCountAfterSecond = db.select().from(schema.invoiceBudgetLines).all().length;
-      expect(iblCountAfterSecond).toBe(iblCountAfterFirst);
+      expect(readLine(db, 'work_item', lineId)).toEqual(before);
+      const junctions = junctionsFor(db, 'work_item', lineId);
+      expect(junctions).toHaveLength(1);
+      expect(junctions[0]!.itemizedAmount).toBe(700);
+    });
+
+    it('throws ValidationError when assign-existing lacks assignedBudgetLineId / type', async () => {
+      const { invoiceId, catB, srcB } = setup();
+
+      await expect(
+        commit(invoiceId, [
+          divergentLine('work_item', 'x', catB, srcB, { assignedBudgetLineId: undefined }),
+        ]),
+      ).rejects.toThrow(ValidationError);
+      await expect(
+        commit(invoiceId, [
+          divergentLine('work_item', 'x', catB, srcB, { assignedBudgetLineType: undefined }),
+        ]),
+      ).rejects.toThrow(ValidationError);
     });
   });
 
@@ -2477,6 +3107,7 @@ describe('invoiceAutoItemizeService', () => {
           'user-1',
           [{ description: 'Tile work', totalAmount: 300, confidence: 0.9 }] as any,
           1000,
+          0.19,
         );
       });
 
@@ -2504,6 +3135,7 @@ describe('invoiceAutoItemizeService', () => {
               { description: 'Line B', totalAmount: 250, confidence: 0.8 }, // 550 > 500
             ] as any,
             500,
+            0.19,
           );
         });
       }).toThrow(ItemizedSumExceedsInvoiceError);
@@ -2518,7 +3150,7 @@ describe('invoiceAutoItemizeService', () => {
       const invoiceId = insertInvoice(db, vendorId, 500);
 
       const result = db.transaction(() => {
-        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500);
+        return persistLines(db, invoiceId, vendorId, 'user-1', [] as any, 500, 0.19);
       });
 
       expect(result.totalItemized).toBe(0);
@@ -2871,9 +3503,10 @@ describe('invoiceAutoItemizeService', () => {
 
   // ─── Story #1693 — VAT gross-up: precise itemizedAmount assertions ─────────────────
   // Authoritative contract:
-  //   invoice_budget_lines.itemizedAmount = effectiveLineAmount({ amount: totalAmount, includesVat })
+  //   invoice_budget_lines.itemizedAmount = effectiveLineAmount({ amount: totalAmount, includesVat }, config.vatRate)
   //   = totalAmount when includesVat===true (or undefined/null)
-  //   = round(totalAmount * 1.19 * 100) / 100 when includesVat===false
+  //   = round(totalAmount * (1 + config.vatRate) * 100) / 100 when includesVat===false
+  //     (makeConfig() uses vatRate 0.19 → ×1.19 below)
   //   work_item_budgets.plannedAmount stays NET (never pre-grossed)
 
   describe('VAT gross-up: itemizedAmount precision (Story #1693)', () => {
@@ -2997,7 +3630,7 @@ describe('invoiceAutoItemizeService', () => {
 
       const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
       expect(newIbls).toHaveLength(1);
-      // VAT-excl: effectiveLineAmount(100, false) = round(100 * 1.19 * 100) / 100 = 119
+      // VAT-excl: effectiveLineAmount(100, false, vatRate 0.19 from makeConfig()) = round(100 * 1.19 * 100) / 100 = 119
       expect(newIbls[0]!.itemizedAmount).toBe(119);
     });
 
@@ -3078,7 +3711,7 @@ describe('invoiceAutoItemizeService', () => {
 
       // WIB.plannedAmount stays NET (50) — never grossed up
       expect(newWib.plannedAmount).toBe(50);
-      // IBL itemizedAmount = effectiveLineAmount(50, false) = round(50 * 1.19 * 100) / 100 = 59.5
+      // IBL itemizedAmount = effectiveLineAmount(50, false, vatRate 0.19 from makeConfig()) = round(50 * 1.19 * 100) / 100 = 59.5
       expect(newIbl.itemizedAmount).toBe(59.5);
     });
 
@@ -3302,6 +3935,206 @@ describe('invoiceAutoItemizeService', () => {
     count: 1,
     results: [{ id: 101, name: 'Bau', color: '#b2df8a', document_count: 5 }],
   };
+
+  // ─── Configured VAT rate is threaded through (not hardcoded 0.19) ──────────────
+  // net 100 at VAT_RATE=0.2 → gross 120 (the 0.19 default would give 119).
+
+  describe('configured VAT rate (vatRate=0.2)', () => {
+    function insertNetWib(): string {
+      const id = uid('wib');
+      const t = ts();
+      db.insert(schema.workItemBudgets)
+        .values({
+          id,
+          workItemId: null,
+          description: 'Net existing line',
+          plannedAmount: 100,
+          confidence: 'own_estimate',
+          budgetCategoryId: null,
+          budgetSourceId: 'discretionary-system',
+          vendorId: null,
+          quantity: null,
+          unit: null,
+          unitPrice: null,
+          includesVat: false,
+          createdBy: null,
+          createdAt: t,
+          updatedAt: t,
+          origin: 'manual',
+        })
+        .run();
+      return id;
+    }
+
+    it('persistLines create-new net line (100, includesVat=false) stores itemizedAmount=120 and totalItemized=120', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = db.transaction(() =>
+        persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [
+            { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+          ] as ExtractedLine[],
+          1000,
+          0.2,
+        ),
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.totalItemized).toBe(120);
+    });
+
+    it('persistLines assign-existing net row stores itemizedAmount=120 and totalItemized=120', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      const wibId = insertNetWib();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = db.transaction(() =>
+        persistLines(
+          db,
+          invoiceId,
+          vendorId,
+          'user-1',
+          [
+            {
+              description: 'Net existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: wibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: false,
+            },
+          ] as ExtractedLine[],
+          1000,
+          0.2,
+        ),
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.totalItemized).toBe(120);
+      // The linked budget line itself is never modified.
+      const wib = db
+        .select()
+        .from(schema.workItemBudgets)
+        .where(eq(schema.workItemBudgets.id, wibId))
+        .get()!;
+      expect(wib.plannedAmount).toBe(100);
+    });
+
+    it('persistLines sum check uses the configured rate: net 100 at 0.2 (=120) exceeds an invoice of 119.5', () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 119.5);
+
+      expect(() =>
+        db.transaction(() =>
+          persistLines(
+            db,
+            invoiceId,
+            vendorId,
+            'user-1',
+            [
+              { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+            ] as ExtractedLine[],
+            119.5,
+            0.2,
+          ),
+        ),
+      ).toThrow(ItemizedSumExceedsInvoiceError);
+    });
+
+    it('autoItemize with config.vatRate=0.2 persists itemizedAmount=120 for a net create-new line', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        makeConfig({ vatRate: 0.2 }),
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+          ] as ExtractedLine[],
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+    });
+
+    it('autoItemize with config.vatRate=0.2 persists itemizedAmount=120 for an assign-existing net line', async () => {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 1000);
+      linkDocument(db, invoiceId, 42);
+      const wibId = insertNetWib();
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      await autoItemize(
+        db,
+        makeConfig({ vatRate: 0.2 }),
+        invoiceId,
+        'user-1',
+        {
+          paperlessDocumentId: 42,
+          mode: 'append',
+          dryRun: false,
+          lines: [
+            {
+              description: 'Net existing line',
+              totalAmount: 100,
+              confidence: 0.9,
+              assignmentMode: 'assign-existing',
+              assignedBudgetLineId: wibId,
+              assignedBudgetLineType: 'work_item',
+              includesVat: false,
+            },
+          ] as ExtractedLine[],
+        },
+        PAPERLESS_AUTH,
+      );
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+    });
+
+    it('commitAutoItemizeCreate with config.vatRate=0.2 persists itemizedAmount=120 and remainingAmount reflects it', async () => {
+      const vendorId = insertVendor(db, 'Rate Vendor');
+      const iblCountBefore = db.select().from(schema.invoiceBudgetLines).all().length;
+
+      const result = (await commitAutoItemizeCreate(db, makeConfig({ vatRate: 0.2 }), 'user-1', {
+        paperlessDocumentId: 777,
+        vendorId,
+        invoice: { amount: 1000, date: '2026-03-01' },
+        lines: [
+          { description: 'Net item', totalAmount: 100, confidence: 0.9, includesVat: false },
+        ] as ExtractedLine[],
+      })) as { remainingAmount: number };
+
+      const newIbls = db.select().from(schema.invoiceBudgetLines).all().slice(iblCountBefore);
+      expect(newIbls).toHaveLength(1);
+      expect(newIbls[0]!.itemizedAmount).toBe(120);
+      expect(result.remainingAmount).toBe(880);
+    });
+  });
 
   describe('paperlessMetadata enrichment (Story #1767)', () => {
     it('autoItemize dry-run enriches prompt with correspondent', async () => {

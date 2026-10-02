@@ -29,3 +29,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Dependency override pitfalls](dependency-overrides-pitfalls.md) — stale pins, silent workspace overrides, bundled deps, root hoisting anchors for CLI-loaded tools, mixed-major Babel
 - [Account provisioning hazards](account-provisioning-hazards.md) — setup lockout, case-variant email dup, untestable in-process collision path, AppConfig fixture breakage
 - [Parallel frontend split](parallel-frontend-split.md) — en-namespace ownership per FE group, final-step lint rule, 5 error-message leak classes to inventory
+- [Global aggregate page specs](global-aggregate-page-specs.md) — shared E2E DB scoping, drafts, disabled-at-end focus drop (useLayoutEffect), scoped document keydown, h1 in every state
+- [Unmodified-tests constraint](unmodified-tests-constraint.md) — optional props/fields, dynamic import past partial ESM mocks, new test files

@@ -2,6 +2,12 @@
 
 Detailed review notes for individual stories. Referenced from MEMORY.md.
 
+## PR #2167 (#2161 multi-PDF report split), 2026-10-01: REQUEST_CHANGES (5 findings)
+
+- **A lazy `await import()` comment justified by bundle/static-dependency reasons was false**: the page already statically imported `paperlessApi` and the barrel, and the lazily loaded module pulled in `paperlessApi` itself. The real reason was **partial-mock isolation**: it keeps the new module out of the link graph of an existing page test that mocks `reportPdf/index.js` and `paperlessApi.js` with only some exports (AC "existing tests unmodified"). The false rationale also licensed a forked `PDF_DEFAULT_STYLE`. When reviewing a lazy import, grep the importer's static imports before trusting "keeps X out of the graph".
+- **Worst-case estimates violate "no split if it fits" ACs**: a part-1 overhead measured only at N = 99 over-splits at the boundary, and a forward-only verification loop never re-merges. Plan with the N = 1 overhead first.
+- Forked `today` sources (date at mount vs date at click) in one page can disagree in a session that crosses midnight. Treat this as part of the forked-derivation sweep.
+
 ## Story #29: Client Responsive Layout (PR #48, reviewed)
 
 - AppShell owns sidebar state (`useState`), passes `isOpen`/`onClose` to Sidebar
@@ -1025,3 +1031,17 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
 - F1: page-level "intent" state (`focusEmptyStateAfterRetryRef`, `firstBatchFailed`) describes the current resetKey generation's first batch, but a reset never clears it. Because the hook's reset `setStatus('loading')` is a no-op while already loading, a filter change during a pending retry lets the empty-state focus hand-off fire and steal focus from the search input. Rule: any consumer-side state keyed on "the batch I triggered" must be cleared on resetKey, the same as the hook's own counters.
 - F2: fixing the success-path focus drop while leaving the failure path on native `disabled` (focus-fixup drops to body); the "does not steal focus" test asserted only a negative, and jsdom `fireEvent.click` never moves focus. Demand a positive focus target plus keyboard activation.
 - Sandbox: DiaryPage.test.tsx ESM `unstable_mockModule` is NOT applied when run from the base checkout (0 mock calls, pre-existing tests fail too), so a local red there is not evidence.
+
+## PR #2160 (#2158 invoice default budget source), 2026-10-01: VERDICT REQUEST_CHANGES (comment; own-token PR)
+
+- F1: copying a linked record's server values into the row's own editable state (`budgetSourceId`/`budgetCategoryId` on link) destroys the row's pre-link values, so the reversible action (clear the assignment) leaves a create-new row with a null source. The commit then falls back to discretionary instead of the invoice default (AC 5/11). Rule: when a reversible action exists, check that its inverse round-trips. To stop the server changing fields, prefer omitting those fields from the payload over mutating client state. In this case the server skips `undefined`, and #2149 made assign-existing link-only.
+
+## PR #2163 (#2159 claim subject + read-only opening), 2026-10-01: VERDICT REQUEST_CHANGES (comment; own-token PR)
+
+- F1: a prompt-contract change (`letterBody` must exclude salutation/closing/signature) left the API-Contract response _example_ demonstrating the now-forbidden output ("Dear Bank Officer,\n\n..."). When a PR edits an LLM prompt, grep API-Contract for the field's example JSON, not just its table row; also note prompt-only (non-validator) enforcement as best-effort.
+- F2: docs guide `bank-reports.md:55` listed closing as editable (stale since #1909/#1924) and lacked the new read-only opening.
+
+## PR #2167 (#2161 multi-PDF split) round 3, 2026-10-01: VERDICT APPROVE (comment; own-token PR)
+
+- All round-2 findings fixed in dd1abf4: the lazy-load comments now state the real invariant (dynamic `import()` only, so the partial `index.js`/`paperlessApi.js` mocks in the page tests never see `parts.ts` → `attachments.ts` → `getDocumentPreviewUrl`); ADR-034 now covers `docDefinition.ts` (wiki f606537); and the included-invoice path is `ReadonlySet` from end to end.
+- Lesson: a lazy-load comment that gives "chunk splitting/perf" as its reason usually hides the real constraint, which is test-mock isolation. To verify such a claim, trace the transitive static edge to a partially mocked export.

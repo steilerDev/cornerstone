@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import type { Dispatch, SetStateAction } from 'react';
 import type {
   WorkItemBudgetLine,
@@ -10,7 +10,10 @@ import { useBudgetLinePicker } from './useBudgetLinePicker.js';
 import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
 import type { LineWithInclude } from '../components/autoItemize/types.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
+import { toAssignedBudgetLineSnapshot } from '../lib/autoItemizeDraftUtils.js';
+import { effectiveLineAmount } from '../lib/budgetConstants.js';
 import { mergeLines } from '../lib/invoiceAutoItemizeApi.js';
+import { useLocale } from '../contexts/LocaleContext.js';
 import {
   aggregateMergedLineNumerics,
   buildAvailableCategories,
@@ -37,6 +40,11 @@ export interface UseAutoItemizeLinesOptions {
    * Called when merge succeeds (for live region announcements).
    */
   onMergeSuccess?: () => void;
+  /**
+   * Invoice-level default budget source (#2158). When set, newly queued inline
+   * budget lines and merged lines use it instead of the discretionary fallback.
+   */
+  defaultBudgetSourceId?: string | null;
 }
 
 export interface UseAutoItemizeLinesReturn {
@@ -66,6 +74,11 @@ export interface UseAutoItemizeLinesReturn {
  * Internally calls useBudgetLinePicker so the consuming page no longer needs to.
  * All handlers are stable (useCallback with empty deps) — they read from refs
  * that are kept current on every render to avoid stale closures.
+ *
+ * A budget line must not be linked twice: the returned picker hides lines already
+ * assigned to OTHER rows of the same draft (the active row's own line stays visible
+ * so "Change" can re-select it). Lines linked to any invoice are already hidden by
+ * useBudgetLinePicker itself.
  */
 export function useAutoItemizeLines({
   invoiceId,
@@ -75,9 +88,12 @@ export function useAutoItemizeLines({
   documentSummary,
   onMergeStart,
   onMergeSuccess,
+  defaultBudgetSourceId,
 }: UseAutoItemizeLinesOptions): UseAutoItemizeLinesReturn {
   const [lines, setLines] = useState<LineWithInclude[]>([]);
   const [selectedRowIds, setSelectedRowIds] = useState<Set<string>>(() => new Set());
+  // `${type}:${id}` keys of budget lines assigned to other rows; set when the picker opens.
+  const [excludedLineKeys, setExcludedLineKeys] = useState<ReadonlySet<string>>(() => new Set());
 
   // Mutable refs — updated every render so stable callbacks always see fresh values.
   const activeRowIdRef = useRef<string | null>(null);
@@ -94,6 +110,11 @@ export function useAutoItemizeLines({
   onMergeStartRef.current = onMergeStart;
   const onMergeSuccessRef = useRef(onMergeSuccess);
   onMergeSuccessRef.current = onMergeSuccess;
+  const defaultBudgetSourceIdRef = useRef(defaultBudgetSourceId);
+  defaultBudgetSourceIdRef.current = defaultBudgetSourceId;
+  const { vatRate } = useLocale();
+  const vatRateRef = useRef(vatRate);
+  vatRateRef.current = vatRate;
 
   // Filled in after picker is created (breaks the circular dep on picker.closePicker /
   // picker.openPicker without needing closePicker in useCallback deps).
@@ -119,6 +140,13 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: line.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: line.description,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(line),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount(
+                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
+                    vatRateRef.current,
+                  ),
                 createdFromExtraction: fromExtraction,
                 inlineCreatedBudgetLineDraft: undefined,
                 inlineHideConfidence: undefined,
@@ -155,13 +183,28 @@ export function useAutoItemizeLines({
     if (!sources || sources.length === 0) return;
     const firstSourceId = sources[0]?.id;
     if (!firstSourceId) return;
-    if (!linesRef.current.some((l) => !l.budgetSourceId)) return;
+    if (!linesRef.current.some((l) => !l.budgetSourceId && !l.assignedBudgetLineId)) return;
     /* eslint-disable @eslint-react/set-state-in-effect */
     setLines((prev) =>
-      prev.map((l) => (l.budgetSourceId ? l : { ...l, budgetSourceId: firstSourceId })),
+      prev.map((l) =>
+        l.budgetSourceId || l.assignedBudgetLineId ? l : { ...l, budgetSourceId: firstSourceId },
+      ),
     );
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [picker.pickerState.budgetSources]);
+
+  const visiblePicker = useMemo<UseBudgetLinePickerReturn>(() => {
+    if (excludedLineKeys.size === 0) return picker;
+    return {
+      ...picker,
+      pickerState: {
+        ...picker.pickerState,
+        budgetLines: picker.pickerState.budgetLines.filter(
+          (bl) => !excludedLineKeys.has(`${picker.pickerState.type}:${bl.id}`),
+        ),
+      },
+    };
+  }, [picker, excludedLineKeys]);
 
   // ─── Handlers ──────────────────────────────────────────────────────────────
 
@@ -182,7 +225,7 @@ export function useAutoItemizeLines({
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? null : parsed;
             }
-          } else if (field === 'totalAmount') {
+          } else if (field === 'totalAmount' || field === 'linkedItemizedAmount') {
             if (typeof value === 'string') {
               const parsed = parseFloat(value);
               coercedValue = isNaN(parsed) ? 0 : parsed;
@@ -211,6 +254,13 @@ export function useAutoItemizeLines({
 
   const onAssign = useCallback((rowId: string) => {
     activeRowIdRef.current = rowId;
+    setExcludedLineKeys(
+      new Set(
+        linesRef.current
+          .filter((l) => l.rowId !== rowId && l.assignedBudgetLineId && l.assignedBudgetLineType)
+          .map((l) => `${l.assignedBudgetLineType}:${l.assignedBudgetLineId}`),
+      ),
+    );
     openPickerRef.current();
   }, []);
 
@@ -228,6 +278,13 @@ export function useAutoItemizeLines({
                 assignedBudgetLineId: budgetLine.id,
                 assignedBudgetLineType: lineType,
                 assignedBudgetLineDescription: budgetLine.description ?? null,
+                assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(budgetLine),
+                linkedItemizedAmount:
+                  l.linkedItemizedAmount ??
+                  effectiveLineAmount(
+                    { amount: l.totalAmount ?? 0, includesVat: l.includesVat },
+                    vatRateRef.current,
+                  ),
               }
             : l,
         ),
@@ -249,7 +306,8 @@ export function useAutoItemizeLines({
     const vendors = ps.vendors ?? [];
     const sources = ps.budgetSources ?? [];
     const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
-    const budgetSourceId = row.budgetSourceId ?? discretionaryId ?? '';
+    const budgetSourceId =
+      defaultBudgetSourceIdRef.current || (row.budgetSourceId ?? discretionaryId ?? '');
 
     const vendorId = row.vendorName
       ? (vendors.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ?? null)
@@ -340,11 +398,17 @@ export function useAutoItemizeLines({
               assignedBudgetLineId: undefined,
               assignedBudgetLineType: undefined,
               assignedBudgetLineDescription: undefined,
+              assignedBudgetLineSnapshot: undefined,
+              linkedItemizedAmount: undefined,
               createdFromExtraction: undefined,
               assignedItemId: undefined,
               assignedItemType: undefined,
               inlineCreatedBudgetLineDraft: undefined,
               inlineHideConfidence: undefined,
+              // The row becomes a new line again: follow the invoice-wide default (#2158).
+              ...(defaultBudgetSourceIdRef.current
+                ? { budgetSourceId: defaultBudgetSourceIdRef.current }
+                : {}),
             }
           : l,
       ),
@@ -436,11 +500,14 @@ export function useAutoItemizeLines({
 
     onMergeStartRef.current?.(selectedLines.length);
 
-    const numerics = aggregateMergedLineNumerics(selectedLines);
+    const numerics = aggregateMergedLineNumerics(selectedLines, vatRateRef.current);
     const newRowId = `row-merged-${Math.random().toString(36).slice(2, 9)}`;
 
     const mergedLine: LineWithInclude = {
       ...numerics,
+      ...(defaultBudgetSourceIdRef.current
+        ? { budgetSourceId: defaultBudgetSourceIdRef.current }
+        : {}),
       rowId: newRowId,
       included: true,
       createdFromExtraction: true,
@@ -502,7 +569,7 @@ export function useAutoItemizeLines({
   return {
     lines,
     setLines,
-    picker,
+    picker: visiblePicker,
     handlers: {
       onToggleInclude,
       onFieldChange,

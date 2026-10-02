@@ -275,7 +275,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
     it('actualCostPaid=0 and actualCostPending=0 at line, item, area, and totals level', () => {
       insertWorkItemWithInvoice({ plannedAmount: 1000 }); // no invoice
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Line level
       const area = result.workItems.areas[0]!;
@@ -308,7 +308,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'paid',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       const line = item.budgetLines[0]!;
@@ -335,7 +335,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'claimed',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       const line = item.budgetLines[0]!;
@@ -359,7 +359,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'pending',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       const line = item.budgetLines[0]!;
@@ -395,7 +395,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
 
       insertDeposit({ invoiceId: invoiceId!, amount: 300, status: 'paid' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
       expect(line.actualCost).toBe(1000);
@@ -419,7 +419,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
 
       insertDeposit({ invoiceId: invoiceId!, amount: 200, status: 'claimed' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
       expect(line.actualCostPaid).toBeCloseTo(200, 5);
@@ -529,7 +529,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         })
         .run();
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.workItems.areas[0]!;
       const item = area.items[0]!;
@@ -553,7 +553,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'pending',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Both WIs land in the Unassigned area (null areaId)
       const area = result.workItems.areas[0]!;
@@ -579,7 +579,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'pending',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.totals.actualCostPaid).toBe(1000);
       expect(result.workItems.totals.actualCostPending).toBe(0);
@@ -603,7 +603,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         budgetSourceId: srcId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sourceSummary = result.budgetSources.find((s) => s.id === srcId);
       expect(sourceSummary).toBeDefined();
@@ -622,7 +622,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         budgetSourceId: srcId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sourceSummary = result.budgetSources.find((s) => s.id === srcId);
       expect(sourceSummary).toBeDefined();
@@ -646,7 +646,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
       });
 
       // Deselect the source by passing its id in the filter
-      const result = getBudgetBreakdown(db, new Set([srcId]));
+      const result = getBudgetBreakdown(db, 0.19, new Set([srcId]));
 
       // workItems areas should be empty (source is filtered out)
       expect(result.workItems.areas).toHaveLength(0);
@@ -670,7 +670,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         invoiceStatus: 'pending',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas).toHaveLength(1);
       const area = result.householdItems.areas[0]!;
@@ -711,7 +711,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
         entryType: 'refund',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
       expect(line.actualCost).toBe(1000); // unaffected by refunds
       expect(line.actualCostPaid).toBeCloseTo(400, 5);
@@ -729,7 +729,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
       insertDeposit({ invoiceId: invoiceId!, amount: 400, status: 'paid' });
       insertDeposit({ invoiceId: invoiceId!, amount: 150, status: 'paid', entryType: 'refund' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       const line = result.householdItems.areas[0]!.items[0]!.budgetLines[0]!;
       expect(line.actualCost).toBe(500);
       expect(line.actualCostPaid).toBeCloseTo(250, 5);
@@ -743,7 +743,7 @@ describe('getBudgetBreakdown — actualCostPaid / actualCostPending rollup', () 
       });
       insertDeposit({ invoiceId: invoiceId!, amount: 300, status: 'paid' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       const line = result.workItems.areas[0]!.items[0]!.budgetLines[0]!;
       expect(line.actualCostPaid).toBeCloseTo(300, 5);
       expect(line.actualCostPending).toBeCloseTo(700, 5);

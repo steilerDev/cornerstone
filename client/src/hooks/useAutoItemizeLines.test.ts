@@ -54,9 +54,19 @@ jest.unstable_mockModule('./useBudgetLinePicker.js', () => ({
   },
 }));
 
+// Mutable so tests can exercise a non-default VAT rate (read via vatRateRef at call time).
+const mockLocaleValue = {
+  locale: 'en',
+  resolvedLocale: 'en',
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+};
+
 jest.unstable_mockModule('../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: unknown }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
+  useLocale: () => mockLocaleValue,
 }));
 
 // ─── Mock: invoiceAutoItemizeApi (mergeLines) — Story #1797 ───────────────────
@@ -861,5 +871,621 @@ describe('useAutoItemizeLines', () => {
 
       expect(onFieldsEdited).toHaveBeenCalled();
     });
+  });
+
+  // ─── Issue #2158: invoice-level default budget source ──────────────────────
+
+  describe('defaultBudgetSourceId (#2158)', () => {
+    const THREE_SOURCES = [
+      { id: 'src-disc', name: 'Discretionary', isDiscretionary: true },
+      { id: 'src-loan', name: 'Bank Loan', isDiscretionary: false },
+      { id: 'src-sav', name: 'Savings', isDiscretionary: false },
+    ];
+
+    function queueDraftFor(
+      result: {
+        current: {
+          setLines: (l: unknown[]) => void;
+          handlers: Record<string, (...args: string[]) => void>;
+        };
+      },
+      line: unknown,
+    ) {
+      act(() => {
+        result.current.setLines([line]);
+        result.current.handlers.onAssign!('r1');
+      });
+      act(() => {
+        result.current.handlers.onQueueNewBudgetLine!();
+      });
+    }
+
+    it('queued draft uses the default when set, ahead of the row source', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
+      );
+
+      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('queued draft falls back to the row source when the default is null', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: null })),
+      );
+
+      queueDraftFor(result, makeLine({ budgetSourceId: 'src-loan' }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
+        'src-loan',
+      );
+    });
+
+    it('queued draft falls back to the discretionary source when default and row source are absent', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+
+      queueDraftFor(result, makeLine({ budgetSourceId: null }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe(
+        'src-disc',
+      );
+    });
+
+    it('queued draft source is empty when there is no default, row source or discretionary source', () => {
+      mockPickerStateOverride = {
+        budgetSources: [{ id: 'src-loan', name: 'Bank Loan', isDiscretionary: false }],
+      };
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+
+      queueDraftFor(result, makeLine({ budgetSourceId: null }));
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('');
+    });
+
+    it('the stable handler sees a default that changed between renders', () => {
+      mockPickerStateOverride = { budgetSources: THREE_SOURCES };
+      const { result, rerender } = renderHook(
+        (props: { defaultBudgetSourceId: string | null }) =>
+          useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: props.defaultBudgetSourceId })),
+        { initialProps: { defaultBudgetSourceId: null as string | null } },
+      );
+
+      act(() => {
+        result.current.setLines([makeLine({ budgetSourceId: 'src-loan' })]);
+        result.current.handlers.onAssign('r1');
+      });
+      const staleHandler = result.current.handlers.onQueueNewBudgetLine;
+      rerender({ defaultBudgetSourceId: 'src-sav' });
+
+      act(() => {
+        staleHandler();
+      });
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('merged line takes the default when set', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() =>
+        useAutoItemizeLines(makeOptions({ defaultBudgetSourceId: 'src-sav' })),
+      );
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
+          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.lines).toHaveLength(1);
+      expect(result.current.lines[0]?.budgetSourceId).toBe('src-sav');
+    });
+
+    it('merged line keeps the first source line source when no default is set', () => {
+      mockMergeLines.mockReturnValue(new Promise(() => {}));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', budgetSourceId: 'src-loan' }),
+          makeLine({ rowId: 'r2', budgetSourceId: 'src-disc' }),
+        ]);
+      });
+      act(() => {
+        result.current.onToggleSelect('r1');
+        result.current.onToggleSelect('r2');
+      });
+
+      act(() => {
+        result.current.onMergeSelected();
+      });
+
+      expect(result.current.lines[0]?.budgetSourceId).toBe('src-loan');
+    });
+  });
+
+  describe('linking and clearing an existing budget line (#2158)', () => {
+    // The mocked picker returns a fresh budgetSources array per render unless one is injected;
+    // the hook's "re-default missing source" effect would then re-fire after every render and
+    // mask the values these tests assert. A stable reference mirrors the real picker state.
+    const STABLE_SOURCES = [{ id: 'src-1', name: 'Main', isDiscretionary: true }];
+
+    const LINKED_NO_SOURCE = {
+      id: 'hib-1',
+      householdItemId: 'hi-1',
+      description: 'Linked HI',
+      budgetSource: null,
+      budgetCategory: null,
+    };
+
+    function setup(options: Record<string, unknown> = {}) {
+      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
+      const hook = renderHook(() => useAutoItemizeLines(makeOptions(options)));
+      act(() => {
+        hook.result.current.setLines([
+          makeLine({ budgetSourceId: 'src-extracted', budgetCategoryId: 'cat-extracted' }),
+        ]);
+        hook.result.current.handlers.onAssign('r1');
+      });
+      return hook;
+    }
+
+    it('onSelectBudgetLine leaves the row source and category unchanged, even when the linked line differs', () => {
+      const { result } = setup();
+
+      act(() => {
+        result.current.handlers.onSelectBudgetLine({
+          id: 'wib-1',
+          workItemId: 'wi-1',
+          description: 'Linked',
+          budgetSource: { id: 'src-linked', name: 'Linked source' },
+          budgetCategory: { id: 'cat-linked', name: 'Linked category' },
+        });
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineId).toBe('wib-1');
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('onSelectBudgetLine leaves the row source and category unchanged when the linked line has none', () => {
+      const { result } = setup();
+
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineType).toBe('household_item');
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('clearing a linked row takes the invoice default source and keeps the category', () => {
+      const { result } = setup({ defaultBudgetSourceId: 'src-default' });
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+
+      act(() => {
+        result.current.handlers.onClearAssign('r1');
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineId).toBeUndefined();
+      expect(line?.budgetSourceId).toBe('src-default');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('clearing a linked row without a default keeps the row pre-link source and category', () => {
+      const { result } = setup();
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+
+      act(() => {
+        result.current.handlers.onClearAssign('r1');
+      });
+
+      const line = result.current.lines[0];
+      expect(line?.assignedBudgetLineId).toBeUndefined();
+      expect(line?.budgetSourceId).toBe('src-extracted');
+      expect(line?.budgetCategoryId).toBe('cat-extracted');
+    });
+
+    it('re-default effect leaves a linked row with a null source alone but fills an unlinked one', () => {
+      mockPickerStateOverride = { budgetSources: STABLE_SOURCES };
+      const { result, rerender } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([
+          makeLine({ rowId: 'r1', budgetSourceId: null }),
+          makeLine({ rowId: 'r2', budgetSourceId: null }),
+        ]);
+        result.current.handlers.onAssign('r1');
+      });
+      act(() => {
+        result.current.handlers.onSelectBudgetLine(LINKED_NO_SOURCE);
+      });
+      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
+      expect(result.current.lines[1]?.budgetSourceId).toBeNull();
+
+      // A new sources array identity re-runs the re-default effect.
+      mockPickerStateOverride = {
+        budgetSources: [{ id: 'src-first', name: 'First', isDiscretionary: false }],
+      };
+      rerender();
+
+      expect(result.current.lines[0]?.assignedBudgetLineId).toBe('hib-1');
+      expect(result.current.lines[0]?.budgetSourceId).toBeNull();
+      expect(result.current.lines[1]?.budgetSourceId).toBe('src-first');
+    });
+  });
+});
+
+// ─── #2149 — linked row snapshot + gross itemized amount ────────────────────
+
+describe('useAutoItemizeLines — link existing keeps the line unchanged (#2149)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let useAutoItemizeLines: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockPickerStateOverride = {};
+    capturedOnLineCreated = null;
+    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+  });
+
+  function makeBudgetLine(id: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id,
+      workItemId: 'wi-1',
+      description: `Desc ${id}`,
+      plannedAmount: 5000,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null, color: '#fff' },
+      budgetSource: { id: 'src-9', name: 'Src 9', sourceType: 'savings' },
+      ...overrides,
+    };
+  }
+
+  function select(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result: { current: any },
+    line: unknown,
+  ) {
+    act(() => {
+      result.current.handlers.onAssign('r1');
+    });
+    act(() => {
+      result.current.handlers.onSelectBudgetLine(line);
+    });
+  }
+
+  it('select stores the snapshot and a gross linkedItemizedAmount without mutating extracted fields', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    const original = makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' });
+    act(() => {
+      result.current.setLines([original]);
+    });
+
+    select(result, makeBudgetLine('wib-1'));
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineSnapshot).toEqual({
+      plannedAmount: 5000,
+      includesVat: false,
+      budgetCategory: { id: 'cat-9', name: 'Cat 9', translationKey: null },
+      budgetSource: { id: 'src-9', name: 'Src 9' },
+    });
+    expect(row.linkedItemizedAmount).toBe(119); // 100 net -> gross
+    expect(row).toMatchObject({
+      totalAmount: 100,
+      includesVat: false,
+      description: 'Extracted',
+      budgetCategoryId: 'cat-1',
+      budgetSourceId: 'src-1',
+      assignedBudgetLineDescription: 'Desc wib-1',
+    });
+  });
+
+  it('select for a gross extracted amount uses it unchanged', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 300, includesVat: true })]);
+    });
+
+    select(result, makeBudgetLine('wib-1'));
+
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(300);
+  });
+
+  it('select treats a missing extracted totalAmount as 0', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: undefined })]);
+    });
+
+    select(result, makeBudgetLine('wib-1', { description: null }));
+
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
+    expect(result.current.lines[0].assignedBudgetLineDescription).toBeNull();
+  });
+
+  it('re-selecting another line keeps the edited itemized amount while the snapshot changes (AC14)', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 100 })]);
+    });
+    select(result, makeBudgetLine('wib-1'));
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '1100');
+    });
+
+    select(
+      result,
+      makeBudgetLine('wib-2', {
+        plannedAmount: 42,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
+      }),
+    );
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineId).toBe('wib-2');
+    expect(row.linkedItemizedAmount).toBe(1100);
+    expect(row.assignedBudgetLineSnapshot).toEqual({
+      plannedAmount: 42,
+      includesVat: true,
+      budgetCategory: null,
+      budgetSource: null,
+    });
+  });
+
+  it('clear resets snapshot and itemized amount; extracted values are intact (AC13)', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({ totalAmount: 100, includesVat: false, description: 'Extracted' }),
+      ]);
+    });
+    select(result, makeBudgetLine('wib-1'));
+
+    act(() => {
+      result.current.handlers.onClearAssign('r1');
+    });
+
+    expect(result.current.lines[0]).toMatchObject({
+      assignedBudgetLineId: undefined,
+      assignedBudgetLineSnapshot: undefined,
+      linkedItemizedAmount: undefined,
+      totalAmount: 100,
+      includesVat: false,
+      description: 'Extracted',
+      budgetCategoryId: 'cat-1',
+    });
+  });
+
+  it('onLineCreated stores the snapshot and itemized amount for the created line', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ totalAmount: 200, includesVat: true })]);
+      result.current.handlers.onAssign('r1');
+    });
+
+    act(() => {
+      capturedOnLineCreated!(makeBudgetLine('created-id', { plannedAmount: 200 }));
+    });
+
+    const row = result.current.lines[0];
+    expect(row.assignedBudgetLineSnapshot).toMatchObject({ plannedAmount: 200 });
+    expect(row.linkedItemizedAmount).toBe(200);
+  });
+
+  it('onLineCreated falls back to household_item type and preserves an existing itemized amount', () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine({ linkedItemizedAmount: 55 })]);
+      result.current.handlers.onAssign('r1');
+    });
+
+    act(() => {
+      capturedOnLineCreated!({
+        id: 'hib-1',
+        householdItemId: 'hi-1',
+        description: 'x',
+        plannedAmount: 1,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
+      });
+    });
+
+    expect(result.current.lines[0]).toMatchObject({
+      assignedBudgetLineType: 'household_item',
+      linkedItemizedAmount: 55,
+    });
+  });
+
+  it("onFieldChange('linkedItemizedAmount', string) parses numbers and falls back to 0 for junk", () => {
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([makeLine()]);
+    });
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', '12.5');
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(12.5);
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 'abc');
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(0);
+
+    act(() => {
+      result.current.handlers.onFieldChange('r1', 'linkedItemizedAmount', 77);
+    });
+    expect(result.current.lines[0].linkedItemizedAmount).toBe(77);
+  });
+});
+
+describe('useAutoItemizeLines — a budget line is never linked twice (picker exclusion)', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let useAutoItemizeLines: any;
+
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    mockPickerStateOverride = {};
+    capturedOnLineCreated = null;
+    ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
+  });
+
+  function makeBudgetLine(id: string) {
+    return {
+      id,
+      workItemId: 'wi-1',
+      description: `Desc ${id}`,
+      plannedAmount: 5000,
+      includesVat: true,
+      invoiceLink: null,
+      budgetCategory: null,
+      budgetSource: null,
+    };
+  }
+
+  const lineA = makeBudgetLine('wib-A');
+  const lineB = makeBudgetLine('wib-B');
+
+  function offeredIds(result: {
+    current: { picker: { pickerState: { budgetLines: Array<{ id: string }> } } };
+  }): string[] {
+    return result.current.picker.pickerState.budgetLines.map((bl) => bl.id);
+  }
+
+  function setupTwoRows() {
+    mockPickerStateOverride = { budgetLines: [lineA, lineB] };
+    const hook = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      hook.result.current.setLines([makeLine({ rowId: 'row0' }), makeLine({ rowId: 'row1' })]);
+    });
+    return hook;
+  }
+
+  function assign(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    result: { current: any },
+    rowId: string,
+    line: unknown,
+  ) {
+    act(() => {
+      result.current.handlers.onAssign(rowId);
+    });
+    act(() => {
+      result.current.handlers.onSelectBudgetLine(line);
+    });
+  }
+
+  it('offers every line when no other row has an assignment', () => {
+    const { result } = setupTwoRows();
+
+    act(() => {
+      result.current.handlers.onAssign('row0');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('hides a line already assigned to another row when the picker opens for a different row', () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A']);
+  });
+
+  it("keeps the active row's own line visible so Change can re-select it", () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+
+    act(() => {
+      result.current.handlers.onAssign('row0');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('offers a line again after the row that held it is cleared', () => {
+    const { result } = setupTwoRows();
+    assign(result, 'row0', lineB);
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+    expect(offeredIds(result)).toEqual(['wib-A']);
+
+    act(() => {
+      result.current.handlers.onClearAssign('row0');
+    });
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('does not hide a line of the other family that merely shares the id string', () => {
+    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({
+          rowId: 'row0',
+          assignedBudgetLineId: 'wib-B',
+          assignedBudgetLineType: 'work_item',
+        }),
+        makeLine({ rowId: 'row1' }),
+      ]);
+    });
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A', 'wib-B']);
+  });
+
+  it('hides a household_item line when it is assigned to another row with the household_item type', () => {
+    mockPickerStateOverride = { type: 'household_item', budgetLines: [lineA, lineB] };
+    const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+    act(() => {
+      result.current.setLines([
+        makeLine({
+          rowId: 'row0',
+          assignedBudgetLineId: 'wib-B',
+          assignedBudgetLineType: 'household_item',
+        }),
+        makeLine({ rowId: 'row1' }),
+      ]);
+    });
+
+    act(() => {
+      result.current.handlers.onAssign('row1');
+    });
+
+    expect(offeredIds(result)).toEqual(['wib-A']);
   });
 });

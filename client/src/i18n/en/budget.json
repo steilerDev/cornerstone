@@ -1178,6 +1178,13 @@
     "createdFromAutoItemization": "Auto-created",
     "creatingNew": "(New)",
     "clearAssignmentAriaLabel": "Clear budget line assignment",
+    "linkedLineReadOnlyHint": "Linking keeps this budget line's category, funding source and planned amount unchanged.",
+    "plannedAmountLabel": "Planned amount",
+    "linkedLinePlannedNet": "{{amount}} (excl. VAT)",
+    "linkedLineNotSet": "Not set",
+    "itemizedAmountLabel": "Invoiced amount (incl. VAT)",
+    "changeAssignment": "Change…",
+    "changeAssignmentAriaLabel": "Change linked budget line",
     "categoryLabel": "Category",
     "categoryPlaceholder": "Select category",
     "categoryAriaLabel": "Select budget category for line item",
@@ -1209,6 +1216,10 @@
     "vendorRequired": "Vendor is required",
     "addNewVendor": "Add new vendor",
     "addNewVendorNamed": "Add new vendor \"{{name}}\"",
+    "budgetSource": "Budget source",
+    "budgetSourceNone": "No default",
+    "budgetSourceApplied_one": "Budget source \"{{name}}\" applied to {{count}} line",
+    "budgetSourceApplied_other": "Budget source \"{{name}}\" applied to {{count}} lines",
     "vendorCreatedAnnounce": "Vendor \"{{name}}\" created and selected",
     "createAndItemize": "Create Invoice & Itemize",
     "extractingFromDocument": "Analyzing document…",
@@ -1283,7 +1294,16 @@
     "selectAtLeastOne": "Select at least one invoice to proceed",
     "settingsStep": {
       "languageHeading": "Report language",
-      "languageHelper": "Only affects the exported report — your app language stays the same."
+      "languageHelper": "Only affects the exported report — your app language stays the same.",
+      "maxFileSizeLabel": "Maximum file size (MB)",
+      "maxFileSizeUnit": "MB",
+      "maxFileSizeHelper": "Leave empty for a single PDF without a limit. Larger reports are split into several PDFs.",
+      "maxFileSizeDisabledHint": "Only applies to attached invoice PDFs.",
+      "maxFileSizeError": {
+        "invalid": "Enter a positive number, for example 10 or 9.5.",
+        "min": "The minimum is 1 MB.",
+        "decimals": "Use at most one decimal place."
+      }
     },
     "attachDocuments": "Attach invoice PDFs",
     "attachDocumentsHelper": "Appends each selected invoice's source PDF as an appendix",
@@ -1322,6 +1342,55 @@
     "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
     "resetSelection": "Reset selection",
     "subNavAriaLabel": "Budget section navigation",
+    "parts": {
+      "letter": {
+        "identifier": "{{title}} – {{source}}, {{date}}",
+        "continuationSubject": "Attachment {{part}} of {{total}} to report {{report}}",
+        "continuationBody": "This file is part {{part}} of {{total}} of the report {{report}} and contains only the invoice attachments listed below.",
+        "continuationInvoicesHeading": "Invoices in this file:",
+        "continuationInvoiceLine": "{{vendor}}, no. {{invoiceNumber}}, {{date}}",
+        "multiPartNotice_one": "This report consists of {{total}} files. The remaining invoice attachments follow in one further file with its own attachment letter.",
+        "multiPartNotice_other": "This report consists of {{total}} files. The remaining invoice attachments follow in {{count}} further files, each with its own attachment letter.",
+        "multiPartNoticeNoLetter_one": "Part 1 of {{total}}. The invoice attachments continue in one further file.",
+        "multiPartNoticeNoLetter_other": "Part 1 of {{total}}. The invoice attachments continue in {{count}} further files.",
+        "paperlessTitle": "{{title}} ({{part}} of {{total}})"
+      },
+      "heading": "Generated files",
+      "summary_one": "{{count}} file, {{size}} in total",
+      "summary_other": "{{count}} files, {{size}} in total",
+      "fileMeta": "Part {{part}} of {{total}} · {{size}} · {{attachments}}",
+      "attachmentCount_one": "{{count}} attachment",
+      "attachmentCount_other": "{{count}} attachments",
+      "downloadAll_one": "Download all ({{count}} PDF)",
+      "downloadAll_other": "Download all ({{count}} PDFs)",
+      "uploadAll_one": "Upload all ({{count}}) to Paperless",
+      "uploadAll_other": "Upload all ({{count}}) to Paperless",
+      "retryFailed": "Retry failed ({{count}})",
+      "downloadFile": "Download",
+      "downloadFileAriaLabel": "Download {{filename}}",
+      "previewPartLabel": "File",
+      "previewPartOption": "Part {{part}} of {{total}}",
+      "preparing": "Preparing files…",
+      "stale": "The report changed since the files were prepared. They are regenerated on the next preview, download or upload.",
+      "updateFiles": "Update files",
+      "downloading": "Downloading {{current}} of {{total}}…",
+      "uploading": "Uploading {{current}} of {{total}}…",
+      "uploadFailedSummary": "{{failed}} of {{total}} files failed to upload.",
+      "uploadAllSuccess_one": "{{count}} file uploaded to Paperless.",
+      "uploadAllSuccess_other": "{{count}} files uploaded to Paperless.",
+      "failedReason": "Failed: {{reason}}",
+      "status": {
+        "uploaded": "Uploaded",
+        "failed": "Failed",
+        "overLimit": "Over limit"
+      },
+      "warning": {
+        "oversizedAttachment": "Invoice {{vendor}} {{invoiceNumber}}: {{document}} is {{size}}, larger than the {{limit}} limit. It is placed in its own file.",
+        "reportExceedsLimit": "The report pages alone ({{size}}) are larger than the {{limit}} limit. The first file contains only the report; all attachments are in the following files.",
+        "reportExceedsLimitNoAttachments": "The report ({{size}}) is larger than the {{limit}} limit.",
+        "partOverLimit": "File {{part}} is {{size}}, over the {{limit}} limit."
+      }
+    },
     "coverLetter": {
       "subjectLabel": "Subject",
       "dateLabel": "Date",
@@ -1336,6 +1405,7 @@
         "claim": "We are submitting a claim for invoices totaling {{total}}.",
         "proof-of-funds": "Please find attached proof of funds totaling {{total}}."
       },
+      "opening": "Dear Sir or Madam,",
       "closing": "Sincerely,"
     },
     "editable": {
@@ -1345,6 +1415,7 @@
       "signatureLabel": "Signature",
       "subjectLabel": "Subject",
       "bodyLabel": "Body",
+      "openingLabel": "Opening",
       "closingLabel": "Closing",
       "attachmentsNoteLabel": "Attachments Note",
       "usageTextAriaLabel": "Usage text for {{vendor}}, {{invoiceNumber}}",
@@ -1444,7 +1515,15 @@
       "claimedDate": "Claimed"
     },
     "unassigned": "Unassigned",
-    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) have excluded line items and will keep their current claim status — the excluded portion stays claimable in a future report."
+    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) have excluded line items and will keep their current claim status — the excluded portion stays claimable in a future report.",
+    "sizing": {
+      "progress": "Checking attachment sizes… {{current}} of {{total}}",
+      "fetchFailed_one": "{{count}} attachment could not be loaded. Check the Paperless connection and try again, or continue without it.",
+      "fetchFailed_other": "{{count}} attachments could not be loaded. Check the Paperless connection and try again, or continue without them.",
+      "fetchFailedItem": "{{title}} ({{vendor}}, {{invoiceNumber}})",
+      "documentFallbackTitle": "Document {{id}}",
+      "continueAnyway": "Continue without them"
+    }
   },
   "common": {
     "loading": "Loading...",

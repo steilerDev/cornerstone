@@ -78,7 +78,7 @@ describe('Household Item Subsidy Payback Routes', () => {
    * Helper: Create a household item via service.
    */
   function createTestHouseholdItem(name: string, userId: string): { id: string } {
-    const item = householdItemService.createHouseholdItem(app.db, userId, { name });
+    const item = householdItemService.createHouseholdItem(app.db, userId, { name }, 0.19);
     return { id: item.id };
   }
 

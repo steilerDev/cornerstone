@@ -21,6 +21,7 @@ export const TEST_MEMBER = {
 
 export const ROUTES = {
   home: '/project/overview',
+  photos: '/photos',
   setup: '/setup',
   login: '/login',
   workItems: '/project/work-items',

@@ -237,6 +237,27 @@ export function formatFileSize(bytes: number, locale = 'en-US'): string {
 }
 
 /**
+ * Format a byte count using the decimal (SI) convention: 1 kB = 1000 B, 1 MB = 1,000,000 B.
+ * Used for the user-set maximum file size and every size shown next to it (#2161), so the limit
+ * and the displayed part sizes never mix decimal and binary units. `formatFileSize` is unchanged.
+ *
+ * @param bytes - The size in bytes.
+ * @param locale - The locale for number formatting (default: 'en-US').
+ * @returns A formatted file size string (e.g. "9.5 MB").
+ */
+export function formatFileSizeDecimal(bytes: number, locale = 'en-US'): string {
+  const oneDecimal = (value: number) =>
+    new Intl.NumberFormat(locale, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).format(
+      value,
+    );
+  if (bytes < 1000) return `${bytes} B`;
+  // Choose the unit after rounding so 999,999 B renders as "1.0 MB", not "1,000.0 kB".
+  const kb = Math.round((bytes / 1000) * 10) / 10;
+  if (kb < 1000) return `${oneDecimal(kb)} kB`;
+  return `${oneDecimal(bytes / 1_000_000)} MB`;
+}
+
+/**
  * Format a duration in hours as a locale-aware string with 2 decimal places
  * (e.g. "7.50 h" in en-US, "7,50 h" in de-DE).
  *

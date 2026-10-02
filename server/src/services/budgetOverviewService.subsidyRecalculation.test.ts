@@ -197,7 +197,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(80, 5);
   });
@@ -213,7 +213,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(120, 5);
   });
@@ -229,7 +229,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(100, 5);
   });
@@ -261,7 +261,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     linkWorkItemSubsidy(wi1, progId);
     linkWorkItemSubsidy(wi2, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     // Only line in cat1 gets reduction: 600 * 10% = 60
     expect(result.subsidySummary.totalReductions).toBeCloseTo(60, 5);
@@ -289,7 +289,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     linkWorkItemSubsidy(wiA, progId);
     linkWorkItemSubsidy(wiB, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(130, 5);
   });
@@ -307,7 +307,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 1000 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     // perLineAmount = 1000/1 = 1000; costBasis = 50; min(1000, 50) = 50
     expect(result.subsidySummary.totalReductions).toBeCloseTo(50, 5);
@@ -324,7 +324,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 500 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     // perLineAmount = 500/1 = 500; costBasis = 2000; min(500, 2000) = 500
     expect(result.subsidySummary.totalReductions).toBeCloseTo(500, 5);
@@ -341,7 +341,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     const progId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 500 });
     linkWorkItemSubsidy(workItemId, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     // perLineAmount = 500/1 = 500; costBasis = 5000; min(500, 5000) = 500
     expect(result.subsidySummary.totalReductions).toBeCloseTo(500, 5);
@@ -370,7 +370,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     linkWorkItemSubsidy(wi1, progId);
     linkWorkItemSubsidy(wi2, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(100, 5);
   });
@@ -394,7 +394,7 @@ describe('getBudgetOverview — subsidy recalculation with invoice cost basis (E
     linkWorkItemSubsidy(wi1, progId);
     linkWorkItemSubsidy(wi2, progId);
 
-    const result = getBudgetOverview(db);
+    const result = getBudgetOverview(db, 0.19);
 
     expect(result.subsidySummary.totalReductions).toBeCloseTo(150, 5);
   });

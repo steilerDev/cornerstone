@@ -470,6 +470,9 @@ Before creating a new UI component, check if an existing shared component can be
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
 - `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic, and the `useInfiniteScrollAnnouncements` hook (`client/src/hooks/`), which owns the live-region announcement bookkeeping.
+- `SpotThumbnail` — photo-spot thumbnail link with count overlay and date (`cell`/`card` variants), or a dashed empty placeholder; all text via props, parameterized by `testId`
+- `FilterChipGroup` — pick-one chip group (`aria-pressed` toggle buttons, horizontally scrollable); parameterized by `options`/`ariaLabel`/`testIdPrefix`
+- `FileList` — list of generated files with a per-file action, status badges and a detail line; all strings come from props, `testIdPrefix` parameterized (used by the report wizard's multi-PDF step)
 
 **Rules:**
 
@@ -489,7 +492,7 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, `formatFileSizeDecimal` (1 MB = 1,000,000 B; used for the report size limit and the sizes shown beside it), and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
 - **Union-derived keys**: A union enumerated at runtime is a shared `as const` tuple with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key in new code (pre-existing template-literal sites are tracked in #2136) — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029).
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.

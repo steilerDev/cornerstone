@@ -1178,6 +1178,13 @@
     "createdFromAutoItemization": "Automatisch erstellt",
     "creatingNew": "(Neu)",
     "clearAssignmentAriaLabel": "Budgetposition-Zuweisung löschen",
+    "linkedLineReadOnlyHint": "Das Verknüpfen behält Kategorie, Finanzierungsquelle und geplanten Betrag dieser Budgetposition unverändert.",
+    "plannedAmountLabel": "Geplanter Betrag",
+    "linkedLinePlannedNet": "{{amount}} (ohne MwSt.)",
+    "linkedLineNotSet": "Nicht gesetzt",
+    "itemizedAmountLabel": "Rechnungsbetrag (inkl. MwSt.)",
+    "changeAssignment": "Ändern…",
+    "changeAssignmentAriaLabel": "Verknüpfte Budgetposition ändern",
     "categoryLabel": "Kategorie",
     "categoryPlaceholder": "Kategorie auswählen",
     "categoryAriaLabel": "Budgetkategorie für Position auswählen",
@@ -1209,6 +1216,10 @@
     "vendorRequired": "Auftragnehmer ist erforderlich",
     "addNewVendor": "Neuen Auftragnehmer hinzufügen",
     "addNewVendorNamed": "Neuen Auftragnehmer „{{name}}“ hinzufügen",
+    "budgetSource": "Budgetquelle",
+    "budgetSourceNone": "Kein Standard",
+    "budgetSourceApplied_one": "Budgetquelle „{{name}}“ auf {{count}} Position angewendet",
+    "budgetSourceApplied_other": "Budgetquelle „{{name}}“ auf {{count}} Positionen angewendet",
     "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
     "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
     "extractingFromDocument": "Dokument wird analysiert…",
@@ -1257,7 +1268,16 @@
     "mobileStepLabel": "Schritt {{current}} von {{total}}",
     "settingsStep": {
       "languageHeading": "Berichtssprache",
-      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert."
+      "languageHelper": "Betrifft nur den exportierten Bericht – die Sprache der App bleibt unverändert.",
+      "maxFileSizeLabel": "Maximale Dateigröße (MB)",
+      "maxFileSizeUnit": "MB",
+      "maxFileSizeHelper": "Leer lassen für ein einzelnes PDF ohne Limit. Größere Berichte werden in mehrere PDFs aufgeteilt.",
+      "maxFileSizeDisabledHint": "Gilt nur für angehängte Rechnungs-PDFs.",
+      "maxFileSizeError": {
+        "invalid": "Geben Sie eine positive Zahl ein, zum Beispiel 10 oder 9,5.",
+        "min": "Das Minimum beträgt 1 MB.",
+        "decimals": "Verwenden Sie höchstens eine Dezimalstelle."
+      }
     },
     "useCaseLabel": "Welchen Bericht benötigen Sie?",
     "useCase": {
@@ -1322,21 +1342,71 @@
     "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
     "subNavAriaLabel": "Budget-Abschnittsnavigation",
+    "parts": {
+      "letter": {
+        "identifier": "{{title}} – {{source}}, {{date}}",
+        "continuationSubject": "Anlage {{part}} von {{total}} zum Bericht {{report}}",
+        "continuationBody": "Diese Datei ist Teil {{part}} von {{total}} des Berichts {{report}} und enthält nur die unten aufgelisteten Anhänge von Rechnungen.",
+        "continuationInvoicesHeading": "Rechnungen in dieser Datei:",
+        "continuationInvoiceLine": "{{vendor}}, Nr. {{invoiceNumber}}, {{date}}",
+        "multiPartNotice_one": "Dieser Bericht besteht aus {{total}} Dateien. Die verbleibenden Anhänge von Rechnungen folgen in einer weiteren Datei mit ihrem eigenen Anhangsbrief.",
+        "multiPartNotice_other": "Dieser Bericht besteht aus {{total}} Dateien. Die verbleibenden Anhänge von Rechnungen folgen in {{count}} weiteren Dateien mit jeweils eigenem Anhangsbrief.",
+        "multiPartNoticeNoLetter_one": "Teil 1 von {{total}}. Die Anhänge der Rechnungen folgen in einer weiteren Datei.",
+        "multiPartNoticeNoLetter_other": "Teil 1 von {{total}}. Die Anhänge der Rechnungen folgen in {{count}} weiteren Dateien.",
+        "paperlessTitle": "{{title}} ({{part}} von {{total}})"
+      },
+      "heading": "Erstellte Dateien",
+      "summary_one": "{{count}} Datei, insgesamt {{size}}",
+      "summary_other": "{{count}} Dateien, insgesamt {{size}}",
+      "fileMeta": "Teil {{part}} von {{total}} · {{size}} · {{attachments}}",
+      "attachmentCount_one": "{{count}} Anhang",
+      "attachmentCount_other": "{{count}} Anhänge",
+      "downloadAll_one": "Alle herunterladen ({{count}} PDF)",
+      "downloadAll_other": "Alle herunterladen ({{count}} PDFs)",
+      "uploadAll_one": "Alle ({{count}}) zu Paperless hochladen",
+      "uploadAll_other": "Alle ({{count}}) zu Paperless hochladen",
+      "retryFailed": "Fehlgeschlagene erneut versuchen ({{count}})",
+      "downloadFile": "Herunterladen",
+      "downloadFileAriaLabel": "{{filename}} herunterladen",
+      "previewPartLabel": "Datei",
+      "previewPartOption": "Teil {{part}} von {{total}}",
+      "preparing": "Dateien werden vorbereitet…",
+      "stale": "Der Bericht hat sich seit der Vorbereitung der Dateien geändert. Sie werden bei der nächsten Vorschau, beim Download oder Upload erneut erstellt.",
+      "updateFiles": "Dateien aktualisieren",
+      "downloading": "Datei {{current}} von {{total}} wird heruntergeladen…",
+      "uploading": "Datei {{current}} von {{total}} wird hochgeladen…",
+      "uploadFailedSummary": "{{failed}} von {{total}} Dateien konnten nicht hochgeladen werden.",
+      "uploadAllSuccess_one": "{{count}} Datei zu Paperless hochgeladen.",
+      "uploadAllSuccess_other": "{{count}} Dateien zu Paperless hochgeladen.",
+      "failedReason": "Fehlgeschlagen: {{reason}}",
+      "status": {
+        "uploaded": "Hochgeladen",
+        "failed": "Fehlgeschlagen",
+        "overLimit": "Größenlimit überschritten"
+      },
+      "warning": {
+        "oversizedAttachment": "Rechnung {{vendor}} {{invoiceNumber}}: {{document}} ist {{size}} groß und damit größer als das Limit von {{limit}}. Das Dokument wird in einer eigenen Datei abgelegt.",
+        "reportExceedsLimit": "Die Berichtsseiten allein ({{size}}) sind größer als das Limit von {{limit}}. Die erste Datei enthält nur den Bericht; alle Anhänge befinden sich in den folgenden Dateien.",
+        "reportExceedsLimitNoAttachments": "Der Bericht ({{size}}) ist größer als das Limit von {{limit}}.",
+        "partOverLimit": "Datei {{part}} ist {{size}} groß und damit größer als das Limit von {{limit}}."
+      }
+    },
     "coverLetter": {
       "subjectLabel": "Betreff",
       "dateLabel": "Datum",
       "reference": "Referenz",
       "subject": {
         "budget-overview": "Budgetübersicht unseres Bauprojekts",
-        "claim": "Einreichungsunterlagen",
+        "claim": "Abruf Kreditmittel",
         "proof-of-funds": "Verwendungsnachweis"
       },
       "body": {
-        "budget-overview": "Anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
-        "claim": "Hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
-        "proof-of-funds": "Anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
+        "budget-overview": "anbei erhalten Sie die Budgetübersicht unseres Bauprojekts mit einer Gesamtsumme von {{total}}.",
+        "claim": "hiermit reichen wir Rechnungen in Höhe von insgesamt {{total}} zur Erstattung ein.",
+        "proof-of-funds": "anbei erhalten Sie den Verwendungsnachweis über insgesamt {{total}}."
       },
-      "closing": "Mit freundlichen Grüßen"
+      "closing": "Mit freundlichen Grüßen",
+      "opening": "Sehr geehrte Damen und Herren,"
     },
     "editable": {
       "senderLabel": "Absender",
@@ -1345,6 +1415,7 @@
       "signatureLabel": "Unterschrift",
       "subjectLabel": "Betreff",
       "bodyLabel": "Brieftext",
+      "openingLabel": "Anrede",
       "closingLabel": "Grußformel",
       "attachmentsNoteLabel": "Anhangshinweis",
       "usageTextAriaLabel": "Verwendungstext für {{vendor}}, {{invoiceNumber}}",
@@ -1444,7 +1515,15 @@
       "claimedDate": "Eingereicht"
     },
     "unassigned": "Nicht zugewiesen",
-    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) haben ausgeschlossene Positionen und behalten ihren aktuellen Einreichungsstatus – der ausgeschlossene Anteil bleibt für einen zukünftigen Bericht einreichbar."
+    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) haben ausgeschlossene Positionen und behalten ihren aktuellen Einreichungsstatus – der ausgeschlossene Anteil bleibt für einen zukünftigen Bericht einreichbar.",
+    "sizing": {
+      "progress": "Anhanggrößen werden überprüft… {{current}} von {{total}}",
+      "fetchFailed_one": "{{count}} Anhang konnte nicht geladen werden. Überprüfen Sie die Paperless-Verbindung und versuchen Sie es erneut, oder fahren Sie ohne ihn fort.",
+      "fetchFailed_other": "{{count}} Anhänge konnten nicht geladen werden. Überprüfen Sie die Paperless-Verbindung und versuchen Sie es erneut, oder fahren Sie ohne sie fort.",
+      "fetchFailedItem": "{{title}} ({{vendor}}, {{invoiceNumber}})",
+      "documentFallbackTitle": "Dokument {{id}}",
+      "continueAnyway": "Ohne fehlende Anhänge fortfahren"
+    }
   },
   "common": {
     "loading": "Wird geladen...",

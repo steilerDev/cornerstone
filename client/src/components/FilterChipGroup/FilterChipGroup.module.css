@@ -1,0 +1,36 @@
+.group {
+  display: flex;
+  gap: var(--spacing-2);
+  overflow-x: auto;
+  /* Room for the focus ring (clipped by the scroll container); negative margin keeps chips aligned. */
+  padding: var(--spacing-1);
+  margin: calc(-1 * var(--spacing-1));
+}
+
+.chip {
+  flex-shrink: 0;
+  min-height: 2.75rem;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.chip:hover {
+  background: var(--color-bg-hover);
+}
+
+.chip[aria-pressed='true'] {
+  background: var(--color-bg-inverse);
+  border-color: var(--color-bg-inverse);
+  color: var(--color-text-inverse);
+}
+
+.chip:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}

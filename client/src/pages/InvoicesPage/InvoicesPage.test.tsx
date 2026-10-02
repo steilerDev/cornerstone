@@ -81,6 +81,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({
     locale: 'en' as const,
     resolvedLocale: 'en' as const,
+    vatRate: 0.19,
     currency: 'EUR',
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),

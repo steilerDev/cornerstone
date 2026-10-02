@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
   BaseBudgetLine,
   BudgetSource,
@@ -80,6 +81,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onInvoiceLineMove,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
+  const { vatRate } = useLocale();
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
@@ -266,7 +268,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
             0,
           );
           const plannedTotal = groupLines.reduce(
-            (sum, line) => sum + effectivePlannedAmount(line),
+            (sum, line) => sum + effectivePlannedAmount(line, vatRate),
             0,
           );
           const vendorName = groupLines[0]?.invoiceLink?.vendorName ?? null;

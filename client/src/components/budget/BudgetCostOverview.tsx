@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type { BaseBudgetLine } from '@cornerstone/shared';
 import { computeBudgetTotals } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -32,6 +33,7 @@ export function BudgetCostOverview({
   oversubscribedSubsidyNames,
 }: BudgetCostOverviewProps) {
   const { t } = useTranslation('budget');
+  const { vatRate } = useLocale();
   const { formatCurrency } = useFormatters();
   if (budgetLines.length === 0) return null;
 
@@ -42,7 +44,7 @@ export function BudgetCostOverview({
     hasPlannedRange,
     allInvoiced,
     allQuotation,
-  } = computeBudgetTotals(budgetLines);
+  } = computeBudgetTotals(budgetLines, vatRate);
 
   // When all lines are quotation-linked, costs are NOT fully known — show ranges
   const costsKnown = allInvoiced && !allQuotation;

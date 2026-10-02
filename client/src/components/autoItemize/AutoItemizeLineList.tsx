@@ -74,7 +74,7 @@ export function AutoItemizeLineList({
   const hasDiscretionaryLines = useMemo(
     () =>
       discretionarySourceId !== undefined &&
-      lines.some((l) => l.budgetSourceId === discretionarySourceId),
+      lines.some((l) => !l.assignedBudgetLineId && l.budgetSourceId === discretionarySourceId),
     [discretionarySourceId, lines],
   );
 
@@ -191,6 +191,7 @@ export function AutoItemizeLineList({
                 <AutoItemizeLineCard
                   key={line.rowId}
                   line={line}
+                  formatCurrency={formatCurrency}
                   selected={selectedRowIds.has(line.rowId)}
                   selectable={selectable}
                   onToggleSelect={selectable ? onToggleSelect : undefined}

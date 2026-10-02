@@ -12,6 +12,7 @@ import {
   formatWeekdayShort,
   formatWeekdayMonthDay,
   formatFileSize,
+  formatFileSizeDecimal,
   formatHours,
   formatDateTimeWithZone,
   useFormatters,
@@ -884,5 +885,54 @@ describe('createFormatters', () => {
         localStorage.removeItem('locale');
       }
     });
+  });
+});
+
+// ─── formatFileSizeDecimal (#2161) ────────────────────────────────────────────
+
+describe('formatFileSizeDecimal', () => {
+  it('formats 0 bytes as "0 B"', () => {
+    expect(formatFileSizeDecimal(0, 'en-US')).toBe('0 B');
+  });
+
+  it('formats 999 bytes as "999 B" (just under the kB boundary)', () => {
+    expect(formatFileSizeDecimal(999, 'en-US')).toBe('999 B');
+  });
+
+  it('formats exactly 1000 bytes as "1.0 kB" (decimal base, not 1024)', () => {
+    expect(formatFileSizeDecimal(1000, 'en-US')).toBe('1.0 kB');
+  });
+
+  it('formats 1024 bytes as "1.0 kB" (base 1000, rounded to one decimal)', () => {
+    expect(formatFileSizeDecimal(1024, 'en-US')).toBe('1.0 kB');
+  });
+
+  it('rolls 999,999 bytes over to "1.0 MB" instead of "1,000.0 kB"', () => {
+    expect(formatFileSizeDecimal(999_999, 'en-US')).toBe('1.0 MB');
+  });
+
+  it('keeps 999,949 bytes in kB ("999.9 kB"), just below the rounding rollover', () => {
+    expect(formatFileSizeDecimal(999_949, 'en-US')).toBe('999.9 kB');
+  });
+
+  it('formats exactly 1,000,000 bytes as "1.0 MB" (MB boundary, inclusive)', () => {
+    expect(formatFileSizeDecimal(1_000_000, 'en-US')).toBe('1.0 MB');
+  });
+
+  it('formats 9,500,000 bytes as "9.5 MB" and 600,000 bytes as "600.0 kB"', () => {
+    expect(formatFileSizeDecimal(9_500_000, 'en-US')).toBe('9.5 MB');
+    expect(formatFileSizeDecimal(600_000, 'en-US')).toBe('600.0 kB');
+  });
+
+  it('uses a decimal comma and dot grouping in de-DE', () => {
+    expect(formatFileSizeDecimal(999, 'de-DE')).toBe('999 B');
+    expect(formatFileSizeDecimal(1000, 'de-DE')).toBe('1,0 kB');
+    expect(formatFileSizeDecimal(999_999, 'de-DE')).toBe('1,0 MB');
+    expect(formatFileSizeDecimal(1_000_000, 'de-DE')).toBe('1,0 MB');
+    expect(formatFileSizeDecimal(9_500_000, 'de-DE')).toBe('9,5 MB');
+  });
+
+  it('defaults to en-US when no locale is given', () => {
+    expect(formatFileSizeDecimal(1_500_000)).toBe('1.5 MB');
   });
 });

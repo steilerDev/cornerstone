@@ -42,6 +42,7 @@ export interface ReportContentCoverLetter {
   dateLine: string; // READ-ONLY
   reference: string | null; // EDITABLE when non-null; null → omitted; distinct from sourceInfo.referenceText
   subject: string; // EDITABLE; baseline reportT(subject.<useCase>)
+  opening: string; // READ-ONLY; reportT('sourceReports.coverLetter.opening'); printed between subject and body. Same artifact-content rule as `closing` (#1909/#1924); no override key (#2159)
   body: string; // EDITABLE; baseline reportT(body.<useCase>, {total}) interpolated ONCE at build
   signature: string; // EDITABLE (first-class); baseline derived from sender's first line (the user's display name, per AC 3.1); NOT recomputed from sender once explicitly overridden — see applyOverrides.ts
   closing: string; // READ-ONLY; reportT('sourceReports.coverLetter.closing'); part of the letter artifact, never rendered through the editor's interface t (artifact-content-vs-edit-affordance rule, #1909/#1924)
@@ -75,6 +76,24 @@ export interface ReportContentLabels {
   skipReasonLabels: Record<ReportSkipReason, string>;
 }
 
+/**
+ * Report-language strings for the multi-PDF split (#2161). Functions close over `reportT` inside
+ * `buildReportContent`, so `lib/reportPdf/*` never touches i18n. Present ONLY when
+ * `buildReportContent` is called with `includePartTexts: true`.
+ */
+export interface ReportContentPartTexts {
+  identifier: string;
+  continuationSubject: (part: number, total: number) => string;
+  continuationBody: (part: number, total: number) => string;
+  continuationInvoicesHeading: string;
+  continuationInvoiceLine: (
+    row: Pick<ReportContentRow, 'vendor' | 'invoiceNumber' | 'dateText'>,
+  ) => string;
+  multiPartNotice: (total: number) => string;
+  multiPartNoticeNoLetter: (total: number) => string;
+  paperlessTitle: (baseTitle: string, partLabel: string, total: number) => string;
+}
+
 export interface ReportContent {
   isOverview: boolean;
   isClaim: boolean;
@@ -90,6 +109,7 @@ export interface ReportContent {
   rows: ReportContentRow[];
   summaryRows: ReportContentSummaryRow[];
   footnotes: ReportContentFootnote[];
+  partTexts?: ReportContentPartTexts; // opt-in (#2161)
 }
 
 export type ReportContentOverrides = Record<string, string>;

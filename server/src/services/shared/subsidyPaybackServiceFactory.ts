@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../../db/schema.js';
+import { effectivePlannedAmount } from '@cornerstone/shared';
 import { NotFoundError } from '../../errors/AppError.js';
 import { computeSubsidyEffects } from './subsidyCalculationEngine.js';
 import type { LinkedSubsidy } from './subsidyCalculationEngine.js';
@@ -21,8 +22,8 @@ export interface SubsidyPaybackConfig {
 
 export function createSubsidyPaybackService(
   config: SubsidyPaybackConfig,
-): (db: DbType, entityId: string) => unknown {
-  return function getPayback(db: DbType, entityId: string): unknown {
+): (db: DbType, entityId: string, vatRate: number) => unknown {
+  return function getPayback(db: DbType, entityId: string, vatRate: number): unknown {
     const item = db.get<{ id: string }>(
       sql`SELECT id FROM ${sql.raw(config.entityTable)} WHERE id = ${entityId}`,
     );
@@ -61,12 +62,14 @@ export function createSubsidyPaybackService(
     const budgetLineRows = db.all<{
       id: string;
       plannedAmount: number;
+      includesVat: number | null;
       confidence: string;
       budgetCategoryId: string | null;
     }>(
       sql`SELECT
         id                 AS id,
         planned_amount     AS plannedAmount,
+        includes_vat       AS includesVat,
         confidence         AS confidence,
         budget_category_id AS budgetCategoryId
       FROM ${sql.raw(config.budgetLinesTable)}
@@ -96,7 +99,11 @@ export function createSubsidyPaybackService(
     const engineBudgetLines = budgetLineRows.map((line) => ({
       id: line.id,
       budgetCategoryId: line.budgetCategoryId,
-      plannedAmount: line.plannedAmount,
+      // VAT-effective planned amount, matching budgetOverviewService / budgetBreakdownService
+      plannedAmount: effectivePlannedAmount(
+        { plannedAmount: line.plannedAmount, includesVat: line.includesVat !== 0 },
+        vatRate,
+      ),
       confidence: line.confidence,
     }));
 

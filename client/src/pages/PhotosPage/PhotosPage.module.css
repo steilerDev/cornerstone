@@ -1,0 +1,16 @@
+.subtitle {
+  margin: 0 0 var(--spacing-4);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-4);
+}
+
+.retryButton {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}

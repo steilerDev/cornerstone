@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, render } from '@testing-library/react';
+import { screen, render, act } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
+import i18n from '../../../i18n/index.js';
 import { DiaryFilterBar } from './DiaryFilterBar.js';
 
 describe('DiaryFilterBar', () => {
@@ -312,8 +313,136 @@ describe('DiaryFilterBar', () => {
     renderFilterBar({ searchQuery: '', dateFrom: '', dateTo: '', activeTypes: [] });
     const toggleButton = screen.getByRole('button', { name: /toggle filters/i });
     // Badge should not be rendered when filterCount === 0
-    // The text will be "🔍 Filters" without a number badge
+    // The text will be "🔍 Filters" (diary:filterBar.filtersToggle) without a number badge
     expect(toggleButton.textContent).not.toMatch(/[1-9]/);
+  });
+
+  // ─── Chip labels and order (diary:entryTypeChips) ──────────────────────────
+
+  const chipOrder = (): (string | null)[] =>
+    screen
+      .getAllByTestId(/^type-filter-/)
+      .map((el) => el.getAttribute('data-testid')?.replace('type-filter-', '') ?? null);
+
+  it('renders chips in exact order in all mode, without invoice_created', () => {
+    renderFilterBar({ filterMode: 'all' });
+    expect(chipOrder()).toEqual([
+      'daily_log',
+      'site_visit',
+      'delivery',
+      'issue',
+      'general_note',
+      'work_item_status',
+      'invoice_status',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
+    ]);
+  });
+
+  it('renders exactly the 5 manual chips in order in manual mode', () => {
+    renderFilterBar({ filterMode: 'manual' });
+    expect(chipOrder()).toEqual(['daily_log', 'site_visit', 'delivery', 'issue', 'general_note']);
+  });
+
+  it('renders exactly the 6 automatic chips (no invoice_created) in order in automatic mode', () => {
+    renderFilterBar({ filterMode: 'automatic' });
+    expect(chipOrder()).toEqual([
+      'work_item_status',
+      'invoice_status',
+      'milestone_delay',
+      'budget_breach',
+      'auto_reschedule',
+      'subsidy_status',
+    ]);
+  });
+
+  it('shows the short English chip labels from diary:entryTypeChips', () => {
+    renderFilterBar();
+    expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Note$/);
+    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice$/);
+    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(/^Work Item$/);
+  });
+
+  it('shows the English filters toggle text', () => {
+    renderFilterBar();
+    expect(screen.getByRole('button', { name: 'Toggle filters' })).toHaveTextContent(
+      /^🔍 Filters\s*$/,
+    );
+  });
+
+  it('shows German chip labels and toggle text when the language is German', async () => {
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    try {
+      renderFilterBar();
+      expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Notiz$/);
+      expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
+        /^Arbeitspaket$/,
+      );
+      expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Rechnung$/);
+      expect(screen.getByRole('button', { name: 'Filter ein-/ausblenden' })).toHaveTextContent(
+        /^🔍 Filter\s*$/,
+      );
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  });
+
+  it('Escape in the search input clears a non-empty query and stops propagation', async () => {
+    const user = userEvent.setup();
+    const outer = jest.fn();
+    document.addEventListener('keydown', outer);
+    try {
+      renderFilterBar({ searchQuery: 'abc' });
+      await user.type(screen.getByTestId('diary-search-input'), '{Escape}');
+      expect(defaultProps.onSearchChange).toHaveBeenCalledWith('');
+      expect(outer).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('keydown', outer);
+    }
+  });
+
+  it('Escape in an empty search input does not call onSearchChange', async () => {
+    const user = userEvent.setup();
+    renderFilterBar({ searchQuery: '' });
+    await user.type(screen.getByTestId('diary-search-input'), '{Escape}');
+    expect(defaultProps.onSearchChange).not.toHaveBeenCalled();
+  });
+
+  it('does not throw when a mode chip is clicked without an onFilterModeChange handler', async () => {
+    const user = userEvent.setup();
+    renderFilterBar({ onFilterModeChange: undefined });
+    await user.click(screen.getByTestId('mode-filter-manual'));
+    expect(screen.getByTestId('diary-filter-bar')).toBeInTheDocument();
+  });
+
+  it('defaults to all mode (all 11 chips) when filterMode is omitted', () => {
+    renderFilterBar({ filterMode: undefined });
+    expect(chipOrder()).toHaveLength(11);
+    expect(screen.getByTestId('mode-filter-all')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('toggling the grouped Invoice chip on adds invoice_status and invoice_created together', async () => {
+    const user = userEvent.setup();
+    renderFilterBar({ activeTypes: ['daily_log'] });
+    await user.click(screen.getByTestId('type-filter-invoice_status'));
+    expect(defaultProps.onTypesChange).toHaveBeenCalledWith([
+      'daily_log',
+      'invoice_status',
+      'invoice_created',
+    ]);
+  });
+
+  it('toggling the grouped Invoice chip off removes both grouped types', async () => {
+    const user = userEvent.setup();
+    renderFilterBar({ activeTypes: ['daily_log', 'invoice_status', 'invoice_created'] });
+    await user.click(screen.getByTestId('type-filter-invoice_status'));
+    expect(defaultProps.onTypesChange).toHaveBeenCalledWith(['daily_log']);
   });
 
   // ─── Clear all button ──────────────────────────────────────────────────────

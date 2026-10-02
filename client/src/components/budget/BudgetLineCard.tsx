@@ -1,5 +1,6 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type { BaseBudgetLine, ConfidenceLevel } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -31,6 +32,7 @@ export function BudgetLineCard({
 }: BudgetLineCardProps) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
+  const { vatRate } = useLocale();
   const { t: tSettings } = useTranslation('settings');
   const showInvoicedAmount = line.invoiceCount > 0;
   const isQuotation = line.invoiceLink?.invoiceStatus === 'quotation';
@@ -52,12 +54,14 @@ export function BudgetLineCard({
                 {isQuotation ? t('vendorDetail.quotedAmount') : t('vendorDetail.invoicedAmount')}
               </span>
               <span className={styles.plannedSecondary}>
-                (planned: {formatCurrency(effectivePlannedAmount(line))})
+                (planned: {formatCurrency(effectivePlannedAmount(line, vatRate))})
               </span>
             </>
           ) : (
             <>
-              <span className={styles.amount}>{formatCurrency(effectivePlannedAmount(line))}</span>
+              <span className={styles.amount}>
+                {formatCurrency(effectivePlannedAmount(line, vatRate))}
+              </span>
               <span className={styles.confidence}>
                 {confidenceLabels[line.confidence]}
                 {CONFIDENCE_MARGINS[line.confidence] > 0 && (

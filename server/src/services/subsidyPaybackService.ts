@@ -34,11 +34,13 @@ const getPayback = createSubsidyPaybackService({
  *     minPayback = maxPayback = reductionValue
  *   - Universal subsidies (no applicable categories) match ALL budget lines.
  *
+ * @param vatRate - Configured VAT rate (config.vatRate)
  * @throws NotFoundError if work item does not exist
  */
 export function getWorkItemSubsidyPayback(
   db: DbType,
   workItemId: string,
+  vatRate: number,
 ): WorkItemSubsidyPaybackResponse {
-  return getPayback(db, workItemId) as WorkItemSubsidyPaybackResponse;
+  return getPayback(db, workItemId, vatRate) as WorkItemSubsidyPaybackResponse;
 }

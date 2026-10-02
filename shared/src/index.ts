@@ -264,6 +264,12 @@ export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
 export { BUDGET_SOURCE_TYPES } from './types/budgetSource.js';
 export { INVOICE_STATUSES } from './types/invoice.js';
 export { ATTACHMENT_TYPES } from './types/document.js';
+export {
+  DIARY_ENTRY_TYPES,
+  MANUAL_DIARY_ENTRY_TYPES,
+  AUTOMATIC_DIARY_ENTRY_TYPES,
+} from './types/diary.js';
+export { PHOTO_SPOT_NONE } from './types/photo.js';
 
 // Milestones
 export type {
@@ -378,6 +384,12 @@ export type {
   Photo,
   UpdatePhotoRequest,
   ReorderPhotosRequest,
+  PhotoSpotSummary,
+  PhotoSpotsResponse,
+  PhotoSpotDiaryEntry,
+  PhotoSpotPhoto,
+  PhotoSpotPhotosResponse,
+  PhotoSpotPhotosQuery,
 } from './types/photo.js';
 
 // Diary (Construction Diary / Bautagebuch)

@@ -81,8 +81,17 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 // AutoItemizePage.test.tsx.
 
 // Narrower than the real createWorkItemBudget return type (WorkItemBudgetLine) — only
-// `id` is exercised by these tests.
-const mockCreateWorkItemBudget = jest.fn<() => Promise<{ id: string }>>();
+// `id` plus the fields the linked-row snapshot reads (#2149) are exercised by these tests.
+const mockCreateWorkItemBudget = jest.fn<
+  () => Promise<{
+    id: string;
+    description?: string;
+    plannedAmount?: number;
+    includesVat?: boolean;
+    budgetCategory?: null;
+    budgetSource?: null;
+  }>
+>();
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   fetchWorkItemBudgets: jest.fn(),
@@ -195,7 +204,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
-  useLocale: () => ({ locale: 'en', setLocale: jest.fn() }),
+  useLocale: () => ({ locale: 'en', setLocale: jest.fn(), vatRate: 0.19 }),
 }));
 
 // ─── Mock: configApi + preferencesApi (prevent network calls from LocaleProvider) ─
@@ -1339,6 +1348,32 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /Back to Invoices/i })).not.toBeInTheDocument();
     });
+
+    it('shows the translated error in the banner when commit is rejected with 409 BUDGET_LINE_ALREADY_LINKED', async () => {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({ suggestedVendorId: 'vendor-1' }),
+      );
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+      mockCommitAutoItemizeCreate.mockRejectedValue(
+        new MockApiClientError(409, 'BUDGET_LINE_ALREADY_LINKED', 'already linked'),
+      );
+
+      renderPage();
+
+      const createBtn = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      await waitFor(() => expect(createBtn).not.toBeDisabled());
+      await act(async () => {
+        fireEvent.click(createBtn);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toHaveTextContent('Translated error message');
+      });
+      expect(screen.getByRole('button', { name: 'Create Invoice & Itemize' })).toBeInTheDocument();
+    });
   });
 
   // ─── 15. PDF iframe present in ready state (QA Spec scenario 12) ─────────────
@@ -1661,7 +1696,14 @@ describe('PaperlessInvoiceReviewPage', () => {
 
       await queueNextDraft();
 
-      mockCreateWorkItemBudget.mockResolvedValue({ id: 'new-wib-1' });
+      mockCreateWorkItemBudget.mockResolvedValue({
+        id: 'new-wib-1',
+        description: 'Created',
+        plannedAmount: 300,
+        includesVat: true,
+        budgetCategory: null,
+        budgetSource: null,
+      });
       // First commit attempt fails; second (retry) succeeds.
       mockCommitAutoItemizeCreate.mockRejectedValueOnce(new Error('Commit failed'));
       mockCommitAutoItemizeCreate.mockResolvedValueOnce(makeCommitResponse());
@@ -1702,6 +1744,131 @@ describe('PaperlessInvoiceReviewPage', () => {
         assignmentMode: 'assign-existing',
         assignedBudgetLineId: 'new-wib-1',
       });
+    });
+  });
+  // ─── #2149 — linking an existing budget line commits the gross itemized amount ──
+
+  describe('linking an existing budget line (#2149)', () => {
+    async function renderAndLink(previewLine: Record<string, unknown>) {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({
+          suggestedVendorId: 'vendor-1',
+          lines: [
+            {
+              description: 'Sofa delivery',
+              totalAmount: 100,
+              confidence: 0.9,
+              budgetCategoryId: 'bc-test',
+              budgetSourceId: null,
+              ...previewLine,
+            },
+          ],
+        }),
+      );
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+      mockPickerStateOverride = {
+        isOpen: true,
+        step: 2,
+        type: 'household_item',
+        itemId: 'hi-1',
+        itemTitle: 'Sofa',
+        isLoading: false,
+        error: null,
+        budgetLines: [
+          {
+            id: 'hib-1',
+            householdItemId: 'hi-1',
+            description: 'Existing HI line',
+            plannedAmount: 800,
+            confidence: 'quote',
+            confidenceMargin: 0,
+            includesVat: false,
+            quantity: null,
+            unit: null,
+            unitPrice: null,
+            budgetCategory: { id: 'cat-9', name: 'Furniture', translationKey: null },
+            budgetSource: null,
+            vendor: null,
+            actualCost: 0,
+            actualCostPaid: 0,
+            invoiceLink: null,
+          },
+        ],
+        showCreateForm: false,
+        createError: null,
+        vendors: [],
+        budgetSources: [],
+        categories: [],
+      };
+
+      renderPage();
+
+      await waitFor(
+        () => {
+          expect(screen.queryByRole('button', { name: /cancel/i })).toBeInTheDocument();
+          expect(document.querySelectorAll('[role="img"][aria-label="Loading"]')).toHaveLength(0);
+        },
+        { timeout: 5000 },
+      );
+
+      await act(async () => {
+        fireEvent.click(screen.getAllByRole('button', { name: /Assign…/i })[0]!);
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /Existing HI line/i }));
+      });
+    }
+
+    async function commit() {
+      mockCommitAutoItemizeCreate.mockResolvedValueOnce(makeCommitResponse());
+      const createBtn =
+        screen.queryByRole('button', { name: /Create Invoice/i }) ||
+        screen.queryByRole('button', { name: /createAndItemize/i }) ||
+        screen.queryByRole('button', { name: /Itemize/i });
+      expect(createBtn).not.toBeNull();
+      await act(async () => {
+        fireEvent.click(createBtn!);
+      });
+      await waitFor(() => {
+        expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1);
+      });
+      return mockCommitAutoItemizeCreate.mock.calls[0]![0] as unknown as {
+        lines: Array<Record<string, unknown>>;
+      };
+    }
+
+    it('shows the original values read-only and commits the edited gross amount with includesVat=true', async () => {
+      await renderAndLink({ includesVat: false });
+
+      expect(screen.getByTestId('linked-line-category')).toHaveTextContent('Furniture');
+      expect(screen.getByTestId('linked-line-source')).toHaveTextContent(/not set/i);
+      expect(screen.getByTestId('linked-line-planned')).toHaveTextContent(/800/);
+      expect(screen.queryByDisplayValue('Sofa delivery')).toBeNull();
+
+      const amount = screen.getByTestId('linked-line-itemized-amount') as HTMLInputElement;
+      expect(amount.value).toBe('119'); // 100 net -> gross
+      fireEvent.change(amount, { target: { value: '250' } });
+
+      const payload = await commit();
+
+      expect(payload.lines[0]).toMatchObject({
+        assignmentMode: 'assign-existing',
+        assignedBudgetLineId: 'hib-1',
+        assignedBudgetLineType: 'household_item',
+        totalAmount: 250,
+        includesVat: true,
+      });
+    });
+
+    it('commits the default gross amount when the user does not edit it', async () => {
+      await renderAndLink({ includesVat: false });
+
+      const payload = await commit();
+
+      expect(payload.lines[0]).toMatchObject({ totalAmount: 119, includesVat: true });
     });
   });
 });

@@ -329,7 +329,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
       // min = 119 * 0.8 = 95.2, max = 119 * 1.2 = 142.8
       insertWorkItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(95.2, 5);
@@ -341,7 +341,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
     it('HI: grosses up plannedAmount=100 (includesVat=false) to 119 before applying margin', () => {
       insertHouseholdItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(95.2, 5);
@@ -351,13 +351,45 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
     });
   });
 
+  describe('Scenario 1b: configured VAT rate is honored (not hardcoded 0.19)', () => {
+    it('WI + per-source: grosses up plannedAmount=100 to 120 at vatRate=0.2 before applying margin', () => {
+      // effective = 100 * 1.20 = 120; own_estimate margin = 0.2 -> min=96, max=144
+      const sourceId = insertBudgetSource({ name: 'Source 0.2', totalAmount: 100000 });
+      insertWorkItem({
+        plannedAmount: 100,
+        includesVat: false,
+        confidence: 'own_estimate',
+        budgetSourceId: sourceId,
+      });
+
+      const result = getBudgetBreakdown(db, 0.2);
+
+      const item = result.workItems.areas[0]!.items[0]!;
+      expect(item.projectedMin).toBeCloseTo(96, 5);
+      expect(item.projectedMax).toBeCloseTo(144, 5);
+      const src = result.budgetSources.find((s) => s.id === sourceId);
+      expect(src!.projectedMin).toBeCloseTo(96, 5);
+      expect(src!.projectedMax).toBeCloseTo(144, 5);
+    });
+
+    it('HI: grosses up plannedAmount=100 to 120 at vatRate=0.2', () => {
+      insertHouseholdItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
+
+      const result = getBudgetBreakdown(db, 0.2);
+
+      const item = result.householdItems.areas[0]!.items[0]!;
+      expect(item.projectedMin).toBeCloseTo(96, 5);
+      expect(item.projectedMax).toBeCloseTo(144, 5);
+    });
+  });
+
   // ── Scenario 2: gross-stored line unchanged (regression guard) ──────────────
 
   describe('Scenario 2: gross-stored line is unchanged', () => {
     it('WI: includesVat=true leaves projections at raw plannedAmount', () => {
       insertWorkItem({ plannedAmount: 100, includesVat: true, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(80, 5);
@@ -367,7 +399,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
     it('WI: omitting includesVat (schema default true) leaves projections at raw plannedAmount', () => {
       insertWorkItem({ plannedAmount: 100, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(80, 5);
@@ -377,7 +409,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
     it('HI: includesVat=true leaves projections at raw plannedAmount', () => {
       insertHouseholdItem({ plannedAmount: 100, includesVat: true, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.householdItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(80, 5);
@@ -398,7 +430,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         confidence: 'professional_estimate',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.projectedMin).toBeCloseTo(107.1, 5);
@@ -420,7 +452,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         invoiceStatus: 'paid',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.actualCost).toBe(95);
@@ -449,7 +481,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         invoiceStatus: 'quotation',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const allItems = result.workItems.areas.flatMap((a) => a.items);
       const netItem = allItems.find((i) => i.workItemId === netId)!;
@@ -479,7 +511,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.rawProjectedMin).toBeCloseTo(952, 5);
@@ -513,7 +545,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'fixed', reductionValue: 300 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const item = result.workItems.areas[0]!.items[0]!;
       expect(item.subsidyPayback).toBeCloseTo(300, 5);
@@ -557,7 +589,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         invoiceStatus: 'paid',
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const kitchen = result.workItems.areas.find((a) => a.areaId === areaKitchen)!;
       const bath = result.workItems.areas.find((a) => a.areaId === areaBath)!;
@@ -586,7 +618,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -605,7 +637,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
         budgetSourceId: sourceId,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const src = result.budgetSources.find((s) => s.id === sourceId);
       expect(src).toBeDefined();
@@ -639,7 +671,7 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db, new Set());
+      const result = getBudgetBreakdown(db, 0.19, new Set());
 
       const srcAEntry = result.budgetSources.find((s) => s.id === srcA);
       const srcBEntry = result.budgetSources.find((s) => s.id === srcB);
@@ -682,8 +714,8 @@ describe('getBudgetBreakdown — VAT gross-up parity (#1805)', () => {
       // shape of the issue's reported EUR100-vs-EUR119 divergence between the two endpoints.
       insertWorkItem({ plannedAmount: 100, includesVat: false, confidence: 'own_estimate' });
 
-      const overview = getBudgetOverview(db);
-      const breakdown = getBudgetBreakdown(db);
+      const overview = getBudgetOverview(db, 0.19);
+      const breakdown = getBudgetBreakdown(db, 0.19);
 
       expect(overview.maxPlanned).toBeCloseTo(breakdown.workItems.totals.projectedMax, 5);
       expect(overview.minPlanned).toBeCloseTo(breakdown.workItems.totals.projectedMin, 5);

@@ -204,6 +204,7 @@ function fullContent(): ReportContent {
       subject: 'Subject baseline',
       body: 'Body baseline',
       signature: 'Sender baseline',
+      opening: 'Dear Sir or Madam,',
       closing: 'Sincerely,',
     },
     rows: [makeRow({ invoiceId: 'inv-1', attachmentsNote: 'Note baseline' })],
@@ -226,6 +227,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Subject text',
         body: 'Body text',
         signature: 'The Smiths',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -257,6 +259,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Subject text',
         body: 'Body text',
         signature: 'Signature text',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely yours,',
       },
     });
@@ -308,6 +311,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Subject text',
         body: 'Body text',
         signature: 'Signature text',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely yours,',
       },
     });
@@ -324,6 +328,73 @@ describe('ReportContentEditor — cover letter card', () => {
     expect(closingLabel.textContent).not.toContain(':');
   });
 
+  // ─── #2159: read-only Opening (salutation) row between Subject and Body ─────────────────────
+  describe('read-only Opening row (#2159)', () => {
+    function openingContent(): ReportContent {
+      return makeContent({
+        coverLetter: {
+          sender: 'Sender text',
+          recipient: null,
+          dateLine: '01/15/2026',
+          reference: null,
+          subject: 'Subject text',
+          body: 'Body text',
+          signature: 'Signature text',
+          opening: 'Sehr geehrte Damen und Herren,',
+          closing: 'Sincerely yours,',
+        },
+      });
+    }
+
+    it('renders label and value as a direct child of .letterFields, between the subject and body fields', () => {
+      const { container } = renderEditor({ content: openingContent() });
+
+      expect(screen.getByText('sourceReports.editable.openingLabel')).toBeInTheDocument();
+      expect(screen.getByText('Sehr geehrte Damen und Herren,')).toBeInTheDocument();
+
+      const letterFields = container.querySelector('.letterFields');
+      expect(letterFields).not.toBeNull();
+      const children = Array.from(letterFields!.children);
+      const subjectIndex = children.findIndex((c) =>
+        c.textContent?.includes('sourceReports.editable.subjectLabel'),
+      );
+      const openingIndex = children.findIndex((c) =>
+        c.textContent?.includes('sourceReports.editable.openingLabel'),
+      );
+      const bodyIndex = children.findIndex((c) =>
+        c.textContent?.includes('sourceReports.editable.bodyLabel'),
+      );
+      expect(subjectIndex).toBeGreaterThan(-1);
+      expect(openingIndex).toBe(subjectIndex + 1);
+      expect(bodyIndex).toBe(openingIndex + 1);
+    });
+
+    it('tags the value span with the report language and renders the label without a trailing colon', () => {
+      renderEditor({ content: openingContent(), lang: 'de' });
+
+      const value = screen.getByText('Sehr geehrte Damen und Herren,');
+      expect(value.getAttribute('lang')).toBe('de');
+      const label = screen.getByText('sourceReports.editable.openingLabel');
+      expect(label.textContent).not.toContain(':');
+    });
+
+    it('is read-only: no input or textarea is labelled with the opening label', () => {
+      const { container } = renderEditor({ content: openingContent() });
+
+      expect(screen.queryByLabelText('sourceReports.editable.openingLabel')).toBeNull();
+      const openingField = Array.from(container.querySelector('.letterFields')!.children).find(
+        (c) => c.textContent?.includes('sourceReports.editable.openingLabel'),
+      );
+      expect(openingField).toBeDefined();
+      expect(openingField!.querySelector('input, textarea')).toBeNull();
+    });
+
+    it('renders no opening label when coverLetter is null', () => {
+      renderEditor({ content: makeContent({ coverLetter: null }) });
+      expect(screen.queryByText('sourceReports.editable.openingLabel')).toBeNull();
+    });
+  });
+
   it('renders the recipient EditableField only when recipient is non-null', () => {
     const withRecipient = makeContent({
       coverLetter: {
@@ -334,6 +405,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -349,6 +421,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -385,6 +458,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -403,6 +477,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'Baseline subject',
         body: 'Baseline body',
         signature: 'Baseline sender',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -422,6 +497,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Overridden sender',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -448,6 +524,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: '',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -465,6 +542,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Baseline signature',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -484,6 +562,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Overridden Signature',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -504,6 +583,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Sender-derived signature',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -526,6 +606,7 @@ describe('ReportContentEditor — cover letter card', () => {
         subject: 'S',
         body: 'B',
         signature: 'Overridden Signature',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -1862,6 +1943,7 @@ describe('ReportContentEditor — #1941 conditional cover-letter fields render n
         subject: 'Subj',
         body: 'B',
         signature: 'Sig',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });
@@ -1890,6 +1972,7 @@ describe('ReportContentEditor — #1941 conditional cover-letter fields render n
         subject: 'Subj',
         body: 'B',
         signature: 'Sig',
+        opening: 'Dear Sir or Madam,',
         closing: 'Sincerely,',
       },
     });

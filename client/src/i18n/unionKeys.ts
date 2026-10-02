@@ -14,12 +14,13 @@
 import {
   ATTACHMENT_TYPES,
   BUDGET_SOURCE_TYPES,
+  DIARY_ENTRY_TYPES,
   INVOICE_STATUSES,
   SOURCE_REPORT_TYPES,
 } from '@cornerstone/shared';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
-export type UnionKeyNamespace = 'budget' | 'documents';
+export type UnionKeyNamespace = 'budget' | 'documents' | 'diary';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -68,4 +69,8 @@ export const I18N_UNION_KEYS = {
   ),
   /** documents — attachment-type label for the document card / live-region announcement. */
   documentAttachmentType: unionKeySet('documents', 'documentCard.attachmentType', ATTACHMENT_TYPES),
+  /** diary — entry-type label (type badge, photo viewer history list). */
+  diaryEntryType: unionKeySet('diary', 'entryTypes', DIARY_ENTRY_TYPES),
+  /** diary — short filter-chip label (DiaryFilterBar). */
+  diaryEntryTypeChip: unionKeySet('diary', 'entryTypeChips', DIARY_ENTRY_TYPES),
 } as const;

@@ -15,6 +15,7 @@
 
 ## Recent bug/story notes (2026-08)
 
+- [Wizard rAF focus-steal flake](gotcha-wizard-raf-focus-steal.md) (2026-10) — typing right after a step change loses keystrokes; settle h2 focus first; mockReset once-queues
 - [Issue #2101 — Paperless infinite-scroll tests](issue-2101-infinite-scroll-tests.md) (2026-09-29) — ts-node-less jest workaround, sandbox command-complexity guard, mutation-runner pattern, act-warning and mocked-i18n gotchas.
 
 - [Picker-family test slowness — RESOLVED](pr2070-searchpicker-dropdown-timeout.md) — root cause was nwsapi 2.2.27 (transitive, jsdom's selector engine) recursing on `:modal`, ~281 ms per floating-ui positioning check; fixed by nwsapi 2.2.28. Lessons: `--cpu-prof` before theorising; bisect transitive deps too; slow-but-green jsdom tests are bugs, not timeout tuning. Also: `projects[].testTimeout` is a silent no-op; debounce/query-agnostic-mock `waitFor` race; run jest from the repo root, not `client/`.
