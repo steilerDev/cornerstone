@@ -9,6 +9,7 @@ import type { UserResponse } from '@cornerstone/shared';
 import {
   ConflictError,
   OidcEmailUnverifiedError,
+  PasswordHashingBusyError,
   OidcMissingEmailError,
   OidcNoMatchingAccountError,
 } from '../errors/AppError.js';
@@ -28,8 +29,12 @@ const scryptRaw = promisify(scryptCb) as (
 // Each scrypt run at N=2^17 holds ~128 MiB on the libuv threadpool. Cap concurrency so
 // unauthenticated login floods cannot exhaust memory or the pool: peak is about
 // MAX_CONCURRENT_SCRYPT * 128 MiB = ~256 MiB. Every hash/verify path goes through
-// scryptAsync below. Waiters are served in FIFO order.
+// scryptAsync below. Waiters are served in FIFO order. The queue is bounded: once
+// MAX_SCRYPT_QUEUE_LENGTH callers are waiting, further calls reject immediately with
+// PasswordHashingBusyError (429 RATE_LIMIT_EXCEEDED, handled by the global error handler)
+// instead of building a backlog that starves real logins.
 const MAX_CONCURRENT_SCRYPT = 2;
+export const MAX_SCRYPT_QUEUE_LENGTH = 50;
 let activeScrypt = 0;
 const scryptWaiters: Array<() => void> = [];
 
@@ -40,6 +45,7 @@ async function scryptAsync(
   options: ScryptOptions,
 ): Promise<Buffer> {
   if (activeScrypt >= MAX_CONCURRENT_SCRYPT) {
+    if (scryptWaiters.length >= MAX_SCRYPT_QUEUE_LENGTH) throw new PasswordHashingBusyError();
     // The releasing run hands its slot directly to the next waiter (activeScrypt unchanged).
     await new Promise<void>((resolve) => scryptWaiters.push(resolve));
   } else {

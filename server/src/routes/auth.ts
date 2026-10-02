@@ -189,12 +189,14 @@ export default async function authRoutes(fastify: FastifyInstance) {
       }
 
       if (!passwordValid) {
+        // Record the failure BEFORE the dummy verify: if the hashing queue is full the dummy
+        // throws 429, and the attempt must still count toward the lockout.
+        userService.recordFailedLogin(fastify.db, user.id);
         // A legacy-parameter hash verifies faster than the dummy used for unknown accounts;
         // pay the difference so a failure costs at least as much as for an unknown account.
         if (userService.passwordNeedsRehash(user.passwordHash)) {
           await userService.verifyDummyPassword(password);
         }
-        userService.recordFailedLogin(fastify.db, user.id);
         throw new AppError('INVALID_CREDENTIALS', 401, 'Invalid email or password');
       }
 

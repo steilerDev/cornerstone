@@ -14,6 +14,7 @@ The admin panel shows all registered users with:
 - Display name
 - Email address
 - Role (Admin or Member)
+- Auth provider (Local, OIDC, Local + OIDC, or [OIDC awaiting first sign-in](#auth-provider-column))
 - Account status (active or deactivated)
 - Search and filtering
 

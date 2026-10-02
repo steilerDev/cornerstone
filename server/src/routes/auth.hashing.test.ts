@@ -8,16 +8,19 @@ import { eq } from 'drizzle-orm';
 import { users } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse } from '@cornerstone/shared';
+import { PasswordHashingBusyError } from '../errors/AppError.js';
 import type * as AppModule from '../app.js';
 
 // Spy-able wrappers around the real implementations (everything else passes through untouched).
 const dummySpy = jest.fn(actualUserService.verifyDummyPassword);
 const rehashSpy = jest.fn(actualUserService.rehashPassword);
+const verifySpy = jest.fn(actualUserService.verifyPassword);
 
 jest.unstable_mockModule('../services/userService.js', () => ({
   ...actualUserService,
   verifyDummyPassword: dummySpy,
   rehashPassword: rehashSpy,
+  verifyPassword: verifySpy,
 }));
 
 let buildApp: typeof AppModule.buildApp;
@@ -44,6 +47,9 @@ describe('POST /api/auth/login — password hash hardening', () => {
     dummySpy.mockClear();
     rehashSpy.mockClear();
     rehashSpy.mockImplementation(actualUserService.rehashPassword);
+    verifySpy.mockReset();
+    verifySpy.mockImplementation(actualUserService.verifyPassword);
+    dummySpy.mockImplementation(actualUserService.verifyDummyPassword);
 
     app = await buildApp();
 
@@ -215,6 +221,64 @@ describe('POST /api/auth/login — password hash hardening', () => {
         expect(JSON.parse(response.body)).toEqual(JSON.parse(unknown.body));
       }
       expect((JSON.parse(unknown.body) as ApiErrorResponse).error.code).toBe('INVALID_CREDENTIALS');
+    });
+  });
+
+  describe('full password-hashing queue', () => {
+    it('answers 429 RATE_LIMIT_EXCEEDED with the same body for existing and unknown accounts', async () => {
+      const user = await actualUserService.createLocalUser(
+        app.db,
+        'busy@example.com',
+        'Busy',
+        PASSWORD,
+      );
+      verifySpy.mockRejectedValue(new PasswordHashingBusyError());
+      dummySpy.mockRejectedValue(new PasswordHashingBusyError());
+
+      const existing = await login(user.email);
+      const unknown = await login('nobody@example.com');
+
+      expect(existing.statusCode).toBe(429);
+      expect(unknown.statusCode).toBe(429);
+      expect((JSON.parse(existing.body) as ApiErrorResponse).error.code).toBe(
+        'RATE_LIMIT_EXCEEDED',
+      );
+      expect(JSON.parse(unknown.body)).toEqual(JSON.parse(existing.body));
+      expect(existing.headers['set-cookie']).toBeUndefined();
+      const row = app.db.select().from(users).where(eq(users.id, user.id)).get();
+      expect(row?.failedLoginAttempts).toBe(0);
+    });
+
+    it('still counts a wrong-password attempt on a legacy-hash account when the dummy verify hits a full queue', async () => {
+      const user = await seedLegacyUser();
+      dummySpy.mockRejectedValueOnce(new PasswordHashingBusyError());
+
+      const response = await login(user.email, 'wrong-password-123');
+
+      expect(response.statusCode).toBe(429);
+      expect((JSON.parse(response.body) as ApiErrorResponse).error.code).toBe(
+        'RATE_LIMIT_EXCEEDED',
+      );
+      expect(dummySpy).toHaveBeenCalledTimes(1);
+      const row = app.db.select().from(users).where(eq(users.id, user.id)).get();
+      expect(row?.failedLoginAttempts).toBe(1);
+    });
+
+    it('still logs in and warns when the post-login rehash hits a full queue', async () => {
+      const user = await seedLegacyUser();
+      const before = storedHash(user.id);
+      rehashSpy.mockRejectedValueOnce(new PasswordHashingBusyError());
+
+      const response = await login(user.email);
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['set-cookie']).toBeDefined();
+      expect(storedHash(user.id)).toBe(before);
+      const calls = warnCalls();
+      expect(calls).toHaveLength(1);
+      expect((calls[0] as [Record<string, unknown>, string])[1]).toBe(
+        'Failed to rehash password after login',
+      );
     });
   });
 });

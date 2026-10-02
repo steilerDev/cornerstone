@@ -2,6 +2,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 // Static import: resolved BEFORE the node:crypto mock below is registered, so it is the real module.
 import * as actualCrypto from 'node:crypto';
 import type * as UserServiceModule from './userService.js';
+import type * as AppErrorModule from '../errors/AppError.js';
 
 /**
  * Instrumented node:crypto.scrypt: counts derivations, tracks how many are in flight, can
@@ -59,6 +60,7 @@ jest.unstable_mockModule('node:crypto', () => {
 });
 
 let userService: typeof UserServiceModule;
+let errors: typeof AppErrorModule;
 
 const TEST_PARAMS = { n: 16384, r: 8, p: 1 };
 const tick = () => new Promise<void>((resolve) => setImmediate(resolve));
@@ -70,6 +72,7 @@ describe('userService scrypt scheduling', () => {
       // instrumented node:crypto applies to a fresh copy.
       jest.resetModules();
       userService = await import('./userService.js');
+      errors = await import('../errors/AppError.js');
     }
     userService.setPasswordHashParamsForTesting(TEST_PARAMS);
     resetProbe();
@@ -189,6 +192,76 @@ describe('userService scrypt scheduling', () => {
 
       expect(results).toHaveLength(3);
       expect(probe.inFlight).toBe(0);
+    });
+  });
+
+  describe('bounded queue', () => {
+    const release = async () => {
+      probe.hold = false;
+      await Promise.all(probe.pending.splice(0).map((run) => run()));
+    };
+
+    it('rejects the call past 2 running + 50 waiting with PasswordHashingBusyError, without queueing it', async () => {
+      probe.hold = true;
+      const cap = userService.MAX_SCRYPT_QUEUE_LENGTH;
+      const accepted = Array.from({ length: 2 + cap }, () => userService.hashPassword('pw'));
+      await tick();
+      expect(probe.count).toBe(2);
+
+      const rejected = userService.hashPassword('overflow');
+      await expect(rejected).rejects.toBeInstanceOf(errors.PasswordHashingBusyError);
+      await expect(rejected).rejects.toMatchObject({
+        statusCode: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+      });
+
+      // The overflow call never reached scrypt, even once everything drains.
+      probe.hold = false;
+      const settled = Promise.all(accepted);
+      await release();
+      while (probe.inFlight > 0 || probe.pending.length > 0) {
+        await release();
+        await tick();
+      }
+      await settled;
+      expect(probe.count).toBe(2 + cap);
+      expect(probe.started).not.toContain('overflow');
+    });
+
+    it('resolves every call while the queue stays at or below the cap', async () => {
+      probe.hold = true;
+      const cap = userService.MAX_SCRYPT_QUEUE_LENGTH;
+      const calls = Array.from({ length: 2 + cap }, () => userService.hashPassword('pw'));
+      await tick();
+
+      probe.hold = false;
+      const settled = Promise.all(calls);
+      while (probe.inFlight > 0 || probe.pending.length > 0) {
+        await release();
+        await tick();
+      }
+
+      await expect(settled).resolves.toHaveLength(2 + cap);
+    });
+
+    it('accepts new calls again once the queue has drained', async () => {
+      probe.hold = true;
+      const cap = userService.MAX_SCRYPT_QUEUE_LENGTH;
+      const calls = Array.from({ length: 2 + cap }, () => userService.hashPassword('pw'));
+      await tick();
+      await expect(userService.hashPassword('overflow')).rejects.toBeInstanceOf(
+        errors.PasswordHashingBusyError,
+      );
+
+      probe.hold = false;
+      const settled = Promise.all(calls);
+      while (probe.inFlight > 0 || probe.pending.length > 0) {
+        await release();
+        await tick();
+      }
+      await settled;
+
+      await expect(userService.hashPassword('after-drain')).resolves.toMatch(/^\$scrypt\$/);
     });
   });
 });

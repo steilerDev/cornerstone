@@ -112,6 +112,7 @@ export function UserManagementPage() {
   // Create modal state
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [createForm, setCreateForm] = useState<CreateFormData>(EMPTY_CREATE_FORM);
+  const createSsoOnly = createForm.ssoOnly && oidcEnabled;
   const [createErrors, setCreateErrors] = useState<CreateFieldErrors>({});
   const [createApiError, setCreateApiError] = useState<string>('');
   const [isCreating, setIsCreating] = useState(false);
@@ -324,7 +325,7 @@ export function UserManagementPage() {
       newErrors.email = t('userManagement.createValidation.emailTooLong');
     }
 
-    if (!createForm.ssoOnly) {
+    if (!createSsoOnly) {
       if (!createForm.password) {
         newErrors.password = t('userManagement.createValidation.passwordRequired');
       } else if (codePoints(createForm.password) < 12) {
@@ -362,7 +363,7 @@ export function UserManagementPage() {
       return;
     }
 
-    const useSso = createForm.ssoOnly && oidcEnabled;
+    const useSso = createSsoOnly;
     const payload: CreateUserPayload = {
       email: createForm.email.trim(),
       displayName: createForm.displayName.trim(),
@@ -781,7 +782,7 @@ export function UserManagementPage() {
                     type="checkbox"
                     id="createSsoOnly"
                     className={styles.checkbox}
-                    checked={createForm.ssoOnly}
+                    checked={createSsoOnly}
                     onChange={(e) => {
                       const ssoOnly = e.target.checked;
                       setCreateForm(
@@ -809,7 +810,7 @@ export function UserManagementPage() {
               </div>
             )}
 
-            {!createForm.ssoOnly && (
+            {!createSsoOnly && (
               <>
                 <div className={styles.field}>
                   <label htmlFor="createPassword" className={styles.label}>

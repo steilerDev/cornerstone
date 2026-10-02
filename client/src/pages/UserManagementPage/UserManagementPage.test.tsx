@@ -999,18 +999,52 @@ describe('UserManagementPage', () => {
       expect(mockCreateUser).not.toHaveBeenCalled();
     });
 
-    it('never sends authProvider oidc when the checkbox state is stale but OIDC is disabled', async () => {
-      withOidc(false);
+    it('treats a ticked SSO-only box as local once OIDC is disabled while the modal is open', async () => {
+      withOidc(true);
       mockCreateUser.mockResolvedValueOnce(createdUser);
-      await openCreate();
+      const { rerender } = await openCreate();
+      fireEvent.click(field('createSsoOnly'));
+      expect(field('createSsoOnly').checked).toBe(true);
+      expect(document.getElementById('createPassword')).toBeNull();
 
-      fillValidLocal();
+      // OIDC is switched off while the stale ssoOnly flag is still true in the form state.
+      withOidc(false);
+      rerender(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/settings/users']}>
+            <UserManagementPage />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+
+      expect(document.getElementById('createSsoOnly')).toBeNull();
+      expect(field('createPassword')).toBeInTheDocument();
+      expect(field('createConfirmPassword')).toBeInTheDocument();
+
+      type('createEmail', 'new@example.com');
+      type('createDisplayName', 'New Person');
+      submit();
+      await waitFor(() => {
+        expect(screen.getByText(cv.passwordRequired)).toBeInTheDocument();
+      });
+      expect(screen.getByText(cv.confirmPasswordRequired)).toBeInTheDocument();
+      expect(mockCreateUser).not.toHaveBeenCalled();
+
+      type('createPassword', 'twelve-chars!');
+      type('createConfirmPassword', 'twelve-chars!');
       submit();
 
       await waitFor(() => {
         expect(mockCreateUser).toHaveBeenCalledTimes(1);
       });
-      expect(mockCreateUser.mock.calls[0]?.[0]).not.toHaveProperty('authProvider');
+      const payload = mockCreateUser.mock.calls[0]?.[0];
+      expect(payload).toEqual({
+        email: 'new@example.com',
+        displayName: 'New Person',
+        role: 'member',
+        password: 'twelve-chars!',
+      });
+      expect(payload).not.toHaveProperty('authProvider');
     });
 
     it('shows required errors for empty fields, focuses the first invalid field and does not call the API', async () => {
