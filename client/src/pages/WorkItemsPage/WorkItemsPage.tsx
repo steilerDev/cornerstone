@@ -258,12 +258,10 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          ...WORK_ITEM_STATUSES.map((status) => ({
-            value: status,
-            label: wiStatusLabels[status],
-          })),
-        ],
+        enumOptions: WORK_ITEM_STATUSES.map((status) => ({
+          value: status,
+          label: wiStatusLabels[status],
+        })),
         render: (item) => <Badge variants={wiStatusVariants} value={item.status} />,
       },
       {

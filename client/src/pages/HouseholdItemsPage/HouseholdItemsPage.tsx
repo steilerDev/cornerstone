@@ -263,12 +263,10 @@ export function HouseholdItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          ...HOUSEHOLD_ITEM_STATUSES.map((status) => ({
-            value: status,
-            label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
-          })),
-        ],
+        enumOptions: HOUSEHOLD_ITEM_STATUSES.map((status) => ({
+          value: status,
+          label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
+        })),
         render: (item) => <Badge variants={hiStatusVariants} value={item.status} />,
       },
       {

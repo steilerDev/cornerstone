@@ -604,12 +604,10 @@ export function InvoicesPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          ...INVOICE_STATUSES.map((status) => ({
-            value: status,
-            label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
-          })),
-        ],
+        enumOptions: INVOICE_STATUSES.map((status) => ({
+          value: status,
+          label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
+        })),
         render: (inv, surface) => (
           <Badge
             variants={invoiceStatusVariants}
