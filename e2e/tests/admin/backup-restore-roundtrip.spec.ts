@@ -40,6 +40,9 @@ test.describe('Backup restore round-trip (real container)', () => {
   let baseUrl: string;
   let backupFilename: string;
   let photoId: string;
+  // Bytes as served before the backup. The server re-encodes uploads (sharp rotate + PNG),
+  // so the served bytes never equal the uploaded fixture.
+  let servedPhotoBytes: Buffer;
 
   test.beforeEach(() => {
     test.skip(test.info().project.name !== 'desktop', 'Container round-trip runs on desktop only');
@@ -95,6 +98,11 @@ test.describe('Backup restore round-trip (real container)', () => {
     });
     expect(upload.ok(), 'POST /api/photos').toBeTruthy();
     photoId = ((await upload.json()) as { photo: { id: string } }).photo.id;
+
+    const served = await api.get(`/api/photos/${photoId}/file`);
+    expect(served.status(), 'GET photo file before backup').toBe(200);
+    servedPhotoBytes = await served.body();
+    expect(servedPhotoBytes.length).toBeGreaterThan(0);
   });
 
   test('creates a backup, then mutates data after it', async () => {
@@ -150,6 +158,6 @@ test.describe('Backup restore round-trip (real container)', () => {
 
     const photo = await api.get(`/api/photos/${photoId}/file`);
     expect(photo.status(), 'GET photo file').toBe(200);
-    expect(Buffer.compare(await photo.body(), TEST_PHOTO_PNG)).toBe(0);
+    expect(Buffer.compare(await photo.body(), servedPhotoBytes)).toBe(0);
   });
 });
