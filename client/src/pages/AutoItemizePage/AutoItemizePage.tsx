@@ -1,9 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
   Invoice,
-  ExtractedLine,
   AutoItemizeWarning,
   PaperlessDocumentSearchResult,
   InvoicePatchForAutoItemize,
@@ -16,6 +16,8 @@ import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
 import { createHouseholdItemBudget } from '../../lib/householdItemBudgetsApi.js';
 import {
+  buildCommitLines,
+  effectiveRowAmount,
   materializeInlineDrafts,
   mergeMaterializedLines,
 } from '../../lib/autoItemizeDraftUtils.js';
@@ -34,9 +36,11 @@ import {
   BudgetLinePickerModal,
   type LineWithInclude,
 } from '../../components/autoItemize/index.js';
-import { CONFIDENCE_LABELS, effectiveLineAmount } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
 
 type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
 
@@ -55,6 +59,7 @@ export function AutoItemizePage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { vatRate } = useLocale();
   const { formatCurrency } = useFormatters();
 
   const createdFromExtractionVariants = useMemo(
@@ -316,27 +321,7 @@ export function AutoItemizePage() {
         return;
       }
 
-      const linesPayload: ExtractedLine[] = workingLines.map((l) => ({
-        description: l.description,
-        quantity: l.quantity,
-        unit: l.unit,
-        unitPrice: l.unitPrice,
-        totalAmount: l.totalAmount,
-        includesVat: l.includesVat,
-        vendorName: l.vendorName,
-        confidence: l.confidence,
-        budgetCategoryId: l.budgetCategoryId,
-        budgetSourceId: l.budgetSourceId || undefined,
-        ...(l.assignedBudgetLineId && l.assignedBudgetLineType
-          ? {
-              assignedBudgetLineId: l.assignedBudgetLineId,
-              assignedBudgetLineType: l.assignedBudgetLineType,
-              assignmentMode: 'assign-existing' as const,
-            }
-          : {
-              assignmentMode: 'create-new' as const,
-            }),
-      }));
+      const linesPayload = buildCommitLines(workingLines, vatRate);
 
       await autoItemize(invoiceId, {
         paperlessDocumentId: docId,
@@ -368,6 +353,7 @@ export function AutoItemizePage() {
     setLines,
     t,
     tErrors,
+    vatRate,
   ]);
 
   const handleApplySuggestion = useCallback(
@@ -462,11 +448,7 @@ export function AutoItemizePage() {
   const { computedLineTotal, variance, variancePercent } = useMemo(() => {
     const total = lines
       .filter((l) => l.included)
-      .reduce(
-        (sum, l) =>
-          sum + effectiveLineAmount({ amount: l.totalAmount ?? 0, includesVat: l.includesVat }),
-        0,
-      );
+      .reduce((sum, l) => sum + effectiveRowAmount(l, vatRate), 0);
     const inv = parseFloat(metadataEdits.amount) || invoice?.amount || 0;
     const v = total - inv;
     return {
@@ -474,7 +456,7 @@ export function AutoItemizePage() {
       variance: v,
       variancePercent: inv > 0 ? Math.abs(v) / inv : 0,
     };
-  }, [lines, metadataEdits.amount, invoice?.amount]);
+  }, [lines, metadataEdits.amount, invoice?.amount, vatRate]);
 
   if (!invoiceId || !documentId) {
     return <div>{t('autoItemize.error')}</div>;
@@ -696,9 +678,9 @@ export function AutoItemizePage() {
                       }))
                     }
                   >
-                    {(['pending', 'paid', 'claimed', 'quotation'] as InvoiceStatus[]).map((s) => (
+                    {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {t(`invoices.statusLabels.${s}`)}
+                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(s))}
                       </option>
                     ))}
                   </select>

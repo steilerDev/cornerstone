@@ -8,7 +8,15 @@
 
 export type { ApiError, ApiErrorResponse } from './types/api.js';
 export type { ErrorCode } from './types/errors.js';
-export type { User, UserResponse, UserRole, AuthProvider } from './types/user.js';
+export { ERROR_CODES } from './types/errors.js';
+export type {
+  User,
+  UserResponse,
+  UserRole,
+  AuthProvider,
+  OidcLoginErrorCode,
+} from './types/user.js';
+export { OIDC_LOGIN_ERROR_CODES } from './types/user.js';
 
 // Pagination
 export type { PaginationMeta, PaginatedResponse } from './types/pagination.js';
@@ -67,6 +75,7 @@ export type {
   MilestoneSummaryForWorkItem,
   WorkItemMilestones,
 } from './types/workItem.js';
+export { WORK_ITEM_STATUSES } from './types/workItem.js';
 
 // Subtasks
 export type {
@@ -261,8 +270,18 @@ export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
 // Runtime union tuples (#2029)
 export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
 export { BUDGET_SOURCE_TYPES } from './types/budgetSource.js';
-export { INVOICE_STATUSES } from './types/invoice.js';
+export { INVOICE_STATUSES, INVOICE_DEPOSIT_ENTRY_TYPES } from './types/invoice.js';
+export { SUBSIDY_APPLICATION_STATUSES } from './types/subsidyProgram.js';
+export { HOUSEHOLD_ITEM_STATUSES } from './types/householdItem.js';
+export { DIARY_SOURCE_ENTITY_TYPES } from './types/diary.js';
+export { CONFIDENCE_LEVELS } from './types/budget.js';
 export { ATTACHMENT_TYPES } from './types/document.js';
+export {
+  DIARY_ENTRY_TYPES,
+  MANUAL_DIARY_ENTRY_TYPES,
+  AUTOMATIC_DIARY_ENTRY_TYPES,
+} from './types/diary.js';
+export { PHOTO_SPOT_NONE } from './types/photo.js';
 
 // Milestones
 export type {
@@ -377,6 +396,12 @@ export type {
   Photo,
   UpdatePhotoRequest,
   ReorderPhotosRequest,
+  PhotoSpotSummary,
+  PhotoSpotsResponse,
+  PhotoSpotDiaryEntry,
+  PhotoSpotPhoto,
+  PhotoSpotPhotosResponse,
+  PhotoSpotPhotosQuery,
 } from './types/photo.js';
 
 // Diary (Construction Diary / Bautagebuch)
@@ -431,6 +456,16 @@ export type {
 
 // Source Report Math
 export { computeIncludedTotal } from './lib/reportMath.js';
+
+// Diary signature lock
+export { hasDiarySignatures, isDiaryEntrySignatureLocked } from './lib/diaryLock.js';
+export {
+  MAX_SIGNATURES_PER_ENTRY,
+  MAX_SIGNER_NAME_LENGTH,
+  MAX_SIGNATURE_DATA_URL_LENGTH,
+  SIGNATURE_DATA_URL_PATTERN,
+  SIGNED_AT_PATTERN,
+} from './lib/diarySignatures.js';
 
 // Source Reports
 export type {

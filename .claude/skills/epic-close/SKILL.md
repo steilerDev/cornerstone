@@ -56,7 +56,7 @@ If any story is still open, stop and inform the user. All stories must be comple
 
 ### 2a. Lint Health Check
 
-There is no CI job that runs lint (`ci.yml`'s Quality Gates covers typecheck + test + build + audit only; lint cleanliness is enforced per-PR by implementing agents and dev-team-lead's review per CLAUDE.md's Local Validation Policy). Run a full-repo lint pass directly to catch any cumulative drift across the epic's merged PRs:
+CI's Static Analysis job runs `npx eslint . --max-warnings=0` on every PR (and Stylelint when app paths change), so lint drift should not reach `beta`. Run a full-repo lint pass anyway as a cheap confirmation that no cumulative drift slipped through across the epic's merged PRs:
 
 ```bash
 npm run lint
@@ -66,7 +66,7 @@ If there are unfixable lint errors or warnings, include them in the refinement i
 
 ### 3. Collect Refinement Items
 
-Review all story PRs for non-blocking review comments — observations that were noted during review but not required for merge. Collect these into a list of refinement items.
+Review all story PRs for non-blocking review comments — observations that were noted during review but not required for merge. Under the no-deferral Reviewer Verdict Policy this list should normally be empty; anything found here is fixed in the refinement PR, never filed as an issue. Collect these into a list of refinement items.
 
 Search for review comments on the story PRs:
 
@@ -108,7 +108,7 @@ If no refinement items exist, skip to step 5.
 
 Launch the **e2e-test-engineer** agent to:
 
-- **Triage prior E2E failures** from recent beta PRs — this is the designated place for CI-failure archaeology (the agent no longer does it on every launch). Instruct it to: list the last ~10 beta CI runs (`gh run list --branch beta --workflow "Quality Gates" --limit 10 --json conclusion,url,displayTitle`), inspect the jobs of any run with E2E failures, and categorize each failure as _already fixed_ (note and move on), _known flake_ (record in agent memory, fix if cheap), _real regression_ (file a `bug` issue and flag it), or _environment issue_ (note and move on). If real regressions are found, address them before continuing.
+- **Triage prior E2E failures** from recent beta PRs — this is the designated place for CI-failure archaeology (the agent no longer does it on every launch). Instruct it to: list the last ~10 beta CI runs (`gh run list --branch beta --workflow "Quality Gates" --limit 10 --json conclusion,url,displayTitle`), inspect the jobs of any run with E2E failures, and categorize each failure as _already fixed_ (note and move on), _known flake_ (record in agent memory, fix if cheap), _real regression_ (fix it in-session — never file a follow-up issue), or _environment issue_ (note and move on). If real regressions are found, address them before continuing.
 - Verify every approved UAT scenario (from story issues) has E2E coverage
 - Write new E2E tests on a branch if coverage gaps exist
 - Ensure dependent system containers are included in the E2E environment (not just `page.route()` mocks)

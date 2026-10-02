@@ -12,3 +12,5 @@ metadata:
 **Cross-check rule**: When a hint/warning names a UI column or label inline (e.g. the hint about hiding Usage), the quoted name must match the exact translation of that column's own header. Example from #1973 / #2013: `usageHiddenAttachmentsWarning` names the column as `„Verwendung“`, matching `sourceReports.table.usage` exactly — the user must be able to find the named column in the UI. Always verify the referenced element's translation; do not independently translate the noun.
 
 See [[history-2026-h1]] for the en dash rule (spaced `–` instead of em dash `—`), and [[nbsp-inline-labels]] for width constraints in PDF inline labels.
+
+**Edit tool hazard**: Editing de JSON with the Edit tool can turn the closing quote into an ASCII escape (`\"`) — insert keys via a JSON.parse/JSON.stringify rebuild and verify code points (U+201E open, U+201C close) afterwards.

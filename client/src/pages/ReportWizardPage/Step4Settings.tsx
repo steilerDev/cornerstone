@@ -1,6 +1,10 @@
 import type { TFunction } from 'i18next';
 import type { ResolvedLocale } from '../../contexts/LocaleContext.js';
+import { FormError } from '../../components/FormError/FormError.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportWizardPage.module.css';
+
+export type MaxFileSizeError = 'invalid' | 'min' | 'decimals';
 
 interface Step4SettingsProps {
   reportLanguage: ResolvedLocale;
@@ -10,6 +14,10 @@ interface Step4SettingsProps {
   includeCoverLetter: boolean;
   onIncludeCoverLetterChange: (value: boolean) => void;
   coverLetterDisabled: boolean;
+  /** Maximum file size (MB) input text. The block renders only when `onMaxFileSizeChange` is set. */
+  maxFileSize?: string;
+  onMaxFileSizeChange?: (value: string) => void;
+  maxFileSizeError?: MaxFileSizeError | null;
   t: TFunction;
 }
 
@@ -21,8 +29,28 @@ export function Step4Settings({
   includeCoverLetter,
   onIncludeCoverLetterChange,
   coverLetterDisabled,
+  maxFileSize = '',
+  onMaxFileSizeChange,
+  maxFileSizeError = null,
   t,
 }: Step4SettingsProps) {
+  // The error is irrelevant (value kept but ignored) while attachments are off.
+  const visibleLimitError = attachDocuments ? maxFileSizeError : null;
+  let limitErrorMessage: string | null = null;
+  switch (visibleLimitError) {
+    case 'invalid':
+      limitErrorMessage = t('sourceReports.settingsStep.maxFileSizeError.invalid');
+      break;
+    case 'min':
+      limitErrorMessage = t('sourceReports.settingsStep.maxFileSizeError.min');
+      break;
+    case 'decimals':
+      limitErrorMessage = t('sourceReports.settingsStep.maxFileSizeError.decimals');
+      break;
+    default:
+      break;
+  }
+
   const showCoverLetterDisabledHint = coverLetterDisabled
     ? t('sourceReports.coverLetterDisabledReason')
     : undefined;
@@ -78,6 +106,46 @@ export function Step4Settings({
           </label>
           <div className={styles.optionHelper}>{t('sourceReports.attachDocumentsHelper')}</div>
         </div>
+
+        {onMaxFileSizeChange && (
+          <div className={styles.maxFileSizeBlock}>
+            <label htmlFor="maxFileSize" className={styles.optionLabel}>
+              {t('sourceReports.settingsStep.maxFileSizeLabel')}
+            </label>
+            <div className={styles.maxFileSizeRow}>
+              <div className={styles.maxFileSizeInputWrap}>
+                <input
+                  id="maxFileSize"
+                  type="text"
+                  inputMode="decimal"
+                  autoComplete="off"
+                  className={[sharedStyles.input, limitErrorMessage ? styles.inputInvalid : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  value={maxFileSize}
+                  onChange={(e) => onMaxFileSizeChange(e.target.value)}
+                  disabled={!attachDocuments}
+                  aria-invalid={limitErrorMessage ? true : undefined}
+                  aria-describedby={[
+                    'maxFileSizeHelper',
+                    limitErrorMessage ? 'maxFileSizeError' : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                />
+              </div>
+              <span className={styles.maxFileSizeUnit} aria-hidden="true">
+                {t('sourceReports.settingsStep.maxFileSizeUnit')}
+              </span>
+            </div>
+            <div id="maxFileSizeHelper" className={styles.optionHelper}>
+              {attachDocuments
+                ? t('sourceReports.settingsStep.maxFileSizeHelper')
+                : t('sourceReports.settingsStep.maxFileSizeDisabledHint')}
+            </div>
+            <FormError variant="field" id="maxFileSizeError" message={limitErrorMessage} />
+          </div>
+        )}
 
         <div className={styles.optionRow}>
           <input

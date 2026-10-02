@@ -1,5 +1,5 @@
 import { GenericContainer, Wait } from 'testcontainers';
-import type { Network, StartedTestContainer } from 'testcontainers';
+import type { StartedNetwork, StartedTestContainer } from 'testcontainers';
 
 export interface StartedOidcContainer {
   container: StartedTestContainer;
@@ -14,7 +14,7 @@ export interface StartedOidcContainer {
  * @param network - Docker network to join
  * @returns Started container, issuer URL, and mapped port
  */
-export async function startOidcContainer(network: Network): Promise<StartedOidcContainer> {
+export async function startOidcContainer(network: StartedNetwork): Promise<StartedOidcContainer> {
   // Mock OIDC server configuration
   // interactiveLogin: false → auto-grants without showing a login form
   // Claims match TEST_MEMBER in testData.ts

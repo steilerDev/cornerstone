@@ -25,7 +25,6 @@
   "saveButton": "Speichern",
   "saving": "Wird gespeichert...",
   "saveError": "Metadaten konnten nicht gespeichert werden",
-  "networkError": "Netzwerkfehler: Verbindung zum Server nicht möglich.",
   "unexpectedError": "Ein unerwarteter Fehler ist aufgetreten.",
   "delete": "Foto löschen",
   "deleteConfirmTitle": "Foto löschen?",

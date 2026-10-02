@@ -49,6 +49,11 @@
   font-size: 0.875rem;
 }
 
+.errorBanner:focus {
+  /* Non-interactive banner focused programmatically so screen readers announce it. */
+  outline: none;
+}
+
 .successBanner {
   background-color: var(--color-success-bg);
   border: 1px solid var(--color-success-border);

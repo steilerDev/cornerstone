@@ -10,7 +10,12 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
-import { CONFIDENCE_MARGINS, effectiveLineAmount, effectivePlannedAmount } from './budget.js';
+import {
+  CONFIDENCE_LEVELS,
+  CONFIDENCE_MARGINS,
+  effectiveLineAmount,
+  effectivePlannedAmount,
+} from './budget.js';
 import type {
   ConfidenceLevel,
   BudgetSourceSummary,
@@ -110,15 +115,15 @@ describe('CONFIDENCE_MARGINS constant', () => {
 
 describe('effectivePlannedAmount', () => {
   it('grosses up by 1.19 when includesVat is false (1000 net → 1190)', () => {
-    expect(effectivePlannedAmount({ plannedAmount: 1000, includesVat: false })).toBe(1190);
+    expect(effectivePlannedAmount({ plannedAmount: 1000, includesVat: false }, 0.19)).toBe(1190);
   });
 
   it('returns plannedAmount as-is when includesVat is true', () => {
-    expect(effectivePlannedAmount({ plannedAmount: 500, includesVat: true })).toBe(500);
+    expect(effectivePlannedAmount({ plannedAmount: 500, includesVat: true }, 0.19)).toBe(500);
   });
 
   it('returns plannedAmount as-is when includesVat is null', () => {
-    expect(effectivePlannedAmount({ plannedAmount: 750, includesVat: null })).toBe(750);
+    expect(effectivePlannedAmount({ plannedAmount: 750, includesVat: null }, 0.19)).toBe(750);
   });
 });
 
@@ -128,28 +133,28 @@ describe('effectivePlannedAmount', () => {
 
 describe('effectiveLineAmount', () => {
   it('grosses up by 1.19 when includesVat is false (100 → 119)', () => {
-    expect(effectiveLineAmount({ amount: 100, includesVat: false })).toBe(119);
+    expect(effectiveLineAmount({ amount: 100, includesVat: false }, 0.19)).toBe(119);
   });
 
   it('applies rounding when includesVat is false (84.03 → Math.round(84.03*1.19*100)/100)', () => {
     const expected = Math.round(84.03 * 1.19 * 100) / 100;
-    expect(effectiveLineAmount({ amount: 84.03, includesVat: false })).toBe(expected);
+    expect(effectiveLineAmount({ amount: 84.03, includesVat: false }, 0.19)).toBe(expected);
   });
 
   it('returns amount as-is when includesVat is true (100 → 100)', () => {
-    expect(effectiveLineAmount({ amount: 100, includesVat: true })).toBe(100);
+    expect(effectiveLineAmount({ amount: 100, includesVat: true }, 0.19)).toBe(100);
   });
 
   it('returns amount as-is when includesVat is undefined (100 → 100)', () => {
-    expect(effectiveLineAmount({ amount: 100, includesVat: undefined })).toBe(100);
+    expect(effectiveLineAmount({ amount: 100, includesVat: undefined }, 0.19)).toBe(100);
   });
 
   it('returns amount as-is when includesVat is null (100 → 100)', () => {
-    expect(effectiveLineAmount({ amount: 100, includesVat: null })).toBe(100);
+    expect(effectiveLineAmount({ amount: 100, includesVat: null }, 0.19)).toBe(100);
   });
 
   it('returns 0 when amount is 0 and includesVat is false', () => {
-    expect(effectiveLineAmount({ amount: 0, includesVat: false })).toBe(0);
+    expect(effectiveLineAmount({ amount: 0, includesVat: false }, 0.19)).toBe(0);
   });
 });
 
@@ -159,10 +164,6 @@ describe('effectiveLineAmount', () => {
 // ---------------------------------------------------------------------------
 
 describe('effectivePlannedAmount — configurable vatRate parameter (#1807)', () => {
-  it('Scenario 11: no 2nd arg (regression) → still grosses up by the historical 0.19 rate (100 → 119)', () => {
-    expect(effectivePlannedAmount({ plannedAmount: 100, includesVat: false })).toBe(119);
-  });
-
   it('Scenario 12: explicit vatRate=0.20 → grosses up by 0.20 (100 → 120)', () => {
     expect(effectivePlannedAmount({ plannedAmount: 100, includesVat: false }, 0.2)).toBe(120);
   });
@@ -173,10 +174,6 @@ describe('effectivePlannedAmount — configurable vatRate parameter (#1807)', ()
 });
 
 describe('effectiveLineAmount — configurable vatRate parameter (#1807)', () => {
-  it('Scenario 14: no 2nd arg (regression) → still grosses up by the historical 0.19 rate (100 → 119)', () => {
-    expect(effectiveLineAmount({ amount: 100, includesVat: false })).toBe(119);
-  });
-
   it('Scenario 15: explicit vatRate=0.20 → grosses up by 0.20 (100 → 120)', () => {
     expect(effectiveLineAmount({ amount: 100, includesVat: false }, 0.2)).toBe(120);
   });
@@ -1024,5 +1021,20 @@ describe('HouseholdItemSubsidyPaybackEntry type alias (= SubsidyPaybackEntry)', 
 
     expect(base.subsidyProgramId).toBe('sp-cross');
     expect(hiEntry.name).toBe('Cross-type Test');
+  });
+});
+
+describe('CONFIDENCE_LEVELS tuple', () => {
+  it('lists every confidence level in order', () => {
+    expect([...CONFIDENCE_LEVELS]).toEqual([
+      'own_estimate',
+      'professional_estimate',
+      'quote',
+      'invoice',
+    ]);
+  });
+
+  it('has exactly the keys of CONFIDENCE_MARGINS', () => {
+    expect(Object.keys(CONFIDENCE_MARGINS).sort()).toEqual([...CONFIDENCE_LEVELS].sort());
   });
 });

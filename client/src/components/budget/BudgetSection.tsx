@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
   BaseBudgetLine,
   BudgetSource,
@@ -7,6 +8,9 @@ import type {
   BudgetCategory,
   SubsidyProgram,
 } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
@@ -36,6 +40,8 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   onUnlinkInvoice?: (budgetLineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking?: Record<string, boolean>;
   inlineError?: string | null;
+  /** When set, the inline-error banner shows a dismiss button that calls this. */
+  onDismissInlineError?: () => void;
   oversubscribedSubsidyIds?: Set<string>;
   parentEntityId?: string;
   parentEntityLabel?: string;
@@ -70,6 +76,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onUnlinkInvoice,
   isUnlinking,
   inlineError,
+  onDismissInlineError,
   oversubscribedSubsidyIds,
   parentEntityId,
   parentEntityLabel,
@@ -78,7 +85,10 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onInvoiceLineMove,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
+  const { vatRate } = useLocale();
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
 
   // Invoice edit modal state
   const [invoiceEditLine, setInvoiceEditLine] = useState<T | null>(null);
@@ -120,10 +130,16 @@ export function BudgetSection<T extends BaseBudgetLine>({
       setInvoiceEditForm(null);
       setInvoiceEditItemizedAmount('');
     } catch (err) {
-      const msg =
-        err instanceof Error
-          ? err.message
-          : tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        msg = tCommon('requestErrors.network');
+      } else if (err instanceof LocalizedError) {
+        msg = err.message;
+      } else {
+        msg = tBudget('invoiceDetail.budgetLines.editError.saveFailed');
+      }
       setInvoiceEditError(msg);
     } finally {
       setInvoiceEditMutating(false);
@@ -145,7 +161,16 @@ export function BudgetSection<T extends BaseBudgetLine>({
       setInvoiceEditForm(null);
       setInvoiceEditItemizedAmount('');
     } catch (err) {
-      const msg = err instanceof Error ? err.message : tBudget('budgetLineForm.parentPickerError');
+      let msg: string;
+      if (err instanceof ApiClientError) {
+        msg = translateApiError(err.error.code, tErrors);
+      } else if (err instanceof NetworkError) {
+        msg = tCommon('requestErrors.network');
+      } else if (err instanceof LocalizedError) {
+        msg = err.message;
+      } else {
+        msg = tBudget('budgetLineForm.parentPickerError');
+      }
       setInvoiceEditError(msg);
     } finally {
       setInvoiceEditMutating(false);
@@ -205,12 +230,24 @@ export function BudgetSection<T extends BaseBudgetLine>({
   return (
     <>
       <h2 className={styles.sectionTitle}>
-        {budgetLineType === 'household_item' ? t('detail.budget.title') : 'Budget'}
+        {budgetLineType === 'household_item'
+          ? t('detail.budget.title')
+          : tBudget('common.budgetSectionTitle')}
       </h2>
 
       {inlineError && (
         <div className={styles.errorBanner} role="alert">
           {inlineError}
+          {onDismissInlineError && (
+            <button
+              type="button"
+              className={styles.closeError}
+              onClick={onDismissInlineError}
+              aria-label={tBudget('invoiceDetail.budgetLines.dismissErrorAriaLabel')}
+            >
+              ×
+            </button>
+          )}
         </div>
       )}
 
@@ -243,7 +280,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
             0,
           );
           const plannedTotal = groupLines.reduce(
-            (sum, line) => sum + effectivePlannedAmount(line),
+            (sum, line) => sum + effectivePlannedAmount(line, vatRate),
             0,
           );
           const vendorName = groupLines[0]?.invoiceLink?.vendorName ?? null;

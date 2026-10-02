@@ -61,11 +61,9 @@ export class ProfilePage {
     this.displayNameInput = page.locator('#displayName');
     this.saveDisplayNameButton = page.getByRole('button', { name: /Save Changes|Saving/ }).first();
     this.displayNameSuccessBanner = this.displayNameSection
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
-    this.displayNameErrorBanner = this.displayNameSection
-      .locator('[role="alert"]')
-      .filter({ hasNotText: 'successfully' });
+    this.displayNameErrorBanner = this.displayNameSection.locator('[role="alert"]');
 
     // Password form
     this.currentPasswordInput = page.locator('#currentPassword');
@@ -75,11 +73,9 @@ export class ProfilePage {
       name: /Change Password|Changing Password/,
     });
     this.passwordSuccessBanner = this.passwordSection
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
-    this.passwordErrorBanner = this.passwordSection
-      .locator('[role="alert"]')
-      .filter({ hasNotText: 'successfully' });
+    this.passwordErrorBanner = this.passwordSection.locator('[role="alert"]');
 
     // OIDC message
     this.oidcMessage = page.getByText('Your credentials are managed by your identity provider.');

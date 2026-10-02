@@ -388,6 +388,83 @@ describe('usersApi', () => {
     });
   });
 
+  describe('createUser()', () => {
+    const createdUser = {
+      id: 'user-new',
+      email: 'new@example.com',
+      displayName: 'New User',
+      role: 'member' as const,
+      authProvider: 'local' as const,
+      createdAt: '2024-01-01T00:00:00.000Z',
+      updatedAt: '2024-01-01T00:00:00.000Z',
+      deactivatedAt: null,
+    };
+
+    it('POSTs the exact payload to /users and resolves to the unwrapped user', async () => {
+      mockPost.mockResolvedValue({ user: createdUser });
+
+      const result = await usersApi.createUser({
+        email: 'new@example.com',
+        displayName: 'New User',
+        role: 'member',
+        password: 'twelve-chars!',
+      });
+
+      expect(mockPost).toHaveBeenCalledTimes(1);
+      expect(mockPost).toHaveBeenCalledWith('/users', {
+        email: 'new@example.com',
+        displayName: 'New User',
+        role: 'member',
+        password: 'twelve-chars!',
+      });
+      expect(result).toEqual(createdUser);
+    });
+
+    it('sends an SSO-only payload without a password key', async () => {
+      mockPost.mockResolvedValue({ user: { ...createdUser, authProvider: 'oidc' as const } });
+
+      const result = await usersApi.createUser({
+        email: 'new@example.com',
+        displayName: 'New User',
+        role: 'admin',
+        authProvider: 'oidc',
+      });
+
+      const call = mockPost.mock.calls[0];
+      expect(call).toBeDefined();
+      expect(call?.[0]).toBe('/users');
+      expect(call?.[1]).toEqual({
+        email: 'new@example.com',
+        displayName: 'New User',
+        role: 'admin',
+        authProvider: 'oidc',
+      });
+      expect(call?.[1]).not.toHaveProperty('password');
+      expect(JSON.parse(JSON.stringify(call?.[1]))).not.toHaveProperty('password');
+      expect(result.authProvider).toBe('oidc');
+    });
+
+    it('propagates the rejection unchanged (e.g. a 409 ApiClientError from apiClient)', async () => {
+      // apiClient is mocked in this file, so a stand-in error carrying the same shape is used;
+      // the real ApiClientError code-as-message contract is pinned in apiClient.test.ts.
+      const conflict = Object.assign(new Error('CONFLICT'), {
+        statusCode: 409,
+        error: { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' },
+      });
+      mockPost.mockRejectedValue(conflict);
+
+      await expect(
+        usersApi.createUser({
+          email: 'dup@example.com',
+          displayName: 'Dup',
+          role: 'member',
+          password: 'twelve-chars!',
+        }),
+      ).rejects.toBe(conflict);
+      expect(mockPost).toHaveBeenCalledTimes(1);
+    });
+  });
+
   describe('deactivateUser()', () => {
     it('calls DELETE /users/:id', async () => {
       // Given: Mock response (void - 204 No Content)

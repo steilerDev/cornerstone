@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { SubNav, type SubNavTab } from '../SubNav/SubNav.js';
 
 export function ScheduleSubNav() {
-  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
 
   const scheduleTabs: SubNavTab[] = [
     {
@@ -19,7 +19,7 @@ export function ScheduleSubNav() {
     },
   ];
 
-  return <SubNav tabs={scheduleTabs} ariaLabel={t('schedule.navigation.ariaLabel')} />;
+  return <SubNav tabs={scheduleTabs} ariaLabel={tCommon('subNav.schedule')} />;
 }
 
 export default ScheduleSubNav;

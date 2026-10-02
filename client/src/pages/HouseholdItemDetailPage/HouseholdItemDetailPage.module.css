@@ -1549,6 +1549,7 @@
 }
 
 .errorMessage {
+  composes: bannerRow from '../../styles/shared.module.css';
   background-color: var(--color-danger-bg);
   border: 1px solid var(--color-danger-border);
   border-radius: var(--radius-md);
@@ -1556,6 +1557,11 @@
   padding: var(--spacing-3);
   font-size: var(--font-size-sm);
   margin-bottom: var(--spacing-4);
+}
+
+.errorMessageClose {
+  composes: bannerClose from '../../styles/shared.module.css';
+  flex-shrink: 0;
 }
 
 /* ============================================================

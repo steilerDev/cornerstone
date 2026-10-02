@@ -7,6 +7,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import enCommon from '../../i18n/en/common.json';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -401,10 +402,10 @@ describe('TimelinePage', () => {
   // ---------------------------------------------------------------------------
 
   describe('ScheduleSubNav integration', () => {
-    it('renders the ScheduleSubNav with aria-label "Schedule section navigation"', () => {
+    it('renders the ScheduleSubNav labelled with common.subNav.schedule', () => {
       renderWithRouter();
       expect(
-        screen.getByRole('navigation', { name: /schedule section navigation/i }),
+        screen.getByRole('navigation', { name: enCommon.subNav.schedule }),
       ).toBeInTheDocument();
     });
 

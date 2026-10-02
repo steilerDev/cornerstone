@@ -18,6 +18,7 @@ import enSettings from './en/settings.json';
 import enAreas from './en/areas.json';
 import enPhotoViewer from './en/photoViewer.json';
 import enPhotoAnnotator from './en/photoAnnotator.json';
+import enPhotos from './en/photos.json';
 
 // Import all German namespace files
 import deCommon from './de/common.json';
@@ -34,6 +35,7 @@ import deSettings from './de/settings.json';
 import deAreas from './de/areas.json';
 import dePhotoViewer from './de/photoViewer.json';
 import dePhotoAnnotator from './de/photoAnnotator.json';
+import dePhotos from './de/photos.json';
 
 // ─── Namespace registry ─────────────────────────────────────────────────────
 //
@@ -57,6 +59,7 @@ const NAMESPACES: { name: string; en: Record<string, unknown>; de: Record<string
   { name: 'areas', en: enAreas, de: deAreas },
   { name: 'photoViewer', en: enPhotoViewer, de: dePhotoViewer },
   { name: 'photoAnnotator', en: enPhotoAnnotator, de: dePhotoAnnotator },
+  { name: 'photos', en: enPhotos, de: dePhotos },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -308,5 +311,24 @@ describe('#1959 inline PDF label typography', () => {
       expect(value.length).toBeGreaterThan(0);
       expect(value).not.toMatch(/\s/u);
     });
+  }
+});
+
+describe('#2127 refund net-rule error keys', () => {
+  const keys = ['refundReductionExceedsTotal', 'refundDeleteExceedsTotal'] as const;
+  const bundles = { en: enBudget, de: deBudget } as Record<string, unknown>;
+
+  for (const [locale, bundle] of Object.entries(bundles)) {
+    for (const key of keys) {
+      it(`${locale}: budget invoiceDetail.deposits.errors.${key} exists and keeps {{minimumRefundAmount}}`, () => {
+        const errors = (
+          bundle as {
+            invoiceDetail: { deposits: { errors: Record<string, string> } };
+          }
+        ).invoiceDetail.deposits.errors;
+        expect(typeof errors[key]).toBe('string');
+        expect(errors[key]).toContain('{{minimumRefundAmount}}');
+      });
+    }
   }
 });

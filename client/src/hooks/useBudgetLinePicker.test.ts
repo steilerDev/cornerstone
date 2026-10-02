@@ -9,8 +9,9 @@
  * External APIs are mocked; internal hook logic is tested through the real implementation.
  */
 
-import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { renderHook, act } from '@testing-library/react';
+import enErrors from '../i18n/en/errors.json';
 import type * as WorkItemBudgetsApiModule from '../lib/workItemBudgetsApi.js';
 import type * as HouseholdItemBudgetsApiModule from '../lib/householdItemBudgetsApi.js';
 import type * as BudgetCategoriesApiModule from '../lib/budgetCategoriesApi.js';
@@ -23,6 +24,22 @@ import type { WorkItemBudgetLine, InvoiceBudgetLineDetailResponse } from '@corne
 
 const mockFetchWorkItemBudgets = jest.fn<typeof WorkItemBudgetsApiModule.fetchWorkItemBudgets>();
 const mockCreateWorkItemBudget = jest.fn<typeof WorkItemBudgetsApiModule.createWorkItemBudget>();
+
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+// Mutable so a test can exercise a non-default VAT rate; reset in afterEach.
+const mockLocaleValue = {
+  locale: 'en',
+  resolvedLocale: 'en',
+  currency: 'EUR',
+  vatRate: 0.19,
+  setLocale: jest.fn(),
+  syncWithServer: jest.fn(),
+};
+
+jest.unstable_mockModule('../contexts/LocaleContext.js', () => ({
+  LocaleProvider: ({ children }: { children: unknown }) => children,
+  useLocale: () => mockLocaleValue,
+}));
 
 jest.unstable_mockModule('../lib/workItemBudgetsApi.js', () => ({
   fetchWorkItemBudgets: mockFetchWorkItemBudgets,
@@ -859,7 +876,7 @@ describe('useBudgetLinePicker', () => {
       );
     });
 
-    it('sets createError with ApiClientError message when API returns non-ITEMIZED error', async () => {
+    it('sets createError to the translated message when API returns non-ITEMIZED error', async () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
@@ -869,7 +886,7 @@ describe('useBudgetLinePicker', () => {
       });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockRejectedValue(
-        new MockApiClientError(409, { code: 'CONFLICT', message: 'Line already exists' }),
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
       );
       mockFetchWorkItemBudgets.mockResolvedValue([]);
 
@@ -905,7 +922,7 @@ describe('useBudgetLinePicker', () => {
         await result.current.handleCreateBudgetLine(makeFormEvent());
       });
 
-      expect(result.current.pickerState.createError).toBe('Line already exists');
+      expect(result.current.pickerState.createError).toBe(enErrors.CONFLICT);
     });
 
     it('sets error and resets form when API returns BUDGET_LINE_ALREADY_LINKED', async () => {
@@ -977,9 +994,9 @@ describe('useBudgetLinePicker', () => {
       expect(result.current.pickerState.budgetLines).toHaveLength(0);
     });
 
-    it('sets ApiClientError message when fetchWorkItemBudgets throws ApiClientError', async () => {
+    it('sets the translated message when fetchWorkItemBudgets throws ApiClientError', async () => {
       mockFetchWorkItemBudgets.mockRejectedValue(
-        new MockApiClientError(500, { code: 'SERVER_ERROR', message: 'Internal server error' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
@@ -987,14 +1004,14 @@ describe('useBudgetLinePicker', () => {
         await result.current.handleSelectItem('wi-42', 'work_item');
       });
 
-      expect(result.current.pickerState.error).toBe('Internal server error');
+      expect(result.current.pickerState.error).toBe(enErrors.INTERNAL_ERROR);
     });
   });
 
   describe('showCreateBudgetLineForm error path', () => {
     it('sets error when fetchBudgetCategories throws ApiClientError', async () => {
       mockFetchBudgetCategories.mockRejectedValue(
-        new MockApiClientError(500, { code: 'SERVER_ERROR', message: 'Categories unavailable' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
       mockFetchVendors.mockResolvedValue({
@@ -1008,7 +1025,7 @@ describe('useBudgetLinePicker', () => {
         await result.current.showCreateBudgetLineForm();
       });
 
-      expect(result.current.pickerState.error).toBe('Categories unavailable');
+      expect(result.current.pickerState.error).toBe(enErrors.INTERNAL_ERROR);
       expect(result.current.pickerState.showCreateForm).toBe(false);
     });
   });
@@ -1426,5 +1443,84 @@ describe('useBudgetLinePicker', () => {
       expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
       expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledTimes(1);
     });
+  });
+});
+
+describe('useBudgetLinePicker — configured VAT rate (vatRate=0.2)', () => {
+  beforeEach(() => {
+    mockLocaleValue.vatRate = 0.2;
+  });
+
+  afterEach(() => {
+    mockLocaleValue.vatRate = 0.19;
+  });
+
+  async function createNetLine(eagerLinkInvoice: boolean) {
+    const netWib: WorkItemBudgetLine = {
+      ...makeWib('net-wib-1'),
+      plannedAmount: 100,
+      includesVat: false,
+    };
+    mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+    mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockFetchWorkItemBudgets.mockResolvedValue([]);
+    mockCreateWorkItemBudget.mockResolvedValue(netWib);
+    mockCreateInvoiceBudgetLine.mockResolvedValue({
+      budgetLine: { id: 'ibl-net' } as InvoiceBudgetLineDetailResponse,
+      remainingAmount: 880,
+    });
+
+    const { result } = renderHook(() =>
+      useBudgetLinePicker({ ...defaultOptions(), eagerLinkInvoice }),
+    );
+    await act(async () => {
+      await result.current.handleSelectItem('wi-42', 'work_item', 'My Work Item');
+    });
+    await act(async () => {
+      await result.current.showCreateBudgetLineForm();
+    });
+    act(() => {
+      result.current.setPickerState((prev) => ({
+        ...prev,
+        createForm: {
+          ...prev.createForm!,
+          plannedAmount: '100',
+          confidence: 'invoice',
+          pricingMode: 'direct',
+          description: 'Net line',
+          budgetCategoryId: '',
+          budgetSourceId: '',
+          vendorId: '',
+          quantity: '',
+          unit: '',
+          unitPrice: '',
+          includesVat: false,
+        },
+      }));
+    });
+    await act(async () => {
+      await result.current.handleCreateBudgetLine(makeFormEvent());
+    });
+  }
+
+  it('eager link of a net budget line sends the grossed-up itemizedAmount 120 (not 119)', async () => {
+    await createNetLine(true);
+
+    expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledTimes(1);
+    expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+      'inv-1',
+      expect.objectContaining({ workItemBudgetId: 'net-wib-1', itemizedAmount: 120 }),
+    );
+  });
+
+  it('does not create an invoice link at all when eagerLinkInvoice is false', async () => {
+    await createNetLine(false);
+
+    expect(mockCreateWorkItemBudget).toHaveBeenCalledTimes(1);
+    expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
   });
 });

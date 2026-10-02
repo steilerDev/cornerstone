@@ -26,6 +26,11 @@ import { render, screen, waitFor, act } from '@testing-library/react';
 import type * as TimelineApiModule from '../lib/timelineApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
+import i18n from '../i18n/index.js';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
+import enSchedule from '../i18n/en/schedule.json';
+import deSchedule from '../i18n/de/schedule.json';
 
 // ---------------------------------------------------------------------------
 // Mock setup
@@ -136,20 +141,66 @@ describe('useTimeline', () => {
 
     await waitFor(() => {
       const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText.toLowerCase()).toContain('network error');
+      expect(errorText).toBe(enCommon.requestErrors.network);
+      expect(errorText).not.toContain('Failed to fetch');
     });
   });
 
-  it('network error message includes "unable to connect"', async () => {
-    const { NetworkError } = await import('../lib/apiClient.js');
-    const networkError = new NetworkError('Network request failed', new TypeError('Failed'));
-    mockGetTimeline.mockRejectedValue(networkError);
+  describe('translated errors', () => {
+    it('surfaces the translated code copy for an ApiClientError, never the server text', async () => {
+      const { ApiClientError } = await import('../lib/apiClient.js');
+      mockGetTimeline.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
 
-    render(<TestComponent />);
+      render(<TestComponent />);
 
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText.toLowerCase()).toContain('unable to connect');
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
+      });
+      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-SERVER-SENTINEL');
+    });
+
+    it('surfaces the loadFailed key text for any other error, not the local text', async () => {
+      mockGetTimeline.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      render(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(
+          enSchedule.timeline.errors.loadFailed,
+        );
+      });
+      expect(screen.getByTestId('error')).not.toHaveTextContent('RAW-LOCAL');
+    });
+
+    it('re-fetches and re-translates the error when the language changes', async () => {
+      mockGetTimeline.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      render(<TestComponent />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('error')).toHaveTextContent(
+          enSchedule.timeline.errors.loadFailed,
+        );
+      });
+      const callsBefore = mockGetTimeline.mock.calls.length;
+
+      try {
+        await act(async () => {
+          await i18n.changeLanguage('de');
+        });
+        await waitFor(() => {
+          expect(screen.getByTestId('error')).toHaveTextContent(
+            deSchedule.timeline.errors.loadFailed,
+          );
+        });
+        expect(mockGetTimeline.mock.calls.length).toBeGreaterThan(callsBefore);
+      } finally {
+        await act(async () => {
+          await i18n.changeLanguage('en');
+        });
+      }
     });
   });
 

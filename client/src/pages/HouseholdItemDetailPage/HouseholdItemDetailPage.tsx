@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -48,7 +49,9 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { Badge } from '../../components/Badge/Badge.js';
@@ -93,6 +96,14 @@ export function HouseholdItemDetailPage() {
   const { t } = useTranslation('householdItems');
   const { t: tSettings } = useTranslation('settings');
   const { t: tBudget } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
+  const statusLabels: Record<HouseholdItemStatus, string> = {
+    planned: t('detail.status.planned'),
+    purchased: t('detail.status.purchased'),
+    scheduled: t('detail.status.scheduled'),
+    arrived: t('detail.status.arrived'),
+  };
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -211,7 +222,11 @@ export function HouseholdItemDetailPage() {
       updateBudget: updateHouseholdItemBudget,
       deleteBudget: deleteHouseholdItemBudget,
     },
-    reloadBudgetLines,
+    // A successful budget-line add/edit/delete reloads the lines; clear any stale budget error.
+    reloadBudgetLines: async () => {
+      await reloadBudgetLines();
+      setInlineError(null);
+    },
     reloadSubsidyPayback,
     reloadLinkedSubsidies,
     toFormState: (line: HouseholdItemBudgetLine): BudgetLineFormState => ({
@@ -344,12 +359,14 @@ export function HouseholdItemDetailPage() {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
           setIs404(true);
-          setError('Item not found');
+          setError(t('detail.errors.itemNotFound'));
         } else {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         }
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
       } else {
-        setError('Failed to load household item. Please try again.');
+        setError(t('detail.errors.loadFailed'));
       }
     } finally {
       setIsLoading(false);
@@ -403,12 +420,12 @@ export function HouseholdItemDetailPage() {
       setItem(newItem);
       setDepSearchInput('');
       setShowDepDropdown(false);
-      showToast('success', 'Dependency added successfully');
+      showToast('success', t('detail.dependencies.addedSuccess'));
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDepError(err.error.message ?? 'Failed to add dependency');
+        setDepError(translateApiError(err.error.code, tErrors));
       } else {
-        showToast('error', 'Failed to add dependency');
+        showToast('error', t('detail.dependencies.failedAdd'));
       }
     } finally {
       setIsAddingDep(false);
@@ -424,9 +441,9 @@ export function HouseholdItemDetailPage() {
       const newItem = await getHouseholdItem(id);
       setItem(newItem);
       setRemovingDepKey(null);
-      showToast('success', 'Dependency removed');
+      showToast('success', t('detail.dependencies.removedSuccess'));
     } catch {
-      showToast('error', 'Failed to remove dependency');
+      showToast('error', t('detail.dependencies.failedRemove'));
     }
   };
 
@@ -456,8 +473,13 @@ export function HouseholdItemDetailPage() {
     try {
       await confirmDeleteBudgetLine();
     } catch (err) {
-      const error = err as Error;
-      setInlineError(error.message);
+      if (err instanceof ApiClientError) {
+        setInlineError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
+      } else {
+        setInlineError(tBudget('budgetLineForm.errors.deleteFailed'));
+      }
     }
   };
 
@@ -473,12 +495,14 @@ export function HouseholdItemDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setInlineError('This subsidy program is already linked');
+          setInlineError(t('detail.errors.alreadyLinkedSubsidy'));
         } else {
-          setInlineError(err.error.message);
+          setInlineError(translateApiError(err.error.code, tErrors));
         }
+      } else if (err instanceof NetworkError) {
+        setInlineError(tCommon('requestErrors.network'));
       } else {
-        setInlineError('Failed to link subsidy program');
+        setInlineError(t('detail.errors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
     }
@@ -492,7 +516,7 @@ export function HouseholdItemDetailPage() {
       await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      setInlineError('Failed to unlink subsidy program');
+      setInlineError(t('detail.errors.unlinkSubsidy'));
       console.error('Failed to unlink subsidy:', err);
     }
   };
@@ -517,7 +541,7 @@ export function HouseholdItemDetailPage() {
       setItem(fresh);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError('Failed to unlink budget line from invoice');
+      setInlineError(t('detail.errors.unlinkInvoice'));
       console.error('Failed to unlink invoice:', err);
     } finally {
       setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
@@ -540,40 +564,33 @@ export function HouseholdItemDetailPage() {
 
     setInlineError(null);
 
-    try {
-      // If the line has an invoice link, use the invoice budget line endpoint
-      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-        const moveData =
-          newParentType === 'work_item'
-            ? { newWorkItemId: newParentId }
-            : { newHouseholdItemId: newParentId };
+    // If the line has an invoice link, use the invoice budget line endpoint
+    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+      const moveData =
+        newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId };
 
-        await editAndMoveBudgetLine(
-          budgetLine.invoiceLink.invoiceId,
-          budgetLine.invoiceLink.invoiceBudgetLineId,
-          moveData,
-        );
-      } else {
-        // No invoice link — check if it's a same-table or cross-table move
-        if (newParentType === 'work_item') {
-          // Cross-table move without invoice link is not supported
-          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-        }
-
-        // Same-table household item to household item move
-        await updateHouseholdItemBudget(item!.id, budgetLineId, {
-          newHouseholdItemId: newParentId,
-        });
+      await editAndMoveBudgetLine(
+        budgetLine.invoiceLink.invoiceId,
+        budgetLine.invoiceLink.invoiceBudgetLineId,
+        moveData,
+      );
+    } else {
+      // No invoice link — check if it's a same-table or cross-table move
+      if (newParentType === 'work_item') {
+        // Cross-table move without invoice link is not supported
+        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
       }
 
-      // Reload budget lines to reflect the move
-      await reloadBudgetLines();
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : 'Failed to move budget line. Please try again.';
-      setInlineError(message);
-      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+      // Same-table household item to household item move
+      await updateHouseholdItemBudget(item!.id, budgetLineId, {
+        newHouseholdItemId: newParentId,
+      });
     }
+
+    // Reload budget lines to reflect the move
+    await reloadBudgetLines();
   };
 
   const handleInvoiceLineEdit = async (
@@ -582,10 +599,11 @@ export function HouseholdItemDetailPage() {
     itemizedAmountStr: string,
   ) => {
     if (!line.invoiceLink?.invoiceId || !line.invoiceLink?.invoiceBudgetLineId) return;
+    setInlineError(null);
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {
-      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
     }
 
     // Compute plannedAmount from form
@@ -712,9 +730,9 @@ export function HouseholdItemDetailPage() {
     try {
       const updated = await updateHouseholdItem(id, { status: newStatus });
       setItem(updated);
-      showToast('success', 'Status updated');
+      showToast('success', t('detail.status.updated'));
     } catch (err) {
-      setInlineError(t('detail.status.updateFailed'));
+      showToast('error', t('detail.status.updateFailed'));
       console.error('Failed to update status:', err);
     } finally {
       setIsChangingStatus(false);
@@ -729,7 +747,7 @@ export function HouseholdItemDetailPage() {
       setItem(updated);
       showToast('success', t('detail.area.updated'));
     } catch (err) {
-      setInlineError(t('detail.area.updateFailed'));
+      showToast('error', t('detail.area.updateFailed'));
       console.error('Failed to update area:', err);
     }
   };
@@ -740,13 +758,15 @@ export function HouseholdItemDetailPage() {
     setDeleteError('');
     try {
       await deleteHouseholdItem(item.id);
-      showToast('success', 'Household item deleted successfully');
+      showToast('success', t('detail.delete.deleted'));
       navigate('/project/household-items');
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteError(tCommon('requestErrors.network'));
       } else {
-        setDeleteError('Failed to delete household item. Please try again.');
+        setDeleteError(t('detail.errors.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
@@ -948,25 +968,13 @@ export function HouseholdItemDetailPage() {
             <h2 className={styles.cardTitle}>{t('detail.datesDelivery.title')}</h2>
           </div>
           {dateInlineError && (
-            <div
-              className={styles.errorMessage}
-              role="alert"
-              style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
+            <div className={styles.errorMessage} role="alert">
               <span>{dateInlineError}</span>
               <button
                 type="button"
+                className={styles.errorMessageClose}
                 onClick={() => setDateInlineError(null)}
                 aria-label={t('detail.closeErrorMessage')}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '1.5rem',
-                  padding: '0 0 0 var(--spacing-4)',
-                  flexShrink: 0,
-                  color: 'inherit',
-                }}
               >
                 ×
               </button>
@@ -985,10 +993,11 @@ export function HouseholdItemDetailPage() {
               aria-label={t('detail.datesDelivery.purchaseStatus')}
               onChange={(e) => void handleStatusChange(e.target.value as HouseholdItemStatus)}
             >
-              <option value="planned">{t('detail.status.planned')}</option>
-              <option value="purchased">{t('detail.status.purchased')}</option>
-              <option value="scheduled">{t('detail.status.scheduled')}</option>
-              <option value="arrived">{t('detail.status.arrived')}</option>
+              {HOUSEHOLD_ITEM_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusLabels[status]}
+                </option>
+              ))}
             </select>
           </div>
           <dl className={styles.infoList}>
@@ -1416,6 +1425,7 @@ export function HouseholdItemDetailPage() {
             onUnlinkInvoice={handleUnlinkInvoice}
             isUnlinking={isUnlinkingInvoice}
             inlineError={inlineError}
+            onDismissInlineError={() => setInlineError(null)}
             parentEntityId={item?.id}
             parentEntityLabel={item?.name}
             onMoveBudgetLine={handleMoveBudgetLine}

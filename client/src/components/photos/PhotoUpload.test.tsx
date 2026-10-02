@@ -23,6 +23,10 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import type { Photo } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
+import enDiary from '../../i18n/en/diary.json';
 import type { PhotoUpload as PhotoUploadType } from './PhotoUpload.js';
 
 // ─── Initialize real i18n ─────────────────────────────────────────────────────
@@ -257,13 +261,8 @@ describe('PhotoUpload', () => {
   // ─── Scenario 52: failed upload shows error state ─────────────────────────
 
   describe('Scenario 52: failed upload → entry shows failed state with error and retry button', () => {
-    it('shows "Failed" state and error message when upload throws', async () => {
-      // Module mock (CI): returns rejected promise with custom message.
-      // XHR mock (local): fires the error event → "Network error during upload".
-      // Either path results in the component showing a "Failed" state + error text.
-      mockUploadPhoto.mockRejectedValueOnce(new Error('Upload network error'));
-
-      const onError = jest.fn<(error: string) => void>();
+    async function failUploadWith(error: unknown, onError = jest.fn<(error: string) => void>()) {
+      mockUploadPhoto.mockRejectedValueOnce(error);
       renderUpload({ onError });
 
       const fileInput = screen.getByTestId('photo-file-input');
@@ -274,23 +273,34 @@ describe('PhotoUpload', () => {
       // Drive the modal to completion so the file is enqueued for upload
       await saveModal({ caption: null, areaId: null, orientationId: null });
 
-      // Fire XHR error event for the local environment (no-op in CI where mock intercepted)
-      await act(async () => {
-        const xhr = xhrInstances[0];
-        xhr?._handlers['error']?.();
-      });
-
       await waitFor(() => {
         expect(screen.getByText(/failed/i)).toBeInTheDocument();
       });
+      return onError;
+    }
 
-      // In CI: module mock intercepts, error message is "Upload network error".
-      // Locally: real XHR runs, error event fires → "Network error during upload".
-      // Both are shown by the component. We verify any upload error text is displayed.
-      await waitFor(() => {
-        const errorEl = screen.getByText(/network error|Upload network error/i);
-        expect(errorEl).toBeInTheDocument();
-      });
+    it('shows the translated errors.json text (never the server message) for an ApiClientError', async () => {
+      const onError = await failUploadWith(
+        new ApiClientError(413, { code: 'PAYLOAD_TOO_LARGE', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      expect(screen.getByText(enErrors.PAYLOAD_TOO_LARGE)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      expect(onError).toHaveBeenCalledWith(expect.stringContaining('bad-photo.jpg'));
+    });
+
+    it('shows the common network message for a NetworkError', async () => {
+      await failUploadWith(new NetworkError('RAW-LOCAL', new Error('cause')));
+
+      expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('shows the unknown-upload-error text for a plain Error (its message is never displayed)', async () => {
+      await failUploadWith(new Error('RAW-LOCAL'));
+
+      expect(screen.getByText(enDiary.photoUpload.unknownError)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
 
     it('shows retry button when upload fails', async () => {

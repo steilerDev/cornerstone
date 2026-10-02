@@ -26,6 +26,7 @@
   --color-gray-300: #d1d5db;
   --color-gray-400: #9ca3af;
   --color-gray-500: #6b7280;
+  --color-gray-550: #656c7a;
   --color-gray-600: #4b5563;
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
@@ -72,6 +73,7 @@
   --color-slate-500: #334155;
   --color-slate-400: #475569;
   --color-slate-300: #64748b;
+  --color-slate-250: #8392aa;
   --color-slate-200: #94a3b8;
   --color-slate-150: #cbd5e1;
   --color-slate-100: #e2e8f0;
@@ -113,12 +115,12 @@
   --color-text-primary: var(--color-gray-900);
   --color-text-secondary: var(--color-gray-700);
   --color-text-body: var(--color-gray-700);
-  --color-text-muted: var(--color-gray-500);
+  --color-text-muted: var(--color-gray-550);
   --color-text-subtle: var(--color-gray-600);
   --color-text-inverse: var(--color-white);
   --color-text-placeholder: var(--color-gray-400);
   --color-text-disabled: var(--color-gray-400);
-  --color-text-quoted: var(--color-gray-500);
+  --color-text-quoted: var(--color-gray-550);
 
   /* --- Borders --- */
   --color-border: var(--color-gray-200);
@@ -484,6 +486,18 @@
   --color-photo-action-primary-bg: rgba(59, 130, 246, 0.9);
   --color-photo-action-danger-bg: rgba(220, 38, 38, 0.9);
 
+  /* Photo spot viewer surfaces (theme-invariant) */
+  --color-photo-stage-bg: #0b0f17;
+  --color-photo-panel-bg: var(--color-gray-900);
+  --color-photo-panel-border: var(--color-gray-800);
+  --color-photo-text: var(--color-gray-50);
+  --color-photo-text-secondary: var(--color-gray-300);
+  --color-photo-text-muted: var(--color-gray-400);
+  --color-photo-link: var(--color-blue-300);
+  --color-photo-item-hover-bg: rgba(255, 255, 255, 0.06);
+  --color-photo-item-current-bg: rgba(255, 255, 255, 0.12);
+  --color-photo-item-current-ring: var(--color-blue-400);
+
   /* ============================================================
    * LAYER 1-B — HOUSEHOLD ITEM GANTT TOKENS
    * ============================================================ */
@@ -662,7 +676,7 @@
   --color-text-primary: var(--color-slate-50);
   --color-text-secondary: var(--color-slate-150);
   --color-text-body: var(--color-slate-200);
-  --color-text-muted: var(--color-slate-300);
+  --color-text-muted: var(--color-slate-250);
   --color-text-subtle: var(--color-slate-200);
   --color-text-inverse: var(--color-gray-900);
   --color-text-placeholder: var(--color-slate-400);

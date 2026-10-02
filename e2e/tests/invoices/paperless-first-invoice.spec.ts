@@ -58,7 +58,12 @@ import { test, expect } from '../../fixtures/auth.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
 import { API } from '../../fixtures/testData.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 import type { Page, Route } from '@playwright/test';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,30 +143,31 @@ const MOCK_DOCUMENTS_FILTERED = {
   pagination: { page: 1, pageSize: 25, totalItems: 1, totalPages: 1 },
 };
 
-const MOCK_EXTRACTED_LINES = [
-  {
-    description: 'Bathroom tiles (600x600mm)',
-    quantity: 20,
-    unit: 'm²',
-    unitPrice: 45.0,
-    totalAmount: 900.0,
-    includesVat: false,
-    vatRate: 0.19,
-    vendorName: 'Builder Co',
-    confidence: 0.95,
-  },
-  {
-    description: 'Installation labor',
-    quantity: 8,
-    unit: 'h',
-    unitPrice: 85.0,
-    totalAmount: 680.0,
-    includesVat: false,
-    vatRate: 0.19,
-    vendorName: null,
-    confidence: 0.88,
-  },
-];
+const MOCK_LINE_UNIT_PRICED = {
+  description: 'Bathroom tiles (600x600mm)',
+  quantity: 20,
+  unit: 'm²',
+  unitPrice: 45.0,
+  totalAmount: 900.0,
+  includesVat: false,
+  vatRate: 0.19,
+  vendorName: 'Builder Co',
+  confidence: 0.95,
+};
+
+const MOCK_LINE_HOURLY = {
+  description: 'Installation labor',
+  quantity: 8,
+  unit: 'h',
+  unitPrice: 85.0,
+  totalAmount: 680.0,
+  includesVat: false,
+  vatRate: 0.19,
+  vendorName: null,
+  confidence: 0.88,
+};
+
+const MOCK_EXTRACTED_LINES = [MOCK_LINE_UNIT_PRICED, MOCK_LINE_HOURLY];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route-intercept helpers
@@ -327,7 +333,7 @@ async function mockPreview(
         status: opts.errorStatus,
         contentType: 'application/json',
         body: JSON.stringify({
-          error: { code: 'LLM_EXTRACTION_FAILED', message: 'Extraction failed', details: {} },
+          error: { code: 'LLM_INVALID_RESPONSE', message: 'Extraction failed', details: {} },
         }),
       });
       return;
@@ -821,7 +827,13 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
         (resp) => resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
       );
       await reviewPage.confirm();
-      await commitResponsePromise;
+      const commitResponse = await commitResponsePromise;
+
+      // Default status (untouched Status select) must be sent as 'pending'.
+      const commitBody = commitResponse.request().postDataJSON() as {
+        invoice: { status?: string };
+      };
+      expect(commitBody.invoice.status).toBe('pending');
 
       // Step 6: Should navigate to the created invoice detail page.
       await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
@@ -832,6 +844,66 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       // it requires the API response data to be present in the DOM, not just the element to
       // exist. The test also verifies the correct invoice landed on screen.
       await expect(page.getByRole('heading', { level: 1, name: '#INV-2026-001' })).toBeVisible();
+    } finally {
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 7b — Status select (Story #2154)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 7b — Invoice status select on review page', () => {
+  test('Status defaults to pending; choosing paid is sent as invoice.status in the commit body', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+
+    let vendorId = '';
+    try {
+      vendorId = await createVendorViaApi(page, `${testPrefix} PF Status Co`);
+
+      const catResp = await page.request.get(API.budgetCategories);
+      expect(catResp.ok(), `GET /api/budget-categories failed: ${catResp.status()}`).toBeTruthy();
+      const catBody = (await catResp.json()) as { categories: Array<{ id: string }> };
+      const firstCatId = catBody.categories[0]?.id ?? null;
+      expect(firstCatId, 'Expected at least one budget category').not.toBeNull();
+      const linesWithCategory = MOCK_EXTRACTED_LINES.map((l) => ({
+        ...l,
+        budgetCategoryId: firstCatId,
+      }));
+
+      await mockPaperlessConfigured(page);
+      await mockConfig(page, true);
+      await mockCorrespondents(page);
+      await mockDocuments(page);
+      await mockTags(page);
+      await mockDocumentDetail(page, MOCK_DOC_1.id);
+      await mockPreview(page, { suggestedVendorId: null, lines: linesWithCategory });
+      await mockCommit(page, { invoiceId: `mock-inv-${testPrefix}-status` });
+
+      const reviewPage = await navigateToReviewPage(page);
+
+      await expect(reviewPage.statusSelect).toBeVisible();
+      await expect(reviewPage.statusSelect).toHaveValue('pending');
+
+      // Focus the select, then set its value directly via selectOption (no key presses)
+      await reviewPage.statusSelect.focus();
+      await reviewPage.statusSelect.selectOption('paid');
+      await expect(reviewPage.statusSelect).toHaveValue('paid');
+
+      await reviewPage.setVendor(`${testPrefix} PF Status Co`);
+
+      const commitRequestPromise = page.waitForRequest(
+        (req) => req.url().includes('/auto-itemize/commit') && req.method() === 'POST',
+      );
+      await reviewPage.confirm();
+      const commitRequest = await commitRequestPromise;
+
+      const body = commitRequest.postDataJSON() as { invoice: { status?: string } };
+      expect(body.invoice.status).toBe('paid');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -1400,12 +1472,19 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
 
     let vendorId = '';
     let workItemId = '';
+    let budgetSourceId = '';
     const mockInvoiceId = `mock-inv-pf-s17-${testPrefix}`;
     const editedDescription = `${testPrefix} PF-S17 Budget Line`;
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} PF-S17 Vendor`);
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S17 WI` });
+      // Own budget source: the inline form's Funding Source defaults to the first source in the
+      // list, which a parallel worker may delete before the WI budget POST.
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} PF-S17 Source`,
+        totalAmount: 100000,
+      });
 
       await mockPaperlessConfigured(page);
       await mockConfig(page, true);
@@ -1417,7 +1496,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       // unit-pricing mode (pricingMode='unit'). The description textbox is always visible.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Mock commit: returns a fake invoice — prevents real server from needing document link
@@ -1498,7 +1577,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       const reviewPage = await navigateToReviewPage(page);
 
       // ── Queue create-new on first extraction line ──────────────────────────
-      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`);
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S17 WI`, { budgetSourceId });
       await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
 
       // ── Edit the description in the inline form ─────────────────────────────
@@ -1522,7 +1601,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
       }
 
       // ── Assert WI budget payload ────────────────────────────────────────────
-      // totalAmount from MOCK_EXTRACTED_LINES[0] = 900, includesVat=false
+      // totalAmount from MOCK_LINE_UNIT_PRICED = 900, includesVat=false
       expect(capturedWIBudgetPayload, 'Expected WI budget POST to have been called').not.toBeNull();
       // The description is from the edited inline form
       expect(capturedWIBudgetPayload!.description).toBe(editedDescription);
@@ -1533,6 +1612,7 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });
@@ -1580,7 +1660,7 @@ test.describe('Scenario 18 — Inline form validation: invalid amount shows erro
       // We will clear the unitPrice field to trigger the invalid-amount path.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Monitor API calls that should NOT happen
@@ -1688,6 +1768,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
     let vendorId = '';
     let workItemId = '';
     let preCreatedInvoiceId = '';
+    let budgetSourceId = '';
 
     // Track every POST to the WI-budgets endpoint across BOTH save attempts —
     // this is the actual regression surface (real endpoint, not mocked).
@@ -1703,6 +1784,12 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} PF-S19 Vendor`);
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} PF-S19 WI` });
+      // Own budget source: the inline form's Funding Source defaults to the first source in the
+      // list, which a parallel worker may delete before the WI budget POST (400 not found).
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} PF-S19 Source`,
+        totalAmount: 100000,
+      });
 
       // Pre-create a REAL invoice so the second (mocked-success) commit
       // response can point navigation at an invoice detail page that actually
@@ -1729,7 +1816,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       // Single line: totalAmount=900, includesVat=false → effective gross = 1071.
       await mockPreview(page, {
         suggestedVendorId: null,
-        lines: [MOCK_EXTRACTED_LINES[0]],
+        lines: [MOCK_LINE_UNIT_PRICED],
       });
 
       // Mock the commit endpoint's RESPONSE only — call 1 fails with a genuine
@@ -1779,7 +1866,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       const reviewPage = await navigateToReviewPage(page);
 
       // ── Queue create-new on the single extracted line ──────────────────────
-      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`);
+      await reviewPage.queueCreateNewBudgetLine(`${testPrefix} PF-S19 WI`, { budgetSourceId });
       await expect(reviewPage.getCreatingNewBadge(0)).toBeVisible();
 
       // ── Set vendor so vendor validation passes ──────────────────────────────
@@ -1792,6 +1879,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
           resp.url().includes('/budgets') &&
           resp.request().method() === 'POST' &&
           resp.ok(),
+        { timeout: 30000 },
       );
       const firstCommitPromise = page.waitForResponse(
         (resp) =>
@@ -1879,6 +1967,7 @@ test.describe('Scenario 19 — Retry after commit failure does not duplicate WI 
       }
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   });
 });

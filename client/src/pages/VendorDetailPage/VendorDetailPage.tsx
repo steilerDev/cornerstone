@@ -10,12 +10,14 @@ import type {
 import { fetchVendor, updateVendor, deleteVendor } from '../../lib/vendorsApi.js';
 import { fetchInvoices, createInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import styles from './VendorDetailPage.module.css';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 // INVOICE_STATUS_LABELS will be dynamically generated from i18n
 
@@ -40,6 +42,7 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
 
 export function VendorDetailPage() {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
@@ -96,7 +99,7 @@ export function VendorDetailPage() {
         if (err.statusCode === 404) {
           setError(t('vendorDetail.vendorNotFound'));
         } else {
-          setError(err.error.message);
+          setError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setError(t('vendorDetail.vendorNotFound'));
@@ -155,7 +158,7 @@ export function VendorDetailPage() {
       setIsEditing(false);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setEditError(err.error.message);
+        setEditError(translateApiError(err.error.code, tErrors));
       } else {
         setEditError(t('vendorDetail.messages.updateError'));
       }
@@ -190,7 +193,7 @@ export function VendorDetailPage() {
         if (err.statusCode === 409) {
           setDeleteError(t('vendors.modal.deleteError'));
         } else {
-          setDeleteError(err.error.message);
+          setDeleteError(translateApiError(err.error.code, tErrors));
         }
       } else {
         setDeleteError(t('vendorDetail.messages.deleteError'));
@@ -212,14 +215,14 @@ export function VendorDetailPage() {
       setInvoices(data);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setInvoicesError(err.error.message);
+        setInvoicesError(translateApiError(err.error.code, tErrors));
       } else {
         setInvoicesError(t('invoices.errorMessage'));
       }
     } finally {
       setInvoicesLoading(false);
     }
-  }, [id, t]);
+  }, [id, t, tErrors]);
 
   useEffect(() => {
     if (!id) return;
@@ -276,7 +279,7 @@ export function VendorDetailPage() {
       void loadVendor();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('vendorDetail.messages.invoiceCreateError'));
       }
@@ -311,7 +314,7 @@ export function VendorDetailPage() {
       void loadVendor();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteInvoiceError(err.error.message);
+        setDeleteInvoiceError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteInvoiceError(t('vendorDetail.messages.invoiceDeleteError'));
       }
@@ -680,7 +683,7 @@ export function VendorDetailPage() {
                           <span
                             className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                           >
-                            {t(`invoices.statusLabels.${invoice.status}`)}
+                            {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
                           </span>
                         </td>
                         <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
@@ -720,7 +723,7 @@ export function VendorDetailPage() {
                       <span
                         className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
                       >
-                        {t(`invoices.statusLabels.${invoice.status}`)}
+                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
                       </span>
                     </div>
                     <div className={styles.invoiceCardRow}>

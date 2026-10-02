@@ -8,7 +8,7 @@
  * - An inline create form (h2 "New Budget Source") toggled by "Add Source"
  * - A sources list (class `.sourcesList`) with inline edit forms per row
  * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
- * - Success/error banners (role="alert")
+ * - Success banners (role="status"), error banners (role="alert")
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -117,13 +117,10 @@ export class BudgetSourcesPage {
 
     // Global banners — the success/error banners in the main content area
     this.successBanner = page
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: /successfully/i })
       .first();
-    this.errorBanner = page
-      .locator('[role="alert"]')
-      .filter({ hasText: /failed|error/i })
-      .first();
+    this.errorBanner = page.locator('[role="alert"]').first();
 
     // Delete modal
     this.deleteModal = page.getByRole('dialog', { name: 'Delete Budget Source' });

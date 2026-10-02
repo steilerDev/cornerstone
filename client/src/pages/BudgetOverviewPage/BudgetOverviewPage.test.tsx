@@ -8,6 +8,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type { BudgetOverview } from '@cornerstone/shared';
 
 // Mock the API modules BEFORE importing the component
@@ -251,14 +252,15 @@ describe('BudgetOverviewPage', () => {
       mockFetchBudgetOverview.mockRejectedValueOnce(
         new ApiClientError(500, {
           code: 'INTERNAL_ERROR',
-          message: 'Something went wrong on the server',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Something went wrong on the server')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error message for non-ApiClientError', async () => {

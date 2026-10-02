@@ -13,7 +13,7 @@
  * The PDF cells are also covered by realRender.test.ts (#1959, #1911 AC5.3); this file adds the
  * cross-surface comparison and the preview cells that file cannot reach.
  */
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, jest, beforeAll } from '@jest/globals';
 import i18next from 'i18next';
 import type { TFunction } from 'i18next';
@@ -26,6 +26,7 @@ import type { ReportContent } from '../../lib/reportContent/index.js';
 import { loadPdfLibs } from '../../lib/reportPdf/loader.js';
 import { PDF_STYLES, PDF_DEFAULT_STYLE } from '../../lib/reportPdf/merge.js';
 import { buildOverviewContent } from '../../lib/reportPdf/overviewPdf.js';
+import { buildCoverLetterContent } from '../../lib/reportPdf/coverLetterPdf.js';
 import {
   PAGE_MARGIN_X,
   PAGE_TOP_MARGIN,
@@ -353,5 +354,71 @@ describe.each([
       (li) => li.textContent,
     );
     expect(lis).toEqual([e.splitLegend, e.lessDepositLegend]);
+  });
+});
+
+// ─── #2159: cover-letter opening — editor preview and PDF show the same real-bundle strings ────
+describe.each([
+  [
+    'de',
+    'de-DE' as const,
+    () => tDe,
+    {
+      label: 'Anrede',
+      opening: 'Sehr geehrte Damen und Herren,',
+      subjectLabel: 'Betreff',
+      subject: 'Abruf Kreditmittel',
+    },
+  ] as const,
+  [
+    'en',
+    'en-US' as const,
+    () => tEn,
+    {
+      label: 'Opening',
+      opening: 'Dear Sir or Madam,',
+      subjectLabel: 'Subject',
+      subject: 'Claim Documentation',
+    },
+  ] as const,
+])('#2159 cover-letter opening parity — %s', (lang, localeStr, getT, e) => {
+  function coverLetterContent(): ReportContent {
+    return buildReportContent(
+      makeMaximalReport(),
+      new Set(['inv-2020-maximal']),
+      'claim',
+      getT(),
+      formattersFor(localeStr),
+      {
+        includeCoverLetter: true,
+        household: { householdName: 'The Smiths', householdAddress: '1 Main St' },
+      },
+    );
+  }
+
+  it('editor shows the localized Opening label and value (lang-tagged) and the real subject; the PDF carries the same opening and subject', () => {
+    const content = coverLetterContent();
+    render(
+      <ReportContentEditor
+        content={content}
+        overrides={{}}
+        hiddenColumns={new Set()}
+        onToggleColumn={jest.fn()}
+        onFieldChange={jest.fn()}
+        onFieldReset={jest.fn()}
+        attachDocuments={false}
+        t={getT()}
+        lang={lang}
+      />,
+    );
+
+    expect(screen.getByText(e.label)).toBeInTheDocument();
+    const value = screen.getByText(e.opening);
+    expect(value.getAttribute('lang')).toBe(lang);
+    expect((screen.getByLabelText(e.subjectLabel) as HTMLInputElement).value).toBe(e.subject);
+
+    const strings = collectAllStrings(buildCoverLetterContent(content));
+    expect(strings).toContain(e.opening);
+    expect(strings).toContain(`${e.subjectLabel}: ${e.subject}`);
   });
 });

@@ -33,7 +33,7 @@ Review only the files in your launch prompt's scope; read the pre-fetched diff a
 
 Severity: Critical/High = injection, auth/authz bypass, sensitive-data exposure, known CVEs in new deps; Medium = hardening gaps with conditional exploitability; Low/Informational = defense-in-depth suggestions.
 
-Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block): low-effort findings are `--request-changes` labeled `fix-in-session`, fixed before merge; deferrals require a filed, justified issue in the review body.
+Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session.
 
 ## Wiki Ownership
 

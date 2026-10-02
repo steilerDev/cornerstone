@@ -3,6 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import i18n from '../../i18n/index.js';
 import type * as InvoiceDepositsApiTypes from '../../lib/invoiceDepositsApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
@@ -1048,6 +1049,311 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
+  describe('#2127: refund delete rejected by the net rule', () => {
+    async function openAndConfirmDelete(
+      deposit: InvoiceDeposit,
+      opts?: Parameters<typeof renderSection>[1],
+    ) {
+      renderSection([deposit], opts);
+      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(menuBtn);
+      const deleteMenuBtn = screen
+        .getAllByRole('menuitem')
+        .find((m) => m.textContent?.toLowerCase().includes('delete'))!;
+      fireEvent.click(deleteMenuBtn);
+      await waitFor(() => screen.getByRole('dialog'));
+      const confirmDeleteBtn = screen
+        .getByTestId('modal-footer')
+        .querySelector('button:last-child')!;
+      await act(async () => {
+        fireEvent.click(confirmDeleteBtn);
+      });
+    }
+
+    it('shows refundDeleteExceedsTotal with the formatted minimum and keeps the modal open', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          details: { minimumRefundAmount: 300 },
+        }),
+      );
+      const onMutated = jest.fn();
+      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }), {
+        onDepositMutated: onMutated,
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId('form-error').textContent).toBe(
+          i18n.t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
+            minimumRefundAmount: '$300.00',
+          }),
+        );
+      });
+      expect(screen.getByTestId('form-error').textContent).toContain('$300.00');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(onMutated).not.toHaveBeenCalled();
+    });
+
+    it('defaults the minimum to $0.00 when details are missing', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(
+        new MockApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL' }),
+      );
+      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('form-error').textContent).toBe(
+          i18n.t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
+            minimumRefundAmount: '$0.00',
+          }),
+        );
+      });
+    });
+
+    it('non-API failures show the generic delete error', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(new Error('network'));
+      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('form-error').textContent).toBe(
+          i18n.t('budget:invoiceDetail.deposits.errors.deleteError'),
+        );
+      });
+    });
+
+    it('other ApiClientError codes still go through translateApiError', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(new MockApiClientError(404, { code: 'NOT_FOUND' }));
+      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('form-error').textContent).toBe('translated:NOT_FOUND');
+      });
+    });
+  });
+
+  describe('row action menus: desktop table (kebab 0) and mobile card (kebab 1)', () => {
+    // The table and the mobile card list both render; each has its own menu built per status.
+    const kebabIndexes = [0, 1] as const;
+
+    function openMenu(index: number): HTMLElement[] {
+      const kebabs = screen.getAllByRole('button').filter((b) => b.textContent?.includes('⋮'));
+      expect(kebabs).toHaveLength(2);
+      fireEvent.click(kebabs[index]!);
+      return screen.getAllByRole('menuitem');
+    }
+
+    function clickItem(index: number, label: RegExp) {
+      const item = openMenu(index).find((m) => label.test(m.textContent ?? ''));
+      expect(item).toBeDefined();
+      return act(async () => {
+        fireEvent.click(item!);
+      });
+    }
+
+    describe.each(kebabIndexes)('kebab %i', (idx) => {
+      it('pending: Mark paid opens the state-confirm modal', async () => {
+        renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+        await clickItem(idx, /mark paid/i);
+        expect(screen.getByTestId('state-confirm-button')).toBeInTheDocument();
+      });
+
+      it('pending: Edit opens the edit modal and Delete opens the delete modal', async () => {
+        renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+        await clickItem(idx, /^edit/i);
+        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
+        await clickItem(idx, /delete/i);
+        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
+      });
+
+      it('paid: Mark claimed opens the state-confirm modal', async () => {
+        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+        await clickItem(idx, /mark claimed/i);
+        expect(screen.getByTestId('state-confirm-button')).toBeInTheDocument();
+      });
+
+      it('paid: Revert to pending updates the deposit to pending', async () => {
+        mockUpdateDeposit.mockResolvedValue({} as never);
+        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+        await clickItem(idx, /revert to pending/i);
+        expect(mockUpdateDeposit).toHaveBeenCalledTimes(1);
+        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'pending' });
+      });
+
+      it('paid: Edit and Delete open their modals', async () => {
+        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+        await clickItem(idx, /^edit/i);
+        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
+        await clickItem(idx, /delete/i);
+        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
+      });
+
+      it('claimed: Revert to paid updates the deposit to paid', async () => {
+        mockUpdateDeposit.mockResolvedValue({} as never);
+        renderSection([
+          makeDeposit('dep-1', {
+            status: 'claimed',
+            paidDate: '2026-03-10',
+            claimedDate: '2026-03-20',
+          }),
+        ]);
+        await clickItem(idx, /revert to paid/i);
+        expect(mockUpdateDeposit).toHaveBeenCalledTimes(1);
+        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'paid' });
+      });
+
+      it('claimed: Edit and Delete open their modals', async () => {
+        renderSection([
+          makeDeposit('dep-1', {
+            status: 'claimed',
+            paidDate: '2026-03-10',
+            claimedDate: '2026-03-20',
+          }),
+        ]);
+        await clickItem(idx, /^edit/i);
+        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
+        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
+        await clickItem(idx, /delete/i);
+        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
+      });
+
+      it('claimed: Revert to paid with a network failure shows the network error banner', async () => {
+        mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
+        renderSection([
+          makeDeposit('dep-1', {
+            status: 'claimed',
+            paidDate: '2026-03-10',
+            claimedDate: '2026-03-20',
+          }),
+        ]);
+        await clickItem(idx, /revert to paid/i);
+        await waitFor(() => {
+          const text = screen
+            .getAllByRole('alert')
+            .map((a) => a.textContent ?? '')
+            .join(' ');
+          expect(text).toContain(i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
+        });
+      });
+    });
+  });
+
+  describe('revert banner and in-flight modal guards', () => {
+    it('a second revert failure replaces the first banner message', async () => {
+      mockUpdateDeposit
+        .mockRejectedValueOnce(new Error('network'))
+        .mockRejectedValueOnce(new MockApiClientError(400, { code: 'SOME_CODE' }));
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+
+      for (let i = 0; i < 2; i++) {
+        const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+        fireEvent.click(kebab);
+        const item = screen
+          .getAllByRole('menuitem')
+          .find((m) => /revert to pending/i.test(m.textContent ?? ''))!;
+        await act(async () => {
+          fireEvent.click(item);
+        });
+      }
+
+      await waitFor(() => {
+        const text = screen
+          .getAllByRole('alert')
+          .map((a) => a.textContent ?? '')
+          .join(' ');
+        expect(text).toContain('translated:SOME_CODE');
+        expect(text).not.toContain(
+          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
+        );
+      });
+    });
+
+    it('closing the delete modal while the delete is in flight is ignored', async () => {
+      let resolveDelete: () => void = () => {};
+      mockDeleteDeposit.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveDelete = resolve;
+        }),
+      );
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(kebab);
+      fireEvent.click(
+        screen.getAllByRole('menuitem').find((m) => /delete/i.test(m.textContent ?? ''))!,
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('modal-footer').querySelector('button:last-child')!);
+      });
+
+      fireEvent.click(screen.getByTestId('modal-close'));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDelete();
+      });
+    });
+  });
+
+  describe('state-confirm modal behavior', () => {
+    function openMarkPaid() {
+      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(kebab);
+      fireEvent.click(
+        screen.getAllByRole('menuitem').find((m) => /mark paid/i.test(m.textContent ?? ''))!,
+      );
+    }
+
+    it('confirming with a changed date sends that date', async () => {
+      mockUpdateDeposit.mockResolvedValue({} as never);
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      openMarkPaid();
+
+      fireEvent.change(document.getElementById('state-confirm-date')!, {
+        target: { value: '2026-04-05' },
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('state-confirm-button'));
+      });
+
+      expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', {
+        status: 'paid',
+        paidDate: '2026-04-05',
+      });
+    });
+
+    it('a non-API failure shows the state-confirm network error inside the modal', async () => {
+      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      openMarkPaid();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('state-confirm-button'));
+      });
+
+      await waitFor(() => {
+        expect(screen.getByRole('dialog').querySelector('[role="alert"]')!.textContent).toBe(
+          i18n.t('budget:invoiceDetail.deposits.errors.stateConfirmNetworkError'),
+        );
+      });
+    });
+
+    it('closing the modal after an error dismisses it and clears the error on reopen', async () => {
+      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      openMarkPaid();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('state-confirm-button'));
+      });
+      await waitFor(() => expect(screen.getByTestId('form-error')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByTestId('modal-close'));
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+
+      openMarkPaid();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.queryByTestId('form-error')).not.toBeInTheDocument();
+    });
+  });
+
   // ─── Scenario 15: i18n — no hardcoded text ────────────────────────────────
 
   describe('Scenario 15: i18n — all strings use t()', () => {
@@ -1254,7 +1560,9 @@ describe('InvoiceDepositsSection', () => {
         const alerts = screen.getAllByRole('alert');
         expect(alerts.length).toBeGreaterThan(0);
         const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain('Network error');
+        expect(alertText).toContain(
+          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
+        );
       });
     });
 

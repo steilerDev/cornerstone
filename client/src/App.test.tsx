@@ -352,6 +352,7 @@ describe('App', () => {
         displayName: 'Test User',
         role: 'member',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
@@ -464,6 +465,25 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
+  });
+
+  it('renders the Photos page at /photos (Story #2162)', async () => {
+    window.history.pushState({}, 'Photos', '/photos');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('photos-page', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^photos$/i, level: 1 })).toBeInTheDocument();
+  });
+
+  it('renders the photo spot viewer at /photos/spot/:areaKey/:orientationKey (Story #2162)', async () => {
+    window.history.pushState({}, 'Spot', '/photos/spot/none/none');
+    render(<App />);
+
+    expect(
+      await screen.findByTestId('photo-spot-viewer', undefined, { timeout: 5000 }),
+    ).toBeInTheDocument();
   });
 
   it('shows NotFoundPage for unrecognized routes', async () => {

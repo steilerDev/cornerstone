@@ -41,6 +41,21 @@ export interface AdminUpdateUserPayload {
   role?: 'admin' | 'member';
 }
 
+/** Admin create-user payload. `password` is required unless `authProvider` is 'oidc', and must be omitted then. */
+export interface CreateUserPayload {
+  email: string;
+  displayName: string;
+  role: 'admin' | 'member';
+  password?: string;
+  authProvider?: 'local' | 'oidc';
+}
+
+/** Creates a user (admin only). Returns the created user. */
+export async function createUser(data: CreateUserPayload): Promise<UserResponse> {
+  const res = await post<{ user: UserResponse }>('/users', data);
+  return res.user;
+}
+
 /**
  * Lists all users in the system (admin only).
  */

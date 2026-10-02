@@ -76,6 +76,8 @@ export class WorkItemDetailPage {
   readonly notesSection: Locator;
   readonly subtasksSection: Locator;
   readonly constraintsSection: Locator; // right-column combined section (h2 "Constraints")
+  /** Add button of the dependency sentence builder (sibling of the "Successor verb" select). */
+  readonly dependencyAddButton: Locator;
 
   // Duration input (inside Constraints section, h3 "Duration")
   readonly durationInput: Locator;
@@ -149,6 +151,12 @@ export class WorkItemDetailPage {
     this.constraintsSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Constraints', exact: true }) });
+
+    // The sentence builder has no testid; its Add button directly follows the successor-verb
+    // select. Scoping this way avoids strict-mode clashes with other "Add" buttons in Constraints.
+    this.dependencyAddButton = this.constraintsSection
+      .getByLabel('Successor verb', { exact: true })
+      .locator('xpath=following-sibling::button');
 
     // Duration input lives inside Constraints section (h3 "Duration")
     this.durationInput = this.constraintsSection.locator('input[type="number"]').first();

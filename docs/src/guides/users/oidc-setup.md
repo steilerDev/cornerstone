@@ -66,19 +66,28 @@ Restart your Cornerstone container. The login page will now show an OIDC login b
 
 ### Account Linking
 
-By default, OIDC does not create accounts. Instead, it links existing local accounts on first SSO login:
+By default, OIDC does not create accounts. Instead, it links existing accounts on first SSO login:
 
-1. **Admin creates the account first** -- use the [admin panel](admin-panel) to add users with their email address
-2. **First SSO login links the account** -- when a user logs in via their identity provider for the first time, Cornerstone matches the verified email (case-insensitive) to an existing local account and links them
-3. **Identity provider requirements** -- the identity provider must send `email_verified: true` with the user's email claim; unverified emails are rejected
-4. **Both login methods work** -- after linking, users can log in with either their local password or OIDC SSO
-5. **Unknown emails are rejected** (unless `OIDC_JIT_PROVISIONING=true`) -- if a user's verified email doesn't match any existing account, they are shown a clear error message and cannot proceed
+**Two account types:**
+
+1. **Local accounts with SSO linking** -- use the [admin panel](admin-panel) to add users with their email address and a password. When they sign in via OIDC for the first time, their account is linked. After linking, they can sign in with either their password or OIDC SSO.
+
+2. **SSO-only accounts** -- also created from the [admin panel](admin-panel), with the "Single sign-on only (no password)" option. These have no password and can only sign in via OIDC. They are linked automatically on their first SSO login.
+
+**Linking process:**
+
+1. **First SSO login** -- when a user logs in via their identity provider for the first time, Cornerstone matches the verified email (case-insensitive) to an existing account and links them
+2. **Identity provider requirements** -- the identity provider must send `email_verified: true` with the user's email claim; unverified emails are rejected
+3. **Unknown emails are rejected** (unless `OIDC_JIT_PROVISIONING=true`) -- if a user's verified email doesn't match any existing account, they are shown a clear error message and cannot proceed
 
 :::info Identity providers without email verification
 
 Some identity providers (e.g., certain Azure AD / Microsoft Entra configurations) don't send the `email_verified: true` claim. If your provider doesn't verify emails, new SSO login attempts will show an "email not verified" error and cannot establish a link. Users whose account is already linked can keep signing in even if the identity provider doesn't send a verified-email claim.
+:::
 
-Creating an account requires a password. For SSO-only users, admins can set a random password during creation; users can ignore it and simply use SSO to log in.
+:::caution OIDC disabling
+
+If OIDC is later disabled, nobody can sign in with SSO. Accounts with a password keep signing in with it. SSO-only accounts have no password and cannot sign in until OIDC is re-enabled.
 :::
 
 ### Just-in-time provisioning (opt-in)

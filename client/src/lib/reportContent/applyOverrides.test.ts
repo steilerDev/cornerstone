@@ -80,6 +80,7 @@ function makeContent(overrides: Partial<ReportContent> = {}): ReportContent {
       subject: 'Baseline Subject',
       body: 'Baseline Body',
       signature: 'The Smiths',
+      opening: 'Dear Sir or Madam,',
       closing: 'Baseline Closing',
     },
     rows: [makeRow()],
@@ -385,5 +386,24 @@ describe('applyOverrides — immutability', () => {
     });
     expect(result.labels).toBe(content.labels);
     expect(result.labels).toEqual(content.labels);
+  });
+});
+
+describe('applyOverrides — read-only opening (#2159)', () => {
+  it('preserves the opening across subject, body and signature overrides', () => {
+    const content = makeContent();
+    const result = applyOverrides(content, {
+      'coverLetter.subject': 'New Subject',
+      'coverLetter.body': 'New Body',
+      'coverLetter.signature': 'New Signature',
+    });
+    expect(result.coverLetter!.opening).toBe('Dear Sir or Madam,');
+  });
+
+  it('ignores a coverLetter.opening override key (no override key exists)', () => {
+    const content = makeContent();
+    const result = applyOverrides(content, { 'coverLetter.opening': 'Hi there,' });
+    expect(result.coverLetter!.opening).toBe('Dear Sir or Madam,');
+    expect(result.coverLetter).toEqual(content.coverLetter);
   });
 });

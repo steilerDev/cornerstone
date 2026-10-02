@@ -29,3 +29,10 @@ Reference `server/src/services/budgetOverviewService.ts` for read-only aggregati
 - `COALESCE(SUM(...), 0)` to avoid null results when no rows exist
 - `CASE WHEN ... THEN ... ELSE 0 END` inside SUM for conditional aggregation
 - No need for `select().from()` chaining when raw SQL is cleaner
+
+## Password hashing (userService scrypt)
+
+- All scrypt work goes through one in-file semaphore (`scryptAsync`): max 2 concurrent (~256 MiB peak), FIFO queue capped at `MAX_SCRYPT_QUEUE_LENGTH` (50). A full queue throws `PasswordHashingBusyError` (429 `RATE_LIMIT_EXCEEDED`, an AppError, so routes need no mapping).
+- New-hash params are N=131072,r=8,p=1; verification accepts only production, legacy N=16384 and the test override. `setPasswordHashParamsForTesting` throws outside NODE_ENV=test; `server/src/test/setupTests.ts` sets N=16384.
+- Stored hashes must decode to a 16-byte salt and 64-byte key, otherwise `verifyPassword` returns false without running scrypt.
+- Login: failed verify against a legacy hash also runs `verifyDummyPassword` (timing); success on a legacy hash rehashes via compare-and-swap `rehashPassword(db, id, oldHash, password)`, best-effort.

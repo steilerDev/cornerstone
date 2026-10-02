@@ -1,5 +1,12 @@
-import { get, patch, del, getBaseUrl, NetworkError } from './apiClient.js';
-import type { Photo, UpdatePhotoRequest } from '@cornerstone/shared';
+import { get, patch, del, getBaseUrl, toApiClientError, NetworkError } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
+import { PHOTO_SPOT_NONE } from '@cornerstone/shared';
+import type {
+  Photo,
+  UpdatePhotoRequest,
+  PhotoSpotsResponse,
+  PhotoSpotPhotosResponse,
+} from '@cornerstone/shared';
 
 /**
  * Upload a photo using XMLHttpRequest for progress tracking.
@@ -34,12 +41,13 @@ export function uploadPhoto(
           reject(new Error('Failed to parse upload response'));
         }
       } else {
+        let errBody: unknown = null;
         try {
-          const errBody = JSON.parse(xhr.responseText);
-          reject(new Error(errBody.error?.message ?? `Upload failed (${xhr.status})`));
+          errBody = JSON.parse(xhr.responseText);
         } catch {
-          reject(new Error(`Upload failed (${xhr.status})`));
+          // Non-JSON body: fall back to a status-derived error
         }
+        reject(toApiClientError(xhr.status, errBody));
       }
     });
 
@@ -104,15 +112,20 @@ export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
   const formData = new FormData();
   formData.append('file', blob, 'annotated.webp');
 
-  const response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
-    method: 'PUT',
-    body: formData,
-    credentials: 'include',
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${getBaseUrl()}/photos/${id}/annotation`, {
+      method: 'PUT',
+      body: formData,
+      credentials: 'include',
+    });
+  } catch (error) {
+    throw new NetworkError('Network request failed', error);
+  }
 
   if (!response.ok) {
-    const body = (await response.json().catch(() => ({}))) as { error?: { message?: string } };
-    throw new Error(body.error?.message ?? `Upload failed (${response.status})`);
+    const body: unknown = await response.json().catch(() => null);
+    throw toApiClientError(response.status, body);
   }
 
   const data = (await response.json()) as { photo: Photo };
@@ -124,4 +137,27 @@ export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
  */
 export async function clearAnnotation(id: string): Promise<void> {
   await del<void>(`/photos/${id}/annotation`);
+}
+
+/**
+ * List every photo spot (area x orientation) with counts and the latest photo, plus the
+ * areas and orientations needed to lay out the matrix.
+ */
+export function getPhotoSpots(options?: RequestOptions): Promise<PhotoSpotsResponse> {
+  return get<PhotoSpotsResponse>('/photos/spots', options);
+}
+
+/**
+ * List the photos of one spot, newest first. `null` means "no area" / "no orientation".
+ */
+export function getPhotoSpotPhotos(
+  areaId: string | null,
+  orientationId: string | null,
+  options?: RequestOptions,
+): Promise<PhotoSpotPhotosResponse> {
+  const params = new URLSearchParams({
+    areaId: areaId ?? PHOTO_SPOT_NONE,
+    orientationId: orientationId ?? PHOTO_SPOT_NONE,
+  });
+  return get<PhotoSpotPhotosResponse>(`/photos/spots/photos?${params.toString()}`, options);
 }

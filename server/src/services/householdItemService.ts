@@ -84,11 +84,21 @@ function getBudgetLineCount(db: DbType, householdItemId: string): number {
 }
 
 /**
- * Sum total planned amount from budget lines for a household item.
+ * SQL fragment for the VAT-effective planned amount of a household_item_budgets row.
+ * Mirrors effectivePlannedAmount(): net lines (includes_vat = 0) are grossed up by (1 + vatRate)
+ * and rounded to cents. vatRate is a bound parameter. Column names are unqualified, so this must
+ * be used inside a query/subquery whose only source of these columns is household_item_budgets.
  */
-function getTotalPlannedAmount(db: DbType, householdItemId: string): number {
+function effectivePlannedSql(vatRate: number) {
+  return sql`CASE WHEN includes_vat = 0 THEN ROUND(planned_amount * (1 + ${vatRate}) * 100) / 100.0 ELSE planned_amount END`;
+}
+
+/**
+ * Sum total VAT-effective planned amount from budget lines for a household item.
+ */
+function getTotalPlannedAmount(db: DbType, householdItemId: string, vatRate: number): number {
   const result = db
-    .select({ total: sql<number>`COALESCE(SUM(${householdItemBudgets.plannedAmount}), 0)` })
+    .select({ total: sql<number>`COALESCE(SUM(${effectivePlannedSql(vatRate)}), 0)` })
     .from(householdItemBudgets)
     .where(eq(householdItemBudgets.householdItemId, householdItemId))
     .get();
@@ -119,7 +129,7 @@ function getTotalActualAmount(db: DbType, householdItemId: string): number {
  * For percentage subsidies, computes based on matching budget lines with confidence margins.
  * For fixed subsidies, uses the fixed reduction value.
  */
-function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
+function getTotalSubsidyReduction(db: DbType, householdItemId: string, vatRate: number): number {
   // Fetch linked subsidies (non-rejected)
   const linkedSubsidies = db
     .select({
@@ -148,7 +158,7 @@ function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
       totalReduction += subsidy.reductionValue;
     } else if (subsidy.reductionType === 'percentage') {
       // For percentage subsidies, compute the reduction as percentage of planned amount
-      const plannedAmount = getTotalPlannedAmount(db, householdItemId);
+      const plannedAmount = getTotalPlannedAmount(db, householdItemId, vatRate);
       const reduction = plannedAmount * (subsidy.reductionValue / 100);
       totalReduction += reduction;
     }
@@ -160,10 +170,14 @@ function getTotalSubsidyReduction(db: DbType, householdItemId: string): number {
 /**
  * Compute the budget aggregates for a household item.
  */
-function getBudgetSummary(db: DbType, householdItemId: string): HouseholdItemBudgetAggregate {
-  const totalPlanned = getTotalPlannedAmount(db, householdItemId);
+function getBudgetSummary(
+  db: DbType,
+  householdItemId: string,
+  vatRate: number,
+): HouseholdItemBudgetAggregate {
+  const totalPlanned = getTotalPlannedAmount(db, householdItemId, vatRate);
   const totalActual = getTotalActualAmount(db, householdItemId);
-  const subsidyReduction = getTotalSubsidyReduction(db, householdItemId);
+  const subsidyReduction = getTotalSubsidyReduction(db, householdItemId, vatRate);
   const netCost = totalPlanned - subsidyReduction;
 
   return {
@@ -204,6 +218,7 @@ export function toHouseholdItemSummary(
   db: DbType,
   item: typeof householdItems.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
+  vatRate: number,
 ): HouseholdItemSummary {
   const vendor = item.vendorId
     ? (db.select().from(vendors).where(eq(vendors.id, item.vendorId)).get() ?? null)
@@ -232,8 +247,8 @@ export function toHouseholdItemSummary(
     isLate: !!item.isLate,
     url: item.url,
     budgetLineCount: getBudgetLineCount(db, item.id),
-    totalPlannedAmount: getTotalPlannedAmount(db, item.id),
-    budgetSummary: getBudgetSummary(db, item.id),
+    totalPlannedAmount: getTotalPlannedAmount(db, item.id, vatRate),
+    budgetSummary: getBudgetSummary(db, item.id, vatRate),
     createdBy: toUserSummary(createdByUser),
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
@@ -247,8 +262,9 @@ export function toHouseholdItemDetail(
   db: DbType,
   item: typeof householdItems.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
+  vatRate: number,
 ): HouseholdItemDetail {
-  const summary = toHouseholdItemSummary(db, item, areaMap);
+  const summary = toHouseholdItemSummary(db, item, areaMap, vatRate);
   const dependencies = listDeps(db, item.id);
   const subsidies = getHouseholdItemSubsidies(db, item.id);
 
@@ -289,6 +305,7 @@ export function createHouseholdItem(
   db: DbType,
   userId: string,
   data: CreateHouseholdItemRequest,
+  vatRate: number,
 ): HouseholdItemDetail {
   // Validate required fields
   if (!data.name || data.name.trim().length === 0) {
@@ -347,20 +364,20 @@ export function createHouseholdItem(
   // Fetch and return the created item
   const createdItem = findHouseholdItemById(db, id)!;
   const areaMap = loadAreaMap(db);
-  return toHouseholdItemDetail(db, createdItem, areaMap);
+  return toHouseholdItemDetail(db, createdItem, areaMap, vatRate);
 }
 
 /**
  * Get a household item by ID.
  * Throws NotFoundError if not found.
  */
-export function getHouseholdItemById(db: DbType, id: string): HouseholdItemDetail {
+export function getHouseholdItemById(db: DbType, id: string, vatRate: number): HouseholdItemDetail {
   const item = findHouseholdItemById(db, id);
   if (!item) {
     throw new NotFoundError('Household item not found');
   }
   const areaMap = loadAreaMap(db);
-  return toHouseholdItemDetail(db, item, areaMap);
+  return toHouseholdItemDetail(db, item, areaMap, vatRate);
 }
 
 /**
@@ -372,6 +389,7 @@ export function updateHouseholdItem(
   db: DbType,
   id: string,
   data: UpdateHouseholdItemRequest,
+  vatRate: number,
 ): HouseholdItemDetail {
   const item = findHouseholdItemById(db, id);
   if (!item) {
@@ -488,7 +506,7 @@ export function updateHouseholdItem(
   // Fetch and return the updated item
   const updatedItem = findHouseholdItemById(db, id)!;
   const areaMap = loadAreaMap(db);
-  return toHouseholdItemDetail(db, updatedItem, areaMap);
+  return toHouseholdItemDetail(db, updatedItem, areaMap, vatRate);
 }
 
 /**
@@ -513,6 +531,7 @@ export function deleteHouseholdItem(db: DbType, id: string): void {
 export function listHouseholdItems(
   db: DbType,
   query: HouseholdItemListQuery,
+  vatRate: number,
 ): { items: HouseholdItemSummary[]; pagination: PaginationMeta; filterMeta: FilterMeta } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
@@ -568,8 +587,8 @@ export function listHouseholdItems(
   // Compute filterMeta from base conditions
   const metaRow = db
     .select({
-      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
-      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(planned_amount) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      plannedCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
+      plannedCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
       actualCostMin: sql<number>`COALESCE(MIN(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
       actualCostMax: sql<number>`COALESCE(MAX(COALESCE((SELECT SUM(ibl.itemized_amount) FROM invoice_budget_lines ibl INNER JOIN household_item_budgets hib ON ibl.household_item_budget_id = hib.id WHERE hib.household_item_id = household_items.id), 0)), 0)`,
       budgetLinesMin: sql<number>`COALESCE(MIN(COALESCE((SELECT COUNT(*) FROM household_item_budgets WHERE household_item_id = household_items.id), 0)), 0)`,
@@ -597,12 +616,12 @@ export function listHouseholdItems(
   // Filter by planned cost
   if (query.plannedCostMin !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.plannedCostMin}`,
+      sql`COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) >= ${query.plannedCostMin}`,
     );
   }
   if (query.plannedCostMax !== undefined) {
     conditions.push(
-      sql`COALESCE((SELECT SUM(${householdItemBudgets.plannedAmount}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.plannedCostMax}`,
+      sql`COALESCE((SELECT SUM(${effectivePlannedSql(vatRate)}) FROM ${householdItemBudgets} WHERE ${householdItemBudgets.householdItemId} = ${householdItems.id}), 0) <= ${query.plannedCostMax}`,
     );
   }
 
@@ -661,7 +680,7 @@ export function listHouseholdItems(
     .offset(offset)
     .all();
 
-  const items = itemRows.map((item) => toHouseholdItemSummary(db, item, areaMap));
+  const items = itemRows.map((item) => toHouseholdItemSummary(db, item, areaMap, vatRate));
 
   const filterMeta: FilterMeta = {
     plannedCost: { min: metaRow?.plannedCostMin ?? 0, max: metaRow?.plannedCostMax ?? 0 },

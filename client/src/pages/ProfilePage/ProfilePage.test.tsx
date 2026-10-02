@@ -6,6 +6,8 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enSettings from '../../i18n/en/settings.json';
 
 const mockUpdateProfile = jest.fn<typeof UsersApiTypes.updateProfile>();
 const mockChangePassword = jest.fn<typeof UsersApiTypes.changePassword>();
@@ -72,6 +74,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({
     locale: 'en' as const,
     resolvedLocale: 'en' as const,
+    vatRate: 0.19,
     currency: 'EUR',
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
@@ -89,6 +92,7 @@ describe('ProfilePage', () => {
     displayName: 'Local User',
     role: 'member' as const,
     authProvider: 'local' as const,
+    oidcLinked: false,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     deactivatedAt: null,
@@ -100,6 +104,7 @@ describe('ProfilePage', () => {
     displayName: 'OIDC User',
     role: 'admin' as const,
     authProvider: 'oidc' as const,
+    oidcLinked: true,
     createdAt: '2024-01-01T00:00:00.000Z',
     updatedAt: '2024-01-01T00:00:00.000Z',
     deactivatedAt: null,
@@ -370,6 +375,9 @@ describe('ProfilePage', () => {
 
       // And: Success message is shown
       expect(await screen.findByText(/display name updated successfully/i)).toBeInTheDocument();
+      // The success banner is a polite status region, not an alert
+      expect(screen.getByRole('status')).toHaveTextContent(/display name updated successfully/i);
+      expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
     });
 
     it('shows validation error for empty display name', async () => {
@@ -424,7 +432,7 @@ describe('ProfilePage', () => {
       mockUpdateProfile.mockRejectedValue(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Invalid display name format',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -441,8 +449,26 @@ describe('ProfilePage', () => {
 
       // Then: Error message is shown
       await waitFor(() => {
-        expect(screen.getByText('Invalid display name format')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+
+    it('shows the fallback (not the raw error) when display name update fails with a plain Error', async () => {
+      mockUpdateProfile.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      const user = userEvent.setup();
+      render(<ProfilePage />);
+
+      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, 'New Name');
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      expect(
+        await screen.findByText(enSettings.profile.displayNameUpdateFailed),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
     });
 
     it('disables button while update is in progress', async () => {
@@ -678,6 +704,7 @@ describe('ProfilePage', () => {
 
       // And: Success message is shown
       expect(await screen.findByText(/password changed successfully/i)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(/password changed successfully/i);
 
       // And: Form is cleared
       expect(currentPasswordInput.value).toBe('');
@@ -691,7 +718,7 @@ describe('ProfilePage', () => {
       mockChangePassword.mockRejectedValue(
         new ApiClientError(401, {
           code: 'INVALID_CREDENTIALS',
-          message: 'Current password is incorrect',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -715,8 +742,24 @@ describe('ProfilePage', () => {
 
       // Then: Error message is shown
       await waitFor(() => {
-        expect(screen.getByText('Current password is incorrect')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INVALID_CREDENTIALS)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+
+    it('shows the fallback (not the raw error) when password change fails with a plain Error', async () => {
+      mockChangePassword.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      const user = userEvent.setup();
+      render(<ProfilePage />);
+
+      await user.type(await screen.findByLabelText(/current password/i), 'current123456');
+      await user.type(screen.getByLabelText(/^new password$/i), 'newpassword123');
+      await user.type(screen.getByLabelText(/confirm new password/i), 'newpassword123');
+      await user.click(screen.getByRole('button', { name: /change password/i }));
+
+      expect(await screen.findByText(enSettings.profile.passwordChangeFailed)).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
     });
 
     it('disables button while password change is in progress', async () => {

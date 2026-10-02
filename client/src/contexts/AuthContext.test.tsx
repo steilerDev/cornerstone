@@ -5,6 +5,10 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render, screen, waitFor } from '@testing-library/react';
 import { act } from 'react';
 import type { ReactNode } from 'react';
+import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import enErrors from '../i18n/en/errors.json';
+import enAuth from '../i18n/en/auth.json';
+import enCommon from '../i18n/en/common.json';
 import type * as AuthApiModule from '../lib/authApi.js';
 import type * as AuthContextModule from './AuthContext.js';
 
@@ -69,6 +73,7 @@ describe('AuthContext', () => {
         displayName: 'Test User',
         role: 'member',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
@@ -100,15 +105,40 @@ describe('AuthContext', () => {
     });
   });
 
-  it('provides error state when auth check fails', async () => {
-    mockGetAuthMe.mockRejectedValue(new Error('Network error'));
+  it('shows the fallback (not the raw message) when the auth check fails with a plain Error', async () => {
+    mockGetAuthMe.mockRejectedValue(new Error('RAW-LOCAL'));
 
     renderWithProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Network error');
+      expect(screen.getByTestId('error')).toHaveTextContent(enAuth.session.loadError);
     });
+    expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
     expect(screen.getByTestId('user')).toHaveTextContent('No user');
+  });
+
+  it('shows the translated error for an ApiClientError, never the server text', async () => {
+    mockGetAuthMe.mockRejectedValue(
+      new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    );
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent(enErrors.INTERNAL_ERROR);
+    });
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+  });
+
+  it('shows the network error copy for a NetworkError', async () => {
+    mockGetAuthMe.mockRejectedValue(new NetworkError('RAW-NET', new Error()));
+
+    renderWithProvider();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('error')).toHaveTextContent(enCommon.requestErrors.network);
+    });
+    expect(screen.queryByText(/RAW-NET/)).not.toBeInTheDocument();
   });
 
   it('provides generic error message for non-Error failures', async () => {
@@ -117,7 +147,7 @@ describe('AuthContext', () => {
     renderWithProvider();
 
     await waitFor(() => {
-      expect(screen.getByTestId('error')).toHaveTextContent('Failed to load authentication state');
+      expect(screen.getByTestId('error')).toHaveTextContent(enAuth.session.loadError);
     });
   });
 
@@ -129,6 +159,7 @@ describe('AuthContext', () => {
         displayName: 'Test User',
         role: 'member',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
@@ -166,6 +197,7 @@ describe('AuthContext', () => {
         displayName: 'Updated User',
         role: 'admin',
         authProvider: 'oidc',
+        oidcLinked: true,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-02T00:00:00.000Z',
         deactivatedAt: null,
@@ -214,6 +246,30 @@ describe('AuthContext', () => {
     });
   });
 
+  it('runs the auth fetch exactly once on mount and does not refetch when the provider re-renders', async () => {
+    mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: false, oidcEnabled: false });
+
+    const { rerender } = renderWithProvider();
+    await waitFor(() => {
+      expect(screen.getByTestId('loading')).toHaveTextContent('Loaded');
+    });
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+
+    // Re-render the provider (new children element each time) and let any effects flush
+    for (let i = 0; i < 3; i++) {
+      rerender(
+        <AuthProvider>
+          <TestComponent />
+        </AuthProvider>,
+      );
+      await act(async () => {
+        await Promise.resolve();
+      });
+    }
+
+    expect(mockGetAuthMe).toHaveBeenCalledTimes(1);
+  });
+
   describe('logout', () => {
     // logout() calls window.location.assign('/login') which is non-configurable in jsdom.
     // Suppress jsdom "Not implemented: navigation" console.error noise.
@@ -236,6 +292,7 @@ describe('AuthContext', () => {
           displayName: 'Test User',
           role: 'member',
           authProvider: 'local',
+          oidcLinked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
           deactivatedAt: null,
@@ -269,6 +326,7 @@ describe('AuthContext', () => {
           displayName: 'Test User',
           role: 'member',
           authProvider: 'local',
+          oidcLinked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
           deactivatedAt: null,
@@ -302,6 +360,7 @@ describe('AuthContext', () => {
           displayName: 'Test User',
           role: 'member',
           authProvider: 'local',
+          oidcLinked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
           deactivatedAt: null,
@@ -335,6 +394,7 @@ describe('AuthContext', () => {
           displayName: 'Test User',
           role: 'member',
           authProvider: 'oidc',
+          oidcLinked: true,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
           deactivatedAt: null,
@@ -366,7 +426,7 @@ describe('AuthContext', () => {
       renderWithProvider();
 
       await waitFor(() => {
-        expect(screen.getByTestId('error')).toHaveTextContent('Initial error');
+        expect(screen.getByTestId('error')).toHaveTextContent(enAuth.session.loadError);
       });
 
       mockLogout.mockResolvedValue(undefined);
@@ -389,6 +449,7 @@ describe('AuthContext', () => {
           displayName: 'Test User',
           role: 'member',
           authProvider: 'local',
+          oidcLinked: false,
           createdAt: '2024-01-01T00:00:00.000Z',
           updatedAt: '2024-01-01T00:00:00.000Z',
           deactivatedAt: null,

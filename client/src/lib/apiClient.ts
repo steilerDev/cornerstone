@@ -1,4 +1,5 @@
-import type { ApiError, ApiErrorResponse } from '@cornerstone/shared';
+import { ERROR_CODES } from '@cornerstone/shared';
+import type { ApiError, ErrorCode } from '@cornerstone/shared';
 
 /**
  * Error thrown when the server returns a 4xx or 5xx response with an API error body.
@@ -8,11 +9,49 @@ export class ApiClientError extends Error {
   readonly error: ApiError;
 
   constructor(statusCode: number, error: ApiError) {
-    super(error.message);
+    // Never carry server prose in .message; err.error.message stays available for logs.
+    super(error.code);
     this.name = 'ApiClientError';
     this.statusCode = statusCode;
     this.error = error;
   }
+}
+
+function codeForStatus(status: number): ErrorCode {
+  switch (status) {
+    case 401:
+      return 'UNAUTHORIZED';
+    case 403:
+      return 'FORBIDDEN';
+    case 404:
+      return 'NOT_FOUND';
+    case 409:
+      return 'CONFLICT';
+    case 413:
+      return 'PAYLOAD_TOO_LARGE';
+    case 429:
+      return 'RATE_LIMIT_EXCEEDED';
+    default:
+      return status >= 500 ? 'INTERNAL_ERROR' : 'VALIDATION_ERROR';
+  }
+}
+
+/**
+ * Normalizes a non-2xx response body into an ApiClientError. A body without a known
+ * error code (e.g. a proxy's HTML/JSON page) gets a status-derived code so the UI can
+ * still translate it.
+ */
+export function toApiClientError(status: number, body: unknown): ApiClientError {
+  const apiError = (body as { error?: Partial<ApiError> } | null | undefined)?.error;
+  if (
+    apiError &&
+    typeof apiError === 'object' &&
+    typeof apiError.code === 'string' &&
+    (ERROR_CODES as readonly string[]).includes(apiError.code)
+  ) {
+    return new ApiClientError(status, apiError as ApiError);
+  }
+  return new ApiClientError(status, { code: codeForStatus(status), message: `HTTP ${status}` });
 }
 
 /**
@@ -91,20 +130,8 @@ async function request<T>(
 
     // Handle non-2xx responses
     if (!response.ok) {
-      let apiError: ApiError;
-
-      try {
-        const errorBody = (await response.json()) as ApiErrorResponse;
-        apiError = errorBody.error;
-      } catch {
-        // Non-JSON response (e.g., from reverse proxy) - create synthetic error
-        apiError = {
-          code: 'INTERNAL_ERROR',
-          message: `HTTP ${response.status}: ${response.statusText}`,
-        };
-      }
-
-      throw new ApiClientError(response.status, apiError);
+      const parsed: unknown = await response.json().catch(() => null);
+      throw toApiClientError(response.status, parsed);
     }
 
     // Parse successful response

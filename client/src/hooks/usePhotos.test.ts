@@ -3,6 +3,7 @@ import { jest } from '@jest/globals';
 import type { Photo } from '@cornerstone/shared';
 import enErrors from '../i18n/en/errors.json';
 import enPhotoViewer from '../i18n/en/photoViewer.json';
+import enCommon from '../i18n/en/common.json';
 
 // ─── Hoisted mocks (must precede dynamic import) ───────────────────────────────
 
@@ -200,7 +201,7 @@ describe('usePhotos', () => {
 
     const { result } = renderHook(() => usePhotos('diary_entry', 'entry-1'));
 
-    await waitFor(() => expect(result.current.error).toBe(enPhotoViewer.networkError));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.loading).toBe(false);
   });
 

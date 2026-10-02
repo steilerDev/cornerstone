@@ -14,6 +14,7 @@
  * Print is not viewport-dependent — desktop only (no @responsive tag).
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API, ROUTES } from '../../fixtures/testData.js';
@@ -176,11 +177,7 @@ function populatedBreakdownResponse() {
  * Mount route mocks for both GET /api/budget/overview and GET /api/budget/breakdown.
  * Returns a teardown function that unregisters both routes.
  */
-async function mountRoutes(
-  page: Parameters<typeof test>[1]['page'],
-  overviewBody: object,
-  breakdownBody: object,
-) {
+async function mountRoutes(page: Page, overviewBody: object, breakdownBody: object) {
   await page.route(`${API.budgetOverview}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({

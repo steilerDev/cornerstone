@@ -3,6 +3,9 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
@@ -388,7 +391,10 @@ describe('InvoiceLinkModal', () => {
     const invoices = [buildInvoice('inv-1', 'INV-001')];
     mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
     mockCreateInvoiceBudgetLine.mockRejectedValue(
-      new Error('BUDGET_LINE_ALREADY_LINKED: budget line is already linked'),
+      new ApiClientError(409, {
+        code: 'BUDGET_LINE_ALREADY_LINKED',
+        message: 'RAW-SERVER-SENTINEL',
+      }),
     );
 
     render(<InvoiceLinkModal {...buildProps()} />);
@@ -402,13 +408,20 @@ describe('InvoiceLinkModal', () => {
     await waitFor(() => {
       expect(screen.getByText('This budget line is already linked to an invoice')).toBeTruthy();
     });
+    // Field-level error on the invoice picker, not the amount input and not the generic banner
+    expect(screen.getByPlaceholderText(/search by invoice/i).className).toContain('inputError');
+    expect(screen.getByLabelText(/itemized amount/i).className).not.toContain('inputError');
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
   it('ITEMIZED_SUM_EXCEEDS_INVOICE error is shown inline', async () => {
     const invoices = [buildInvoice('inv-1', 'INV-001')];
     mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
     mockCreateInvoiceBudgetLine.mockRejectedValue(
-      new Error('ITEMIZED_SUM_EXCEEDS_INVOICE: itemized amount exceeds invoice total'),
+      new ApiClientError(400, {
+        code: 'ITEMIZED_SUM_EXCEEDS_INVOICE',
+        message: 'RAW-SERVER-SENTINEL',
+      }),
     );
 
     render(<InvoiceLinkModal {...buildProps()} />);
@@ -422,6 +435,68 @@ describe('InvoiceLinkModal', () => {
     await waitFor(() => {
       expect(screen.getByText('The itemized amount exceeds the invoice total')).toBeTruthy();
     });
+    // Field-level error on the amount input, not the invoice picker
+    expect(screen.getByLabelText(/itemized amount/i).className).toContain('inputError');
+    expect(screen.getByPlaceholderText(/search by invoice/i).className).not.toContain('inputError');
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+  });
+
+  it('a plain Error whose message merely contains an error code is NOT treated as that code', async () => {
+    const invoices = [buildInvoice('inv-1', 'INV-001')];
+    mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+    mockCreateInvoiceBudgetLine.mockRejectedValue(
+      new Error('BUDGET_LINE_ALREADY_LINKED: RAW-LOCAL'),
+    );
+
+    render(<InvoiceLinkModal {...buildProps()} />);
+    await waitFor(() => {
+      expect(screen.queryByText('Loading invoices...')).toBeNull();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('An unexpected error occurred')).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    expect(screen.queryByText('This budget line is already linked to an invoice')).toBeNull();
+  });
+
+  it('other API error codes render the translated errors.json text, never the server message', async () => {
+    const invoices = [buildInvoice('inv-1', 'INV-001')];
+    mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+    mockCreateInvoiceBudgetLine.mockRejectedValue(
+      new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+    );
+
+    render(<InvoiceLinkModal {...buildProps()} />);
+    await waitFor(() => {
+      expect(screen.queryByText('Loading invoices...')).toBeNull();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+  });
+
+  it('a NetworkError renders the common network message', async () => {
+    const invoices = [buildInvoice('inv-1', 'INV-001')];
+    mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+    mockCreateInvoiceBudgetLine.mockRejectedValue(
+      new NetworkError('RAW-LOCAL', new Error('cause')),
+    );
+
+    render(<InvoiceLinkModal {...buildProps()} />);
+    await waitFor(() => {
+      expect(screen.queryByText('Loading invoices...')).toBeNull();
+    });
+    fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
   });
 
   it('Escape key closes the modal', async () => {
@@ -687,10 +762,10 @@ describe('InvoiceLinkModal', () => {
       expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
     });
 
-    it('falls back to "Failed to link budget line" when the thrown Error has no message', async () => {
+    it('shows the unexpected-error text for a plain Error (its message is never displayed)', async () => {
       const invoices = [buildInvoice('inv-1', 'INV-001')];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockCreateInvoiceBudgetLine.mockRejectedValue(new Error(''));
+      mockCreateInvoiceBudgetLine.mockRejectedValue(new Error('RAW-LOCAL'));
 
       render(<InvoiceLinkModal {...buildProps()} />);
 
@@ -701,8 +776,9 @@ describe('InvoiceLinkModal', () => {
       fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to link budget line')).toBeInTheDocument();
+        expect(screen.getByText('An unexpected error occurred')).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
 
     it('shows "An unexpected error occurred" when a non-Error value is thrown', async () => {
@@ -829,7 +905,7 @@ describe('InvoiceLinkModal', () => {
       ];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
       mockCreateInvoiceBudgetLine.mockRejectedValue(
-        new Error('BUDGET_LINE_ALREADY_LINKED: budget line is already linked'),
+        new ApiClientError(409, { code: 'BUDGET_LINE_ALREADY_LINKED', message: 'x' }),
       );
 
       render(<InvoiceLinkModal {...buildProps()} />);

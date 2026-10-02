@@ -124,7 +124,7 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
-    const budgetSources = budgetSourceService.listBudgetSources(fastify.db);
+    const budgetSources = budgetSourceService.listBudgetSources(fastify.db, fastify.config.vatRate);
     return reply.status(200).send({ budgetSources });
   });
 
@@ -145,6 +145,7 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         fastify.db,
         request.body,
         request.user.id,
+        fastify.config.vatRate,
       );
       return reply.status(201).send({ budgetSource });
     },
@@ -163,7 +164,11 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const budgetSource = budgetSourceService.getBudgetSourceById(fastify.db, request.params.id);
+      const budgetSource = budgetSourceService.getBudgetSourceById(
+        fastify.db,
+        request.params.id,
+        fastify.config.vatRate,
+      );
       return reply.status(200).send({ budgetSource });
     },
   );
@@ -185,6 +190,7 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         fastify.db,
         request.params.id,
         request.body,
+        fastify.config.vatRate,
       );
       return reply.status(200).send({ budgetSource });
     },

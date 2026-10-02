@@ -419,18 +419,25 @@ describe('OverflowMenu', () => {
     });
   });
 
-  // ─── Item without id uses fallback key ────────────────────────────────────
+  // ─── Distinct ids with identical labels ────────────────────────────────────
 
-  describe('item without id uses fallback key (item-{i})', () => {
-    it('renders items correctly when no id is provided', () => {
+  describe('items with the same label but distinct ids', () => {
+    it('renders both items and dispatches each click to its own handler', () => {
+      const onFirst = jest.fn<() => void>();
+      const onSecond = jest.fn<() => void>();
       const items: OverflowMenuItem[] = [
-        { label: 'No ID Item A', onClick: jest.fn<() => void>() },
-        { label: 'No ID Item B', onClick: jest.fn<() => void>() },
+        { id: 'first', label: 'Same Label', onClick: onFirst },
+        { id: 'second', label: 'Same Label', onClick: onSecond },
       ];
       renderMenu({ items });
       fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
-      expect(screen.getByRole('menuitem', { name: 'No ID Item A' })).toBeInTheDocument();
-      expect(screen.getByRole('menuitem', { name: 'No ID Item B' })).toBeInTheDocument();
+      const menuItems = screen.getAllByRole('menuitem', { name: 'Same Label' });
+      expect(menuItems).toHaveLength(2);
+
+      fireEvent.click(menuItems[1]!);
+
+      expect(onSecond).toHaveBeenCalledTimes(1);
+      expect(onFirst).not.toHaveBeenCalled();
     });
   });
 

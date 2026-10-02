@@ -41,9 +41,15 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
-import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
+import {
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
+import { defined } from '../../fixtures/assertions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers
@@ -218,11 +224,15 @@ async function navigateAndWaitForDryRun(
  * Open the assign picker modal on line card 0, select the given work item,
  * navigate to step 2, and click "Create Budget Line".
  * On return, the picker is closed and the line card shows the inline form.
+ *
+ * Pass `budgetSourceId` for any flow that saves the draft: the inline form's Funding Source
+ * otherwise defaults to the first source, which a parallel worker may delete.
  */
 async function queueCreateNew(
   page: Page,
   autoItemizePage: AutoItemizePage,
   workItemTitle: string,
+  budgetSourceId?: string,
 ): Promise<void> {
   // Open assign picker (step 1)
   const assignBtn = autoItemizePage.lineAssignButton(0);
@@ -248,6 +258,13 @@ async function queueCreateNew(
 
   // Picker closes immediately (Bug A fix: close on queue, not on create)
   await expect(autoItemizePage.pickerModal).not.toBeVisible();
+
+  if (budgetSourceId) {
+    const sourceSelect = autoItemizePage.getInlineDraftSourceSelect(0);
+    await expect(sourceSelect).toBeVisible();
+    await sourceSelect.selectOption(budgetSourceId);
+    await expect(sourceSelect).toHaveValue(budgetSourceId);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -270,6 +287,7 @@ test(
     let vendorId = '';
     let invoiceId = '';
     let workItemId = '';
+    let budgetSourceId = '';
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} AIQ-S1 Vendor`);
@@ -279,6 +297,10 @@ test(
         invoiceNumber: `${testPrefix}-AIQ-S1`,
       });
       workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AIQ-S1 WI` });
+      budgetSourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} AIQ-S1 Source`,
+        totalAmount: 100000,
+      });
 
       const docId = 130001;
       // Link the Paperless document to the invoice so the auto-itemize commit
@@ -295,7 +317,7 @@ test(
       await expect(autoItemizePage.getCreatingNewBadge(0)).not.toBeVisible();
 
       // ── Queue the create-new operation ────────────────────────────────────────
-      await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S1 WI`);
+      await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S1 WI`, budgetSourceId);
 
       // ── Assert: amber "Creating New" badge visible on card 0 (Bug A guard) ───
       await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
@@ -384,7 +406,7 @@ test(
         listBody.budgets.length,
         `Expected 1 budget line under WI ${workItemId}, got ${listBody.budgets.length}`,
       ).toBe(1);
-      const budget = listBody.budgets[0];
+      const budget = defined(listBody.budgets[0], 'budget line');
       expect(
         budget.plannedAmount,
         `Expected plannedAmount≈200 but was ${budget.plannedAmount}`,
@@ -398,6 +420,7 @@ test(
       if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
     }
   },
 );
@@ -595,6 +618,7 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
   let vendorId = '';
   let invoiceId = '';
   let workItemId = '';
+  let budgetSourceId = '';
 
   // Track every POST to the WI-budgets endpoint across BOTH save attempts.
   let wiCreateCallCount = 0;
@@ -611,6 +635,10 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
       invoiceNumber: `${testPrefix}-AIQ-S4`,
     });
     workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} AIQ-S4 WI` });
+    budgetSourceId = await createBudgetSourceViaApi(page, {
+      name: `${testPrefix} AIQ-S4 Source`,
+      totalAmount: 100000,
+    });
 
     const docId = 130004;
     await linkDocumentToInvoiceViaApi(page, invoiceId, docId);
@@ -627,7 +655,7 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
     await navigateAndWaitForDryRun(page, autoItemizePage, invoiceId, docId);
 
     // ── Queue the create-new operation ────────────────────────────────────────
-    await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S4 WI`);
+    await queueCreateNew(page, autoItemizePage, `${testPrefix} AIQ-S4 WI`, budgetSourceId);
     await expect(autoItemizePage.getCreatingNewBadge(0)).toBeVisible();
 
     // ── First Save: materialize succeeds (real WI budget POST), commit fails ──
@@ -659,6 +687,10 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
     // ── Assert: error banner visible, page did NOT navigate ──────────────────
     await expect(autoItemizePage.errorBanner).toBeVisible();
     expect(page.url()).toContain('auto-itemize');
+
+    // ── Assert (#2149): the materialized row now renders as a linked, read-only row ──
+    await expect(autoItemizePage.lineLinkedValues(0)).toBeVisible();
+    await expect(autoItemizePage.lineDescription(0)).toHaveCount(0);
 
     // ── Assert: exactly one WI-budgets POST fired so far ─────────────────────
     expect(
@@ -708,5 +740,6 @@ test('Scenario 4: retrying Save after a real commit failure reuses the already-c
     if (invoiceId && vendorId) await deleteInvoiceViaApi(page, vendorId, invoiceId);
     if (vendorId) await deleteVendorViaApi(page, vendorId);
     if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+    if (budgetSourceId) await deleteBudgetSourceViaApi(page, budgetSourceId);
   }
 });

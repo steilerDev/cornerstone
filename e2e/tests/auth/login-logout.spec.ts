@@ -36,7 +36,7 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     // Then: Generic error message should appear
     const error = await loginPage.getErrorBanner();
     expect(error).toBeTruthy();
-    expect(error?.toLowerCase()).toContain('invalid');
+    expect(error).toContain('The email address or password is incorrect.');
   });
 
   test('Non-existent email shows same generic error', async ({ page }) => {
@@ -51,7 +51,7 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     // Then: Same generic error message (no info leakage about account existence)
     const error = await loginPage.getErrorBanner();
     expect(error).toBeTruthy();
-    expect(error?.toLowerCase()).toContain('invalid');
+    expect(error).toContain('The email address or password is incorrect.');
   });
 
   test('Logout clears session and redirects to /login', async ({ page }) => {

@@ -13,8 +13,13 @@
 - [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
 - [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes (older infra), `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks; **2026-09-07: current sandbox has real per-worktree node_modules — never `rm -rf node_modules` for a single stale package, virtiofs ENOTDIR race on full reinstall, rsync-from-base-repo recovery fallback**
 
+- [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
+
 ## Recent bug/story notes (2026-08)
 
+- [PR #2168 error-message hardening tests](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, LocalizedError, duplicate-banner counts, no jsdom Response
+
+- [Wizard rAF focus-steal flake](gotcha-wizard-raf-focus-steal.md) (2026-10) — typing right after a step change loses keystrokes; settle h2 focus first; mockReset once-queues
 - [Issue #2101 — Paperless infinite-scroll tests](issue-2101-infinite-scroll-tests.md) (2026-09-29) — ts-node-less jest workaround, sandbox command-complexity guard, mutation-runner pattern, act-warning and mocked-i18n gotchas.
 
 - [Picker-family test slowness — RESOLVED](pr2070-searchpicker-dropdown-timeout.md) — root cause was nwsapi 2.2.27 (transitive, jsdom's selector engine) recursing on `:modal`, ~281 ms per floating-ui positioning check; fixed by nwsapi 2.2.28. Lessons: `--cpu-prof` before theorising; bisect transitive deps too; slow-but-green jsdom tests are bugs, not timeout tuning. Also: `projects[].testTimeout` is a silent no-op; debounce/query-agnostic-mock `waitFor` race; run jest from the repo root, not `client/`.

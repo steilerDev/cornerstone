@@ -8,6 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type { VendorDetail, Invoice } from '@cornerstone/shared';
 
 // Mock the vendor API module BEFORE importing the component
@@ -413,15 +414,16 @@ describe('VendorDetailPage', () => {
 
     it('shows API error message for non-404 errors', async () => {
       mockFetchVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Database error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Database error')).toBeInTheDocument();
+        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(1);
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error message for network errors', async () => {
@@ -650,7 +652,7 @@ describe('VendorDetailPage', () => {
       mockUpdateVendor.mockRejectedValueOnce(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Vendor name must be between 1 and 200 characters',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -667,10 +669,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(
-          screen.getByText(/vendor name must be between 1 and 200 characters/i),
-        ).toBeInTheDocument();
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic edit error for non-ApiClientError failures', async () => {
@@ -696,7 +697,7 @@ describe('VendorDetailPage', () => {
     it('stays in edit mode after save failure (does not close)', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockUpdateVendor.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const user = userEvent.setup();
@@ -855,6 +856,30 @@ describe('VendorDetailPage', () => {
       expect(
         within(dialog).queryByRole('button', { name: /delete vendor/i }),
       ).not.toBeInTheDocument();
+    });
+
+    it('shows the translated errors.json text for a non-409 ApiClientError, never the server message', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+
+      const dialog = screen.getByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+
+      await waitFor(() => {
+        expect(within(dialog).getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic delete error for non-409 failures', async () => {
@@ -1108,15 +1133,16 @@ describe('VendorDetailPage', () => {
     it('shows invoices error message when fetchInvoices fails', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Database error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Database error')).toBeInTheDocument();
+        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(1);
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error for non-ApiClientError invoice fetch failures', async () => {
@@ -1316,7 +1342,7 @@ describe('VendorDetailPage', () => {
       mockCreateInvoice.mockRejectedValueOnce(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Due date must be on or after the invoice date',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -1339,10 +1365,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(
-          within(dialog).getByText(/due date must be on or after the invoice date/i),
-        ).toBeInTheDocument();
+        expect(within(dialog).getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic create error for non-ApiClientError failures', async () => {
@@ -1570,7 +1595,7 @@ describe('VendorDetailPage', () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
       mockDeleteInvoice.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const user = userEvent.setup();
@@ -1589,8 +1614,9 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText('Server error')).toBeInTheDocument();
+        expect(within(dialog).getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic delete error for non-ApiClientError', async () => {
@@ -1621,7 +1647,7 @@ describe('VendorDetailPage', () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
       mockDeleteInvoice.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const user = userEvent.setup();

@@ -56,16 +56,16 @@ jobs:
         id: install
         run: npm ci
 
-      - name: Check single konva version
+      - name: Check single konva/webpack version
         if: needs.detect-changes.outputs.app == 'true'
-        run: bash scripts/check-single-dep-version.sh konva
+        run: bash scripts/check-single-dep-version.sh konva webpack
 
       - name: Verify dependency signatures
         if: needs.detect-changes.outputs.app == 'true'
         run: npm audit signatures
 
       - name: Type check
-        if: needs.detect-changes.outputs.app == 'true'
+        if: needs.detect-changes.outputs.app == 'true' || needs.detect-changes.outputs.e2e == 'true'
         run: npm run typecheck
 
       - name: Stylelint
@@ -81,10 +81,9 @@ jobs:
         run: npm run format:check
 
       - name: ESLint
-        # Fails on errors only; warnings are reported but non-fatal until #2118
-        # burns them down and adds --max-warnings=0.
+        # Zero warnings: any warning fails the gate.
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
-        run: npx eslint .
+        run: npx eslint . --max-warnings=0
 
   trailer-check:
     name: Trailer Check
@@ -351,7 +350,7 @@ jobs:
 
       - name: Get Playwright version
         id: playwright-version
-        run: echo "version=$(npx playwright --version | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        run: echo "version=$(npx playwright --version | tr -d '[:space:]' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
         working-directory: e2e
 
       # --- Restore caches ---
@@ -363,7 +362,7 @@ jobs:
           key: playwright-v4-${{ steps.playwright-version.outputs.version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
-        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
+        run: sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
 
       - name: Restore apt cache
         id: apt-cache
@@ -437,7 +436,7 @@ jobs:
         run: |
           sudo rm -f /var/cache/apt/archives/lock
           sudo rm -rf /var/cache/apt/archives/partial
-          sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
+          sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
 
       - name: Save apt cache
         if: steps.apt-cache.outputs.cache-hit != 'true'
@@ -508,7 +507,7 @@ jobs:
           key: playwright-v4-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
-        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
+        run: sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5
@@ -619,7 +618,7 @@ jobs:
           key: playwright-v4-${{ needs.e2e-warmup.outputs.playwright-version }}-${{ runner.os }}
 
       - name: Fix apt cache ownership for runner
-        run: sudo chown -R $(id -u):$(id -g) /var/cache/apt/archives
+        run: sudo chown -R "$(id -u):$(id -g)" /var/cache/apt/archives
 
       - name: Restore apt cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v5

@@ -1,4 +1,12 @@
-import { useState, useEffect, useMemo, useRef, type FormEvent, type ReactNode } from 'react';
+import {
+  useState,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  type FormEvent,
+  type ReactNode,
+} from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
@@ -11,6 +19,8 @@ import type {
   PaperlessDocumentSearchResult,
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type {
   ColumnDef,
   TableState,
@@ -30,6 +40,7 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
@@ -49,6 +60,11 @@ import styles from './InvoicesPage.module.css';
 
 // URL params owned by this page's "open items" mode, not by useTableState's column filters.
 const OPEN_ONLY_RESERVED = ['openOnly'];
+
+interface IntegrationStatus {
+  paperless: PaperlessStatusResponse | null;
+  autoItemizeEnabled: boolean | null;
+}
 
 interface InvoiceFormState {
   vendorId: string;
@@ -130,6 +146,8 @@ function renderInvoiceNumberCell(
 
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
 
@@ -173,10 +191,15 @@ export function InvoicesPage() {
 
   // Paperless picker modal state
   const [showPaperlessPickerModal, setShowPaperlessPickerModal] = useState(false);
-  const [integrationStatus, setIntegrationStatus] = useState<{
-    paperless: PaperlessStatusResponse | null;
-    autoItemizeEnabled: boolean | null;
-  }>({ paperless: null, autoItemizeEnabled: null });
+  const [integrationStatus, setIntegrationStatus] = useState<IntegrationStatus>({
+    paperless: null,
+    autoItemizeEnabled: null,
+  });
+  // True once the status load settled, on success AND failure (a failed load leaves
+  // paperless === null but autoItemizeEnabled === false, i.e. "manual modal").
+  const integrationReady = integrationStatus.autoItemizeEnabled !== null;
+  // Dashboard "Add Invoice" shortcut (?create=1): consumed once, when the status load resolves.
+  const pendingCreateRef = useRef(searchParams.get('create') === '1');
 
   // Form ref for submit button in modal
   const formRef = useRef<HTMLFormElement>(null);
@@ -225,6 +248,24 @@ export function InvoicesPage() {
     );
   }, []);
 
+  // Resolution handler for the status load: stores the status and, if the dashboard shortcut
+  // requested it, opens the create flow for that status (an Effect Event, so the mount-only
+  // effect below needs no extra dependencies and no set-state-in-effect continuation).
+  const onIntegrationStatusResolved = useEffectEvent((status: IntegrationStatus) => {
+    setIntegrationStatus(status);
+    if (!pendingCreateRef.current) return;
+    pendingCreateRef.current = false;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('create');
+        return next;
+      },
+      { replace: true },
+    );
+    openCreateModalFor(status);
+  });
+
   // Load Paperless and config status on mount
   useEffect(() => {
     let cancelled = false;
@@ -233,14 +274,14 @@ export function InvoicesPage() {
       try {
         const [paperlessStatus, config] = await Promise.all([getPaperlessStatus(), fetchConfig()]);
         if (!cancelled) {
-          setIntegrationStatus({
+          onIntegrationStatusResolved({
             paperless: paperlessStatus,
             autoItemizeEnabled: config.autoItemizeEnabled,
           });
         }
       } catch {
         if (!cancelled) {
-          setIntegrationStatus({
+          onIntegrationStatusResolved({
             paperless: null,
             autoItemizeEnabled: false,
           });
@@ -271,7 +312,7 @@ export function InvoicesPage() {
       setHasOverdue(response.summary.overdue.count > 0);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
       } else {
         setError(t('invoices.errorMessage'));
       }
@@ -330,13 +371,9 @@ export function InvoicesPage() {
     setSearchParams(params);
   };
 
-  const openCreateModal = () => {
+  const openCreateModalFor = (status: IntegrationStatus) => {
     // If Paperless and auto-itemize are both configured, open the picker modal
-    if (
-      integrationStatus.paperless?.configured &&
-      integrationStatus.paperless?.reachable &&
-      integrationStatus.autoItemizeEnabled
-    ) {
+    if (status.paperless?.configured && status.paperless?.reachable && status.autoItemizeEnabled) {
       setShowPaperlessPickerModal(true);
     } else {
       // Otherwise open the manual create modal
@@ -345,6 +382,8 @@ export function InvoicesPage() {
       setShowCreateModal(true);
     }
   };
+
+  const openCreateModal = () => openCreateModalFor(integrationStatus);
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);
@@ -359,27 +398,6 @@ export function InvoicesPage() {
     setCreateError('');
     setShowCreateModal(true);
   };
-
-  // Consume ?create=1 from the Dashboard "Add Invoice" shortcut.
-  // Only fires once integrationStatus has fully resolved (both fields non-null)
-  // to match the readiness gate used by the page's own "Add Invoice" button.
-  useEffect(() => {
-    if (integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null) {
-      return;
-    }
-    if (searchParams.get('create') === '1') {
-      setSearchParams(
-        (prev) => {
-          const next = new URLSearchParams(prev);
-          next.delete('create');
-          return next;
-        },
-        { replace: true },
-      );
-      openCreateModal();
-    }
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- openCreateModal is a stable plain function; intentionally omitted
-  }, [integrationStatus, searchParams, setSearchParams]);
 
   const closeCreateModal = () => {
     if (!isCreating) {
@@ -422,7 +440,7 @@ export function InvoicesPage() {
       await loadInvoices();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setCreateError(err.error.message);
+        setCreateError(translateApiError(err.error.code, tErrors));
       } else {
         setCreateError(t('invoices.messages.createError'));
       }
@@ -434,10 +452,9 @@ export function InvoicesPage() {
   // Invoice status badge variants
   const invoiceStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: InvoiceStatus[] = ['pending', 'paid', 'claimed', 'quotation'];
-    for (const status of statuses) {
+    for (const status of INVOICE_STATUSES) {
       variants[status] = {
-        label: t(`invoices.statusLabels.${status}`),
+        label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
         // Fix (Issue #2046): these classes live in Badge.module.css, not InvoicesPage.module.css —
         // `styles[status]` resolved to undefined, so the invoice status badges rendered with no colour.
         className: badgeStyles[status]!,
@@ -587,12 +604,10 @@ export function InvoicesPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          { value: 'pending', label: t('invoices.statusLabels.pending') },
-          { value: 'paid', label: t('invoices.statusLabels.paid') },
-          { value: 'claimed', label: t('invoices.statusLabels.claimed') },
-          { value: 'quotation', label: t('invoices.statusLabels.quotation') },
-        ],
+        enumOptions: INVOICE_STATUSES.map((status) => ({
+          value: status,
+          label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
+        })),
         render: (inv, surface) => (
           <Badge
             variants={invoiceStatusVariants}
@@ -902,24 +917,19 @@ export function InvoicesPage() {
           className={sharedStyles.btnPrimary}
           onClick={openCreateModal}
           data-testid="new-invoice-button"
-          aria-disabled={
-            integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null
-          }
-          disabled={
-            integrationStatus.paperless === null || integrationStatus.autoItemizeEnabled === null
-          }
+          aria-disabled={!integrationReady}
+          disabled={!integrationReady}
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
           }}
         >
-          {(integrationStatus.paperless === null ||
-            integrationStatus.autoItemizeEnabled === null) && <Spinner size="sm" />}
+          {!integrationReady && <Spinner size="sm" />}
           {t('invoices.addInvoice')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {headerContent}
       <DataTable<Invoice, InvoiceDeposit>
@@ -1126,10 +1136,11 @@ export function InvoicesPage() {
                 className={styles.select}
                 disabled={isCreating}
               >
-                <option value="pending">{t('invoices.statusLabels.pending')}</option>
-                <option value="paid">{t('invoices.statusLabels.paid')}</option>
-                <option value="claimed">{t('invoices.statusLabels.claimed')}</option>
-                <option value="quotation">{t('invoices.statusLabels.quotation')}</option>
+                {INVOICE_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {t(I18N_UNION_KEYS.invoicesStatusLabel.key(status))}
+                  </option>
+                ))}
               </select>
             </div>
 

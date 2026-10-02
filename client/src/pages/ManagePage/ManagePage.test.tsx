@@ -14,6 +14,8 @@ import type * as HICApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as SettingsApiTypes from '../../lib/settingsApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enSettings from '../../i18n/en/settings.json';
 import type {
   BudgetCategory,
   HouseholdItemCategoryEntity,
@@ -307,6 +309,7 @@ describe('ManagePage', () => {
         displayName: 'Admin',
         role: 'admin' as const,
         authProvider: 'local' as const,
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
@@ -1324,7 +1327,7 @@ describe('ManagePage', () => {
       mockCreateHICCategory.mockRejectedValue(
         new ApiClientError(409, {
           code: 'CONFLICT',
-          message: 'A household item category with this name already exists',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -1341,9 +1344,10 @@ describe('ManagePage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByText('A household item category with this name already exists'),
+          screen.getByText(enSettings.manage.householdItemCategories.messages.duplicateName),
         ).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
   });
 
@@ -1720,19 +1724,18 @@ describe('ManagePage', () => {
 
     it('shows an error banner when loading settings fails', async () => {
       mockFetchHouseholdSettings.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       renderManagePage('/settings/manage?tab=household');
 
       await waitFor(() => {
-        expect(screen.getByText('Server error')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
 
-    it('shows the generic load error message when the error has no server message', async () => {
-      // Simulates a malformed API response missing `message` despite the ApiError
-      // contract requiring it — exercises the `err.error.message ?? fallback` branch.
+    it('translates the error code even when the server body has no message', async () => {
       mockFetchHouseholdSettings.mockRejectedValueOnce(
         new ApiClientError(500, { code: 'INTERNAL_ERROR' } as unknown as ApiError),
       );
@@ -1740,9 +1743,7 @@ describe('ManagePage', () => {
       renderManagePage('/settings/manage?tab=household');
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Failed to load household information. Please try again.'),
-        ).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
     });
 
@@ -1865,7 +1866,7 @@ describe('ManagePage', () => {
       mockUpdateHouseholdSettings.mockRejectedValueOnce(
         new ApiClientError(400, {
           code: 'VALIDATION_ERROR',
-          message: 'Household name must be 200 characters or fewer',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -1880,10 +1881,9 @@ describe('ManagePage', () => {
       await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
       await waitFor(() => {
-        expect(
-          screen.getByText('Household name must be 200 characters or fewer'),
-        ).toBeInTheDocument();
+        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
     });
 
     it('shows the generic save error message when the rejection is not an ApiClientError', async () => {
@@ -1943,6 +1943,356 @@ describe('ManagePage', () => {
       });
       expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
       expect(mockFetchHICCategories).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── API errors are translated, never raw server text (#2129) ─────────────
+
+  describe('API error handling (#2129)', () => {
+    const SENTINEL = 'RAW-SERVER-SENTINEL';
+    const rejecting = (err: unknown) => jest.fn<() => Promise<never>>().mockRejectedValue(err);
+    const conflict = () => new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL });
+
+    function expectNoSentinel() {
+      expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
+    }
+
+    describe('create: 409 CONFLICT shows the tab-specific duplicateName copy', () => {
+      it('areas', async () => {
+        const user = userEvent.setup();
+        mockUseAreas.mockReturnValue(makeAreasHookResult({ createArea: rejecting(conflict()) }));
+        renderManagePage('/settings/manage?tab=areas');
+        await user.type(screen.getByRole('textbox', { name: 'Area Name' }), 'Kitchen');
+        await user.click(screen.getByRole('button', { name: 'Create Area' }));
+        expect(
+          await screen.findByText(enSettings.manage.areas.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('trades', async () => {
+        const user = userEvent.setup();
+        mockUseTrades.mockReturnValue(makeTradesHookResult({ createTrade: rejecting(conflict()) }));
+        renderManagePage('/settings/manage?tab=trades');
+        await user.type(screen.getByRole('textbox', { name: 'Trade Name' }), 'Plumbing');
+        await user.click(screen.getByRole('button', { name: 'Create Trade' }));
+        expect(
+          await screen.findByText(enSettings.manage.trades.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('orientations', async () => {
+        const user = userEvent.setup();
+        mockUseOrientations.mockReturnValue(
+          makeOrientationsHookResult({
+            createOrientation: rejecting(conflict()),
+          }),
+        );
+        renderManagePage('/settings/manage?tab=orientations');
+        await user.type(screen.getByRole('textbox', { name: 'Name' }), 'North');
+        await user.click(screen.getByRole('button', { name: 'Create orientation' }));
+        expect(
+          await screen.findByText(enSettings.manage.orientations.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('budget categories', async () => {
+        const user = userEvent.setup();
+        mockCreateBudgetCategory.mockRejectedValue(conflict());
+        renderManagePage('/settings/manage?tab=budget-categories');
+        await waitFor(() => {
+          expect(screen.getByText('Materials')).toBeInTheDocument();
+        });
+        await user.type(screen.getByRole('textbox', { name: /Name/i }), 'Materials');
+        await user.click(screen.getByRole('button', { name: 'Create Category' }));
+        expect(
+          await screen.findByText(enSettings.manage.budgetCategories.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+    });
+
+    describe('update: 409 CONFLICT shows the tab-specific duplicateName copy', () => {
+      it('areas', async () => {
+        const user = userEvent.setup();
+        mockUseAreas.mockReturnValue(makeAreasHookResult({ updateArea: rejecting(conflict()) }));
+        renderManagePage('/settings/manage?tab=areas');
+        await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(enSettings.manage.areas.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('trades', async () => {
+        const user = userEvent.setup();
+        mockUseTrades.mockReturnValue(makeTradesHookResult({ updateTrade: rejecting(conflict()) }));
+        renderManagePage('/settings/manage?tab=trades');
+        await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(enSettings.manage.trades.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('orientations', async () => {
+        const user = userEvent.setup();
+        mockUseOrientations.mockReturnValue(
+          makeOrientationsHookResult({
+            updateOrientation: rejecting(conflict()),
+          }),
+        );
+        renderManagePage('/settings/manage?tab=orientations');
+        await user.click(screen.getByRole('button', { name: 'Edit North' }));
+        await user.type(document.getElementById('edit-name-orient-1')!, ' 2');
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(enSettings.manage.orientations.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('budget categories', async () => {
+        const user = userEvent.setup();
+        mockUpdateBudgetCategory.mockRejectedValue(conflict());
+        renderManagePage('/settings/manage?tab=budget-categories');
+        await user.click(await screen.findByRole('button', { name: 'Edit Materials' }));
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(enSettings.manage.budgetCategories.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('household item categories', async () => {
+        const user = userEvent.setup();
+        mockUpdateHICCategory.mockRejectedValue(conflict());
+        renderManagePage('/settings/manage?tab=hi-categories');
+        await user.click(await screen.findByRole('button', { name: 'Edit Furniture' }));
+        await user.click(screen.getByRole('button', { name: 'Save' }));
+        expect(
+          await screen.findByText(enSettings.manage.householdItemCategories.messages.duplicateName),
+        ).toBeInTheDocument();
+        expectNoSentinel();
+      });
+    });
+
+    describe('a non-CONFLICT ApiClientError is translated by code', () => {
+      it('areas create: VALIDATION_ERROR', async () => {
+        const user = userEvent.setup();
+        mockUseAreas.mockReturnValue(
+          makeAreasHookResult({
+            createArea: rejecting(
+              new ApiClientError(400, { code: 'VALIDATION_ERROR', message: SENTINEL }),
+            ),
+          }),
+        );
+        renderManagePage('/settings/manage?tab=areas');
+        await user.type(screen.getByRole('textbox', { name: 'Area Name' }), 'X');
+        await user.click(screen.getByRole('button', { name: 'Create Area' }));
+        expect(await screen.findByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
+        expectNoSentinel();
+      });
+
+      it('household item categories delete: FORBIDDEN', async () => {
+        const user = userEvent.setup();
+        mockDeleteHICCategory.mockRejectedValue(
+          new ApiClientError(403, { code: 'FORBIDDEN', message: SENTINEL }),
+        );
+        renderManagePage('/settings/manage?tab=hi-categories');
+        await user.click(await screen.findByRole('button', { name: 'Delete Furniture' }));
+        await user.click(await screen.findByRole('button', { name: 'Delete Category' }));
+        expect(await screen.findByText(enErrors.FORBIDDEN)).toBeInTheDocument();
+        expectNoSentinel();
+      });
+    });
+
+    describe('delete failures render in the error banner, not the success banner', () => {
+      async function openDelete(
+        tab: string,
+        deleteButtonName: string | RegExp,
+      ): Promise<ReturnType<typeof userEvent.setup>> {
+        const user = userEvent.setup();
+        renderManagePage(`/settings/manage?tab=${tab}`);
+        const buttons = await screen.findAllByRole('button', { name: deleteButtonName });
+        await user.click(buttons[0]!);
+        await screen.findByRole('dialog');
+        return user;
+      }
+
+      function expectErrorBanner(text: string) {
+        const matches = screen.getAllByText(text);
+        const banner = matches
+          .map((el) => el.closest('[role="alert"]'))
+          .find((el): el is Element => el !== null);
+        expect(banner).toBeDefined();
+        expect(banner!.className).toContain('errorBanner');
+        expect(banner!.className).not.toContain('successBanner');
+      }
+
+      it('areas: 409 shows deleteConflict', async () => {
+        mockUseAreas.mockReturnValue(
+          makeAreasHookResult({
+            deleteArea: rejecting(
+              new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
+            ),
+          }),
+        );
+        const user = await openDelete('areas', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        const text = enSettings.manage.areas.messages.deleteConflict;
+        await screen.findAllByText(text);
+        expectErrorBanner(text);
+        expectNoSentinel();
+      });
+
+      it('areas: non-409 ApiClientError is translated by code', async () => {
+        mockUseAreas.mockReturnValue(
+          makeAreasHookResult({
+            deleteArea: rejecting(
+              new ApiClientError(500, { code: 'INTERNAL_ERROR', message: SENTINEL }),
+            ),
+          }),
+        );
+        const user = await openDelete('areas', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        await screen.findAllByText(enErrors.INTERNAL_ERROR);
+        expectErrorBanner(enErrors.INTERNAL_ERROR);
+        expectNoSentinel();
+      });
+
+      it('areas: plain Error shows the deleteError fallback', async () => {
+        mockUseAreas.mockReturnValue(
+          makeAreasHookResult({
+            deleteArea: rejecting(new Error('RAW-LOCAL')),
+          }),
+        );
+        const user = await openDelete('areas', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        const text = enSettings.manage.areas.messages.deleteError;
+        await screen.findAllByText(text);
+        expectErrorBanner(text);
+        expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      });
+
+      it('trades: 409 shows deleteConflict', async () => {
+        mockUseTrades.mockReturnValue(
+          makeTradesHookResult({
+            deleteTrade: rejecting(
+              new ApiClientError(409, { code: 'TRADE_IN_USE', message: SENTINEL }),
+            ),
+          }),
+        );
+        const user = await openDelete('trades', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        const text = enSettings.manage.trades.messages.deleteConflict;
+        await screen.findAllByText(text);
+        expectErrorBanner(text);
+        expectNoSentinel();
+      });
+
+      it('trades: plain Error shows the deleteError fallback', async () => {
+        mockUseTrades.mockReturnValue(
+          makeTradesHookResult({
+            deleteTrade: rejecting(new Error('RAW-LOCAL')),
+          }),
+        );
+        const user = await openDelete('trades', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        const text = enSettings.manage.trades.messages.deleteError;
+        await screen.findAllByText(text);
+        expectErrorBanner(text);
+      });
+
+      it('trades: non-409 ApiClientError is translated by code', async () => {
+        mockUseTrades.mockReturnValue(
+          makeTradesHookResult({
+            deleteTrade: rejecting(
+              new ApiClientError(500, { code: 'INTERNAL_ERROR', message: SENTINEL }),
+            ),
+          }),
+        );
+        const user = await openDelete('trades', 'Delete');
+        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        await screen.findAllByText(enErrors.INTERNAL_ERROR);
+        expectErrorBanner(enErrors.INTERNAL_ERROR);
+        expectNoSentinel();
+      });
+
+      it('orientations: ApiClientError is translated by code', async () => {
+        mockUseOrientations.mockReturnValue(
+          makeOrientationsHookResult({
+            deleteOrientation: rejecting(
+              new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL }),
+            ),
+          }),
+        );
+        const user = userEvent.setup();
+        renderManagePage('/settings/manage?tab=orientations');
+        await user.click(screen.getByRole('button', { name: 'Delete North' }));
+        await screen.findByRole('dialog');
+        await user.click(screen.getByRole('button', { name: 'Delete' }));
+        await screen.findAllByText(enErrors.CONFLICT);
+        expectErrorBanner(enErrors.CONFLICT);
+        expectNoSentinel();
+      });
+
+      it('orientations: plain Error shows the deleteError fallback', async () => {
+        mockUseOrientations.mockReturnValue(
+          makeOrientationsHookResult({
+            deleteOrientation: rejecting(new Error('RAW-LOCAL')),
+          }),
+        );
+        const user = userEvent.setup();
+        renderManagePage('/settings/manage?tab=orientations');
+        await user.click(screen.getByRole('button', { name: 'Delete North' }));
+        await screen.findByRole('dialog');
+        await user.click(screen.getByRole('button', { name: 'Delete' }));
+        const text = enSettings.manage.orientations.messages.deleteError;
+        await screen.findAllByText(text);
+        expectErrorBanner(text);
+      });
+    });
+
+    it('budget categories: plain Error on create shows the createError fallback', async () => {
+      const user = userEvent.setup();
+      mockCreateBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderManagePage('/settings/manage?tab=budget-categories');
+      await screen.findByText('Materials');
+      await user.type(screen.getByRole('textbox', { name: /Name/i }), 'Other');
+      await user.click(screen.getByRole('button', { name: 'Create Category' }));
+      expect(
+        await screen.findByText(enSettings.manage.budgetCategories.messages.createError),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+
+    it('budget categories: plain Error on update shows the updateError fallback', async () => {
+      const user = userEvent.setup();
+      mockUpdateBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderManagePage('/settings/manage?tab=budget-categories');
+      await user.click(await screen.findByRole('button', { name: 'Edit Materials' }));
+      await user.click(screen.getByRole('button', { name: 'Save' }));
+      expect(
+        await screen.findByText(enSettings.manage.budgetCategories.messages.updateError),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+
+    it('budget categories: plain Error on delete shows the deleteError fallback', async () => {
+      const user = userEvent.setup();
+      mockDeleteBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderManagePage('/settings/manage?tab=budget-categories');
+      await user.click(await screen.findByRole('button', { name: 'Delete Materials' }));
+      await user.click(await screen.findByRole('button', { name: 'Delete Category' }));
+      expect(
+        await screen.findByText(enSettings.manage.budgetCategories.messages.deleteError),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
+import { ATTACHMENT_TYPES } from '@cornerstone/shared';
 import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
@@ -13,6 +14,7 @@ import { useDocumentLinks, useAllLinkedDocumentIds } from '../../hooks/useDocume
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
 import { DocumentBrowser } from './DocumentBrowser.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
@@ -26,6 +28,7 @@ interface LinkedDocumentsSectionProps {
 
 export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocumentsSectionProps) {
   const { t } = useTranslation('documents');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const hook = useDocumentLinks(entityType, entityId);
   const systemLinkedIds = useAllLinkedDocumentIds();
@@ -249,7 +252,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
       // Announce removal to screen readers
       setAnnounceMessage(
         t('linkedDocuments.documentUnlinked', {
-          title: unlinkTarget.document?.title ?? 'document',
+          title: unlinkTarget.document?.title ?? t('linkedDocuments.unnamedDocument'),
         }),
       );
       setTimeout(() => setAnnounceMessage(''), 3000);
@@ -285,7 +288,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         setTimeout(() => setAnnounceMessage(''), 3000);
       } catch (err) {
         if (err instanceof ApiClientError) {
-          setLinkError(err.error.message ?? t('linkedDocuments.failedToUpdateAttachmentType'));
+          setLinkError(translateApiError(err.error.code, tErrors));
         } else {
           setLinkError(t('linkedDocuments.failedToUpdateAttachmentType'));
         }
@@ -293,7 +296,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         setUpdatingAttachmentTypeId(null);
       }
     },
-    [hook, t],
+    [hook, t, tErrors],
   );
 
   return (
@@ -477,9 +480,11 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                     }
                   >
                     <option value="">{t('documentCard.attachmentType.none')}</option>
-                    <option value="quotation">{t('documentCard.attachmentType.quotation')}</option>
-                    <option value="deposit">{t('documentCard.attachmentType.deposit')}</option>
-                    <option value="invoice">{t('documentCard.attachmentType.invoice')}</option>
+                    {ATTACHMENT_TYPES.map((type) => (
+                      <option key={type} value={type}>
+                        {t(I18N_UNION_KEYS.documentAttachmentType.key(type))}
+                      </option>
+                    ))}
                   </select>
                 </div>
               )}
@@ -519,7 +524,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
               {t('linkedDocuments.unlinkDocument')}
             </h2>
             <p className={styles.modalText}>
-              &ldquo;{unlinkTarget.document?.title ?? 'This document'}&rdquo;{' '}
+              &ldquo;{unlinkTarget.document?.title ?? t('linkedDocuments.thisDocument')}&rdquo;{' '}
               {t('linkedDocuments.unlinkConfirmation', {
                 entity: entityLabel,
               })}

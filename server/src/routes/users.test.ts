@@ -1442,7 +1442,7 @@ describe('User Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
-    it('returns 400 for password shorter than 8 characters', async () => {
+    it('returns 400 for password shorter than 12 characters', async () => {
       // Given: Admin user
       const { cookie } = await createUserWithSession(
         'admin@example.com',
@@ -1561,6 +1561,283 @@ describe('User Routes', () => {
       expect(response.statusCode).toBe(409);
       const body = JSON.parse(response.body);
       expect(body.error.code).toBe('CONFLICT');
+    });
+
+    describe('SSO-only accounts and field limits (issue #2122)', () => {
+      async function enableOidc(): Promise<void> {
+        await app.close();
+        process.env.OIDC_ISSUER = 'https://oidc.example.com';
+        process.env.OIDC_CLIENT_ID = 'client-123';
+        process.env.OIDC_CLIENT_SECRET = 'secret-456';
+        app = await buildApp();
+      }
+
+      async function adminCookie(): Promise<string> {
+        const { cookie } = await createUserWithSession(
+          'admin@example.com',
+          'Admin User',
+          'password123456',
+          'admin',
+        );
+        return cookie;
+      }
+
+      function post(cookie: string, payload: Record<string, unknown>) {
+        return app.inject({ method: 'POST', url: '/api/users', headers: { cookie }, payload });
+      }
+
+      function userCount(): number {
+        return userService.countUsers(app.db);
+      }
+
+      it.each(['member', 'admin'] as const)(
+        'creates an SSO-only %s with no password hash and no subject when OIDC is enabled',
+        async (role) => {
+          await enableOidc();
+          const cookie = await adminCookie();
+
+          const response = await post(cookie, {
+            email: 'sso@example.com',
+            displayName: 'SSO Person',
+            role,
+            authProvider: 'oidc',
+          });
+
+          expect(response.statusCode).toBe(201);
+          const body = JSON.parse(response.body) as { user: UserResponse };
+          expect(body.user.authProvider).toBe('oidc');
+          expect(body.user.oidcLinked).toBe(false);
+          expect(body.user.role).toBe(role);
+
+          const row = app.db.select().from(users).where(eq(users.id, body.user.id)).get();
+          expect(row?.passwordHash).toBeNull();
+          expect(row?.oidcSubject).toBeNull();
+          expect(row?.authProvider).toBe('oidc');
+          expect(row?.role).toBe(role);
+        },
+      );
+
+      it('returns 400 VALIDATION_ERROR with details.field "password" for oidc plus a password, writing no row', async () => {
+        await enableOidc();
+        const cookie = await adminCookie();
+        const before = userCount();
+
+        const response = await post(cookie, {
+          email: 'sso@example.com',
+          displayName: 'SSO Person',
+          role: 'member',
+          authProvider: 'oidc',
+          password: 'securepass123',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.body) as ApiErrorResponse;
+        expect(body.error.code).toBe('VALIDATION_ERROR');
+        expect(body.error.details).toEqual({ field: 'password' });
+        expect(userCount()).toBe(before);
+      });
+
+      it('returns 400 OIDC_NOT_CONFIGURED for oidc when OIDC is disabled, writing no row', async () => {
+        const cookie = await adminCookie();
+        const before = userCount();
+
+        const response = await post(cookie, {
+          email: 'sso@example.com',
+          displayName: 'SSO Person',
+          role: 'member',
+          authProvider: 'oidc',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.body) as ApiErrorResponse;
+        expect(body.error.code).toBe('OIDC_NOT_CONFIGURED');
+        expect(userCount()).toBe(before);
+      });
+
+      it('reports VALIDATION_ERROR (not OIDC_NOT_CONFIGURED) for oidc plus a password when OIDC is disabled', async () => {
+        const cookie = await adminCookie();
+        const before = userCount();
+
+        const response = await post(cookie, {
+          email: 'sso@example.com',
+          displayName: 'SSO Person',
+          role: 'member',
+          authProvider: 'oidc',
+          password: 'securepass123',
+        });
+
+        expect(response.statusCode).toBe(400);
+        const body = JSON.parse(response.body) as ApiErrorResponse;
+        expect(body.error.code).toBe('VALIDATION_ERROR');
+        expect(userCount()).toBe(before);
+      });
+
+      it.each([
+        ['explicit local', { authProvider: 'local' }],
+        ['no authProvider', {}],
+      ])(
+        'returns 400 VALIDATION_ERROR when the password is missing (%s)',
+        async (_label, extra) => {
+          const cookie = await adminCookie();
+          const before = userCount();
+
+          const response = await post(cookie, {
+            email: 'nopw@example.com',
+            displayName: 'No Password',
+            role: 'member',
+            ...extra,
+          });
+
+          expect(response.statusCode).toBe(400);
+          const body = JSON.parse(response.body) as ApiErrorResponse;
+          expect(body.error.code).toBe('VALIDATION_ERROR');
+          expect(body.error.details).toEqual({ field: 'password' });
+          expect(userCount()).toBe(before);
+        },
+      );
+
+      it('creates a local user with a scrypt hash when authProvider is omitted, and that user can log in', async () => {
+        const cookie = await adminCookie();
+
+        const response = await post(cookie, {
+          email: 'local@example.com',
+          displayName: 'Local Person',
+          role: 'member',
+          password: 'twelve-chars!',
+        });
+
+        expect(response.statusCode).toBe(201);
+        const body = JSON.parse(response.body) as { user: UserResponse };
+        expect(body.user.authProvider).toBe('local');
+        const row = app.db.select().from(users).where(eq(users.id, body.user.id)).get();
+        expect(row?.passwordHash?.startsWith('$scrypt$')).toBe(true);
+
+        const login = await app.inject({
+          method: 'POST',
+          url: '/api/auth/login',
+          payload: { email: 'local@example.com', password: 'twelve-chars!' },
+        });
+        expect(login.statusCode).toBe(200);
+      });
+
+      it('creates a local user when authProvider is explicitly "local"', async () => {
+        const cookie = await adminCookie();
+
+        const response = await post(cookie, {
+          email: 'local2@example.com',
+          displayName: 'Local Person',
+          role: 'member',
+          password: 'twelve-chars!',
+          authProvider: 'local',
+        });
+
+        expect(response.statusCode).toBe(201);
+        expect((JSON.parse(response.body) as { user: UserResponse }).user.authProvider).toBe(
+          'local',
+        );
+      });
+
+      it('returns 400 for an unknown authProvider value', async () => {
+        const cookie = await adminCookie();
+
+        const response = await post(cookie, {
+          email: 'saml@example.com',
+          displayName: 'Saml',
+          role: 'member',
+          password: 'twelve-chars!',
+          authProvider: 'saml',
+        });
+
+        expect(response.statusCode).toBe(400);
+        expect((JSON.parse(response.body) as ApiErrorResponse).error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it.each([
+        [11, 400],
+        [12, 201],
+        [255, 201],
+        [256, 400],
+      ])('password of %i characters returns %i', async (length, expected) => {
+        const cookie = await adminCookie();
+
+        const response = await post(cookie, {
+          email: 'len@example.com',
+          displayName: 'Length',
+          role: 'member',
+          password: 'p'.repeat(length),
+        });
+
+        expect(response.statusCode).toBe(expected);
+      });
+
+      it.each([
+        [100, 201],
+        [101, 400],
+      ])('displayName of %i characters returns %i', async (length, expected) => {
+        const cookie = await adminCookie();
+
+        const response = await post(cookie, {
+          email: 'name@example.com',
+          displayName: 'n'.repeat(length),
+          role: 'member',
+          password: 'twelve-chars!',
+        });
+
+        expect(response.statusCode).toBe(expected);
+      });
+
+      it.each([
+        ['active', false],
+        ['deactivated', true],
+      ])(
+        'returns 409 CONFLICT for an oidc create when the email belongs to an %s user',
+        async (_label, deactivated) => {
+          await enableOidc();
+          const cookie = await adminCookie();
+          const holder = await userService.createLocalUser(
+            app.db,
+            'taken@example.com',
+            'Holder',
+            'password123456',
+          );
+          if (deactivated) {
+            userService.deactivateUser(app.db, holder.id);
+          }
+          const before = userCount();
+
+          const response = await post(cookie, {
+            email: 'taken@example.com',
+            displayName: 'SSO Person',
+            role: 'member',
+            authProvider: 'oidc',
+          });
+
+          expect(response.statusCode).toBe(409);
+          expect((JSON.parse(response.body) as ApiErrorResponse).error.code).toBe('CONFLICT');
+          expect(userCount()).toBe(before);
+        },
+      );
+
+      it('returns 403 FORBIDDEN when a member creates an SSO-only user', async () => {
+        await enableOidc();
+        const { cookie } = await createUserWithSession(
+          'member@example.com',
+          'Member',
+          'password123456',
+          'member',
+        );
+        const before = userCount();
+
+        const response = await post(cookie, {
+          email: 'sso@example.com',
+          displayName: 'SSO Person',
+          role: 'member',
+          authProvider: 'oidc',
+        });
+
+        expect(response.statusCode).toBe(403);
+        expect(userCount()).toBe(before);
+      });
     });
   });
 

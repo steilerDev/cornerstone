@@ -1,7 +1,13 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
+import type {
+  WorkItemSummary,
+  WorkItemListQuery,
+  WorkItemStatus,
+  FilterMeta,
+} from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -19,7 +25,8 @@ import { fetchVendors } from '../../lib/vendorsApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemsPage.module.css';
 
@@ -33,6 +40,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
   const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -113,7 +121,9 @@ export function WorkItemsPage() {
       setTotalItems(response.pagination.totalItems);
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.error.message);
+        setError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setError(tCommon('requestErrors.network'));
       } else {
         setError(t('list.errors.loadFailed'));
       }
@@ -187,33 +197,39 @@ export function WorkItemsPage() {
       await loadWorkItems();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setDeleteError(err.error.message);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteError(tCommon('requestErrors.network'));
       } else {
-        setDeleteError(t('list.deleteModal.title'));
+        setDeleteError(t('list.errors.deleteFailed'));
       }
     } finally {
       setIsDeleting(false);
     }
   };
 
+  // Status labels: literal keys (not a template) so extraction sees them; the Record makes a new
+  // status a type error. Shared by the badge variants and the status filter options.
+  const wiStatusLabels = useMemo(
+    (): Record<WorkItemStatus, string> => ({
+      not_started: t('create.fields.statusOptions.notStarted'),
+      in_progress: t('create.fields.statusOptions.inProgress'),
+      completed: t('create.fields.statusOptions.completed'),
+    }),
+    [t],
+  );
+
   // Work item status badge variants
   const wiStatusVariants = useMemo((): BadgeVariantMap => {
     const variants: BadgeVariantMap = {};
-    const statuses: Array<'not_started' | 'in_progress' | 'completed'> = [
-      'not_started',
-      'in_progress',
-      'completed',
-    ];
-    for (const status of statuses) {
+    for (const status of WORK_ITEM_STATUSES) {
       variants[status] = {
-        label: t(
-          `create.fields.statusOptions.${status === 'not_started' ? 'notStarted' : status === 'in_progress' ? 'inProgress' : 'completed'}`,
-        ),
+        label: wiStatusLabels[status],
         className: `badge-${status}`,
       };
     }
     return variants;
-  }, [t]);
+  }, [wiStatusLabels]);
 
   // Column definitions
   const columns = useMemo(
@@ -242,11 +258,10 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'enum',
         filterParamKey: 'status',
-        enumOptions: [
-          { value: 'not_started', label: t('create.fields.statusOptions.notStarted') },
-          { value: 'in_progress', label: t('create.fields.statusOptions.inProgress') },
-          { value: 'completed', label: t('create.fields.statusOptions.completed') },
-        ],
+        enumOptions: WORK_ITEM_STATUSES.map((status) => ({
+          value: status,
+          label: wiStatusLabels[status],
+        })),
         render: (item) => <Badge variants={wiStatusVariants} value={item.status} />,
       },
       {
@@ -321,7 +336,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, tCommon, formatDate, wiStatusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, wiStatusVariants, wiStatusLabels, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key
@@ -439,7 +454,7 @@ export function WorkItemsPage() {
           {t('list.newWorkItem')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<WorkItemSummary>
         pageKey="workItems"

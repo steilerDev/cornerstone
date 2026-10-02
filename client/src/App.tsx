@@ -99,6 +99,8 @@ const DiaryEntryCreatePage = lazy(
   () => import('./pages/DiaryEntryCreatePage/DiaryEntryCreatePage'),
 );
 const DiaryEntryEditPage = lazy(() => import('./pages/DiaryEntryEditPage/DiaryEntryEditPage'));
+const PhotosPage = lazy(() => import('./pages/PhotosPage/PhotosPage'));
+const PhotoSpotViewerPage = lazy(() => import('./pages/PhotoSpotViewerPage/PhotoSpotViewerPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 
 export function App() {
@@ -224,6 +226,26 @@ export function App() {
                           element={
                             <Suspense fallback={<div>Loading...</div>}>
                               <DiaryEntryEditPage />
+                            </Suspense>
+                          }
+                        />
+                      </Route>
+
+                      {/* Photos section */}
+                      <Route path="photos">
+                        <Route
+                          index
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <PhotosPage />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path="spot/:areaKey/:orientationKey"
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <PhotoSpotViewerPage />
                             </Suspense>
                           }
                         />

@@ -26,6 +26,22 @@ export interface UserResponse {
   createdAt: string;
   updatedAt?: string;
   deactivatedAt?: string | null;
-  /** True when the account can sign in via OIDC (oidc_subject set). Always emitted by the server; optional only so existing fixtures need not change. Absent ⇒ false. */
-  oidcLinked?: boolean;
+  /** Always emitted by the server (`toUserResponse`). True when an OIDC subject is bound. */
+  oidcLinked: boolean;
 }
+
+/**
+ * Every `?error=` code the OIDC callback redirects to `/login` with. Runtime source of truth: the
+ * server types its redirects against it and the client's I18N_UNION_KEYS.oidcLoginError set
+ * enumerates it, so `unionKeys.test.ts` fails if a code lacks a translation (#2136).
+ */
+export const OIDC_LOGIN_ERROR_CODES = [
+  'oidc_not_configured',
+  'oidc_error',
+  'invalid_state',
+  'missing_email',
+  'oidc_email_unverified',
+  'account_deactivated',
+  'oidc_no_matching_account',
+] as const;
+export type OidcLoginErrorCode = (typeof OIDC_LOGIN_ERROR_CODES)[number];

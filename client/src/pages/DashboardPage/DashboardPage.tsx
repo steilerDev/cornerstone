@@ -18,6 +18,7 @@ import { getTimeline } from '../../lib/timelineApi.js';
 import { fetchAllInvoices } from '../../lib/invoicesApi.js';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
 import { usePreferences } from '../../hooks/usePreferences.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
@@ -54,6 +55,8 @@ interface DataSourceState {
 
 export function DashboardPage() {
   const { t } = useTranslation('dashboard');
+  const { t: tCommon } = useTranslation('common');
+  const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
   const CARD_DEFINITIONS = [
@@ -236,7 +239,9 @@ export function DashboardPage() {
     } else {
       const error = budgetOverviewResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load budget overview';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.budgetOverview');
       setDataStates((prev) => ({
         ...prev,
         budgetOverview: {
@@ -261,7 +266,9 @@ export function DashboardPage() {
     } else {
       const error = budgetSourcesResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load budget sources';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.budgetSources');
       setDataStates((prev) => ({
         ...prev,
         budgetSources: {
@@ -286,7 +293,9 @@ export function DashboardPage() {
     } else {
       const error = subsidyProgramsResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load subsidy programs';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.subsidyPrograms');
       setDataStates((prev) => ({
         ...prev,
         subsidyPrograms: {
@@ -311,7 +320,9 @@ export function DashboardPage() {
     } else {
       const error = timelineResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load timeline';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.timeline');
       setDataStates((prev) => ({
         ...prev,
         timeline: {
@@ -338,7 +349,9 @@ export function DashboardPage() {
     } else {
       const error = invoicesResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load invoices';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.invoices');
       setDataStates((prev) => ({
         ...prev,
         invoices: {
@@ -363,7 +376,9 @@ export function DashboardPage() {
     } else {
       const error = diaryEntriesResult.reason;
       const message =
-        error instanceof ApiClientError ? error.error.message : 'Failed to load diary entries';
+        error instanceof ApiClientError
+          ? translateApiError(error.error.code, tErrors)
+          : t('cards.loadErrors.diary');
       setDataStates((prev) => ({
         ...prev,
         diaryEntries: {
@@ -373,7 +388,7 @@ export function DashboardPage() {
         },
       }));
     }
-  }, []);
+  }, [t, tErrors]);
 
   // Fetch all data sources on mount with cancellation guard
   useEffect(() => {
@@ -588,7 +603,7 @@ export function DashboardPage() {
           )}
         </div>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       {/* Desktop/tablet: flat grid */}
       <div

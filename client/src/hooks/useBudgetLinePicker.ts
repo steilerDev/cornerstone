@@ -20,6 +20,8 @@ import { createInvoiceBudgetLine } from '../lib/invoiceBudgetLinesApi.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
 import type { BudgetSource } from '@cornerstone/shared';
 import { ApiClientError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
+import { useLocale } from '../contexts/LocaleContext.js';
 
 type BudgetLineType = 'work_item' | 'household_item';
 
@@ -70,6 +72,8 @@ export function useBudgetLinePicker({
   eagerLinkInvoice = true,
 }: UseBudgetLinePickerOptions): UseBudgetLinePickerReturn {
   const { t } = useTranslation('budget');
+  const { t: tErrors } = useTranslation('errors');
+  const { vatRate } = useLocale();
 
   const [pickerState, setPickerState] = useState<PickerState>({
     isOpen: false,
@@ -152,7 +156,7 @@ export function useBudgetLinePicker({
       } catch (err) {
         const errorMsg =
           err instanceof ApiClientError
-            ? err.error.message
+            ? translateApiError(err.error.code, tErrors)
             : t('invoiceDetail.budgetLines.picker.loadError');
 
         setPickerState((prev) => ({
@@ -163,7 +167,7 @@ export function useBudgetLinePicker({
         }));
       }
     },
-    [pickerState.budgetSources, pickerState.vendors, pickerState.categories, t],
+    [pickerState.budgetSources, pickerState.vendors, pickerState.categories, t, tErrors],
   );
 
   const initializeStaticData = useCallback(async () => {
@@ -224,7 +228,7 @@ export function useBudgetLinePicker({
       } catch (err) {
         const errorMsg =
           err instanceof ApiClientError
-            ? err.error.message
+            ? translateApiError(err.error.code, tErrors)
             : t('invoiceDetail.budgetLines.picker.loadFormError');
         setPickerState((prev) => ({
           ...prev,
@@ -232,7 +236,7 @@ export function useBudgetLinePicker({
         }));
       }
     },
-    [t],
+    [t, tErrors],
   );
 
   const handleCreateBudgetLine = useCallback(
@@ -305,10 +309,13 @@ export function useBudgetLinePicker({
             ...(pickerState.type === 'work_item'
               ? { workItemBudgetId: newBudgetLine.id }
               : { householdItemBudgetId: newBudgetLine.id }),
-            itemizedAmount: effectiveLineAmount({
-              amount: newBudgetLine.plannedAmount,
-              includesVat: newBudgetLine.includesVat,
-            }),
+            itemizedAmount: effectiveLineAmount(
+              {
+                amount: newBudgetLine.plannedAmount,
+                includesVat: newBudgetLine.includesVat,
+              },
+              vatRate,
+            ),
           };
           const linkResponse = await createInvoiceBudgetLine(invoiceId, linkData);
           junctionId = linkResponse.budgetLine.id;
@@ -353,7 +360,7 @@ export function useBudgetLinePicker({
                 createError: null,
                 error:
                   err instanceof ApiClientError
-                    ? err.error.message
+                    ? translateApiError(err.error.code, tErrors)
                     : t('invoiceDetail.budgetLines.picker.loadError'),
               }));
             }
@@ -363,7 +370,7 @@ export function useBudgetLinePicker({
           setPickerState((prev) => ({
             ...prev,
             isCreatingBudgetLine: false,
-            createError: err.error.message,
+            createError: translateApiError(err.error.code, tErrors),
           }));
         } else {
           setPickerState((prev) => ({
@@ -379,10 +386,12 @@ export function useBudgetLinePicker({
       pickerState.type,
       pickerState.createForm,
       t,
+      tErrors,
       invoiceId,
       onLineCreated,
       closePicker,
       eagerLinkInvoice,
+      vatRate,
     ],
   );
 

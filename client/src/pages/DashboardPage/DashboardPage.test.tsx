@@ -13,6 +13,8 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type * as UsePreferencesTypes from '../../hooks/usePreferences.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enDashboard from '../../i18n/en/dashboard.json';
 import type {
   BudgetOverview,
   InvoiceListPaginatedResponse,
@@ -297,7 +299,7 @@ describe('DashboardPage', () => {
   it('shows error state for Budget Summary when budget overview API fails', async () => {
     const apiError = new ApiClientError(500, {
       code: 'INTERNAL_ERROR',
-      message: 'Server exploded',
+      message: 'RAW-SERVER-SENTINEL',
     });
     mockFetchBudgetOverview.mockRejectedValue(apiError);
 
@@ -309,9 +311,10 @@ describe('DashboardPage', () => {
       expect(alerts.length).toBeGreaterThanOrEqual(1);
     });
 
-    // The API error message surfaces in the card
-    const errorMessages = screen.getAllByText('Server exploded');
+    // The translated error (never the raw server text) surfaces in the card
+    const errorMessages = screen.getAllByText(enErrors.INTERNAL_ERROR);
     expect(errorMessages.length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
   it('uses generic fallback error message when a non-ApiClientError is thrown', async () => {
@@ -322,6 +325,47 @@ describe('DashboardPage', () => {
     await waitFor(() => {
       expect(screen.getAllByText('Failed to load budget sources')[0]).toBeInTheDocument();
     });
+  });
+
+  describe('every data card translates API failures and falls back to its own copy (#2129)', () => {
+    const cards = [
+      ['budget overview', () => mockFetchBudgetOverview, 'budgetOverview', 2],
+      ['budget sources', () => mockFetchBudgetSources, 'budgetSources', 2],
+      ['subsidy programs', () => mockFetchSubsidyPrograms, 'subsidyPrograms', 2],
+      ['timeline', () => mockGetTimeline, 'timeline', 8],
+      ['invoices', () => mockFetchAllInvoices, 'invoices', 2],
+      ['diary entries', () => mockListDiaryEntries, 'diary', 2],
+    ] as const;
+
+    it.each(cards)(
+      '%s: an ApiClientError shows the errors.json text, never the server message',
+      async (_label, getMock, _key, copies) => {
+        (getMock() as jest.Mock<() => Promise<unknown>>).mockRejectedValue(
+          new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+        );
+
+        renderPage();
+
+        await waitFor(() => {
+          expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(copies);
+        });
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      },
+    );
+
+    it.each(cards)(
+      '%s: a non-API failure shows the card-specific loadErrors copy',
+      async (_label, getMock, key, copies) => {
+        (getMock() as jest.Mock<() => Promise<unknown>>).mockRejectedValue(new Error('RAW-LOCAL'));
+
+        renderPage();
+
+        await waitFor(() => {
+          expect(screen.getAllByText(enDashboard.cards.loadErrors[key])).toHaveLength(copies);
+        });
+        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+      },
+    );
   });
 
   // ─── Test 16: Empty state for data-backed cards ──────────────────────────

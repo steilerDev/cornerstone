@@ -17,6 +17,8 @@ import { ConvertQuotationModal } from './ConvertQuotationModal.js';
 import { useConvertQuotation } from './useConvertQuotation.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import styles from './InvoiceDetailPage.module.css';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
 // STATUS_LABELS will be dynamically generated from i18n
 
@@ -297,7 +299,7 @@ export function InvoiceDetailPage() {
                 : t('invoiceDetail.invoiceDetails')}
             </h1>
             <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-              {t(`invoiceDetail.statusLabels.${invoice.status}`)}
+              {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(invoice.status))}
             </span>
           </div>
           <div className={styles.pageActions}>
@@ -358,7 +360,7 @@ export function InvoiceDetailPage() {
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.status')}</dt>
               <dd className={styles.infoValue}>
                 <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                  {t(`invoiceDetail.statusLabels.${invoice.status}`)}
+                  {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(invoice.status))}
                 </span>
               </dd>
             </div>
@@ -539,10 +541,11 @@ export function InvoiceDetailPage() {
                   className={styles.select}
                   disabled={isUpdating}
                 >
-                  <option value="pending">{t('invoiceDetail.statusLabels.pending')}</option>
-                  <option value="paid">{t('invoiceDetail.statusLabels.paid')}</option>
-                  <option value="claimed">{t('invoiceDetail.statusLabels.claimed')}</option>
-                  <option value="quotation">{t('invoiceDetail.statusLabels.quotation')}</option>
+                  {INVOICE_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(status))}
+                    </option>
+                  ))}
                 </select>
               </div>
 

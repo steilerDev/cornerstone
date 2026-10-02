@@ -47,6 +47,9 @@ export const LLM_PROVIDERS: readonly LlmProvider[] = [
 //   1. `additionalProperties: false` must be set on every object schema
 //   2. EVERY property must be listed in `required` (optional fields use
 //      union-typed nulls: `type: ['number', 'null']`)
+//   3. Every key the prompt (`prompts.ts`) asks for must appear in `properties` and
+//      `required` at the same level — a key missing here can never be returned on the
+//      Anthropic profile (strict mode silently drops it).
 // Our `validateExtractedLines` already tolerates null for the optional fields,
 // so the LLM emitting `quantity: null` instead of omitting it is fine.
 export const EXTRACTED_LINES_SCHEMA = {
@@ -59,6 +62,8 @@ export const EXTRACTED_LINES_SCHEMA = {
       dueDate: { type: ['string', 'null'] },
       invoiceNumber: { type: ['string', 'null'] },
       notes: { type: ['string', 'null'] },
+      vendorName: { type: ['string', 'null'] },
+      chosenVendorName: { type: ['string', 'null'] },
       lines: {
         type: 'array',
         items: {
@@ -71,6 +76,7 @@ export const EXTRACTED_LINES_SCHEMA = {
             totalAmount: { type: 'number' },
             includesVat: { type: ['boolean', 'null'] },
             vendorName: { type: ['string', 'null'] },
+            category: { type: ['string', 'null'] },
             confidence: { type: 'number' },
           },
           required: [
@@ -81,13 +87,22 @@ export const EXTRACTED_LINES_SCHEMA = {
             'totalAmount',
             'includesVat',
             'vendorName',
+            'category',
             'confidence',
           ],
           additionalProperties: false,
         },
       },
     },
-    required: ['invoiceDate', 'dueDate', 'invoiceNumber', 'notes', 'lines'],
+    required: [
+      'invoiceDate',
+      'dueDate',
+      'invoiceNumber',
+      'notes',
+      'vendorName',
+      'chosenVendorName',
+      'lines',
+    ],
     additionalProperties: false,
   },
 } as const;

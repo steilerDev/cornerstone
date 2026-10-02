@@ -5,7 +5,12 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as dependencyService from './dependencyService.js';
-import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  ValidationError,
+  DuplicateDependencyError,
+  CircularDependencyError,
+} from '../errors/AppError.js';
 import type { CreateDependencyRequest, UpdateDependencyRequest } from '@cornerstone/shared';
 
 describe('Dependency Service', () => {
@@ -157,7 +162,7 @@ describe('Dependency Service', () => {
       );
     });
 
-    it('should throw ConflictError with DUPLICATE_DEPENDENCY when dependency already exists', () => {
+    it('should throw DuplicateDependencyError (top-level DUPLICATE_DEPENDENCY) when dependency already exists', () => {
       const userId = createTestUser('user@example.com', 'Test User');
       const workItemA = createTestWorkItem(userId, 'Work Item A');
       const workItemB = createTestWorkItem(userId, 'Work Item B');
@@ -170,22 +175,18 @@ describe('Dependency Service', () => {
       dependencyService.createDependency(db, workItemB, request);
 
       // Try to create same dependency again (should fail)
-      expect(() => dependencyService.createDependency(db, workItemB, request)).toThrow(
-        ConflictError,
-      );
-      expect(() => dependencyService.createDependency(db, workItemB, request)).toThrow(
-        'Dependency already exists',
-      );
-
-      // Verify it's a ConflictError with DUPLICATE_DEPENDENCY code
+      let caught: unknown;
       try {
         dependencyService.createDependency(db, workItemB, request);
       } catch (error) {
-        expect(error).toBeInstanceOf(ConflictError);
-        if (error instanceof ConflictError) {
-          expect(error.details?.code).toBe('DUPLICATE_DEPENDENCY');
-        }
+        caught = error;
       }
+      expect(caught).toBeInstanceOf(DuplicateDependencyError);
+      const err = caught as DuplicateDependencyError;
+      expect(err.message).toBe('Dependency already exists');
+      expect(err.code).toBe('DUPLICATE_DEPENDENCY');
+      expect(err.statusCode).toBe(409);
+      expect(err.details?.code).toBeUndefined();
     });
 
     it('should detect direct circular dependency (A→B, try B→A)', () => {
@@ -197,23 +198,20 @@ describe('Dependency Service', () => {
       dependencyService.createDependency(db, workItemB, { predecessorId: workItemA });
 
       // Try to create B→A dependency (should fail with circular dependency)
-      expect(() =>
-        dependencyService.createDependency(db, workItemA, { predecessorId: workItemB }),
-      ).toThrow(ConflictError);
-      expect(() =>
-        dependencyService.createDependency(db, workItemA, { predecessorId: workItemB }),
-      ).toThrow('Circular dependency detected');
-
-      // Verify it's a ConflictError with CIRCULAR_DEPENDENCY code
+      let caught: unknown;
       try {
         dependencyService.createDependency(db, workItemA, { predecessorId: workItemB });
       } catch (error) {
-        expect(error).toBeInstanceOf(ConflictError);
-        if (error instanceof ConflictError) {
-          expect(error.details?.code).toBe('CIRCULAR_DEPENDENCY');
-          expect(error.details?.cycle).toBeDefined();
-        }
+        caught = error;
       }
+      expect(caught).toBeInstanceOf(CircularDependencyError);
+      const err = caught as CircularDependencyError;
+      expect(err.message).toContain('Circular dependency detected');
+      expect(err.code).toBe('CIRCULAR_DEPENDENCY');
+      expect(err.statusCode).toBe(409);
+      expect(Array.isArray(err.details?.cycle)).toBe(true);
+      expect((err.details?.cycle as string[]).length).toBeGreaterThanOrEqual(2);
+      expect(err.details?.code).toBeUndefined();
     });
 
     it('should detect indirect circular dependency (A→B→C, try C→A)', () => {
@@ -229,7 +227,7 @@ describe('Dependency Service', () => {
       // Try to create C→A dependency (should fail with circular dependency)
       expect(() =>
         dependencyService.createDependency(db, workItemA, { predecessorId: workItemC }),
-      ).toThrow(ConflictError);
+      ).toThrow(CircularDependencyError);
       expect(() =>
         dependencyService.createDependency(db, workItemA, { predecessorId: workItemC }),
       ).toThrow('Circular dependency detected');
@@ -250,7 +248,7 @@ describe('Dependency Service', () => {
       // Try to create D→A dependency (should fail with circular dependency)
       expect(() =>
         dependencyService.createDependency(db, workItemA, { predecessorId: workItemD }),
-      ).toThrow(ConflictError);
+      ).toThrow(CircularDependencyError);
       expect(() =>
         dependencyService.createDependency(db, workItemA, { predecessorId: workItemD }),
       ).toThrow('Circular dependency detected');

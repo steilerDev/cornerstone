@@ -276,11 +276,12 @@
  * - AC 2.6: once the signature has been explicitly edited, a subsequent SENDER edit no longer
  *   silently recomputes/overwrites it (`applyOverrides.ts`) — an explicit signature override
  *   always wins.
- * - Two read-only chrome rows share a new `.readOnlyField`/`.readOnlyLabel`/`.readOnlyValue`
- *   CSS recipe (label stacked above value, no dedicated locators — read via the letter fields'
- *   surrounding text): the existing Date row (unchanged position, restyled) and a NEW Closing
- *   row inserted between Body and Signature, mirroring the PDF's sender → recipient → date →
- *   reference → subject → body → closing → signature order.
+ * - Read-only chrome rows (Story #2159 added a third, Opening, between Subject and Body; see
+ *   `letterReadOnlyValue`) share a new `.readOnlyField`/`.readOnlyLabel`/`.readOnlyValue`
+ *   CSS recipe (label stacked above value): the existing Date row (unchanged position,
+ *   restyled), Opening (#2159) and a NEW Closing row inserted between Body and Signature,
+ *   mirroring the PDF's sender → recipient → date → reference → subject → opening → body →
+ *   closing → signature order.
  * - The reset button fix (§5: oversized glyph) was CSS-only (`EditableField.module.css` —
  *   `.resetButton svg` sizing + a `:focus-visible` ring) — the `resetButton`/`editedDot`
  *   classNames and DOM structure (`container > [label?, fieldWrapper, resetButton?]`) are
@@ -461,6 +462,18 @@ export class ReportWizardPage {
   readonly skippedDocumentsNote: Locator;
   readonly step5BackButton: Locator;
 
+  // Story #2161: maximum file size (step 4) and multi-PDF split (step 5).
+  readonly maxFileSizeInput: Locator;
+  readonly maxFileSizeError: Locator;
+  readonly maxFileSizeHelper: Locator;
+  readonly sizingStatus: Locator;
+  readonly generatedFilesList: Locator;
+  readonly downloadAllButton: Locator;
+  readonly uploadAllButton: Locator;
+  readonly retryFailedButton: Locator;
+  readonly partWarnings: Locator;
+  readonly previewPartSelect: Locator;
+
   // Story #1900: on-demand PDF preview modal (opened by `previewPdfButton`, replaces the old
   // always-present step-5 iframe).
   readonly pdfPreviewModal: Locator;
@@ -616,6 +629,20 @@ export class ReportWizardPage {
     this.claimSuccessInvoicesLink = this.claimSuccessBanner.getByRole('link');
     this.skippedDocumentsNote = page.locator('[class*="skippedNote"]');
     this.step5BackButton = page.locator('[class*="buttonRow"] [class*="btnSecondary"]').last();
+
+    // Story #2161. `FileList` (testIdPrefix `report-parts`) only renders at N > 1 parts, so
+    // `generatedFilesList` is ABSENT for a single-PDF report. `partWarnings` is scoped to the
+    // parts stack so it never matches the (step-5) column-visibility `bannerWarning`.
+    this.maxFileSizeInput = page.locator('#maxFileSize');
+    this.maxFileSizeError = page.locator('#maxFileSizeError');
+    this.maxFileSizeHelper = page.locator('#maxFileSizeHelper');
+    this.sizingStatus = page.getByTestId('sizing-phase');
+    this.generatedFilesList = page.getByTestId('report-parts');
+    this.downloadAllButton = page.getByRole('button', { name: /Download all/ });
+    this.uploadAllButton = page.getByRole('button', { name: /Upload all/ });
+    this.retryFailedButton = page.getByRole('button', { name: /Retry failed/ });
+    this.partWarnings = page.locator('[class*="partsStack"] [class*="bannerWarning"]');
+    this.previewPartSelect = page.locator('#previewPart');
 
     // Story #1900: on-demand PDF preview modal.
     this.pdfPreviewModal = page.getByRole('dialog', { name: 'PDF Preview' });
@@ -1081,7 +1108,7 @@ export class ReportWizardPage {
    * Locator for the `ReportContentEditor` container in step 5 — the outermost `<div>` that
    * wraps the entire editor. The container div itself does NOT receive a `lang` attribute;
    * report-language content within it carries `lang` individually (Issue #1910): the
-   * `<thead>`, the two `.readOnlyValue` spans (dateLine, closing), the source-info block,
+   * `<thead>`, the three `.readOnlyValue` spans (dateLine, opening, closing), the source-info block,
    * the summary table, and the footnotes block. EditableField inputs carry `lang` via the
    * `EditableField.lang` prop. UI-chrome elements (reset buttons, sr-only hints, labels)
    * are NOT tagged. Scoped within `[class*="step5Body"]` (step 5's wrapper class in
@@ -1127,6 +1154,21 @@ export class ReportWizardPage {
     return this.coverLetterCard.getByLabel(ReportWizardPage.LETTER_FIELD_LABELS[key], {
       exact: true,
     });
+  }
+
+  /**
+   * The value span of a read-only cover-letter chrome row (Date / Opening / Closing — Story
+   * #2159 added Opening). Scoped to `coverLetterCard`; finds the `.readOnlyField` whose
+   * `.readOnlyLabel` has exactly the given (UI-language) text and returns its `.readOnlyValue`.
+   * The value span carries `lang` = report language.
+   */
+  letterReadOnlyValue(label: 'Date' | 'Opening' | 'Closing'): Locator {
+    return this.coverLetterCard
+      .locator('[class*="readOnlyField"]')
+      .filter({
+        has: this.page.locator('[class*="readOnlyLabel"]').getByText(label, { exact: true }),
+      })
+      .locator('[class*="readOnlyValue"]');
   }
 
   /**
@@ -1380,5 +1422,39 @@ export class ReportWizardPage {
   async clickUploadToPaperless(): Promise<void> {
     await this.uploadPaperlessButton.click();
     await expect(this.uploadPaperlessButton).toBeEnabled();
+  }
+
+  // ─── Story #2161: maximum file size / multi-PDF split ────────────────────────────────────────
+
+  /** Types `value` into the step-4 "Maximum file size (MB)" input (`''` clears it). */
+  async setMaxFileSize(value: string): Promise<void> {
+    await this.maxFileSizeInput.fill(value);
+  }
+
+  /** The Nth (1-based) row of the step-5 "Generated files" list. */
+  fileRow(k: number): Locator {
+    return this.page.getByTestId(`report-parts-row-${k}`);
+  }
+
+  /**
+   * Clicks "Download all" and returns the suggested filenames of the `expected` downloads it
+   * fires. Multi-file download is staggered (`DOWNLOAD_STAGGER_MS` = 400 ms between files), so
+   * the downloads are collected via a `download` listener and polled for rather than awaited
+   * with a single `waitForEvent`.
+   */
+  async downloadAll(expected: number): Promise<string[]> {
+    const names: string[] = [];
+    const onDownload = (download: Download): void => {
+      names.push(download.suggestedFilename());
+    };
+    this.page.on('download', onDownload);
+    try {
+      await this.downloadAllButton.click();
+      await expect.poll(() => names.length).toBeGreaterThanOrEqual(expected);
+      await expect(this.downloadAllButton).toBeEnabled();
+    } finally {
+      this.page.off('download', onDownload);
+    }
+    return names;
   }
 }

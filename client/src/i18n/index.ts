@@ -16,6 +16,7 @@ import enSettings from './en/settings.json';
 import enAreas from './en/areas.json';
 import enPhotoViewer from './en/photoViewer.json';
 import enPhotoAnnotator from './en/photoAnnotator.json';
+import enPhotos from './en/photos.json';
 
 import deCommon from './de/common.json';
 import deErrors from './de/errors.json';
@@ -31,6 +32,7 @@ import deSettings from './de/settings.json';
 import deAreas from './de/areas.json';
 import dePhotoViewer from './de/photoViewer.json';
 import dePhotoAnnotator from './de/photoAnnotator.json';
+import dePhotos from './de/photos.json';
 
 const resources = {
   en: {
@@ -48,6 +50,7 @@ const resources = {
     areas: enAreas,
     photoViewer: enPhotoViewer,
     photoAnnotator: enPhotoAnnotator,
+    photos: enPhotos,
   },
   de: {
     common: deCommon,
@@ -64,6 +67,7 @@ const resources = {
     areas: deAreas,
     photoViewer: dePhotoViewer,
     photoAnnotator: dePhotoAnnotator,
+    photos: dePhotos,
   },
 };
 
@@ -106,6 +110,7 @@ void i18n.use(initReactI18next).init({
     'areas',
     'photoViewer',
     'photoAnnotator',
+    'photos',
   ],
   interpolation: {
     escapeValue: false,

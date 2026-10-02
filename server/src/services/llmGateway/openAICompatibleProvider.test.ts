@@ -1107,6 +1107,56 @@ describe('validateExtractedLines()', () => {
 
 // ─── Fixture-driven validate tests ───────────────────────────────────────────
 
+describe('validateExtractedLines — vendorName parsing (Story #2148)', () => {
+  it('trims surrounding whitespace', () => {
+    const result = validateExtractedLines({ vendorName: '  Müller Bau GmbH  ', lines: [] });
+    expect(result.vendorName).toBe('Müller Bau GmbH');
+  });
+
+  it('truncates names longer than 200 chars to exactly 200', () => {
+    const result = validateExtractedLines({ vendorName: 'A'.repeat(250), lines: [] });
+    expect(result.vendorName).toBe('A'.repeat(200));
+  });
+
+  it('keeps a name of exactly 200 chars unchanged', () => {
+    const result = validateExtractedLines({ vendorName: 'B'.repeat(200), lines: [] });
+    expect(result.vendorName).toBe('B'.repeat(200));
+  });
+
+  it.each([
+    ['empty string', ''],
+    ['whitespace only', '   '],
+    ['null', null],
+    ['number', 42],
+  ])('yields undefined without throwing for %s', (_label, value) => {
+    const result = validateExtractedLines({ vendorName: value, lines: [] });
+    expect(result.vendorName).toBeUndefined();
+  });
+
+  it('yields undefined when the field is missing', () => {
+    expect(validateExtractedLines({ lines: [] }).vendorName).toBeUndefined();
+  });
+
+  it.each(['Pos. 3 - Dachstuhl & Co. KG', 'Rechnung #2024-117 GmbH'])(
+    'passes %s through byte-identically',
+    (name) => {
+      expect(validateExtractedLines({ vendorName: name, lines: [] }).vendorName).toBe(name);
+    },
+  );
+
+  it('does not affect chosenVendorName or other fields', () => {
+    const result = validateExtractedLines({
+      vendorName: 'Neue Firma',
+      chosenVendorName: 'Alt GmbH',
+      invoiceNumber: 'RE-1',
+      lines: [],
+    });
+    expect(result.chosenVendorName).toBe('Alt GmbH');
+    expect(result.invoiceNumber).toBe('RE-1');
+    expect(result.vendorName).toBe('Neue Firma');
+  });
+});
+
 describe('fixture-driven mock extract tests', () => {
   const fixtureDir = FIXTURES_DIR;
 

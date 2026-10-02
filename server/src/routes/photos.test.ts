@@ -24,6 +24,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import type { Photo, ApiErrorResponse } from '@cornerstone/shared';
 import type * as AppModule from '../app.js';
@@ -65,6 +66,8 @@ jest.unstable_mockModule('../services/photoService.js', () => ({
   deletePhoto: mockDeletePhoto,
   deletePhotosForEntity: mockDeletePhotosForEntity,
   getPhotoFilePath: mockGetPhotoFilePath,
+  // Imported by photoSpotService (Story #2162); never invoked in this file
+  buildPhotoAssetUrls: jest.fn(),
 }));
 
 // ─── Dynamic imports (after mocks) ───────────────────────────────────────────
@@ -207,7 +210,7 @@ describe('Photo Routes', () => {
   /**
    * Insert a diary entry directly into the test database.
    * photos.ts uses a direct DB query (not diaryService) to check signatures,
-   * so tests that exercise the signed-entry 409 path must seed the DB.
+   * so tests that exercise the signed-entry 403 path must seed the DB.
    */
   let diaryEntryCounter = 0;
   function insertDiaryEntry(overrides: Partial<typeof diaryEntries.$inferInsert> = {}): string {
@@ -852,6 +855,7 @@ describe('Photo Routes', () => {
         'password',
       );
       const updated = makePhoto({ caption: 'New Caption' });
+      mockGetPhoto.mockReturnValue(makePhoto()); // PATCH now looks the photo up first (#2124 lock guard)
       mockUpdatePhoto.mockReturnValue(updated);
 
       const response = await app.inject({
@@ -873,6 +877,7 @@ describe('Photo Routes', () => {
         'password',
       );
       const updated = makePhoto({ sortOrder: 5 });
+      mockGetPhoto.mockReturnValue(makePhoto()); // PATCH now looks the photo up first (#2124 lock guard)
       mockUpdatePhoto.mockReturnValue(updated);
 
       const response = await app.inject({
@@ -894,6 +899,7 @@ describe('Photo Routes', () => {
         'password',
       );
       const updated = makePhoto({ caption: null });
+      mockGetPhoto.mockReturnValue(makePhoto()); // PATCH now looks the photo up first (#2124 lock guard)
       mockUpdatePhoto.mockReturnValue(updated);
 
       const response = await app.inject({
@@ -947,6 +953,7 @@ describe('Photo Routes', () => {
         orientationId: 'orient-south',
         orientation: { id: 'orient-south', name: 'South', description: 'Street-facing' },
       });
+      mockGetPhoto.mockReturnValue(makePhoto()); // PATCH now looks the photo up first (#2124 lock guard)
       mockUpdatePhoto.mockReturnValue(updated);
 
       const response = await app.inject({
@@ -978,6 +985,7 @@ describe('Photo Routes', () => {
         'password',
       );
       const updated = makePhoto({ orientationId: null, orientation: null });
+      mockGetPhoto.mockReturnValue(makePhoto()); // PATCH now looks the photo up first (#2124 lock guard)
       mockUpdatePhoto.mockReturnValue(updated);
 
       const response = await app.inject({
@@ -1433,7 +1441,7 @@ describe('Photo Routes', () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it('returns 409 when photo is on a signed diary entry', async () => {
+    it('returns 403 IMMUTABLE_ENTRY when photo is on a signed diary entry', async () => {
       const { cookie } = await createUserWithSession(
         'ann-signed@example.com',
         'AnnSigned',
@@ -1468,10 +1476,10 @@ describe('Photo Routes', () => {
         payload: body,
       });
 
-      expect(response.statusCode).toBe(409);
+      expect(response.statusCode).toBe(403);
       const errBody = JSON.parse(response.body) as ApiErrorResponse;
-      expect(errBody.error.code).toBe('CONFLICT');
-      expect(errBody.error.message).toContain('Cannot annotate photos on signed diary entries');
+      expect(errBody.error.code).toBe('IMMUTABLE_ENTRY');
+      expect(errBody.error.message).toBe('Signed diary entries cannot be modified');
     });
 
     it('returns 200 when photo is on an unsigned diary entry', async () => {
@@ -1634,7 +1642,7 @@ describe('Photo Routes', () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it('returns 409 when photo is on a signed diary entry', async () => {
+    it('returns 403 IMMUTABLE_ENTRY when photo is on a signed diary entry', async () => {
       const { cookie } = await createUserWithSession(
         'del-ann-signed@example.com',
         'DelAnnSigned',
@@ -1658,10 +1666,10 @@ describe('Photo Routes', () => {
         headers: { cookie },
       });
 
-      expect(response.statusCode).toBe(409);
+      expect(response.statusCode).toBe(403);
       const errBody = JSON.parse(response.body) as ApiErrorResponse;
-      expect(errBody.error.code).toBe('CONFLICT');
-      expect(errBody.error.message).toContain('Cannot remove annotation');
+      expect(errBody.error.code).toBe('IMMUTABLE_ENTRY');
+      expect(errBody.error.message).toBe('Signed diary entries cannot be modified');
     });
 
     it('returns 204 when photo is on an unsigned diary entry', async () => {
@@ -1989,5 +1997,382 @@ describe('Photo Routes', () => {
       // Even though photo.mimeType is image/jpeg, annotated.webp gets image/webp
       expect(response.headers['content-type']).toMatch(/image\/webp/);
     });
+  });
+
+  // ─── Signature lock on photo mutations (#2124, D1) ─────────────────────────
+
+  describe('signature lock on diary photo mutations', () => {
+    const PHOTO_ID = '33333333-3333-3333-3333-333333333333';
+    const signedMeta = JSON.stringify({
+      signatures: [{ signerName: 'A', signerType: 'self', signatureDataUrl: 'data:x' }],
+    });
+
+    async function login(email: string): Promise<string> {
+      const { cookie } = await createUserWithSession(email, 'Lock User', 'password');
+      return cookie;
+    }
+
+    function uploadBody(entityId: string) {
+      return buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-jpeg-data'),
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: 'diary_entry' },
+        { name: 'entityId', value: entityId },
+      ]);
+    }
+
+    async function upload(cookie: string, entityId: string) {
+      const { body, contentType } = uploadBody(entityId);
+      return app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+    }
+
+    function expectImmutable(response: { statusCode: number; body: string }) {
+      expect(response.statusCode).toBe(403);
+      const err = JSON.parse(response.body) as ApiErrorResponse;
+      expect(err.error.code).toBe('IMMUTABLE_ENTRY');
+      expect(err.error.message).toBe('Signed diary entries cannot be modified');
+    }
+
+    describe('POST /api/photos', () => {
+      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never calls uploadPhoto', async () => {
+        const cookie = await login('lock-up-saved@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        const response = await upload(cookie, id);
+        expectImmutable(response);
+        expect(mockUploadPhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 201 for a signed draft', async () => {
+        const cookie = await login('lock-up-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(201);
+        expect(mockUploadPhoto).toHaveBeenCalledTimes(1);
+      });
+
+      it('returns 201 for an unsigned saved entry', async () => {
+        const cookie = await login('lock-up-unsigned@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: null });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(201);
+      });
+
+      it('returns 201 for a saved entry whose metadata is unparseable (lock fails open)', async () => {
+        const cookie = await login('lock-up-badjson@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: '{not json' });
+        const response = await upload(cookie, id);
+        expect(response.statusCode).toBe(201);
+      });
+
+      it('does not apply the lock to non-diary entity types', async () => {
+        const cookie = await login('lock-up-nondiary@example.com');
+        // Same id as a signed saved diary entry, but entityType is work_item
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        const { body, contentType } = buildMultipartBody([
+          {
+            name: 'file',
+            value: Buffer.from('fake-jpeg-data'),
+            filename: 'photo.jpg',
+            contentType: 'image/jpeg',
+          },
+          { name: 'entityType', value: 'work_item' },
+          { name: 'entityId', value: id },
+        ]);
+        const response = await app.inject({
+          method: 'POST',
+          url: '/api/photos',
+          headers: { cookie, 'content-type': contentType },
+          payload: body,
+        });
+        expect(response.statusCode).toBe(201);
+      });
+    });
+
+    describe('DELETE /api/photos/:id', () => {
+      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never calls deletePhoto', async () => {
+        const cookie = await login('lock-del-saved@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
+        const response = await app.inject({
+          method: 'DELETE',
+          url: `/api/photos/${PHOTO_ID}`,
+          headers: { cookie },
+        });
+        expectImmutable(response);
+        expect(mockDeletePhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 204 for a signed draft', async () => {
+        const cookie = await login('lock-del-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
+        const response = await app.inject({
+          method: 'DELETE',
+          url: `/api/photos/${PHOTO_ID}`,
+          headers: { cookie },
+        });
+        expect(response.statusCode).toBe(204);
+        expect(mockDeletePhoto).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('PATCH /api/photos/:id', () => {
+      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never calls updatePhoto', async () => {
+        const cookie = await login('lock-patch-saved@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/photos/${PHOTO_ID}`,
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: { caption: 'new caption' },
+        });
+        expectImmutable(response);
+        expect(mockUpdatePhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 200 with the new caption for a signed draft', async () => {
+        const cookie = await login('lock-patch-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        const existing = makePhoto({ entityType: 'diary_entry', entityId: id });
+        mockGetPhoto.mockReturnValue(existing);
+        mockUpdatePhoto.mockReturnValue({ ...existing, caption: 'new caption' });
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/photos/${PHOTO_ID}`,
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: { caption: 'new caption' },
+        });
+        expect(response.statusCode).toBe(200);
+        expect((JSON.parse(response.body) as { photo: Photo }).photo.caption).toBe('new caption');
+      });
+
+      it('returns 404 for an unknown id without calling updatePhoto', async () => {
+        const cookie = await login('lock-patch-404@example.com');
+        mockGetPhoto.mockReturnValue(null);
+        const response = await app.inject({
+          method: 'PATCH',
+          url: '/api/photos/00000000-0000-0000-0000-000000000000',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: { caption: 'x' },
+        });
+        expect(response.statusCode).toBe(404);
+        expect(mockUpdatePhoto).not.toHaveBeenCalled();
+      });
+
+      it('returns 404 when updatePhoto returns null after the lookup succeeded', async () => {
+        const cookie = await login('lock-patch-race@example.com');
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'work_item' }));
+        mockUpdatePhoto.mockReturnValue(null);
+        const response = await app.inject({
+          method: 'PATCH',
+          url: `/api/photos/${PHOTO_ID}`,
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: { caption: 'x' },
+        });
+        expect(response.statusCode).toBe(404);
+      });
+    });
+
+    describe('PATCH /api/photos/reorder', () => {
+      const reorder = (cookie: string, entityType: string, entityId: string) =>
+        app.inject({
+          method: 'PATCH',
+          url: '/api/photos/reorder',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: { entityType, entityId, photoIds: ['p1', 'p2'] },
+        });
+
+      it('returns 403 IMMUTABLE_ENTRY for a signed saved entry and never calls reorderPhotos', async () => {
+        const cookie = await login('lock-reorder-saved@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        const response = await reorder(cookie, 'diary_entry', id);
+        expectImmutable(response);
+        expect(mockReorderPhotos).not.toHaveBeenCalled();
+      });
+
+      it('returns 204 for a signed draft', async () => {
+        const cookie = await login('lock-reorder-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        const response = await reorder(cookie, 'diary_entry', id);
+        expect(response.statusCode).toBe(204);
+        expect(mockReorderPhotos).toHaveBeenCalledTimes(1);
+      });
+
+      it('returns 204 for a non-diary entityType even if the id matches a locked entry', async () => {
+        const cookie = await login('lock-reorder-other@example.com');
+        const id = insertDiaryEntry({ status: 'saved', metadata: signedMeta });
+        const response = await reorder(cookie, 'work_item', id);
+        expect(response.statusCode).toBe(204);
+      });
+    });
+
+    describe('annotation PUT/DELETE on a signed draft', () => {
+      it('PUT returns 200 (previously blocked by the status-blind guard)', async () => {
+        const cookie = await login('lock-ann-put-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
+        const { body, contentType } = buildMultipartBody([
+          {
+            name: 'file',
+            value: Buffer.from('fake-webp-data'),
+            filename: 'annotated.webp',
+            contentType: 'image/webp',
+          },
+        ]);
+        const response = await app.inject({
+          method: 'PUT',
+          url: `/api/photos/${PHOTO_ID}/annotation`,
+          headers: { cookie, 'content-type': contentType },
+          payload: body,
+        });
+        expect(response.statusCode).toBe(200);
+      });
+
+      it('DELETE returns 204', async () => {
+        const cookie = await login('lock-ann-del-draft@example.com');
+        const id = insertDiaryEntry({ status: 'draft', metadata: signedMeta });
+        mockGetPhoto.mockReturnValue(makePhoto({ entityType: 'diary_entry', entityId: id }));
+        const response = await app.inject({
+          method: 'DELETE',
+          url: `/api/photos/${PHOTO_ID}/annotation`,
+          headers: { cookie },
+        });
+        expect(response.statusCode).toBe(204);
+      });
+    });
+  });
+
+  // ─── Defensive guards and optional form fields ─────────────────────────────
+
+  describe('POST /api/photos — entityType/entityId length limits', () => {
+    async function postWith(entityType: string, entityId: string) {
+      const { cookie } = await createUserWithSession(
+        `len-${entityType.length}-${entityId.length}@example.com`,
+        'Len',
+        'password',
+      );
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-jpeg'),
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: entityType },
+        { name: 'entityId', value: entityId },
+      ]);
+      return app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+    }
+
+    it('returns 400 "Invalid entityType or entityId" for an entityType over 50 chars', async () => {
+      const response = await postWith('x'.repeat(51), 'entity-1');
+      expect(response.statusCode).toBe(400);
+      const err = response.json<{ error: { code: string; message: string } }>().error;
+      expect(err.code).toBe('VALIDATION_ERROR');
+      expect(err.message).toBe('Invalid entityType or entityId');
+      expect(mockUploadPhoto).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 "Invalid entityType or entityId" for an entityId over 36 chars', async () => {
+      const response = await postWith('test', 'x'.repeat(37));
+      expect(response.statusCode).toBe(400);
+      expect(response.json<{ error: { message: string } }>().error.message).toBe(
+        'Invalid entityType or entityId',
+      );
+      expect(mockUploadPhoto).not.toHaveBeenCalled();
+    });
+
+    it('accepts boundary lengths (entityType 50, entityId 36)', async () => {
+      const response = await postWith('x'.repeat(50), 'y'.repeat(36));
+      expect(response.statusCode).toBe(201);
+      expect(mockUploadPhoto).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('POST /api/photos — areaId form field', () => {
+    it('passes areaId to the service when provided', async () => {
+      const { cookie } = await createUserWithSession('area-up@example.com', 'AreaUp', 'password');
+      const { body, contentType } = buildMultipartBody([
+        {
+          name: 'file',
+          value: Buffer.from('fake-jpeg'),
+          filename: 'photo.jpg',
+          contentType: 'image/jpeg',
+        },
+        { name: 'entityType', value: 'test' },
+        { name: 'entityId', value: 'entity-1' },
+        { name: 'areaId', value: 'area-42' },
+      ]);
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/photos',
+        headers: { cookie, 'content-type': contentType },
+        payload: body,
+      });
+      expect(response.statusCode).toBe(201);
+      const args = mockUploadPhoto.mock.calls[0]!;
+      expect(args[10]).toBeUndefined(); // orientationId
+      expect(args[9]).toBe('area-42'); // areaId
+    });
+  });
+
+  describe('request.user guard (defence in depth behind the auth plugin)', () => {
+    // The app-level auth plugin rejects unauthenticated requests first, so these guards are
+    // only reachable when the routes are mounted without it. Each handler must still refuse.
+    const ID = '33333333-3333-3333-3333-333333333333';
+    const cases: Array<[string, string, string, unknown?]> = [
+      ['POST', '/', 'upload'],
+      ['GET', '/?entityType=test&entityId=e1', 'list'],
+      ['GET', `/${ID}`, 'get'],
+      ['GET', `/${ID}/file`, 'file'],
+      ['GET', `/${ID}/thumbnail`, 'thumbnail'],
+      ['PATCH', `/${ID}`, 'update', { caption: 'x' }],
+      ['PATCH', '/reorder', 'reorder', { entityType: 'test', entityId: 'e1', photoIds: ['a'] }],
+      ['PUT', `/${ID}/annotation`, 'annotate'],
+      ['DELETE', `/${ID}/annotation`, 'clear annotation'],
+      ['DELETE', `/${ID}`, 'delete'],
+    ];
+
+    // A single object argument keeps jest from mistaking a 4th parameter for a `done` callback.
+    it.each(cases.map(([method, url, label, payload]) => ({ method, url, label, payload })))(
+      '$method $url ($label) returns 401 and never touches photoService',
+      async ({ method, url, payload }) => {
+        const bare = Fastify();
+        const photoRoutes = (await import('./photos.js')).default;
+        await bare.register(photoRoutes, { prefix: '/api/photos' });
+        await bare.ready();
+        try {
+          const response = await bare.inject({
+            method: method as 'GET',
+            url: `/api/photos${url === '/' ? '' : url}`,
+            payload: payload as object | undefined,
+          });
+          expect(response.statusCode).toBe(401);
+          expect(mockUploadPhoto).not.toHaveBeenCalled();
+          expect(mockGetPhoto).not.toHaveBeenCalled();
+          expect(mockUpdatePhoto).not.toHaveBeenCalled();
+          expect(mockDeletePhoto).not.toHaveBeenCalled();
+          expect(mockReorderPhotos).not.toHaveBeenCalled();
+          expect(mockGetPhotosForEntity).not.toHaveBeenCalled();
+        } finally {
+          await bare.close();
+        }
+      },
+    );
   });
 });

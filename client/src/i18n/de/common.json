@@ -4,6 +4,7 @@
     "budget": "Budget",
     "schedule": "Zeitplan",
     "diary": "Tagebuch",
+    "photos": "Fotos",
     "settings": "Einstellungen"
   },
   "name": "Name",
@@ -180,5 +181,15 @@
   "chunkError": {
     "message": "Die Anwendung konnte eine erforderliche Datei nicht laden. Dies passiert normalerweise nach einem Update.",
     "refreshButton": "Seite neu laden"
+  },
+  "requestErrors": {
+    "network": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+  },
+  "subNav": {
+    "project": "Navigation im Bereich Projekt",
+    "budget": "Navigation im Bereich Budget",
+    "settings": "Navigation im Bereich Einstellungen",
+    "schedule": "Navigation im Bereich Zeitplan"
   }
 }

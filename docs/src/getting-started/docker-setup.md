@@ -88,6 +88,12 @@ The Docker image includes a built-in health check that verifies the server is ru
 
 The health check runs every 30 seconds with a 15-second startup grace period.
 
+## System Requirements
+
+**Memory:** Cornerstone uses strong password hashing (scrypt with N=131072) which is computationally intensive. Allow **at least 512 MiB of RAM** for the container to accommodate password hashing operations (up to 256 MiB of peak usage during concurrent logins) plus the app's baseline memory usage. Insufficient memory may cause login failures or health check timeouts under concurrent load.
+
+**Password upgrade:** Existing passwords are automatically upgraded to the stronger hashing settings the next time each user signs in, with no action required from administrators or users.
+
 ## Image Tags
 
 | Tag | Description |

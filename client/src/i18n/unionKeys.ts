@@ -2,7 +2,8 @@
  * Exhaustive i18n key sets for string-literal unions (#2029).
  *
  * Every key set derives `${prefix}.${member}` for EVERY member of a runtime union tuple from
- * @cornerstone/shared (the union type is itself derived from that tuple, so the two cannot
+ * @cornerstone/shared, or a client-local `as const` tuple for client-only unions (e.g.
+ * REPORT_SKIP_REASONS) (the union type is itself derived from that tuple, so the two cannot
  * drift). The factory is deliberately module-private: every key set must live in
  * I18N_UNION_KEYS below, and unionKeys.test.ts iterates that registry against every locale —
  * so adding a union member without a translation key fails a test instead of printing a raw
@@ -14,12 +15,20 @@
 import {
   ATTACHMENT_TYPES,
   BUDGET_SOURCE_TYPES,
+  CONFIDENCE_LEVELS,
+  DIARY_ENTRY_TYPES,
+  DIARY_SOURCE_ENTITY_TYPES,
+  HOUSEHOLD_ITEM_STATUSES,
+  INVOICE_DEPOSIT_ENTRY_TYPES,
   INVOICE_STATUSES,
+  OIDC_LOGIN_ERROR_CODES,
   SOURCE_REPORT_TYPES,
+  SUBSIDY_APPLICATION_STATUSES,
 } from '@cornerstone/shared';
+import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
-export type UnionKeyNamespace = 'budget' | 'documents';
+export type UnionKeyNamespace = 'budget' | 'documents' | 'householdItems' | 'diary' | 'auth';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -68,4 +77,38 @@ export const I18N_UNION_KEYS = {
   ),
   /** documents — attachment-type label for the document card / live-region announcement. */
   documentAttachmentType: unionKeySet('documents', 'documentCard.attachmentType', ATTACHMENT_TYPES),
+  /** diary — entry-type label (type badge, photo viewer history list). */
+  diaryEntryType: unionKeySet('diary', 'entryTypes', DIARY_ENTRY_TYPES),
+  /** diary — short filter-chip label (DiaryFilterBar). */
+  diaryEntryTypeChip: unionKeySet('diary', 'entryTypeChips', DIARY_ENTRY_TYPES),
+  /** budget — source-report use-case title (wizard step 1, report list). */
+  reportUseCase: unionKeySet('budget', 'sourceReports.useCase', SOURCE_REPORT_TYPES),
+  /** budget — source-report use-case helper text (wizard step 1). */
+  reportUseCaseHelper: unionKeySet('budget', 'sourceReports.useCaseHelper', SOURCE_REPORT_TYPES),
+  /** budget — invoice status label on the invoices list / vendor / auto-itemize pages. */
+  invoicesStatusLabel: unionKeySet('budget', 'invoices.statusLabels', INVOICE_STATUSES),
+  /** budget — invoice status label on the invoice detail page. */
+  invoiceDetailStatusLabel: unionKeySet('budget', 'invoiceDetail.statusLabels', INVOICE_STATUSES),
+  /** budget — invoice deposit entry-type label. */
+  depositEntryType: unionKeySet(
+    'budget',
+    'invoiceDetail.deposits.entryTypeLabels',
+    INVOICE_DEPOSIT_ENTRY_TYPES,
+  ),
+  /** budget — subsidy application status label. */
+  subsidyApplicationStatus: unionKeySet(
+    'budget',
+    'subsidies.statusLabels',
+    SUBSIDY_APPLICATION_STATUSES,
+  ),
+  /** budget — budget-line confidence level label. */
+  confidenceLevel: unionKeySet('budget', 'sources.lines.confidence', CONFIDENCE_LEVELS),
+  /** budget — reason a report document was skipped (client-local tuple). */
+  reportSkipReason: unionKeySet('budget', 'sourceReports.table', REPORT_SKIP_REASONS),
+  /** householdItems — household item status label. */
+  householdItemStatus: unionKeySet('householdItems', 'status', HOUSEHOLD_ITEM_STATUSES),
+  /** diary — source-entity type label on the diary detail page / card. */
+  diarySourceType: unionKeySet('diary', 'detailPage.sourceType', DIARY_SOURCE_ENTITY_TYPES),
+  /** auth — OIDC login error banner message. */
+  oidcLoginError: unionKeySet('auth', 'login.oidcErrors', OIDC_LOGIN_ERROR_CODES),
 } as const;

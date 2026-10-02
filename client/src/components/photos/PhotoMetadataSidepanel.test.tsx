@@ -26,7 +26,9 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import React from 'react';
+import enCommon from '../../i18n/en/common.json';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 
 // ─── ESM-compatible mocks (must be before dynamic imports) ────────────────────
 
@@ -90,6 +92,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: jest.fn(() => ({
     locale: 'en' as const,
     resolvedLocale: 'en' as const,
+    vatRate: 0.19,
     currency: 'EUR',
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
@@ -342,9 +345,11 @@ describe('PhotoMetadataSidepanel', () => {
     };
 
     rerender(
-      React.createElement(LocaleProvider, {
-        children: React.createElement(PhotoMetadataSidepanel, { photo: newPhoto }),
-      }),
+      React.createElement(
+        LocaleProvider,
+        null,
+        React.createElement(PhotoMetadataSidepanel, { photo: newPhoto }),
+      ),
     );
 
     // After rerender, component should reflect the new photo's orientationId
@@ -669,5 +674,73 @@ describe('PhotoMetadataSidepanel', () => {
 
     // Resolve the fetch so the component finishes loading
     resolveFetch({ areas: mockAreas });
+  });
+
+  describe('save failure messages', () => {
+    // react-i18next is mocked in this file (t returns the key), so assertions use the
+    // translation keys: the ApiClientError code is routed through translateApiError('errors').
+    async function saveWithRejection(error: unknown) {
+      mockUpdatePhoto.mockRejectedValueOnce(error);
+      renderSidepanel({ photo: mockPhoto });
+
+      await act(async () => {
+        fireEvent.change(screen.getByDisplayValue('Test caption'), {
+          target: { value: 'Updated caption' },
+        });
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'saveButton' }));
+      });
+    }
+
+    it('calls onPhotoUpdated with the saved photo and shows no error on success', async () => {
+      const updated = { ...mockPhoto, caption: 'Updated caption' };
+      mockUpdatePhoto.mockResolvedValueOnce(updated);
+      const onPhotoUpdated = jest.fn<(photo: Photo) => void>();
+      renderSidepanel({ photo: mockPhoto, onPhotoUpdated });
+
+      await act(async () => {
+        fireEvent.change(screen.getByDisplayValue('Test caption'), {
+          target: { value: 'Updated caption' },
+        });
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: 'saveButton' }));
+      });
+
+      await waitFor(() => expect(onPhotoUpdated).toHaveBeenCalledWith(updated));
+      expect(screen.queryByText('saveError')).toBeNull();
+    });
+
+    it('shows the translated errors.json text (never the server message) for an ApiClientError', async () => {
+      await saveWithRejection(
+        new ApiClientError(403, { code: 'IMMUTABLE_ENTRY', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      await waitFor(() => {
+        expect(screen.getByText('IMMUTABLE_ENTRY')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('shows the network message for a NetworkError', async () => {
+      // t is mocked to return the key, so also pin that the key exists in the real catalog
+      expect(enCommon.requestErrors).toHaveProperty('network');
+      await saveWithRejection(new NetworkError('RAW-LOCAL', new Error('cause')));
+
+      await waitFor(() => {
+        expect(screen.getByText('requestErrors.network')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('shows the generic save error for a plain Error (its message is never displayed)', async () => {
+      await saveWithRejection(new Error('RAW-LOCAL'));
+
+      await waitFor(() => {
+        expect(screen.getByText('saveError')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
   });
 });

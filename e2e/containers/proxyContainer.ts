@@ -1,5 +1,5 @@
 import { GenericContainer, Wait } from 'testcontainers';
-import type { Network, StartedTestContainer } from 'testcontainers';
+import type { StartedNetwork, StartedTestContainer } from 'testcontainers';
 
 export interface StartedProxyContainer {
   container: StartedTestContainer;
@@ -16,7 +16,7 @@ export interface StartedProxyContainer {
  * @returns Started container and its proxy URL
  */
 export async function startProxyContainer(
-  network: Network,
+  network: StartedNetwork,
   _oidcPort: number,
 ): Promise<StartedProxyContainer> {
   // NOTE: oidcPort is received but not used in the nginx config because the proxy

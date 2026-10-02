@@ -19,6 +19,7 @@ import type * as MonthGridTypes from './MonthGrid.js';
 jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   useLocale: () => ({
     resolvedLocale: 'en',
+    vatRate: 0.19,
     locale: 'en',
     currency: 'EUR',
     setLocale: jest.fn(),

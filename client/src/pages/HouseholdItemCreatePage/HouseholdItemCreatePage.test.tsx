@@ -5,6 +5,8 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
@@ -217,6 +219,16 @@ describe('HouseholdItemCreatePage', () => {
 
       const statusSelect = screen.getByLabelText(/purchase status/i) as HTMLSelectElement;
       expect(statusSelect.value).toBe('planned');
+    });
+
+    it('status select lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
+      renderPage();
+
+      const statusSelect = (await screen.findByLabelText(/purchase status/i)) as HTMLSelectElement;
+
+      expect(Array.from(statusSelect.options).map((o) => [o.value, o.textContent])).toEqual(
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [status, enHouseholdItems.status[status]]),
+      );
     });
 
     it('quantity field defaults to 1 on create page', async () => {
@@ -471,6 +483,22 @@ describe('HouseholdItemCreatePage', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
+    });
+  });
+
+  describe('data loading failure messaging', () => {
+    it('shows the translated loadFailed message and never renders the raw error message', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchVendors.mockRejectedValue(new Error('SQLITE_BUSY: raw internal detail'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
+      });
+      expect(document.body.textContent).not.toContain('SQLITE_BUSY');
+      expect(document.body.textContent).not.toContain('raw internal detail');
+      consoleSpy.mockRestore();
     });
   });
 

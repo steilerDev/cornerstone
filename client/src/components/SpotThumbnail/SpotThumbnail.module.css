@@ -1,0 +1,198 @@
+.root {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.link {
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+
+.link:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.link:active {
+  opacity: 0.85;
+}
+
+/* ---- Thumbnail box ---- */
+
+.thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-tertiary);
+  transition: box-shadow var(--transition-fast);
+}
+
+.cell .thumb {
+  aspect-ratio: 16 / 9;
+}
+
+.card .thumb {
+  aspect-ratio: 4 / 3;
+  border-radius: 0;
+}
+
+.thumbImageWrap {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-muted);
+}
+
+.fallbackIcon {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.count {
+  position: absolute;
+  top: var(--spacing-1);
+  right: var(--spacing-1);
+  min-width: 1.5rem;
+  padding: 0 var(--spacing-2);
+  border-radius: var(--radius-full);
+  background: var(--color-photo-control-bg-hover);
+  color: var(--color-white);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.5rem;
+  text-align: center;
+}
+
+/* ---- Text lines ---- */
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.cell .body {
+  padding-top: var(--spacing-1);
+}
+
+.card .body {
+  padding: var(--spacing-2);
+}
+
+.title {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.titleMuted {
+  color: var(--color-text-muted);
+}
+
+.date {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-secondary);
+}
+
+/* ---- Card variant ---- */
+
+.card {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-primary);
+  overflow: hidden;
+}
+
+/* ---- Hover / focus ---- */
+
+.link:hover .thumb,
+.link:focus-visible .thumb {
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.card.link:hover .thumb,
+.card.link:focus-visible .thumb {
+  box-shadow: inset 0 0 0 2px var(--color-primary);
+}
+
+.link:hover .date {
+  color: var(--color-text-primary);
+}
+
+/* ---- Empty placeholder ---- */
+
+.empty {
+  cursor: default;
+}
+
+.emptyBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-xs);
+  text-align: center;
+}
+
+.cell .emptyBox {
+  aspect-ratio: 16 / 9;
+}
+
+.card .emptyBox {
+  aspect-ratio: 4 / 3;
+  border: none;
+  border-radius: 0;
+}
+
+.card.empty {
+  border: 1px dashed var(--color-border-strong);
+  display: flex;
+  flex-direction: column;
+}
+
+.bodyEmpty {
+  padding: var(--spacing-2);
+  order: 2;
+}
+
+.card.empty .emptyBox {
+  order: 1;
+}
+
+.dateReserve {
+  min-height: var(--spacing-5);
+}
+
+.card.empty .dateReserve {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thumb {
+    transition: none;
+  }
+}

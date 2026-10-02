@@ -4,6 +4,8 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
+import enDiary from '../../../i18n/en/diary.json';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import type { DiaryEntryCard as DiaryEntryCardType } from './DiaryEntryCard.js';
 
@@ -186,6 +188,22 @@ describe('DiaryEntryCard', () => {
     expect(indicator.textContent).toContain('3');
     expect(indicator.textContent).toContain('📷');
   });
+
+  it.each(DIARY_SOURCE_ENTITY_TYPES)(
+    'titles an untitled %s source link with its translated type label',
+    (type) => {
+      renderCard({
+        ...automaticEntry,
+        sourceEntityType: type,
+        sourceEntityId: 'src-1',
+        sourceEntityTitle: null,
+      });
+      expect(screen.getByTestId('source-link-src-1')).toHaveAttribute(
+        'title',
+        enDiary.detailPage.sourceType[type],
+      );
+    },
+  );
 
   it('does not show source link for manual entries without source entity', () => {
     renderCard(manualEntry);

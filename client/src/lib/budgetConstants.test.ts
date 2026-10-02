@@ -66,7 +66,7 @@ describe('CONFIDENCE_LABELS', () => {
 describe('computeBudgetTotals', () => {
   describe('empty input', () => {
     it('returns all zeros when given an empty array', () => {
-      const result = computeBudgetTotals([]);
+      const result = computeBudgetTotals([], 0.19);
 
       expect(result.totalPlanned).toBe(0);
       expect(result.totalActualCost).toBe(0);
@@ -75,7 +75,7 @@ describe('computeBudgetTotals', () => {
     });
 
     it('returns hasPlannedRange=false for empty array', () => {
-      const result = computeBudgetTotals([]);
+      const result = computeBudgetTotals([], 0.19);
 
       expect(result.hasPlannedRange).toBe(false);
     });
@@ -85,7 +85,7 @@ describe('computeBudgetTotals', () => {
     it('min equals max for a single invoice line', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'invoice', confidenceMargin: 0 });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBe(1000);
       expect(result.totalMaxPlanned).toBe(1000);
@@ -94,7 +94,7 @@ describe('computeBudgetTotals', () => {
     it('returns hasPlannedRange=false for invoice-only lines', () => {
       const line = makeLine({ plannedAmount: 500, confidence: 'invoice' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.hasPlannedRange).toBe(false);
     });
@@ -102,7 +102,7 @@ describe('computeBudgetTotals', () => {
     it('totalPlanned equals plannedAmount', () => {
       const line = makeLine({ plannedAmount: 750, confidence: 'invoice' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalPlanned).toBe(750);
     });
@@ -110,7 +110,7 @@ describe('computeBudgetTotals', () => {
     it('totalActualCost equals actualCost field', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'invoice', actualCost: 950 });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalActualCost).toBe(950);
     });
@@ -120,7 +120,7 @@ describe('computeBudgetTotals', () => {
     it('min = plannedAmount * 0.8 for a single own_estimate line', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBeCloseTo(800, 5);
     });
@@ -128,7 +128,7 @@ describe('computeBudgetTotals', () => {
     it('max = plannedAmount * 1.2 for a single own_estimate line', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMaxPlanned).toBeCloseTo(1200, 5);
     });
@@ -136,7 +136,7 @@ describe('computeBudgetTotals', () => {
     it('returns hasPlannedRange=true for own_estimate line', () => {
       const line = makeLine({ plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.hasPlannedRange).toBe(true);
     });
@@ -146,7 +146,7 @@ describe('computeBudgetTotals', () => {
     it('min = plannedAmount * 0.9', () => {
       const line = makeLine({ plannedAmount: 2000, confidence: 'professional_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBeCloseTo(1800, 5);
     });
@@ -154,7 +154,7 @@ describe('computeBudgetTotals', () => {
     it('max = plannedAmount * 1.1', () => {
       const line = makeLine({ plannedAmount: 2000, confidence: 'professional_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMaxPlanned).toBeCloseTo(2200, 5);
     });
@@ -162,7 +162,7 @@ describe('computeBudgetTotals', () => {
     it('returns hasPlannedRange=true', () => {
       const line = makeLine({ plannedAmount: 2000, confidence: 'professional_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.hasPlannedRange).toBe(true);
     });
@@ -172,7 +172,7 @@ describe('computeBudgetTotals', () => {
     it('min = plannedAmount * 0.95', () => {
       const line = makeLine({ plannedAmount: 4000, confidence: 'quote' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBeCloseTo(3800, 5);
     });
@@ -180,7 +180,7 @@ describe('computeBudgetTotals', () => {
     it('max = plannedAmount * 1.05', () => {
       const line = makeLine({ plannedAmount: 4000, confidence: 'quote' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMaxPlanned).toBeCloseTo(4200, 5);
     });
@@ -188,7 +188,7 @@ describe('computeBudgetTotals', () => {
     it('returns hasPlannedRange=true', () => {
       const line = makeLine({ plannedAmount: 4000, confidence: 'quote' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.hasPlannedRange).toBe(true);
     });
@@ -202,7 +202,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-3', plannedAmount: 200, confidence: 'quote' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.totalPlanned).toBe(1700);
     });
@@ -214,7 +214,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-3', plannedAmount: 200, confidence: 'quote', actualCost: 210 }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.totalActualCost).toBe(1110);
     });
@@ -230,7 +230,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-3', plannedAmount: 200, confidence: 'quote' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.totalMinPlanned).toBeCloseTo(1590, 5);
     });
@@ -246,7 +246,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-3', plannedAmount: 200, confidence: 'quote' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.totalMaxPlanned).toBeCloseTo(1810, 5);
     });
@@ -257,7 +257,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-2', plannedAmount: 1, confidence: 'own_estimate' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.hasPlannedRange).toBe(true);
     });
@@ -268,7 +268,7 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-2', plannedAmount: 300, confidence: 'invoice' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       expect(result.hasPlannedRange).toBe(false);
     });
@@ -278,7 +278,7 @@ describe('computeBudgetTotals', () => {
     it('handles zero plannedAmount correctly', () => {
       const line = makeLine({ plannedAmount: 0, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBe(0);
       expect(result.totalMaxPlanned).toBe(0);
@@ -288,7 +288,7 @@ describe('computeBudgetTotals', () => {
     it('handles large amounts without precision loss', () => {
       const line = makeLine({ plannedAmount: 1_000_000, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.totalMinPlanned).toBeCloseTo(800_000, 2);
       expect(result.totalMaxPlanned).toBeCloseTo(1_200_000, 2);
@@ -298,7 +298,7 @@ describe('computeBudgetTotals', () => {
       // A line with plannedAmount=0.05 and own_estimate: max=0.06, min=0.04, diff=0.02 > 0.01
       const line = makeLine({ plannedAmount: 0.05, confidence: 'own_estimate' });
 
-      const result = computeBudgetTotals([line]);
+      const result = computeBudgetTotals([line], 0.19);
 
       expect(result.hasPlannedRange).toBe(true);
     });
@@ -312,10 +312,50 @@ describe('computeBudgetTotals', () => {
         makeLine({ id: 'bl-2', plannedAmount: 300, confidence: 'invoice' }),
       ];
 
-      const result = computeBudgetTotals(lines);
+      const result = computeBudgetTotals(lines, 0.19);
 
       // diff = 0, which is NOT > 0.01
       expect(result.hasPlannedRange).toBe(false);
     });
+  });
+});
+
+describe('computeBudgetTotals — configured VAT rate (vatRate=0.2)', () => {
+  it('grosses up a net line to 120 (not 119) and applies the margin to the gross amount', () => {
+    const line = makeLine({
+      plannedAmount: 100,
+      includesVat: false,
+      confidence: 'own_estimate',
+      confidenceMargin: 0.2,
+    });
+
+    const result = computeBudgetTotals([line], 0.2);
+
+    expect(result.totalPlanned).toBe(120);
+    expect(result.totalMinPlanned).toBeCloseTo(96, 5);
+    expect(result.totalMaxPlanned).toBeCloseTo(144, 5);
+    expect(result.hasPlannedRange).toBe(true);
+  });
+
+  it('leaves gross lines (includesVat=true) unchanged and honors the rate only for net lines', () => {
+    const net = makeLine({ id: 'net', plannedAmount: 100, includesVat: false });
+    const gross = makeLine({ id: 'gross', plannedAmount: 100, includesVat: true });
+
+    expect(computeBudgetTotals([net, gross], 0.2).totalPlanned).toBe(220);
+    expect(computeBudgetTotals([net, gross], 0.19).totalPlanned).toBe(219);
+  });
+
+  it('uses actualCost for invoiced lines regardless of the VAT rate', () => {
+    const line = makeLine({
+      plannedAmount: 100,
+      includesVat: false,
+      invoiceCount: 1,
+      actualCost: 90,
+    });
+
+    const result = computeBudgetTotals([line], 0.2);
+
+    expect(result.totalMinPlanned).toBe(90);
+    expect(result.totalMaxPlanned).toBe(90);
   });
 });

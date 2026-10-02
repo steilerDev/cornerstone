@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next';
 import type { SourceReportType } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import styles from './ReportWizardPage.module.css';
 
 interface Step1UseCaseProps {
@@ -8,7 +9,7 @@ interface Step1UseCaseProps {
   t: TFunction;
 }
 
-const USE_CASES: SourceReportType[] = ['budget-overview', 'claim', 'proof-of-funds'];
+const USE_CASES: readonly SourceReportType[] = ['budget-overview', 'claim', 'proof-of-funds'];
 
 export function Step1UseCase({ value, onChange, t }: Step1UseCaseProps) {
   return (
@@ -30,9 +31,11 @@ export function Step1UseCase({ value, onChange, t }: Step1UseCaseProps) {
               onChange={(e) => onChange(e.target.value as SourceReportType)}
               className={styles.useCaseRadio}
             />
-            <div className={styles.useCaseTitle}>{t(`sourceReports.useCase.${useCase}`)}</div>
+            <div className={styles.useCaseTitle}>
+              {t(I18N_UNION_KEYS.reportUseCase.key(useCase))}
+            </div>
             <div className={styles.useCaseHelper}>
-              {t(`sourceReports.useCaseHelper.${useCase}`)}
+              {t(I18N_UNION_KEYS.reportUseCaseHelper.key(useCase))}
             </div>
           </label>
         ))}

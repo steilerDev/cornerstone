@@ -14,7 +14,7 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
-    const overview = getBudgetOverview(fastify.db);
+    const overview = getBudgetOverview(fastify.db, fastify.config.vatRate);
     return reply.status(200).send({ overview });
   });
 
@@ -40,7 +40,7 @@ export default async function budgetOverviewRoutes(fastify: FastifyInstance) {
         .filter(Boolean),
     );
 
-    const breakdown = getBudgetBreakdown(fastify.db, deselectedSources);
+    const breakdown = getBudgetBreakdown(fastify.db, fastify.config.vatRate, deselectedSources);
     return reply.status(200).send({ breakdown });
   });
 }

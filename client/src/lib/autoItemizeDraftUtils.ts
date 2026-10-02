@@ -3,10 +3,80 @@ import type {
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
   CreateBudgetLineRequest,
+  ExtractedLine,
 } from '@cornerstone/shared';
-import type { LineWithInclude } from '../components/autoItemize/types.js';
+import type {
+  AssignedBudgetLineSnapshot,
+  LineWithInclude,
+} from '../components/autoItemize/types.js';
+import { effectiveLineAmount } from './budgetConstants.js';
 import { ApiClientError } from './apiClient.js';
 import { translateApiError } from './errorTranslation.js';
+
+export function toAssignedBudgetLineSnapshot(
+  line: WorkItemBudgetLine | HouseholdItemBudgetLine,
+): AssignedBudgetLineSnapshot {
+  return {
+    plannedAmount: line.plannedAmount,
+    includesVat: line.includesVat,
+    budgetCategory: line.budgetCategory
+      ? {
+          id: line.budgetCategory.id,
+          name: line.budgetCategory.name,
+          translationKey: line.budgetCategory.translationKey,
+        }
+      : null,
+    budgetSource: line.budgetSource
+      ? { id: line.budgetSource.id, name: line.budgetSource.name }
+      : null,
+  };
+}
+
+/** Amount this row contributes to the itemized total (gross). */
+export function effectiveRowAmount(line: LineWithInclude, vatRate: number): number {
+  if (line.assignedBudgetLineId && line.linkedItemizedAmount !== undefined) {
+    return line.linkedItemizedAmount;
+  }
+  return effectiveLineAmount(
+    { amount: line.totalAmount ?? 0, includesVat: line.includesVat },
+    vatRate,
+  );
+}
+
+/** Builds the commit payload. Explicit field mapping — the server rejects unknown properties. */
+export function buildCommitLines(lines: LineWithInclude[], vatRate: number): ExtractedLine[] {
+  return lines.map((l) => {
+    const base: ExtractedLine = {
+      description: l.description,
+      quantity: l.quantity,
+      unit: l.unit,
+      unitPrice: l.unitPrice,
+      totalAmount: l.totalAmount,
+      includesVat: l.includesVat,
+      vendorName: l.vendorName,
+      confidence: l.confidence,
+      budgetCategoryId: l.budgetCategoryId,
+      budgetSourceId: l.budgetSourceId || undefined,
+    };
+    if (l.assignedBudgetLineId && l.assignedBudgetLineType) {
+      return {
+        ...base,
+        // Description is not editable on a linked row and is ignored by the server in
+        // assign-existing mode, but the schema requires a non-empty string.
+        description: l.description.trim() || l.assignedBudgetLineDescription?.trim() || '—',
+        // Linked rows keep the original budget line's category and source, so send neither.
+        budgetCategoryId: undefined,
+        budgetSourceId: undefined,
+        totalAmount: effectiveRowAmount(l, vatRate),
+        includesVat: true,
+        assignedBudgetLineId: l.assignedBudgetLineId,
+        assignedBudgetLineType: l.assignedBudgetLineType,
+        assignmentMode: 'assign-existing' as const,
+      };
+    }
+    return { ...base, assignmentMode: 'create-new' as const };
+  });
+}
 
 type CreateFn = (
   itemId: string,
@@ -112,6 +182,8 @@ export async function materializeInlineDrafts(
         ...line,
         assignedBudgetLineId: created.id,
         assignedBudgetLineType: line.assignedItemType,
+        assignedBudgetLineDescription: created.description ?? null,
+        assignedBudgetLineSnapshot: toAssignedBudgetLineSnapshot(created),
         totalAmount: netBase, // live amount
         includesVat: line.includesVat, // live VAT flag
         inlineCreatedBudgetLineDraft: undefined,
@@ -129,4 +201,42 @@ export async function materializeInlineDrafts(
   }
 
   return { ok: true, lines: result };
+}
+
+/**
+ * True when the row will create a NEW budget line (i.e. it is not linked to an
+ * existing budget line). Rows linked via assign-existing are not "new" (#2158).
+ */
+export function isNewBudgetLineRow(line: LineWithInclude): boolean {
+  return !line.assignedBudgetLineId;
+}
+
+/**
+ * Apply a default budget source to every row that creates a new budget line
+ * (#2158, Option A). Pure and non-mutating: rows linked to an existing budget
+ * line are returned unchanged (same reference); all other rows (included or
+ * excluded, including pending/error merge rows) get `budgetSourceId = sourceId`.
+ * Queued inline drafts and nested merge source lines that are themselves new
+ * rows are updated likewise.
+ */
+export function applyBudgetSourceToNewLines(
+  lines: LineWithInclude[],
+  sourceId: string,
+): LineWithInclude[] {
+  return lines.map((line) => {
+    if (!isNewBudgetLineRow(line)) return line;
+    const next: LineWithInclude = { ...line, budgetSourceId: sourceId };
+    if (line.inlineCreatedBudgetLineDraft) {
+      next.inlineCreatedBudgetLineDraft = {
+        ...line.inlineCreatedBudgetLineDraft,
+        budgetSourceId: sourceId,
+      };
+    }
+    if (line.mergeSourceLines) {
+      next.mergeSourceLines = line.mergeSourceLines.map((src) =>
+        isNewBudgetLineRow(src) ? { ...src, budgetSourceId: sourceId } : src,
+      );
+    }
+    return next;
+  });
 }

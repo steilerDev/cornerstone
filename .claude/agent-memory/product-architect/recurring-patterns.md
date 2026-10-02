@@ -30,7 +30,7 @@ deleting the referenced row fires SET NULL, which then violates the XOR CHECK an
 When a function is forked into an `XExcludingY` / `XWithZ` variant rather than parameterised, diff the
 core formula against the original line by line — that divergence is where the bug will be. Seen on
 `splitByDepositsExcludingTagged` (PR #1894), where the residual expression was the sole difference and
-the sole defect. Prefer an options flag over a fork; when a fork ships anyway, file the collapse follow-up.
+the sole defect. Prefer an options flag over a fork; a fork is a `fix-in-session` finding — collapse it in-session, never file a follow-up.
 
 ### Forked _test harness_ — `realRender.test.ts` re-implements merge.ts's docDefinition
 
@@ -586,9 +586,9 @@ then be matched by bridging two adjacent cells, so no false positives.
 Ranking the two remedies (settled on PR #1985 round 2, APPROVED): the universal-negative loop is only
 discriminating when the table happens to contain a non-matching row. `e2e/playwright.config.ts` sets
 `fullyParallel: true` across 16 shards and `e2e/fixtures/seed.ts` seeds only the setup admin, so a test can
-land in a shard whose user table is nearly empty and a broken filter still passes vacuously. Treat the loop
-as sufficient-to-approve (it can no longer pass while wrong rows render) but the **seeded non-matching row**
-as the airtight form; ask for it as a follow-up, not a block.
+land in a shard whose user table is nearly empty and a broken filter still passes vacuously. The loop alone is
+not sufficient (it can pass vacuously); the **seeded non-matching row** is the airtight form and is
+requested as a `fix-in-session` finding — every finding blocks, none becomes a follow-up.
 
 Positional cell indices (`cells[0]`/`cells[1]`) are coupled to `useColumnPreferences(pageKey, columns)`,
 which persists both visibility **and** order. No E2E test toggles columns on `/settings/users` today and the
@@ -843,11 +843,11 @@ or propose a uniform `/^\d+$/` guard across `loadConfig()` as its own item.
 
 Adding an env var means: `CLAUDE.md` table, `wiki/Architecture.md` (topic-grouped tables — e.g.
 "Authentication & Sessions" ~L393), `wiki/API-Contract.md` ("Environment Variables (Auth)" ~L107), and
-`docs/src/getting-started/configuration.md` (**docs-writer-owned** — file a request, don't edit).
+`docs/src/getting-started/configuration.md` (**docs-writer-owned** — route to docs-writer in-session, don't edit it yourself).
 The first three belong in the implementing PR with the submodule ref bumped on the branch. PR #1989
-updated only `CLAUDE.md` at first review; `47ee190` added both wiki pages, leaving the docs-writer one
-as a release-staging follow-up — that is the correct end state, so treat "3 of 4 + a flagged follow-up"
-as the passing bar, not 4 of 4.
+updated only `CLAUDE.md` at first review; `47ee190` added both wiki pages and left the docs-writer one
+as a release-staging follow-up. That is no longer acceptable: all 4 locations are the passing bar, with the
+docs-site entry done by docs-writer in the same session.
 
 Cheap way to find every location when adding a var: grep an _existing_ comparable var repo-wide
 (`grep -rln SESSION_DURATION --include='*.md' --include='*.yml' .`) instead of guessing which files
@@ -1347,13 +1347,15 @@ cannot see. That is how the "all four OIDC variables" sentence survived.
 - **#2023** — `Architecture.md` "Backup & Restore": `BACKUP_DIR` is documented as default `(none)` with
   "Backup functionality is enabled when `BACKUP_DIR` is set. If unset, all `/api/backups/*` endpoints
   return 503." Both halves are wrong — `config.ts:259` is `getValue('BACKUP_DIR') ?? '/backups'`, so
-  `backupEnabled = !!backupDir` (line 288) is **unconditionally true** and the 503 path is dead.
-  CLAUDE.md already documents the `/backups` default, so the wiki is the outlier.
-- **#2024** — `npm run format` reformats `wiki/*.md`: `.prettierignore` excludes `docs/` but **not**
-  `wiki/`, while `format`/`format:check` glob `**/*.{...,md}`. Surfaced via `API-Contract.md`
-  lines ~3681-3720 (the `invoices[].splitKind` table from #1911/PR #2015), whose type cell overflows
-  the table's padded width — the only prettier-dirty region of that file, and a latent format-check
-  failure sitting on `beta`.
+  the `backupEnabled = !!backupDir` guard was **unconditionally true** and the 503 path was dead.
+  **RESOLVED: #2132 removed `backupEnabled` from `AppConfig` and deleted the guard, and
+  `BACKUP_NOT_CONFIGURED` no longer exists. No backup endpoint has a 503 path.** Backups are always on.
+  Backup failures are 500 `BACKUP_FAILED` (write probe, snapshot, or tar). Restore validates before
+  its 202 (`beginRestore`: 404/409/500 `RESTORE_FAILED`), per #2129.
+- **#2024** — RESOLVED: `.prettierignore` now excludes `wiki/` (CLAUDE.md agrees). The wiki is still
+  prettier-padded by convention, so format a page you edit with
+  `node_modules/.bin/prettier --config .prettierrc --write <page>`. Then revert any unrelated hunks it
+  reflows, because other agents' rows are not always clean.
 - **Ruled a CODE defect and handed to the coordinator to file** (issue number unknown at write time —
   search issues for `oidc.ts:106` / `redirect_uri` before filing anything) — the two OIDC legs derive the
   callback URL differently: `oidc.ts:45` uses `externalUrl || request-origin`, `oidc.ts:106` uses the
@@ -1788,3 +1790,143 @@ the rule and the lock-name registry (wiki `b9fc2cd`). To audit lock coverage, gr
 state, not only the writers. Most `TEST_ADMIN` hits are email-matched or mocked `createdBy` payloads.
 Also: a CLAUDE.md convention whose scope sentence says "different major" is falsified by its own PR's
 follow-up when the trap is any root-slot version mismatch (#2138 is a minor-version case).
+
+## SQLite `SUM` is compensated: float-noise boundary tests must make the noise in JS (#2127, PR #2150)
+
+SQLite 3.53's `SUM` uses compensated (Kahan-Babuska-Neumaier) summation, so error that naive JS
+addition accumulates over three or more terms does not appear: `332.85 + 333.04 + 334.11` is
+`1000.0000000000001` in JS but `SUM` returns exactly `1000`. (Two terms such as `0.1 + 0.2` are
+already correctly rounded and give `0.30000000000000004` in both.) A test that seeds noise through
+rows therefore never reaches the epsilon branch.
+The #2127 scenario 9 test was vacuous until it was rewritten. Produce the noise on the JS side (a
+subtraction after the `SUM`, where the guard actually compares) and run a revert test to prove the
+boundary branch executes.
+
+## "Idempotent" junction insert = a silent drop of same-batch duplicates (PR #2151, #2149)
+
+`persistLines` does select-then-insert to keep one `invoice_budget_lines` row per `(invoice, budget line)`.
+Inside one transaction the select sees the batch's own earlier insert, so a second extracted line linked
+to the same budget line is skipped. Its amount still counts toward `totalItemized` and the UI total, but
+it is never persisted. "Retry idempotency" is no justification here: a failed save rolls back and leaves
+no junction behind. When a write guard is described as "idempotent", ask which caller actually produces a
+second write. If the only caller is the user, the dedup is data loss. Separate same-call dedup from
+cross-call dedup; the cross-call case is a product decision (add or reject).
+Round 2: once the fix sums into an existing junction, check every caller **mode** before accepting it.
+`mode: 'replace'` deletes only `origin='auto'` lines, so junctions to manual lines survive it. Summing then
+double-counts a line that is re-linked under replace. The rule is "add" in append mode and "reset, then
+add" in replace mode. An accumulate rule is only correct relative to what the previous step cleared.
+
+## A "legacy NULL" branch the schema forbids (PR #2152, #2124)
+
+The shared lock predicate took `status?: DiaryEntryStatus | null` and documented "a null status is a
+legacy row and counts as saved". But `diary_entries.status` has been `NOT NULL DEFAULT 'saved'` since
+migration 0033. The fiction spread to Schema.md, API-Contract.md, a cast in `photos.ts`, and two unit
+tests, while the PR's own service test admitted "not testable: status is NOT NULL". Before accepting
+a legacy-row branch, check the column's migration. If the column is NOT NULL, make the parameter
+required: an optional parameter lets a future caller that forgets the field compile cleanly and
+silently fail closed, so the "defensive" widening is actually a forcing function removed.
+
+## Split-off test files inherit the sibling suite's dead scaffolding (PR #2156, 2026-10-01)
+
+When a story adds a `Page.<feature>.test.tsx` next to an existing page suite, the author copies the
+whole mock preamble. Grep each named spy/override/fixture for usage count (`grep -c`); declared+reset
+only = dead. The `makeFetchStub` "when unstable_mockModule is NOT intercepted" fallback is the worst
+of it: unreachable in CI, and if reached it masks the mock failure with plausible data. Also flag
+`getByRole` helpers that fall back to the raw i18n key — dead once any assertion relies on resolved text.
+Round 2 of #2156 found the same raw-key and never-matching branches in the `waitForReady` loading
+check (`/extractionStarted/i`, `/Extracting/i`), which I had missed in round 1. Sweep **every**
+`queryAllByText`/`queryByRole` regex in a copied helper against `en/<ns>.json`, not only the
+button lookup. A raw-key regex in a _negative_ assertion is the worst variant: it can never fail.
+When a raw-key/fallback lookup is removed, sweep the **same** pass for the guards that hid it:
+`if (btn) { expect… }`, `if (!x) return; // non-intercepting env` and
+`if (mock.calls.length > 0) { expect(mock).toHaveBeenCalledTimes(1) }`. All of them turn real
+assertions into no-ops. Flag them in round 1, not after the round cap (PR #2156 r3: ~45 sites).
+
+## Removing a helper's default parameter only finds the helper's callers (PR #2165, 2026-10-01)
+
+Making `vatRate` required on `effectivePlannedAmount`/`effectiveLineAmount` caught every call to the helpers.
+It could not catch the aggregations that never called them: raw `SUM(planned_amount)` in SQL, or
+`line.plannedAmount * margin` in TS. PR #2165 left three of those with VAT ignored: budget-source `usedAmount`
+(`computeUsedAmount`), `subsidyPaybackServiceFactory` (the per-entity payback endpoints), and the
+household-item `totalPlannedAmount`/summary/plannedCost filter.
+**How to apply:** when you review a rate or basis fix that claims to cover "all X math", grep for the
+raw column (`planned_amount`, `plannedAmount \*`) as well as for the helper's name. Then check that two endpoints showing the same
+figure (list vs detail, overview vs per-entity) still agree.
+
+## `fs.stat` is an existence check, not a readability check (PR #2168, #2129)
+
+I wrote the restore contract as "the archive must exist and be readable" and mapped any non-`ENOENT`
+`stat` failure to 500 `RESTORE_FAILED`. `stat` needs only search (x) permission on the
+**directory**. It succeeds on a mode-000 file, so a file that exists but cannot be read passed
+validation and failed during the asynchronous tar extraction, after the 202, where the client never
+sees it. The documented guarantee was never enforced, and my own wiki row enshrined the gap.
+**How to apply:** when a contract says "readable" (or "writable"), the check must be
+`fs.access(p, R_OK)` (or `W_OK`, or an actual open/write probe like `createBackup`'s
+`.write-check` file). `ENOENT` gives not-found and anything else (`EACCES`, `EISDIR`, ...) gives the 500. When reviewing, read the syscall against the adjective in the docs: `stat`/`exists` can only back
+"exists". Note that `access` ignores ACLs on some filesystems and is still a TOCTOU race. That is
+acceptable for a pre-reply check, but the real read must still handle failure.
+
+## Moving validation before the reply makes that error's client copy reachable (PR #2168, #2129)
+
+Before #2129 the restore handler replied 202 first and validated inside `setImmediate`. So
+`BACKUP_NOT_FOUND` / `BACKUP_IN_PROGRESS` / `RESTORE_FAILED` on that route were log-only, and their
+client copy (`errors.json` messages, `translateApiError` mappings, the restore modal's error branch)
+was dead code that nobody ever rendered or reviewed in context. Moving validation in front of the reply
+turns that copy live for the first time. The same applies to stale "not configured" wording, wrong
+`details`, and missing German keys.
+**How to apply:** whenever a fix moves a check from an async/background phase to before the response
+(or removes a guard that used to short-circuit it), treat every error code it can now return as **new
+client surface**. Re-read its en/de message and the UI branch that renders it, and confirm a test
+asserts the rendered copy, not just the status code. A status-code-only test cannot tell you that the
+message says something false.
+
+## `additionalProperties: false` strips, it does not reject (found 2026-10-02, #2122)
+
+`buildApp` passes no `ajv` options, so Fastify's default `removeAdditional: true` applies: an unknown body
+property or query parameter is silently dropped and the request succeeds. I documented "unknown property
+-> 400" for `POST /api/users` and `GET /api/users` in the #2120 pass without checking. **Why:** the schema
+keyword reads like a rejection. **How to apply:** never write a "400 on unknown field" row from the schema
+alone; probe with `app.inject` (a throwaway `.mjs` under `server/` resolves the workspace `fastify`).
+Also: ADR-010 said argon2 for 8 months after PR #72 switched to `crypto.scrypt` — implementation-side
+swaps of an ADR's "Chosen" library need an ADR amendment, grep ADRs for the removed package name.
+
+## Crash-recovery rollbacks must be re-runnable (ADR-037, 2026-10-02)
+
+A phase marker is only as good as the invariant each phase guarantees, and the ROLLBACK changes the
+directory too. `rollbackSwap` in phase `moving-in` first deletes every non-reserved `dataDir` entry
+("all restored"), then moves originals back. If it dies mid move-back (exception -> marker kept, exit 1,
+or SIGKILL), the marker still says `moving-in` while originals sit in `dataDir`, and the next startup
+rollback deletes them. Fix: flip the marker to the phase whose invariant now holds (`moving-aside`)
+between the destructive loop and the restoring loop. **Review rule:** for every recovery routine, ask
+"what does the marker say if this dies on line N, and does re-running from that marker destroy data?"
+Also from the same spec: a side effect placed before a fallible "not started yet" step (here
+`stopScheduler()` before the marker write) survives that step's failure path silently.
+
+## A "re-assert state" step writes only when the disk differs, and recovery frees space first (PR #2169)
+
+`rollbackSwap` began with an unconditional marker rewrite. It was added to close the "disk one flip
+ahead" path, where a flip's rename landed but the directory `fsync` threw. At startup, though, recovery
+calls it with a state it has just read from disk, so the write is always redundant there. It still needs
+a free block, and a full volume is exactly the state a restore leaves behind, because staging just
+filled it. The result is `ENOSPC` on every startup and a crash loop under `restart: unless-stopped`,
+even though the rollback itself would have freed the space.
+**How to apply:** for any hardening step in a recovery routine, ask "which resource does this step need,
+and is that resource the likely cause of the failure being recovered?" For a re-assert or
+reconcile step:
+
+- (a) write only when the persisted state differs from memory (`readState()?.phase !== state.phase`);
+- (b) first delete regenerable data that is never the only copy (here staging: the archive persists,
+  and the originals are in `.pre-restore-*`), so later writes have room.
+
+When checking the design, verify that every phase of the recovery path can make progress on a 100%-full
+disk.
+
+## A tuple migration that converts one consumer per file leaves a second derivation beside it (PR #2171)
+
+When a PR moves a badge variant map onto an `as const` tuple plus its `I18N_UNION_KEYS` set, the same file
+usually still has hand-listed `enumOptions: [{ value: 'pending', … }]` filter options and `<option value="…">`
+selects for the same union. A new member then gets a badge but no filter or select option. In review, grep
+each touched file for `value: '<member>'` and `<option value="<member>"`, not only for template literals.
+The template-literal guard (`templateLiteralKeys.test.ts`) cannot see these: the keys are literal and
+compile-checked, so only the member list drifts. Also: `new URL(rel, import.meta.url).pathname` in a test is
+percent-encoded, so pass the URL to `readFileSync` directly.

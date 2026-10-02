@@ -426,7 +426,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.amountRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.amountRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -435,7 +437,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.dueDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -446,7 +450,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.paidDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -463,7 +469,9 @@ describe('InvoiceDepositFormModal', () => {
 
       submitForm();
 
-      expect(screen.getByText(tr('common:validation.dateRequired'))).toBeInTheDocument();
+      expect(
+        screen.getByText(tr('budget:invoiceDetail.deposits.errors.claimedDateRequired')),
+      ).toBeInTheDocument();
       expect(mockCreateDeposit).not.toHaveBeenCalled();
     });
 
@@ -539,6 +547,66 @@ describe('InvoiceDepositFormModal', () => {
           tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$0.00' }),
         ),
       ).toBeInTheDocument();
+    });
+
+    it('#2127: editing a refund maps DEPOSITS_EXCEED_INVOICE_TOTAL to the minimum-refund message, not the headroom copy', async () => {
+      const { onSaved } = await submitWithError(
+        new ApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'x',
+          details: { minimumRefundAmount: 300, availableHeadroom: 999 },
+        }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$300.00',
+          }),
+        ),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(/Available headroom/)).not.toBeInTheDocument();
+      expect(onSaved).not.toHaveBeenCalled();
+    });
+
+    it('#2127: editing a refund defaults the minimum refund to 0 when details are missing', async () => {
+      await submitWithError(
+        new ApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'x' }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$0.00',
+          }),
+        ),
+      ).toBeInTheDocument();
+    });
+
+    it('#2127: editing a deposit-type entry keeps the exceedsTotal headroom mapping', async () => {
+      await submitWithError(
+        new ApiClientError(400, {
+          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          message: 'x',
+          details: { availableHeadroom: 250, minimumRefundAmount: 300 },
+        }),
+        { mode: 'edit', deposit: makeDeposit({ entryType: 'deposit' }) },
+      );
+
+      expect(
+        screen.getByText(
+          tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$250.00' }),
+        ),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+            minimumRefundAmount: '$300.00',
+          }),
+        ),
+      ).not.toBeInTheDocument();
     });
 
     it('scenario 44: maps REFUND_EXCEEDS_INVOICE with the available headroom', async () => {
@@ -624,17 +692,21 @@ describe('InvoiceDepositFormModal', () => {
     });
 
     it('translates other API error codes', async () => {
-      await submitWithError(new ApiClientError(500, { code: 'LLM_UNREACHABLE', message: 'x' }));
+      await submitWithError(
+        new ApiClientError(500, { code: 'LLM_UNREACHABLE', message: 'RAW-SERVER-SENTINEL' }),
+      );
 
       expect(screen.getByText(tr('errors:LLM_UNREACHABLE'))).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows the generic save error for non-API failures', async () => {
-      await submitWithError(new Error('network'));
+      await submitWithError(new Error('RAW-LOCAL'));
 
       expect(
         screen.getByText(tr('budget:invoiceDetail.deposits.errors.saveError')),
       ).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
   });
 

@@ -36,7 +36,6 @@ function makeConfig(overrides: Partial<AppConfig> = {}): AppConfig {
     currency: 'EUR',
     vatRate: 0.19,
     backupDir: '/backups',
-    backupEnabled: true,
     // LLM defaults (disabled)
     llmBaseUrl: undefined,
     llmApiKey: undefined,

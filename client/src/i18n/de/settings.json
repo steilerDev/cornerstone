@@ -64,7 +64,8 @@
     "authProviders": {
       "local": "Lokal",
       "oidc": "OIDC",
-      "localAndOidc": "Lokal + OIDC"
+      "localAndOidc": "Lokal + OIDC",
+      "oidcPending": "OIDC (wartet auf erste Anmeldung)"
     },
     "status": {
       "active": "Aktiv",
@@ -86,6 +87,30 @@
       "saving": "Wird gespeichert...",
       "error": "Benutzer konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
     },
+    "addUser": "Benutzer hinzufügen",
+    "createModal": {
+      "title": "Benutzer hinzufügen",
+      "emailLabel": "E-Mail",
+      "displayNameLabel": "Anzeigename",
+      "roleLabel": "Rolle",
+      "ssoOnlyLabel": "Nur Single Sign-On (kein Passwort)",
+      "ssoOnlyHint": "Der Benutzer meldet sich mit Single Sign-On an. Es wird kein Passwort erstellt; das Konto wird beim ersten Anmelden mit einer bestätigten E-Mail verknüpft.",
+      "passwordLabel": "Passwort",
+      "confirmPasswordLabel": "Passwort bestätigen",
+      "passwordHint": "Mindestens 12 Zeichen.",
+      "cancel": "Abbrechen",
+      "create": "Benutzer erstellen",
+      "creating": "Wird erstellt...",
+      "error": "Benutzer konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
+    },
+    "createValidation": {
+      "emailTooLong": "E-Mail darf maximal 255 Zeichen lang sein",
+      "passwordRequired": "Passwort ist erforderlich",
+      "passwordTooShort": "Passwort muss mindestens 12 Zeichen lang sein",
+      "passwordTooLong": "Passwort darf maximal 255 Zeichen lang sein",
+      "confirmPasswordRequired": "Bitte bestätigen Sie das Passwort",
+      "passwordsDoNotMatch": "Passwörter stimmen nicht überein"
+    },
     "editValidation": {
       "displayNameRequired": "Anzeigename ist erforderlich",
       "displayNameTooLong": "Anzeigename darf maximal 100 Zeichen lang sein",
@@ -100,6 +125,9 @@
       "confirm": "Deaktivieren",
       "confirming": "Wird deaktiviert...",
       "error": "Benutzer konnte nicht deaktiviert werden. Bitte versuchen Sie es erneut."
+    },
+    "errors": {
+      "emailInUse": "Diese E-Mail-Adresse wird bereits von einem anderen Konto verwendet."
     }
   },
   "manage": {
@@ -164,7 +192,8 @@
         "createError": "Bereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da er derzeit verwendet wird."
+        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da er derzeit verwendet wird.",
+        "duplicateName": "Ein Bereich mit diesem Namen existiert bereits auf dieser Ebene."
       }
     },
     "trades": {
@@ -205,13 +234,14 @@
         "createError": "Gewerk konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird."
+        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird.",
+        "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits."
       }
     },
     "orientations": {
       "tabLabel": "Ausrichtungen",
       "createTitle": "Ausrichtung erstellen",
-      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um Fotos mit einer Himmelsrichtung zu kennzeichnen (z. B. Süd – Straße).",
+      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um festzuhalten, wohin ein Foto zeigt (z. B. Süd – Straße, Decke).",
       "nameLabel": "Name",
       "namePlaceholder": "z. B. Süd",
       "descriptionLabel": "Beschreibung",
@@ -220,7 +250,7 @@
       "createButton": "Ausrichtung erstellen",
       "creating": "Wird erstellt…",
       "existingTitle": "Ausrichtungen ({{count}})",
-      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie eine oben, um Ihre Fotos mit einer Himmelsrichtung zu kennzeichnen.",
+      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie oben eine, um festzuhalten, wohin Ihre Fotos zeigen.",
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "save": "Speichern",
@@ -242,7 +272,8 @@
         "createError": "Ausrichtung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Ausrichtung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Ausrichtung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "loadError": "Ausrichtungen konnten nicht geladen werden."
+        "loadError": "Ausrichtungen konnten nicht geladen werden.",
+        "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
       }
     },
     "budgetCategories": {
@@ -286,7 +317,8 @@
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen verwendet wird."
+        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen verwendet wird.",
+        "duplicateName": "Eine Budgetkategorie mit diesem Namen existiert bereits."
       }
     },
     "householdItemCategories": {
@@ -328,7 +360,8 @@
         "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Haushaltsartikeln verwendet wird."
+        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Haushaltsartikeln verwendet wird.",
+        "duplicateName": "Eine Haushaltsartikel-Kategorie mit diesem Namen existiert bereits."
       }
     }
   },
@@ -349,7 +382,12 @@
     "loading": "DAV-Zugang wird geladen...",
     "generating": "Wird generiert...",
     "revoking": "Wird widerrufen...",
-    "hideTokenDisplay": "Token-Anzeige ausblenden"
+    "hideTokenDisplay": "Token-Anzeige ausblenden",
+    "errors": {
+      "loadFailed": "Token-Status konnte nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "generateFailed": "Token konnte nicht generiert werden. Bitte versuchen Sie es erneut.",
+      "revokeFailed": "Token konnte nicht widerrufen werden. Bitte versuchen Sie es erneut."
+    }
   },
   "trades": {
     "plumbing": "Sanitär",
@@ -398,8 +436,6 @@
     "createButton": "Sicherung erstellen",
     "creating": "Sicherung wird erstellt...",
     "loading": "Sicherungen werden geladen...",
-    "notConfiguredMessage": "Sicherung ist nicht konfiguriert",
-    "notConfiguredDescription": "Um Sicherungen zu aktivieren, setzen Sie die Umgebungsvariable BACKUP_DIR auf ein Verzeichnis außerhalb des Anwendungsdatenverzeichnisses.",
     "emptyStateMessage": "Noch keine Sicherungen vorhanden",
     "emptyStateDescription": "Klicken Sie auf 'Sicherung erstellen', um Ihre erste Sicherung anzulegen.",
     "tableHeaders": {
@@ -475,7 +511,13 @@
       "createContactSubmit": "Kontakt erstellen",
       "saving": "Speichern...",
       "saveChanges": "Änderungen speichern",
-      "loading": "Kontakte werden geladen..."
+      "loading": "Kontakte werden geladen...",
+      "errors": {
+        "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
+        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "deleteFailed": "Kontakt konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+      }
     }
   }
 }

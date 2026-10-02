@@ -968,9 +968,13 @@ test.describe('Report wizard — German report language from English UI (Scenari
       // switch, unlike the always-present-auto-regenerating-iframe design this replaced. The
       // Subject field's baseline value comes straight from
       // `reportT('sourceReports.coverLetter.subject.claim')` — the German translation for the
-      // 'claim' use case, pre-existing since Story #1879/#1899 (NOT part of this story's new
+      // 'claim' use case ("Abruf Kreditmittel" since Story #2159; NOT part of this story's new
       // `sourceReports.editable.*` namespace, which isn't localized into German yet).
-      await expect(wizard.letterField('subject')).toHaveValue('Einreichungsunterlagen');
+      await expect(wizard.letterField('subject')).toHaveValue('Abruf Kreditmittel');
+      // Story #2159: read-only Opening row — label stays English, value is German + lang="de".
+      const opening = wizard.letterReadOnlyValue('Opening');
+      await expect(opening).toHaveText('Sehr geehrte Damen und Herren,');
+      await expect(opening).toHaveAttribute('lang', 'de');
 
       // Field LABELS (this story's new sourceReports.editable.* keys, e.g. "Subject" itself)
       // and every other piece of wizard chrome stay English regardless of `reportLanguage` —

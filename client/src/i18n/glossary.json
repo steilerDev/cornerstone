@@ -2,7 +2,7 @@
   "_meta": {
     "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
     "locales": ["de"],
-    "lastUpdated": "2026-08-04"
+    "lastUpdated": "2026-10-02"
   },
   "terms": {
     "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
@@ -11,6 +11,7 @@
     "Budget Line": { "de": { "singular": "Budgetposition", "plural": "Budgetpositionen" } },
     "Budget Source": { "de": { "singular": "Budgetquelle", "plural": "Budgetquellen" } },
     "Milestone": { "de": { "singular": "Meilenstein", "plural": "Meilensteine" } },
+    "Schedule": { "de": { "singular": "Zeitplan", "plural": "Zeitpläne" } },
     "Invoice": { "de": { "singular": "Rechnung", "plural": "Rechnungen" } },
     "Subsidy": { "de": { "singular": "Förderprogramm", "plural": "Förderprogramme" } },
     "Dependency": { "de": { "singular": "Abhängigkeit", "plural": "Abhängigkeiten" } },
@@ -46,6 +47,16 @@
     "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } },
     "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } },
     "AI": { "de": { "singular": "KI" } },
-    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } }
+    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } },
+    "Claimed": { "de": { "singular": "Eingereicht" } },
+    "Applied": { "de": { "singular": "Beantragt" } },
+    "Photo": { "de": { "singular": "Foto", "plural": "Fotos" } },
+    "Spot": {
+      "de": {
+        "singular": "Blickpunkt",
+        "plural": "Blickpunkte",
+        "note": "An (area × orientation) combination representing a specific viewpoint for photos in the photo browser. The term 'Blickpunkt' (viewpoint) naturally conveys the sense of a particular perspective from which photos are taken."
+      }
+    }
   }
 }

@@ -15,9 +15,18 @@ export type SubsidyReductionType = 'percentage' | 'fixed';
 
 /**
  * The current application status of a subsidy program.
+ *
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
  */
-export type SubsidyApplicationStatus =
-  'eligible' | 'applied' | 'approved' | 'received' | 'rejected';
+export const SUBSIDY_APPLICATION_STATUSES = [
+  'eligible',
+  'applied',
+  'approved',
+  'received',
+  'rejected',
+] as const;
+
+export type SubsidyApplicationStatus = (typeof SUBSIDY_APPLICATION_STATUSES)[number];
 
 /**
  * Subsidy program entity as returned by the API.

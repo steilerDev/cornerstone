@@ -268,17 +268,17 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
 
   describe('Scenario 1 — no areas, no items', () => {
     it('returns empty workItems.areas array', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       expect(result.workItems.areas).toHaveLength(0);
     });
 
     it('returns empty householdItems.areas array', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       expect(result.householdItems.areas).toHaveLength(0);
     });
 
     it('returns zero totals for both sections', () => {
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
       expect(result.workItems.totals.projectedMin).toBe(0);
       expect(result.workItems.totals.projectedMax).toBe(0);
       expect(result.workItems.totals.actualCost).toBe(0);
@@ -294,7 +294,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const areaId = insertArea({ name: 'Kitchen' });
       insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas).toHaveLength(1);
       const root = result.workItems.areas[0]!;
@@ -306,7 +306,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const areaId = insertArea({ name: 'Kitchen' });
       insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const root = result.workItems.areas[0]!;
       expect(root.items).toHaveLength(1);
@@ -318,7 +318,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 1000, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate; // 0.2
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const root = result.workItems.areas[0]!;
       // After subsidy payback (none here), projectedMin = 1000*(1-0.2) = 800
@@ -332,7 +332,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const areaId = insertArea({ name: 'Kitchen' });
       insertWorkItem({ areaId, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas[0]!.parentId).toBeNull();
     });
@@ -346,7 +346,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const { workItemId: wi1 } = insertWorkItem({ areaId, plannedAmount: 1000 });
       const { workItemId: wi2 } = insertWorkItem({ areaId, plannedAmount: 2000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas).toHaveLength(1);
       const area = result.workItems.areas[0]!;
@@ -362,7 +362,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 3000, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.workItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(4000 * (1 - margin), 5);
@@ -378,7 +378,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const childId = insertArea({ name: 'Kitchen', parentId });
       insertWorkItem({ areaId: childId, plannedAmount: 2000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const parent = result.workItems.areas[0]!;
       expect(parent.areaId).toBe(parentId);
@@ -393,7 +393,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId: childId, plannedAmount: 2000, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const parent = result.workItems.areas[0]!;
       const child = parent.children[0]!;
@@ -412,7 +412,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const childId = insertArea({ name: 'Kitchen', parentId });
       insertWorkItem({ areaId: childId, plannedAmount: 2000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // Parent node must appear; only empty-subtree areas are pruned
       const parentNode = result.workItems.areas.find((a) => a.areaId === parentId);
@@ -424,7 +424,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const childId = insertArea({ name: 'Kitchen', parentId });
       insertWorkItem({ areaId: childId, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const child = result.workItems.areas[0]!.children[0]!;
       expect(child.parentId).toBe(parentId);
@@ -437,7 +437,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('creates a synthetic Unassigned node when work items have null areaId', () => {
       insertWorkItem({ areaId: null, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas).toHaveLength(1);
       const unassigned = result.workItems.areas[0]!;
@@ -450,7 +450,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 500 });
       insertWorkItem({ areaId: null, plannedAmount: 300 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas.length).toBeGreaterThanOrEqual(2);
       expect(result.workItems.areas[0]!.areaId).toBeNull(); // Unassigned is first
@@ -459,7 +459,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('Unassigned node has items[] containing the null-area work item', () => {
       insertWorkItem({ areaId: null, plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas[0]!;
       expect(unassigned.items).toHaveLength(1);
@@ -470,7 +470,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       insertWorkItem({ areaId: null, plannedAmount: 1000, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.workItems.areas[0]!;
       expect(unassigned.projectedMin).toBeCloseTo(1000 * (1 - margin), 5);
@@ -480,7 +480,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('Unassigned node parentId is null', () => {
       insertWorkItem({ areaId: null, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas[0]!.parentId).toBeNull();
     });
@@ -494,7 +494,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const populatedAreaId = insertArea({ name: 'Kitchen' });
       insertWorkItem({ areaId: populatedAreaId, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const areaIds = result.workItems.areas.map((a) => a.areaId);
       expect(areaIds).not.toContain(emptyAreaId);
@@ -517,7 +517,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
         })
         .run();
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const areaIds = result.workItems.areas.map((a) => a.areaId);
       expect(areaIds).not.toContain(areaId);
@@ -528,7 +528,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       // Child has no items — will be pruned
       insertArea({ name: 'Empty Room', parentId });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const areaIds = result.workItems.areas.map((a) => a.areaId);
       expect(areaIds).not.toContain(parentId);
@@ -547,7 +547,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId: area2, plannedAmount: 100 });
       insertWorkItem({ areaId: area3, plannedAmount: 100 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const areaIds = result.workItems.areas.filter((a) => a.areaId !== null).map((a) => a.areaId);
       expect(areaIds.indexOf(area1)).toBeLessThan(areaIds.indexOf(area2));
@@ -562,7 +562,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId: areaA, plannedAmount: 100 });
       insertWorkItem({ areaId: areaM, plannedAmount: 100 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const names = result.workItems.areas.filter((a) => a.areaId !== null).map((a) => a.name);
       expect(names.indexOf('Alpha')).toBeLessThan(names.indexOf('Middle'));
@@ -578,7 +578,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId: childB, plannedAmount: 100 });
       insertWorkItem({ areaId: childC, plannedAmount: 100 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const parent = result.workItems.areas.find((a) => a.areaId === parentId);
       expect(parent).toBeDefined();
@@ -599,7 +599,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId: childId, plannedAmount: 3000, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const grandparent = result.workItems.areas.find((a) => a.areaId === grandparentId);
       expect(grandparent).toBeDefined();
@@ -613,7 +613,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const childId = insertArea({ name: 'Kitchen', parentId });
       insertWorkItem({ areaId: childId, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const grandparent = result.workItems.areas.find((a) => a.areaId === grandparentId);
       expect(grandparent!.children).toHaveLength(1);
@@ -638,7 +638,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
         actualCost: 1400,
       });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const grandparent = result.workItems.areas.find((a) => a.areaId === grandparentId);
       expect(grandparent!.actualCost).toBe(1800 + 1400);
@@ -659,7 +659,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.workItems.areas.find((a) => a.areaId === areaId);
       expect(area!.subsidyPayback).toBeCloseTo(120, 5);
@@ -676,7 +676,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.workItems.areas.find((a) => a.areaId === areaId);
       expect(area!.minSubsidyPayback).toBeCloseTo(80, 5);
@@ -694,7 +694,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const subsidyId = insertSubsidyProgram({ reductionType: 'percentage', reductionValue: 10 });
       linkWorkItemSubsidy(workItemId, subsidyId);
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const parent = result.workItems.areas.find((a) => a.areaId === parentId);
       expect(parent!.subsidyPayback).toBeCloseTo(120, 5);
@@ -713,7 +713,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       linkWorkItemSubsidy(workItemId, subsidyId);
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.workItems.areas.find((a) => a.areaId === areaId)!;
       expect(area.rawProjectedMin).toBeCloseTo(1000 * (1 - margin), 5);
@@ -730,7 +730,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const areaId = insertArea({ name: 'Living Room' });
       insertHouseholdItem({ areaId, plannedAmount: 800, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas).toHaveLength(1);
       const area = result.householdItems.areas[0]!;
@@ -745,7 +745,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertHouseholdItem({ areaId, plannedAmount: 800, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.householdItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(800 * (1 - margin), 5);
@@ -757,7 +757,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const { householdItemId: hi1 } = insertHouseholdItem({ areaId, plannedAmount: 500 });
       const { householdItemId: hi2 } = insertHouseholdItem({ areaId, plannedAmount: 800 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas).toHaveLength(1);
       const area = result.householdItems.areas[0]!;
@@ -773,7 +773,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertHouseholdItem({ areaId, plannedAmount: 1500, confidence: 'own_estimate' });
 
       const margin = CONFIDENCE_MARGINS.own_estimate;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const area = result.householdItems.areas[0]!;
       expect(area.projectedMin).toBeCloseTo(2000 * (1 - margin), 5);
@@ -786,7 +786,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertHouseholdItem({ areaId: childId, plannedAmount: 1200, confidence: 'quote' });
 
       const margin = CONFIDENCE_MARGINS.quote;
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const parent = result.householdItems.areas.find((a) => a.areaId === parentId);
       expect(parent).toBeDefined();
@@ -799,7 +799,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 5000 });
       insertHouseholdItem({ areaId, plannedAmount: 300 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       // WI side has one area with WI item
       const wiArea = result.workItems.areas.find((a) => a.areaId === areaId);
@@ -823,7 +823,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
     it('creates Unassigned node for null-area HI items', () => {
       insertHouseholdItem({ areaId: null, plannedAmount: 400 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas).toHaveLength(1);
       const unassigned = result.householdItems.areas[0]!;
@@ -836,7 +836,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertHouseholdItem({ areaId, plannedAmount: 600 });
       insertHouseholdItem({ areaId: null, plannedAmount: 200 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas[0]!.areaId).toBeNull();
     });
@@ -845,7 +845,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       const margin = CONFIDENCE_MARGINS.own_estimate;
       insertHouseholdItem({ areaId: null, plannedAmount: 400, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const unassigned = result.householdItems.areas[0]!;
       expect(unassigned.projectedMin).toBeCloseTo(400 * (1 - margin), 5);
@@ -861,7 +861,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 4000 });
       insertWorkItem({ areaId: null, plannedAmount: 1000 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.areas.length).toBe(2);
       const areaIds = result.workItems.areas.map((a) => a.areaId);
@@ -874,7 +874,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 4000, confidence: 'invoice', actualCost: 3800 });
       insertWorkItem({ areaId: null, plannedAmount: 1000, confidence: 'invoice', actualCost: 900 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.workItems.totals.actualCost).toBe(3800 + 900);
     });
@@ -884,7 +884,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertWorkItem({ areaId, plannedAmount: 2000, confidence: 'own_estimate' });
       insertWorkItem({ areaId: null, plannedAmount: 500, confidence: 'own_estimate' });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       const sumFromAreas = result.workItems.areas.reduce((acc, a) => acc + a.projectedMax, 0);
       expect(result.workItems.totals.projectedMax).toBeCloseTo(sumFromAreas, 5);
@@ -895,7 +895,7 @@ describe('getBudgetBreakdown — area hierarchy grouping', () => {
       insertHouseholdItem({ areaId, plannedAmount: 500 });
       insertHouseholdItem({ areaId: null, plannedAmount: 200 });
 
-      const result = getBudgetBreakdown(db);
+      const result = getBudgetBreakdown(db, 0.19);
 
       expect(result.householdItems.areas.length).toBe(2);
       const areaIds = result.householdItems.areas.map((a) => a.areaId);

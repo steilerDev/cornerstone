@@ -95,10 +95,7 @@ export class VendorsPage {
     this.sortOrderButton = page.getByLabel('Column settings');
 
     // Error banner outside modals
-    this.errorBanner = page
-      .locator('[role="alert"]')
-      .filter({ hasText: /failed|error/i })
-      .first();
+    this.errorBanner = page.locator('[role="alert"]').first();
 
     // Empty state — use .first() to avoid strict mode: child elements such as
     // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.

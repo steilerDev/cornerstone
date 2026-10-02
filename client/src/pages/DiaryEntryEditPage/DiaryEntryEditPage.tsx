@@ -15,6 +15,7 @@ import type {
   DiarySignatureEntry,
   ManualDiaryEntryType,
 } from '@cornerstone/shared';
+import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
 import {
   getDiaryEntry,
   updateDiaryEntry,
@@ -37,6 +38,8 @@ import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntry
 import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import { FormError } from '../../components/FormError/FormError.js';
 import styles from './DiaryEntryEditPage.module.css';
 
 function isSignatureComplete(sig: DiarySignatureEntry): boolean {
@@ -81,11 +84,9 @@ export default function DiaryEntryEditPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const modalRef = useRef<HTMLDivElement>(null);
 
   // Discard draft modal
   const [showDiscardModal, setShowDiscardModal] = useState(false);
-  const discardModalRef = useRef<HTMLDivElement>(null);
 
   // Auto-save state
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
@@ -124,6 +125,7 @@ export default function DiaryEntryEditPage() {
   const [deliveryMaterials, setDeliveryMaterials] = useState<string[] | null>(null);
 
   // issue metadata
+  const [issueSignatures, setIssueSignatures] = useState<DiarySignatureEntry[] | null>(null);
   const [issueSeverity, setIssueSeverity] = useState<DiaryIssueSeverity | null>(null);
   const [issueResolutionStatus, setIssueResolutionStatus] = useState<DiaryIssueResolution | null>(
     null,
@@ -144,7 +146,7 @@ export default function DiaryEntryEditPage() {
       setIsLoading(true);
       try {
         const data = await getDiaryEntry(id);
-        if (data.isSigned && !data.isAutomatic) {
+        if (!data.isAutomatic && isDiaryEntrySignatureLocked(data)) {
           showToast('info', t('editPage.signedEntriesError'));
           navigate(`/diary/${data.id}`);
           return;
@@ -227,6 +229,7 @@ export default function DiaryEntryEditPage() {
     deliveryMaterials,
     issueSeverity,
     issueResolutionStatus,
+    issueSignatures,
     entry?.status,
   ]);
 
@@ -250,72 +253,6 @@ export default function DiaryEntryEditPage() {
       scheduleAutoSave.cancel();
     };
   }, [uploadingCount, scheduleAutoSave]);
-
-  // Delete modal: focus trap and Escape key handler
-  useEffect(() => {
-    if (!showDeleteModal) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeDeleteModal();
-        return;
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        const focusableArray = Array.from(focusable);
-        if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0]!; // guarded by length check at line 142
-        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 142
-        if (e.shiftKey) {
-          if (document.activeElement === firstEl) {
-            e.preventDefault();
-            lastEl.focus();
-          }
-        } else {
-          if (document.activeElement === lastEl) {
-            e.preventDefault();
-            firstEl.focus();
-          }
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showDeleteModal, isDeleting, deleteError]);
-
-  // Discard draft modal: focus trap and Escape key handler
-  useEffect(() => {
-    if (!showDiscardModal) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        setShowDiscardModal(false);
-        return;
-      }
-      if (e.key === 'Tab' && discardModalRef.current) {
-        const focusable = discardModalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        const focusableArray = Array.from(focusable);
-        if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0]!;
-        const lastEl = focusableArray[focusableArray.length - 1]!;
-        if (e.shiftKey) {
-          if (document.activeElement === firstEl) {
-            e.preventDefault();
-            lastEl.focus();
-          }
-        } else {
-          if (document.activeElement === lastEl) {
-            e.preventDefault();
-            firstEl.focus();
-          }
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showDiscardModal]);
 
   const populateForm = (data: DiaryEntryDetail) => {
     setEntryDate(data.entryDate);
@@ -347,6 +284,7 @@ export default function DiaryEntryEditPage() {
       const m = data.metadata as IssueMetadata;
       setIssueSeverity(m.severity || null);
       setIssueResolutionStatus(m.resolutionStatus || null);
+      setIssueSignatures(m.signatures || null);
     }
   };
 
@@ -379,6 +317,9 @@ export default function DiaryEntryEditPage() {
       }
       if (!issueResolutionStatus) {
         errors.issueResolutionStatus = t('edit.issueResolutionStatusRequired');
+      }
+      if ((issueSignatures ?? []).some((sig) => !isSignatureComplete(sig))) {
+        errors.issueSignatures = t('edit.signatureIncomplete');
       }
     }
 
@@ -429,6 +370,8 @@ export default function DiaryEntryEditPage() {
       const metadata: IssueMetadata = {};
       if (issueSeverity) metadata.severity = issueSeverity;
       if (issueResolutionStatus) metadata.resolutionStatus = issueResolutionStatus;
+      const completeSignatures = (issueSignatures ?? []).filter(isSignatureComplete);
+      if (completeSignatures.length > 0) metadata.signatures = completeSignatures;
       return Object.keys(metadata).length > 0 ? metadata : null;
     }
 
@@ -470,19 +413,7 @@ export default function DiaryEntryEditPage() {
       showToast('success', t('editPage.updateSuccess'));
       navigate(`/diary/${promoted.id}`);
     } catch (err) {
-      if (
-        err instanceof ApiClientError &&
-        err.error.code === 'VALIDATION_ERROR' &&
-        err.error.details &&
-        typeof err.error.details === 'object' &&
-        'fieldErrors' in err.error.details
-      ) {
-        // Handle field-level validation errors from promote
-        const errors: Record<string, string> = {};
-        const fieldErrors = err.error.details.fieldErrors as Record<string, string>;
-        Object.assign(errors, fieldErrors);
-        setValidationErrors(errors);
-      } else if (err instanceof ApiClientError) {
+      if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
         console.error('Failed to promote diary entry:', err);
       } else {
@@ -593,7 +524,7 @@ export default function DiaryEntryEditPage() {
       <div className={styles.container}>
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>{t('editPage.errorTitle')}</h2>
-          <p className={styles.errorMessage}>{error || 'An unexpected error occurred.'}</p>
+          <p className={styles.errorMessage}>{error || t('editPage.loadError')}</p>
           <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
             {t('editPage.backButton')}
           </button>
@@ -601,6 +532,8 @@ export default function DiaryEntryEditPage() {
       </div>
     );
   }
+
+  const isLocked = isDiaryEntrySignatureLocked(entry);
 
   return (
     <div className={styles.container}>
@@ -686,6 +619,8 @@ export default function DiaryEntryEditPage() {
           onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
+          issueSignatures={issueSignatures}
+          onIssueSignaturesChange={setIssueSignatures}
           // signature enhancements
           currentUserName={currentUserName}
           vendors={vendorOptions}
@@ -697,7 +632,10 @@ export default function DiaryEntryEditPage() {
               <button
                 type="button"
                 className={shared.btnDanger}
-                onClick={() => setShowDiscardModal(true)}
+                onClick={() => {
+                  setDeleteError('');
+                  setShowDiscardModal(true);
+                }}
                 disabled={isSubmitting || isDeleting}
               >
                 {t('editPage.discardDraftButton')}
@@ -779,7 +717,7 @@ export default function DiaryEntryEditPage() {
                     setOpenAsAnnotator(true);
                     setSelectedPhotoIndex(index);
                   }}
-                  editable={!entry.isSigned}
+                  editable={!isLocked}
                   loading={photosResult.loading}
                 />
               </div>
@@ -799,7 +737,7 @@ export default function DiaryEntryEditPage() {
           }}
           onPhotoChanged={photosResult.updatePhotoInList}
           startInAnnotator={openAsAnnotator}
-          editable={!entry.isSigned}
+          editable={!isLocked}
           onDelete={(photoId) => {
             photosResult.deletePhoto(photoId);
             setSelectedPhotoIndex(null);
@@ -809,24 +747,13 @@ export default function DiaryEntryEditPage() {
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
-          <div className={styles.modalContent} ref={modalRef}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('editPage.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>{t('editPage.deleteMessage')}</p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : null}
-            <div className={styles.modalActions}>
+        <Modal
+          title={t('editPage.deleteTitle')}
+          onClose={() => {
+            if (!isDeleting) closeDeleteModal();
+          }}
+          footer={
+            <>
               <button
                 type="button"
                 className={shared.btnSecondary}
@@ -845,30 +772,33 @@ export default function DiaryEntryEditPage() {
                   {isDeleting ? t('editPage.deleting') : t('editPage.deleteConfirm')}
                 </button>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <FormError message={deleteError || null} />
+          <p>{t('editPage.deleteMessage')}</p>
+        </Modal>
       )}
 
       {/* Discard draft confirmation modal */}
       {showDiscardModal && entry.status === 'draft' && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="discard-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={() => setShowDiscardModal(false)} />
-          <div className={styles.modalContent} ref={discardModalRef}>
-            <h2 id="discard-modal-title" className={styles.modalTitle}>
-              {t('editPage.discardDraftTitle')}
-            </h2>
-            <p className={styles.modalText}>{t('editPage.discardDraftMessage')}</p>
-            <div className={styles.modalActions}>
+        <Modal
+          title={t('editPage.discardDraftTitle')}
+          onClose={() => {
+            if (!isDeleting) {
+              setDeleteError('');
+              setShowDiscardModal(false);
+            }
+          }}
+          footer={
+            <>
               <button
                 type="button"
                 className={shared.btnSecondary}
-                onClick={() => setShowDiscardModal(false)}
+                onClick={() => {
+                  setDeleteError('');
+                  setShowDiscardModal(false);
+                }}
                 disabled={isDeleting}
               >
                 {t('editPage.discardDraftCancel')}
@@ -881,9 +811,12 @@ export default function DiaryEntryEditPage() {
               >
                 {isDeleting ? t('editPage.discarding') : t('editPage.discardDraftConfirm')}
               </button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        >
+          <FormError message={deleteError || null} />
+          <p>{t('editPage.discardDraftMessage')}</p>
+        </Modal>
       )}
     </div>
   );

@@ -502,7 +502,7 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
   //    createInvoiceBudgetLine NOT called; autoItemize commit linesPayload entry has
   //    totalAmount=100, includesVat=false, assignmentMode='assign-existing'.
   //    GROSS value (e.g. 119) is computed server-side only (see invoiceAutoItemizeService.test.ts).
-  it('VAT-excl draft: createWorkItemBudget receives NET=100; createInvoiceBudgetLine NOT called; autoItemize commit entry is assign-existing with totalAmount=100 includesVat=false', async () => {
+  it('VAT-excl draft: createWorkItemBudget receives NET=100; createInvoiceBudgetLine NOT called; autoItemize commit entry is assign-existing with gross totalAmount=119 includesVat=true', async () => {
     mockPickerStateOverride = {
       isOpen: true,
       step: 2,
@@ -585,8 +585,8 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
     expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
 
     // autoItemize commit call must include the materialized line as assign-existing
-    // with totalAmount=100 (NET) and includesVat=false.
-    // The server computes the GROSS itemized amount server-side (effectiveLineAmount).
+    // with the GROSS itemized amount (100 net -> 119) and includesVat=true (#2149): the linked
+    // row's amount is committed verbatim; the server no longer grosses up assign-existing rows.
     await waitFor(() => {
       expect(mockAutoItemize).toHaveBeenCalledTimes(2);
     });
@@ -608,8 +608,8 @@ describe('AutoItemizePage — queue + save flow (Story #1693)', () => {
     );
     expect(materializedLine).toBeDefined();
     expect(materializedLine!.assignedBudgetLineId).toBe('new-wib-vat-excl');
-    expect(materializedLine!.totalAmount).toBe(100);
-    expect(materializedLine!.includesVat).toBe(false);
+    expect(materializedLine!.totalAmount).toBe(119);
+    expect(materializedLine!.includesVat).toBe(true);
   });
 
   // 4. Partial failure: createWorkItemBudget ok but autoItemize commit rejects →

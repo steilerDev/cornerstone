@@ -15,6 +15,7 @@
  * All tests use API route mocking (page.route) — no testcontainers dependency.
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage, BUDGET_OVERVIEW_ROUTE } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -180,13 +181,11 @@ function makeBreakdownWithPaymentData() {
 // Route mount helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-type PageParam = Parameters<typeof test>[1]['page'];
-
 /**
  * Mount route mocks for /api/budget/overview and /api/budget/breakdown.
  * Returns a teardown function to unregister routes.
  */
-async function mountOverviewRoutes(page: PageParam, overviewBody: object, breakdownBody: object) {
+async function mountOverviewRoutes(page: Page, overviewBody: object, breakdownBody: object) {
   await page.route(`${API.budgetOverview}`, async (route) => {
     if (route.request().method() === 'GET') {
       await route.fulfill({

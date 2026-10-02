@@ -1,4 +1,5 @@
 import { describe, it, expect } from '@jest/globals';
+import { OIDC_LOGIN_ERROR_CODES } from './user.js';
 import type { User, UserResponse, UserRole, AuthProvider } from './user.js';
 
 describe('User types', () => {
@@ -124,6 +125,7 @@ describe('User types', () => {
         displayName: 'Test User',
         role: 'admin',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00Z',
       };
 
@@ -142,6 +144,7 @@ describe('User types', () => {
         displayName: 'Test User',
         role: 'member',
         authProvider: 'oidc',
+        oidcLinked: true,
         createdAt: '2024-01-01T00:00:00Z',
         updatedAt: '2024-01-02T00:00:00Z',
       };
@@ -156,6 +159,7 @@ describe('User types', () => {
         displayName: 'Test User',
         role: 'member',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00Z',
         deactivatedAt: '2024-06-01T00:00:00Z',
       };
@@ -170,6 +174,7 @@ describe('User types', () => {
         displayName: 'Test User',
         role: 'admin',
         authProvider: 'local',
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00Z',
         deactivatedAt: null,
       };
@@ -184,6 +189,7 @@ describe('User types', () => {
         displayName: 'Minimal User',
         role: 'member',
         authProvider: 'oidc',
+        oidcLinked: true,
         createdAt: '2024-01-01T00:00:00Z',
       };
 
@@ -213,6 +219,35 @@ describe('User types', () => {
     it('should accept oidc provider', () => {
       const provider: AuthProvider = 'oidc';
       expect(provider).toBe('oidc');
+    });
+  });
+
+  describe('oidcLinked contract', () => {
+    it('requires oidcLinked on UserResponse', () => {
+      // @ts-expect-error oidcLinked is required on UserResponse
+      const response: UserResponse = {
+        id: '1',
+        email: 'a@example.com',
+        displayName: 'A',
+        role: 'member',
+        authProvider: 'local',
+        createdAt: '2024-01-01T00:00:00Z',
+      };
+      expect(response.id).toBe('1');
+    });
+  });
+
+  describe('OIDC_LOGIN_ERROR_CODES', () => {
+    it('lists the login error codes the server can redirect with, in order', () => {
+      expect([...OIDC_LOGIN_ERROR_CODES]).toEqual([
+        'oidc_not_configured',
+        'oidc_error',
+        'invalid_state',
+        'missing_email',
+        'oidc_email_unverified',
+        'account_deactivated',
+        'oidc_no_matching_account',
+      ]);
     });
   });
 });

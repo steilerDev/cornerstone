@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, Ref } from 'react';
 import styles from './PageLayout.module.css';
 
 export interface PageLayoutProps {
@@ -8,6 +8,8 @@ export interface PageLayoutProps {
   subNav?: ReactNode;
   children: ReactNode;
   testId?: string;
+  /** Optional ref to the <h1>; when set the heading is programmatically focusable (tabIndex -1). */
+  headingRef?: Ref<HTMLHeadingElement>;
 }
 
 /**
@@ -23,6 +25,7 @@ export function PageLayout({
   subNav,
   children,
   testId,
+  headingRef,
 }: PageLayoutProps) {
   return (
     <div
@@ -30,7 +33,13 @@ export function PageLayout({
       {...(testId ? { 'data-testid': testId } : {})}
     >
       <div className={styles.header}>
-        <h1 className={styles.title}>{title}</h1>
+        {headingRef ? (
+          <h1 className={styles.title} ref={headingRef} tabIndex={-1}>
+            {title}
+          </h1>
+        ) : (
+          <h1 className={styles.title}>{title}</h1>
+        )}
         {action && <div className={styles.action}>{action}</div>}
       </div>
       {subNav && <div className={styles.subNav}>{subNav}</div>}

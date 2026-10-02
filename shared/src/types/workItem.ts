@@ -15,7 +15,8 @@ import type { FilterMeta } from './filterMeta.js';
  * Work item status enum.
  * EPIC-07: 'blocked' removed — status simplification (Issue #296).
  */
-export type WorkItemStatus = 'not_started' | 'in_progress' | 'completed';
+export const WORK_ITEM_STATUSES = ['not_started', 'in_progress', 'completed'] as const;
+export type WorkItemStatus = (typeof WORK_ITEM_STATUSES)[number];
 
 /**
  * User summary shape used in work item responses.

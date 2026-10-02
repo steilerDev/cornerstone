@@ -22,6 +22,7 @@
  * Hero card / BudgetBar tests have been removed. See budget-overview-no-hero-card.spec.ts.
  */
 
+import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -182,7 +183,7 @@ test.describe('Error state', { tag: '@responsive' }, () => {
           status: 500,
           contentType: 'application/json',
           body: JSON.stringify({
-            error: { code: 'INTERNAL_SERVER_ERROR', message: 'Internal server error' },
+            error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
           }),
         });
       } else {
@@ -393,11 +394,7 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
    * Mount route mocks for both GET /api/budget/overview and GET /api/budget/breakdown.
    * Returns a teardown function that must be called in a finally block.
    */
-  async function mountRoutes(
-    page: Parameters<typeof test>[1]['page'],
-    overviewBody: object,
-    breakdownBody: object,
-  ) {
+  async function mountRoutes(page: Page, overviewBody: object, breakdownBody: object) {
     await page.route(`${API.budgetOverview}`, async (route) => {
       if (route.request().method() === 'GET') {
         await route.fulfill({

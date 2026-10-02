@@ -6,7 +6,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
@@ -16,6 +16,8 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { Vendor } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -191,6 +193,7 @@ describe('VendorsPage', () => {
         displayName: 'Admin',
         role: 'admin' as const,
         authProvider: 'local' as const,
+        oidcLinked: false,
         createdAt: '2024-01-01T00:00:00.000Z',
         updatedAt: '2024-01-01T00:00:00.000Z',
         deactivatedAt: null,
@@ -329,15 +332,16 @@ describe('VendorsPage', () => {
     it('shows error message when vendor list fails to load', async () => {
       const error = new ApiClientError(500, {
         code: 'INTERNAL_ERROR',
-        message: 'Failed to load vendors',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockFetchVendors.mockRejectedValueOnce(error);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to load vendors')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('shows generic error when non-ApiClientError is thrown', async () => {
@@ -426,9 +430,12 @@ describe('VendorsPage', () => {
       expect(form).toBeTruthy();
       fireEvent.submit(form!);
 
+      // The name error is now a field-level error (no role="alert") wired to the input
       await waitFor(() => {
-        expect(screen.getByRole('alert')).toBeInTheDocument();
+        expect(screen.getByText('Vendor name is required.')).toBeInTheDocument();
       });
+      expect(screen.getByLabelText(/name/i)).toHaveAttribute('aria-invalid', 'true');
+      expect(mockCreateVendor).not.toHaveBeenCalled();
     });
 
     it('calls createVendor API with correct data and closes modal on success', async () => {
@@ -462,7 +469,7 @@ describe('VendorsPage', () => {
     it('shows API error when createVendor fails', async () => {
       const apiError = new ApiClientError(409, {
         code: 'CONFLICT',
-        message: 'Vendor already exists',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockCreateVendor.mockRejectedValueOnce(apiError);
 
@@ -482,7 +489,32 @@ describe('VendorsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Vendor already exists')).toBeInTheDocument();
+      });
+      // The create error is translated via translateApiError, not the raw server message
+      expect(screen.getByRole('alert')).toHaveTextContent(enErrors.CONFLICT);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('closes the modal and reloads the vendor list after a successful create', async () => {
+      const newVendor = makeVendor({ id: 'vendor-new', name: 'New Vendor' });
+      mockCreateVendor.mockResolvedValueOnce(newVendor);
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse());
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([newVendor]));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('new-vendor-button'));
+      fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'New Vendor' } });
+      fireEvent.submit(document.querySelector('form')!);
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      await waitFor(() => {
+        expect(mockFetchVendors).toHaveBeenCalledTimes(2);
       });
     });
   });
@@ -635,6 +667,82 @@ describe('VendorsPage', () => {
       await waitFor(() => {
         expect(screen.getAllByText('Acme Construction').length).toBeGreaterThan(0);
       });
+    });
+
+    it('renders the delete conflict message in an alert banner (FormError)', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'Vendor has associated invoices' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
+
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('This vendor cannot be deleted');
+    });
+
+    it('translates a non-409 delete failure instead of showing the server message', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
+
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent(enErrors.INTERNAL_ERROR);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('shows the plain delete fallback for a non-API failure', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+      mockDeleteVendor.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
+
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      const alert = await screen.findByRole('alert');
+      expect(alert).toHaveTextContent('Failed to delete vendor. Please try again.');
+      expect(alert).not.toHaveTextContent(/RAW-LOCAL/);
+    });
+
+    it('labels the row actions button with the common "Actions" text', async () => {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+
+      renderPage();
+
+      const button = await screen.findByTestId('vendor-menu-button-vendor-1');
+      expect(button).toHaveAttribute('aria-label', enCommon.actions);
     });
   });
 });

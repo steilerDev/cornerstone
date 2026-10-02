@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
+import { HOUSEHOLD_ITEM_STATUSES } from './householdItem.js';
 import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
@@ -834,5 +835,11 @@ describe('HouseholdItem entity interface', () => {
     };
 
     expect((item as unknown as Record<string, unknown>).room).toBeUndefined();
+  });
+});
+
+describe('HOUSEHOLD_ITEM_STATUSES', () => {
+  it('lists every status in lifecycle order', () => {
+    expect([...HOUSEHOLD_ITEM_STATUSES]).toEqual(['planned', 'purchased', 'scheduled', 'arrived']);
   });
 });

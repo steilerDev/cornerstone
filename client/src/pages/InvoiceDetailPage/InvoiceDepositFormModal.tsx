@@ -106,23 +106,23 @@ export function InvoiceDepositFormModal({
 
     const amount = parseFloat(form.amount);
     if (isNaN(amount) || amount <= 0) {
-      setError(t('common:validation.amountRequired'));
+      setError(t('invoiceDetail.deposits.errors.amountRequired'));
       return;
     }
 
     if (!form.dueDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.dueDateRequired'));
       return;
     }
 
     // Validate conditional dates
     if (form.status !== 'pending' && !form.paidDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.paidDateRequired'));
       return;
     }
 
     if (form.status === 'claimed' && !form.claimedDate) {
-      setError(t('common:validation.dateRequired'));
+      setError(t('invoiceDetail.deposits.errors.claimedDateRequired'));
       return;
     }
 
@@ -164,7 +164,15 @@ export function InvoiceDepositFormModal({
     } catch (err) {
       if (err instanceof ApiClientError) {
         const code = err.error.code;
-        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL' && deposit?.entryType === 'refund') {
+          const minimumRefundAmount =
+            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
+          setError(
+            t('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
+              minimumRefundAmount: formatCurrency(minimumRefundAmount),
+            }),
+          );
+        } else if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
           const availableHeadroom =
             (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setError(

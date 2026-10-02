@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
+import * as sessionService from '../services/sessionService.js';
 import * as schema from '../db/schema.js';
 import { users } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
@@ -752,6 +753,73 @@ describe('Authentication Routes', () => {
       expect(body.user.createdAt).toBeDefined();
       expect(body.user.updatedAt).toBeDefined();
       expect(body.user.deactivatedAt).toBeNull();
+    });
+  });
+
+  describe('admin-created SSO-only accounts (issue #2122)', () => {
+    const attemptPassword = 'any-password-12345';
+
+    function login(email: string) {
+      return app.inject({
+        method: 'POST',
+        url: '/api/auth/login',
+        payload: { email, password: attemptPassword },
+      });
+    }
+
+    it('refuses local login with a response identical to an unknown email and sets no cookie', async () => {
+      userService.createSsoOnlyUser(app.db, 'sso@example.com', 'SSO Person', 'member');
+
+      const ssoResponse = await login('sso@example.com');
+      const unknownResponse = await login('never-registered@example.com');
+
+      expect(ssoResponse.statusCode).toBe(401);
+      expect(JSON.parse(ssoResponse.body)).toEqual(JSON.parse(unknownResponse.body));
+      expect((JSON.parse(ssoResponse.body) as ApiErrorResponse).error.code).toBe(
+        'INVALID_CREDENTIALS',
+      );
+      expect(ssoResponse.headers['set-cookie']).toBeUndefined();
+    });
+
+    it('does not count failed attempts against an SSO-only account', async () => {
+      const created = userService.createSsoOnlyUser(app.db, 'sso@example.com', 'SSO', 'member');
+
+      for (let i = 0; i < 3; i++) {
+        const response = await login('sso@example.com');
+        expect(response.statusCode).toBe(401);
+      }
+
+      const row = app.db.select().from(users).where(eq(users.id, created.id)).get();
+      expect(row?.failedLoginAttempts).toBe(0);
+    });
+
+    it('answers INVALID_CREDENTIALS, not ACCOUNT_DEACTIVATED, for a deactivated SSO-only account', async () => {
+      const created = userService.createSsoOnlyUser(app.db, 'sso@example.com', 'SSO', 'member');
+      userService.deactivateUser(app.db, created.id);
+
+      const ssoResponse = await login('sso@example.com');
+      const unknownResponse = await login('never-registered@example.com');
+
+      expect(ssoResponse.statusCode).toBe(401);
+      expect((JSON.parse(ssoResponse.body) as ApiErrorResponse).error.code).toBe(
+        'INVALID_CREDENTIALS',
+      );
+      expect(JSON.parse(ssoResponse.body)).toEqual(JSON.parse(unknownResponse.body));
+    });
+
+    it('returns 403 FORBIDDEN when an SSO-only user with a session changes a password', async () => {
+      const created = userService.createSsoOnlyUser(app.db, 'sso@example.com', 'SSO', 'member');
+      const token = sessionService.createSession(app.db, created.id, 3600);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/users/me/password',
+        headers: { cookie: `cornerstone_session=${token}` },
+        payload: { currentPassword: attemptPassword, newPassword: 'another-password-123' },
+      });
+
+      expect(response.statusCode).toBe(403);
+      expect((JSON.parse(response.body) as ApiErrorResponse).error.code).toBe('FORBIDDEN');
     });
   });
 

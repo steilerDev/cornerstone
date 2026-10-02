@@ -73,11 +73,11 @@ const REFERENCE_MAX_LENGTH = 100;
 const SUBJECT_MAX_LENGTH = 200;
 
 // signature: same anchor as subject (200), deliberately not in the 300 sender/recipient band —
-// it is a name plus an optional role, not an address block, and coverLetterPdf.ts:76-81 reserves
+// it is a name plus an optional role, not an address block, and coverLetterPdf.ts:81-86 reserves
 // a fixed 54pt signing gap above it on the assumption of a compact block.
 const SIGNATURE_MAX_LENGTH = 200;
 
-// body: buildCoverLetterContent() (coverLetterPdf.ts:59-74) emits plain flowing paragraphs with
+// body: buildCoverLetterContent() (coverLetterPdf.ts:64-79) emits plain flowing paragraphs with
 // no table, no dontBreakRows, no fixed-height container, so pdfmake paginates natively and an
 // over-long body makes more pages, never clips. Bounded instead by the realistic runaway:
 // LLM_MAX_TOKENS defaults to 16384 output tokens (~60k chars), so 4000 (~1.5 A4 pages at this
@@ -236,6 +236,15 @@ export function ReportContentEditor({
               uiLang={uiLang}
               lengthLimit={lengthLimit(SUBJECT_MAX_LENGTH)}
             />
+
+            <div className={styles.readOnlyField}>
+              <span className={styles.readOnlyLabel}>
+                {t('sourceReports.editable.openingLabel')}
+              </span>
+              <span className={styles.readOnlyValue} lang={lang}>
+                {content.coverLetter.opening}
+              </span>
+            </div>
 
             <EditableField
               as="textarea"

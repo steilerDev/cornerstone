@@ -988,6 +988,53 @@ describe('photoService', () => {
       ).rejects.toThrow('Orientation not found');
     });
 
+    it('throws ValidationError "Area not found" when areaId references a non-existent area', async () => {
+      const call = photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg-bad-area'),
+        'bad-area-photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-bad-area-upload',
+        userId,
+        null,
+        'no-such-area',
+      );
+
+      await expect(call).rejects.toThrow(ValidationError);
+      await expect(call).rejects.toThrow('Area not found');
+      expect(db.select().from(schema.photos).all()).toHaveLength(0);
+    });
+
+    it('accepts an existing areaId on upload and stores it', async () => {
+      const now = new Date().toISOString();
+      db.insert(schema.areas)
+        .values({
+          id: 'area-ok',
+          name: 'Kitchen',
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const photo = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg-good-area'),
+        'good-area-photo.jpg',
+        'image/jpeg',
+        'test',
+        'entity-good-area-upload',
+        userId,
+        null,
+        'area-ok',
+      );
+
+      expect(photo.areaId).toBe('area-ok');
+    });
+
     it('stores null orientationId when not provided, returns null orientation in Photo', async () => {
       const photo = await photoService.uploadPhoto(
         db,
@@ -1379,6 +1426,49 @@ describe('photoService', () => {
 
       const result = await photoService.getPhotoFilePath(tempStoragePath, photoId, 'original');
       expect(result).toContain('original.png');
+    });
+  });
+
+  describe('buildPhotoAssetUrls()', () => {
+    it('uses annotatedAt as the cache-busting version when set', () => {
+      const urls = photoService.buildPhotoAssetUrls(
+        'p1',
+        '2026-04-01T00:00:00.000Z',
+        '2026-03-01T00:00:00.000Z',
+      );
+
+      expect(urls).toEqual({
+        fileUrl: `/api/photos/p1/file?v=${encodeURIComponent('2026-04-01T00:00:00.000Z')}`,
+        thumbnailUrl: `/api/photos/p1/thumbnail?v=${encodeURIComponent('2026-04-01T00:00:00.000Z')}`,
+      });
+    });
+
+    it('falls back to updatedAt when annotatedAt is null', () => {
+      const urls = photoService.buildPhotoAssetUrls('p1', null, '2026-03-01T00:00:00.000Z');
+
+      expect(urls.fileUrl).toBe(
+        `/api/photos/p1/file?v=${encodeURIComponent('2026-03-01T00:00:00.000Z')}`,
+      );
+      expect(urls.thumbnailUrl).toBe(
+        `/api/photos/p1/thumbnail?v=${encodeURIComponent('2026-03-01T00:00:00.000Z')}`,
+      );
+    });
+
+    it('keeps Photo.thumbnailUrl identical to the shared builder and the fileUrl unversioned', async () => {
+      const photo = await photoService.uploadPhoto(
+        db,
+        tempStoragePath,
+        Buffer.from('jpeg-urls'),
+        'urls.jpg',
+        'image/jpeg',
+        'test',
+        'entity-urls',
+        userId,
+      );
+
+      const v = encodeURIComponent(photo.annotatedAt ?? photo.updatedAt);
+      expect(photo.thumbnailUrl).toBe(`/api/photos/${photo.id}/thumbnail?v=${v}`);
+      expect(photo.fileUrl).toBe(`/api/photos/${photo.id}/file`);
     });
   });
 });

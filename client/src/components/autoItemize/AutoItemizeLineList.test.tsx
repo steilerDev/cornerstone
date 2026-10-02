@@ -26,6 +26,22 @@ import { createElement } from 'react';
 // ─── Mocks must come before any static imports ────────────────────────────────
 
 // Mock categoryUtils to avoid needing real translation infrastructure in the real AutoItemizeLineCard
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../lib/categoryUtils.js', () => ({
   getCategoryDisplayName: (_t: unknown, name: string, _translationKey: unknown) => name,
   useCategoryDisplayName: (_name: string, _translationKey: unknown) => _name,
@@ -246,6 +262,46 @@ describe('AutoItemizeLineList', () => {
     renderList(lines, { discretionarySourceId: undefined });
 
     expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  // #2149 — a linked row keeps its original source, so its stale extracted source id must not
+  // trigger the discretionary note.
+  it('does not render the discretionary note for a linked row whose extracted source is discretionary', () => {
+    const lines = [
+      makeLine('r1', { budgetSourceId: 'disc-1', assignedBudgetLineId: 'wib-1' }),
+      makeLine('r2', { budgetSourceId: 'src-1' }),
+    ];
+    renderList(lines, { discretionarySourceId: 'disc-1' });
+
+    expect(screen.queryByRole('note')).not.toBeInTheDocument();
+  });
+
+  it('still renders the discretionary note when an unlinked row is discretionary alongside a linked one', () => {
+    const lines = [
+      makeLine('r1', { budgetSourceId: 'disc-1', assignedBudgetLineId: 'wib-1' }),
+      makeLine('r2', { budgetSourceId: 'disc-1' }),
+    ];
+    renderList(lines, { discretionarySourceId: 'disc-1' });
+
+    expect(screen.getByRole('note')).toBeInTheDocument();
+  });
+
+  it('passes formatCurrency down to linked cards (planned amount is formatted)', () => {
+    const lines = [
+      makeLine('r1', {
+        assignedBudgetLineId: 'wib-1',
+        assignedBudgetLineType: 'work_item',
+        assignedBudgetLineSnapshot: {
+          plannedAmount: 5000,
+          includesVat: true,
+          budgetCategory: null,
+          budgetSource: null,
+        },
+      }),
+    ];
+    renderList(lines);
+
+    expect(screen.getByTestId('linked-line-planned')).toHaveTextContent('€5000.00');
   });
 
   // 9. Callbacks propagated through to AutoItemizeLineCard (via real DOM interactions)

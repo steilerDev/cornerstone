@@ -98,7 +98,7 @@ The orchestrator uses the following skills to drive work. Each skill contains th
 | `/epic-run`      | Autonomous end-to-end epic: plan, develop all stories, close                                                                                                            | Epic description or issue number                                |
 | `/batch-develop` | Sequential development from a list/file: **each item gets its own branch and PR** (not bundled — contrast with `/develop`'s multi-item mode, which bundles into one PR) | Issue number list, or falls back to `/tmp/batch-queue.md`       |
 | `/mini-epic`     | Analyze a spec, decompose into 2–6 work items, challenge assumptions with the user, hand off to `/batch-develop`                                                        | Inline spec, `@file`, or issue number                           |
-| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, file adoption follow-ups                                          | None (always processes the full queue)                          |
+| `/dependabot`    | Process every open Dependabot PR and security alert: changelog review, merge, fix, remediate orphans, implement or report adoptions                                     | None (always processes the full queue)                          |
 | `/fix-e2e`       | Iteratively analyze and fix failing E2E tests from a CI run until all shards pass                                                                                       | GitHub Actions run URL or ID                                    |
 | `/review-pr`     | Comprehensive full-team review of a PR not created by `/develop` (external contributions, Dependabot, re-reviews)                                                       | PR number                                                       |
 
@@ -111,7 +111,7 @@ Execution skills track their steps with the harness task tools. The standard rul
 - **Create the task list up front** (one task per skill step) before executing step 1, and keep it 1:1 with the skill's step numbering.
 - **Mark progress live**: set a task `in_progress` before starting its step and `completed` immediately after finishing it — never batch updates.
 - **Recovery**: after context compaction or session resume, call `TaskList` first and continue from the earliest non-completed task instead of restarting the skill.
-- **Dynamic tasks**: work discovered mid-skill (fix loops, follow-ups) gets its own task appended at the point of discovery, so the list stays a faithful record.
+- **Dynamic tasks**: work discovered mid-skill (fix loops, in-session fix PRs) gets its own task appended at the point of discovery, so the list stays a faithful record.
 
 ### Shared Mechanics Scripts
 
@@ -157,12 +157,14 @@ All requested reviewers must approve per the Reviewer Verdict Policy below befor
 
 ### Reviewer Verdict Policy
 
-One verdict matrix for all reviewer agents (product-architect, security-engineer, product-owner, ux-designer) — **fix-or-block**, designed so work completes in the session that started it:
+One verdict matrix for all reviewer agents (product-architect, security-engineer, product-owner, ux-designer) — **fix-or-block, no deferrals**: every finding is fixed in the session that found it, and the session ends with no new open issues or PRs.
 
-- **`gh pr review --request-changes`** — any Critical/High finding, any acceptance-criteria/API-contract/design-system violation, **and any Medium/Low finding that is low-effort and contained to the PR's files**. Label such findings `fix-in-session`; they are fixed in the same PR before merge, never deferred.
-- **`gh pr review --approve`** — no findings, or only findings that are genuinely out of scope for this PR (require a schema change, a new dependency, or touch unrelated code). Every deferral **must** be filed as a GitHub issue referenced in the review comment, with a one-line justification of why it cannot be fixed in-session. An unfiled or unjustified deferral is a policy violation, not an approval.
+- **`gh pr review --approve`** — **only with zero findings.** An approval that lists findings is a policy violation.
+- **`gh pr review --request-changes`** — **any finding, of any severity** (Critical through Low, nits included), including out-of-scope findings in touched or adjacent code. Label each finding `fix-in-session`. It is fixed in-session: in this PR when it touches this PR's files or their immediate neighbours, otherwise as a **separate fix PR in the same session** that the orchestrator schedules immediately (before the next story or batch item) and drives to merge. A finding that needs a schema change or a new dependency is still fixed in-session — it just goes through the architect first.
+- **Never file follow-up, deferral, or "tech-debt later" issues** — this applies to every agent, not just reviewers. There is no "approve and track it in an issue" path. Creating issues remains allowed only for **new work the user asks for** and **bugs the user reports** (e.g. `/develop` description entries, `/release` feedback grouping, `/mini-epic` work items).
+- **Findings that need a product decision** (ambiguous requirement, conflicting AC, a trade-off only the user can make) are escalated to the user **in-session** with the options laid out — never filed as an issue for later.
 - **Never use `--comment` as a verdict** — with one mechanical exception: GitHub rejects `--approve`/`--request-changes` from the token that authored the PR. When that happens, post the review as a comment whose **first line** is `VERDICT: APPROVE` or `VERDICT: REQUEST_CHANGES`; the orchestrator treats it identically.
-- **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further.
+- **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further — never convert them into issues.
 
 ### Delegation Enforcement
 
@@ -251,7 +253,7 @@ Cornerstone uses a two-tier release model:
 
 Both `main` and `beta` require PRs with passing `Quality Gates`. `main` additionally requires `E2E Gates`. Force pushes and deletions are blocked on both branches.
 
-Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (errors), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
+Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Quality Gates` covers ESLint (zero warnings), the Prettier format check, typecheck, Stylelint, build, unit tests, Docker build, and E2E smoke tests — ESLint and the format check run on every PR regardless of path filter — it does **not** wait for full E2E shards, so beta PRs can merge quickly. `E2E Gates` is a separate required check on `main` only — it waits for all E2E shards and blocks promotion if any fail. On `main`-targeted PRs, E2E shards also use fail-fast: the first non-recoverable failure stops the shard (`maxFailures: 1`) and cancels remaining shards.
 
 ### Local Validation Policy
 
@@ -260,10 +262,10 @@ Full E2E tests (16 shards × 3 viewports) run on all PRs for visibility. `Qualit
 ```bash
 npm run lint:fix    # auto-fix all fixable issues
 npm run format      # apply Prettier formatting
-npm run lint        # must report zero errors (CI-enforced)
+npm run lint        # must report zero warnings or errors (CI-enforced)
 ```
 
-If `npm run lint` still reports errors after auto-fix, they must be resolved before handback. Existing warnings are tracked in #2118; do not add new warnings in files you touch. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
+If `npm run lint` still reports warnings or errors after auto-fix, they must be resolved before handback. Repo-wide `npm run format` is drift-free (`wiki/` is Prettier-ignored). The dev-team-lead validates lint cleanliness as part of `[MODE: review]` — work with outstanding lint issues is returned for fixes.
 
 **Do NOT run `npm test`, `npm run typecheck`, or `npm run build` manually.** CI Quality Gates (typecheck + test + build) run on every PR and own full validation.
 
@@ -353,21 +355,21 @@ When `gh` or `git push` commands fail with a GitHub rate-limit error (primary AP
 
 ## Tech Stack
 
-| Layer                      | Technology              | Version | ADR     |
-| -------------------------- | ----------------------- | ------- | ------- |
-| Server                     | Fastify                 | 5.x     | ADR-001 |
-| Client                     | React                   | 19.x    | ADR-002 |
-| Client Routing             | React Router            | 7.x     | ADR-002 |
-| Database                   | SQLite (better-sqlite3) | --      | ADR-003 |
-| ORM                        | Drizzle ORM             | 0.45.x  | ADR-003 |
-| Bundler (client)           | Webpack                 | 5.x     | ADR-004 |
-| Styling                    | CSS Modules             | --      | ADR-006 |
-| Testing (unit/integration) | Jest (ts-jest)          | 30.x    | ADR-005 |
-| Testing (E2E)              | Playwright              | 1.59.x  | ADR-005 |
-| Language                   | TypeScript              | ~6.0    | --      |
-| Runtime                    | Node.js                 | 24 LTS  | --      |
-| Container                  | Docker (DHI Alpine)     | --      | --      |
-| Monorepo                   | npm workspaces          | --      | ADR-007 |
+| Layer                      | Technology              | Version           | ADR     |
+| -------------------------- | ----------------------- | ----------------- | ------- |
+| Server                     | Fastify                 | 5.x               | ADR-001 |
+| Client                     | React                   | 19.x              | ADR-002 |
+| Client Routing             | React Router            | 7.x               | ADR-002 |
+| Database                   | SQLite (better-sqlite3) | --                | ADR-003 |
+| ORM                        | Drizzle ORM             | 0.45.x            | ADR-003 |
+| Bundler (client)           | Webpack                 | 5.x               | ADR-004 |
+| Styling                    | CSS Modules             | --                | ADR-006 |
+| Testing (unit/integration) | Jest (ts-jest)          | 30.x              | ADR-005 |
+| Testing (E2E)              | Playwright              | 1.63.x            | ADR-005 |
+| Language                   | TypeScript              | ~6.0              | --      |
+| Runtime                    | Node.js                 | 24 LTS (>= 24.11) | --      |
+| Container                  | Docker (DHI Alpine)     | --                | --      |
+| Monorepo                   | npm workspaces          | --                | ADR-007 |
 
 Full rationale for each decision is in the corresponding ADR on the GitHub Wiki.
 
@@ -411,7 +413,10 @@ cornerstone/
 - **Avoid native binary dependencies for frontend tooling.** Tools like esbuild, SWC, Lightning CSS, and Tailwind CSS v4 (oxide engine) ship platform-specific native binaries that crash on ARM64 emulation environments. Prefer pure JavaScript alternatives (Webpack, Babel, PostCSS, CSS Modules). Native addons for the server (e.g., better-sqlite3) are acceptable since the Docker builder can install build tools. esbuild has been fully eliminated from the dependency tree.
 - **Zero known fixable vulnerabilities.** Run `npm audit` before committing dependency changes. All fixable vulnerabilities must be resolved.
 - **Always regenerate the lockfile with `npm install`, not `npm install --package-lock-only`** — `--package-lock-only` can silently nest a dependency under a workspace directory instead of hoisting it to the root `node_modules/`, breaking TypeScript type resolution for other workspace consumers. After any `package.json` edit, run a full `npm install` to produce a correct lockfile.
-- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` (and `babel-loader`) resolve `webpack-dev-server` / `@babel/core` from their own root-hoisted location, so whenever the root slot holds a different version than the workspace pins (a different major forced by `docs/` (Docusaurus), or just a different minor, see #2138 for `webpack`), the workspace's nested copy is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack-dev-server`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major.
+- **Root hoisting anchors for CLI-loaded tools.** `webpack-cli` resolves `webpack` and `webpack-dev-server`, and `babel-loader` resolves its `@babel/core` peer, from their own root-hoisted location. So whenever the root slot holds a different version than the workspace pins (a different major forced by `docs/` (Docusaurus), or just a different minor), the workspace's nested copy is never used. Declare the workspace's exact version as a **root devDependency** too (currently `webpack`, `webpack-dev-server`, `@babel/core`), keep it identical to the workspace pin, and range-scope any root override (`pkg@>=X <Y`) so it never matches the anchored major. CI's `check-single-dep-version.sh konva webpack` step enforces the `webpack` anchor. `webpack-dev-server` and `@babel/core` intentionally keep a second, nested copy (Docusaurus and Jest stay on the old major).
+- **Node engine floor `>=24.11.0`** (Babel 8 requires `^22.18.0 || >=24.11.0`; the project is 24-only). Root `engines` declares it and the Dockerfile's `npm ci --engine-strict` enforces it. `.nvmrc` and the Docker base tags stay at the bare major `24`, which floats to the latest 24.x; pinning a minor would freeze or downgrade it.
+- **Accepted `npm ls` residual (Babel 8, #1823).** Jest's `babel-preset-current-node-syntax` depends on 15 `@babel/plugin-syntax-*@7` packages with peer `@babel/core ^7`, and no 8.x of them will ever exist. With the root `@babel/core@8` anchor, every `npm install`/`npm ci` prints 15 `ERESOLVE overriding peer dependency` warnings, and any `npm ls` that reaches `@babel/core` (including `npm ls --all`) exits 1 with exactly one problem, `invalid: @babel/core@8.x …/node_modules/@babel/core`. This is runtime-harmless: Jest transforms with ts-jest, and its Babel internals keep a nested core 7. Never treat that exit code alone as a failure. To sweep for _new_ invalid edges, run `npm ls --all 2>&1 | grep -oE '"[^"]+" from [^ ,]+' | sort -u | grep -v 'from node_modules/babel-preset-current-node-syntax/node_modules/@babel/plugin-syntax-'`. It must print nothing. Remove this bullet once Jest drops those 7.x syntax plugins.
+- **Accepted `npm audit` residual (bundled in `npm`).** `semantic-release` → `@semantic-release/npm` (`npm ^11.6.2`) installs the `npm` package, which _bundles_ `brace-expansion@5.0.9`, `ip-address@10.5.0` and `undici@6.28.0` (`inBundle`, under `node_modules/npm/node_modules/`). These match GHSA-q2hr-2g5m-vwhr / -qhr7-859c-m2p7 / -6j4f-fj2g-mc7p (brace-expansion <5.0.12), GHSA-rpw4-54j3-4h4q / -2vr4-cq9g-pvrc / -j6r3-76f7-8jcv / -h3mg-xc3c-68pw (ip-address <=10.7.0) and GHSA-3wwx-pv8p-q78v / -r53p-7pc4-xj5r / -rfgv-xxqx-mfg5 (undici <6.28.1). `overrides` cannot reach bundled deps, and as of 2026-10-01 no npm release bundles fixed versions (checked 11.19.1, 11.20.0, 11.21.0 and latest 12.2.0 with `npm pack`); `semantic-release` 25.0.9 and `@semantic-release/npm` 13.2.0 are already latest. They are accepted, unfixable-in-repo residuals and are the only permitted exception to "zero known fixable vulnerabilities" (the code is the release-time `npm` CLI, never shipped in the Docker image). Re-check on each `/dependabot` run: `npm pack npm@<latest in @semantic-release/npm's range>` and read the three bundled `package.json` versions; when a fixed npm ships, move the root `npm@…` override to it and delete this bullet.
 
 ## Coding Standards
 
@@ -433,7 +438,7 @@ cornerstone/
 - Use `type` imports: `import type { Foo } from './foo.js'` (enforced by ESLint `consistent-type-imports`)
 - ESM throughout (`"type": "module"` in all package.json files)
 - Include `.js` extension in import paths (required for ESM Node.js)
-- No `any` types without justification (ESLint warns on `@typescript-eslint/no-explicit-any`)
+- No `any` types without justification (ESLint `@typescript-eslint/no-explicit-any` warns, and CI fails on any warning)
 - Prefer `interface` for object shapes, `type` for unions/intersections
 
 ### Linting & Formatting
@@ -465,6 +470,9 @@ Before creating a new UI component, check if an existing shared component can be
 - `EmptyState` — empty data display with icon, message, and optional action
 - `FormError` — consistent error banner and field-level error display
 - `InfiniteScrollFooter` — scroll-driven batch loading footer: sentinel, loading/error/end-of-list states, load-more/retry button; parameterized by label props and `testIdPrefix`, no hardcoded namespace. Paired with the `useInfiniteScroll` hook (`client/src/hooks/`), which owns the `IntersectionObserver`/state-machine logic, and the `useInfiniteScrollAnnouncements` hook (`client/src/hooks/`), which owns the live-region announcement bookkeeping.
+- `SpotThumbnail` — photo-spot thumbnail link with count overlay and date (`cell`/`card` variants), or a dashed empty placeholder; all text via props, parameterized by `testId`
+- `FilterChipGroup` — pick-one chip group (`aria-pressed` toggle buttons, horizontally scrollable); parameterized by `options`/`ariaLabel`/`testIdPrefix`
+- `FileList` — list of generated files with a per-file action, status badges and a detail line; all strings come from props, `testIdPrefix` parameterized (used by the report wizard's multi-PDF step)
 
 **Rules:**
 
@@ -484,8 +492,8 @@ The application supports multiple locales (English and German) via `i18next` and
 - **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
 - **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
-- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
-- **Union-derived keys**: A union enumerated at runtime is a shared `as const` tuple with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key in new code (pre-existing template-literal sites are tracked in #2136) — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029).
+- **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, `formatFileSizeDecimal` (1 MB = 1,000,000 B; used for the report size limit and the sizes shown beside it), and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
+- **Union-derived keys**: A union enumerated at runtime is an exported `as const` tuple (in `shared/`, or client-local when only the client enumerates it, e.g. `REPORT_SKIP_REASONS`) with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029), and `templateLiteralKeys.test.ts` fails on a new template-literal key outside its allow-list.
 - **Testing**: QA verifies keys exist in both locales. E2E verifies locale detection and switching.
 - **Specs**: Dev-team-lead specs must include translation namespace, English keys to add, and a Translator Spec section.
 
@@ -544,7 +552,7 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 | `npm run test:collect`     | List all tests (suites + names) without executing them      |
 | `npm run lint`             | Lint all code                                               |
 | `npm run format`           | Format all code                                             |
-| `npm run typecheck`        | Type-check all packages                                     |
+| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)       |
 | `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                 |
 | `npm run db:migrate`       | Run pending SQL migrations                                  |
 | `npm run docs:dev`         | Start docs site dev server (port 3001)                      |

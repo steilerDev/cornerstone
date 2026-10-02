@@ -2,12 +2,29 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
+import enBudget from '../../i18n/en/budget.json';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetSectionProps } from './BudgetSection.js';
 
 // ─── Stub heavy child components ─────────────────────────────────────────────
+
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
 
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
   BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
@@ -304,6 +321,38 @@ describe('BudgetSection', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert).toHaveTextContent('Something went wrong');
+  });
+
+  it('shows no dismiss button on the inline error banner when onDismissInlineError is not provided', () => {
+    render(<BudgetSection {...buildProps([], { inlineError: 'Something went wrong' })} />);
+
+    expect(
+      within(screen.getByRole('alert')).queryByRole('button', {
+        name: enBudget.invoiceDetail.budgetLines.dismissErrorAriaLabel,
+      }),
+    ).toBeNull();
+  });
+
+  it('shows a dismiss button that calls onDismissInlineError when it is provided', () => {
+    const onDismissInlineError = jest.fn();
+    render(
+      <BudgetSection
+        {...buildProps([], { inlineError: 'Something went wrong', onDismissInlineError })}
+      />,
+    );
+
+    const button = within(screen.getByRole('alert')).getByRole('button', {
+      name: enBudget.invoiceDetail.budgetLines.dismissErrorAriaLabel,
+    });
+    fireEvent.click(button);
+
+    expect(onDismissInlineError).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not render the banner (or a dismiss button) when there is no inline error', () => {
+    render(<BudgetSection {...buildProps([], { onDismissInlineError: jest.fn() })} />);
+
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('Add Line button is visible when form is not shown', () => {

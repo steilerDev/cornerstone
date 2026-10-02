@@ -5,6 +5,7 @@
  * - Dry-run: fetches document content, extracts lines via LLM, returns with warnings
  * - Commit: persists auto-extracted lines to invoice_budget_lines and work_item_budgets
  * - Mode 'replace': deletes existing auto-extracted lines before inserting new ones
+ * - An existing budget line can be linked at most once (409 BUDGET_LINE_ALREADY_LINKED)
  */
 
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -19,12 +20,13 @@ import {
   budgetSources,
   budgetCategories,
 } from '../db/schema.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
   NotFoundError,
   ValidationError,
   ItemizedSumExceedsInvoiceError,
+  BudgetLineAlreadyLinkedError,
 } from '../errors/AppError.js';
 import {
   getProvider,
@@ -43,6 +45,7 @@ import type {
   InvoiceBudgetLineListDetailResponse,
   InvoicePatchForAutoItemize,
   AutoItemizeDryRunResponse,
+  AutoItemizePreviewResponse,
   AutoItemizeWarning,
   InvoiceStatus,
   MergeLinesRequest,
@@ -119,6 +122,7 @@ function computeWarnings(lines: ExtractedLine[], invoiceTotal: number): AutoItem
  *   - mode 'replace' deletes existing auto-extracted lines (origin='auto') first
  *   - all new lines get: work_item_id=NULL, origin='auto', budget_source_id='discretionary-system',
  *     confidence='invoice', vendor_id=invoice.vendor_id
+ * - An existing budget line can be linked at most once (409 BUDGET_LINE_ALREADY_LINKED)
  */
 export async function autoItemize(
   db: DbType,
@@ -255,7 +259,16 @@ export async function autoItemize(
       }
 
       // 4b-4d. Persist lines (includes validation)
-      persistLines(db, invoiceId, invoice.vendorId, userId, validatedLines, effectiveInvoiceAmount);
+      persistLines(
+        db,
+        invoiceId,
+        invoice.vendorId,
+        userId,
+        validatedLines,
+        effectiveInvoiceAmount,
+        config.vatRate,
+        body.mode === 'replace',
+      );
 
       // 4e. Return the full invoice budget lines list
       return invoiceBudgetLineService.listInvoiceBudgetLines(db, invoiceId);
@@ -268,8 +281,106 @@ export async function autoItemize(
   );
 }
 
+function isAssignExistingLine(line: ExtractedLine): boolean {
+  return (
+    line.assignmentMode === 'assign-existing' ||
+    (line.assignmentMode === undefined && !!line.assignedBudgetLineId)
+  );
+}
+
 /**
- * Persist extracted lines into invoice_budget_lines and work_item_budgets.
+ * Validate all assign-existing rows up front (before any write) and resolve, per row, the junction
+ * to overwrite (replace mode, line already linked to this invoice) or null (insert a new junction).
+ *
+ * @throws ValidationError if assignedBudgetLineId/Type is missing
+ * @throws NotFoundError if the budget line does not exist
+ * @throws BudgetLineAlreadyLinkedError on duplicate rows, a link to another invoice, or a link to
+ *   this invoice outside replace mode
+ */
+function resolveAssignExistingTargets(
+  db: DbType,
+  invoiceId: string,
+  lines: ExtractedLine[],
+  isReplaceMode: boolean,
+): Map<ExtractedLine, string | null> {
+  const targets = new Map<ExtractedLine, string | null>();
+  const seen = new Set<string>();
+
+  for (const line of lines) {
+    if (!isAssignExistingLine(line)) continue;
+
+    const budgetLineId = line.assignedBudgetLineId;
+    const budgetLineType = line.assignedBudgetLineType;
+    if (!budgetLineId || !budgetLineType) {
+      throw new ValidationError(
+        'assignedBudgetLineId and assignedBudgetLineType are required when assignmentMode is assign-existing',
+      );
+    }
+
+    let exists: { id: string } | undefined;
+    if (budgetLineType === 'work_item') {
+      exists = db
+        .select({ id: workItemBudgets.id })
+        .from(workItemBudgets)
+        .where(eq(workItemBudgets.id, budgetLineId))
+        .get();
+    } else if (budgetLineType === 'household_item') {
+      exists = db
+        .select({ id: householdItemBudgets.id })
+        .from(householdItemBudgets)
+        .where(eq(householdItemBudgets.id, budgetLineId))
+        .get();
+    }
+    if (exists === undefined) {
+      throw new NotFoundError(`Budget line ${budgetLineId} (type: ${budgetLineType}) not found`);
+    }
+
+    const key = `${budgetLineType}:${budgetLineId}`;
+    if (seen.has(key)) {
+      throw new BudgetLineAlreadyLinkedError(
+        `Budget line ${budgetLineId} is assigned more than once in this request`,
+        { budgetLineId, budgetLineType, reason: 'duplicate_in_request' },
+      );
+    }
+    seen.add(key);
+
+    // Unique indexes guarantee at most one junction per budget line, regardless of invoice
+    const existing = db
+      .select({ id: invoiceBudgetLines.id, invoiceId: invoiceBudgetLines.invoiceId })
+      .from(invoiceBudgetLines)
+      .where(
+        budgetLineType === 'work_item'
+          ? eq(invoiceBudgetLines.workItemBudgetId, budgetLineId)
+          : eq(invoiceBudgetLines.householdItemBudgetId, budgetLineId),
+      )
+      .get();
+
+    if (existing && existing.invoiceId !== invoiceId) {
+      throw new BudgetLineAlreadyLinkedError(
+        'Budget line is already linked to a different invoice',
+        {
+          budgetLineId,
+          budgetLineType,
+          reason: 'linked_to_other_invoice',
+        },
+      );
+    }
+    if (existing && !isReplaceMode) {
+      throw new BudgetLineAlreadyLinkedError('Budget line is already linked to this invoice', {
+        budgetLineId,
+        budgetLineType,
+        reason: 'linked_to_this_invoice',
+      });
+    }
+    targets.set(line, existing ? existing.id : null);
+  }
+
+  return targets;
+}
+
+/**
+ * Persist extracted lines into invoice_budget_lines (and new work_item_budgets rows for create-new).
+ * Assign-existing lines create only the junction row; the existing budget line is never modified.
  * Must be called inside a db.transaction().
  * Extracted from the commit branch of autoItemize() for reuse in EPIC-18 create-on-confirm flow.
  *
@@ -279,10 +390,16 @@ export async function autoItemize(
  * @param userId - User ID for createdBy field
  * @param lines - Extracted lines to persist
  * @param effectiveInvoiceAmount - Invoice amount for validation (may differ from original if patched)
+ * @param vatRate - Configured VAT rate (config.vatRate) used to gross up net lines
+ * @param isReplaceMode - true only for auto-itemize mode 'replace': a budget line already linked to
+ *   THIS invoice has its single junction's itemizedAmount overwritten with the row's amount;
+ *   otherwise that case throws 409
  * @returns Object with totalItemized amount for remaining calculation
  * @throws ItemizedSumExceedsInvoiceError if sum of itemized amounts exceeds invoice total
  * @throws NotFoundError if budget line IDs are invalid
  * @throws ValidationError if assignment mode is invalid
+ * @throws BudgetLineAlreadyLinkedError if a budget line is assigned more than once in the request,
+ *   is linked to a different invoice, or is linked to this invoice in non-replace mode
  */
 export function persistLines(
   db: DbType,
@@ -291,6 +408,8 @@ export function persistLines(
   userId: string,
   lines: ExtractedLine[],
   effectiveInvoiceAmount: number,
+  vatRate: number,
+  isReplaceMode = false,
 ): { totalItemized: number } {
   const now = new Date().toISOString();
 
@@ -304,146 +423,36 @@ export function persistLines(
     throw new Error('Discretionary budget source not found');
   }
 
+  // Validate every assign-existing row before any write happens
+  const assignTargets = resolveAssignExistingTargets(db, invoiceId, lines, isReplaceMode);
+
   let totalItemized = 0;
 
   for (const extractedLine of lines) {
     const invoiceBudgetLineId = randomUUID();
 
     // Determine assignment mode (explicit or inferred from assignedBudgetLineId)
-    const isAssignExisting =
-      extractedLine.assignmentMode === 'assign-existing' ||
-      (extractedLine.assignmentMode === undefined && !!extractedLine.assignedBudgetLineId);
+    const isAssignExisting = isAssignExistingLine(extractedLine);
     const isCreateNew =
       extractedLine.assignmentMode === 'create-new' ||
       (extractedLine.assignmentMode === undefined && !extractedLine.assignedBudgetLineId);
 
-    // Case 1: Pre-existing budget line assignment + field-level update
+    // Case 1: Link an existing budget line — junction row only. The budget line itself is never modified (#2149).
     if (isAssignExisting) {
-      if (!extractedLine.assignedBudgetLineId || !extractedLine.assignedBudgetLineType) {
-        throw new ValidationError(
-          'assignedBudgetLineId and assignedBudgetLineType are required when assignmentMode is assign-existing',
-        );
-      }
+      const lineItemizedAmount = effectiveLineAmount(
+        { amount: extractedLine.totalAmount ?? 0, includesVat: extractedLine.includesVat },
+        vatRate,
+      );
 
-      // Look up the budget line in the appropriate table
-      let existingBudgetLine:
-        typeof workItemBudgets.$inferSelect | typeof householdItemBudgets.$inferSelect | undefined =
-        undefined;
+      // A budget line is linked at most once: replace mode overwrites the single existing junction
+      const junctionId = assignTargets.get(extractedLine) ?? null;
 
-      if (extractedLine.assignedBudgetLineType === 'work_item') {
-        existingBudgetLine = db
-          .select()
-          .from(workItemBudgets)
-          .where(eq(workItemBudgets.id, extractedLine.assignedBudgetLineId))
-          .get();
-      } else if (extractedLine.assignedBudgetLineType === 'household_item') {
-        existingBudgetLine = db
-          .select()
-          .from(householdItemBudgets)
-          .where(eq(householdItemBudgets.id, extractedLine.assignedBudgetLineId))
-          .get();
-      }
-
-      if (existingBudgetLine === undefined) {
-        throw new NotFoundError(
-          `Budget line ${extractedLine.assignedBudgetLineId} (type: ${extractedLine.assignedBudgetLineType}) not found`,
-        );
-      }
-
-      // Build a diff and update only changed fields
-      const updates: Partial<typeof workItemBudgets.$inferInsert> = {};
-      let hasChanges = false;
-
-      if (
-        extractedLine.description &&
-        extractedLine.description !== existingBudgetLine.description
-      ) {
-        updates.description = extractedLine.description;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.quantity !== undefined &&
-        extractedLine.quantity !== existingBudgetLine.quantity
-      ) {
-        updates.quantity = extractedLine.quantity;
-        hasChanges = true;
-      }
-
-      if (extractedLine.unit && extractedLine.unit !== existingBudgetLine.unit) {
-        updates.unit = extractedLine.unit;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.unitPrice !== undefined &&
-        extractedLine.unitPrice !== existingBudgetLine.unitPrice
-      ) {
-        updates.unitPrice = extractedLine.unitPrice;
-        hasChanges = true;
-      }
-
-      if (extractedLine.totalAmount !== existingBudgetLine.plannedAmount) {
-        updates.plannedAmount = extractedLine.totalAmount;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.includesVat !== undefined &&
-        extractedLine.includesVat !== existingBudgetLine.includesVat
-      ) {
-        updates.includesVat = extractedLine.includesVat;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.budgetCategoryId !== undefined &&
-        extractedLine.budgetCategoryId !== existingBudgetLine.budgetCategoryId
-      ) {
-        updates.budgetCategoryId = extractedLine.budgetCategoryId;
-        hasChanges = true;
-      }
-
-      if (
-        extractedLine.budgetSourceId !== undefined &&
-        extractedLine.budgetSourceId !== existingBudgetLine.budgetSourceId
-      ) {
-        updates.budgetSourceId = extractedLine.budgetSourceId;
-        hasChanges = true;
-      }
-
-      // Always update updatedAt if any field changed
-      if (hasChanges) {
-        updates.updatedAt = now;
-
-        if (extractedLine.assignedBudgetLineType === 'work_item') {
-          db.update(workItemBudgets)
-            .set(updates)
-            .where(eq(workItemBudgets.id, extractedLine.assignedBudgetLineId))
-            .run();
-        } else {
-          db.update(householdItemBudgets)
-            .set(updates as Partial<typeof householdItemBudgets.$inferInsert>)
-            .where(eq(householdItemBudgets.id, extractedLine.assignedBudgetLineId))
-            .run();
-        }
-      }
-
-      // Create the invoice_budget_lines junction row if it doesn't already exist
-      const existingJunction = db
-        .select()
-        .from(invoiceBudgetLines)
-        .where(
-          and(
-            eq(invoiceBudgetLines.invoiceId, invoiceId),
-            extractedLine.assignedBudgetLineType === 'work_item'
-              ? eq(invoiceBudgetLines.workItemBudgetId, extractedLine.assignedBudgetLineId)
-              : eq(invoiceBudgetLines.householdItemBudgetId, extractedLine.assignedBudgetLineId),
-          ),
-        )
-        .get();
-
-      if (!existingJunction) {
+      if (junctionId) {
+        db.update(invoiceBudgetLines)
+          .set({ itemizedAmount: lineItemizedAmount, updatedAt: now })
+          .where(eq(invoiceBudgetLines.id, junctionId))
+          .run();
+      } else {
         const workItemBudgetId =
           extractedLine.assignedBudgetLineType === 'work_item'
             ? extractedLine.assignedBudgetLineId
@@ -459,20 +468,14 @@ export function persistLines(
             invoiceId,
             workItemBudgetId,
             householdItemBudgetId,
-            itemizedAmount: effectiveLineAmount({
-              amount: extractedLine.totalAmount ?? 0,
-              includesVat: extractedLine.includesVat,
-            }),
+            itemizedAmount: lineItemizedAmount,
             createdAt: now,
             updatedAt: now,
           })
           .run();
       }
 
-      totalItemized += effectiveLineAmount({
-        amount: extractedLine.totalAmount ?? 0,
-        includesVat: extractedLine.includesVat,
-      });
+      totalItemized += lineItemizedAmount;
     } else if (isCreateNew) {
       // Case 2: Auto-create a new work_item_budget with per-line category/source
       const workItemBudgetId = randomUUID();
@@ -482,6 +485,11 @@ export function persistLines(
         extractedLine.budgetSourceId !== undefined
           ? extractedLine.budgetSourceId
           : discretionarySource.id;
+
+      const lineItemizedAmount = effectiveLineAmount(
+        { amount: extractedLine.totalAmount ?? 0, includesVat: extractedLine.includesVat },
+        vatRate,
+      );
 
       // Insert work_item_budget with auto origin
       db.insert(workItemBudgets)
@@ -512,26 +520,27 @@ export function persistLines(
           invoiceId,
           workItemBudgetId,
           householdItemBudgetId: null,
-          itemizedAmount: effectiveLineAmount({
-            amount: extractedLine.totalAmount ?? 0,
-            includesVat: extractedLine.includesVat,
-          }),
+          itemizedAmount: lineItemizedAmount,
           createdAt: now,
           updatedAt: now,
         })
         .run();
 
-      totalItemized += effectiveLineAmount({
-        amount: extractedLine.totalAmount ?? 0,
-        includesVat: extractedLine.includesVat,
-      });
+      totalItemized += lineItemizedAmount;
     }
   }
 
-  // Validate Σ itemized ≤ effective invoice.amount
-  if (exceedsAmount(totalItemized, effectiveInvoiceAmount)) {
+  // Validate Σ itemized (all rows stored for the invoice, including this call's additions and
+  // after any 'replace' deletions) ≤ effective invoice.amount
+  const storedTotal = db
+    .select({ total: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
+    .from(invoiceBudgetLines)
+    .where(eq(invoiceBudgetLines.invoiceId, invoiceId))
+    .get();
+  const storedItemizedTotal = storedTotal?.total ?? totalItemized;
+  if (exceedsAmount(storedItemizedTotal, effectiveInvoiceAmount)) {
     throw new ItemizedSumExceedsInvoiceError(
-      `Sum of itemized amounts (${totalItemized}) exceeds invoice total (${effectiveInvoiceAmount})`,
+      `Sum of itemized amounts (${storedItemizedTotal}) exceeds invoice total (${effectiveInvoiceAmount})`,
     );
   }
 
@@ -557,6 +566,7 @@ interface ExtractionCoreResult {
   extractedDueDate?: string;
   extractedInvoiceNumber?: string;
   extractedNotes?: string;
+  extractedVendorName?: string;
   chosenVendorName?: string | null;
 }
 
@@ -608,6 +618,7 @@ async function runExtractionCore(
     ...(result.dueDate !== undefined ? { extractedDueDate: result.dueDate } : {}),
     ...(result.invoiceNumber !== undefined ? { extractedInvoiceNumber: result.invoiceNumber } : {}),
     ...(result.notes !== undefined ? { extractedNotes: result.notes } : {}),
+    ...(result.vendorName !== undefined ? { extractedVendorName: result.vendorName } : {}),
     ...(result.chosenVendorName !== undefined ? { chosenVendorName: result.chosenVendorName } : {}),
   };
 }
@@ -622,7 +633,8 @@ async function runExtractionCore(
  * @param config - Application config
  * @param body - Request body with paperlessDocumentId and locale
  * @param paperlessAuth - Paperless authentication
- * @returns Preview response with lines, suggested vendor ID, and optional metadata
+ * @returns Preview response with lines, suggested vendor ID, extractedVendorName (issuer name as
+ *   printed, independent of the match; Story #2148), and optional metadata
  * @throws NotFoundError if document not found
  * @throws Various extraction errors from LLM provider
  */
@@ -631,7 +643,7 @@ export async function previewAutoItemize(
   config: AppConfig,
   body: { paperlessDocumentId: number; locale?: string },
   paperlessAuth: { url: string; apiToken: string },
-) {
+): Promise<AutoItemizePreviewResponse> {
   // Load all vendors for injection into LLM prompt
   const allVendors = db.select({ id: vendors.id, name: vendors.name }).from(vendors).all();
 
@@ -662,9 +674,14 @@ export async function previewAutoItemize(
     suggestedVendorId = match?.id ?? null;
   }
 
+  // Fallback to the matched vendor name is capped at 200 chars like the extracted path.
+  const extractedVendorName =
+    result.extractedVendorName ?? (result.chosenVendorName?.trim().slice(0, 200) || undefined);
+
   return {
     lines: result.lines,
     suggestedVendorId,
+    ...(extractedVendorName ? { extractedVendorName } : {}),
     ...(result.extractedInvoiceNumber !== undefined
       ? { extractedInvoiceNumber: result.extractedInvoiceNumber }
       : {}),
@@ -775,6 +792,7 @@ export async function commitAutoItemizeCreate(
       userId,
       validatedLines,
       body.invoice.amount,
+      config.vatRate,
     );
 
     // 7. Fetch and return invoice with budget lines

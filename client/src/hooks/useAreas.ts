@@ -1,7 +1,9 @@
+import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
 import type { AreaResponse, CreateAreaRequest, UpdateAreaRequest } from '@cornerstone/shared';
 import { fetchAreas, createArea, updateArea, deleteArea } from '../lib/areasApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
+import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseAreasResult {
   areas: AreaResponse[];
@@ -19,6 +21,9 @@ export interface UseAreasResult {
  * Mutation methods refetch the list after success.
  */
 export function useAreas(): UseAreasResult {
+  const { t } = useTranslation('settings');
+  const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [areas, setAreas] = useState<AreaResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,11 +44,11 @@ export function useAreas(): UseAreasResult {
       } catch (err) {
         if (!cancelled) {
           if (err instanceof ApiClientError) {
-            setError(err.error.message ?? 'Failed to load areas.');
+            setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError('Network error: Unable to connect to the server.');
+            setError(tCommon('requestErrors.network'));
           } else {
-            setError('An unexpected error occurred while loading areas.');
+            setError(t('manage.areas.loadError'));
           }
         }
       } finally {
@@ -58,7 +63,7 @@ export function useAreas(): UseAreasResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount]);
+  }, [fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

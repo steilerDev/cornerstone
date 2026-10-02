@@ -93,6 +93,28 @@ export class PaperlessInvoiceReviewPage {
   /** Clear selection button on vendor SearchPicker */
   readonly vendorClearButton: Locator;
 
+  // ─── Issue #2148: inline vendor creation ─────────────────────────────────────
+
+  /** "Add new vendor" / `Add new vendor "<query>"` row inside the vendor dropdown */
+  readonly vendorCreateOption: Locator;
+  /** VendorCreateModal dialog (title "Add Vendor") */
+  readonly vendorCreateModal: Locator;
+  readonly vendorCreateNameInput: Locator;
+  readonly vendorCreatePhoneInput: Locator;
+  readonly vendorCreateEmailInput: Locator;
+  /** Submit button: "Add Vendor" / "Adding..." */
+  readonly vendorCreateSubmit: Locator;
+  readonly vendorCreateCancel: Locator;
+  /** Server error banner (FormError variant="banner", role="alert") inside the modal */
+  readonly vendorCreateErrorBanner: Locator;
+  /** sr-only polite status region used for the "created and selected" announcement */
+  readonly statusRegion: Locator;
+  readonly invoiceNumberInput: Locator;
+  readonly notesInput: Locator;
+
+  /** Top-level "Budget source" default select (#invoice-budget-source), Story #2158 */
+  readonly budgetSourceSelect: Locator;
+
   /** SuggestionBadge shown when vendor was LLM-suggested */
   readonly vendorSuggestionBadge: Locator;
 
@@ -103,6 +125,9 @@ export class PaperlessInvoiceReviewPage {
    * The outer wrapper <div id="vendor-error"> is a unique, stable anchor for this locator.
    */
   readonly vendorError: Locator;
+
+  /** Invoice Status <select id="invoice-status"> (pending/paid/claimed/quotation) */
+  readonly statusSelect: Locator;
 
   /** "Create Invoice & Itemize" confirm button (text-based locator — works in all layout variants) */
   readonly confirmButton: Locator;
@@ -189,6 +214,7 @@ export class PaperlessInvoiceReviewPage {
     this.errorContainer = page.locator(
       '[role="alert"][class*="errorState"], div[class*="errorState"]',
     );
+    this.statusSelect = page.locator('#invoice-status');
     this.backToInvoicesButton = page.getByRole('button', { name: /Back to Invoices/i });
 
     // Ready state — vendor section
@@ -205,6 +231,26 @@ export class PaperlessInvoiceReviewPage {
     // SearchPicker portals dropdown to document.body
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
+
+    this.vendorCreateOption = this.vendorPortalDropdown.getByRole('option', {
+      name: /^Add new vendor/,
+    });
+    this.vendorCreateModal = page.getByRole('dialog', { name: 'Add Vendor' });
+    this.vendorCreateNameInput = this.vendorCreateModal.locator('#vendor-name');
+    this.vendorCreatePhoneInput = this.vendorCreateModal.locator('#vendor-phone');
+    this.vendorCreateEmailInput = this.vendorCreateModal.locator('#vendor-email');
+    this.vendorCreateSubmit = this.vendorCreateModal.getByRole('button', {
+      name: /^(Add Vendor|Adding\.\.\.)$/,
+    });
+    this.vendorCreateCancel = this.vendorCreateModal.getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
+    this.vendorCreateErrorBanner = this.vendorCreateModal.locator('[role="alert"]');
+    this.statusRegion = page.locator('[class*="formColumn"] [role="status"]');
+    this.invoiceNumberInput = page.locator('#invoice-number');
+    this.notesInput = page.locator('#notes');
+    this.budgetSourceSelect = page.locator('#invoice-budget-source');
     // SuggestionBadge is rendered as a span with class*="badge" in a suggestionRow
     this.vendorSuggestionBadge = page.locator('[class*="suggestionRow"] [class*="badge"]');
 
@@ -310,7 +356,22 @@ export class PaperlessInvoiceReviewPage {
   async setVendor(name: string): Promise<void> {
     await this.vendorInput.fill(name);
     await this.vendorPortalDropdown.waitFor({ state: 'visible' });
-    await this.vendorPortalDropdown.getByRole('option', { name }).click();
+    await this.vendorPortalDropdown.getByRole('option', { name, exact: true }).click();
+  }
+
+  /**
+   * Focus the vendor picker and activate the "Add new vendor" row (opens the create modal).
+   * Pass `query` to type into the picker first (otherwise the dropdown opens on focus).
+   */
+  async openCreateVendor(query?: string): Promise<void> {
+    if (query !== undefined) {
+      await this.vendorInput.fill(query);
+    } else {
+      await this.vendorInput.focus();
+    }
+    await this.vendorPortalDropdown.waitFor({ state: 'visible' });
+    await this.vendorCreateOption.click();
+    await this.vendorCreateModal.waitFor({ state: 'visible' });
   }
 
   /**
@@ -391,12 +452,76 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
+   * Per-line funding-source select (id="source-<rowId>") of the line card at the given
+   * 0-based index. Only rendered for lines WITHOUT a queued inline draft (drafts expose
+   * `#inline-<rowId>-budget-source` instead — see getInlineDraftSourceSelect()).
+   */
+  lineSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="source-"]');
+  }
+
+  /** Budget-source select inside the inline BudgetLineForm draft of the line at index. */
+  getInlineDraftSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
+  }
+
+  /**
    * Returns the "Assign…" button for the line at the given 0-based index.
    * Present when the line has no assigned budget line and no queued draft.
    * class*="assignButtonInTable"
    */
   lineAssignButton(index: number): Locator {
     return this.lineRow(index).locator('[class*="assignButtonInTable"]');
+  }
+
+  /** Assigned badge (inner div, excludes the wrapper). */
+  lineAssignedBadge(index: number): Locator {
+    return this.lineRow(index).locator('[class*="assignedBadge"]:not([class*="Wrapper"])');
+  }
+
+  /** "Clear" button inside the assigned badge. */
+  lineClearAssignButton(index: number): Locator {
+    return this.lineAssignedBadge(index).locator('[class*="clearAssignButton"]');
+  }
+
+  /** Budget line row button in step 2 of the picker (by index or visible text). */
+  pickerBudgetLineRow(nameOrIndex: number | string | RegExp): Locator {
+    const rows = this.pickerStep2Modal().locator('[class*="pickerBudgetLineRow"]');
+    return typeof nameOrIndex === 'number'
+      ? rows.nth(nameOrIndex)
+      : rows.filter({ hasText: nameOrIndex });
+  }
+
+  // ─── Linked (assign-existing) read-only rendering (#2149) ──────────────────
+
+  /** Read-only values section shown for a row linked to an existing budget line. */
+  lineLinkedValues(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-values');
+  }
+
+  /** Linked line's ORIGINAL category (read-only). */
+  lineLinkedCategory(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-category');
+  }
+
+  /** Linked line's ORIGINAL funding source (read-only). */
+  lineLinkedSource(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-source');
+  }
+
+  /** Linked line's ORIGINAL planned amount (read-only). */
+  lineLinkedPlanned(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-planned');
+  }
+
+  /** The only editable number input on a linked row: gross invoiced amount. */
+  lineItemizedAmountInput(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-itemized-amount');
+  }
+
+  /** "Change…" button next to the assigned badge on a linked row. */
+  lineChangeAssignButton(index: number): Locator {
+    return this.lineRow(index).getByRole('button', { name: /Change linked budget line/i });
   }
 
   /**
@@ -469,9 +594,16 @@ export class PaperlessInvoiceReviewPage {
    * On return: picker is closed and the line card shows the inline form.
    *
    * @param workItemTitle - The title to search and select in step 1
-   * @param lineIndex - 0-based index of the extraction line card (default: 0)
+   * @param options.lineIndex - 0-based index of the extraction line card (default: 0)
+   * @param options.budgetSourceId - When set, explicitly selects this budget source in the
+   *   inline form's Funding Source select. Pass it for any flow that saves the draft: the
+   *   select otherwise defaults to the first source, which a parallel worker may delete.
    */
-  async queueCreateNewBudgetLine(workItemTitle: string, lineIndex = 0): Promise<void> {
+  async queueCreateNewBudgetLine(
+    workItemTitle: string,
+    options: { lineIndex?: number; budgetSourceId?: string } = {},
+  ): Promise<void> {
+    const lineIndex = options.lineIndex ?? 0;
     const assignBtn = this.lineAssignButton(lineIndex);
     await expect(assignBtn).toBeVisible();
     await assignBtn.click();
@@ -499,6 +631,13 @@ export class PaperlessInvoiceReviewPage {
     // gone once we moved to step 2 — it would pass immediately without
     // confirming the picker actually closed.
     await expect(this.pickerStep2Modal()).not.toBeVisible();
+
+    if (options.budgetSourceId) {
+      const sourceSelect = this.getInlineDraftSourceSelect(lineIndex);
+      await expect(sourceSelect).toBeVisible();
+      await sourceSelect.selectOption(options.budgetSourceId);
+      await expect(sourceSelect).toHaveValue(options.budgetSourceId);
+    }
   }
 
   // ─── Story #1797: Merge multiple extracted line items ────────────────────────

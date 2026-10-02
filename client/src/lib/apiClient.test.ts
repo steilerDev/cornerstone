@@ -11,6 +11,7 @@ import {
   post,
   put,
   del,
+  toApiClientError,
 } from './apiClient.js';
 
 // Mock fetch globally
@@ -368,7 +369,9 @@ describe('apiClient', () => {
         expect(apiError.error.code).toBe('NOT_FOUND');
         expect(apiError.error.message).toBe('User not found');
         expect(apiError.error.details).toEqual({ userId: 123 });
-        expect(apiError.message).toBe('User not found');
+        // .message carries the machine code, never the server prose
+        expect(apiError.message).toBe('NOT_FOUND');
+        expect(apiError.message).not.toContain('User not found');
         expect(apiError.name).toBe('ApiClientError');
       }
     });
@@ -402,8 +405,8 @@ describe('apiClient', () => {
         const apiError = error as ApiClientError;
         expect(apiError.statusCode).toBe(500);
         expect(apiError.error.code).toBe('INTERNAL_ERROR');
-        expect(apiError.error.message).toBe('HTTP 500: Internal Server Error');
-        expect(apiError.message).toBe('HTTP 500: Internal Server Error');
+        expect(apiError.error.message).toBe('HTTP 500');
+        expect(apiError.message).toBe('INTERNAL_ERROR');
       }
     });
 
@@ -479,6 +482,110 @@ describe('apiClient', () => {
         expect(apiError.statusCode).toBe(500);
         expect(apiError.error.code).toBe('INTERNAL_ERROR');
       }
+    });
+  });
+
+  describe('toApiClientError', () => {
+    it('keeps a valid server body as-is and uses the code as the Error message', () => {
+      const body = {
+        error: { code: 'NOT_FOUND', message: 'User 7 not found', details: { id: 7 } },
+      };
+
+      const error = toApiClientError(404, body);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect(error.statusCode).toBe(404);
+      expect(error.error).toEqual(body.error);
+      expect(error.message).toBe('NOT_FOUND');
+    });
+
+    it('never puts the server message into Error#message', () => {
+      const error = toApiClientError(400, {
+        error: { code: 'VALIDATION_ERROR', message: 'RAW-SERVER-PROSE' },
+      });
+
+      expect(error.message).toBe('VALIDATION_ERROR');
+      expect(error.message).not.toContain('RAW-SERVER-PROSE');
+      expect(error.error.message).toBe('RAW-SERVER-PROSE');
+    });
+
+    it('replaces an unknown code with the status-derived code', () => {
+      const error = toApiClientError(409, { error: { code: 'MADE_UP_CODE', message: 'x' } });
+
+      expect(error.error.code).toBe('CONFLICT');
+      expect(error.message).toBe('CONFLICT');
+      expect(error.error.message).toBe('HTTP 409');
+    });
+
+    it('replaces a non-string code with the status-derived code', () => {
+      const error = toApiClientError(500, { error: { code: 42, message: 'x' } });
+
+      expect(error.error.code).toBe('INTERNAL_ERROR');
+    });
+
+    it.each([
+      ['JSON without an error key', { message: 'Bad Gateway' }],
+      ['null', null],
+      ['undefined', undefined],
+      ['a string', 'oops'],
+      ['an error that is not an object', { error: 'nope' }],
+    ])('derives the code from the status for %s', (_label, body) => {
+      const error = toApiClientError(502, body);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect(error.statusCode).toBe(502);
+      expect(error.error).toEqual({ code: 'INTERNAL_ERROR', message: 'HTTP 502' });
+    });
+
+    it.each([
+      [401, 'UNAUTHORIZED'],
+      [403, 'FORBIDDEN'],
+      [404, 'NOT_FOUND'],
+      [409, 'CONFLICT'],
+      [413, 'PAYLOAD_TOO_LARGE'],
+      [429, 'RATE_LIMIT_EXCEEDED'],
+      [500, 'INTERNAL_ERROR'],
+      [503, 'INTERNAL_ERROR'],
+      [400, 'VALIDATION_ERROR'],
+      [422, 'VALIDATION_ERROR'],
+    ])('maps a non-JSON %i response to %s', (status, code) => {
+      const error = toApiClientError(status, null);
+
+      expect(error.statusCode).toBe(status);
+      expect(error.error.code).toBe(code);
+      expect(error.message).toBe(code);
+    });
+  });
+
+  describe('Error handling - responses without a usable error body', () => {
+    it('a 502 with JSON lacking an error key is an ApiClientError (INTERNAL_ERROR), not a NetworkError', async () => {
+      mockFetch.mockResolvedValueOnce(jsonResponse({ message: 'Bad Gateway' }, 502));
+
+      const error = await get('/users').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect(error).not.toBeInstanceOf(NetworkError);
+      expect((error as ApiClientError).error.code).toBe('INTERNAL_ERROR');
+      expect((error as ApiClientError).statusCode).toBe(502);
+    });
+
+    it.each([
+      [401, 'UNAUTHORIZED'],
+      [403, 'FORBIDDEN'],
+      [404, 'NOT_FOUND'],
+      [409, 'CONFLICT'],
+      [413, 'PAYLOAD_TOO_LARGE'],
+      [429, 'RATE_LIMIT_EXCEEDED'],
+      [500, 'INTERNAL_ERROR'],
+      [422, 'VALIDATION_ERROR'],
+    ])('a non-JSON %i response from request() carries code %s', async (status, code) => {
+      mockFetch.mockResolvedValueOnce(textResponse('<html>proxy page</html>', status));
+
+      const error = await get('/users').catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ApiClientError);
+      expect((error as ApiClientError).statusCode).toBe(status);
+      expect((error as ApiClientError).error.code).toBe(code);
     });
   });
 

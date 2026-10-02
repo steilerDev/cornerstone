@@ -15,7 +15,11 @@ import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCa
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
-import { ApiClientError } from '../../lib/apiClient.js';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import enHouseholdItems from '../../i18n/en/householdItems.json';
+import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -264,6 +268,23 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
+    it('status filter lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
+      renderPage();
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      const rows = Array.from(dialog.querySelectorAll('label')).map((label) => [
+        label.querySelector('input')?.id,
+        label.querySelector('span')?.textContent,
+      ]);
+
+      expect(rows).toEqual(
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [
+          `enum-${status}`,
+          enHouseholdItems.status[status],
+        ]),
+      );
+    });
+
     it('calls listHouseholdItems on mount', async () => {
       renderPage();
 
@@ -306,15 +327,40 @@ describe('HouseholdItemsPage', () => {
     it('shows error message when listHouseholdItems fails with ApiClientError', async () => {
       const error = new ApiClientError(500, {
         code: 'INTERNAL_ERROR',
-        message: 'Failed to load items',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockListHouseholdItems.mockRejectedValueOnce(error);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Failed to load items')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
       });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('shows the network copy when listHouseholdItems fails with a NetworkError', async () => {
+      mockListHouseholdItems.mockRejectedValueOnce(
+        new NetworkError('RAW-LOCAL', new Error('cause')),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(enCommon.requestErrors.network)).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('shows the generic load error (not the local text) for a plain Error', async () => {
+      mockListHouseholdItems.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('alert')).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
 
     it('does not crash when fetchVendors fails (graceful degradation)', async () => {
@@ -426,12 +472,55 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
+    it.each([
+      [
+        'NetworkError',
+        () => new NetworkError('RAW-LOCAL', new Error('cause')),
+        enCommon.requestErrors.network,
+      ],
+      [
+        'plain Error',
+        () => new Error('RAW-LOCAL'),
+        'Failed to delete household item. Please try again.',
+      ],
+    ])(
+      'shows the translated copy when deleteHouseholdItem fails with a %s',
+      async (_n, make, expected) => {
+        const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
+        mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
+        mockDeleteHouseholdItem.mockRejectedValueOnce(make());
+
+        renderPage();
+
+        await waitFor(() => {
+          expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+        });
+
+        fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+        fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
+
+        const confirmBtn = await waitFor(() => {
+          const btn = screen
+            .getAllByRole('button')
+            .find((b) => b.textContent?.toLowerCase().includes('delete item'));
+          expect(btn).toBeDefined();
+          return btn!;
+        });
+        fireEvent.click(confirmBtn);
+
+        await waitFor(() => {
+          expect(screen.getByRole('alert')).toHaveTextContent(expected);
+        });
+        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+      },
+    );
+
     it('shows API error when deleteHouseholdItem fails', async () => {
       const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
       mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
       const error = new ApiClientError(409, {
         code: 'CONFLICT',
-        message: 'Item has linked invoices',
+        message: 'RAW-SERVER-SENTINEL',
       });
       mockDeleteHouseholdItem.mockRejectedValueOnce(error);
 
@@ -461,7 +550,8 @@ describe('HouseholdItemsPage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('Item has linked invoices')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
 

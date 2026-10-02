@@ -1,0 +1,115 @@
+.tableScroll {
+  overflow-x: auto;
+  background: var(--color-bg-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+
+.table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  min-width: calc(10rem + 7.5rem * var(--spot-col-count));
+  table-layout: fixed;
+}
+
+.corner,
+.colHeader {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.corner {
+  position: sticky;
+  left: 0;
+  z-index: calc(var(--z-raised) + 1);
+  width: 10rem;
+  border-right: 1px solid var(--color-border);
+}
+
+.colHeader {
+  min-width: 7.5rem;
+}
+
+.groupHeader {
+  padding: var(--spacing-2) var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  text-align: left;
+}
+
+.stickyLabel {
+  position: sticky;
+  left: var(--spacing-4);
+}
+
+.rowHeader {
+  position: sticky;
+  left: 0;
+  z-index: var(--z-raised);
+  width: 10rem;
+  padding: var(--spacing-2) var(--spacing-3);
+  border-right: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: left;
+  vertical-align: top;
+}
+
+.rowHeader[data-depth='1'] {
+  padding-left: calc(var(--spacing-3) + var(--spacing-4));
+}
+
+.rowHeader[data-depth='2'] {
+  padding-left: calc(var(--spacing-3) + var(--spacing-4) * 2);
+}
+
+.rowHeader[data-depth='3'] {
+  padding-left: calc(var(--spacing-3) + var(--spacing-4) * 3);
+}
+
+.rowLabel {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.rowLabel > span:last-child {
+  overflow-wrap: anywhere;
+}
+
+.rowLabelMuted {
+  color: var(--color-text-muted);
+}
+
+.dot {
+  flex-shrink: 0;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: var(--radius-circle);
+  background: var(--area-color, var(--color-border-strong));
+}
+
+.cell {
+  min-width: 7.5rem;
+  padding: var(--spacing-1);
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: top;
+}
+
+.table tbody:last-of-type tr:last-child > th,
+.table tbody:last-of-type tr:last-child > td {
+  border-bottom: none;
+}

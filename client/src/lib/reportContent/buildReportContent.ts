@@ -19,6 +19,7 @@ import type {
   ReportContentSummaryRow,
   ReportContentFootnote,
   ReportContentCoverLetter,
+  ReportContentPartTexts,
 } from './types.js';
 
 /**
@@ -120,6 +121,8 @@ export function buildReportContent(
     includeCoverLetter: boolean;
     household: HouseholdSettings | null;
     user?: { displayName: string } | null;
+    /** Opt-in (#2161): also build the multi-PDF report-language closures (`partTexts`). */
+    includePartTexts?: boolean;
   },
 ): ReportContent {
   const isOverview = useCase === 'budget-overview';
@@ -272,6 +275,7 @@ export function buildReportContent(
     });
     const signature = sender.split('\n')[0]?.trim() ?? '';
     const closing = reportT('sourceReports.coverLetter.closing');
+    const opening = reportT('sourceReports.coverLetter.opening');
 
     coverLetter = {
       sender,
@@ -279,6 +283,7 @@ export function buildReportContent(
       dateLine,
       reference: report.source.reference ?? null,
       subject,
+      opening,
       body,
       signature,
       closing,
@@ -286,6 +291,52 @@ export function buildReportContent(
   }
 
   const isClaim = useCase === 'claim';
+
+  let partTexts: ReportContentPartTexts | undefined;
+  if (options?.includePartTexts === true) {
+    const identifier = reportT('sourceReports.parts.letter.identifier', {
+      title: tableTitle,
+      source: sourceInfo.sourceName,
+      date: generatedAtText,
+    });
+    partTexts = {
+      identifier,
+      continuationSubject: (part, total) =>
+        reportT('sourceReports.parts.letter.continuationSubject', {
+          part,
+          total,
+          report: identifier,
+        }),
+      continuationBody: (part, total) =>
+        reportT('sourceReports.parts.letter.continuationBody', {
+          part,
+          total,
+          report: identifier,
+        }),
+      continuationInvoicesHeading: reportT(
+        'sourceReports.parts.letter.continuationInvoicesHeading',
+      ),
+      continuationInvoiceLine: (row) =>
+        reportT('sourceReports.parts.letter.continuationInvoiceLine', {
+          vendor: row.vendor,
+          invoiceNumber: row.invoiceNumber,
+          date: row.dateText,
+        }),
+      multiPartNotice: (total) =>
+        reportT('sourceReports.parts.letter.multiPartNotice', { count: total - 1, total }),
+      multiPartNoticeNoLetter: (total) =>
+        reportT('sourceReports.parts.letter.multiPartNoticeNoLetter', {
+          count: total - 1,
+          total,
+        }),
+      paperlessTitle: (baseTitle, partLabel, total) =>
+        reportT('sourceReports.parts.letter.paperlessTitle', {
+          title: baseTitle,
+          part: partLabel,
+          total,
+        }),
+    };
+  }
 
   return {
     isOverview,
@@ -320,5 +371,6 @@ export function buildReportContent(
     rows,
     summaryRows,
     footnotes,
+    ...(partTexts ? { partTexts } : {}),
   };
 }

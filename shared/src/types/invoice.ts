@@ -30,8 +30,12 @@ export type InvoiceDepositStatus = 'pending' | 'paid' | 'claimed';
 /**
  * Deposit entry type: either a regular deposit or a refund.
  * Story #1876: Refunds enable negative claim adjustments.
+ *
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
  */
-export type InvoiceDepositEntryType = 'deposit' | 'refund';
+export const INVOICE_DEPOSIT_ENTRY_TYPES = ['deposit', 'refund'] as const;
+
+export type InvoiceDepositEntryType = (typeof INVOICE_DEPOSIT_ENTRY_TYPES)[number];
 
 /**
  * Invoice deposit entity - represents a staged partial payment within an invoice.

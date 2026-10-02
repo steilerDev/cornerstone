@@ -1,5 +1,8 @@
 {
   "timeline": {
+    "errors": {
+      "loadFailed": "An unexpected error occurred while loading the timeline."
+    },
     "page": {
       "title": "Schedule"
     },
@@ -49,8 +52,7 @@
   "schedule": {
     "navigation": {
       "gantt": "Gantt",
-      "calendar": "Calendar",
-      "ariaLabel": "Schedule section navigation"
+      "calendar": "Calendar"
     }
   },
   "ganttSidebar": {
@@ -140,6 +142,9 @@
     "weeklyCalendarAriaLabel": "Weekly calendar"
   },
   "milestones": {
+    "errors": {
+      "loadFailed": "An unexpected error occurred while loading milestones."
+    },
     "page": {
       "title": "Project"
     },
@@ -193,6 +198,9 @@
       "closeDialog": "Close dialog or cancel"
     },
     "create": {
+      "errors": {
+        "createFailed": "Failed to create milestone. Please try again."
+      },
       "title": "Create Milestone",
       "backLink": "← Milestones",
       "form": {

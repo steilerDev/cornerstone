@@ -32,9 +32,12 @@ module.exports = (env, argv) => {
           use: {
             loader: 'babel-loader',
             options: {
+              // Babel 8 derives preset-react `development` from envName, which babel-loader does
+              // not set from webpack's mode, so production would ship jsxDEV. Babel 8 also defaults
+              // onlyRemoveTypeImports to true, which keeps `import { type X }` as side-effect imports.
               presets: [
-                ['@babel/preset-react', { runtime: 'automatic' }],
-                '@babel/preset-typescript',
+                ['@babel/preset-react', { runtime: 'automatic', development: !isProduction }],
+                ['@babel/preset-typescript', { onlyRemoveTypeImports: false }],
               ],
             },
           },
@@ -71,6 +74,7 @@ module.exports = (env, argv) => {
           splitChunks: {
             chunks: 'all',
           },
+          runtimeChunk: 'single',
           minimizer: [
             '...',
             new CssMinimizerPlugin(),

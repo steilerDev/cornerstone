@@ -18,6 +18,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { InvoiceDepositFormModal, type DepositFormState } from './InvoiceDepositFormModal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceDepositsSection.module.css';
 
@@ -213,7 +214,17 @@ export function InvoiceDepositsSection({
       onDepositMutated();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setFormError(translateApiError(err.error.code, tErrors));
+        if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
+          const minimumRefundAmount =
+            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
+          setFormError(
+            t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
+              minimumRefundAmount: formatCurrency(minimumRefundAmount),
+            }),
+          );
+        } else {
+          setFormError(translateApiError(err.error.code, tErrors));
+        }
       } else {
         setFormError(t('budget:invoiceDetail.deposits.errors.deleteError'));
       }
@@ -517,14 +528,17 @@ function DepositRow({
   if (deposit.status === 'pending') {
     menuItems.push(
       {
+        id: 'mark-paid',
         label: t('budget:invoiceDetail.deposits.menu.markPaid'),
         onClick: onMarkPaid,
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -533,18 +547,22 @@ function DepositRow({
   } else if (deposit.status === 'paid') {
     menuItems.push(
       {
+        id: 'mark-claimed',
         label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
         onClick: onMarkClaimed,
       },
       {
+        id: 'revert-to-pending',
         label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
         onClick: () => onRevertToPending(deposit),
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -553,14 +571,17 @@ function DepositRow({
   } else if (deposit.status === 'claimed') {
     menuItems.push(
       {
+        id: 'revert-to-paid',
         label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
         onClick: () => onRevertToPaid(deposit),
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -596,7 +617,9 @@ function DepositRow({
             triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
               description:
                 deposit.description ??
-                t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
+                t(I18N_UNION_KEYS.depositEntryType.key(deposit.entryType), {
+                  ns: I18N_UNION_KEYS.depositEntryType.ns,
+                }),
             })}
             placement="bottom-end"
             usePortal
@@ -650,14 +673,17 @@ function DepositCard({
   if (deposit.status === 'pending') {
     menuItems.push(
       {
+        id: 'mark-paid',
         label: t('budget:invoiceDetail.deposits.menu.markPaid'),
         onClick: onMarkPaid,
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -666,18 +692,22 @@ function DepositCard({
   } else if (deposit.status === 'paid') {
     menuItems.push(
       {
+        id: 'mark-claimed',
         label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
         onClick: onMarkClaimed,
       },
       {
+        id: 'revert-to-pending',
         label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
         onClick: () => onRevertToPending(deposit),
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -686,14 +716,17 @@ function DepositCard({
   } else if (deposit.status === 'claimed') {
     menuItems.push(
       {
+        id: 'revert-to-paid',
         label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
         onClick: () => onRevertToPaid(deposit),
       },
       {
+        id: 'edit',
         label: t('budget:invoiceDetail.deposits.menu.edit'),
         onClick: () => onEdit(deposit),
       },
       {
+        id: 'delete',
         label: t('budget:invoiceDetail.deposits.menu.delete'),
         onClick: () => onDelete(deposit),
         variant: 'destructive',
@@ -744,7 +777,9 @@ function DepositCard({
           triggerAriaLabel={t('budget:invoiceDetail.deposits.menu.ariaLabel', {
             description:
               deposit.description ??
-              t(`budget:invoiceDetail.deposits.entryTypeLabels.${deposit.entryType}`),
+              t(I18N_UNION_KEYS.depositEntryType.key(deposit.entryType), {
+                ns: I18N_UNION_KEYS.depositEntryType.ns,
+              }),
           })}
           placement="top-end"
           usePortal

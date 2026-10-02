@@ -189,6 +189,7 @@ function renderCard(
   return render(
     React.createElement(AutoItemizeLineCard, {
       line: makeLine(lineOverrides),
+      formatCurrency: (n: number) => '€' + n.toFixed(2),
       onToggleInclude: (callbacks.onToggleInclude ?? jest.fn()) as (rowId: string) => void,
       onFieldChange: (callbacks.onFieldChange ?? jest.fn()) as (
         rowId: string,

@@ -1,6 +1,8 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type {
   HouseholdItemCategory,
   HouseholdItemStatus,
@@ -25,12 +27,11 @@ export function HouseholdItemCreatePage() {
   const { t } = useTranslation('householdItems');
   const { areas, isLoading: areasLoading } = useAreas();
 
-  const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> = [
-    { value: 'planned', label: t('status.planned') },
-    { value: 'purchased', label: t('status.purchased') },
-    { value: 'scheduled', label: t('status.scheduled') },
-    { value: 'arrived', label: t('status.arrived') },
-  ];
+  const STATUSES: Array<{ value: HouseholdItemStatus; label: string }> =
+    HOUSEHOLD_ITEM_STATUSES.map((status) => ({
+      value: status,
+      label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
+    }));
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -68,7 +69,7 @@ export function HouseholdItemCreatePage() {
           setCategory(categoriesResponse.categories[0]!.id as HouseholdItemCategory); // guarded by length check
         }
       } catch (err) {
-        setError('Failed to load form data. Please try again.');
+        setError(t('create.errors.loadFailed'));
         console.error('Failed to load data:', err);
       } finally {
         setIsLoadingData(false);
@@ -76,7 +77,7 @@ export function HouseholdItemCreatePage() {
     }
 
     loadData();
-  }, []);
+  }, [t]);
 
   const validateForm = (): boolean => {
     const errors: Record<string, string> = {};

@@ -6,6 +6,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
+import enErrors from '../../i18n/en/errors.json';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type * as MilestoneCreatePageTypes from './MilestoneCreatePage.js';
@@ -287,7 +288,7 @@ describe('MilestoneCreatePage', () => {
       mockCreateMilestone.mockRejectedValueOnce(
         new ApiClientError(409, {
           code: 'CONFLICT',
-          message: 'A milestone with this title already exists',
+          message: 'RAW-SERVER-SENTINEL',
         }),
       );
 
@@ -301,7 +302,8 @@ describe('MilestoneCreatePage', () => {
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
-        expect(screen.getByText('A milestone with this title already exists')).toBeInTheDocument();
+        expect(screen.getByText(enErrors.CONFLICT)).toBeInTheDocument();
+        expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
       });
     });
 

@@ -295,7 +295,7 @@ export class DiaryPage {
       await this.subtitle.waitFor({ state: 'visible' });
       const text = await this.subtitle.textContent();
       const match = text?.match(/(\d+)/);
-      return match ? parseInt(match[1], 10) : null;
+      return match?.[1] ? parseInt(match[1], 10) : null;
     } catch {
       return null;
     }

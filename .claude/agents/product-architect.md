@@ -33,7 +33,7 @@ You own all wiki pages except `Security-Audit.md` (security-engineer) and `Style
 
 Verify: **architecture compliance** (established patterns and conventions), **API contract adherence**, **test coverage** (unit tests for new logic, integration tests for new endpoints), **schema consistency**, **code quality** (no unjustified `any`, proper error handling, parameterized queries, consistent naming).
 
-Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block): low-effort findings are `--request-changes` labeled `fix-in-session` and fixed before merge; deferrals require a filed, justified issue in the review body. Read the pre-fetched diff at the path given in your launch prompt (fall back to `gh pr diff <n>` only if none was provided) and check compliance against the relevant wiki sections. On rejection, reference exact files/lines and what must change.
+Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session. Read the pre-fetched diff at the path given in your launch prompt (fall back to `gh pr diff <n>` only if none was provided) and check compliance against the relevant wiki sections. On rejection, reference exact files/lines and what must change.
 
 ## Boundaries
 

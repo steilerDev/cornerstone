@@ -11,6 +11,7 @@
 
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../../i18n/en/errors.json';
 import type {
   UseDocumentLinksResult,
   UseAllLinkedDocumentIdsResult,
@@ -453,11 +454,11 @@ describe('LinkedDocumentsSection — onAttachmentTypeChange wiring to LinkedDocu
     expect(updateAttachmentType).toHaveBeenCalledWith('link-3', 'quotation');
   });
 
-  it('shows an error banner with the server message when updateAttachmentType rejects with an ApiClientError', async () => {
+  it('shows the translated error (never the server message) when updateAttachmentType rejects with an ApiClientError', async () => {
     const updateAttachmentType = jest
       .fn<() => Promise<void>>()
       .mockRejectedValue(
-        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server exploded' }),
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
     mockUseDocumentLinks.mockReturnValue(
       makeHook({ links: [makeInvoiceLink('link-4')], isLoading: false, updateAttachmentType }),
@@ -470,7 +471,8 @@ describe('LinkedDocumentsSection — onAttachmentTypeChange wiring to LinkedDocu
       fireEvent.click(screen.getByTestId('retag-link-4'));
     });
 
-    expect(screen.getByRole('alert')).toHaveTextContent('Server exploded');
+    expect(screen.getByRole('alert')).toHaveTextContent(enErrors.INTERNAL_ERROR);
+    expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
   it('shows the generic failure message when updateAttachmentType rejects with a non-ApiClientError', async () => {

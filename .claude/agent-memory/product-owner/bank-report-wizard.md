@@ -234,7 +234,7 @@ The risk being guarded: `MAX_SAFE_USAGE_CHUNK_CHARS` (650) is **34 chars / 3 lin
 Three durable rulings, all written into the issue rather than left implicit:
 
 - **Comment and issue both, never one instead of the other.** The rationale stays in the code comment (AC 2.1 forbids moving/shortening/replacing it; AC 2.3 pins 650/450/1.04 and every width byte-identical) because _"anyone changing 650 or a column width reads that comment, not an issue tracker. Moving it out recreates the provenance loss that produced #1939."_ The issue owns the **guard**; the comment owns the **rationale**.
-- **Bounded-quantified vs unbounded-estimated is the line for "does this deserve a tracked owner."** `markerText` is unbounded with an estimated break-even → documentation only (folded into #1939). This is a bounded constant _provably_ 34 chars past a derived ceiling → _"a quantified exceedance is a standing accepted risk with a number on it."_ I would have collapsed these two; don't.
+- **Bounded-quantified vs unbounded-estimated is the line for "does this need a guard now"** (historical: these guards were filed as issues; under the current no-deferral policy the guard is fixed in-session, never filed). `markerText` is unbounded with an estimated break-even → documentation only (folded into #1939). This is a bounded constant _provably_ 34 chars past a derived ceiling → _"a quantified exceedance is a standing accepted risk with a number on it."_ I would have collapsed these two; don't.
 - **A derived bound with no test is a comment waiting to go stale.** Verified live: `overviewPdf.test.ts` pins `MEASURED_TRUE_CEILING` as re-typed `704`/`546` literals referencing **no geometry constant**, so widening the Usage column leaves them green while the real ceiling moves. Generalise: when a review accepts a _derived_ number, ask what fails if its inputs change.
 
 AC 1.3 fails in **both** directions (growth widens a reviewed risk; shrinkage makes the comment's figure wrong). AC 1.6 keeps the measured 44/39-line budgets as the sole pinned literals, labelled as real-render measurements. The architect's two "informational, do not re-round" cosmetics (`~2.6%`→`~2.7%`, the self-asserted-infallibility sentence) were **already fixed at head `a6871975`** — checked before deciding, nothing folded in.
@@ -684,8 +684,8 @@ resolved the dynamic skip-reason via `labels.skipReasonLabels[reason as 'a' | 'b
 a third `SkippedDocument['reason']` would compile silently and echo a raw identifier into a document
 handed to a bank. **Ruling: capped at Medium, not blocking, because AC2 as written is about values the
 code _can produce today_ and the union is closed.** But flagged with the two-line typed-parameter fix
-(`Map<string, SkippedDocument['reason'][]>` in `overviewPdf.ts` + `merge.ts`) and an explicit offer to
-file it as a follow-up instead. **Pattern: when a refactor's purpose is "close the class", check
+(`Map<string, SkippedDocument['reason'][]>` in `overviewPdf.ts` + `merge.ts`) (historically offered as a
+follow-up; under the current policy it is a `fix-in-session` finding). **Pattern: when a refactor's purpose is "close the class", check
 whether the fix introduces a fresh instance of the class — an unchecked `as` cast plus a silent `??`
 fallback is the usual shape.**
 
@@ -847,9 +847,9 @@ fixing both. **When an agent cites a codebase convention, count the instances.**
 
 ### #2010 follow-ups filed (2026-08-05) — #2011 / #2012 / #2013 / #2014
 
-Coordinator ruling: **a green PR is not reopened to absorb non-blocking findings.** All four filed as
-issues, Backlog, blocked-by #1973. Reusable: this is the standing disposition for architect/PO Mediums
-raised on an already-green PR — file, don't expand.
+Historical coordinator ruling (2026-08-05): all four filed as issues, Backlog, blocked-by #1973.
+**Superseded** by the no-deferral Reviewer Verdict Policy: findings on a green PR are fixed in-session
+(that PR or a same-session fix PR) — never filed.
 
 - **#2011** (`bug`, Should Have) — architect M3: tier-3 summary block laid out against `printableWidth()`
   instead of the table's own width. `{allocatedAmount}` alone → total ~431pt from an 84pt table. **R7's

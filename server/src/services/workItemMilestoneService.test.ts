@@ -16,7 +16,11 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as workItemMilestoneService from './workItemMilestoneService.js';
-import { NotFoundError, ConflictError } from '../errors/AppError.js';
+import {
+  NotFoundError,
+  DuplicateDependencyError,
+  CircularDependencyError,
+} from '../errors/AppError.js';
 
 describe('Work Item Milestone Service', () => {
   let sqlite: Database.Database;
@@ -265,7 +269,7 @@ describe('Work Item Milestone Service', () => {
       );
     });
 
-    it('throws ConflictError when the required dependency already exists (duplicate)', () => {
+    it('throws DuplicateDependencyError when the required dependency already exists (duplicate)', () => {
       // Given: A work item that already requires the milestone
       const userId = insertTestUser('user@example.com', 'Test User');
       const workItemId = insertTestWorkItem(userId, 'Install HVAC');
@@ -273,13 +277,13 @@ describe('Work Item Milestone Service', () => {
 
       workItemMilestoneService.addRequiredMilestone(db, workItemId, milestoneId);
 
-      // When/Then: Adding the same dependency again throws ConflictError
+      // When/Then: Adding the same dependency again throws DuplicateDependencyError
       expect(() =>
         workItemMilestoneService.addRequiredMilestone(db, workItemId, milestoneId),
-      ).toThrow(ConflictError);
+      ).toThrow(DuplicateDependencyError);
     });
 
-    it('throws ConflictError when cross-linking: cannot require a milestone already linked as contributor', () => {
+    it('throws CircularDependencyError when cross-linking: cannot require a milestone already linked as contributor', () => {
       // Given: Work item is already a contributor to the milestone
       const userId = insertTestUser('user@example.com', 'Test User');
       const workItemId = insertTestWorkItem(userId, 'Finish basement');
@@ -291,7 +295,7 @@ describe('Work Item Milestone Service', () => {
       // When/Then: Trying to also mark it as required should throw ConflictError
       expect(() =>
         workItemMilestoneService.addRequiredMilestone(db, workItemId, milestoneId),
-      ).toThrow(ConflictError);
+      ).toThrow(CircularDependencyError);
     });
 
     it('allows same milestone to be required by different work items', () => {
@@ -423,7 +427,7 @@ describe('Work Item Milestone Service', () => {
       );
     });
 
-    it('throws ConflictError when the linked association already exists (duplicate)', () => {
+    it('throws DuplicateDependencyError when the linked association already exists (duplicate)', () => {
       // Given: A work item already linked to the milestone
       const userId = insertTestUser('user@example.com', 'Test User');
       const workItemId = insertTestWorkItem(userId, 'Install shingles');
@@ -431,13 +435,13 @@ describe('Work Item Milestone Service', () => {
 
       workItemMilestoneService.addLinkedMilestone(db, workItemId, milestoneId);
 
-      // When/Then: Adding the same link again throws ConflictError
+      // When/Then: Adding the same link again throws DuplicateDependencyError
       expect(() =>
         workItemMilestoneService.addLinkedMilestone(db, workItemId, milestoneId),
-      ).toThrow(ConflictError);
+      ).toThrow(DuplicateDependencyError);
     });
 
-    it('throws ConflictError when cross-linking: cannot link as contributor to a milestone already required', () => {
+    it('throws CircularDependencyError when cross-linking: cannot link as contributor to a milestone already required', () => {
       // Given: Work item already requires the milestone as a dependency
       const userId = insertTestUser('user@example.com', 'Test User');
       const workItemId = insertTestWorkItem(userId, 'Finish attic');
@@ -449,7 +453,7 @@ describe('Work Item Milestone Service', () => {
       // When/Then: Trying to also add as linked should throw ConflictError
       expect(() =>
         workItemMilestoneService.addLinkedMilestone(db, workItemId, milestoneId),
-      ).toThrow(ConflictError);
+      ).toThrow(CircularDependencyError);
     });
 
     it('allows same milestone to be contributed to by different work items', () => {

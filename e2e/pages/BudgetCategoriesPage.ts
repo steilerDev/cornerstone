@@ -84,13 +84,10 @@ export class BudgetCategoriesPage {
 
     // Banners — inside the budget-categories tab panel
     this.successBanner = tabPanel
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: /successfully/i })
       .first();
-    this.errorBanner = tabPanel
-      .locator('[role="alert"]')
-      .filter({ hasText: /error|failed/i })
-      .first();
+    this.errorBanner = tabPanel.locator('[role="alert"]').first();
 
     // Create form — always visible (visual cleanup #1185); h2 text is "Create New Budget Category"
     this.createFormSection = tabPanel
@@ -232,7 +229,7 @@ export class BudgetCategoriesPage {
   async getCategoriesCount(): Promise<number> {
     const headingText = await this.categoriesListHeading.textContent();
     const match = headingText?.match(/\((\d+)\)/);
-    return match ? parseInt(match[1], 10) : 0;
+    return match?.[1] ? parseInt(match[1], 10) : 0;
   }
 
   /**
@@ -341,9 +338,9 @@ export class BudgetCategoriesPage {
    */
   async getSuccessBannerText(): Promise<string | null> {
     try {
-      // The success banner has role="alert" and appears in the main content area
+      // The success banner has role="status" and appears in the main content area
       const banner = this.page
-        .locator('[role="alert"]')
+        .locator('[role="status"]')
         .filter({ hasText: /successfully/i })
         .first();
       await banner.waitFor({ state: 'visible' });

@@ -40,6 +40,7 @@ import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page, Route } from '@playwright/test';
+import { defined } from '../../fixtures/assertions.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline REST helpers
@@ -366,7 +367,7 @@ test(
         `Expected 1 budget line under WI ${workItemId}, got ${listBody.budgets.length}`,
       ).toBe(1);
 
-      const budget = listBody.budgets[0];
+      const budget = defined(listBody.budgets[0], 'budget line');
 
       // plannedAmount is stored NET
       expect(

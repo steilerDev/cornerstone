@@ -70,6 +70,22 @@ const mockFetchHouseholdItemCategories = jest.fn() as jest.MockedFunction<
 
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
+// useLocale throws outside a LocaleProvider; the changed components read vatRate from it.
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),
   getHouseholdItem: mockGetHouseholdItem,
@@ -78,7 +94,10 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   deleteHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>(),
 }));
 
+class MockNetworkError extends Error {}
+
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
+  NetworkError: MockNetworkError,
   ApiClientError: class MockApiClientError extends Error {
     constructor(
       readonly statusCode: number,

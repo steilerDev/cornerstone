@@ -983,8 +983,33 @@ describe('Milestone Routes', () => {
 
       expect(response.statusCode).toBe(409);
       const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('CONFLICT');
+      expect(body.error.code).toBe('DUPLICATE_DEPENDENCY');
       expect(body.error.message).toContain('already linked');
+    });
+
+    it('should return 409 CIRCULAR_DEPENDENCY when the work item already depends on the milestone', async () => {
+      const { userId, cookie } = await createUserWithSession('user@example.com', 'User', 'pw');
+      const workItem = createTestWorkItem(userId, 'Pour Foundation');
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Foundation Complete',
+        targetDate: '2026-04-15',
+      });
+      const dep = await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/dependents/${workItem}`,
+        headers: { cookie },
+      });
+      expect(dep.statusCode).toBe(201);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/work-items`,
+        headers: { cookie },
+        payload: { workItemId: workItem },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('CIRCULAR_DEPENDENCY');
     });
 
     it('should return 404 when milestone does not exist', async () => {
@@ -1067,6 +1092,49 @@ describe('Milestone Routes', () => {
   });
 
   // ─── DELETE /api/milestones/:id/work-items/:workItemId ───────────────────────
+
+  describe('POST /api/milestones/:id/dependents/:workItemId — conflicts', () => {
+    it('returns 409 DUPLICATE_DEPENDENCY when the work item already depends on the milestone', async () => {
+      const { userId, cookie } = await createUserWithSession('user@example.com', 'User', 'pw');
+      const workItem = createTestWorkItem(userId, 'Paint');
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Walls Done',
+        targetDate: '2026-04-15',
+      });
+      const url = `/api/milestones/${milestone.id}/dependents/${workItem}`;
+
+      expect((await app.inject({ method: 'POST', url, headers: { cookie } })).statusCode).toBe(201);
+      const response = await app.inject({ method: 'POST', url, headers: { cookie } });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('DUPLICATE_DEPENDENCY');
+    });
+
+    it('returns 409 CIRCULAR_DEPENDENCY when the work item already contributes to the milestone', async () => {
+      const { userId, cookie } = await createUserWithSession('user@example.com', 'User', 'pw');
+      const workItem = createTestWorkItem(userId, 'Paint');
+      const milestone = await createTestMilestone(cookie, {
+        title: 'Walls Done',
+        targetDate: '2026-04-15',
+      });
+      const link = await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/work-items`,
+        headers: { cookie },
+        payload: { workItemId: workItem },
+      });
+      expect(link.statusCode).toBe(201);
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/milestones/${milestone.id}/dependents/${workItem}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('CIRCULAR_DEPENDENCY');
+    });
+  });
 
   describe('DELETE /api/milestones/:id/work-items/:workItemId', () => {
     it('should unlink a work item with 204 status', async () => {

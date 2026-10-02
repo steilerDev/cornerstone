@@ -21,7 +21,7 @@ import type {
   HouseholdItemStatus,
   AreaSummary,
 } from '@cornerstone/shared';
-import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import { NotFoundError, ValidationError, DuplicateDependencyError } from '../errors/AppError.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { loadAreaMap, resolveAreaAncestors, type AreaMapEntry } from './areaService.js';
 import { toAreaSummary } from './shared/converters.js';
@@ -133,26 +133,6 @@ function getMilestonePredecessor(
 }
 
 /**
- * Detect circular dependencies.
- * Household items are terminal nodes in the dependency graph — they can depend
- * on work items and milestones, but nothing depends on them. Therefore, cycles
- * are impossible by construction.
- *
- * @returns false (cycles are impossible)
- */
-function detectCycle(
-  _db: DbType,
-  _householdItemId: string,
-  _predecessorId: string,
-  _predecessorType: 'work_item' | 'milestone',
-): boolean {
-  // Household items are terminal nodes in the dependency graph — they can depend
-  // on work items and milestones, but nothing depends on them. Cycles are
-  // impossible by construction.
-  return false;
-}
-
-/**
  * List all dependencies for a household item (with predecessor details).
  * @throws NotFoundError if household item does not exist
  */
@@ -185,8 +165,7 @@ export function listDeps(db: DbType, householdItemId: string): HouseholdItemDepD
 /**
  * Create a dependency for a household item.
  * @throws NotFoundError if household item or predecessor does not exist
- * @throws ConflictError if dependency already exists (DUPLICATE_DEPENDENCY)
- * @throws ConflictError if circular dependency would be created (CIRCULAR_DEPENDENCY)
+ * @throws DuplicateDependencyError if dependency already exists (DUPLICATE_DEPENDENCY)
  */
 export function createDep(
   db: DbType,
@@ -221,13 +200,11 @@ export function createDep(
     .get();
 
   if (existing) {
-    throw new ConflictError('Dependency already exists', { code: 'DUPLICATE_DEPENDENCY' });
+    throw new DuplicateDependencyError();
   }
 
-  // Perform circular dependency detection
-  if (detectCycle(db, householdItemId, predecessorId, predecessorType)) {
-    throw new ConflictError('Circular dependency detected', { code: 'CIRCULAR_DEPENDENCY' });
-  }
+  // No cycle check: household items are terminal nodes (predecessors can only be work items
+  // or milestones), so nothing can depend on one and a cycle is impossible by construction.
 
   // Create dependency
   db.insert(householdItemDeps)

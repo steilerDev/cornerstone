@@ -1,5 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
+import enSettings from '../i18n/en/settings.json';
 
 const mockFetchAreas = jest.fn<() => Promise<unknown>>();
 const mockCreateArea = jest.fn<() => Promise<unknown>>();
@@ -105,22 +108,22 @@ describe('useAreas', () => {
 
   it('sets error string and isLoading=false on ApiClientError; areas stays empty', async () => {
     mockFetchAreas.mockRejectedValueOnce(
-      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'Server error' }),
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
     );
 
     const { result } = renderHook(() => useAreas());
 
-    await waitFor(() => expect(result.current.error).toBe('Server error'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
     expect(result.current.isLoading).toBe(false);
     expect(result.current.areas).toEqual([]);
   });
 
-  it('uses fallback error message when ApiClientError has no message', async () => {
+  it('translates the error code when ApiClientError has no message', async () => {
     mockFetchAreas.mockRejectedValueOnce(new MockApiClientError(401, { code: 'UNAUTHORIZED' }));
 
     const { result } = renderHook(() => useAreas());
 
-    await waitFor(() => expect(result.current.error).toBe('Failed to load areas.'));
+    await waitFor(() => expect(result.current.error).toBe(enErrors.UNAUTHORIZED));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -129,9 +132,7 @@ describe('useAreas', () => {
 
     const { result } = renderHook(() => useAreas());
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('Network error: Unable to connect to the server.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -140,9 +141,7 @@ describe('useAreas', () => {
 
     const { result } = renderHook(() => useAreas());
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('An unexpected error occurred while loading areas.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enSettings.manage.areas.loadError));
     expect(result.current.isLoading).toBe(false);
   });
 

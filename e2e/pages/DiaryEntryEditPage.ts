@@ -25,13 +25,13 @@
  *     - "Discard Draft" button (btnDanger) — opens discard confirmation modal
  *     - "Cancel" button — navigates to /diary
  *     - "Save" / "Saving..." submit button — promotes draft (type="submit")
- *   - Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title"):
- *     - "Delete Diary Entry" heading (#delete-modal-title)
+ *   - Delete confirmation modal (shared Modal, role="dialog", accessible name "Delete Diary Entry"):
+ *     - "Delete Diary Entry" heading
  *     - Optional error banner if delete fails
  *     - "Cancel" button (closes modal)
  *     - "Delete Entry" / "Deleting..." confirm button (hidden when deleteError is set)
- *   - Discard draft confirmation modal (role="dialog", aria-labelledby="discard-modal-title"):
- *     - "Discard Draft" heading (#discard-modal-title)
+ *   - Discard draft confirmation modal (shared Modal, role="dialog", accessible name "Discard Draft"):
+ *     - "Discard Draft" heading
  *     - "Keep Draft" / "Discard Draft" buttons
  *
  * Key DOM observations from source code:
@@ -40,7 +40,7 @@
  * - Auto-save indicator: data-testid="autosave-status" — only visible when saveStatus !== 'idle'
  * - "Discard Draft" button is type="button" with text from t('editPage.discardDraftButton')
  * - Promote (Save) button is type="submit" in draft mode
- * - Discard modal: aria-labelledby="discard-modal-title", confirm = "Discard Draft", cancel = "Keep Draft"
+ * - Discard modal: shared Modal named "Discard Draft", confirm = "Discard Draft", cancel = "Keep Draft"
  * - Delete modal cancel button text: t('editPage.deleteCancel') = "Cancel"
  * - Confirm delete button: class styles.confirmDeleteButton
  * - On successful promote: navigates to /diary/:id (detail)
@@ -95,6 +95,11 @@ export class DiaryEntryEditPage {
   readonly removePendingSignatureButton: Locator;
   readonly signatureValidationError: Locator;
 
+  // issue signatures (#2125)
+  readonly signatureCanvas: Locator;
+  readonly acceptSignatureButton: Locator;
+  readonly issueSignatureValidationError: Locator;
+
   // site_visit-specific fields
   readonly inspectorNameInput: Locator;
   readonly outcomeSelect: Locator;
@@ -113,12 +118,12 @@ export class DiaryEntryEditPage {
   // Error banner (server errors during save)
   readonly errorBanner: Locator;
 
-  // Delete confirmation modal (aria-labelledby="delete-modal-title")
+  // Delete confirmation modal (shared Modal, name "Delete Diary Entry")
   readonly deleteModal: Locator;
   readonly confirmDeleteButton: Locator;
   readonly cancelDeleteButton: Locator;
 
-  // Discard draft confirmation modal (aria-labelledby="discard-modal-title")
+  // Discard draft confirmation modal (shared Modal, name "Discard Draft")
   readonly discardModal: Locator;
   readonly discardModalConfirm: Locator;
   readonly discardModalCancel: Locator;
@@ -171,6 +176,11 @@ export class DiaryEntryEditPage {
     this.removePendingSignatureButton = page.getByRole('button', { name: 'Remove Signature' });
     this.signatureValidationError = page.locator('#daily-log-signatures-error');
 
+    // issue signatures (#2125)
+    this.signatureCanvas = page.getByLabel('Signature canvas');
+    this.acceptSignatureButton = page.getByRole('button', { name: 'Accept Signature' });
+    this.issueSignatureValidationError = page.locator('#issue-signatures-error');
+
     // site_visit fields
     this.inspectorNameInput = page.locator('#inspector-name');
     this.outcomeSelect = page.locator('#inspection-outcome');
@@ -190,8 +200,8 @@ export class DiaryEntryEditPage {
     // Server error banner
     this.errorBanner = page.locator('[class*="errorBanner"]').first();
 
-    // Delete modal — aria-labelledby="delete-modal-title"
-    this.deleteModal = page.locator('[role="dialog"][aria-labelledby="delete-modal-title"]');
+    // Delete modal — shared Modal (auto-generated title id); located by accessible name
+    this.deleteModal = page.getByRole('dialog', { name: 'Delete Diary Entry' });
     // Confirm delete inside the modal: text "Delete Entry" / "Deleting..."
     this.confirmDeleteButton = this.deleteModal.getByRole('button', {
       name: /Delete Entry|Deleting\.\.\./i,
@@ -199,8 +209,8 @@ export class DiaryEntryEditPage {
     // Cancel inside the delete modal: "Cancel"
     this.cancelDeleteButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
 
-    // Discard draft modal — aria-labelledby="discard-modal-title"
-    this.discardModal = page.locator('[role="dialog"][aria-labelledby="discard-modal-title"]');
+    // Discard draft modal — shared Modal; located by accessible name
+    this.discardModal = page.getByRole('dialog', { name: 'Discard Draft' });
     // "Discard Draft" confirm button inside discard modal
     this.discardModalConfirm = this.discardModal.getByRole('button', {
       name: /Discard Draft|Discarding\.\.\./i,
@@ -286,6 +296,24 @@ export class DiaryEntryEditPage {
     );
     await this.discardModalConfirm.click();
     await responsePromise;
+  }
+
+  /**
+   * Draw a stroke on the nth signature canvas (mouse down/move/up inside its bounding box)
+   * and accept it. Uses the canvas's own bounding box (see flake-patterns.md).
+   */
+  async drawSignature(index = 0): Promise<void> {
+    const canvas = this.signatureCanvas.nth(index);
+    await canvas.scrollIntoViewIfNeeded();
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Signature canvas has no bounding box');
+    await this.page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5);
+    await this.page.mouse.down();
+    await this.page.mouse.move(box.x + box.width * 0.4, box.y + box.height * 0.3, { steps: 5 });
+    await this.page.mouse.move(box.x + box.width * 0.6, box.y + box.height * 0.7, { steps: 5 });
+    await this.page.mouse.move(box.x + box.width * 0.8, box.y + box.height * 0.5, { steps: 5 });
+    await this.page.mouse.up();
+    await this.acceptSignatureButton.click();
   }
 
   /**

@@ -360,6 +360,14 @@ export class AutoItemizePage {
   }
 
   /**
+   * Step 2 empty state: t('invoiceDetail.budgetLines.picker.noUnlinkedLines')
+   * = "No unlinked budget lines for this item."
+   */
+  pickerEmptyState(): Locator {
+    return this.pickerStep2Modal().getByText(/No unlinked budget lines for this item/i);
+  }
+
+  /**
    * Returns a budget line row button in step 2 of the picker modal.
    * Each unlinked budget line is rendered as <button class*="pickerBudgetLineRow">.
    * @param nameOrIndex - 0-based row index OR a string/RegExp to match by visible text
@@ -558,6 +566,43 @@ export class AutoItemizePage {
     return this.lineAssignedBadge(index).locator('[class*="clearAssignButton"]');
   }
 
+  // ─── Linked (assign-existing) read-only rendering (#2149) ──────────────────
+
+  /** Read-only values section shown for a row linked to an existing budget line. */
+  lineLinkedValues(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-values');
+  }
+
+  /** Read-only description paragraph (replaces the textarea on linked rows). */
+  lineLinkedDescription(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-description');
+  }
+
+  /** Linked line's ORIGINAL category (read-only). */
+  lineLinkedCategory(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-category');
+  }
+
+  /** Linked line's ORIGINAL funding source (read-only). */
+  lineLinkedSource(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-source');
+  }
+
+  /** Linked line's ORIGINAL planned amount (read-only, "(excl. VAT)" suffix when net). */
+  lineLinkedPlanned(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-planned');
+  }
+
+  /** The only editable number input on a linked row: gross invoiced amount. */
+  lineItemizedAmountInput(index: number): Locator {
+    return this.lineRow(index).getByTestId('linked-line-itemized-amount');
+  }
+
+  /** "Change…" button next to the assigned badge on a linked row. */
+  lineChangeAssignButton(index: number): Locator {
+    return this.lineRow(index).getByRole('button', { name: /Change linked budget line/i });
+  }
+
   /**
    * Waits for the LLM dry-run to complete and card list to render.
    * Updated in story #1576:
@@ -750,6 +795,11 @@ export class AutoItemizePage {
    */
   getInlineFormWrapper(index: number): Locator {
     return this.lineRow(index).locator('[class*="inlineFormWrapper"]');
+  }
+
+  /** Funding Source select inside the inline BudgetLineForm draft of the line at index. */
+  getInlineDraftSourceSelect(index: number): Locator {
+    return this.lineRow(index).locator('select[id^="inline-"][id$="-budget-source"]');
   }
 
   /**

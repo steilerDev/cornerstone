@@ -742,6 +742,11 @@ export function DiaryEntryForm({
             currentUserName={currentUserName}
             vendors={vendors}
           />
+          {validationErrors.issueSignatures && (
+            <div id="issue-signatures-error" className={styles.errorText} role="alert">
+              {validationErrors.issueSignatures}
+            </div>
+          )}
         </div>
       )}
 

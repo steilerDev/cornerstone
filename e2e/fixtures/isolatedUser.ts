@@ -178,7 +178,7 @@ import { API } from './testData.js';
  */
 export const ADMIN_STORAGE_STATE = 'test-results/.auth/admin.json';
 
-/** Password given to every dedicated user (>= 8 chars per createUserSchema). */
+/** Password given to every dedicated user (>= 12 chars per createUserSchema). */
 const ISOLATED_USER_PASSWORD = 'e2e-isolated-pw-123!';
 
 /** Opt-in configuration for a dedicated user. */

@@ -1,27 +1,20 @@
 /**
  * PDF generation and merging pipeline.
  */
-import type { Content, Style } from 'pdfmake/build/pdfmake';
+import type { Content } from 'pdfmake/build/pdfmake';
 import type { SourceReportResponse } from '@cornerstone/shared';
 import type { ReportContent, ReportSkipReason } from '../reportContent/index.js';
 import { loadPdfLibs } from './loader.js';
-import { buildPageHeader, buildPageFooter } from './shared.js';
 import { buildCoverLetterContent } from './coverLetterPdf.js';
 import { buildOverviewContent } from './overviewPdf.js';
 import type { GeneratedReport, ReportPdfOptions, SkippedDocument } from './types.js';
 import { getDocumentPreviewUrl } from '../paperlessApi.js';
-import { PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_BOTTOM, PDF_STYLES } from './pageGeometry.js';
+import { buildReportDocDefinition } from './docDefinition.js';
+import { PDF_STYLES, PDF_DEFAULT_STYLE } from './pageGeometry.js';
 
-/**
- * Shared pdfmake document-definition literals, extracted so tests can build a realistic
- * `createPdf()` call without hand-copying them (#1929 AC11 — real-render assertions need the
- * production styles, not a re-typed approximation).
- */
-export const PDF_DEFAULT_STYLE: Style = {
-  font: 'Roboto',
-  fontSize: 11,
-  lineHeight: 1.4,
-};
+// `PDF_DEFAULT_STYLE` lives in pageGeometry.ts (shared with parts.ts, which must not import this
+// module); re-exported so tests can build a realistic `createPdf()` call (#1929 AC11).
+export { PDF_DEFAULT_STYLE };
 
 // `PDF_STYLES` is defined in pageGeometry.ts (#1939) — it needs the same font-size constants
 // pageGeometry.ts's own header-footprint/table-geometry math depends on, so it lives where
@@ -32,7 +25,7 @@ export { PDF_STYLES };
 
 export async function generateReportPdf(
   report: SourceReportResponse,
-  includedInvoiceIds: Set<string>,
+  includedInvoiceIds: ReadonlySet<string>,
   reportContent: ReportContent,
   options: ReportPdfOptions,
 ): Promise<GeneratedReport> {
@@ -118,22 +111,7 @@ export async function generateReportPdf(
   content.push(...overview);
 
   // Step 3: Generate pdfmake document
-  const pdfDoc = pdfMake.createPdf({
-    content,
-    pageSize: 'A4',
-    pageMargins: [PAGE_MARGIN_X, PAGE_TOP_MARGIN, PAGE_MARGIN_X, PAGE_MARGIN_BOTTOM],
-    header: (currentPage: number) => {
-      if (currentPage === 1) return null; // No header on first page
-      return buildPageHeader(
-        reportContent.tableTitle,
-        reportContent.sourceInfo.sourceName,
-        `${reportContent.labels.generatedAt}: ${reportContent.sourceInfo.generatedAtText}`,
-      );
-    },
-    footer: buildPageFooter(reportContent.labels.pageLabel),
-    defaultStyle: PDF_DEFAULT_STYLE,
-    styles: PDF_STYLES,
-  });
+  const pdfDoc = pdfMake.createPdf(buildReportDocDefinition(content, reportContent));
 
   // Get text blob (getBlob() is promise-based in @types/pdfmake@0.3.3)
   const textBlob = await pdfDoc.getBlob();
