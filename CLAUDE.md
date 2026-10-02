@@ -608,10 +608,6 @@ Hand-written SQL files in `server/src/db/migrations/` with a numeric prefix (e.g
 
 Production images use Docker Hardened Images (DHI). See `Dockerfile` and `docker-compose.yml` for build/deploy details.
 
-## Protected Files
-
-- **`README.md`**: The `> [!NOTE]` block at the top of `README.md` is a personal note from the repository owner. Agents must NEVER modify, remove, or rewrite this note block. Other sections of `README.md` may be edited as needed.
-
 ## Cross-Team Convention
 
 Any agent making a decision that affects other agents (e.g., a new naming convention, a shared pattern, a configuration change) must update this file so the convention is documented in one place.
