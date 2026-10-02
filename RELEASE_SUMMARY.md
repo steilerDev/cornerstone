@@ -1,93 +1,94 @@
-# Release Summary: v2.17.0
+# Release Summary: v2.18.0
 
-This release hardens OIDC account linking, adds quotation-to-invoice conversion, enforces invoice/deposit integrity, and includes a series of diary, reporting, and CI improvements.
+This release brings Photos browser, report splitting, Paperless auto-creation enhancements, SSO account creation, backup/restore reliability, and critical security and integrity fixes.
 
-## Major Changes
+## Major Features
 
-### OIDC Account Linking (Breaking Change)
+### Photos Browser (#2162)
 
-**OIDC now links to existing accounts by verified email only.** Auto-provisioning is disabled by default. This improves security by requiring your identity provider to verify user emails before linking.
+A new top-level **Photos** page organizes every diary photo by area and compass orientation. Browse all spots (area × orientation combinations) in a table (desktop) or card grid (mobile), showing the latest thumbnail, photo count, and diary date for each spot. Click any spot to open the **Spot Viewer** and step through photos chronologically with keyboard navigation, or jump to a specific diary entry via a "Same spot over time" history list.
 
-- **Email-based linking** -- An OIDC login whose subject isn't already linked will match an existing account by email (case-insensitive), but only when the identity provider sends `email_verified: true`. If your provider doesn't verify emails, existing linked accounts can still sign in, but new users will be rejected.
-- **Unknown users rejected** -- If a verified email from your identity provider doesn't match any existing account, the user is rejected with a clear error message unless `OIDC_JIT_PROVISIONING=true` is set.
-- **New opt-in provisioning** -- Set `OIDC_JIT_PROVISIONING=true` to enable just-in-time account creation on first SSO login. New accounts are created with the `member` role only (never `admin`), and only after the first admin account exists. This feature requires a restricted identity provider -- only enable it if you trust who can sign in.
-- **Migration required** -- Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject`. The upgrade will fail if two users share the same OIDC subject. Before upgrading, back up your database and check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns any rows, resolve the duplicates first by clearing `oidc_subject` on all but one of the affected accounts.
+**Guides:** [Photo Browser](/guides/photos), [Photo Capture](/guides/diary/photo-capture), [Photo Annotation](/guides/diary/photo-annotation)
 
-### Quotation to Final Invoice Conversion
+### Budget Report Splitting (#2161)
 
-Convert a quotation directly to a final invoice (#2107). Open the quotation's invoice detail page and click **Convert to final invoice** to open a dialog where you:
+The Report Wizard now supports splitting large reports into multiple PDF files by file size. In step 4, set an optional **max file size** (MB); if the report exceeds it, Cornerstone automatically splits it into parts. The first cover letter notes the report spans multiple attachments; continuation files have their own cover letter (date, reference, closing, signature) but no repeated totals or table headers. Downloads and Paperless uploads handle all files at once.
 
-- **Enter final invoice details** -- final amount, invoice date, invoice number, due date, and notes. A note with the quoted amount is added automatically.
-- **Optionally select a Paperless document** -- the document becomes the invoice attachment. If Paperless and an LLM are configured, **Prefill from document** auto-extracts the details.
-- **Review and edit itemized lines** -- proposed amounts are scaled pro rata to the final amount. You can edit them or keep the existing itemization; any remainder goes to Discretionary.
-- **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final payment.
-- **Choose payment status** -- leave as pending or mark as already paid.
+**Guide:** [Bank Reports](/guides/budget/bank-reports)
 
-Conversion is blocked if deposits exceed the final amount (add a refund entry or increase the amount) or if the itemized total exceeds it. Nothing is saved until you confirm.
+### Paperless Auto-Creation Enhancements (#2154, #2158, #2148)
 
-### Invoice Amount & Deposit Safeguards
+When creating an invoice from a Paperless document with Auto-itemize, the review flow now offers:
 
-Invoices now enforce invariants that prevent budget math from breaking (#2128):
+- **Invoice status selector** -- Choose Quotation, Pending, Paid, or Claimed upfront (defaults to Pending)
+- **Invoice-wide budget source** -- Optionally set a default financing source for all extracted lines; individual lines can override it
+- **Inline vendor creation** -- If the vendor doesn't exist, create one on-the-fly without closing the flow
 
-- **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. Edits that don't lower the amount are never blocked.
-- **Deposit floor (net of refunds)** -- The sum of deposits minus refunds must not exceed the invoice amount. This is checked when a deposit is added, increased, or when the invoice amount is lowered. Raising the amount is never blocked.
-- **Date validation** -- Calendar-impossible dates (e.g., 2026-02-31) are rejected.
+**Guide:** [Invoices & Vendors](/guides/budget/vendors-and-invoices)
 
-### Diary Signature Improvements
+### Admin-Created SSO-Only Accounts (#2122)
 
-Diary signatures now handle incomplete entries more gracefully (#2126):
+Admins can now create SSO-only accounts in the admin panel for users who will sign in exclusively via OIDC. These accounts:
 
-- **Unfinished signatures not sent** -- An unfinished signature (no signer selected or no drawing yet) is not sent to the server. Save is blocked client-side with a clear message next to the field, and autosave continues working.
-- **Remove button** -- A pending signature can be discarded with **Remove** to clear the canvas and try again.
-- **Error messages translated** -- Server errors now appear in your configured language.
-- **Email fallback for signer name** -- When a user's display name is blank, the signer name falls back to their email address.
+- Have no password and cannot log in locally
+- Show as "OIDC (awaiting first sign-in)" until the user's first SSO login with a verified matching email
+- Link automatically on first SSO login if email verification is enabled in your identity provider
 
-### Report Preview & PDF Parity
+The admin panel now displays an **Auth Provider** column distinguishing Local, Local + OIDC, OIDC, and OIDC (awaiting first sign-in) accounts.
 
-Report preview and PDF export now render identically (#2133):
+**Guide:** [Admin Panel](/guides/users/admin-panel)
 
-- Annotation order matches between preview and PDF (#2011)
-- Tier-3 summary text width constraints prevent cutoff (#2020, #2021)
-- Locale-specific formatting in German and English
+### Backup/Restore Reliability (#2122)
 
-### Other Improvements
+Backup and restore now work correctly in the shipped Docker image. Archive format is v2 (SQLite snapshot + manifest); v1 archives (live database files) remain restorable. Restore is crash-safe: if interrupted during the data-directory swap, the next startup detects it and either rolls back the incomplete swap or cleans up leftover files.
 
-- German UI now uses „…" (German quotation marks) instead of straight quotes (#2013)
-- E2E Gates now require full shard coverage on main promotions
-- Dependency updates for security and compatibility
+**Related:** System memory requirement is now >= 512 MiB (required for scrypt password hashing)
 
-## Migration Notes
+## Bug Fixes & Integrity
 
-**Before upgrading:** Back up your database. Migration `0046_users_oidc_subject_unique.sql` adds a unique index on `users.oidc_subject` and will fail if two users share the same subject. Check: `SELECT oidc_subject, COUNT(*) FROM users WHERE oidc_subject IS NOT NULL GROUP BY 1 HAVING COUNT(*) > 1;` -- if this returns rows, resolve the duplicates first by clearing `oidc_subject` on all but one of the affected accounts.
+- **Budget:** VAT_RATE is now honored in all gross-up math. Linking existing budget lines no longer modifies them; double-linking returns 409 Conflict (#2149)
+- **Invoices:** Net-deposit rule now blocks refund decrease/delete when it would violate the constraint (#2127)
+- **Diary:** Automatic diary event type chips are now translated; signature-locking only occurs after save (#2124, #2125)
+- **Diary Filter:** Default filter is now "Manual" (showing only hand-written entries, not auto-generated system events)
+- **Errors:** The UI never renders raw server error messages (#2129, #2131, #2132)
 
-**After upgrading:** If you use OIDC:
+## Infrastructure & Build
 
-1. Test OIDC login with an existing user who already has a linked account -- both OIDC and local password login should work.
-2. Test OIDC login with a user whose verified email doesn't match any account -- they should be rejected with a clear error message (unless `OIDC_JIT_PROVISIONING=true` is set).
-3. Verify your identity provider sends `email_verified: true` for all users (consult your provider's documentation).
+- **Node.js >= 24.11.0** required (Docker image updated; development workflow now requires this version)
+- **Babel 8** migration complete
+- **Scrypt hardening** with N=131072 and bounded queue (responds with 429 when full)
+- Container memory requirement: >= 512 MiB
 
-If you want to enable SSO-based account creation, set `OIDC_JIT_PROVISIONING=true` and restart the container.
+## Behind the Scenes
 
-## Configuration
+- Refined Paperless document metadata usage in auto-itemize extraction
+- Improved deposit-aware cost aggregation for budget overview rollups
+- Enhanced restore process with crash-safety and atomic v2 archive format
 
-No new required configuration. Optional:
+## Deployment Notes
 
-- `OIDC_JIT_PROVISIONING=true` -- Enable just-in-time account provisioning on first SSO login (off by default; member role only; requires verified emails and restricted IdP)
-
-See the [OIDC Setup](https://cornerstone.steiler.dev/guides/users/oidc-setup) guide for full details.
+1. **Memory:** Ensure container has >= 512 MiB RAM available (required for scrypt password hashing)
+2. **Backups:** Existing backups in v1 format are still restorable; new backups use v2 format
+3. **Node version:** The Docker image now requires Node.js >= 24.11.0 (already included in the official image)
 
 ## Testing Checklist
 
-- [ ] OIDC login with existing linked account (both OIDC and password should work)
-- [ ] OIDC login with verified email that doesn't match any account (rejected unless JIT provisioning enabled)
-- [ ] Convert a quotation to a final invoice, entering final details and reviewing itemized lines
-- [ ] Edit invoice amount when itemized total is exactly the amount (allowed)
-- [ ] Attempt to lower invoice below itemized total (blocked with error)
-- [ ] Attempt to lower invoice when deposits exceed the new amount (blocked with error)
-- [ ] Diary: Start a signature without finishing it, then Remove it
-- [ ] Report PDF matches preview layout and annotations in both English and German
+- [ ] Access Photos page and browse spots table/grid
+- [ ] Open a spot and navigate through photos with keyboard and buttons
+- [ ] Create report and set max file size to split into multiple PDFs
+- [ ] Create invoice from Paperless document with new status selector, budget source, and inline vendor creation
+- [ ] Admin panel: Create SSO-only account and verify auth provider column
+- [ ] Manual backup creation and scheduled backup execution
+- [ ] Diary: Create signed entry, verify signature locks after save, not before
+- [ ] Diary: Verify default filter is "Manual" on page load
+- [ ] Link budget line to invoice and verify it is not modified
+- [ ] Attempt double-link to same invoice (should return 409 Conflict)
 
 ## Docker Images
 
-- **Stable release** (main): `steilerdev/cornerstone:latest`, `steilerdev/cornerstone:2.17.0`
+- **Stable release** (main): `steilerdev/cornerstone:latest`, `steilerdev/cornerstone:2.18.0`
 - **Beta preview** (beta): `steilerdev/cornerstone:beta`
+
+---
+
+📚 [Full Documentation](https://cornerstone.steiler.dev/) | 💬 [GitHub Issues](https://github.com/steilerDev/cornerstone/issues)
