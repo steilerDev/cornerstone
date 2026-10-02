@@ -6,6 +6,17 @@ import { foreignKeysDisabled } from './disposables.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+/** List bundled (or custom) migration file names, sorted. Returns [] when the directory is missing. */
+export function listMigrationFiles(customMigrationsDir?: string): string[] {
+  const migrationsDir = customMigrationsDir ?? join(__dirname, 'migrations');
+  if (!existsSync(migrationsDir)) {
+    return [];
+  }
+  return readdirSync(migrationsDir)
+    .filter((f) => f.endsWith('.sql'))
+    .sort();
+}
+
 export function runMigrations(db: Database.Database, customMigrationsDir?: string): void {
   db.exec(`
     CREATE TABLE IF NOT EXISTS _migrations (
@@ -20,9 +31,7 @@ export function runMigrations(db: Database.Database, customMigrationsDir?: strin
     return;
   }
 
-  const files = readdirSync(migrationsDir)
-    .filter((f) => f.endsWith('.sql'))
-    .sort();
+  const files = listMigrationFiles(customMigrationsDir);
 
   const applied = new Set(
     db

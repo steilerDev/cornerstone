@@ -1,8 +1,8 @@
 import { GenericContainer, Wait } from 'testcontainers';
-import type { Network, StartedTestContainer } from 'testcontainers';
+import type { StartedNetwork, StartedTestContainer } from 'testcontainers';
 
 export interface CornerstoneContainerConfig {
-  network: Network;
+  network: StartedNetwork;
   oidcPort?: number;
 }
 

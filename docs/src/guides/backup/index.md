@@ -13,17 +13,19 @@ This guide walks through configuring the backup directory, scheduling automatic 
 
 A backup is a `tar.gz` archive of the **entire app data directory** -- the same directory that contains your SQLite database file (`cornerstone.db` by default). That means a single archive captures:
 
-- The SQLite database (work items, budgets, users, vendors, diary entries, etc.)
+- A consistent snapshot of the SQLite database (work items, budgets, users, vendors, diary entries, etc.)
 - Diary photo attachments stored under the data directory
 - Any other state Cornerstone keeps next to the database
 
-Cornerstone uses SQLite's online backup API to snapshot the database safely while it is running, so you do not need to stop the container to take a backup.
+Cornerstone uses SQLite's online backup API to snapshot the database safely while it is running, so you do not need to stop the container to take a backup. The snapshot is a frozen point-in-time copy of the database; it never includes the live database file or transaction log (`-wal` or `-shm` files).
 
 Archives are named with a UTC timestamp:
 
 ```
 cornerstone-backup-2026-04-29T143022Z.tar.gz
 ```
+
+Archives created by earlier Cornerstone versions (which contained the live database files alongside snapshots) can still be restored; the restore process automatically detects the archive format and restores all restorable data.
 
 ## Configuration
 
@@ -175,11 +177,11 @@ To restore:
 After the process exits, your container orchestrator (Docker, Compose, Kubernetes, etc.) will restart the container automatically -- and the new instance comes up against the restored data.
 
 :::caution Restoring is destructive
-A restore replaces all current data with the archive contents. There is no automatic "undo." Before restoring, take a fresh manual backup so you can roll forward again if you change your mind. Cornerstone does keep a timestamped copy of the previous data directory next to the original (e.g., `data.backup-1730000000`) until the next restart, but you should not rely on it as a recovery mechanism.
+A restore replaces all current data with the archive contents. This is a **full replacement** -- work items, budgets, photos, and other files added since the backup was taken will be permanently deleted. There is no automatic "undo." Before restoring, take a fresh manual backup of your current data so you can roll forward again if you change your mind. The previous data is removed immediately after the restore succeeds; there is no timestamped copy kept for recovery.
 :::
 
 :::note Restart policy required
-The restore flow exits the Node.js process intentionally so the new data directory is picked up cleanly on the next start. This relies on your container being configured to restart automatically. The default `docker-compose.yml` and `docker run` examples in this documentation use `restart: unless-stopped` (or equivalent). If you run Cornerstone without a restart policy, you will need to start the container yourself after a restore.
+The restore flow exits the Node.js process intentionally so the new data directory is picked up cleanly on the next start. This requires your container restart policy to be set to **`unless-stopped`** or **`always`**. The policy `on-failure` does **not** work for a successful restore, because the process exits with code 0 (which signals "do not restart" to Docker). A bare `docker run` without a `--restart` flag will stop after the restore and stay stopped -- you must start it manually. The default `docker-compose.yml` and `docker run` examples in this documentation use `restart: unless-stopped`, which is correct.
 :::
 
 ### Restoring on a New Host
@@ -193,6 +195,23 @@ To migrate Cornerstone to a different machine using a backup:
 5. Click **Restore** and confirm
 
 The restore flow rebuilds the data directory from the archive, so the new host comes up with the same database, photos, and configuration.
+
+### Restore Failure Handling
+
+If a restore fails:
+
+- **Archive rejected during validation** (corrupt, from a newer version, or missing the database) -- the server logs the failure (`RESTORE_FAILED`), **keeps running** with your current data intact, and another backup or restore can be started. No data is modified. Check the container logs for details and try a different archive. The web interface still shows the 'Server is restarting' message, so if the data looks unchanged after refreshing, check the container logs.
+- **Swap failure** -- if the data swap encounters an error after the archive is validated, the server automatically rolls back to reinstate your original data, logs the error, and exits with code 1. On restart, your original data is restored.
+
+:::info
+If a restore is interrupted by a crash (for example, power loss) during the swap, the next startup detects it automatically. If the swap had not finished, your original data is reinstated. If it had finished, the leftover temporary files are removed and the restored data is kept.
+:::
+
+### Disk Space and Photo Storage Limitations
+
+**Disk space during restore:** A restore temporarily needs free space on the data volume about equal to the extracted archive size. The restore process stages the extracted archive in the data directory, then swaps it in place. If the volume runs out of space during extraction, the restore fails and your original data is not modified.
+
+**Photo storage limitation:** If `PHOTO_STORAGE_PATH` is configured to point outside the data directory, photos are neither backed up nor restored. Only the database and files stored within the data directory are included in archives. This is typically only relevant if you have customized the photo storage location.
 
 ## Off-Site Copies
 
