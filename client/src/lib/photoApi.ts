@@ -1,30 +1,12 @@
-import { get, patch, del, getBaseUrl, ApiClientError, NetworkError } from './apiClient.js';
+import { get, patch, del, getBaseUrl, toApiClientError, NetworkError } from './apiClient.js';
 import type { RequestOptions } from './apiClient.js';
 import { PHOTO_SPOT_NONE } from '@cornerstone/shared';
 import type {
-  ApiError,
   Photo,
   UpdatePhotoRequest,
   PhotoSpotsResponse,
   PhotoSpotPhotosResponse,
 } from '@cornerstone/shared';
-
-/**
- * Build an ApiClientError for a non-2xx upload response. Uses the server's
- * `{ error: { code, message } }` body when present; otherwise derives a code from the
- * HTTP status so the UI can still translate it.
- */
-function buildUploadError(status: number, body: unknown): ApiClientError {
-  const apiError = (body as { error?: Partial<ApiError> } | null)?.error;
-  if (apiError && typeof apiError.code === 'string') {
-    return new ApiClientError(status, apiError as ApiError);
-  }
-  return new ApiClientError(status, {
-    code:
-      status === 413 ? 'PAYLOAD_TOO_LARGE' : status >= 500 ? 'INTERNAL_ERROR' : 'VALIDATION_ERROR',
-    message: `Upload failed (${status})`,
-  });
-}
 
 /**
  * Upload a photo using XMLHttpRequest for progress tracking.
@@ -65,7 +47,7 @@ export function uploadPhoto(
         } catch {
           // Non-JSON body: fall back to a status-derived error
         }
-        reject(buildUploadError(xhr.status, errBody));
+        reject(toApiClientError(xhr.status, errBody));
       }
     });
 
@@ -143,7 +125,7 @@ export async function uploadAnnotation(id: string, blob: Blob): Promise<Photo> {
 
   if (!response.ok) {
     const body: unknown = await response.json().catch(() => null);
-    throw buildUploadError(response.status, body);
+    throw toApiClientError(response.status, body);
   }
 
   const data = (await response.json()) as { photo: Photo };

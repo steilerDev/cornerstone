@@ -1508,8 +1508,10 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        const successAlert = alerts.find((el) => el.textContent?.includes('created successfully'));
+        const statuses = screen.getAllByRole('status');
+        const successAlert = statuses.find((el) =>
+          el.textContent?.includes('created successfully'),
+        );
         expect(successAlert).toBeInTheDocument();
       });
     });
@@ -1536,8 +1538,10 @@ describe('BudgetSourcesPage', () => {
       await user.click(screen.getByRole('button', { name: /create source/i }));
 
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        const successAlert = alerts.find((el) => el.textContent?.includes('created successfully'));
+        const statuses = screen.getAllByRole('status');
+        const successAlert = statuses.find((el) =>
+          el.textContent?.includes('created successfully'),
+        );
         expect(successAlert).toBeInTheDocument();
       });
 

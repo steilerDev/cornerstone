@@ -697,7 +697,7 @@ describe('photoApi', () => {
       expect(err).toBeInstanceOf(ApiClientError);
       expect((err as ApiClientError).statusCode).toBe(400);
       expect((err as ApiClientError).error.code).toBe('VALIDATION_ERROR');
-      expect((err as ApiClientError).error.message).toBe('Upload failed (400)');
+      expect((err as ApiClientError).error.message).toBe('HTTP 400');
     });
 
     it('derives INTERNAL_ERROR for an unparseable 500 body', async () => {

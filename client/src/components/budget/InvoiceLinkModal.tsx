@@ -38,6 +38,7 @@ export function InvoiceLinkModal({
 }: InvoiceLinkModalProps) {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const { formatCurrency, formatDate: _formatDate } = useFormatters();
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
@@ -201,7 +202,7 @@ export function InvoiceLinkModal({
           setError({ message: translateApiError(err.error.code, tErrors) });
         }
       } else if (err instanceof NetworkError) {
-        setError({ message: t('common:requestErrors.network') });
+        setError({ message: tCommon('requestErrors.network') });
       } else {
         setError({ message: t('invoiceLinkModal.errors.unexpected') });
       }

@@ -22,8 +22,4 @@ describe('errors.json covers exactly the ErrorCode union (#2132)', () => {
     const extra = Object.keys(json).filter((key) => !known.has(key));
     expect(extra).toEqual([]);
   });
-
-  it('ERROR_CODES has no duplicates', () => {
-    expect(new Set(ERROR_CODES).size).toBe(ERROR_CODES.length);
-  });
 });

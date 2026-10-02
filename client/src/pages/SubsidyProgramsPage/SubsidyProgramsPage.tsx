@@ -94,6 +94,7 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
 
 export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
@@ -402,7 +403,7 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading}>{t('subsidies.loading')}</div>
       </PageLayout>
@@ -413,7 +414,7 @@ export function SubsidyProgramsPage() {
     return (
       <PageLayout
         title={t('overview.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
@@ -444,10 +445,10 @@ export function SubsidyProgramsPage() {
           {t('subsidies.addProgram')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}

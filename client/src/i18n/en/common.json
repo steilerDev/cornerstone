@@ -183,7 +183,12 @@
     "refreshButton": "Refresh page"
   },
   "requestErrors": {
-    "network": "Network error: Unable to connect to the server.",
+    "network": "Can't reach the server. Check your connection and try again.",
     "unexpected": "An unexpected error occurred. Please try again."
+  },
+  "subNav": {
+    "project": "Project section navigation",
+    "budget": "Budget section navigation",
+    "settings": "Settings section navigation"
   }
 }

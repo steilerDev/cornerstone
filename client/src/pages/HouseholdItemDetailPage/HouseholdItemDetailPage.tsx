@@ -48,6 +48,7 @@ import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { deleteInvoiceBudgetLine, editAndMoveBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
+import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -552,49 +553,33 @@ export function HouseholdItemDetailPage() {
 
     setInlineError(null);
 
-    try {
-      // If the line has an invoice link, use the invoice budget line endpoint
-      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-        const moveData =
-          newParentType === 'work_item'
-            ? { newWorkItemId: newParentId }
-            : { newHouseholdItemId: newParentId };
+    // If the line has an invoice link, use the invoice budget line endpoint
+    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+      const moveData =
+        newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId };
 
-        await editAndMoveBudgetLine(
-          budgetLine.invoiceLink.invoiceId,
-          budgetLine.invoiceLink.invoiceBudgetLineId,
-          moveData,
-        );
-      } else {
-        // No invoice link — check if it's a same-table or cross-table move
-        if (newParentType === 'work_item') {
-          // Cross-table move without invoice link is not supported
-          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-        }
-
-        // Same-table household item to household item move
-        await updateHouseholdItemBudget(item!.id, budgetLineId, {
-          newHouseholdItemId: newParentId,
-        });
+      await editAndMoveBudgetLine(
+        budgetLine.invoiceLink.invoiceId,
+        budgetLine.invoiceLink.invoiceBudgetLineId,
+        moveData,
+      );
+    } else {
+      // No invoice link — check if it's a same-table or cross-table move
+      if (newParentType === 'work_item') {
+        // Cross-table move without invoice link is not supported
+        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
       }
 
-      // Reload budget lines to reflect the move
-      await reloadBudgetLines();
-    } catch (err) {
-      let message: string;
-      if (err instanceof ApiClientError) {
-        message = translateApiError(err.error.code, tErrors);
-      } else if (err instanceof NetworkError) {
-        message = tCommon('requestErrors.network');
-      } else if (err instanceof Error && err.message) {
-        // Only pre-translated local errors thrown above reach this branch.
-        message = err.message;
-      } else {
-        message = tBudget('budgetLineForm.errors.moveFailed');
-      }
-      setInlineError(message);
-      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+      // Same-table household item to household item move
+      await updateHouseholdItemBudget(item!.id, budgetLineId, {
+        newHouseholdItemId: newParentId,
+      });
     }
+
+    // Reload budget lines to reflect the move
+    await reloadBudgetLines();
   };
 
   const handleInvoiceLineEdit = async (
@@ -606,7 +591,7 @@ export function HouseholdItemDetailPage() {
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {
-      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
     }
 
     // Compute plannedAmount from form
@@ -735,7 +720,7 @@ export function HouseholdItemDetailPage() {
       setItem(updated);
       showToast('success', t('detail.status.updated'));
     } catch (err) {
-      setInlineError(t('detail.status.updateFailed'));
+      showToast('error', t('detail.status.updateFailed'));
       console.error('Failed to update status:', err);
     } finally {
       setIsChangingStatus(false);
@@ -750,7 +735,7 @@ export function HouseholdItemDetailPage() {
       setItem(updated);
       showToast('success', t('detail.area.updated'));
     } catch (err) {
-      setInlineError(t('detail.area.updateFailed'));
+      showToast('error', t('detail.area.updateFailed'));
       console.error('Failed to update area:', err);
     }
   };

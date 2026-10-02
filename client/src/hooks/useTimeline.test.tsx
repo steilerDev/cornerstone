@@ -28,6 +28,7 @@ import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
 import i18n from '../i18n/index.js';
 import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 import enSchedule from '../i18n/en/schedule.json';
 import deSchedule from '../i18n/de/schedule.json';
 
@@ -140,20 +141,8 @@ describe('useTimeline', () => {
 
     await waitFor(() => {
       const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText.toLowerCase()).toContain('network error');
-    });
-  });
-
-  it('network error message includes "unable to connect"', async () => {
-    const { NetworkError } = await import('../lib/apiClient.js');
-    const networkError = new NetworkError('Network request failed', new TypeError('Failed'));
-    mockGetTimeline.mockRejectedValue(networkError);
-
-    render(<TestComponent />);
-
-    await waitFor(() => {
-      const errorText = screen.getByTestId('error').textContent ?? '';
-      expect(errorText.toLowerCase()).toContain('unable to connect');
+      expect(errorText).toBe(enCommon.requestErrors.network);
+      expect(errorText).not.toContain('Failed to fetch');
     });
   });
 

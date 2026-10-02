@@ -29,6 +29,7 @@ export interface UsePhotosResult {
 export function usePhotos(entityType: string, entityId: string): UsePhotosResult {
   const { t } = useTranslation('photoViewer');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [photos, setPhotos] = useState<Photo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,7 +59,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
           if (err instanceof ApiClientError) {
             setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError(t('networkError'));
+            setError(tCommon('requestErrors.network'));
           } else {
             setError(t('unexpectedError'));
           }
@@ -74,7 +75,7 @@ export function usePhotos(entityType: string, entityId: string): UsePhotosResult
     return () => {
       cancelled = true;
     };
-  }, [entityType, entityId, fetchCount, t, tErrors]);
+  }, [entityType, entityId, fetchCount, t, tErrors, tCommon]);
 
   const uploadPhoto = useCallback(
     async (file: File, caption?: string, onProgress?: (percent: number) => void) => {

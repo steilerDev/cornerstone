@@ -19,6 +19,7 @@ interface PasswordFormErrors {
 
 export function ProfilePage() {
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const {
     formatCurrency: _formatCurrency,
@@ -166,7 +167,7 @@ export function ProfilePage() {
       <PageLayout
         maxWidth="narrow"
         title={t('profile.pageTitle')}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <div className={styles.loading}>{t('profile.loading')}</div>
       </PageLayout>
@@ -178,7 +179,7 @@ export function ProfilePage() {
       <PageLayout
         maxWidth="narrow"
         title={t('profile.pageTitle')}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('profile.error')}</h2>
@@ -198,7 +199,7 @@ export function ProfilePage() {
     <PageLayout
       maxWidth="narrow"
       title={t('profile.pageTitle')}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       {/* Profile Information Card */}
       <section className={styles.card}>
@@ -237,7 +238,7 @@ export function ProfilePage() {
         <p className={styles.cardDescription}>{t('profile.displayNameDescription')}</p>
 
         {displayNameSuccess && (
-          <div className={styles.successBanner} role="alert">
+          <div className={styles.successBanner} role="status" aria-atomic="true">
             {displayNameSuccess}
           </div>
         )}
@@ -282,7 +283,7 @@ export function ProfilePage() {
           <p className={styles.cardDescription}>{t('profile.changePasswordDescription')}</p>
 
           {passwordSuccess && (
-            <div className={styles.successBanner} role="alert">
+            <div className={styles.successBanner} role="status" aria-atomic="true">
               {passwordSuccess}
             </div>
           )}

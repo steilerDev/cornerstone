@@ -18,6 +18,7 @@ describe('no-restricted-syntax: raw API error message (#2129)', () => {
     ['err.error?.message', 'const x = err.error?.message;\nexport { x };'],
     ['body.error?.message', 'const x = body.error?.message;\nexport { x };'],
     ['destructured message', 'const { message } = err.error;\nexport { message };'],
+    ['nested destructured message', 'const { error: { message } } = err;\nexport { message };'],
   ])('flags %s', async (_name, code) => {
     expect(await ruleHits(code)).toBe(1);
   });

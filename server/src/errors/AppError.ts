@@ -16,8 +16,9 @@ export class AppError extends Error {
     message: string,
     details?: Record<string, unknown>,
     suppressDetails = false,
+    cause?: unknown,
   ) {
-    super(message);
+    super(message, cause !== undefined ? { cause } : undefined);
     this.name = 'AppError';
     this.code = code;
     this.statusCode = statusCode;
@@ -257,22 +258,22 @@ export class BackupInProgressError extends AppError {
 }
 
 export class BackupNotFoundError extends AppError {
-  constructor(filename: string) {
-    super('BACKUP_NOT_FOUND', 404, `Backup not found: ${filename}`);
+  constructor() {
+    super('BACKUP_NOT_FOUND', 404, 'Backup not found');
     this.name = 'BackupNotFoundError';
   }
 }
 
 export class RestoreFailedError extends AppError {
-  constructor(message = 'Restore operation failed', details?: Record<string, unknown>) {
-    super('RESTORE_FAILED', 500, message, details);
+  constructor(message = 'Restore operation failed', cause?: unknown) {
+    super('RESTORE_FAILED', 500, message, undefined, false, cause);
     this.name = 'RestoreFailedError';
   }
 }
 
 export class BackupFailedError extends AppError {
-  constructor(message = 'Backup operation failed', details?: Record<string, unknown>) {
-    super('BACKUP_FAILED', 500, message, details);
+  constructor(message = 'Backup operation failed', cause?: unknown) {
+    super('BACKUP_FAILED', 500, message, undefined, false, cause);
     this.name = 'BackupFailedError';
   }
 }

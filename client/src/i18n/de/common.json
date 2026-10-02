@@ -183,7 +183,12 @@
     "refreshButton": "Seite neu laden"
   },
   "requestErrors": {
-    "network": "Netzwerkfehler: Verbindung zum Server konnte nicht hergestellt werden.",
+    "network": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+  },
+  "subNav": {
+    "project": "Navigation im Bereich Projekt",
+    "budget": "Navigation im Bereich Budget",
+    "settings": "Navigation im Bereich Einstellungen"
   }
 }

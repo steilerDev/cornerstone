@@ -433,9 +433,15 @@ describe('Backup Routes', () => {
         }
       }
       expect(released).toBe(true);
+      // (the poll above took the lock itself via beginRestore, proving executeRestore had released it)
       await expect(
         backupService.executeRestore(appWithBackup.db, appWithBackup.config, filename),
-      ).rejects.toMatchObject({ code: 'RESTORE_FAILED' });
+      ).rejects.toMatchObject({ code: 'RESTORE_FAILED', message: 'Restore failed' });
+
+      // Lock is free again once the restore pipeline has finished
+      await expect(
+        backupService.createBackup(appWithBackup.db, appWithBackup.config),
+      ).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
     });
 
     it('POST /api/backups/:filename/restore returns 404 BACKUP_NOT_FOUND when the archive does not exist', async () => {
@@ -448,7 +454,25 @@ describe('Backup Routes', () => {
       });
 
       expect(response.statusCode).toBe(404);
-      expect(response.json<ApiErrorResponse>().error.code).toBe('BACKUP_NOT_FOUND');
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('BACKUP_NOT_FOUND');
+      expect(body.error.message).toBe('Backup not found');
+      expect(response.body).not.toContain('cornerstone-backup-2026-03-22T020000Z');
+      expect(body.error.details).toBeUndefined();
+    });
+
+    it('DELETE /api/backups/:filename 404 does not echo the filename', async () => {
+      const cookie = await createAdminWithSession();
+
+      const response = await appWithBackup.inject({
+        method: 'DELETE',
+        url: '/api/backups/cornerstone-backup-2026-03-22T020000Z.tar.gz',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json<ApiErrorResponse>().error.message).toBe('Backup not found');
+      expect(response.body).not.toContain('cornerstone-backup-2026-03-22T020000Z');
     });
 
     it('POST /api/backups/:filename/restore returns 409 BACKUP_IN_PROGRESS while a backup holds the lock', async () => {
@@ -485,11 +509,51 @@ describe('Backup Routes', () => {
         });
 
         expect(response.statusCode).toBe(500);
-        expect(response.json<ApiErrorResponse>().error.code).toBe('RESTORE_FAILED');
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('RESTORE_FAILED');
+        expect(body.error.message).toBe('Backup archive could not be read');
+        expect(body.error.details).toBeUndefined();
+        expect(response.body).not.toContain(blocker);
+        expect(response.body).not.toMatch(/ENOTDIR/);
       } finally {
         appWithBackup.config.backupDir = originalDir;
       }
     });
+
+    // chmod cannot make a file unreadable for root, so this case only runs unprivileged
+    (process.getuid?.() === 0 ? it.skip : it)(
+      'POST /api/backups/:filename/restore returns 500 RESTORE_FAILED with the fixed message for an unreadable archive',
+      async () => {
+        const cookie = await createAdminWithSession();
+        const filename = 'cornerstone-backup-2026-03-22T020000Z.tar.gz';
+        const archivePath = join(backupTempDir.path, filename);
+        writeFileSync(archivePath, 'archive');
+        chmodSync(archivePath, 0o000);
+
+        try {
+          const response = await appWithBackup.inject({
+            method: 'POST',
+            url: `/api/backups/${filename}/restore`,
+            headers: { cookie },
+          });
+
+          expect(response.statusCode).toBe(500);
+          const body = response.json<ApiErrorResponse>();
+          expect(body.error.code).toBe('RESTORE_FAILED');
+          expect(body.error.message).toBe('Backup archive could not be read');
+          expect(body.error.details).toBeUndefined();
+          expect(response.body).not.toContain(backupTempDir.path);
+          expect(response.body).not.toMatch(/EACCES/);
+        } finally {
+          chmodSync(archivePath, 0o644);
+        }
+
+        // The lock was not taken: a backup is not rejected as in progress
+        await expect(
+          backupService.createBackup(appWithBackup.db, appWithBackup.config),
+        ).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
+      },
+    );
 
     it('POST /api/backups returns 500 BACKUP_FAILED when backup directory exists but is read-only', async () => {
       // chmod does not restrict root — skip this test when running as root

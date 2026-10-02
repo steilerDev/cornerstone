@@ -231,17 +231,19 @@ export default async function backupRoutes(fastify: FastifyInstance) {
       // Validate (filename, existing archive, lock) before answering; errors reach the client
       await backupService.beginRestore(fastify.config, request.params.filename);
 
-      reply.status(202).send({
-        message: 'Restore initiated. Server is restarting.',
-      });
-
-      // Extract and swap asynchronously after the response is sent
+      // Schedule the extract/swap before sending the reply, so the operation lock taken by
+      // beginRestore is always handed to executeRestore (which releases it in its finally)
+      // regardless of what happens to the send. The immediate still fires after the send.
       setImmediate(async () => {
         try {
           await backupService.executeRestore(fastify.db, fastify.config, request.params.filename);
         } catch (error) {
           fastify.log.error(error, 'Restore failed');
         }
+      });
+
+      return reply.status(202).send({
+        message: 'Restore initiated. Server is restarting.',
       });
     },
   );

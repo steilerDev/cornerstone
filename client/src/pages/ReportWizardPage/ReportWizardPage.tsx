@@ -79,6 +79,7 @@ const NO_UPLOAD_STATUSES: ReadonlyMap<number, PartUploadStatus> = new Map();
 
 export function ReportWizardPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { showToast } = useToast();
   const { user } = useAuth();
@@ -644,7 +645,7 @@ export function ReportWizardPage() {
       if (err instanceof ApiClientError) {
         showToast('error', translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
-        showToast('error', t('common:requestErrors.network'));
+        showToast('error', tCommon('requestErrors.network'));
       } else {
         showToast('error', t('sourceReports.uploadFailed'));
       }
@@ -658,6 +659,7 @@ export function ReportWizardPage() {
     t,
     showToast,
     tErrors,
+    tCommon,
     partsMode,
     baseName,
     ensureParts,
@@ -887,7 +889,7 @@ export function ReportWizardPage() {
 
   return (
     <PageLayout title={t('sourceReports.title')}>
-      <SubNav tabs={BUDGET_TABS} ariaLabel={t('sourceReports.subNavAriaLabel')} />
+      <SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />
 
       <WizardStepper
         steps={steps}

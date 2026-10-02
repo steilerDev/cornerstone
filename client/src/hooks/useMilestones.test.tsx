@@ -17,6 +17,7 @@ import type { MilestoneSummary } from '@cornerstone/shared';
 import type React from 'react';
 import i18n from '../i18n/index.js';
 import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 import deErrors from '../i18n/de/errors.json';
 
 // ---------------------------------------------------------------------------
@@ -249,25 +250,15 @@ describe('useMilestones', () => {
       }
     });
 
-    it('surfaces NetworkError message containing "network error"', async () => {
+    it('surfaces the common network copy for a NetworkError', async () => {
       setupFetchNetworkFailure();
 
       render(<TestComponent />);
 
       await waitFor(() => {
         const errorText = screen.getByTestId('error').textContent ?? '';
-        expect(errorText.toLowerCase()).toContain('network error');
-      });
-    });
-
-    it('NetworkError message contains "unable to connect"', async () => {
-      setupFetchNetworkFailure();
-
-      render(<TestComponent />);
-
-      await waitFor(() => {
-        const errorText = screen.getByTestId('error').textContent ?? '';
-        expect(errorText.toLowerCase()).toContain('unable to connect');
+        expect(errorText).toBe(enCommon.requestErrors.network);
+        expect(errorText).not.toContain('Failed to fetch');
       });
     });
 

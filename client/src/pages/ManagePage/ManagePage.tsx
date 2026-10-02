@@ -150,7 +150,7 @@ function HouseholdTab() {
       <p className={styles.cardDescription}>{t('manage.household.description')}</p>
 
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -400,7 +400,7 @@ function AreasTab() {
   return (
     <>
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -936,7 +936,7 @@ function TradesTab() {
   return (
     <>
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -1432,7 +1432,7 @@ function OrientationsTab() {
   return (
     <>
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -1931,7 +1931,7 @@ function BudgetCategoriesTab() {
   return (
     <>
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -2499,7 +2499,7 @@ function HouseholdItemCategoriesTab() {
   return (
     <>
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}
@@ -2816,6 +2816,7 @@ function HouseholdItemCategoriesTab() {
 
 export function ManagePage() {
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
@@ -2848,7 +2849,7 @@ export function ManagePage() {
     <PageLayout
       maxWidth="narrow"
       title={t('manage.pageTitle')}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       <div className={styles.tabList} role="tablist">
         <button

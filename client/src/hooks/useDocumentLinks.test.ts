@@ -1,7 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import enErrors from '../i18n/en/errors.json';
-import enDocuments from '../i18n/en/documents.json';
+import enCommon from '../i18n/en/common.json';
 
 const mockListDocumentLinks = jest.fn<() => Promise<unknown>>();
 const mockCreateDocumentLink = jest.fn<() => Promise<unknown>>();
@@ -148,7 +148,7 @@ describe('useDocumentLinks', () => {
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toBe(enDocuments.browser.loadErrorNetwork));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -157,7 +157,7 @@ describe('useDocumentLinks', () => {
 
     const { result } = renderHook(() => useDocumentLinks('work_item', 'wi-abc'));
 
-    await waitFor(() => expect(result.current.error).toBe(enDocuments.browser.loadErrorUnexpected));
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.unexpected));
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -626,7 +626,7 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toBe(enDocuments.browser.loadErrorNetwork);
+    expect(result.current.error).toBe(enCommon.requestErrors.network);
     expect(result.current.isLoading).toBe(false);
   });
 
@@ -639,7 +639,7 @@ describe('useAllLinkedDocumentIds', () => {
       await result.current.fetch();
     });
 
-    expect(result.current.error).toBe(enDocuments.browser.loadErrorUnexpected);
+    expect(result.current.error).toBe(enCommon.requestErrors.unexpected);
     expect(result.current.error).not.toContain('RAW-LOCAL');
     expect(result.current.isLoading).toBe(false);
   });

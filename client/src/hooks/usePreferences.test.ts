@@ -126,9 +126,7 @@ describe('usePreferences', () => {
 
     const { result } = renderHook(() => usePreferences());
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('Network error: Unable to connect to the server.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.isLoading).toBe(false);
   });
 

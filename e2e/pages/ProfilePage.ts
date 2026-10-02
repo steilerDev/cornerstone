@@ -61,7 +61,7 @@ export class ProfilePage {
     this.displayNameInput = page.locator('#displayName');
     this.saveDisplayNameButton = page.getByRole('button', { name: /Save Changes|Saving/ }).first();
     this.displayNameSuccessBanner = this.displayNameSection
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
     this.displayNameErrorBanner = this.displayNameSection
       .locator('[role="alert"]')
@@ -75,7 +75,7 @@ export class ProfilePage {
       name: /Change Password|Changing Password/,
     });
     this.passwordSuccessBanner = this.passwordSection
-      .locator('[role="alert"]')
+      .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
     this.passwordErrorBanner = this.passwordSection
       .locator('[role="alert"]')

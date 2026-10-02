@@ -24,6 +24,7 @@ import styles from './VendorsPage.module.css';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
@@ -345,7 +346,7 @@ export function VendorsPage() {
           {t('vendors.addVendor')}
         </button>
       }
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       <DataTable<Vendor>
         pageKey="vendors"

@@ -832,8 +832,8 @@
         "saveError": "Failed to save deposit. Please try again.",
         "deleteError": "Failed to delete deposit. Please try again.",
         "revertError": "Failed to revert deposit status. Please try again.",
-        "revertNetworkError": "Network error — could not revert deposit status. Please try again.",
-        "stateConfirmNetworkError": "Network error — could not update deposit status. Please try again.",
+        "revertNetworkError": "Can't reach the server, so the deposit status was not reverted. Check your connection and try again.",
+        "stateConfirmNetworkError": "Can't reach the server, so the deposit status was not updated. Check your connection and try again.",
         "amountRequired": "Amount must be a positive number.",
         "dueDateRequired": "Due date is required.",
         "paidDateRequired": "Paid date is required.",
@@ -1090,8 +1090,7 @@
     "addBudgetLineAriaLabel": "Add budget line",
     "errors": {
       "saveFailed": "Failed to save budget line. Please try again.",
-      "deleteFailed": "Failed to delete budget line. Please try again.",
-      "moveFailed": "Failed to move budget line. Please try again."
+      "deleteFailed": "Failed to delete budget line. Please try again."
     }
   },
   "invoiceLinkModal": {
@@ -1341,7 +1340,6 @@
     "openInvoiceTooltip": "Open invoice in new tab",
     "selectedCount": "{{count}} of {{totalCount}} | Total: {{totalAmount}}",
     "resetSelection": "Reset selection",
-    "subNavAriaLabel": "Budget section navigation",
     "parts": {
       "letter": {
         "identifier": "{{title}} – {{source}}, {{date}}",

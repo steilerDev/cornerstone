@@ -440,7 +440,9 @@ describe('WorkItemDetailPage', () => {
 
   describe('error states', () => {
     it('shows error message when work item not found', async () => {
-      mockGetWorkItem.mockRejectedValue({ statusCode: 404 });
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
 
       renderPage();
 
@@ -1389,7 +1391,10 @@ describe('WorkItemDetailPage', () => {
     const ie = enWorkItems.detail.inlineErrors;
 
     async function expectInlineError(text: string) {
-      expect(await screen.findAllByText(text)).toHaveLength(1);
+      const matches = await screen.findAllByText(text);
+      expect(matches).toHaveLength(1);
+      // Page-level errors live in the top banner, outside every section (not in BudgetSection)
+      expect(matches[0]!.closest('[role="alert"]')!.closest('section')).toBeNull();
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     }
 
@@ -1414,7 +1419,7 @@ describe('WorkItemDetailPage', () => {
       jest.spyOn(console, 'error').mockImplementation(() => undefined);
     });
 
-    it('a budget-originated error (link subsidy) renders exactly once, inside the page-level alert', async () => {
+    it('a budget-originated error (link subsidy) renders exactly once, in the BudgetSection banner and not the top banner', async () => {
       const user = userEvent.setup();
       mockFetchSubsidyPrograms.mockResolvedValue({
         subsidyPrograms: [
@@ -1449,7 +1454,10 @@ describe('WorkItemDetailPage', () => {
       const matches = await screen.findAllByText(ie.linkSubsidy);
       expect(matches).toHaveLength(1);
       expect(screen.getAllByRole('alert')).toHaveLength(1);
-      expect(matches[0]!.closest('[role="alert"]')).toBe(screen.getByRole('alert'));
+      const banner = matches[0]!.closest('[role="alert"]');
+      expect(banner).toBe(screen.getByRole('alert'));
+      // The budget banner lives inside the budget section; the top banner is outside any section
+      expect(banner!.closest('section')).not.toBeNull();
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
 

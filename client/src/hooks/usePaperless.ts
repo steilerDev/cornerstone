@@ -59,8 +59,8 @@ export interface UsePaperlessResult {
  *    whenever the query, selected tags, correspondent or refresh counter change.
  */
 export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult {
-  const { t } = useTranslation('documents');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [status, setStatus] = useState<PaperlessStatusResponse | null>(null);
   const [tags, setTags] = useState<PaperlessTag[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -145,10 +145,10 @@ export function usePaperless(options?: UsePaperlessOptions): UsePaperlessResult 
       if (err instanceof ApiClientError) {
         return translateApiError(err.error.code, tErrors);
       }
-      if (err instanceof NetworkError) return t('browser.loadErrorNetwork');
-      return t('browser.loadErrorUnexpected');
+      if (err instanceof NetworkError) return tCommon('requestErrors.network');
+      return tCommon('requestErrors.unexpected');
     },
-    [t, tErrors],
+    [tErrors, tCommon],
   );
 
   const list = useInfiniteScroll<PaperlessDocumentSearchResult>({

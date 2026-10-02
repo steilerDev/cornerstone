@@ -30,6 +30,7 @@ import {
   unlinkWorkItemSubsidy,
   fetchWorkItemSubsidyPayback,
 } from '../../lib/workItemsApi.js';
+import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import {
@@ -214,6 +215,7 @@ export default function WorkItemDetailPage() {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const [inlineError, setInlineError] = useState<string | null>(null);
+  const [budgetError, setBudgetError] = useState<string | null>(null);
 
   // Auto-scroll to top when error appears
   useEffect(() => {
@@ -389,7 +391,7 @@ export default function WorkItemDetailPage() {
         setSubsidyPayback(subsidyPaybackData);
         setLinkedHouseholdItems(linkedHouseholdItemsData);
       } catch (err: unknown) {
-        if ((err as { statusCode?: number })?.statusCode === 404) {
+        if (err instanceof ApiClientError && err.statusCode === 404) {
           setIs404(true);
         } else {
           setError(t('detail.inlineErrors.loadFailed'));
@@ -476,11 +478,11 @@ export default function WorkItemDetailPage() {
       await confirmDeleteBudgetLine();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setInlineError(translateApiError(err.error.code, tErrors));
+        setBudgetError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
-        setInlineError(tCommon('requestErrors.network'));
+        setBudgetError(tCommon('requestErrors.network'));
       } else {
-        setInlineError(tBudget('budgetLineForm.errors.deleteFailed'));
+        setBudgetError(tBudget('budgetLineForm.errors.deleteFailed'));
       }
     }
   };
@@ -489,7 +491,7 @@ export default function WorkItemDetailPage() {
 
   const handleLinkSubsidy = async () => {
     if (!id || !selectedSubsidyId) return;
-    setInlineError(null);
+    setBudgetError(null);
     try {
       await linkWorkItemSubsidy(id, selectedSubsidyId);
       await hookHandleLinkSubsidy();
@@ -497,14 +499,14 @@ export default function WorkItemDetailPage() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
-          setInlineError(t('detail.inlineErrors.alreadyLinkedSubsidy'));
+          setBudgetError(t('detail.inlineErrors.alreadyLinkedSubsidy'));
         } else {
-          setInlineError(translateApiError(err.error.code, tErrors));
+          setBudgetError(translateApiError(err.error.code, tErrors));
         }
       } else if (err instanceof NetworkError) {
-        setInlineError(tCommon('requestErrors.network'));
+        setBudgetError(tCommon('requestErrors.network'));
       } else {
-        setInlineError(t('detail.inlineErrors.linkSubsidy'));
+        setBudgetError(t('detail.inlineErrors.linkSubsidy'));
       }
       console.error('Failed to link subsidy:', err);
     }
@@ -512,13 +514,13 @@ export default function WorkItemDetailPage() {
 
   const handleUnlinkSubsidy = async (subsidyProgramId: string) => {
     if (!id) return;
-    setInlineError(null);
+    setBudgetError(null);
     try {
       await unlinkWorkItemSubsidy(id, subsidyProgramId);
       await hookHandleUnlinkSubsidy();
       await reloadSubsidyPayback();
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.unlinkSubsidy'));
+      setBudgetError(t('detail.inlineErrors.unlinkSubsidy'));
       console.error('Failed to unlink subsidy:', err);
     }
   };
@@ -535,13 +537,13 @@ export default function WorkItemDetailPage() {
     if (!invoiceLink) return;
 
     setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: true }));
-    setInlineError(null);
+    setBudgetError(null);
 
     try {
       await deleteInvoiceBudgetLine(invoiceLink.invoiceId, invoiceBudgetLineId);
       await reloadBudgetLines();
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.unlinkInvoice'));
+      setBudgetError(t('detail.inlineErrors.unlinkInvoice'));
       console.error('Failed to unlink invoice:', err);
     } finally {
       setIsUnlinkingInvoice((prev) => ({ ...prev, [invoiceBudgetLineId]: false }));
@@ -564,49 +566,33 @@ export default function WorkItemDetailPage() {
 
     setInlineError(null);
 
-    try {
-      // If the line has an invoice link, use the invoice budget line endpoint
-      if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
-        const moveData =
-          newParentType === 'work_item'
-            ? { newWorkItemId: newParentId }
-            : { newHouseholdItemId: newParentId };
+    // If the line has an invoice link, use the invoice budget line endpoint
+    if (budgetLine.invoiceLink?.invoiceBudgetLineId && budgetLine.invoiceLink?.invoiceId) {
+      const moveData =
+        newParentType === 'work_item'
+          ? { newWorkItemId: newParentId }
+          : { newHouseholdItemId: newParentId };
 
-        await editAndMoveBudgetLine(
-          budgetLine.invoiceLink.invoiceId,
-          budgetLine.invoiceLink.invoiceBudgetLineId,
-          moveData,
-        );
-      } else {
-        // No invoice link — check if it's a same-table or cross-table move
-        if (newParentType === 'household_item') {
-          // Cross-table move without invoice link is not supported
-          throw new Error(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
-        }
-
-        // Same-table work item to work item move
-        await updateWorkItemBudget(workItem!.id, budgetLineId, {
-          newWorkItemId: newParentId,
-        });
+      await editAndMoveBudgetLine(
+        budgetLine.invoiceLink.invoiceId,
+        budgetLine.invoiceLink.invoiceBudgetLineId,
+        moveData,
+      );
+    } else {
+      // No invoice link — check if it's a same-table or cross-table move
+      if (newParentType === 'household_item') {
+        // Cross-table move without invoice link is not supported
+        throw new LocalizedError(tBudget('budgetLineForm.moveCrossTableNoInvoiceError'));
       }
 
-      // Reload budget lines to reflect the move
-      await reloadBudgetLines();
-    } catch (err) {
-      let message: string;
-      if (err instanceof ApiClientError) {
-        message = translateApiError(err.error.code, tErrors);
-      } else if (err instanceof NetworkError) {
-        message = tCommon('requestErrors.network');
-      } else if (err instanceof Error && err.message) {
-        // Only pre-translated local errors thrown above reach this branch.
-        message = err.message;
-      } else {
-        message = tBudget('budgetLineForm.errors.moveFailed');
-      }
-      setInlineError(message);
-      throw err; // Re-throw so BudgetSection's handleMove can display inline error
+      // Same-table work item to work item move
+      await updateWorkItemBudget(workItem!.id, budgetLineId, {
+        newWorkItemId: newParentId,
+      });
     }
+
+    // Reload budget lines to reflect the move
+    await reloadBudgetLines();
   };
 
   const handleInvoiceLineEdit = async (
@@ -618,7 +604,7 @@ export default function WorkItemDetailPage() {
 
     const newAmount = parseFloat(itemizedAmountStr);
     if (isNaN(newAmount) || newAmount <= 0) {
-      throw new Error(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
+      throw new LocalizedError(tBudget('invoiceDetail.budgetLines.editError.amountInvalid'));
     }
 
     // Compute plannedAmount from form
@@ -1577,6 +1563,7 @@ export default function WorkItemDetailPage() {
               onLinkInvoice={handleLinkInvoice}
               onUnlinkInvoice={handleUnlinkInvoice}
               isUnlinking={isUnlinkingInvoice}
+              inlineError={budgetError}
               parentEntityId={workItem?.id}
               parentEntityLabel={workItem?.title}
               onMoveBudgetLine={handleMoveBudgetLine}

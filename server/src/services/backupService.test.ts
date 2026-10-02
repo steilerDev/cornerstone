@@ -99,6 +99,27 @@ function getRegisteredSchedulerTask(): ScheduledTask | undefined {
   return matches[matches.length - 1];
 }
 
+/**
+ * Asserts a service failure carries only the fixed, client-safe message: no `details`, the original
+ * error attached as `cause`, and none of the given sensitive fragments (paths, raw FS text) leaked.
+ */
+function expectSanitizedFailure(
+  error: unknown,
+  expected: { code: string; message: string },
+  forbidden: string[],
+): void {
+  expect(error).toMatchObject({ code: expected.code, statusCode: 500, message: expected.message });
+  const appError = error as Error & { details?: unknown; cause?: unknown };
+  expect(appError.details).toBeUndefined();
+  expect(appError).toHaveProperty('cause');
+  // Jest's VM realm can make fs errors fail `instanceof Error`, so check the shape instead
+  expect(appError.cause).toMatchObject({ message: expect.any(String) });
+  for (const fragment of forbidden) {
+    expect(appError.message).not.toContain(fragment);
+  }
+  expect(appError.message).not.toMatch(/ENOTDIR|ENOENT|EEXIST|EACCES|EISDIR|disk full/);
+}
+
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('backupService', () => {
@@ -540,15 +561,16 @@ describe('backupService', () => {
         backupDir: pathUnderRegularFile(),
       });
 
-      await expect(createBackup(db, config)).rejects.toMatchObject({
-        name: 'BackupFailedError',
-        code: 'BACKUP_FAILED',
-        statusCode: 500,
-        message: expect.stringMatching(
-          /^Backup directory could not be created or is not writable: /,
-        ),
-        details: { backupDir: config.backupDir },
-      });
+      const failure = await createBackup(db, config).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'BackupFailedError' });
+      expectSanitizedFailure(
+        failure,
+        {
+          code: 'BACKUP_FAILED',
+          message: 'Backup directory could not be created or is not writable',
+        },
+        [config.backupDir, backupTempDir.path],
+      );
 
       // A second call must fail the same way, never with BACKUP_IN_PROGRESS (lock released)
       await expect(createBackup(db, config)).rejects.toMatchObject({
@@ -563,15 +585,16 @@ describe('backupService', () => {
         backupDir: pathUnderRegularFile(),
       });
 
-      await expect(
-        beginRestore(config, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'),
-      ).rejects.toMatchObject({
-        name: 'RestoreFailedError',
-        code: 'RESTORE_FAILED',
-        statusCode: 500,
-        // Jest's VM realm can make fs errors fail `instanceof Error`, yielding the fallback text
-        message: expect.stringMatching(/ENOTDIR|^Unknown error during restore$/),
-      });
+      const failure = await beginRestore(
+        config,
+        'cornerstone-backup-2026-01-15T020000Z.tar.gz',
+      ).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'RestoreFailedError' });
+      expectSanitizedFailure(
+        failure,
+        { code: 'RESTORE_FAILED', message: 'Backup archive could not be read' },
+        [config.backupDir, backupTempDir.path],
+      );
 
       // The lock was never taken: a backup into a usable directory is not rejected as in progress
       using rawDb = disposableDb(join(tempDir.path, 'test.db'));
@@ -582,6 +605,37 @@ describe('backupService', () => {
         ),
       ).resolves.toMatchObject({ filename: expect.stringMatching(/\.tar\.gz$/) });
     });
+
+    // chmod cannot make a file unreadable for root, so this case only runs unprivileged
+    (process.getuid?.() === 0 ? it.skip : it)(
+      'beginRestore throws RESTORE_FAILED for an unreadable archive and leaves the lock free',
+      async () => {
+        const backupDir = join(backupTempDir.path, 'backups');
+        mkdirSync(backupDir);
+        const filename = 'cornerstone-backup-2026-01-15T020000Z.tar.gz';
+        const archivePath = join(backupDir, filename);
+        writeFileSync(archivePath, 'archive');
+        chmodSync(archivePath, 0o000);
+        const config = makeConfig({ databaseUrl: join(tempDir.path, 'test.db'), backupDir });
+
+        try {
+          const failure = await beginRestore(config, filename).catch((e: unknown) => e);
+          expectSanitizedFailure(
+            failure,
+            { code: 'RESTORE_FAILED', message: 'Backup archive could not be read' },
+            [backupDir, filename],
+          );
+        } finally {
+          chmodSync(archivePath, 0o644);
+        }
+
+        // The lock was never taken: a backup is not rejected as in progress
+        using rawDb = disposableDb(join(tempDir.path, 'test.db'));
+        await expect(createBackup(drizzle(rawDb), config)).resolves.toMatchObject({
+          filename: expect.stringMatching(/\.tar\.gz$/),
+        });
+      },
+    );
 
     it('beginRestore still throws BACKUP_NOT_FOUND when the archive is simply missing (ENOENT)', async () => {
       const config = makeConfig({
@@ -594,7 +648,8 @@ describe('backupService', () => {
       ).rejects.toMatchObject({
         code: 'BACKUP_NOT_FOUND',
         statusCode: 404,
-        message: expect.stringContaining('cornerstone-backup-2026-01-15T020000Z.tar.gz'),
+        message: 'Backup not found',
+        details: undefined,
       });
     });
 
@@ -613,12 +668,12 @@ describe('backupService', () => {
       writeFileSync(join(backupTempDir.path, '.restore-1700000000000'), 'x');
 
       await beginRestore(config, filename);
-      await expect(executeRestore(db, config, filename)).rejects.toMatchObject({
-        name: 'RestoreFailedError',
-        code: 'RESTORE_FAILED',
-        statusCode: 500,
-        message: expect.stringMatching(/EEXIST|^Unknown error during restore$/),
-      });
+      const failure = await executeRestore(db, config, filename).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'RestoreFailedError' });
+      expectSanitizedFailure(failure, { code: 'RESTORE_FAILED', message: 'Restore failed' }, [
+        backupTempDir.path,
+        '.restore-1700000000000',
+      ]);
 
       // The lock taken by beginRestore was released by executeRestore's finally
       jest.restoreAllMocks();
@@ -700,12 +755,13 @@ describe('backupService', () => {
       try {
         mkdirSync(join(backupTempDir.path, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'));
 
-        await expect(createBackup(db, config)).rejects.toMatchObject({
-          name: 'BackupFailedError',
-          code: 'BACKUP_FAILED',
-          statusCode: 500,
-          message: expect.stringMatching(/^Backup archive creation failed: .+/),
-        });
+        const failure = await createBackup(db, config).catch((e: unknown) => e);
+        expect(failure).toMatchObject({ name: 'BackupFailedError' });
+        expectSanitizedFailure(
+          failure,
+          { code: 'BACKUP_FAILED', message: 'Backup archive could not be created' },
+          [backupTempDir.path, tempDir.path],
+        );
       } finally {
         jest.useRealTimers();
       }
@@ -714,6 +770,9 @@ describe('backupService', () => {
       expect(existsSync(join(tempDir.path, 'cornerstone-backup-2026-01-15T020000Z.db'))).toBe(
         false,
       );
+      expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
+      // No archive is listed (the occupying directory is not a file)
+      expect(await listBackups(backupTempDir.path)).toEqual([]);
     });
 
     it('createBackup removes a partial database snapshot when the snapshot fails, leaving no archive behind', async () => {
@@ -729,48 +788,17 @@ describe('backupService', () => {
         return Promise.reject(new Error('disk full'));
       }) as never);
 
-      await expect(createBackup(db, config)).rejects.toMatchObject({
-        name: 'BackupFailedError',
-        code: 'BACKUP_FAILED',
-        message: 'Database backup failed: disk full',
-      });
+      const failure = await createBackup(db, config).catch((e: unknown) => e);
+      expect(failure).toMatchObject({ name: 'BackupFailedError' });
+      expectSanitizedFailure(
+        failure,
+        { code: 'BACKUP_FAILED', message: 'Database snapshot failed' },
+        [backupTempDir.path, tempDir.path],
+      );
+      expect((failure as Error).cause).toMatchObject({ message: 'disk full' });
 
       expect(await listBackups(backupTempDir.path)).toEqual([]);
       expect(readdirSync(backupTempDir.path)).toEqual([]);
-      expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
-    });
-
-    it('createBackup lists no archive and leaves no snapshot after a tar failure', async () => {
-      using rawDb = disposableDb(join(tempDir.path, 'test.db'));
-      const db = drizzle(rawDb);
-      const config = makeConfig({
-        databaseUrl: join(tempDir.path, 'test.db'),
-        backupDir: backupTempDir.path,
-      });
-      jest.useFakeTimers({
-        now: new Date('2026-01-15T02:00:00.000Z'),
-        doNotFake: [
-          'nextTick',
-          'setImmediate',
-          'clearImmediate',
-          'setInterval',
-          'clearInterval',
-          'setTimeout',
-          'clearTimeout',
-          'queueMicrotask',
-          'hrtime',
-          'performance',
-        ],
-      });
-      try {
-        // A directory at the archive path makes tar fail
-        mkdirSync(join(backupTempDir.path, 'cornerstone-backup-2026-01-15T020000Z.tar.gz'));
-        await expect(createBackup(db, config)).rejects.toMatchObject({ code: 'BACKUP_FAILED' });
-      } finally {
-        jest.useRealTimers();
-      }
-
-      expect(await listBackups(backupTempDir.path)).toEqual([]);
       expect(readdirSync(tempDir.path).filter((f) => f.endsWith('.db'))).toEqual(['test.db']);
     });
 
@@ -789,10 +817,12 @@ describe('backupService', () => {
         chmodSync(unreadable, 0o000);
 
         try {
-          await expect(createBackup(db, config)).rejects.toMatchObject({
-            code: 'BACKUP_FAILED',
-            message: expect.stringMatching(/^Backup archive creation failed: /),
-          });
+          const failure = await createBackup(db, config).catch((e: unknown) => e);
+          expectSanitizedFailure(
+            failure,
+            { code: 'BACKUP_FAILED', message: 'Backup archive could not be created' },
+            [backupTempDir.path, tempDir.path, 'unreadable.bin'],
+          );
         } finally {
           chmodSync(unreadable, 0o644);
         }

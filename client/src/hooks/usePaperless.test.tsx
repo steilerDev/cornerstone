@@ -7,6 +7,7 @@
 import { renderHook, render, act, waitFor } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 
 const mockGetPaperlessStatus = jest.fn<() => Promise<unknown>>();
 const mockListPaperlessDocuments = jest.fn<(params: unknown) => Promise<unknown>>();
@@ -254,7 +255,7 @@ describe('usePaperless', () => {
       const { result } = renderHook(() => usePaperless());
 
       await waitFor(() => expect(result.current.listStatus).toBe('error'));
-      expect(result.current.error).toContain('Network error');
+      expect(result.current.error).toBe(enCommon.requestErrors.network);
     });
 
     it('surfaces the generic copy on an unknown error', async () => {
@@ -262,7 +263,7 @@ describe('usePaperless', () => {
       const { result } = renderHook(() => usePaperless());
 
       await waitFor(() => expect(result.current.listStatus).toBe('error'));
-      expect(result.current.error).toBe('An unexpected error occurred.');
+      expect(result.current.error).toBe(enCommon.requestErrors.unexpected);
     });
 
     it('error is null initially and cleared after a successful retry', async () => {

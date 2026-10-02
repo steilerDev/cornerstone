@@ -53,6 +53,7 @@ import type {
 import type * as ReportPdfIndexTypes from '../../lib/reportPdf/index.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
+import enCommon from '../../i18n/en/common.json';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -1760,10 +1761,7 @@ describe('ReportWizardPage', () => {
       await user.click(screen.getByRole('button', { name: 'Upload to Paperless' }));
 
       await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
-          'Network error: Unable to connect to the server.',
-        );
+        expect(mockShowToast).toHaveBeenCalledWith('error', enCommon.requestErrors.network);
       });
       expect(mockShowToast).not.toHaveBeenCalledWith('error', 'raw socket hang up detail');
       expect(mockShowToast).not.toHaveBeenCalledWith(

@@ -30,6 +30,7 @@ const PROJECT_TABS: SubNavTab[] = [
 export function MilestonesPage() {
   const { formatDate } = useFormatters();
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
@@ -386,7 +387,7 @@ export function MilestonesPage() {
           {t('milestones.newButton')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<MilestoneSummary>
         pageKey="milestones"

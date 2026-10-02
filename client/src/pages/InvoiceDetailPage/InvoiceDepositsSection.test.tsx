@@ -1560,7 +1560,9 @@ describe('InvoiceDepositsSection', () => {
         const alerts = screen.getAllByRole('alert');
         expect(alerts.length).toBeGreaterThan(0);
         const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain('Network error');
+        expect(alertText).toContain(
+          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
+        );
       });
     });
 

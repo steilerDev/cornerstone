@@ -39,6 +39,7 @@ interface FieldErrors {
 export function UserManagementPage() {
   const { formatDate } = useFormatters();
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { user: currentUser } = useAuth();
 
@@ -484,7 +485,7 @@ export function UserManagementPage() {
     <PageLayout
       maxWidth="narrow"
       title={t('userManagement.pageTitle')}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       <DataTable<UserResponse>
         pageKey="users"

@@ -40,6 +40,7 @@ import {
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
+import enCommon from '../../../i18n/en/common.json';
 
 // Access to mock internals exposed by the updated react-konva stub.
 // After jest.mock('react-konva') the import resolves to __mocks__/react-konva.ts.
@@ -766,9 +767,7 @@ describe('PhotoAnnotator', () => {
 
       await clickSaveExpectingFailure(netErr);
 
-      expect(screen.getByTestId('form-error')).toHaveTextContent(
-        'Network error: Unable to connect to the server.',
-      );
+      expect(screen.getByTestId('form-error')).toHaveTextContent(enCommon.requestErrors.network);
       expect(document.body.textContent).not.toContain(RAW_SERVER_MESSAGE);
     });
 

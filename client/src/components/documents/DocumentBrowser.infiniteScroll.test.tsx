@@ -10,6 +10,7 @@
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import enErrors from '../../i18n/en/errors.json';
+import enCommon from '../../i18n/en/common.json';
 import type { ReactElement } from 'react';
 import type * as DocumentBrowserModule from './DocumentBrowser.js';
 import type * as ApiClientModule from '../../lib/apiClient.js';
@@ -503,15 +504,13 @@ describe('DocumentBrowser infinite scroll (integration)', () => {
     it('shows the network-error copy for a NetworkError', async () => {
       mockListPaperlessDocuments.mockRejectedValueOnce(new NetworkError('offline', new Error()));
       render(<DocumentBrowser />);
-      expect(await screen.findByRole('alert')).toHaveTextContent(
-        /unable to connect to the server/i,
-      );
+      expect(await screen.findByRole('alert')).toHaveTextContent(enCommon.requestErrors.network);
     });
 
     it('shows the generic copy for an unknown error', async () => {
       mockListPaperlessDocuments.mockRejectedValueOnce(new Error('???'));
       render(<DocumentBrowser />);
-      expect(await screen.findByRole('alert')).toHaveTextContent('An unexpected error occurred.');
+      expect(await screen.findByRole('alert')).toHaveTextContent(enCommon.requestErrors.unexpected);
     });
 
     it('a failed later batch after a search does not show the first-batch error state', async () => {

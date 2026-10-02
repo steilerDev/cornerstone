@@ -684,8 +684,8 @@
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
         "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
-        "revertNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
-        "stateConfirmNetworkError": "Netzwerkfehler – Status der Abschlagszahlung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
+        "revertNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht zurückgesetzt werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "stateConfirmNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht aktualisiert werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
         "claimedDateRequired": "„Eingereicht am“ ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
@@ -942,8 +942,7 @@
     "addBudgetLineAriaLabel": "Budgetposition hinzufügen",
     "errors": {
       "saveFailed": "Budgetposition konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-      "moveFailed": "Budgetposition konnte nicht verschoben werden. Bitte versuchen Sie es erneut."
+      "deleteFailed": "Budgetposition konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
     }
   },
   "invoiceLinkModal": {
@@ -1341,7 +1340,6 @@
     "openInvoiceTooltip": "Rechnung in neuem Tab öffnen",
     "selectedCount": "{{count}} von {{totalCount}} | Gesamt: {{totalAmount}}",
     "resetSelection": "Auswahl zurücksetzen",
-    "subNavAriaLabel": "Budget-Abschnittsnavigation",
     "parts": {
       "letter": {
         "identifier": "{{title}} – {{source}}, {{date}}",

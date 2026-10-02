@@ -55,6 +55,7 @@ interface DataSourceState {
 
 export function DashboardPage() {
   const { t } = useTranslation('dashboard');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
@@ -602,7 +603,7 @@ export function DashboardPage() {
           )}
         </div>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       {/* Desktop/tablet: flat grid */}
       <div

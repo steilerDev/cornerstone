@@ -351,8 +351,8 @@
       "deleteFailed": "Haushaltsartikel konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
       "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
-      "unlinkSubsidy": "Förderprogramm konnte nicht getrennt werden",
-      "unlinkInvoice": "Budgetposition konnte nicht von Rechnung getrennt werden"
+      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",
+      "unlinkInvoice": "Verknüpfung der Budgetposition mit der Rechnung konnte nicht aufgehoben werden"
     },
     "closeErrorMessage": "Fehlermeldung schließen"
   }

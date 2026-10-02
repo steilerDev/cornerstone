@@ -24,6 +24,7 @@ import styles from './BackupsPage.module.css';
 
 export function BackupsPage() {
   const { t } = useTranslation('settings');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { formatDate, formatDateTime, formatFileSize } = useFormatters();
   const { user } = useAuth();
@@ -200,7 +201,7 @@ export function BackupsPage() {
       <PageLayout
         maxWidth="narrow"
         title={t('backups.pageTitle')}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
       </PageLayout>
@@ -215,7 +216,7 @@ export function BackupsPage() {
     <PageLayout
       maxWidth="narrow"
       title={t('backups.pageTitle')}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel="Settings section navigation" />}
+      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       {/* Loading state */}
       {isLoading && <Skeleton lines={5} loadingLabel={t('backups.loading')} />}

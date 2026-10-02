@@ -22,8 +22,6 @@
       "batchAppendedAndEndAnnouncement_other": "{{count}} weitere Dokumente geladen. Sie haben das Ende erreicht.",
       "endOfListAnnouncement": "Sie haben das Ende der Dokumentliste erreicht."
     },
-    "loadErrorNetwork": "Netzwerkfehler: Verbindung zum Server nicht möglich.",
-    "loadErrorUnexpected": "Ein unerwarteter Fehler ist aufgetreten.",
     "searchPlaceholder": "Dokumente durchsuchen...",
     "searchDocumentsAriaLabel": "Dokumente durchsuchen",
     "hideLinked": "Bereits verknüpfte Dokumente ausblenden",

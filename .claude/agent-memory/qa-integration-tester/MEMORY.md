@@ -15,6 +15,8 @@
 
 ## Recent bug/story notes (2026-08)
 
+- [PR #2168 error-message hardening tests](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, LocalizedError, duplicate-banner counts, no jsdom Response
+
 - [Wizard rAF focus-steal flake](gotcha-wizard-raf-focus-steal.md) (2026-10) — typing right after a step change loses keystrokes; settle h2 focus first; mockReset once-queues
 - [Issue #2101 — Paperless infinite-scroll tests](issue-2101-infinite-scroll-tests.md) (2026-09-29) — ts-node-less jest workaround, sandbox command-complexity guard, mutation-runner pattern, act-warning and mocked-i18n gotchas.
 

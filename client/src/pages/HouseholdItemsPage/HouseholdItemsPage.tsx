@@ -470,7 +470,7 @@ export function HouseholdItemsPage() {
           {t('newButton')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<HouseholdItemSummary>
         pageKey="householdItems"

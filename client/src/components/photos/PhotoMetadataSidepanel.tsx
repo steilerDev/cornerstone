@@ -30,6 +30,7 @@ export function PhotoMetadataSidepanel({
 }: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
   const [caption, setCaption] = useState(photo.caption ?? '');
@@ -85,14 +86,14 @@ export function PhotoMetadataSidepanel({
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
-        setError(t('networkError'));
+        setError(tCommon('requestErrors.network'));
       } else {
         setError(t('saveError'));
       }
     } finally {
       setIsSaving(false);
     }
-  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated, t, tErrors]);
+  }, [photo.id, caption, areaId, orientationId, onPhotoUpdated, t, tErrors, tCommon]);
 
   // Hide sidepanel entirely when annotation mode is active
   if (isAnnotating) {

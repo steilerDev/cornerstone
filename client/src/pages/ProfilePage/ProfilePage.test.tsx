@@ -373,6 +373,9 @@ describe('ProfilePage', () => {
 
       // And: Success message is shown
       expect(await screen.findByText(/display name updated successfully/i)).toBeInTheDocument();
+      // The success banner is a polite status region, not an alert
+      expect(screen.getByRole('status')).toHaveTextContent(/display name updated successfully/i);
+      expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
     });
 
     it('shows validation error for empty display name', async () => {
@@ -699,6 +702,7 @@ describe('ProfilePage', () => {
 
       // And: Success message is shown
       expect(await screen.findByText(/password changed successfully/i)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent(/password changed successfully/i);
 
       // And: Form is cleared
       expect(currentPasswordInput.value).toBe('');

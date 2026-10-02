@@ -6,7 +6,7 @@
  * Key DOM observations from source (ManagePage.tsx OrientationsTab):
  * - Tab panel: div[role="tabpanel"][id="orientations-panel"]
  * - Tab button: role="tab", text "Orientations" (from settings:manage.tabs.orientations)
- * - Success banner: div[class*="successBanner"][role="alert"]
+ * - Success banner: div[class*="successBanner"][role="status"]
  * - Create form:
  *   - h2 "Create orientation" (settings:manage.orientations.createTitle)
  *   - input#orientationName (name)
@@ -103,9 +103,9 @@ export class OrientationsPage {
     return this.panel.locator('[class*="errorBanner"][role="alert"]').first();
   }
 
-  /** Locator for the success/status alert banner. */
+  /** Locator for the success status banner. */
   get successMessage(): Locator {
-    return this.panel.locator('[class*="successBanner"][role="alert"]');
+    return this.panel.locator('[class*="successBanner"][role="status"]');
   }
 
   /**

@@ -23,6 +23,7 @@ export interface UseTradesResult {
 export function useTrades(): UseTradesResult {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [trades, setTrades] = useState<TradeResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export function useTrades(): UseTradesResult {
           if (err instanceof ApiClientError) {
             setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError(t('common:requestErrors.network'));
+            setError(tCommon('requestErrors.network'));
           } else {
             setError(t('manage.trades.loadError'));
           }
@@ -62,7 +63,7 @@ export function useTrades(): UseTradesResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors]);
+  }, [fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

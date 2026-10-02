@@ -1815,7 +1815,7 @@ describe('SubsidyProgramsPage', () => {
   // ─── Success / error banners ──────────────────────────────────────────────
 
   describe('success and error banners', () => {
-    it('shows success banner with role="alert"', async () => {
+    it('shows success banner with role="status"', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
       mockCreateSubsidyProgram.mockResolvedValueOnce(sampleProgram1);
       const user = userEvent.setup();
@@ -1833,8 +1833,10 @@ describe('SubsidyProgramsPage', () => {
       await user.click(screen.getByRole('button', { name: /create program/i }));
 
       await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        const successAlert = alerts.find((el) => el.textContent?.includes('created successfully'));
+        const statuses = screen.getAllByRole('status');
+        const successAlert = statuses.find((el) =>
+          el.textContent?.includes('created successfully'),
+        );
         expect(successAlert).toBeDefined();
       });
     });

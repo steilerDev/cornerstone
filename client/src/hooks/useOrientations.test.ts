@@ -1,6 +1,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
 import enErrors from '../i18n/en/errors.json';
+import enCommon from '../i18n/en/common.json';
 import enSettings from '../i18n/en/settings.json';
 
 const mockFetchOrientations = jest.fn<() => Promise<unknown>>();
@@ -128,9 +129,7 @@ describe('useOrientations', () => {
 
     const { result } = renderHook(() => useOrientations());
 
-    await waitFor(() =>
-      expect(result.current.error).toBe('Network error: Unable to connect to the server.'),
-    );
+    await waitFor(() => expect(result.current.error).toBe(enCommon.requestErrors.network));
     expect(result.current.isLoading).toBe(false);
   });
 

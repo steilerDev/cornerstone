@@ -23,6 +23,7 @@ export interface UseAreasResult {
 export function useAreas(): UseAreasResult {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [areas, setAreas] = useState<AreaResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,7 +46,7 @@ export function useAreas(): UseAreasResult {
           if (err instanceof ApiClientError) {
             setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError(t('common:requestErrors.network'));
+            setError(tCommon('requestErrors.network'));
           } else {
             setError(t('manage.areas.loadError'));
           }
@@ -62,7 +63,7 @@ export function useAreas(): UseAreasResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors]);
+  }, [fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

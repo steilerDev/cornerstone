@@ -11,6 +11,7 @@ import type {
 import { effectiveLineAmount } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -173,8 +174,7 @@ export function BudgetLineForm({
         msg = translateApiError(err.error.code, tErrors);
       } else if (err instanceof NetworkError) {
         msg = tCommon('requestErrors.network');
-      } else if (err instanceof Error && err.message) {
-        // Only pre-translated local errors thrown by the parent handlers reach this branch.
+      } else if (err instanceof LocalizedError) {
         msg = err.message;
       } else {
         msg = t('budgetLineForm.parentPickerError');

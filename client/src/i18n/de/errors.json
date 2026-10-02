@@ -37,7 +37,7 @@
   "IMMUTABLE_ENTRY": "Dieser Tagebucheintrag kann nicht bearbeitet werden.",
   "BACKUP_IN_PROGRESS": "Eine Sicherungs- oder Wiederherstellungsoperation läuft bereits.",
   "BACKUP_NOT_FOUND": "Das angeforderte Sicherungsarchiv wurde nicht gefunden.",
-  "RESTORE_FAILED": "Die Wiederherstellung ist fehlgeschlagen. Der Server befindet sich möglicherweise in einem inkonsistenten Zustand.",
+  "RESTORE_FAILED": "Das Sicherungsarchiv konnte nicht gelesen werden, daher wurde nichts wiederhergestellt. Bitte prüfen Sie die Dateiberechtigungen auf dem Server und versuchen Sie es erneut.",
   "LLM_NOT_CONFIGURED": "KI-Unterstützung ist auf diesem Server nicht konfiguriert.",
   "LLM_UNREACHABLE": "Der KI-Dienst konnte nicht erreicht werden. Bitte versuchen Sie es erneut.",
   "LLM_INVALID_RESPONSE": "Der KI-Dienst hat eine unbrauchbare Antwort zurückgegeben. Bitte versuchen Sie es erneut.",
@@ -51,9 +51,9 @@
   "AREA_IN_USE": "Dieser Bereich wird verwendet und kann nicht gelöscht werden.",
   "TRADE_IN_USE": "Dieses Gewerk wird verwendet und kann nicht gelöscht werden.",
   "BACKUP_FAILED": "Die Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-  "SAME_SOURCE": "Die Quell- und Zielbudgetquelle müssen unterschiedlich sein.",
+  "SAME_SOURCE": "Quelle und Ziel müssen unterschiedliche Budgetquellen sein.",
   "STALE_OWNERSHIP": "Eine oder mehrere Budgetpositionen gehören nicht mehr zu dieser Quelle. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.",
-  "INVALID_DEPOSIT_STATUS_TRANSITION": "Diese Statusänderung für Abschlagszahlungen ist nicht zulässig.",
+  "INVALID_DEPOSIT_STATUS_TRANSITION": "Diese Statusänderung ist für die Abschlagszahlung nicht zulässig.",
   "INVALID_DEPOSIT_DATE_FOR_STATUS": "Dieses Datum kann für den aktuellen Status der Abschlagszahlung nicht festgelegt werden.",
   "OIDC_MISSING_EMAIL": "Ihr Identitätsanbieter hat keine E-Mail-Adresse bereitgestellt."
 }

@@ -152,8 +152,8 @@ export async function createBackup(
       await fs.unlink(probeFile);
     } catch (probeErr) {
       throw new BackupFailedError(
-        `Backup directory could not be created or is not writable: ${(probeErr as Error).message}`,
-        { backupDir: config.backupDir },
+        'Backup directory could not be created or is not writable',
+        probeErr,
       );
     }
 
@@ -168,9 +168,7 @@ export async function createBackup(
     } catch (dbErr) {
       // Remove any partial snapshot file
       await fs.unlink(dbSnapshotPath).catch(() => {});
-      throw new BackupFailedError(`Database backup failed: ${(dbErr as Error).message}`, {
-        code: (dbErr as { code?: string }).code,
-      });
+      throw new BackupFailedError('Database snapshot failed', dbErr);
     }
 
     // Create tar.gz archive of the entire app data directory
@@ -182,7 +180,7 @@ export async function createBackup(
       // Clean up the snapshot DB file and any partial archive on tar failure
       await fs.unlink(dbSnapshotPath).catch(() => {});
       await fs.unlink(backupPath).catch(() => {});
-      throw new BackupFailedError(`Backup archive creation failed: ${(tarErr as Error).message}`);
+      throw new BackupFailedError('Backup archive could not be created', tarErr);
     }
 
     // Clean up the temporary backup database file
@@ -221,7 +219,7 @@ export async function createBackup(
  */
 export async function deleteBackup(backupDir: string, filename: string): Promise<void> {
   if (!validateBackupFilename(filename)) {
-    throw new BackupNotFoundError(filename);
+    throw new BackupNotFoundError();
   }
 
   const filePath = path.join(backupDir, filename);
@@ -230,7 +228,7 @@ export async function deleteBackup(backupDir: string, filename: string): Promise
     await fs.unlink(filePath);
   } catch (error) {
     if ((error as unknown as { code: string }).code === 'ENOENT') {
-      throw new BackupNotFoundError(filename);
+      throw new BackupNotFoundError();
     }
     throw error;
   }
@@ -243,7 +241,7 @@ export async function deleteBackup(backupDir: string, filename: string): Promise
  */
 export async function beginRestore(config: AppConfig, filename: string): Promise<void> {
   if (!validateBackupFilename(filename)) {
-    throw new BackupNotFoundError(filename);
+    throw new BackupNotFoundError();
   }
 
   if (operationInProgress) {
@@ -252,14 +250,12 @@ export async function beginRestore(config: AppConfig, filename: string): Promise
 
   const backupPath = path.join(config.backupDir, filename);
   try {
-    await fs.stat(backupPath);
+    await fs.access(backupPath, fs.constants.R_OK);
   } catch (error) {
     if ((error as unknown as { code: string }).code === 'ENOENT') {
-      throw new BackupNotFoundError(filename);
+      throw new BackupNotFoundError();
     }
-    throw new RestoreFailedError(
-      error instanceof Error ? error.message : 'Unknown error during restore',
-    );
+    throw new RestoreFailedError('Backup archive could not be read', error);
   }
 
   // Re-check after the await: another operation may have started meanwhile
@@ -312,9 +308,7 @@ export async function executeRestore(
     } catch (error) {
       // Clean up temp directory on error
       await fs.rm(tempDir, { recursive: true, force: true }).catch(() => {});
-      throw new RestoreFailedError(
-        error instanceof Error ? error.message : 'Unknown error during restore',
-      );
+      throw new RestoreFailedError('Restore failed', error);
     }
   } finally {
     operationInProgress = false;

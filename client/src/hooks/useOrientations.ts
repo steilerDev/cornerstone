@@ -35,6 +35,7 @@ export interface UseOrientationsResult {
 export function useOrientations(): UseOrientationsResult {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [orientations, setOrientations] = useState<OrientationResponse[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +58,7 @@ export function useOrientations(): UseOrientationsResult {
           if (err instanceof ApiClientError) {
             setError(translateApiError(err.error.code, tErrors));
           } else if (err instanceof NetworkError) {
-            setError(t('common:requestErrors.network'));
+            setError(tCommon('requestErrors.network'));
           } else {
             setError(t('manage.orientations.messages.loadError'));
           }
@@ -74,7 +75,7 @@ export function useOrientations(): UseOrientationsResult {
     return () => {
       cancelled = true;
     };
-  }, [fetchCount, t, tErrors]);
+  }, [fetchCount, t, tErrors, tCommon]);
 
   function refetch() {
     setFetchCount((c) => c + 1);

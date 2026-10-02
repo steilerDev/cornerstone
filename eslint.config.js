@@ -117,6 +117,11 @@ export default tseslint.config(
           message:
             'Do not destructure `message` from an API error response: it is untranslated server text. Use translateApiError(err.error.code, tErrors) (#2129).',
         },
+        {
+          selector: "Property[key.name='error'] > ObjectPattern > Property[key.name='message']",
+          message:
+            'Do not destructure `message` from an API error body: it is untranslated server text. Use translateApiError(err.error.code, tErrors) (#2129).',
+        },
       ],
     },
   },

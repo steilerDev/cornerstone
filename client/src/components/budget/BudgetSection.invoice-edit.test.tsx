@@ -27,6 +27,7 @@ import type {
   BudgetCategory,
 } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enBudget from '../../i18n/en/budget.json';
@@ -722,13 +723,13 @@ describe('BudgetSection — invoice-edit wiring', () => {
 
   // ─── API error keeps modal open and sets error ────────────────────────────
 
-  it('when onInvoiceLineEdit rejects, modal stays open and error is set', async () => {
+  it('when onInvoiceLineEdit rejects with a plain Error, modal stays open and the fallback copy is shown', async () => {
     const onInvoiceLineEdit = jest
 
       .fn<
         (line: BaseBudgetLine, form: BudgetLineFormState, itemizedAmount: string) => Promise<void>
       >()
-      .mockImplementation(() => Promise.reject(new Error('Network timeout')));
+      .mockImplementation(() => Promise.reject(new Error('RAW-LOCAL')));
     const link = buildInvoiceLink('inv-1', 'ibl-1', { itemizedAmount: 500 });
     const line = buildLine('line-err', link);
 
@@ -756,7 +757,10 @@ describe('BudgetSection — invoice-edit wiring', () => {
       const alert = screen.queryByRole('alert');
       expect(alert).toBeTruthy();
     });
-    expect(screen.getByRole('alert')).toHaveTextContent('Network timeout');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      enBudget.invoiceDetail.budgetLines.editError.saveFailed,
+    );
+    expect(screen.getByRole('alert')).not.toHaveTextContent('RAW-LOCAL');
   });
 
   it('when onInvoiceLineEdit rejects with non-Error, fallback message is used', async () => {
@@ -826,6 +830,20 @@ describe('BudgetSection — invoice-edit wiring', () => {
       expect(alert).not.toHaveTextContent('RAW-SERVER-SENTINEL');
     });
 
+    it('a LocalizedError shows its already-translated message', async () => {
+      const alert = await saveWithRejection(new LocalizedError('Already translated save error'));
+      expect(alert).toHaveTextContent('Already translated save error');
+    });
+
+    it.each([
+      ['a plain Error', () => new Error('RAW-LOCAL')],
+      ['a TypeError', () => new TypeError('RAW-LOCAL')],
+    ])('%s shows the save fallback and never its message', async (_label, make) => {
+      const alert = await saveWithRejection(make());
+      expect(alert).toHaveTextContent(enBudget.invoiceDetail.budgetLines.editError.saveFailed);
+      expect(alert).not.toHaveTextContent('RAW-LOCAL');
+    });
+
     it('NetworkError shows the network copy', async () => {
       const alert = await saveWithRejection(new NetworkError('RAW-LOCAL', new Error('cause')));
       expect(alert).toHaveTextContent(enCommon.requestErrors.network);
@@ -885,9 +903,18 @@ describe('BudgetSection — invoice-edit wiring', () => {
       expect(alert).not.toHaveTextContent('RAW-LOCAL');
     });
 
-    it('move: a pre-translated local Error message is passed through', async () => {
-      const alert = await moveWithRejection(new Error('Pre-translated local message'));
+    it('move: a LocalizedError message is passed through', async () => {
+      const alert = await moveWithRejection(new LocalizedError('Pre-translated local message'));
       expect(alert).toHaveTextContent('Pre-translated local message');
+    });
+
+    it.each([
+      ['a plain Error', () => new Error('RAW-LOCAL')],
+      ['a TypeError', () => new TypeError('RAW-LOCAL')],
+    ])('move: %s shows the fallback copy and never its message', async (_label, make) => {
+      const alert = await moveWithRejection(make());
+      expect(alert).toHaveTextContent(enBudget.budgetLineForm.parentPickerError);
+      expect(alert).not.toHaveTextContent('RAW-LOCAL');
     });
 
     it('move: a non-Error rejection shows the parent-picker fallback copy', async () => {

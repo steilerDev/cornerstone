@@ -1,4 +1,4 @@
-import { get, getBaseUrl, ApiClientError, NetworkError } from './apiClient.js';
+import { get, getBaseUrl, toApiClientError, NetworkError } from './apiClient.js';
 import type {
   PaperlessStatusResponse,
   PaperlessDocumentListResponse,
@@ -7,8 +7,6 @@ import type {
   PaperlessDocumentListQuery,
   PaperlessCorrespondentListResponse,
   PaperlessUploadResponse,
-  ApiError,
-  ApiErrorResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -99,16 +97,8 @@ export async function uploadPaperlessDocument(
   }
 
   if (!response.ok) {
-    let apiError: ApiError = { code: 'INTERNAL_ERROR', message: 'Upload failed' };
-    try {
-      const json = (await response.json()) as ApiErrorResponse;
-      if (json.error) {
-        apiError = json.error;
-      }
-    } catch {
-      // JSON parse error; use default
-    }
-    throw new ApiClientError(response.status, apiError);
+    const body: unknown = await response.json().catch(() => null);
+    throw toApiClientError(response.status, body);
   }
 
   return response.json() as Promise<PaperlessUploadResponse>;

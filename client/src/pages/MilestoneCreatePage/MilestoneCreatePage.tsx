@@ -17,6 +17,7 @@ const PROJECT_TABS: SubNavTab[] = [
 
 export function MilestoneCreatePage() {
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
 
@@ -79,7 +80,7 @@ export function MilestoneCreatePage() {
           <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
         </div>
       </div>
-      <SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />
+      <SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />
 
       <form onSubmit={handleSubmit} className={styles.formCard} noValidate>
         <h2 className={styles.formTitle}>{t('milestones.create.title')}</h2>

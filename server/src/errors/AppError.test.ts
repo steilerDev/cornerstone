@@ -18,6 +18,9 @@ import {
   OidcNoMatchingAccountError,
   OidcEmailUnverifiedError,
   OidcMissingEmailError,
+  BackupNotFoundError,
+  BackupFailedError,
+  RestoreFailedError,
 } from './AppError.js';
 
 describe('AppError', () => {
@@ -38,6 +41,64 @@ describe('AppError', () => {
     const error = new AppError('VALIDATION_ERROR', 400, 'Bad input', details);
 
     expect(error.details).toEqual(details);
+  });
+});
+
+describe('AppError cause', () => {
+  it('passes the cause through to Error#cause', () => {
+    const cause = new Error('ENOSPC: no space left on device');
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops', undefined, false, cause);
+
+    expect(error.cause).toBe(cause);
+  });
+
+  it('leaves cause unset when none is given', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops');
+
+    expect(error).not.toHaveProperty('cause');
+  });
+
+  it('keeps a falsy but defined cause', () => {
+    const error = new AppError('INTERNAL_ERROR', 500, 'Oops', undefined, false, null);
+
+    expect(error.cause).toBeNull();
+  });
+});
+
+describe('BackupNotFoundError', () => {
+  it('has the fixed message with no filename and no details', () => {
+    const error = new BackupNotFoundError();
+
+    expect(error.code).toBe('BACKUP_NOT_FOUND');
+    expect(error.statusCode).toBe(404);
+    expect(error.message).toBe('Backup not found');
+    expect(error.details).toBeUndefined();
+  });
+});
+
+describe.each([
+  ['BackupFailedError', BackupFailedError, 'BACKUP_FAILED', 'Backup operation failed'],
+  ['RestoreFailedError', RestoreFailedError, 'RESTORE_FAILED', 'Restore operation failed'],
+] as const)('%s', (name, Ctor, code, defaultMessage) => {
+  it('carries the original error as cause and never exposes details', () => {
+    const cause = new Error('EACCES: permission denied, open /secret/path');
+    const error = new Ctor('Fixed message', cause);
+
+    expect(error.name).toBe(name);
+    expect(error.code).toBe(code);
+    expect(error.statusCode).toBe(500);
+    expect(error.message).toBe('Fixed message');
+    expect(error.cause).toBe(cause);
+    expect(error.details).toBeUndefined();
+    expect(error.message).not.toContain('/secret/path');
+  });
+
+  it('uses its default message and has no cause when constructed without arguments', () => {
+    const error = new Ctor();
+
+    expect(error.message).toBe(defaultMessage);
+    expect(error).not.toHaveProperty('cause');
+    expect(error.details).toBeUndefined();
   });
 });
 

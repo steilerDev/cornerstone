@@ -271,6 +271,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
 
 export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatPercent } = useFormatters();
@@ -716,7 +717,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading}>{t('sources.loading')}</div>
       </PageLayout>
@@ -727,7 +728,7 @@ export function BudgetSourcesPage() {
     return (
       <PageLayout
         title={t('sources.title')}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
@@ -756,10 +757,10 @@ export function BudgetSourcesPage() {
           {t('sources.addSource')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {successMessage && (
-        <div className={styles.successBanner} role="alert">
+        <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
         </div>
       )}

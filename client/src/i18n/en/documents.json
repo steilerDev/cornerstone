@@ -22,8 +22,6 @@
       "batchAppendedAndEndAnnouncement_other": "{{count}} more documents loaded. You've reached the end.",
       "endOfListAnnouncement": "You've reached the end of the document list."
     },
-    "loadErrorNetwork": "Network error: Unable to connect to the server.",
-    "loadErrorUnexpected": "An unexpected error occurred.",
     "searchPlaceholder": "Search documents...",
     "searchDocumentsAriaLabel": "Search documents",
     "hideLinked": "Hide already-linked documents",

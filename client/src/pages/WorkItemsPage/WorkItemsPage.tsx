@@ -445,7 +445,7 @@ export function WorkItemsPage() {
           {t('list.newWorkItem')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel="Project section navigation" />}
+      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<WorkItemSummary>
         pageKey="workItems"

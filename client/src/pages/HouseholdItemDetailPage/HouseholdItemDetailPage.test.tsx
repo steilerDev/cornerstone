@@ -319,6 +319,16 @@ describe('HouseholdItemDetailPage', () => {
     mockUpdateHouseholdItem.mockReset();
     mockDeleteHouseholdItem.mockReset();
     mockShowToast.mockReset();
+    mockUseAreas.mockReset();
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+      createArea: jest.fn(),
+      updateArea: jest.fn(),
+      deleteArea: jest.fn(),
+    });
     mockNavigate.mockReset();
     mockListWorkItems.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
@@ -1148,10 +1158,10 @@ describe('HouseholdItemDetailPage', () => {
       });
     });
 
-    it('shows inline error on API failure', async () => {
+    it('shows an error toast (not a budget banner) on a status update failure', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      mockUpdateHouseholdItem.mockRejectedValue(new Error('Network error'));
+      mockUpdateHouseholdItem.mockRejectedValue(new Error('RAW-LOCAL'));
 
       renderPage();
 
@@ -1163,8 +1173,48 @@ describe('HouseholdItemDetailPage', () => {
       await user.selectOptions(statusSelect, 'arrived');
 
       await waitFor(() => {
-        expect(screen.getByText(/failed to update status/i)).toBeInTheDocument();
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          enHouseholdItems.detail.status.updateFailed,
+        );
       });
+      // Nothing is rendered inline (the budget banner is not used for status failures)
+      expect(screen.queryByText(enHouseholdItems.detail.status.updateFailed)).toBeNull();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+
+    it('shows an error toast (not a budget banner) on an area update failure', async () => {
+      const user = userEvent.setup();
+      mockUseAreas.mockReturnValue({
+        areas: [{ id: 'area-1', name: 'Kitchen', color: null, ancestors: [] }],
+        isLoading: false,
+        error: null,
+        refetch: jest.fn(),
+        createArea: jest.fn(),
+        updateArea: jest.fn(),
+        deleteArea: jest.fn(),
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- partial hook stub
+      } as any);
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ area: null }));
+      mockUpdateHouseholdItem.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+      await user.click(screen.getByPlaceholderText('Select an area'));
+      await user.click(await screen.findByText('Kitchen'));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith(
+          'error',
+          enHouseholdItems.detail.area.updateFailed,
+        );
+      });
+      expect(screen.queryByText(enHouseholdItems.detail.area.updateFailed)).toBeNull();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
     it('updates rendered item state from API response after status change', async () => {

@@ -10,6 +10,7 @@ import { render, waitFor, act, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type { WorkItemDetail, ErrorCode } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
+import { LocalizedError } from '../../lib/localizedError.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enWorkItems from '../../i18n/en/workItems.json';
@@ -98,9 +99,14 @@ jest.unstable_mockModule('../../lib/invoiceBudgetLinesApi.js', () => ({
 }));
 
 jest.unstable_mockModule('../../components/budget/BudgetSection.js', () => ({
-  BudgetSection: (props: unknown) => {
+  // Mirrors the real BudgetSection: it renders its inlineError prop in its own alert banner
+  BudgetSection: (props: { inlineError?: string | null }) => {
     capturedBudgetSectionProps = props;
-    return null;
+    return props.inlineError ? (
+      <div role="alert" data-testid="budget-banner">
+        {props.inlineError}
+      </div>
+    ) : null;
   },
 }));
 
@@ -443,13 +449,14 @@ describe('WorkItemDetailPage', () => {
     });
   }
 
-  // Inline errors render once, in the page-level alert banner (BudgetSection no longer gets them)
-  const expectInlineError = (text: string) =>
+  // Budget-originated errors render once, in the BudgetSection banner, and never in the top banner
+  const expectBudgetError = (text: string) =>
     waitFor(() => {
       const matches = screen.getAllByText(text);
       expect(matches).toHaveLength(1);
-      expect(matches[0]!.closest('[role="alert"]')).toBe(screen.getByRole('alert'));
-      expect(capturedBudgetSectionProps.inlineError).toBeUndefined();
+      expect(matches[0]!.closest('[role="alert"]')).toBe(screen.getByTestId('budget-banner'));
+      expect(screen.getAllByRole('alert')).toHaveLength(1);
+      expect(capturedBudgetSectionProps.inlineError).toBe(text);
     });
 
   async function confirmDelete() {
@@ -466,21 +473,21 @@ describe('WorkItemDetailPage', () => {
       await load();
       mockDeleteWorkItemBudget.mockRejectedValue(apiError(409, 'CONFLICT'));
       await confirmDelete();
-      await expectInlineError(enErrors.CONFLICT);
+      await expectBudgetError(enErrors.CONFLICT);
     });
 
     it('NetworkError shows the network copy', async () => {
       await load();
       mockDeleteWorkItemBudget.mockRejectedValue(new NetworkError('RAW-LOCAL', new Error('c')));
       await confirmDelete();
-      await expectInlineError(enCommon.requestErrors.network);
+      await expectBudgetError(enCommon.requestErrors.network);
     });
 
     it('any other error shows the deleteFailed copy', async () => {
       await load();
       mockDeleteWorkItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
       await confirmDelete();
-      await expectInlineError(enBudget.budgetLineForm.errors.deleteFailed);
+      await expectBudgetError(enBudget.budgetLineForm.errors.deleteFailed);
     });
   });
 
@@ -498,22 +505,22 @@ describe('WorkItemDetailPage', () => {
 
     it('409 shows the already-linked copy', async () => {
       await link(apiError(409, 'CONFLICT'));
-      await expectInlineError(enWorkItems.detail.inlineErrors.alreadyLinkedSubsidy);
+      await expectBudgetError(enWorkItems.detail.inlineErrors.alreadyLinkedSubsidy);
     });
 
     it('other ApiClientError shows the code copy, never the server text', async () => {
       await link(apiError(500, 'INTERNAL_ERROR'));
-      await expectInlineError(enErrors.INTERNAL_ERROR);
+      await expectBudgetError(enErrors.INTERNAL_ERROR);
     });
 
     it('NetworkError shows the network copy', async () => {
       await link(new NetworkError('RAW-LOCAL', new Error('c')));
-      await expectInlineError(enCommon.requestErrors.network);
+      await expectBudgetError(enCommon.requestErrors.network);
     });
 
     it('any other error shows the linkSubsidy copy', async () => {
       await link(new Error('RAW-LOCAL'));
-      await expectInlineError(enWorkItems.detail.inlineErrors.linkSubsidy);
+      await expectBudgetError(enWorkItems.detail.inlineErrors.linkSubsidy);
     });
 
     it('unlink failure shows the unlinkSubsidy copy', async () => {
@@ -522,7 +529,7 @@ describe('WorkItemDetailPage', () => {
       await act(async () => {
         await capturedBudgetSectionProps.onUnlinkSubsidy('sub-1');
       });
-      await expectInlineError(enWorkItems.detail.inlineErrors.unlinkSubsidy);
+      await expectBudgetError(enWorkItems.detail.inlineErrors.unlinkSubsidy);
     });
   });
 
@@ -533,7 +540,7 @@ describe('WorkItemDetailPage', () => {
       await act(async () => {
         await capturedBudgetSectionProps.onUnlinkInvoice('bl-1', 'ibl-1');
       });
-      await expectInlineError(enWorkItems.detail.inlineErrors.unlinkInvoice);
+      await expectBudgetError(enWorkItems.detail.inlineErrors.unlinkInvoice);
     });
   });
 
@@ -559,26 +566,33 @@ describe('WorkItemDetailPage', () => {
       return thrown;
     }
 
-    it('invoice-linked move: ApiClientError shows the code copy and is rethrown', async () => {
+    it('invoice-linked move: ApiClientError is rethrown untouched and shown nowhere on the page', async () => {
       const err = apiError(404, 'NOT_FOUND');
       expect(await move(true, 'household_item', err)).toBe(err);
-      await expectInlineError(enErrors.NOT_FOUND);
+      // The picker owns the message; the page neither banners it nor passes it to BudgetSection
+      expect(screen.queryByText(enErrors.NOT_FOUND)).toBeNull();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
+      expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
     });
 
-    it('NetworkError shows the network copy', async () => {
-      await move(false, 'work_item', new NetworkError('RAW-LOCAL', new Error('c')));
-      await expectInlineError(enCommon.requestErrors.network);
+    it('NetworkError is rethrown untouched and not bannered', async () => {
+      const err = new NetworkError('RAW-LOCAL', new Error('c'));
+      expect(await move(false, 'work_item', err)).toBe(err);
+      expect(screen.queryByText(enCommon.requestErrors.network)).toBeNull();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
-    it('cross-table move without an invoice shows the pre-translated local error', async () => {
-      await move(false, 'household_item');
-      await expectInlineError(enBudget.budgetLineForm.moveCrossTableNoInvoiceError);
+    it('cross-table move without an invoice throws a LocalizedError with the translated copy', async () => {
+      const thrown = await move(false, 'household_item');
+      expect(thrown).toBeInstanceOf(LocalizedError);
+      expect((thrown as Error).message).toBe(enBudget.budgetLineForm.moveCrossTableNoInvoiceError);
       expect(mockUpdateWorkItemBudget).not.toHaveBeenCalled();
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
-    it('a non-Error rejection shows the moveFailed copy', async () => {
-      await move(false, 'work_item', 'plain string');
-      await expectInlineError(enBudget.budgetLineForm.errors.moveFailed);
+    it('a non-Error rejection is rethrown as-is and not bannered', async () => {
+      expect(await move(false, 'work_item', 'plain string')).toBe('plain string');
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 });

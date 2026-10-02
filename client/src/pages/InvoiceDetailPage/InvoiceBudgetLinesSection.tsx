@@ -14,6 +14,7 @@ import {
 } from '../../lib/invoiceBudgetLinesApi.js';
 import { assignBudgetLine } from '../../lib/budgetLineAssignApi.js';
 import type { BudgetLineAssignRequest } from '@cornerstone/shared';
+import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -360,7 +361,7 @@ export function InvoiceBudgetLinesSection({
 
       const newAmount = parseFloat(budgetLineItemizedAmount);
       if (isNaN(newAmount) || newAmount <= 0) {
-        throw new Error(t('invoiceDetail.budgetLines.editError.amountInvalid'));
+        throw new LocalizedError(t('invoiceDetail.budgetLines.editError.amountInvalid'));
       }
 
       let plannedAmount: number;

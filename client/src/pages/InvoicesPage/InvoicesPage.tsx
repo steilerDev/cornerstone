@@ -131,6 +131,7 @@ function renderInvoiceNumberCell(
 
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
@@ -921,7 +922,7 @@ export function InvoicesPage() {
           {t('invoices.addInvoice')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel="Budget section navigation" />}
+      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {headerContent}
       <DataTable<Invoice, InvoiceDeposit>

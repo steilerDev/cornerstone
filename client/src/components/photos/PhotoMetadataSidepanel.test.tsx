@@ -26,6 +26,7 @@
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import React from 'react';
+import enCommon from '../../i18n/en/common.json';
 import type { Photo, AreaResponse } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 
@@ -721,10 +722,12 @@ describe('PhotoMetadataSidepanel', () => {
     });
 
     it('shows the network message for a NetworkError', async () => {
+      // t is mocked to return the key, so also pin that the key exists in the real catalog
+      expect(enCommon.requestErrors).toHaveProperty('network');
       await saveWithRejection(new NetworkError('RAW-LOCAL', new Error('cause')));
 
       await waitFor(() => {
-        expect(screen.getByText('networkError')).toBeInTheDocument();
+        expect(screen.getByText('requestErrors.network')).toBeInTheDocument();
       });
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });

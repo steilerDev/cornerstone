@@ -354,9 +354,9 @@
       "removeLinkedMilestone": "Verknüpfter Meilenstein konnte nicht entfernt werden",
       "loadFailed": "Arbeitspaket konnte nicht geladen werden. Bitte erneut versuchen.",
       "linkSubsidy": "Förderprogramm konnte nicht verknüpft werden",
-      "unlinkSubsidy": "Förderprogramm konnte nicht aufgehoben werden",
+      "unlinkSubsidy": "Verknüpfung mit dem Förderprogramm konnte nicht aufgehoben werden",
       "alreadyLinkedSubsidy": "Dieses Förderprogramm ist bereits verknüpft",
-      "unlinkInvoice": "Budgetposition konnte nicht von Rechnung getrennt werden",
+      "unlinkInvoice": "Verknüpfung der Budgetposition mit der Rechnung konnte nicht aufgehoben werden",
       "deleteWorkItem": "Arbeitspaket konnte nicht gelöscht werden"
     },
     "dismissError": "Fehler ausblenden",

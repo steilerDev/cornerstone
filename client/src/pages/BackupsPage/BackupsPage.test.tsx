@@ -17,6 +17,7 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSettings from '../../i18n/en/settings.json';
+import enCommon from '../../i18n/en/common.json';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import type {
   BackupListResponse,
@@ -268,6 +269,20 @@ describe('BackupsPage', () => {
       expectTranslated('BACKUP_IN_PROGRESS');
     });
 
+    it('shows the RESTORE_FAILED copy from errors.json when the restore is rejected with RESTORE_FAILED', async () => {
+      const user = userEvent.setup();
+      mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
+      mockRestoreBackup.mockRejectedValueOnce(apiError(500, 'RESTORE_FAILED'));
+      renderPage();
+      await screen.findByText(backup1.filename);
+      await user.click(screen.getByRole('button', { name: /restore/i }));
+      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await waitFor(() => {
+        expect(screen.getByText(enErrors.RESTORE_FAILED)).toBeInTheDocument();
+      });
+      expectTranslated('RESTORE_FAILED');
+    });
+
     it('uses the restore fallback for a non-API restoreBackup failure', async () => {
       const user = userEvent.setup();
       mockListBackups.mockResolvedValueOnce({ backups: [backup1] } as BackupListResponse);
@@ -294,6 +309,17 @@ describe('BackupsPage', () => {
   });
 
   // ─── Modal cancel / dismiss ───────────────────────────────────────────────
+
+  describe('navigation', () => {
+    it('labels the settings sub-navigation with common.subNav.settings', async () => {
+      mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
+      renderPage();
+
+      expect(
+        await screen.findByRole('navigation', { name: enCommon.subNav.settings }),
+      ).toBeInTheDocument();
+    });
+  });
 
   describe('modal dismissal', () => {
     it('closes the delete modal via Cancel and via Escape without calling the API', async () => {

@@ -1852,3 +1852,30 @@ household-item `totalPlannedAmount`/summary/plannedCost filter.
 **How to apply:** when you review a rate or basis fix that claims to cover "all X math", grep for the
 raw column (`planned_amount`, `plannedAmount \*`) as well as for the helper's name. Then check that two endpoints showing the same
 figure (list vs detail, overview vs per-entity) still agree.
+
+## `fs.stat` is an existence check, not a readability check (PR #2168, #2129)
+
+I wrote the restore contract as "the archive must exist and be readable" and mapped any non-`ENOENT`
+`stat` failure to 500 `RESTORE_FAILED`. `stat` needs only search (x) permission on the
+**directory**. It succeeds on a mode-000 file, so a file that exists but cannot be read passed
+validation and failed during the asynchronous tar extraction, after the 202, where the client never
+sees it. The documented guarantee was never enforced, and my own wiki row enshrined the gap.
+**How to apply:** when a contract says "readable" (or "writable"), the check must be
+`fs.access(p, R_OK)` (or `W_OK`, or an actual open/write probe like `createBackup`'s
+`.write-check` file). `ENOENT` gives not-found and anything else (`EACCES`, `EISDIR`, ...) gives the 500. When reviewing, read the syscall against the adjective in the docs: `stat`/`exists` can only back
+"exists". Note that `access` ignores ACLs on some filesystems and is still a TOCTOU race. That is
+acceptable for a pre-reply check, but the real read must still handle failure.
+
+## Moving validation before the reply makes that error's client copy reachable (PR #2168, #2129)
+
+Before #2129 the restore handler replied 202 first and validated inside `setImmediate`. So
+`BACKUP_NOT_FOUND` / `BACKUP_IN_PROGRESS` / `RESTORE_FAILED` on that route were log-only, and their
+client copy (`errors.json` messages, `translateApiError` mappings, the restore modal's error branch)
+was dead code that nobody ever rendered or reviewed in context. Moving validation in front of the reply
+turns that copy live for the first time. The same applies to stale "not configured" wording, wrong
+`details`, and missing German keys.
+**How to apply:** whenever a fix moves a check from an async/background phase to before the response
+(or removes a guard that used to short-circuit it), treat every error code it can now return as **new
+client surface**. Re-read its en/de message and the UI branch that renders it, and confirm a test
+asserts the rendered copy, not just the status code. A status-code-only test cannot tell you that the
+message says something false.

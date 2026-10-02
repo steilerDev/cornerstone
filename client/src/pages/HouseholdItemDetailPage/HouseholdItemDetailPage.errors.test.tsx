@@ -6,7 +6,7 @@
  * handlers can be invoked directly.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, waitFor, act } from '@testing-library/react';
+import { render, waitFor, act, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
@@ -16,6 +16,7 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
+import { LocalizedError } from '../../lib/localizedError.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enHouseholdItems from '../../i18n/en/householdItems.json';
@@ -600,26 +601,37 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
       return thrown;
     }
 
-    it('invoice-linked move: ApiClientError shows the code copy and is rethrown', async () => {
+    // handleMoveBudgetLine has no try/catch: the picker in BudgetLineForm owns the message,
+    // so the page neither banners it nor passes it to BudgetSection (it would render twice).
+    it('invoice-linked move: ApiClientError is rethrown untouched and not set as the budget banner', async () => {
       const err = apiError(404, 'NOT_FOUND');
       expect(await move(true, 'work_item', err)).toBe(err);
-      await expectInlineError(enErrors.NOT_FOUND);
+      expect(inlineError() ?? null).toBeNull();
+      expect(screen.queryByText(enErrors.NOT_FOUND)).toBeNull();
     });
 
-    it('NetworkError shows the network copy', async () => {
-      await move(false, 'household_item', new MockNetworkError('RAW-LOCAL'));
-      await expectInlineError(enCommon.requestErrors.network);
+    it('NetworkError is rethrown untouched and not set as the budget banner', async () => {
+      const err = new MockNetworkError('RAW-LOCAL');
+      expect(await move(false, 'household_item', err)).toBe(err);
+      expect(inlineError() ?? null).toBeNull();
     });
 
-    it('cross-table move without an invoice shows the pre-translated local error', async () => {
-      await move(false, 'work_item');
-      await expectInlineError(enBudget.budgetLineForm.moveCrossTableNoInvoiceError);
+    it('cross-table move without an invoice throws a LocalizedError with the translated copy', async () => {
+      const thrown = await move(false, 'work_item');
+      expect(thrown).toBeInstanceOf(LocalizedError);
+      expect((thrown as Error).message).toBe(enBudget.budgetLineForm.moveCrossTableNoInvoiceError);
       expect(mockUpdateHouseholdItemBudget).not.toHaveBeenCalled();
+      expect(inlineError() ?? null).toBeNull();
     });
 
-    it('a non-Error rejection shows the moveFailed copy', async () => {
-      await move(false, 'household_item', 'plain string');
-      await expectInlineError(enBudget.budgetLineForm.errors.moveFailed);
+    it('a non-Error rejection is rethrown as-is and not set as the budget banner', async () => {
+      expect(await move(false, 'household_item', 'plain string')).toBe('plain string');
+      expect(inlineError() ?? null).toBeNull();
+    });
+
+    it('a failed move renders no alert anywhere on the page', async () => {
+      await move(false, 'household_item', new Error('RAW-LOCAL'));
+      expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
 });
