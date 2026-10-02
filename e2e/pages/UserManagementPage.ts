@@ -158,19 +158,29 @@ export class UserManagementPage {
     await this.createModal.waitFor({ state: 'hidden' });
   }
 
-  /** Auth Provider cell for the row with this email; the column is located by its header text. */
-  async getAuthProviderCell(email: string): Promise<Locator> {
+  /** Cell for the row with this email, in the column whose header text contains `header`. */
+  async getCellByHeader(email: string, header: string): Promise<Locator> {
     await this.table.locator('thead th').first().waitFor({ state: 'visible' });
     const headers = await this.table.locator('thead th').allTextContents();
-    const index = headers.findIndex((h) => h.includes('Auth Provider'));
+    const index = headers.findIndex((h) => h.includes(header));
     if (index === -1) {
-      throw new Error('Auth Provider column is not visible');
+      throw new Error(`"${header}" column is not visible`);
     }
     return this.table
       .locator('tbody tr')
       .filter({ has: this.page.getByRole('cell', { name: email, exact: true }) })
       .locator('td')
       .nth(index);
+  }
+
+  /** Auth Provider cell for the row with this email; the column is located by its header text. */
+  async getAuthProviderCell(email: string): Promise<Locator> {
+    return this.getCellByHeader(email, 'Auth Provider');
+  }
+
+  /** Status cell for the row with this email; the column is located by its header text. */
+  async getStatusCell(email: string): Promise<Locator> {
+    return this.getCellByHeader(email, 'Status');
   }
 
   async searchUsers(query: string): Promise<void> {

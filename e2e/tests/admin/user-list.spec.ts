@@ -56,10 +56,12 @@ test.describe('User List Display', { lock: 'admin-account' }, () => {
       expect(cells[0]).toContain(TEST_ADMIN.displayName); // Name (index 0)
       expect(cells[1]).toBe(TEST_ADMIN.email); // Email (index 1)
       expect(cells[2]).toBe('Administrator'); // Role (index 2)
-      // cells[3] = Member Since (date) — not asserted (format varies by locale)
-      expect(cells[4]).toBe('Local'); // Auth Provider (index 4)
-      expect(cells[5]).toBe('Active'); // Status (index 5)
+      // Member Since (date) — not asserted (format varies by locale)
     }
+    await expect(await userManagementPage.getAuthProviderCell(TEST_ADMIN.email)).toHaveText(
+      'Local',
+    );
+    await expect(await userManagementPage.getStatusCell(TEST_ADMIN.email)).toHaveText('Active');
   });
 
   test('Table shows action menu for each user', async ({ page }) => {

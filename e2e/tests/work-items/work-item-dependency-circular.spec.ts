@@ -50,7 +50,7 @@ test.describe('Circular dependency error', () => {
       const picker = detailPage.constraintsSection.getByPlaceholder('Search work items...').first();
       await picker.fill(titleC);
       await page.getByRole('option', { name: titleC }).click();
-      await detailPage.constraintsSection.getByRole('button', { name: 'Add', exact: true }).click();
+      await detailPage.dependencyAddButton.click();
 
       await expect(detailPage.errorBanner).toBeVisible();
       await expect(detailPage.errorBanner).toContainText(
