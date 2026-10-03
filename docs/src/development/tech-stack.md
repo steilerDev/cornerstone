@@ -40,7 +40,7 @@ Cornerstone follows strict dependency policies:
 
 - **No native binary frontend tooling** -- tools like esbuild, SWC, and Tailwind v4 ship platform-specific binaries that fail in certain environments. Cornerstone uses pure JavaScript alternatives (Webpack, Babel, PostCSS).
 - **Pinned versions** -- exact versions rather than caret ranges (`^`) to prevent unexpected upgrades.
-- **Zero known vulnerabilities** -- `npm audit` must pass before merging.
+- **Zero known fixable vulnerabilities in the runtime image** -- `npm audit --omit=dev` must report 0 before merging. Dev, test and docs tooling may carry accepted vulnerabilities when fixing them would require downgrades or brittle dependency pinning.
 
 ## Further Reading
 

@@ -249,6 +249,7 @@ The spec specifies one of:
 
 - **Direct bump** — patch is available; bump the version in the appropriate `package.json` and update any affected call sites.
 - **Override** — patch only exists upstream of a pinned transitive; add a root-level `overrides` block to force the patched version.
+- **Accept (non-runtime only)** — the package is absent from `npm ls <package> --omit=dev` (dev, test, release or docs tooling), and the only fix is a downgrade or a complex, brittle override chain. Per CLAUDE.md > Dependency Policy, recommend dismissal as `tolerable_risk` in the final report instead of forcing a fix. A clean fix (normal bump or a single simple override) is still applied. Runtime packages never qualify.
 - **No patch** — document a workaround (input sanitisation, feature flag, sandboxing) OR recommend dismissing the alert with reason. **Never auto-dismiss**: present the dismissal recommendation to the user in the final report and let them decide. Alerts for `brace-expansion`, `ip-address` or `undici` under `node_modules/npm/node_modules/` are the documented bundled-in-npm residual (CLAUDE.md > Dependency Policy). Run its re-check recipe; if a fixed npm exists, spec the root `npm@…` override bump; otherwise report it as the known residual.
 
 #### 6c. Implement
