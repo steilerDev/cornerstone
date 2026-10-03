@@ -5,112 +5,155 @@ title: Agent Team
 
 # Agent Team
 
-Cornerstone is built by a team of 10 specialized Claude Code agents. Each agent has its own system prompt, persistent memory, and clearly defined responsibilities.
+Cornerstone is built by **11 specialized Claude Code agents**, each with a distinct role. The team uses opus (largest models) for high-judgment decisions, sonnet (mid-tier) for implementation, and haiku (efficient) for mechanical tasks. **Spend follows judgment density** -- expensive models only on decisions that matter.
+
+| Agent | Model | Tier | Role |
+|-------|-------|------|------|
+| **product-owner** | sonnet | mid-tier | Defines epics, user stories, and acceptance criteria; manages the backlog |
+| **product-architect** | opus | large | Tech stack, schema, API contract, project structure, ADRs, Dockerfile |
+| **dev-team-lead** | opus | large | Spec-writer, reviewer, and committer: decomposes work into implementation specs, reviews agent output, commits and creates PRs |
+| **backend-developer** | sonnet | mid-tier | API endpoints, business logic, auth, database operations |
+| **frontend-developer** | sonnet | mid-tier | UI components, pages, interactions, API client |
+| **translator** | haiku | efficient | Non-English translations, glossary enforcement |
+| **qa-integration-tester** | sonnet | mid-tier | Unit tests (95%+ coverage), integration tests, performance testing |
+| **e2e-test-engineer** | sonnet | mid-tier | Playwright E2E tests, page objects, multi-viewport testing |
+| **security-engineer** | sonnet | mid-tier | Security audits, vulnerability reviews, auth/authz validation |
+| **ux-designer** | sonnet | mid-tier | Visual specifications, design tokens, dark mode, accessibility |
+| **docs-writer** | haiku | efficient | Documentation site, README.md, user-facing guides |
 
 ## The Agents
 
-### Product Owner
+### Product Owner (Sonnet)
 
-**Role**: Defines epics, user stories, and acceptance criteria. Manages the product backlog.
+**Owns**: Backlog management and user stories.
 
-- Breaks requirements into actionable user stories with clear acceptance criteria
-- Maintains the GitHub Projects board
-- Validates that completed work meets requirements
-- Gates PR approval -- only approves after verifying all agent responsibilities are fulfilled
+- Breaks requirements into actionable user stories with clear, testable acceptance criteria
+- Maintains the GitHub Projects board (Backlog, Todo, In Progress, Done)
+- Validates completed work against acceptance criteria
+- Reviews PRs to ensure requirements are met
 
-### Product Architect
+### Product Architect (Opus)
 
-**Role**: System design, database schema, API contract, and architectural decisions.
+**Owns**: System design, schema, API contract, ADRs.
 
-- Designs schema additions and API endpoints for each epic
-- Writes Architectural Decision Records (ADRs) on the GitHub Wiki
-- Maintains the API Contract and Schema wiki pages
-- Reviews PRs for architecture compliance
+- Designs database schema changes and Drizzle migrations
+- Defines REST API endpoints and contracts
+- Maintains the GitHub Wiki (Architecture, Schema, API Contract, ADR Index)
+- Reviews PRs for architectural compliance and code quality
+- Makes trade-off decisions on tech stack and major structures
 
-### UX Designer
+### Dev Team Lead (Opus)
 
-**Role**: Visual design, design tokens, brand identity, and component styling specifications.
+**Owns**: Specifications, review, and commits.
 
-- Defines the CSS custom property token system
-- Creates visual specs for UI stories (which tokens, states, responsive behavior)
-- Maintains the Style Guide wiki page
-- Reviews frontend PRs for token adherence and accessibility
+- Writes implementation specs from acceptance criteria and architecture
+- Reviews all agent-produced work (code, tests, security findings)
+- Stages files, commits with appropriate agent trailers, pushes, and creates PRs
+- Returns work for fixes if review finds issues; fix loops continue the same implementing agent
+- Final gate before a PR is created
 
-### Backend Developer
+### Backend Developer (Sonnet)
 
-**Role**: Server-side implementation.
+**Owns**: Server-side implementation.
 
-- Implements Fastify API endpoints and business logic
+- Implements Fastify API endpoints and business logic per spec
 - Writes database queries using Drizzle ORM
 - Handles authentication, authorization, and session management
-- Does not write tests (owned by QA)
+- Does NOT write tests (owned by QA)
 
-### Frontend Developer
+### Frontend Developer (Sonnet)
 
-**Role**: Client-side implementation.
+**Owns**: Client-side implementation.
 
-- Builds React components, pages, and interactions
+- Builds React components, pages, and interactions per spec
 - Implements the typed API client layer
-- References the UX Designer's visual specs for styling
-- Does not write tests (owned by QA)
+- Uses CSS Modules and design tokens per UX specs
+- Does NOT write tests (owned by QA)
 
-### QA Integration Tester
+### Translator (Haiku)
 
-**Role**: Unit tests and integration tests.
+**Owns**: Non-English translations and glossary compliance.
+
+- Translates new English i18n keys into German and other supported locales
+- Proposes new glossary terms for domain concepts
+- Audits existing translations for parity and term compliance
+- Launched only after frontend-developer adds English keys
+
+### QA Integration Tester (Sonnet)
+
+**Owns**: Unit and integration tests.
 
 - Writes Jest unit tests targeting 95%+ coverage on all new code
-- Writes integration tests using Fastify's `app.inject()` method
-- Validates performance budgets and audits accessibility
+- Writes API integration tests using Fastify's `app.inject()` method
+- Validates performance budgets and accessibility
 - Reports bugs with structured reproduction steps
 
-### E2E Test Engineer
+### E2E Test Engineer (Sonnet)
 
-**Role**: End-to-end browser tests.
+**Owns**: End-to-end browser tests.
 
-- Writes Playwright E2E tests covering UAT scenarios
-- Manages the testcontainer infrastructure (app, OIDC provider, proxy)
+- Writes Playwright E2E tests covering user flows and acceptance criteria
+- Manages testcontainers (app, OIDC provider, proxy) for test environments
 - Tests across desktop, tablet, and mobile viewports
-- Must confirm all E2E tests pass before manual UAT proceeds
+- Confirms all E2E tests pass before UAT proceeds
 
-### Security Engineer
+### Security Engineer (Sonnet)
 
-**Role**: Security audits and vulnerability reviews.
+**Owns**: Security audits and vulnerability reviews.
 
-- Reviews every PR for OWASP Top 10 vulnerabilities
-- Audits authentication/authorization implementations
+- Reviews PRs touching auth, API routes with data access, Dockerfile, dependency manifests
+- Audits for OWASP Top 10 vulnerabilities (injection, XSS, broken auth, sensitive data exposure, etc.)
 - Scans dependencies for CVEs
-- Maintains the Security Audit wiki page
+- Maintains the GitHub Wiki Security Audit page
 
-### UAT Validator
+### UX Designer (Sonnet)
 
-**Role**: User acceptance testing.
+**Owns**: Visual specifications and design system.
 
-- Translates acceptance criteria into concrete UAT scenarios (Given/When/Then)
-- Coordinates with QA and E2E agents for test feasibility
-- Produces step-by-step manual validation instructions for the user
-- Manages the validation loop until the user approves
+- Creates visual specs for UI stories (token mapping, states, responsive behavior)
+- Maintains the GitHub Wiki Style Guide (tokens, color palette, typography, components)
+- Reviews frontend PRs for token adherence, visual consistency, dark mode, and accessibility
 
-### Docs Writer
+### Docs Writer (Haiku)
 
-**Role**: User-facing documentation.
+**Owns**: User-facing documentation.
 
-- Maintains this documentation site (`docs/` workspace)
-- Updates the README.md as a lean project overview
-- Documents new features after each epic ships
+- Maintains the documentation site (`docs/` workspace, Docusaurus)
+- Updates README.md as a project overview
+- Writes feature guides after each epic ships
+- Does NOT write architecture or wiki documentation (product-architect owns that)
 
 ## Communication Patterns
 
-Agents communicate through:
+**Commits**: Every commit includes a `Co-Authored-By` trailer for each agent that contributed:
 
-- **GitHub Issues** -- user stories, acceptance criteria, UAT scenarios
-- **GitHub PRs** -- code review comments and approvals
-- **GitHub Wiki** -- architecture, API contract, schema, security audit
-- **Agent memory** -- persistent notes shared across sessions
-- **CLAUDE.md** -- shared conventions and workflow rules
+```
+feat(work-items): add tag filtering to list page
 
-## Attribution
+Implements tag-based filtering with multi-select dropdown.
 
-All agents identify themselves in their work:
+Co-Authored-By: Claude frontend-developer <noreply@anthropic.com>
+Co-Authored-By: Claude qa-integration-tester <noreply@anthropic.com>
+```
 
-- **Commits** include a `Co-Authored-By` trailer with the agent name and model
-- **GitHub comments** are prefixed with the agent name in bold brackets (e.g., `**[backend-developer]**`)
+Note: trailers include **agent name only**, no model version. Models are selected via aliases (`haiku`/`sonnet`/`opus`) in agent definitions and resolve to the latest model of that tier.
+
+**GitHub comments**: Agents prefix their comments with agent name in bold brackets:
+
+```
+**[backend-developer]** This endpoint should return a 404 for non-existent items per the contract.
+```
+
+**Specifications**: The dev-team-lead writes implementation specs that carry the full context: acceptance criteria, reference files to read, and expected output format. Implementing agents execute the spec without re-reading the issue or wiki.
+
+**Fix loops**: When review finds issues, the fix loop continues the same implementing agent (via SendMessage) instead of launching a fresh agent. This preserves context and speeds iteration.
+
+## Attribution Enforcement
+
+The system enforces agent attribution automatically:
+
+- A **bash hook** (`scripts/hooks/bash-guard.mjs`) pre-checks commit messages at commit time. If production files changed, the required agent trailers must be present.
+- **CI** runs `scripts/check-trailers.sh` on every PR touching production code to verify trailers are present.
+- **The orchestrator** verifies trailers before committing (dev-team-lead `[MODE: commit]` step) and rejects commits with missing trailers.
+
+This ensures accountability and traceability across the codebase.

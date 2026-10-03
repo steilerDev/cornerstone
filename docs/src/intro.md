@@ -19,7 +19,9 @@ import ThemedImage from '@theme/ThemedImage';
 
 # Cornerstone
 
-A self-hosted home building project management tool for homeowners. Track work items, budgets, timelines, household items, and documents from a single Docker container backed by SQLite -- no external database required.
+**Your whole build, in one place.**
+
+Building a home means juggling contractors, loans, subsidies, invoices, delivery dates, and a hundred decisions -- usually scattered across spreadsheets, chat threads, and paper folders. Cornerstone brings it all together: the schedule, the money, the site diary, and the paperwork, connected to each other and to the rooms of your house. It runs self-hosted in a single Docker container, so your data stays at home.
 
 ## Who is Cornerstone for?
 
@@ -29,25 +31,33 @@ Cornerstone is designed for **homeowners managing a construction or renovation p
 - **Self-hosted** -- your data stays on your hardware
 - **Single Docker container** -- no external database, no complex infrastructure
 
-## Key Features
+## Highlights
 
-- **Work Items** -- Create and manage construction tasks with statuses, dates, assignments, areas, notes, subtasks, and dependencies -- each work item surfaces its full area ancestor path (e.g. `House / Ground Floor / Kitchen`) as a breadcrumb wherever it appears
-- **Budget Management** -- Track costs with budget categories, financing sources, multi-budget-line invoice linking with itemized amounts, **staged-payment deposits** for invoices paid in instalments, subsidies, and an area-grouped overview dashboard with multiple projection perspectives, clickable summary tiles, and print-friendly export
-- **Hierarchical Financing Sources** -- Click any source to expand it inline, see every attached budget line grouped by area and work item, and mass-move selected lines between sources
-- **Timeline & Gantt Chart** -- Interactive Gantt chart with dependency arrows, critical path highlighting, zoom controls, milestones, and automatic scheduling via the Critical Path Method
-- **Calendar View** -- Monthly and weekly calendar grids showing work items and milestones
-- **Milestones** -- Track major project checkpoints with target dates, projected completion, and late detection
-- **Household Items** -- Track furniture, appliances, and fixtures with categories, delivery scheduling, budget integration, work item linking, and timeline dependencies
-- **Areas & Trades** -- Hierarchical project areas (rooms, floors, zones) and trade specialties (Electrical, Plumbing, etc.) for organizing work and linking vendors
-- **Authentication** -- Local accounts with first-run setup wizard, plus OIDC single sign-on for existing identity providers
-- **User Management** -- Admin and Member roles with a dedicated admin panel
-- **Construction Diary** -- Maintain a construction diary (Bautagebuch) with daily logs, site visits, delivery records, issue tracking, automatic system events, photo attachments with in-browser annotation (rectangles, arrows, text, measurements, freehand), auto-saved drafts, and digital signature capture
-- **Project Dashboard** -- At-a-glance project health with budget summary, timeline status, invoice and subsidy pipelines, mini Gantt preview, and customizable card layout
-- **Document Integration** -- Browse, search, and link documents from a connected [Paperless-ngx](https://docs.paperless-ngx.com/) instance to work items and invoices
-- **Dark Mode** -- Light, Dark, or System theme with instant switching
-- **Design System** -- Consistent visual language with CSS custom property tokens
+### Plan the build
 
-See the [Roadmap](roadmap) for upcoming features.
+Break the project into [work items](guides/work-items) organized by [area and trade](guides/work-items/areas-and-trades), link their dependencies, and let the [Gantt chart](guides/timeline/gantt-chart) compute the critical path and schedule everything for you. When one trade slips, you see exactly what moves with it. [Milestones](guides/timeline/milestones) and a [calendar view](guides/timeline/calendar-view) keep the big dates in sight.
+
+### Know where every euro goes
+
+Spread costs across [loans, subsidies, and your own funds](guides/budget/financing-sources). Track quotes, [invoices](guides/budget/vendors-and-invoices), and [staged payments](guides/budget/invoice-deposits) against every budget line, and see at a glance what is spent, what is committed, and what is left in the [budget overview](guides/budget/budget-overview). When the bank asks for proof, generate a ready-to-send [bank report](guides/budget/bank-reports) in a few clicks.
+
+### Let AI handle the paperwork
+
+Connect [Paperless-ngx](guides/documents) and link scanned documents to work items, purchases, and invoices. Optionally plug in any LLM provider (OpenAI, Anthropic, Gemini, Ollama) to [auto-itemize invoices](guides/budget/auto-itemize) -- reading line items straight off the PDF and booking them to the right budget lines.
+
+### Document the site
+
+Keep a [construction diary](guides/diary) with daily logs, site visits, and deliveries. [Snap photos](guides/diary/photo-capture) on your phone, tag them by room and direction, [mark up defects](guides/diary/photo-annotation) right in the browser, and [capture signatures](guides/diary/signatures) on the spot. The [photo browser](guides/photos) groups every shot by spot, so you can step back through how a wall or a corner changed over time.
+
+### Furnish the home
+
+Track [furniture, appliances, and fixtures](guides/household-items) alongside the build, with delivery dates tied to the schedule and costs tied to the budget.
+
+### See it all at a glance
+
+A customizable [dashboard](guides/dashboard) shows budget health, upcoming milestones, open invoices, and subsidy status the moment you log in.
+
+**Also built in:** [single sign-on via OIDC](guides/users/oidc-setup), shared access for your household with [admin and member roles](guides/users/admin-panel), [calendar and contact feeds](guides/feeds) for your phone, [scheduled backups](guides/backup), English and German, and [dark mode](guides/appearance/dark-mode).
 
 ## Quick Links
 
@@ -59,9 +69,8 @@ See the [Roadmap](roadmap) for upcoming features.
 - [Diary Guide](guides/diary) -- Construction diary with manual entries and automatic events
 - [Dashboard Guide](guides/dashboard) -- Project health overview and card customization
 - [Documents Guide](guides/documents) -- Paperless-ngx integration for document linking
+- [Backups](guides/backup) -- Manual and scheduled backups, restore
 - [OIDC Setup](guides/users/oidc-setup) -- Connect your identity provider
-- [Development](development) -- How Cornerstone is built by an AI agent team
+- [Behind the Scenes](development) -- How Cornerstone is built by a team of AI coding agents
 - [GitHub Repository](https://github.com/steilerDev/cornerstone) -- Source code and issue tracker
 - [GitHub Wiki](https://github.com/steilerDev/cornerstone/wiki) -- Technical architecture documentation
-
-

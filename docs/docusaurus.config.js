@@ -66,7 +66,7 @@ const config = {
             type: 'docSidebar',
             sidebarId: 'development',
             position: 'left',
-            label: 'Development',
+            label: 'Behind the Scenes',
           },
           {
             href: 'https://github.com/steilerDev/cornerstone',
@@ -89,14 +89,14 @@ const config = {
               { label: 'Documents', to: '/guides/documents' },
               { label: 'Diary', to: '/guides/diary' },
               { label: 'Backups', to: '/guides/backup' },
-              { label: 'Roadmap', to: '/roadmap' },
             ],
           },
           {
-            title: 'Development',
+            title: 'Behind the Scenes',
             items: [
               { label: 'Agent Team', to: '/development/agentic/agent-team' },
-              { label: 'Workflow', to: '/development/agentic/workflow' },
+              { label: 'Skills', to: '/development/agentic/skills' },
+              { label: 'CI & Guardrails', to: '/development/agentic/quality-gates' },
               { label: 'Tech Stack', to: '/development/tech-stack' },
             ],
           },

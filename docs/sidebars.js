@@ -106,7 +106,6 @@ const sidebars = {
     'guides/dashboard/index',
     'guides/backup/index',
     'guides/appearance/dark-mode',
-    'roadmap',
   ],
 
   development: [
@@ -117,7 +116,9 @@ const sidebars = {
       link: { type: 'doc', id: 'development/agentic/overview' },
       items: [
         'development/agentic/agent-team',
+        'development/agentic/skills',
         'development/agentic/workflow',
+        'development/agentic/quality-gates',
         'development/agentic/setup',
       ],
     },
