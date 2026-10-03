@@ -482,37 +482,76 @@ test.describe('Open items — the "Open (payable)" tile is global (Scenario 7, A
   }) => {
     const invoicesPage = new InvoicesPage(page);
     let vendorId = '';
+    let otherVendorId = '';
+
+    // Other workers create/delete invoices concurrently, so the global total is a moving
+    // target across page loads. Instead of comparing three separate DOM reads, each view's
+    // tile is checked against the summary.openPayable.totalAmount of the very response
+    // that rendered it, and globality is proven with a lower bound only this test controls.
+    const isInvoiceList = (resp: { url(): string; request(): { method(): string } }) =>
+      new URL(resp.url()).pathname === '/api/invoices' && resp.request().method() === 'GET';
+    const readTotal = async (resp: { json(): Promise<unknown> }): Promise<number> => {
+      const body = (await resp.json()) as { summary: { openPayable: { totalAmount: number } } };
+      return body.summary.openPayable.totalAmount;
+    };
+    const tileValue = async (): Promise<number> => {
+      const text = await invoicesPage.openPayableCard
+        .locator('[class*="summaryAmount"]')
+        .textContent();
+      return Number((text ?? '').replace(/[^0-9.]/g, ''));
+    };
 
     try {
       vendorId = await createVendorViaApi(page, { name: `${testPrefix} GlobalTile Vendor` });
+      otherVendorId = await createVendorViaApi(page, { name: `${testPrefix} GlobalTile Other` });
       await createInvoiceViaApi(page, vendorId, {
         invoiceNumber: `${testPrefix}-GT`,
         amount: 250,
         date: daysAgo(10),
         status: 'pending',
       });
+      await createInvoiceViaApi(page, otherVendorId, {
+        invoiceNumber: `${testPrefix}-GT-OTHER`,
+        amount: 777,
+        date: daysAgo(10),
+        status: 'pending',
+      });
+      // Both invoices stay open for the whole test, so any global total must include them.
+      const ownMinimum = 250 + 777;
 
+      // 1. Toggle off
+      const offResponse = page.waitForResponse(isInvoiceList);
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
-      const amountOff = await invoicesPage.openPayableCard
-        .locator('[class*="summaryAmount"]')
-        .textContent();
+      const totalOff = await readTotal(await offResponse);
+      await expect.poll(tileValue).toBeCloseTo(totalOff, 2);
+      expect(totalOff).toBeGreaterThanOrEqual(ownMinimum);
 
+      // 2. Toggle on
+      const onResponse = page.waitForResponse(
+        (resp) =>
+          isInvoiceList(resp) && new URL(resp.url()).searchParams.get('openOnly') === 'true',
+      );
       await invoicesPage.setOpenItemsOnly(true);
-      const amountOn = await invoicesPage.openPayableCard
-        .locator('[class*="summaryAmount"]')
-        .textContent();
-      expect(amountOn).toBe(amountOff);
+      const totalOn = await readTotal(await onResponse);
+      await expect.poll(tileValue).toBeCloseTo(totalOn, 2);
+      expect(totalOn).toBeGreaterThanOrEqual(ownMinimum);
 
+      // 3. Vendor filter: the tile still reflects the global total (includes the OTHER
+      // vendor's invoice), not just the filtered vendor's 250.
+      const filteredResponse = page.waitForResponse(
+        (resp) =>
+          isInvoiceList(resp) && new URL(resp.url()).searchParams.get('vendorId') === vendorId,
+      );
       await page.goto(`${INVOICES_ROUTE}?openOnly=true&vendorId=${vendorId}`);
       await invoicesPage.heading.waitFor({ state: 'visible' });
       await invoicesPage.waitForLoaded();
-      const amountFiltered = await invoicesPage.openPayableCard
-        .locator('[class*="summaryAmount"]')
-        .textContent();
-      expect(amountFiltered).toBe(amountOff);
+      const totalFiltered = await readTotal(await filteredResponse);
+      await expect.poll(tileValue).toBeCloseTo(totalFiltered, 2);
+      expect(totalFiltered).toBeGreaterThanOrEqual(ownMinimum);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (otherVendorId) await deleteVendorViaApi(page, otherVendorId);
     }
   });
 });
