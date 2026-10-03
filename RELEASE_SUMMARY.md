@@ -12,8 +12,12 @@ Upgraded `@fastify/busboy` from 3.2.0 to 3.2.2 to remediate a vulnerability in m
 
 ## Maintenance Updates
 
-- **ical-generator:** 11.1.1 → 11.1.2 -- minor compatibility improvements
-- **Development dependencies:** TypeScript, @eslint-react/eslint-plugin, typescript-eslint, and @types/node updated for latest tooling support
+- **ical-generator:** 11.1.1 → 11.1.2 -- patch update
+- **Development dependencies:**
+  - @eslint-react/eslint-plugin 5.20.8 → 5.23.0
+  - typescript-eslint 8.70.1 → 8.71.0
+  - @types/node 26.6.2 → 26.6.3
+  - testcontainers 12.1.0 → 12.2.0
 - **GitHub Actions:** codeql-action/upload-sarif bumped for security analysis reliability
 
 ## Deployment
@@ -27,8 +31,13 @@ Restart your container. No database migrations or configuration changes required
 ## Behind the Scenes
 
 - **CI refinement:** The trailer-check job now correctly ignores files changed by commits without Claude agent trailers (human edits and aggregated Dependabot commits in promotion PRs), preventing false failures in `beta` → `main` promotion workflows.
+- **Dependency policy:** The zero-vulnerability requirement now applies to the runtime image only (`npm audit --omit=dev`). `nanoid` is now declared as a client dependency for session management.
 
 ## Docker Images
 
 - **Stable release** (main): `steilerdev/cornerstone:latest`, `steilerdev/cornerstone:2.18.1`
 - **Beta preview** (beta): `steilerdev/cornerstone:beta`
+
+---
+
+📚 [Full Documentation](https://cornerstone.steiler.dev/) | 💬 [GitHub Issues](https://github.com/steilerDev/cornerstone/issues)
