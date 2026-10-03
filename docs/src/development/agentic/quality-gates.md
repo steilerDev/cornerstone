@@ -39,9 +39,10 @@ Every PR targeting `beta` or `main` must pass these automated checks:
 
 ### Trailer Check
 
-- **Commits on production files** (`server/`, `client/`, `shared/`, `e2e/`) must include appropriate `Co-Authored-By` trailers
+- **Commits with Claude trailers on production files** (`server/`, `client/`, `shared/`, `e2e/`) must include appropriate `Co-Authored-By` trailers for the files they changed
+- Human-authored commits (those without a Claude trailer) and merge commits are not subject to this rule
 - Uses `scripts/check-trailers.sh` to verify agents who touched each file
-- Blocks PRs with missing trailers (e.g., a commit that modifies `server/` must list `backend-developer`)
+- Blocks PRs where a Claude-trailered commit modifies production code but lacks the required agent trailer (e.g., a commit with a backend-developer trailer must list backend-developer for files under `server/`)
 
 ## E2E Gates (Main Only)
 
@@ -81,9 +82,10 @@ This prevents accidental violations from reaching GitHub.
 
 The `trailer-check` job in CI runs `scripts/check-trailers.sh`:
 
-- Verifies all commits in the PR carry required agent trailers for the files they changed
+- Verifies that commits with Claude agent trailers carry required trailers for the files they changed
+- Only verifies commits that have a Claude trailer themselves; human-authored commits and merges are skipped
 - Runs on all PRs touching production code (server/, client/, shared/, e2e/)
-- Blocks merge if trailers are missing or incorrect
+- Blocks merge if a Claude-trailered commit modifies production files without the appropriate agent trailers
 
 ### 3. Orchestrator Pre-Merge Verification
 
