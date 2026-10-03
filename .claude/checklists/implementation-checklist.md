@@ -106,6 +106,7 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **ESM extensions**: Include `.js` extension in all import paths.
 - [ ] **No `any`**: Avoid `any` types. Use proper typing or `unknown` with type guards.
 - [ ] **Strict mode**: All code must compile under `"strict": true` without errors.
+- [ ] **Declare every runtime import**: Any package imported by non-test code in `server/src`, `shared/src` or `client/src` must be listed in that workspace's `dependencies`. Webpack bundles undeclared transitive imports, which then escape `npm audit --omit=dev` — `PhotoAnnotator.tsx` shipped an undeclared `nanoid` marked `dev: true` in the lockfile (PR #2180).
 
 ## Testing
 
