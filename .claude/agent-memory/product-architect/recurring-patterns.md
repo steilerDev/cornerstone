@@ -1930,3 +1930,13 @@ each touched file for `value: '<member>'` and `<option value="<member>"`, not on
 The template-literal guard (`templateLiteralKeys.test.ts`) cannot see these: the keys are literal and
 compile-checked, so only the member list drifts. Also: `new URL(rel, import.meta.url).pathname` in a test is
 percent-encoded, so pass the URL to `readFileSync` directly.
+
+## `npm audit --omit=dev` misses phantom imports that webpack bundles (PR #2180, 2026-10-03)
+
+The runtime-only audit trusts the lockfile's `dev` flag. Webpack bundles whatever client code imports,
+whatever its dependency type. `PhotoAnnotator.tsx` imported an undeclared `nanoid` (a transitive marked
+`dev: true`), so the package shipped in `client/dist` but was invisible to both `npm audit --omit=dev` and
+`npm ls --omit=dev`. Any "runtime vs dev" classification rule needs a sweep of non-test imports in
+`server/src`, `shared/src` and `client/src` against each workspace's `dependencies`. Without a sweep, the
+rule's "covers exactly what ships" claim is unproven. Base-image OS packages are covered by Docker Scout
+(`release.yml`), not by npm audit.
