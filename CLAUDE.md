@@ -327,7 +327,10 @@ two places:
 Detection inside the script is case-insensitive and accepts both the current de-versioned trailer
 form (`Claude <agent> <noreply@anthropic.com>`) and the legacy parenthesized-model form
 (`Claude <agent> (Model X.Y) <noreply@anthropic.com>`) so history-spanning ranges still verify.
-Writing trailers is always the canonical de-versioned form.
+Writing trailers is always the canonical de-versioned form. The rules apply only to files changed
+by non-merge commits that themselves carry a Claude agent trailer — files changed solely by commits
+without one (human edits, or Dependabot bumps aggregated into a `beta` → `main` promotion PR) are not
+subject to them, while a required trailer on any commit in the range still satisfies a rule.
 
 ### Enforcement Hooks
 
