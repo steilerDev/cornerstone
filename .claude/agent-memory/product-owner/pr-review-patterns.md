@@ -20,7 +20,7 @@ metadata:
 - Verify qa-integration-tester wrote the tests (check commit author, not developer)
 - Verify 95%+ test coverage on new/modified code
 - Verify all agent responsibilities fulfilled (QA wrote tests, architect reviewed, UAT scenarios exist)
-- Check quality gates: lint, typecheck, test, build, npm audit all pass
+- Check quality gates: lint, typecheck, test, build, `npm audit --omit=dev` reports 0
 - Look for accessibility gaps: missing :focus styles, missing aria-labels, semantic HTML
 
 ## RECURRING VIOLATIONS (check these FIRST — appeared in 3+ PRs)

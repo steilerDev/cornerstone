@@ -126,7 +126,7 @@ Dependabot submits PRs for dependency updates and security alerts:
 - The `/dependabot` skill processes the queue
 - Reviews changelogs for breaking changes and security implications
 - Merges or requests fixes
-- Zero known fixable CVEs in production dependencies
+- Zero known fixable CVEs in production (runtime image) dependencies; dev and docs tooling residuals are accepted when the only fix is a downgrade or brittle pinning
 
 ## Dependency Policy
 
