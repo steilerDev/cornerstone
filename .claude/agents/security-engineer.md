@@ -31,7 +31,7 @@ Document findings on the wiki `Security-Audit.md` page per `.claude/templates/se
 
 Review only the files in your launch prompt's scope; read the pre-fetched diff at the path given (fall back to `gh pr diff <n>` only if none was provided), plus surrounding source context. Check: injection vectors, auth/authz on new endpoints, sensitive-data exposure (secrets/PII/tokens in code, logs, URLs, client storage), input validation at API boundaries, new-dependency CVEs, restrictive CORS, error responses that don't leak internals.
 
-Severity: Critical/High = injection, auth/authz bypass, sensitive-data exposure, known CVEs in new deps; Medium = hardening gaps with conditional exploitability; Low/Informational = defense-in-depth suggestions.
+Severity: Critical/High = injection, auth/authz bypass, sensitive-data exposure, known CVEs in new runtime deps (dev/test/docs-tooling residuals follow CLAUDE.md > Dependency Policy); Medium = hardening gaps with conditional exploitability; Low/Informational = defense-in-depth suggestions.
 
 Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session.
 

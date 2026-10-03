@@ -6,6 +6,7 @@
 - [AJV strips unknown props; ADR-010 scrypt drift](recurring-patterns.md) — `additionalProperties:false` never 400s here; probe with inject (#2122)
 - [Tuple migration leaves a second derivation](recurring-patterns.md) — after a badge map moves to a tuple, grep the same file for hand-listed enumOptions/<option> lists (PR #2171)
 - [fs.stat vs readability; pre-reply validation](recurring-patterns.md) — `stat` proves existence only, use `fs.access(R_OK)`; moving a check before the reply makes its error copy live, so re-read it (PR #2168)
+- [Phantom imports escape --omit=dev audit](recurring-patterns.md) — sweep shipped-source imports vs `dependencies`; nanoid case (PR #2180)
 - [Re-runnable crash recovery](recurring-patterns.md) — flip the marker between a rollback's destructive and restoring loops; side effects before a fallible start step (ADR-037)
 - [Recovery steps on a full disk](recurring-patterns.md) — re-assert persisted state only when it differs; free regenerable space before any write (PR #2169)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION

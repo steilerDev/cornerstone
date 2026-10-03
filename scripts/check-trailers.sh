@@ -3,7 +3,7 @@
 #
 # Verifies that commits in a given range carry the Co-Authored-By agent
 # trailers required by CLAUDE.md's "Delegation Enforcement" rules (2-6),
-# based on which paths changed in that range.
+# based on which paths the agent-authored commits in that range changed.
 #
 # Usage: check-trailers.sh <base-ref> <head-ref>
 #
@@ -12,6 +12,17 @@
 # signal this range is human-authored / outside the agent workflow --
 # agent trailer rules don't apply to humans. (Dependabot PRs are skipped
 # one level up, at the CI job's `if:`, by PR author login.)
+#
+# Changed-file set: only non-merge commits that themselves carry a Claude
+# agent trailer contribute files. A commit with no Claude trailer (human or
+# Dependabot) contributes nothing -- the same "human-authored -> skipped" rule,
+# applied per commit. This matters for beta -> main promotion PRs, which
+# aggregate Dependabot bumps (e.g. e2e/package.json) alongside agent commits:
+# without it, a Dependabot e2e/ change would demand an e2e-test-engineer
+# trailer that no commit in the range has any reason to carry.
+#
+# Trailer matching stays range-level: a required trailer on ANY commit in the
+# range satisfies a rule (multi-commit feature PRs split work across commits).
 #
 # Detection is case-insensitive (format drift like "co-authored-by" vs
 # "Co-Authored-By" must still be caught as present). Writing trailers is
@@ -24,7 +35,8 @@ set -euo pipefail
 BASE_REF="${1:?usage: check-trailers.sh <base-ref> <head-ref>}"
 HEAD_REF="${2:?usage: check-trailers.sh <base-ref> <head-ref>}"
 
-CHANGED=$(git diff --name-only "${BASE_REF}...${HEAD_REF}")
+CLAUDE_TRAILER_RE='^co-authored-by:[[:space:]]*claude[[:space:]]+[a-z0-9-]+.*<noreply@anthropic\.com>'
+
 TRAILERS=$(git log "${BASE_REF}..${HEAD_REF}" --format="%B" | grep -iE '^co-authored-by:' || true)
 
 # Human-authored range: no Claude agent trailers anywhere -- skip entirely.
@@ -32,6 +44,18 @@ if ! echo "$TRAILERS" | grep -qiE 'claude[[:space:]]+[a-z0-9-]+.*<noreply@anthro
   echo "check-trailers: no Claude agent trailers found in range -- treating as human-authored, skipping."
   exit 0
 fi
+
+# Files changed by agent-authored (Claude-trailered), non-merge commits only.
+CHANGED=""
+for SHA in $(git rev-list --no-merges "${BASE_REF}..${HEAD_REF}"); do
+  # Capture first: `git log | grep -q` can SIGPIPE git under pipefail.
+  BODY=$(git log -1 --format="%B" "$SHA")
+  if grep -qiE "$CLAUDE_TRAILER_RE" <<<"$BODY"; then
+    CHANGED="${CHANGED}$(git diff-tree --no-commit-id --name-only -r "$SHA")
+"
+  fi
+done
+CHANGED=$(printf '%s' "$CHANGED" | sed '/^$/d' | sort -u)
 
 FAILED=0
 

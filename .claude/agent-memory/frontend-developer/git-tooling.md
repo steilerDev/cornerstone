@@ -10,8 +10,8 @@
 
 ## npm audit — dev vs prod (2026-02-18)
 
-CI uses `npm audit --omit=dev --audit-level=low` — dev-only vulns (jest, eslint, semantic-release) do NOT fail CI.
-Only production dependency vulns matter. `npm audit fix` (no --force) is safe for production-only fixes.
+CI runs only `npm audit signatures`. The runtime audit (`npm audit --omit=dev`, must be 0) is a manual pre-commit step per CLAUDE.md > Dependency Policy. Dev-only residuals may be accepted when the only fix is a downgrade or brittle pinning.
+Any package imported by shipped client code must be declared in `client/package.json` `dependencies` (webpack bundles undeclared imports, which then escape the runtime audit). `npm audit fix` (no --force) is safe for production-only fixes.
 If a vuln appears in `@fastify/static`, `better-sqlite3`, or other production deps, use `npm audit fix` to resolve.
 After refinement PR #126: `npm audit --omit=dev` = 0 vulnerabilities. Dev-only vulns: ajv, minimatch in jest/eslint chain (unfixable without breaking changes).
 

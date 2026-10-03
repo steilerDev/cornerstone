@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 7
 title: Tech Stack
 ---
 
@@ -16,10 +16,10 @@ title: Tech Stack
 | ORM | [Drizzle ORM](https://orm.drizzle.team/) | 0.45.x |
 | Bundler | [Webpack](https://webpack.js.org/) | 5.x |
 | Styling | CSS Modules | -- |
-| Testing | [Jest](https://jestjs.io/) (unit/integration), [Playwright](https://playwright.dev/) (E2E) | 30.x / 1.63.x |
+| Testing | [Jest](https://jestjs.io/) (unit/integration), [Playwright](https://playwright.dev/) (E2E) | 30.x / 1.59.x |
 | Language | [TypeScript](https://www.typescriptlang.org/) | ~6.0 |
-| Runtime | [Node.js](https://nodejs.org/) | 24 LTS (>= 24.11) |
-| Container | Docker (Alpine) | -- |
+| Runtime | [Node.js](https://nodejs.org/) | 24 LTS |
+| Container | Docker (DHI Alpine) | -- |
 | Monorepo | npm workspaces | -- |
 
 ## Key Design Decisions
@@ -40,7 +40,7 @@ Cornerstone follows strict dependency policies:
 
 - **No native binary frontend tooling** -- tools like esbuild, SWC, and Tailwind v4 ship platform-specific binaries that fail in certain environments. Cornerstone uses pure JavaScript alternatives (Webpack, Babel, PostCSS).
 - **Pinned versions** -- exact versions rather than caret ranges (`^`) to prevent unexpected upgrades.
-- **Zero known vulnerabilities** -- `npm audit` must pass before merging.
+- **Zero known fixable vulnerabilities in the runtime image** -- `npm audit --omit=dev` must report 0 before merging. Dev, test and docs tooling may carry accepted vulnerabilities when fixing them would require downgrades or brittle dependency pinning.
 
 ## Further Reading
 

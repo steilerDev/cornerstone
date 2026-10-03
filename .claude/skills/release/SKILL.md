@@ -246,7 +246,7 @@ Increment `feedbackRound`. Go to **4a** with the new promotion PR.
 Launch the **docs-writer** agent to:
 
 - Update the documentation site (`docs/`) with new feature guides
-- Update `README.md` with newly shipped capabilities
+- Update the `README.md` highlights only if a top-level capability shipped or changed (README stays a lean, benefit-led front door -- no feature checklists)
 - Write `RELEASE_SUMMARY.md` for the GitHub Release changelog enrichment
 - **Verify `.env.example` freshness**: Scan server source code for all `process.env.*` references (primarily `server/src/plugins/config.ts`), compare against `.env.example` entries, and fix any drift. Rules:
   - Optional features (OIDC, Paperless, etc.) must remain **commented out** with example placeholder values

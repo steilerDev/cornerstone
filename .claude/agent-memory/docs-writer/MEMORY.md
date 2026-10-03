@@ -25,8 +25,9 @@
 
 ## Existing Pages (as of EPIC-13)
 
+No roadmap page or README roadmap exists any more (removed once the project matured) -- do not reintroduce one.
+
 - `intro.md` -- Landing page (slug: /)
-- `roadmap.md` -- Feature roadmap checklist
 - `getting-started/` -- index, docker-setup, first-login, configuration
 - `guides/work-items/` -- index, creating-work-items, tags, notes-and-subtasks, dependencies, keyboard-shortcuts
 - `guides/users/` -- index, oidc-setup, admin-panel
@@ -39,7 +40,7 @@
 - `guides/feeds/` -- index, subscribing
 - `guides/backup/` -- index (BACKUP_DIR/CADENCE/RETENTION env vars, manual + scheduled backups, restore flow, off-site guidance) -- EPIC-19
 - `guides/appearance/` -- dark-mode
-- `development/` -- index, tech-stack, agentic/overview, agentic/agent-team, agentic/workflow, agentic/setup
+- `development/` -- index (title: "Behind the Scenes", lessons learned section on verification/tokens/process/parallelism/isolation/enforcement), tech-stack (Playwright 1.59.x, Docker DHI Alpine), agentic/overview (flat delegation, orchestrator), agentic/agent-team (11 agents with model tiers, flat delegation model, attribution), agentic/skills (skill lifecycle /epic-start → /develop → /epic-close → /release, /epic-run, /mini-epic, /batch-develop, /dependabot, /fix-e2e, /review-pr, story sizing S/M/L, task tracking, shared mechanics scripts), agentic/workflow (PR review gate table, verdict policy, 2-round cap, branching, release model), agentic/quality-gates (Quality Gates table, E2E Gates table, trailer verification/enforcement, coverage 95%+, sandbox isolation, worktrees), agentic/setup
 
 ## Conventions
 
@@ -51,13 +52,6 @@
 - Anchor links for same-page sections: `gantt-chart#touch-devices`
 - Double dashes `--` used instead of em dashes in all existing content
 - Footer links in `docusaurus.config.js` should be updated when major features are added
-
-## Roadmap State (post EPIC-13)
-
-Completed: EPIC-02, EPIC-11(#12), EPIC-01, EPIC-03, EPIC-12(#115), EPIC-05, EPIC-06, EPIC-08, EPIC-04, EPIC-07, EPIC-10, EPIC-11(#444 tags), EPIC-12(#445 refinement), EPIC-14(#495), EPIC-15(#602), EPIC-09(#9), EPIC-13(#446)
-Planned: (none)
-
-Note: EPIC-11 and EPIC-12 each have two issues -- original (#12/#115) and new (#444/#445). Both pairs are completed.
 
 ## EPIC-15 Invoice-Budget-Line Rework
 
@@ -75,7 +69,7 @@ Key shipped-state corrections made (watch for these drifting again):
 - **Photo annotator: 9 tools, NO "callout" tool.** Select, Rectangle, Highlight, Arrow, Line, Ellipse, Text, Measurement, Freehand. Saves as **WebP quality 0.92** (NOT PNG). `client/src/components/photos/PhotoAnnotator/`. The annotator dir is under `components/photos/` not `components/diary/`.
 - **Document hide-linked toggle is SYSTEM-WIDE** (#1559): uses `useAllLinkedDocumentIds()`, hides docs linked to ANY entity. Lives in the `DocumentBrowser` picker (linking flow), documented in `guides/documents/linking-documents.md` -- NOT the standalone `browsing-documents.md` Documents page.
 
-Task briefs may mislabel features: the brief called the photo annotator "EPIC-16" but **EPIC-16 (#752) is actually "Floor Plans & Utility Tracking (2.5D)" and is still OPEN/planned**. The photo annotator was tracked under issue #1472 (CLOSED). Do not relabel the floor-plans roadmap entry. README roadmap: added "Photo Annotation Editor" as a standalone completed item; kept EPIC-16 unchecked.
+Task briefs may mislabel features: the brief called the photo annotator "EPIC-16" but **EPIC-16 (#752) is actually "Floor Plans & Utility Tracking (2.5D)" and is still OPEN/planned**. The photo annotator was tracked under issue #1472 (CLOSED). Never describe floor plans as shipped.
 
 `.env.example` was already fully in sync with `server/src/plugins/config.ts` (all 6 LLM vars present, OIDC/Paperless/LLM/Backup commented out with placeholders). config.ts env-var extraction: `grep -oE "[A-Z][A-Z_]+"` picks up `EUR` (a default value) as a false positive -- ignore it.
 

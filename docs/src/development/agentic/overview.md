@@ -5,47 +5,52 @@ title: Overview
 
 # Agentic Development
 
-Cornerstone is built using an **agentic development workflow** -- a team of specialized AI agents (powered by Claude) that collaboratively build software under human direction.
+Cornerstone uses an **agentic development workflow** where a team of specialized AI agents (powered by Claude) collaboratively build software under human direction.
 
-## What Does "Agentic" Mean?
+## The Orchestrator and Agent Team
 
-Instead of a single developer writing all the code, Cornerstone uses a team of 10 Claude Code agents, each with a specific role:
+A **human orchestrator** (the repository owner) directs the work: defining requirements, launching agents, validating output, and approving releases. The **11-member agent team** specializes by function -- product ownership, architecture, implementation, testing, security, UX, and documentation.
 
-- A **product owner** defines user stories
-- An **architect** designs the system
-- **Backend and frontend developers** write the code
-- **QA and E2E engineers** write and run tests
-- A **security engineer** audits every change
-- A **UX designer** creates visual specifications
-- And more...
+Each agent has:
 
-Each agent has its own system prompt, memory, and area of responsibility. They communicate through GitHub Issues, PRs, and the codebase itself.
+- A specific system prompt and role
+- Persistent memory across sessions
+- Authority within its domain (architects approve schema, security engineer reviews auth code, etc.)
+- A communication protocol (commits with trailers, GitHub comments with agent tags, specification documents)
 
 ## How It Works
 
-1. A **human orchestrator** (the repository owner) decides what to build next
-2. The orchestrator launches agents in sequence -- planning before implementation, testing before review
-3. Each agent reads the codebase, wiki, and GitHub issues to understand context
-4. Agents produce code, documentation, tests, and reviews
-5. The orchestrator validates the output and directs fixes
-6. The human gives final approval before features ship
+The typical workflow for a user story:
 
-## Why This Approach?
+1. **Human sets direction** -- "We need a photo annotation editor." Needs move to GitHub Issues.
+2. **Orchestrator launches planning agents** -- `product-owner` writes stories; `product-architect` designs schema and API.
+3. **Human approves the plan** -- Reviews acceptance criteria and technical design.
+4. **Orchestrator launches implementation** -- Agents implement, test, review, and commit in sequence.
+5. **Human validates the feature** -- Runs manual tests, provides feedback.
+6. **Orchestrator promotes to release** -- Merges `beta` to `main`, updates docs.
 
-This project exists to explore a question: **Can a team of AI agents build a real, production-quality application with minimal human coding?**
+The key rule: **the orchestrator delegates, never implements.** All code, tests, architecture, and docs go through agents.
 
-The answer so far: yes, with careful orchestration. The agents produce working code, comprehensive tests (95%+ coverage target), security reviews, and documentation. The human role is primarily direction-setting, quality validation, and final approval.
+## Flat Delegation Model
 
-## Key Principles
+The orchestrator launches all agents directly. The `dev-team-lead` plays a coordinating role (writes implementation specs, reviews output, commits code) but does not sub-delegate -- it routes specs to implementing agents, not other agents. This flat model keeps handoffs clear:
 
-- **Agents specialize** -- each agent has a focused role, not a jack-of-all-trades
-- **Agents review each other** -- the architect reviews code for compliance, security reviews every PR, the product owner validates requirements
-- **Human in the loop** -- the orchestrator approves plans, and the user validates features before release
-- **Everything on GitHub** -- issues, PRs, wiki, and project board are the coordination layer
-- **Memory persists** -- agents maintain memory across sessions so learnings compound
+- **Spec**: `dev-team-lead` writes a spec from the acceptance criteria and architecture
+- **Implement**: The relevant agent(s) (`backend-developer`, `frontend-developer`, etc.) execute the spec
+- **Test**: `qa-integration-tester` and `e2e-test-engineer` write tests in parallel
+- **Review**: Agent reviewers (`product-architect`, `security-engineer`, etc.) approve per domain
+- **Fix**: If review finds issues, the implementing agent fixes in-session
+- **Commit**: `dev-team-lead` stages, commits with all agent trailers, pushes, and creates the PR
+
+## One Story Per Cycle
+
+Each development cycle completes exactly one user story end-to-end before starting the next. This keeps context focused and boundaries clear. The orchestrator breaks epics into stories; stories flow through implementation to merge; completed stories move to Done; the cycle repeats.
+
+The only exception is bundled small fixes (`/develop` with multiple small issues), which execute in one cycle but each get their own commit.
 
 ## Learn More
 
-- [Agent Team](agent-team) -- detailed descriptions of all 10 agents
-- [Workflow](workflow) -- the full agile cycle from story to release
-- [Dev Setup](setup) -- how to set up the development environment
+- [Agent Team](agent-team) -- Detailed roles and models for all 11 agents
+- [Skills](skills) -- Skill structure and lifecycle (`/epic-start`, `/develop`, etc.)
+- [Workflow](workflow) -- PR review gates and release cycle
+- [CI & Guardrails](quality-gates) -- Automated quality enforcement

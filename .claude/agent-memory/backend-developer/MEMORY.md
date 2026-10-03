@@ -99,7 +99,6 @@ Running from the parent project root uses a different config and may not format 
 ## Pre-commit Hook Architecture
 
 - `.husky/pre-commit`: runs `npm run typecheck` (typecheck only — lint, format, and audit are handled by CI auto-fix workflow)
-- Lint, format, and `npm audit fix` run automatically on `beta` via `.github/workflows/auto-fix.yml`
 
 ## Index — topic files (same directory)
 
