@@ -31,7 +31,7 @@ Restart your container. No database migrations or configuration changes required
 ## Behind the Scenes
 
 - **CI refinement:** The trailer-check job now correctly ignores files changed by commits without Claude agent trailers (human edits and aggregated Dependabot commits in promotion PRs), preventing false failures in `beta` → `main` promotion workflows.
-- **Dependency policy:** The zero-vulnerability requirement now applies to the runtime image only (`npm audit --omit=dev`). `nanoid` is now declared as a client dependency for session management.
+- **Dependency policy:** The zero-vulnerability requirement now applies to the runtime image only (`npm audit --omit=dev`). `nanoid` is now declared as a client dependency (it is bundled by the photo annotator).
 
 ## Docker Images
 
