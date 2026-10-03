@@ -32,10 +32,10 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import type { Page, Locator } from '@playwright/test';
+import type { Page, Locator, Response as PwResponse } from '@playwright/test';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
 import { API } from '../../fixtures/testData.js';
-import { createVendorViaApi, deleteVendorViaApi } from '../../fixtures/apiHelpers.js';
+import { createVendorViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Date helpers — never hardcode dates; "overdue" is evaluated against the real
@@ -72,6 +72,23 @@ interface DepositApiResponse {
   status: string;
   amount: number;
   entryType?: string;
+}
+
+/**
+ * Strict cleanup: the server rejects (409) deleting a vendor that still has invoices, and the
+ * shared deleteVendorViaApi ignores the status — which would leak this spec's pending invoices
+ * into the global open-payable total. Delete the invoices first, then the vendor, asserting each.
+ */
+async function deleteVendorWithInvoices(page: Page, vendorId: string): Promise<void> {
+  const listResp = await page.request.get(`${API.vendors}/${vendorId}/invoices`);
+  expect(listResp.ok(), `GET invoices of vendor ${vendorId}`).toBeTruthy();
+  const { invoices } = (await listResp.json()) as { invoices: Array<{ id: string }> };
+  for (const inv of invoices) {
+    const delInv = await page.request.delete(`${API.vendors}/${vendorId}/invoices/${inv.id}`);
+    expect(delInv.ok(), `DELETE invoice ${inv.id}: ${delInv.status()}`).toBeTruthy();
+  }
+  const delVendor = await page.request.delete(`${API.vendors}/${vendorId}`);
+  expect(delVendor.ok(), `DELETE vendor ${vendorId}: ${delVendor.status()}`).toBeTruthy();
 }
 
 async function createInvoiceViaApi(
@@ -209,7 +226,7 @@ test.describe('Open items — toggle shows only open invoices/deposits (Scenario
       expect(numbers).toContain(`${testPrefix}-F`);
       expect(numbers).not.toContain(`${testPrefix}-D`);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -256,7 +273,7 @@ test.describe('Open items — toggle persists across reload and back navigation 
       await expect(invoicesPage.openItemsToggle).toBeChecked();
       await expect.poll(() => invoicesPage.getInvoiceNumbers()).toEqual(numbersBefore);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -304,7 +321,7 @@ test.describe('Open items — quotation invoice as a deposit container (Scenario
       const listed = body.invoices.find((i) => i.id === c.id);
       expect(listed?.openAmount).toBe(deposit.amount);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -352,7 +369,7 @@ test.describe('Open items — expandable rows show only pending deposits (Scenar
       await expect(invoicesPage.childRows(a.id)).toHaveCount(2);
       await expect(invoicesPage.expandButton(b.id)).toHaveCount(0);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -399,7 +416,7 @@ test.describe('Open items — default expansion is local, not URL state (Scenari
       await expect(invoicesPage.expandButton(a.id)).toHaveAttribute('aria-expanded', 'true');
       await expect(invoicesPage.childRows(a.id)).toHaveCount(1);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -466,7 +483,7 @@ test.describe('Open items — Still due vs Amount, and the anti-double-counting 
       }
       expect(sum).toBeCloseTo(openPayableTotal, 2);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -488,9 +505,9 @@ test.describe('Open items — the "Open (payable)" tile is global (Scenario 7, A
     // target across page loads. Instead of comparing three separate DOM reads, each view's
     // tile is checked against the summary.openPayable.totalAmount of the very response
     // that rendered it, and globality is proven with a lower bound only this test controls.
-    const isInvoiceList = (resp: { url(): string; request(): { method(): string } }) =>
+    const isInvoiceList = (resp: PwResponse) =>
       new URL(resp.url()).pathname === '/api/invoices' && resp.request().method() === 'GET';
-    const readTotal = async (resp: { json(): Promise<unknown> }): Promise<number> => {
+    const readTotal = async (resp: PwResponse): Promise<number> => {
       const body = (await resp.json()) as { summary: { openPayable: { totalAmount: number } } };
       return body.summary.openPayable.totalAmount;
     };
@@ -550,8 +567,8 @@ test.describe('Open items — the "Open (payable)" tile is global (Scenario 7, A
       await expect.poll(tileValue).toBeCloseTo(totalFiltered, 2);
       expect(totalFiltered).toBeGreaterThanOrEqual(ownMinimum);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
-      if (otherVendorId) await deleteVendorViaApi(page, otherVendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+      if (otherVendorId) await deleteVendorWithInvoices(page, otherVendorId);
     }
   });
 });
@@ -611,7 +628,7 @@ test.describe('Open items — refunds render distinctly and are excluded from th
       const refundsAmount = parseFloat(refundsText.replace(/[^0-9.]/g, ''));
       expect(refundsAmount).toBeGreaterThanOrEqual(refund.amount);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -654,7 +671,7 @@ test.describe('Open items — a refund-only open item has zero open payable amou
       const listed = body.invoices.find((i) => i.id === g.id);
       expect(listed?.openAmount).toBe(0);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -698,7 +715,7 @@ test.describe('Open items — overdue deposits are flagged without changing stat
       // status badge stays "Pending", never replaced by a new status.
       await expect(page.getByTestId(`invoice-status-${h.id}`)).toContainText('Pending');
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 
@@ -776,7 +793,7 @@ test.describe('Open items — default ordering is earliest open due date ascendi
           `${testPrefix}-P3`, // no due date anywhere — sorts last
         ]);
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -842,7 +859,7 @@ test.describe('Open items — an explicit sort overrides the default ordering (S
       await expect(invoicesPage.openItemsToggle).toBeChecked();
       expect(page.url()).toContain('openOnly=true');
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -910,8 +927,8 @@ test.describe('Open items — composes with a vendor filter (Scenario 13, AC8)',
       expect(numbers).toContain(`${testPrefix}-COMPA`);
       expect(numbers).not.toContain(`${testPrefix}-COMPB`);
     } finally {
-      if (vendorAId) await deleteVendorViaApi(page, vendorAId);
-      if (vendorBId) await deleteVendorViaApi(page, vendorBId);
+      if (vendorAId) await deleteVendorWithInvoices(page, vendorAId);
+      if (vendorBId) await deleteVendorWithInvoices(page, vendorBId);
     }
   });
 });
@@ -996,7 +1013,7 @@ test.describe('Open items — filtered-to-nothing shows the generic empty state 
       ).toBeVisible();
       await expect(invoicesPage.emptyState).not.toContainText('Nothing open right now');
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -1060,7 +1077,7 @@ test.describe(
         );
         expect(overflow).toBe(false);
       } finally {
-        if (vendorId) await deleteVendorViaApi(page, vendorId);
+        if (vendorId) await deleteVendorWithInvoices(page, vendorId);
       }
     });
   },
@@ -1121,7 +1138,7 @@ test.describe('Open items — keyboard operability of the expand control and tog
       await expect(invoicesPage.openItemsToggle).toHaveAccessibleName('Show only open items');
       await expect(invoicesPage.openItemsToggle).toBeChecked();
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
@@ -1185,7 +1202,7 @@ test.describe(
             // not colour (colour judgement is a UX-designer/screenshot concern).
             await expect(invoicesPage.depositOverdueChip(dep.id)).toBeVisible();
           } finally {
-            if (vendorId) await deleteVendorViaApi(page, vendorId);
+            if (vendorId) await deleteVendorWithInvoices(page, vendorId);
             await context.close();
           }
         });
@@ -1254,7 +1271,7 @@ test.describe('Open items — pagination counts invoices only, not deposit child
       const paginationText = await invoicesPage.getPaginationInfoText();
       expect(paginationText).toContain('26');
     } finally {
-      if (vendorId) await deleteVendorViaApi(page, vendorId);
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
   });
 });
