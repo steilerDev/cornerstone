@@ -179,12 +179,9 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 
 ### Invoice Amount Validation
 
-When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
+When you edit the total amount of an invoice, Cornerstone enforces one constraint to prevent budget integrity violations:
 
 - **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. For example, if you have allocated 1000 EUR across budget lines and the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Edits that raise the amount (or leave it unchanged) are never blocked.
-- **Refund cap** -- Refunds are capped at the maximum of the invoice amount and the total deposits recorded. Lowering or deleting a refund is never blocked. When adding or increasing a deposit, if net deposits (deposits minus refunds) would exceed the invoice amount, the form shows a non-blocking warning.
-
-These guards ensure your budget stays mathematically consistent.
 
 :::info Date validation
 Cornerstone rejects calendar-impossible invoice dates (e.g., 2026-02-31). Dates must be valid ISO 8601 dates.

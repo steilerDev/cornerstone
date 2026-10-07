@@ -11,10 +11,10 @@ Many construction invoices are paid in stages -- a deposit on signing, a progres
 
 A deposit is a partial payment recorded against an invoice. Each deposit has its own amount, due date, status, and (optionally) a description. The amounts you record as deposits eat into the invoice total -- whatever is left after the deposits is the **final payment**, which uses the parent invoice's status.
 
-The math is simple:
+The math is:
 
-- `Σ deposits + final payment = invoice total`
-- Net deposits (deposits minus refunds) may exceed the invoice total. When they do, the form shows a non-blocking warning and the excess is treated as an overpaid amount.
+- `final payment = max(0, invoice total − deposits − refunds already received)`
+- When net deposits exceed the invoice total, the final payment displays as 0. If the vendor will pay back the excess, record a refund entry -- pending refunds then show under **Refunds due to you** on the Invoices page.
 
 Each deposit is one of three statuses, mirroring the parent invoice status model:
 
