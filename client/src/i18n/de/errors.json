@@ -46,7 +46,6 @@
   "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie wurden möglicherweise bereits eingereicht oder befinden sich in einem ungültigen Status.",
   "EMPTY_SELECTION": "Wählen Sie mindestens eine Rechnung aus.",
   "INVOICE_NOT_QUOTATION": "Diese Rechnung ist kein Angebot und kann nicht umgewandelt werden.",
-  "DEPOSITS_EXCEED_INVOICE_TOTAL": "Die Abschlagszahlungen überschreiten den Rechnungsbetrag.",
   "ALREADY_SAVED": "Dieser Tagebucheintrag wurde bereits gespeichert.",
   "AREA_IN_USE": "Dieser Bereich wird verwendet und kann nicht gelöscht werden.",
   "TRADE_IN_USE": "Dieses Gewerk wird verwendet und kann nicht gelöscht werden.",

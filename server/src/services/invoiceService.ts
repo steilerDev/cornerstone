@@ -26,11 +26,9 @@ import {
   NotFoundError,
   ValidationError,
   ItemizedSumExceedsInvoiceError,
-  DepositsExceedInvoiceTotalError,
 } from '../errors/AppError.js';
 import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
-import { getDepositEntryTotals } from './invoiceDepositService.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { getInvoiceBudgetLinesForInvoice } from './invoiceBudgetLineService.js';
 import { onInvoiceStatusChanged } from './diaryAutoEventService.js';
@@ -540,7 +538,6 @@ export function createInvoice(
  * @throws NotFoundError if vendor or invoice not found, or if invoice doesn't belong to vendor
  * @throws ValidationError if any provided field is invalid
  * @throws ItemizedSumExceedsInvoiceError if a decreased amount is below the itemized total
- * @throws DepositsExceedInvoiceTotalError if a decreased amount is below deposits net of refunds
  *
  * @param db - Database connection
  * @param vendorId - Vendor ID (source vendor, from path param)
@@ -632,7 +629,7 @@ export function updateInvoice(
   updates.updatedAt = now;
 
   db.transaction((tx) => {
-    // Decreasing the amount must not strand itemized amounts or net deposits (#2108, #2109)
+    // Decreasing must not strand itemized amounts (#2108); deposits are never checked (#2188)
     if (data.amount !== undefined && toCents(data.amount) < toCents(existing.amount)) {
       const itemizedRow = tx
         .select({ sum: sql<number>`COALESCE(SUM(${invoiceBudgetLines.itemizedAmount}), 0)` })
@@ -644,21 +641,6 @@ export function updateInvoice(
         throw new ItemizedSumExceedsInvoiceError(
           `Sum of itemized amounts (${itemizedTotal}) would exceed invoice total (${data.amount})`,
           { invoiceTotal: data.amount, itemizedTotal },
-        );
-      }
-
-      const { depositTotal, refundTotal } = getDepositEntryTotals(tx, invoiceId);
-      const net = depositTotal - refundTotal;
-      if (exceedsAmount(net, data.amount)) {
-        throw new DepositsExceedInvoiceTotalError(
-          'Deposits net of refunds exceed the new invoice amount; add a refund entry or keep a higher amount',
-          {
-            invoiceTotal: data.amount,
-            depositTotal,
-            refundTotal,
-            netDeposits: Math.round(net * 100) / 100,
-            shortfall: Math.round((net - data.amount) * 100) / 100,
-          },
         );
       }
     }

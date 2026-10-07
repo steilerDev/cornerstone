@@ -11,10 +11,10 @@ Many construction invoices are paid in stages -- a deposit on signing, a progres
 
 A deposit is a partial payment recorded against an invoice. Each deposit has its own amount, due date, status, and (optionally) a description. The amounts you record as deposits eat into the invoice total -- whatever is left after the deposits is the **final payment**, which uses the parent invoice's status.
 
-The math is simple:
+The math is:
 
-- `Σ deposits + final payment = invoice total`
-- Deposit total **must not exceed** the invoice total. The form refuses to save if it would.
+- `final payment = max(0, invoice total − deposits − refunds already received)`
+- When net deposits exceed the invoice total, the final payment displays as 0. If the vendor will pay back the excess, record a refund entry -- pending refunds then show under **Refunds due to you** on the Invoices page.
 
 Each deposit is one of three statuses, mirroring the parent invoice status model:
 
@@ -38,7 +38,7 @@ Click **Add deposit** to open the form:
 
 | Field | Description |
 |-------|-------------|
-| **Amount** | Deposit amount. Must be positive and must keep the running total at or below the invoice total. |
+| **Amount** | Deposit amount. Must be positive. The form warns if net deposits (deposits minus refunds) would exceed the invoice total, but does not block the save. |
 | **Due date** | When the deposit is owed -- used for the schedule and for the overdue indicator. |
 | **Status** | Pending (default), Paid, or Claimed. |
 | **Paid date** | Shown when status is Paid or Claimed -- defaults to today, change if it was paid earlier. |

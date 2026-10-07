@@ -9,6 +9,7 @@ import {
   computeDepositTotals,
   computeFinalPayment,
   computeShortfall,
+  computeDepositExcess,
   hasTotalMismatch,
   defaultRefundSourceId,
 } from './quotationConversion.js';
@@ -289,6 +290,60 @@ describe('quotationConversion helpers', () => {
       ];
 
       expect(computeShortfall(5000, deposits)).toBe(600);
+    });
+  });
+
+  describe('computeDepositExcess (#2188)', () => {
+    it('is 0 when net deposits plus the entered amount stay within the invoice amount', () => {
+      expect(computeDepositExcess(1000, [deposit({ amount: 600 })], 300)).toBe(0);
+    });
+
+    it('is 0 when the total exactly equals the invoice amount', () => {
+      expect(computeDepositExcess(1000, [deposit({ amount: 600 })], 400)).toBe(0);
+    });
+
+    it('returns the cents-exact overage when the total exceeds the invoice amount', () => {
+      expect(computeDepositExcess(1000, [deposit({ amount: 600 })], 400.01)).toBe(0.01);
+      expect(computeDepositExcess(100, [deposit({ amount: 60 })], 60)).toBe(20);
+    });
+
+    it('counts all statuses of existing deposits', () => {
+      const entries = [
+        deposit({ amount: 300, status: 'pending' }),
+        deposit({ amount: 300, status: 'paid' }),
+        deposit({ amount: 300, status: 'claimed' }),
+      ];
+      expect(computeDepositExcess(1000, entries, 150)).toBe(50);
+    });
+
+    it('lets refunds reduce net deposits', () => {
+      const entries = [
+        deposit({ amount: 900 }),
+        deposit({ amount: 500, entryType: 'refund', status: 'pending' }),
+      ];
+      expect(computeDepositExcess(1000, entries, 600)).toBe(0);
+      expect(computeDepositExcess(1000, entries, 700)).toBe(100);
+    });
+
+    it('ignores the excluded entry (edit mode)', () => {
+      const edited = deposit({ amount: 600 });
+      expect(computeDepositExcess(1000, [edited], 600, edited.id)).toBe(0);
+      // without the exclusion the edited entry would be double counted
+      expect(computeDepositExcess(1000, [edited], 600)).toBe(200);
+    });
+
+    it('is 0 for null, zero, negative and non-finite input', () => {
+      const entries = [deposit({ amount: 2000 })];
+      expect(computeDepositExcess(1000, entries, null)).toBe(0);
+      expect(computeDepositExcess(1000, entries, 0)).toBe(0);
+      expect(computeDepositExcess(1000, entries, -5)).toBe(0);
+      expect(computeDepositExcess(1000, entries, Number.NaN)).toBe(0);
+      expect(computeDepositExcess(1000, entries, Number.POSITIVE_INFINITY)).toBe(0);
+    });
+
+    it('is not fooled by float noise (332.85 + 333.04 + 334.11 against 1000)', () => {
+      const entries = [deposit({ amount: 332.85 }), deposit({ amount: 333.04 })];
+      expect(computeDepositExcess(1000, entries, 334.11)).toBe(0);
     });
   });
 

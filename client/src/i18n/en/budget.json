@@ -666,8 +666,7 @@
       "updateError": "Failed to update invoice. Please try again.",
       "deleteError": "Failed to delete invoice. Please try again.",
       "vendorNotFound": "The selected vendor could not be found",
-      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first.",
-      "amountBelowNetDeposits": "The amount cannot be lower than the deposits net of refunds ({{netDeposits}}). Add a refund entry or reduce the deposits first."
+      "amountBelowItemized": "The amount cannot be lower than the itemized total of {{itemizedTotal}}. Reduce the itemized budget lines first."
     },
     "budgetLines": {
       "createFormLegend": "Create new budget line",
@@ -815,17 +814,15 @@
         "budgetSourceNone": "None (pro-rated)",
         "budgetSourceHintSingle": "Defaulted to {{name}} — this invoice's only budget source.",
         "budgetSourceHintLargest": "Defaulted to {{name}}, this invoice's largest allocated source.",
-        "budgetSourceHintNone": "This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated."
+        "budgetSourceHintNone": "This invoice has no budget lines — pick a source, or leave blank to keep this deposit pro-rated.",
+        "exceedsInvoiceWarning": "Net deposits will exceed the invoice amount by {{amount}}. You can still save this deposit."
       },
       "entryTypeLabels": {
         "deposit": "Deposit",
         "refund": "Refund"
       },
       "errors": {
-        "exceedsTotal": "Deposits net of refunds would exceed the invoice total. Available headroom: {{availableHeadroom}}",
-        "refundReductionExceedsTotal": "Lowering this refund would push deposits net of refunds above the invoice total. The refund must be at least {{minimumRefundAmount}}.",
-        "refundDeleteExceedsTotal": "This refund cannot be deleted: deposits net of refunds would then exceed the invoice total. Keep at least {{minimumRefundAmount}} refunded, or lower the deposits first.",
-        "refundExceedsTotal": "Refund amount exceeds invoice total. Available headroom: {{availableHeadroom}}",
+        "refundExceedsTotal": "Refunds would exceed the larger of the invoice amount and the deposits recorded. Available headroom: {{availableHeadroom}}",
         "invalidTransition": "Cannot transition from {{from}} to {{to}}",
         "invalidDate": "Invalid date for the selected status",
         "loadError": "Failed to load deposits. Please try again.",
@@ -855,7 +852,6 @@
         "converted": "Converted from quotation of {{amount}} on {{date}}."
       },
       "errors": {
-        "depositsExceed": "The deposits recorded exceed the final amount. Add a refund entry or increase the final amount.",
         "itemizedExceeds": "The itemized total exceeds the final amount. Adjust the itemized lines.",
         "notQuotation": "This invoice is no longer a quotation. The page has been refreshed."
       },
@@ -928,9 +924,9 @@
         "noRemaining": "No remaining payment."
       },
       "overpaid": {
-        "message": "The final amount is {{shortfall}} lower than the deposits recorded ({{deposits}}). Add a refund entry or increase the final amount.",
+        "message": "The final amount is {{shortfall}} lower than the deposits recorded ({{deposits}}). You can still convert; add a refund entry if the vendor pays back the difference.",
         "addRefund": "Add refund",
-        "resolved": "Deposits check passed.",
+        "resolved": "Deposits no longer exceed the final amount.",
         "refundDescription": "Refund for quotation conversion"
       },
       "status": {

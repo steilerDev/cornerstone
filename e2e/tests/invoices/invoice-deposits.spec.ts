@@ -14,7 +14,7 @@
  *      Final Payment = total − deposit amount
  *   3. Full lifecycle: add → mark paid → mark claimed → revert to paid → edit → delete
  *   4. Delete paid deposit: warning banner visible in delete modal
- *   5. DEPOSITS_EXCEED_INVOICE_TOTAL error surfaces in the form with available headroom
+ *   5. Over-deposit shows a non-blocking warning (net deposits above invoice amount); save still succeeds
  *   6. Responsive tablet: table renders, Final Payment row visible (768px)
  *   7. Responsive mobile: cards render, Final Payment row visible, "Mark paid" flow works (375px)
  *
@@ -541,11 +541,11 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 5: DEPOSITS_EXCEED_INVOICE_TOTAL error
+// Scenario 5: Over-deposit warning (non-blocking)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposits — exceed invoice total error (Scenario 5)', () => {
-  test('Adding a deposit whose amount exceeds available headroom shows DEPOSITS_EXCEED_INVOICE_TOTAL error with available amount', async ({
+test.describe('Deposits — over-deposit warning, non-blocking (Scenario 5)', () => {
+  test('Deposit exceeding the invoice amount shows a live warning and still saves', async ({
     page,
     testPrefix,
   }) => {
@@ -555,54 +555,49 @@ test.describe('Deposits — exceed invoice total error (Scenario 5)', () => {
 
     try {
       vendorId = await createVendorViaApi(page, `${testPrefix} Dep ExceedVendor`);
-      // Invoice total = 100
       invoiceId = await createInvoiceViaApi(page, vendorId, {
         amount: 100,
         date: '2026-06-01',
       });
-
-      // Add first deposit of 60 (succeeds, headroom = 40 remaining)
-      await createDepositViaApi(page, invoiceId, {
-        amount: 60,
-        dueDate: '2026-07-01',
-      });
+      await createDepositViaApi(page, invoiceId, { amount: 60, dueDate: '2026-07-01' });
 
       await detailPage.goto(invoiceId);
       await expect(detailPage.heading).toBeVisible();
-
-      // Verify first deposit visible and Final Payment = 40
-      await expect(detailPage.depositsSection).toContainText('60');
       await expect(detailPage.finalPaymentAmount).toContainText('40');
 
-      // Try to add a second deposit of 60 (exceeds remaining 40)
       await detailPage.openAddDepositModal();
-      await detailPage.fillDepositForm({
-        amount: '60',
-        dueDate: '2026-08-01',
-      });
+      await detailPage.fillDepositForm({ amount: '60', dueDate: '2026-08-01' });
 
-      // Register the expected 400 response BEFORE clicking save
-      const errorResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/deposits') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 400,
+      // 60 + 60 - 100 = 20 over
+      await expect(detailPage.depositExceedsWarning).toBeVisible();
+      await expect(detailPage.depositExceedsWarning).toContainText(
+        'Net deposits will exceed the invoice amount by',
       );
+      await expect(detailPage.depositExceedsWarning).toContainText('20');
+      await expect(detailPage.depositExceedsWarning).toContainText(
+        'You can still save this deposit.',
+      );
+      await expect(detailPage.depositAmountInput).toHaveAttribute(
+        'aria-describedby',
+        'deposit-amount-warning',
+      );
+      await expect(detailPage.depositModalSave).toBeEnabled();
 
-      await detailPage.depositModalSave.click();
-      await errorResponsePromise;
+      // 40 fits exactly -> warning disappears
+      await detailPage.depositAmountInput.fill('40');
+      await expect(detailPage.depositExceedsWarning).toBeHidden();
+      await expect(detailPage.depositAmountInput).not.toHaveAttribute('aria-describedby', /.+/);
 
-      // Error banner renders in the modal with the error message
-      // The message includes "Available headroom" and the formatted available amount (40)
-      await expect(detailPage.depositModalError).toBeVisible();
-      await expect(detailPage.depositModalError).toContainText('40');
+      // Back to 60 -> warning returns
+      await detailPage.depositAmountInput.fill('60');
+      await expect(detailPage.depositExceedsWarning).toBeVisible();
+      await expect(detailPage.depositExceedsWarning).toContainText('20');
 
-      // Modal stays open — user can correct the amount
-      await expect(detailPage.depositAmountInput).toBeVisible();
-
-      // Cancel to close modal
-      await detailPage.depositModalCancel.first().click();
-      await detailPage.depositAmountInput.waitFor({ state: 'hidden' });
+      // Save is not blocked
+      await detailPage.saveDepositForm(201);
+      await expect(detailPage.depositAmountInput).toBeHidden();
+      await expect(detailPage.depositModalError).toBeHidden();
+      await expect(detailPage.finalPaymentAmount).toHaveText(/^\D*0[.,]00\D*$/);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

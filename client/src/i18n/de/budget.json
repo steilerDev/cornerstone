@@ -518,8 +518,7 @@
       "updateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut.",
       "vendorNotFound": "Der ausgewählte Auftragnehmer konnte nicht gefunden werden",
-      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduzieren Sie zuerst die aufgeschlüsselten Budgetpositionen.",
-      "amountBelowNetDeposits": "Der Betrag kann nicht niedriger als die Abschlagszahlungen abzüglich Rückerstattungen ({{netDeposits}}) sein. Fügen Sie einen Rückerstattungseintrag hinzu oder reduzieren Sie die Abschlagszahlungen."
+      "amountBelowItemized": "Der Betrag kann nicht niedriger als der aufgeschlüsselte Gesamtbetrag von {{itemizedTotal}} sein. Reduzieren Sie zuerst die aufgeschlüsselten Budgetpositionen."
     },
     "budgetLines": {
       "createFormLegend": "Neue Budgetposition erstellen",
@@ -667,17 +666,15 @@
         "budgetSourceNone": "Keine (anteilig)",
         "budgetSourceHintSingle": "Standardmäßig auf {{name}} gesetzt – die einzige Budgetquelle dieser Rechnung.",
         "budgetSourceHintLargest": "Standardmäßig auf {{name}} gesetzt, die Quelle mit dem größten zugeordneten Anteil dieser Rechnung.",
-        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wählen Sie eine Quelle aus, oder lassen Sie das Feld leer, um diese Abschlagszahlung anteilig zu belassen."
+        "budgetSourceHintNone": "Diese Rechnung hat keine Budgetpositionen – wählen Sie eine Quelle aus, oder lassen Sie das Feld leer, um diese Abschlagszahlung anteilig zu belassen.",
+        "exceedsInvoiceWarning": "Abschlagszahlungen abzüglich Rückerstattungen werden den Rechnungsbetrag um {{amount}} übersteigen. Sie können die Abschlagszahlung dennoch speichern."
       },
       "entryTypeLabels": {
         "deposit": "Abschlagszahlung",
         "refund": "Rückerstattung"
       },
       "errors": {
-        "exceedsTotal": "Die Abschlagszahlungen abzüglich Rückerstattungen würden den Rechnungsgesamtbetrag übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
-        "refundReductionExceedsTotal": "Das Verringern dieser Rückerstattung würde dazu führen, dass die Abschlagszahlungen abzüglich Rückerstattungen den Rechnungsgesamtbetrag übersteigen. Die Rückerstattung muss mindestens {{minimumRefundAmount}} betragen.",
-        "refundDeleteExceedsTotal": "Diese Rückerstattung kann nicht gelöscht werden: Die Abschlagszahlungen abzüglich Rückerstattungen würden dann den Rechnungsgesamtbetrag übersteigen. Die Rückerstattung muss mindestens {{minimumRefundAmount}} betragen, oder verringern Sie zuerst die Abschlagszahlungen.",
-        "refundExceedsTotal": "Rückerstattungsbetrag überschreitet den Rechnungsgesamtbetrag. Verfügbarer Spielraum: {{availableHeadroom}}",
+        "refundExceedsTotal": "Rückerstattungen würden das Maximum aus Rechnungsbetrag und erfassten Abschlagszahlungen übersteigen. Verfügbarer Spielraum: {{availableHeadroom}}",
         "invalidTransition": "Statuswechsel von {{from}} nach {{to}} nicht möglich",
         "invalidDate": "Ungültiges Datum für den ausgewählten Status",
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -707,7 +704,6 @@
         "converted": "Umgewandelt von Angebot über {{amount}} am {{date}}."
       },
       "errors": {
-        "depositsExceed": "Die erfassten Abschlagszahlungen überschreiten den Endbetrag. Fügen Sie einen Rückerstattungseintrag hinzu oder erhöhen Sie den Endbetrag.",
         "itemizedExceeds": "Die Summe der aufgeschlüsselten Beträge überschreitet den Endbetrag. Passen Sie die aufgeschlüsselten Positionen an.",
         "notQuotation": "Diese Rechnung ist kein Angebot mehr. Die Seite wurde aktualisiert."
       },
@@ -780,9 +776,9 @@
         "noRemaining": "Keine verbleibende Zahlung."
       },
       "overpaid": {
-        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Fügen Sie einen Rückerstattungseintrag hinzu oder erhöhen Sie den Endbetrag.",
+        "message": "Der Endbetrag ist {{shortfall}} niedriger als die erfassten Abschlagszahlungen ({{deposits}}). Sie können die Umwandlung durchführen; fügen Sie einen Rückerstattungseintrag hinzu, wenn der Auftragnehmer die Differenz erstattet.",
         "addRefund": "Rückerstattung hinzufügen",
-        "resolved": "Prüfung der Abschlagszahlungen bestanden.",
+        "resolved": "Abschlagszahlungen übersteigen den Endbetrag nicht mehr.",
         "refundDescription": "Rückerstattung für Angebotsumwandlung"
       },
       "status": {

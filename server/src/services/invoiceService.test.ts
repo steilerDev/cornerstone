@@ -2082,7 +2082,7 @@ describe('Invoice Service', () => {
       ).toBe('ItemizedSumExceedsInvoiceError');
     });
 
-    it('scenario 7: net-of-refund deposit rule — 600 ok, 499.99 rejected with shortfall details', () => {
+    it('scenario 7: lowering the amount below net deposits succeeds and leaves deposits untouched (#2188)', () => {
       const vendorId = createTestVendor('Net Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
       insertEntry(invoiceId, 'deposit', 700);
@@ -2091,22 +2091,19 @@ describe('Invoice Service', () => {
       expect(invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 600 }).amount).toBe(
         600,
       );
-
-      const err = caught(() =>
-        invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 499.99 }),
-      );
-      expect(err.name).toBe('DepositsExceedInvoiceTotalError');
-      expect(err.details).toEqual({
-        invoiceTotal: 499.99,
-        depositTotal: 700,
-        refundTotal: 200,
-        netDeposits: 500,
-        shortfall: 0.01,
-      });
-      expect(invoiceService.getInvoiceById(db, invoiceId).amount).toBe(600);
+      // 499.99 is below net deposits (500) — no longer blocked
+      const lowered = invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 499.99 });
+      expect(lowered.amount).toBe(499.99);
+      expect(invoiceService.getInvoiceById(db, invoiceId).amount).toBe(499.99);
+      const rows = db
+        .select()
+        .from(schema.invoiceDeposits)
+        .where(eq(schema.invoiceDeposits.invoiceId, invoiceId))
+        .all();
+      expect(rows.map((r) => r.amount).sort((x, y) => x - y)).toEqual([200, 700]);
     });
 
-    it('scenario 8: when both itemized and deposit rules are violated the itemized error wins', () => {
+    it('scenario 8: the itemized rule still applies when deposits exist alongside it', () => {
       const vendorId = createTestVendor('Both Vendor');
       const invoiceId = insertRawInvoice(vendorId, { amount: 1000 });
       insertItemizedLine(invoiceId, 800);

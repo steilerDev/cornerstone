@@ -520,93 +520,24 @@ describe('InvoiceDepositFormModal', () => {
       return ctx;
     }
 
-    it('maps DEPOSITS_EXCEED_INVOICE_TOTAL with the available headroom', async () => {
+    it('maps REFUND_EXCEEDS_INVOICE to the new cap copy when editing a refund', async () => {
       const { onSaved } = await submitWithError(
         new ApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          code: 'REFUND_EXCEEDS_INVOICE',
           message: 'x',
-          details: { availableHeadroom: 250 },
-        }),
-      );
-
-      expect(
-        screen.getByText(
-          tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$250.00' }),
-        ),
-      ).toBeInTheDocument();
-      expect(onSaved).not.toHaveBeenCalled();
-    });
-
-    it('defaults the headroom to 0 when details are missing', async () => {
-      await submitWithError(
-        new ApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'x' }),
-      );
-
-      expect(
-        screen.getByText(
-          tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$0.00' }),
-        ),
-      ).toBeInTheDocument();
-    });
-
-    it('#2127: editing a refund maps DEPOSITS_EXCEED_INVOICE_TOTAL to the minimum-refund message, not the headroom copy', async () => {
-      const { onSaved } = await submitWithError(
-        new ApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
-          message: 'x',
-          details: { minimumRefundAmount: 300, availableHeadroom: 999 },
+          details: { availableHeadroom: 300, refundCap: 1500 },
         }),
         { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
       );
 
       expect(
         screen.getByText(
-          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
-            minimumRefundAmount: '$300.00',
+          tr('budget:invoiceDetail.deposits.errors.refundExceedsTotal', {
+            availableHeadroom: '$300.00',
           }),
         ),
       ).toBeInTheDocument();
-      expect(screen.queryByText(/Available headroom/)).not.toBeInTheDocument();
       expect(onSaved).not.toHaveBeenCalled();
-    });
-
-    it('#2127: editing a refund defaults the minimum refund to 0 when details are missing', async () => {
-      await submitWithError(
-        new ApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'x' }),
-        { mode: 'edit', deposit: makeDeposit({ entryType: 'refund' }) },
-      );
-
-      expect(
-        screen.getByText(
-          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
-            minimumRefundAmount: '$0.00',
-          }),
-        ),
-      ).toBeInTheDocument();
-    });
-
-    it('#2127: editing a deposit-type entry keeps the exceedsTotal headroom mapping', async () => {
-      await submitWithError(
-        new ApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
-          message: 'x',
-          details: { availableHeadroom: 250, minimumRefundAmount: 300 },
-        }),
-        { mode: 'edit', deposit: makeDeposit({ entryType: 'deposit' }) },
-      );
-
-      expect(
-        screen.getByText(
-          tr('budget:invoiceDetail.deposits.errors.exceedsTotal', { availableHeadroom: '$250.00' }),
-        ),
-      ).toBeInTheDocument();
-      expect(
-        screen.queryByText(
-          tr('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
-            minimumRefundAmount: '$300.00',
-          }),
-        ),
-      ).not.toBeInTheDocument();
     });
 
     it('scenario 44: maps REFUND_EXCEEDS_INVOICE with the available headroom', async () => {
@@ -742,5 +673,124 @@ describe('InvoiceDepositFormModal', () => {
       resolveCreate({ deposit: makeDeposit() });
       await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
     });
+  });
+});
+
+describe('InvoiceDepositFormModal over-deposit warning (#2188)', () => {
+  const existing = [makeDeposit({ id: 'ex-1', amount: 600, entryType: 'deposit' })];
+  const warningId = 'deposit-amount-warning';
+
+  function amountInput() {
+    return document.getElementById('deposit-amount') as HTMLInputElement;
+  }
+
+  function typeAmount(value: string) {
+    fireEvent.change(amountInput(), { target: { value } });
+  }
+
+  function fillRequired() {
+    fireEvent.change(document.getElementById('deposit-dueDate')!, {
+      target: { value: '2026-03-01' },
+    });
+  }
+
+  it('shows the interpolated warning when net deposits plus the entered amount exceed the invoice', () => {
+    renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    typeAmount('500');
+
+    const warning = screen.getByTestId('deposit-exceeds-warning');
+    expect(warning).toHaveTextContent(
+      tr('budget:invoiceDetail.deposits.form.exceedsInvoiceWarning', { amount: '$100.00' }),
+    );
+    expect(warning).toHaveTextContent('$100.00');
+    expect(warning).toHaveAttribute('id', warningId);
+  });
+
+  it('exposes the warning as a polite status region without aria-live, and links it to the input', () => {
+    renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    typeAmount('500');
+
+    const warning = screen.getByTestId('deposit-exceeds-warning');
+    expect(warning).toHaveAttribute('role', 'status');
+    expect(warning).toHaveAttribute('aria-atomic', 'true');
+    expect(warning).not.toHaveAttribute('aria-live');
+    expect(amountInput()).toHaveAttribute('aria-describedby', warningId);
+  });
+
+  it('shows no warning and no aria-describedby when the total stays within the invoice amount', () => {
+    renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    typeAmount('400');
+
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
+    expect(amountInput()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('removes the warning (and aria-describedby) once the amount is corrected', () => {
+    renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    typeAmount('500');
+    expect(screen.getByTestId('deposit-exceeds-warning')).toBeInTheDocument();
+    expect(amountInput()).toHaveAttribute('aria-describedby', warningId);
+
+    typeAmount('400');
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
+    expect(amountInput()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('does not block saving: Save stays enabled and submitting calls createDeposit', async () => {
+    mockCreateDeposit.mockResolvedValue({ deposit: makeDeposit({ id: 'new', amount: 500 }) });
+    const { onSaved } = renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    typeAmount('500');
+    fillRequired();
+
+    expect(screen.getByTestId('deposit-exceeds-warning')).toBeInTheDocument();
+    expect(screen.getByTestId('deposit-modal-save')).toBeEnabled();
+    submitForm();
+
+    await waitFor(() => expect(mockCreateDeposit).toHaveBeenCalledTimes(1));
+    expect(mockCreateDeposit.mock.calls[0]![0]).toBe('inv-1');
+    expect(mockCreateDeposit.mock.calls[0]![1]).toMatchObject({ amount: 500 });
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+  });
+
+  it('edit mode excludes the edited entry: editing 600 to 600 on a 1000 invoice shows no warning', () => {
+    const edited = makeDeposit({ id: 'ex-1', amount: 600, entryType: 'deposit' });
+    renderModal({
+      mode: 'edit',
+      deposit: edited,
+      invoiceAmount: 1000,
+      existingEntries: [edited],
+    });
+
+    expect(amountInput()).toHaveValue(600);
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
+
+    // raising the edited entry beyond the invoice does warn, by the exact excess
+    typeAmount('1200');
+    expect(screen.getByTestId('deposit-exceeds-warning')).toHaveTextContent('$200.00');
+  });
+
+  it('never warns for refund entries, however large', () => {
+    renderModal({ invoiceAmount: 1000, existingEntries: existing });
+
+    fireEvent.click(screen.getByLabelText(/Refund/));
+    typeAmount('5000');
+
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
+    expect(amountInput()).not.toHaveAttribute('aria-describedby');
+  });
+
+  it('is absent when invoiceAmount / existingEntries are not provided', () => {
+    renderModal();
+    typeAmount('99999');
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
+
+    renderModal({ invoiceAmount: 100 });
+    typeAmount('99999');
+    expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
   });
 });

@@ -285,7 +285,7 @@ describe('POST /api/invoices/:invoiceId/convert-quotation', () => {
       expect(response.json<ApiErrorResponse>().error.code).toBe('ITEMIZED_SUM_EXCEEDS_INVOICE');
     });
 
-    it('400 DEPOSITS_EXCEED_INVOICE_TOTAL with shortfall detail', async () => {
+    it('200 when deposits exceed the final amount; deposits unchanged and finalPaymentAmount is 0 (#2188)', async () => {
       const { cookie } = await createUserWithSession('user@test.com');
       const invoiceId = createQuotation();
       const now = ts();
@@ -306,10 +306,28 @@ describe('POST /api/invoices/:invoiceId/convert-quotation', () => {
 
       const response = await post(invoiceId, validBody({ amount: 5000 }), cookie);
 
-      expect(response.statusCode).toBe(400);
-      const err = response.json<ApiErrorResponse>().error;
-      expect(err.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect((err.details as { shortfall: number }).shortfall).toBe(1000);
+      expect(response.statusCode).toBe(200);
+      expect(getInvoiceRow(invoiceId).status).toBe('pending');
+      expect(getInvoiceRow(invoiceId).amount).toBe(5000);
+
+      const deposits = app.db
+        .select()
+        .from(schema.invoiceDeposits)
+        .where(eq(schema.invoiceDeposits.invoiceId, invoiceId))
+        .all();
+      expect(deposits).toHaveLength(1);
+      expect(deposits[0]!.amount).toBe(6000);
+      expect(deposits[0]!.status).toBe('paid');
+
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}`,
+        headers: { cookie },
+      });
+      expect(detail.statusCode).toBe(200);
+      expect(
+        detail.json<{ invoice: { finalPaymentAmount: number } }>().invoice.finalPaymentAmount,
+      ).toBe(0);
     });
 
     it('409 DUPLICATE_DOCUMENT_LINK and no partial writes', async () => {

@@ -14,7 +14,6 @@ import type {
 import {
   NotFoundError,
   ValidationError,
-  DepositsExceedInvoiceTotalError,
   RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
@@ -65,70 +64,32 @@ export function getDepositEntryTotals(
 }
 
 /**
- * Throw DepositsExceedInvoiceTotalError if deposits (others + requested) net of refunds
- * would exceed the invoice amount.
+ * Throw RefundExceedsInvoiceError if gross refunds (others + requested) would exceed
+ * max(invoice amount, gross deposit-type sum), all statuses (#2188).
  */
-function assertNetDepositsWithinInvoice(
+function assertRefundsWithinCap(
   db: Pick<DbType, 'select'>,
   invoiceId: string,
   invoiceAmount: number,
   requestedAmount: number,
   excludeEntryId?: string,
 ): void {
-  const { depositTotal: currentDepositSum, refundTotal } = getDepositEntryTotals(
+  const { depositTotal, refundTotal: currentRefundSum } = getDepositEntryTotals(
     db,
     invoiceId,
     excludeEntryId,
   );
-  const netDeposits = currentDepositSum + requestedAmount - refundTotal;
-  if (exceedsAmount(netDeposits, invoiceAmount)) {
-    throw new DepositsExceedInvoiceTotalError(
-      'Deposits net of refunds would exceed the invoice total',
+  const refundCap = Math.max(invoiceAmount, depositTotal);
+  if (exceedsAmount(currentRefundSum + requestedAmount, refundCap)) {
+    throw new RefundExceedsInvoiceError(
+      'Sum of refund amounts would exceed the larger of the invoice total and the deposits recorded',
       {
         invoiceTotal: invoiceAmount,
-        currentDepositSum,
-        refundTotal,
+        depositTotal: Math.round(depositTotal * 100) / 100,
+        refundCap: Math.round(refundCap * 100) / 100,
+        currentRefundSum,
         requestedAmount,
-        netDeposits: Math.round(netDeposits * 100) / 100,
-        availableHeadroom: Math.max(
-          0,
-          Math.round((invoiceAmount + refundTotal - currentDepositSum) * 100) / 100,
-        ),
-      },
-    );
-  }
-}
-
-/**
- * Throw DepositsExceedInvoiceTotalError if lowering (or deleting, newRefundAmount = 0)
- * the given refund would push deposits net of refunds above the invoice amount (#2127).
- */
-function assertRefundChangeKeepsNetWithinInvoice(
-  db: Pick<DbType, 'select'>,
-  invoiceId: string,
-  invoiceAmount: number,
-  refundId: string,
-  newRefundAmount: number,
-): void {
-  const { depositTotal: currentDepositSum, refundTotal } = getDepositEntryTotals(
-    db,
-    invoiceId,
-    refundId,
-  );
-  const netDeposits = currentDepositSum - refundTotal - newRefundAmount;
-  if (exceedsAmount(netDeposits, invoiceAmount)) {
-    throw new DepositsExceedInvoiceTotalError(
-      'Lowering or deleting this refund would push deposits net of refunds above the invoice total',
-      {
-        invoiceTotal: invoiceAmount,
-        currentDepositSum,
-        refundTotal,
-        requestedAmount: newRefundAmount,
-        netDeposits: Math.round(netDeposits * 100) / 100,
-        minimumRefundAmount: Math.max(
-          0,
-          Math.round((currentDepositSum - refundTotal - invoiceAmount) * 100) / 100,
-        ),
+        availableHeadroom: Math.max(0, Math.round((refundCap - currentRefundSum) * 100) / 100),
       },
     );
   }
@@ -239,14 +200,14 @@ export function listDepositsForInvoice(db: DbType, invoiceId: string): InvoiceDe
 /**
  * Create a new invoice deposit.
  * Validates: invoice exists, amount > 0, dueDate is valid ISO date,
- * status transition is allowed, dates match status. Deposit-type entries: deposits net of
- * refunds must not exceed the invoice total (all statuses); refund-type: gross refund sum
- * must not exceed the invoice total.
+ * status transition is allowed, dates match status. Deposit-type entries are never checked
+ * against the invoice amount; refund-type: gross refund sum must not exceed
+ * max(invoice amount, gross deposit sum) (#2188).
  * @throws NotFoundError if invoice not found
  * @throws ValidationError if any field is invalid
  * @throws InvalidDepositStatusTransitionError if status transition is disallowed
  * @throws InvalidDepositDateForStatusError if dates don't match status
- * @throws DepositsExceedInvoiceTotalError if sum would exceed invoice total
+ * @throws RefundExceedsInvoiceError if a refund would exceed the refund cap
  */
 export function createDeposit(
   db: DbType,
@@ -336,29 +297,7 @@ export function createDeposit(
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
     if (entryType === 'refund') {
-      // Refund rule: gross sum of refunds must not exceed the invoice total
-      const existingSum = tx
-        .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
-        .from(invoiceDeposits)
-        .where(
-          and(eq(invoiceDeposits.invoiceId, invoiceId), eq(invoiceDeposits.entryType, 'refund')),
-        )
-        .get();
-      const currentSum = existingSum?.sum ?? 0;
-      if (exceedsAmount(currentSum + data.amount, invoice.amount)) {
-        throw new RefundExceedsInvoiceError(
-          'Sum of refund amounts would exceed the invoice total',
-          {
-            invoiceTotal: invoice.amount,
-            currentRefundSum: currentSum,
-            requestedAmount: data.amount,
-            availableHeadroom: Math.max(0, invoice.amount - currentSum),
-          },
-        );
-      }
-    } else {
-      // Deposit rule: deposits net of refunds must not exceed the invoice total (#2109)
-      assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount);
+      assertRefundsWithinCap(tx, invoiceId, invoice.amount, data.amount);
     }
 
     // Insert the deposit
@@ -394,15 +333,14 @@ export function createDeposit(
 
 /**
  * Update an invoice deposit.
- * Validates transitions, date constraints, and sum invariant (net-of-refunds for deposits,
- * gross for refunds). Amount increases are checked per type; refund decreases are checked
- * against the net rule (#2127); deposit decreases are never checked.
+ * Validates transitions, date constraints, and the refund cap (refund amount increases only,
+ * #2188); all other amount changes are never checked.
  * Applies date side-effects per AC-14.
  * @throws NotFoundError if invoice or deposit not found
  * @throws ValidationError if any field is invalid
  * @throws InvalidDepositStatusTransitionError if transition is disallowed
  * @throws InvalidDepositDateForStatusError if dates don't match status
- * @throws DepositsExceedInvoiceTotalError if sum would exceed invoice total
+ * @throws RefundExceedsInvoiceError if a refund increase would exceed the refund cap
  */
 export function updateDeposit(
   db: DbType,
@@ -533,48 +471,11 @@ export function updateDeposit(
 
   // Perform atomic read-check-write in transaction
   const row = db.transaction((tx) => {
-    // Increases are checked per type (#2109); refund decreases against the net rule (#2127);
-    // deposit decreases are never checked.
+    // Only refund increases are checked (#2188); deposits and refund decreases never are.
     if (data.amount !== undefined) {
-      const newCents = toCents(data.amount);
-      const oldCents = toCents(existing.amount);
       const isRefund = (existing.entryType as InvoiceDepositEntryType) === 'refund';
-      if (newCents > oldCents) {
-        if (isRefund) {
-          const otherSum = tx
-            .select({ sum: sql<number>`COALESCE(SUM(${invoiceDeposits.amount}), 0)` })
-            .from(invoiceDeposits)
-            .where(
-              and(
-                eq(invoiceDeposits.invoiceId, invoiceId),
-                eq(invoiceDeposits.entryType, 'refund'),
-                sql`${invoiceDeposits.id} != ${depositId}`,
-              ),
-            )
-            .get();
-          const otherTotal = otherSum?.sum ?? 0;
-          if (exceedsAmount(otherTotal + data.amount, invoice.amount)) {
-            throw new RefundExceedsInvoiceError(
-              'Sum of refund amounts would exceed the invoice total',
-              {
-                invoiceTotal: invoice.amount,
-                currentRefundSum: otherTotal,
-                requestedAmount: data.amount,
-                availableHeadroom: Math.max(0, invoice.amount - otherTotal),
-              },
-            );
-          }
-        } else {
-          assertNetDepositsWithinInvoice(tx, invoiceId, invoice.amount, data.amount, depositId);
-        }
-      } else if (isRefund && newCents < oldCents) {
-        assertRefundChangeKeepsNetWithinInvoice(
-          tx,
-          invoiceId,
-          invoice.amount,
-          depositId,
-          data.amount,
-        );
+      if (isRefund && toCents(data.amount) > toCents(existing.amount)) {
+        assertRefundsWithinCap(tx, invoiceId, invoice.amount, data.amount, depositId);
       }
     }
 
@@ -604,25 +505,14 @@ export function updateDeposit(
 }
 
 /**
- * Delete an invoice deposit. Deleting a refund must not push deposits net of refunds
- * above the invoice total (#2127).
+ * Delete an invoice deposit. Never checked against the invoice amount (#2188).
  * @throws NotFoundError if invoice or deposit not found
- * @throws DepositsExceedInvoiceTotalError if deleting a refund would push net deposits above the invoice total
  */
 export function deleteDeposit(db: DbType, invoiceId: string, depositId: string): void {
   // Verify ownership
-  const existing = assertDepositBelongsToInvoice(db, invoiceId, depositId);
+  assertDepositBelongsToInvoice(db, invoiceId, depositId);
 
   db.transaction((tx) => {
-    if ((existing.entryType as InvoiceDepositEntryType) === 'refund') {
-      const invoice = tx
-        .select({ amount: invoices.amount })
-        .from(invoices)
-        .where(eq(invoices.id, invoiceId))
-        .get();
-      if (!invoice) throw new NotFoundError('Invoice not found');
-      assertRefundChangeKeepsNetWithinInvoice(tx, invoiceId, invoice.amount, depositId, 0);
-    }
     tx.delete(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).run();
   });
 }

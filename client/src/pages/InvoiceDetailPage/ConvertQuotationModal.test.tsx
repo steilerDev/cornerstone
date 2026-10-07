@@ -686,10 +686,10 @@ describe('ConvertQuotationModal', () => {
       expect(within(section).getByText('$-1500.00')).toBeInTheDocument();
     });
 
-    it('scenario 43: the overpaid banner disables Confirm and is referenced by aria-describedby', () => {
+    it('scenario 43: the overpaid banner is advisory (role=status), leaves Confirm enabled and is referenced by aria-describedby', () => {
       const { fns } = renderModal({
         shortfall: 1000,
-        canConfirm: false,
+        canConfirm: true,
         depositTotals: {
           depositTotal: 6000,
           refundTotal: 0,
@@ -699,7 +699,8 @@ describe('ConvertQuotationModal', () => {
       });
 
       const banner = screen.getByTestId('convert-overpaid-banner');
-      expect(banner).toHaveAttribute('role', 'alert');
+      expect(banner).toHaveAttribute('role', 'status');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(banner).toHaveTextContent(
         t('invoiceDetail.convertModal.overpaid.message', {
           shortfall: '$1000.00',
@@ -707,9 +708,11 @@ describe('ConvertQuotationModal', () => {
         }),
       );
       const confirm = screen.getByTestId('convert-confirm');
-      expect(confirm).toBeDisabled();
+      expect(confirm).toBeEnabled();
       expect(confirm).toHaveAttribute('aria-describedby', banner.id);
       expect(banner.id).not.toBe('');
+      fireEvent.submit(screen.getByTestId('convert-quotation-form'));
+      expect(fns.submit).toHaveBeenCalledTimes(1);
       fireEvent.click(screen.getByTestId('convert-add-refund'));
       expect(fns.openRefund).toHaveBeenCalledTimes(1);
       expect(

@@ -229,6 +229,7 @@ export class InvoiceDetailPage {
 
   /** Error banner (role="alert") inside a deposit modal */
   readonly depositModalError: Locator;
+  readonly depositExceedsWarning: Locator;
 
   /** State confirm modal (Mark as paid / Mark as claimed) */
   readonly stateConfirmModal: Locator;
@@ -764,6 +765,7 @@ export class InvoiceDetailPage {
 
     // Error banner (FormError with variant='banner' renders role="alert")
     this.depositModalError = page.locator('[role="dialog"] [role="alert"]');
+    this.depositExceedsWarning = page.getByTestId('deposit-exceeds-warning');
 
     // State confirm modal: h2 is "Mark as paid" or "Mark as claimed"
     this.stateConfirmModal = page.locator('[role="dialog"]').filter({

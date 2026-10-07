@@ -191,3 +191,29 @@ describe('computeOpenAmounts', () => {
     expect(sum).toBe(result.openPayable.totalAmount);
   });
 });
+
+describe('computeOpenAmounts over-deposited invoices (#2188)', () => {
+  it('Σ deposits > amount on a pending invoice: residual is 0 and openAmount is never negative or NaN', () => {
+    const rows = [
+      makeRow('inv-1', 1000, 'pending', { id: 'd1', amount: 800, status: 'paid' }),
+      makeRow('inv-1', 1000, 'pending', { id: 'd2', amount: 700, status: 'pending' }),
+    ];
+    const result = computeOpenAmounts(rows);
+
+    // residual = max(0, 1000 - 1500) = 0; only the pending deposit (700) is still payable
+    expect(result.byInvoice.get('inv-1')).toBe(700);
+    expect(result.openPayable).toEqual({ count: 1, totalAmount: 700 });
+  });
+
+  it('all deposits paid/claimed and above the amount: openAmount is exactly 0 and not counted as open', () => {
+    const rows = [
+      makeRow('inv-1', 1000, 'pending', { id: 'd1', amount: 600, status: 'paid' }),
+      makeRow('inv-1', 1000, 'pending', { id: 'd2', amount: 600, status: 'claimed' }),
+    ];
+    const result = computeOpenAmounts(rows);
+
+    expect(result.byInvoice.get('inv-1')).toBe(0);
+    expect(Object.is(result.byInvoice.get('inv-1'), -0)).toBe(false);
+    expect(result.openPayable).toEqual({ count: 0, totalAmount: 0 });
+  });
+});

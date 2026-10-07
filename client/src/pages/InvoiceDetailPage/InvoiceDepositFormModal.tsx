@@ -6,6 +6,7 @@ import type {
   InvoiceDepositStatus,
   InvoiceDepositEntryType,
 } from '@cornerstone/shared';
+import { parseAmount, computeDepositExcess } from '../../lib/quotationConversion.js';
 import { createDeposit, updateDeposit } from '../../lib/invoiceDepositsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -51,6 +52,10 @@ export interface InvoiceDepositFormModalProps {
   budgetLineSourceCount?: number;
   /** The source with the largest sum (hint display). */
   largestBudgetSourceId?: string | null;
+  /** Invoice amount, for the over-deposit warning. Warning hidden when undefined. */
+  invoiceAmount?: number;
+  /** Existing entries of the invoice, for the over-deposit warning. */
+  existingEntries?: InvoiceDeposit[];
   onSaved: (deposit: InvoiceDeposit) => void;
   onClose: () => void;
 }
@@ -84,6 +89,8 @@ export function InvoiceDepositFormModal({
   budgetSources,
   budgetLineSourceCount,
   largestBudgetSourceId = null,
+  invoiceAmount,
+  existingEntries,
   onSaved,
   onClose,
 }: InvoiceDepositFormModalProps) {
@@ -96,6 +103,10 @@ export function InvoiceDepositFormModal({
   const [isMutating, setIsMutating] = useState(false);
   const [error, setError] = useState('');
   const isEdit = mode === 'edit';
+  const excess =
+    form.entryType === 'deposit' && invoiceAmount !== undefined && existingEntries
+      ? computeDepositExcess(invoiceAmount, existingEntries, parseAmount(form.amount), deposit?.id)
+      : 0;
 
   const handleClose = () => {
     if (!isMutating) onClose();
@@ -164,23 +175,7 @@ export function InvoiceDepositFormModal({
     } catch (err) {
       if (err instanceof ApiClientError) {
         const code = err.error.code;
-        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL' && deposit?.entryType === 'refund') {
-          const minimumRefundAmount =
-            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
-          setError(
-            t('budget:invoiceDetail.deposits.errors.refundReductionExceedsTotal', {
-              minimumRefundAmount: formatCurrency(minimumRefundAmount),
-            }),
-          );
-        } else if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          const availableHeadroom =
-            (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
-          setError(
-            t('budget:invoiceDetail.deposits.errors.exceedsTotal', {
-              availableHeadroom: formatCurrency(availableHeadroom),
-            }),
-          );
-        } else if (code === 'REFUND_EXCEEDS_INVOICE') {
+        if (code === 'REFUND_EXCEEDS_INVOICE') {
           const availableHeadroom =
             (err.error.details as { availableHeadroom?: number })?.availableHeadroom ?? 0;
           setError(
@@ -346,11 +341,25 @@ export function InvoiceDepositFormModal({
               step="0.01"
               required
               disabled={isMutating}
+              aria-describedby={excess > 0 ? 'deposit-amount-warning' : undefined}
               onWheel={(e) => e.currentTarget.blur()}
             />
             {form.entryType === 'refund' && (
               <div className={styles.charCounter}>
                 {t('budget:invoiceDetail.deposits.form.refundAmountHint')}
+              </div>
+            )}
+            {excess > 0 && (
+              <div
+                id="deposit-amount-warning"
+                className={sharedStyles.bannerWarning}
+                role="status"
+                aria-atomic="true"
+                data-testid="deposit-exceeds-warning"
+              >
+                {t('budget:invoiceDetail.deposits.form.exceedsInvoiceWarning', {
+                  amount: formatCurrency(excess),
+                })}
               </div>
             )}
           </div>

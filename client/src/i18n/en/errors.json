@@ -46,7 +46,6 @@
   "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.",
   "EMPTY_SELECTION": "Select at least one invoice.",
   "INVOICE_NOT_QUOTATION": "This invoice is not a quotation and cannot be converted.",
-  "DEPOSITS_EXCEED_INVOICE_TOTAL": "The deposits exceed the invoice total.",
   "ALREADY_SAVED": "This diary entry has already been saved.",
   "AREA_IN_USE": "This area is in use and cannot be deleted.",
   "TRADE_IN_USE": "This trade is in use and cannot be deleted.",

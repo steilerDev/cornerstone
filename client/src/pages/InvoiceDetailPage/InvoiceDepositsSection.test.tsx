@@ -246,6 +246,7 @@ function renderSection(
     <InvoiceDepositsSection
       invoiceId={INVOICE_ID}
       invoiceStatus={opts.invoiceStatus ?? 'pending'}
+      invoiceAmount={opts.invoiceTotal ?? INVOICE_TOTAL}
       deposits={deposits}
       finalPaymentAmount={finalPaymentAmount}
       onDepositMutated={onDepositMutated}
@@ -580,31 +581,42 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
-  // ─── Scenario 6: DEPOSITS_EXCEED_INVOICE_TOTAL error ──────────────────────
+  // ─── Scenario 6: over-deposit is a non-blocking warning (#2188) ────────────
 
-  describe('Scenario 6: DEPOSITS_EXCEED_INVOICE_TOTAL error', () => {
-    it('renders FormError with available headroom from error details', async () => {
-      mockCreateDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
-          message: 'Deposits exceed invoice total',
-          details: { available: 40 },
-        }),
-      );
+  describe('Scenario 6: over-deposit warning is non-blocking (#2188)', () => {
+    it('passes invoiceAmount and existing entries to the modal: warns with the exact excess and still saves', async () => {
+      mockCreateDeposit.mockResolvedValueOnce({
+        deposit: makeDeposit('new', { amount: 60 }),
+      } as Awaited<ReturnType<typeof mockCreateDeposit>>);
+      const onMutated = jest.fn();
 
-      renderSection([], { invoiceTotal: 100 });
-      fireEvent.click(screen.getByTestId('empty-state-action'));
-      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '90' } });
+      renderSection([makeDeposit('dep-1', { amount: 60 })], {
+        invoiceTotal: 100,
+        onDepositMutated: onMutated,
+      });
+      fireEvent.click(screen.getByRole('button', { name: /add deposit/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '60' } });
       fireEvent.change(screen.getByLabelText(/due date/i), { target: { value: '2026-03-01' } });
+
+      // existing 60 + entered 60 against an invoice of 100 -> excess 20
+      expect(screen.getByTestId('deposit-exceeds-warning')).toHaveTextContent('$20.00');
 
       const form = screen.getByRole('dialog').querySelector('form')!;
       await act(async () => {
         fireEvent.submit(form);
       });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('form-error')).toBeInTheDocument();
-      });
+      await waitFor(() => expect(mockCreateDeposit).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(onMutated).toHaveBeenCalledTimes(1));
+      expect(screen.queryByTestId('form-error')).not.toBeInTheDocument();
+    });
+
+    it('shows no warning when the new deposit fits within the invoice amount', () => {
+      renderSection([makeDeposit('dep-1', { amount: 60 })], { invoiceTotal: 100 });
+      fireEvent.click(screen.getByRole('button', { name: /add deposit/i }));
+      fireEvent.change(screen.getByLabelText(/amount/i), { target: { value: '40' } });
+
+      expect(screen.queryByTestId('deposit-exceeds-warning')).not.toBeInTheDocument();
     });
   });
 
@@ -1049,7 +1061,7 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
-  describe('#2127: refund delete rejected by the net rule', () => {
+  describe('delete failures', () => {
     async function openAndConfirmDelete(
       deposit: InvoiceDeposit,
       opts?: Parameters<typeof renderSection>[1],
@@ -1069,45 +1081,6 @@ describe('InvoiceDepositsSection', () => {
         fireEvent.click(confirmDeleteBtn);
       });
     }
-
-    it('shows refundDeleteExceedsTotal with the formatted minimum and keeps the modal open', async () => {
-      mockDeleteDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
-          details: { minimumRefundAmount: 300 },
-        }),
-      );
-      const onMutated = jest.fn();
-      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }), {
-        onDepositMutated: onMutated,
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId('form-error').textContent).toBe(
-          i18n.t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
-            minimumRefundAmount: '$300.00',
-          }),
-        );
-      });
-      expect(screen.getByTestId('form-error').textContent).toContain('$300.00');
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(onMutated).not.toHaveBeenCalled();
-    });
-
-    it('defaults the minimum to $0.00 when details are missing', async () => {
-      mockDeleteDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL' }),
-      );
-      await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
-
-      await waitFor(() => {
-        expect(screen.getByTestId('form-error').textContent).toBe(
-          i18n.t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
-            minimumRefundAmount: '$0.00',
-          }),
-        );
-      });
-    });
 
     it('non-API failures show the generic delete error', async () => {
       mockDeleteDeposit.mockRejectedValueOnce(new Error('network'));
@@ -1850,7 +1823,7 @@ describe('InvoiceDepositsSection', () => {
       });
     });
 
-    it('does NOT reuse the DEPOSITS_EXCEED_INVOICE_TOTAL message for REFUND_EXCEEDS_INVOICE', async () => {
+    it('maps REFUND_EXCEEDS_INVOICE to the dedicated refund copy with the formatted headroom, not the generic fallback', async () => {
       mockCreateDeposit.mockRejectedValueOnce(
         new MockApiClientError(400, {
           code: 'REFUND_EXCEEDS_INVOICE',
@@ -1874,6 +1847,11 @@ describe('InvoiceDepositsSection', () => {
         // The generic translateApiError fallback would render "translated:REFUND_EXCEEDS_INVOICE";
         // the specific branch must NOT fall through to that generic path.
         expect(error.textContent).not.toContain('translated:REFUND_EXCEEDS_INVOICE');
+        expect(error.textContent).toBe(
+          i18n.t('budget:invoiceDetail.deposits.errors.refundExceedsTotal', {
+            availableHeadroom: '$500.00',
+          }),
+        );
       });
     });
   });

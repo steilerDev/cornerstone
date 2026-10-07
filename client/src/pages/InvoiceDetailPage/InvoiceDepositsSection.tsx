@@ -25,6 +25,7 @@ import styles from './InvoiceDepositsSection.module.css';
 interface InvoiceDepositsSectionProps {
   invoiceId: string;
   invoiceStatus: InvoiceStatus;
+  invoiceAmount: number;
   deposits: InvoiceDeposit[];
   finalPaymentAmount: number;
   onDepositMutated: () => void;
@@ -41,6 +42,7 @@ interface StateConfirmState {
 export function InvoiceDepositsSection({
   invoiceId,
   invoiceStatus,
+  invoiceAmount,
   deposits,
   finalPaymentAmount,
   onDepositMutated,
@@ -214,17 +216,7 @@ export function InvoiceDepositsSection({
       onDepositMutated();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          const minimumRefundAmount =
-            (err.error.details as { minimumRefundAmount?: number })?.minimumRefundAmount ?? 0;
-          setFormError(
-            t('budget:invoiceDetail.deposits.errors.refundDeleteExceedsTotal', {
-              minimumRefundAmount: formatCurrency(minimumRefundAmount),
-            }),
-          );
-        } else {
-          setFormError(translateApiError(err.error.code, tErrors));
-        }
+        setFormError(translateApiError(err.error.code, tErrors));
       } else {
         setFormError(t('budget:invoiceDetail.deposits.errors.deleteError'));
       }
@@ -433,6 +425,8 @@ export function InvoiceDepositsSection({
           budgetSources={budgetSources}
           budgetLineSourceCount={sourceStats.sourceIds.length}
           largestBudgetSourceId={sourceStats.largestSourceId}
+          invoiceAmount={invoiceAmount}
+          existingEntries={deposits}
           onSaved={() => {
             closeModal();
             onDepositMutated();

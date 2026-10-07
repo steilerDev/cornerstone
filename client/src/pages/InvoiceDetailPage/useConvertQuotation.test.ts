@@ -512,7 +512,7 @@ describe('useConvertQuotation', () => {
   });
 
   describe('field errors and canConfirm', () => {
-    it('scenario 34a: is false when net deposits exceed the final amount', async () => {
+    it('scenario 34a: stays true (advisory only) when net deposits exceed the final amount (#2188)', async () => {
       const { result } = setup({
         invoice: makeInvoice({ budgetLines: [], deposits: [makeDeposit({ amount: 6000 })] }),
       });
@@ -524,9 +524,29 @@ describe('useConvertQuotation', () => {
       });
 
       expect(result.current.shortfall).toBe(1000);
-      expect(result.current.canConfirm).toBe(false);
+      expect(result.current.canConfirm).toBe(true);
       expect(result.current.finalPayment).toBe(0);
       expect(result.current.depositTotals.netDeposits).toBe(6000);
+    });
+
+    it('scenario 34a2: with a shortfall, submit still posts the conversion and closes the flow', async () => {
+      const { result } = setup({
+        invoice: makeInvoice({ budgetLines: [], deposits: [makeDeposit({ amount: 6000 })] }),
+      });
+      await openFlow(result);
+      act(() => {
+        result.current.setField('amount', '5000');
+      });
+      expect(result.current.shortfall).toBe(1000);
+
+      await act(async () => {
+        await result.current.submit();
+      });
+
+      expect(mockConvertQuotation).toHaveBeenCalledTimes(1);
+      expect(mockConvertQuotation.mock.calls[0]![1]).toMatchObject({ amount: 5000 });
+      expect(result.current.saveError).toBe('');
+      expect(result.current.view).toBe('closed');
     });
 
     it('scenario 34b: is false when the itemized lines are over-allocated', async () => {
@@ -857,34 +877,6 @@ describe('useConvertQuotation', () => {
       });
       return { ...ctx, refresh };
     }
-
-    it('DEPOSITS_EXCEED_INVOICE_TOTAL shows its message and refreshes the invoice', async () => {
-      const { result, refresh } = await failWith('DEPOSITS_EXCEED_INVOICE_TOTAL');
-
-      expect(result.current.saveError).toBe(
-        tBudget('invoiceDetail.convertModal.errors.depositsExceed'),
-      );
-      expect(refresh).toHaveBeenCalledTimes(1);
-      expect(result.current.view).toBe('form');
-    });
-
-    it('DEPOSITS_EXCEED_INVOICE_TOTAL swallows a failing refresh', async () => {
-      const refresh = jest.fn<() => Promise<Invoice>>();
-      mockConvertQuotation.mockRejectedValue(
-        new ApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'x' }),
-      );
-      const { result } = setup({ refreshInvoice: refresh });
-      refresh.mockRejectedValue(new Error('refresh failed'));
-      await openFlow(result);
-
-      await act(async () => {
-        await result.current.submit();
-      });
-
-      expect(result.current.saveError).toBe(
-        tBudget('invoiceDetail.convertModal.errors.depositsExceed'),
-      );
-    });
 
     it('ITEMIZED_SUM_EXCEEDS_INVOICE shows its message without refreshing', async () => {
       const { result, refresh } = await failWith('ITEMIZED_SUM_EXCEEDS_INVOICE');

@@ -112,7 +112,7 @@ When a quotation becomes a finalized invoice from the vendor, you can convert it
 4. **See deposits and final payment** -- deposits remain unchanged and are shown separately from the final balance
 5. **Choose payment status** -- mark the invoice as pending or already paid
 
-Conversion is blocked if deposits exceed the final amount (add a refund or increase the amount) or if the itemized total exceeds it. Nothing is saved until you confirm the dialog.
+If the final amount is less than the net deposits (deposits minus refunds), the dialog shows an **"Overpaid"** advisory note. You can optionally add a refund from the dialog to adjust the overpaid amount. Conversion is still blocked if the itemized total exceeds the final amount -- adjust the itemized lines first. Nothing is saved until you confirm the dialog.
 
 ### Invoice Detail
 
@@ -179,12 +179,9 @@ This grouped view helps you see at a glance how a single invoice is distributed 
 
 ### Invoice Amount Validation
 
-When you edit the total amount of an invoice, Cornerstone enforces two invariants to prevent budget integrity violations:
+When you edit the total amount of an invoice, Cornerstone enforces one constraint to prevent budget integrity violations:
 
 - **Itemized amount floor** -- When lowering an invoice total, the itemized amounts across all linked budget lines must stay ≤ the new amount. For example, if you have allocated 1000 EUR across budget lines and the invoice total is 1200 EUR, you can lower it to 1000 EUR but not below. Edits that raise the amount (or leave it unchanged) are never blocked.
-- **Net deposit floor** -- The net of deposits minus refunds must not exceed the invoice amount. This is checked when you add or increase a deposit, lower or delete a refund, or lower the invoice amount. Raising the amount is never blocked.
-
-These guards ensure your budget stays mathematically consistent.
 
 :::info Date validation
 Cornerstone rejects calendar-impossible invoice dates (e.g., 2026-02-31). Dates must be valid ISO 8601 dates.

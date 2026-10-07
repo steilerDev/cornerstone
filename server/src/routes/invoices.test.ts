@@ -6,6 +6,7 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
+import { eq } from 'drizzle-orm';
 import type { Invoice, ApiErrorResponse } from '@cornerstone/shared';
 import {
   vendors,
@@ -1043,7 +1044,7 @@ describe('Invoice Routes', () => {
       expect(error.details).toEqual({ invoiceTotal: 800, itemizedTotal: 900 });
     });
 
-    it('returns 400 DEPOSITS_EXCEED_INVOICE_TOTAL with details when lowering below net deposits', async () => {
+    it('returns 200 when lowering the amount below net deposits (#2188), leaving deposits untouched', async () => {
       const { userId, cookie } = await createUserWithSession('u2109@test.com', 'User', 'password');
       const vendorId = createTestVendor('Deposit Route Vendor');
       const invoiceId = createTestInvoice(vendorId, { amount: 1000 });
@@ -1075,16 +1076,14 @@ describe('Invoice Routes', () => {
         payload: { amount: 499.99 },
       });
 
-      expect(response.statusCode).toBe(400);
-      const error = response.json<ApiErrorResponse>().error;
-      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect(error.details).toEqual({
-        invoiceTotal: 499.99,
-        depositTotal: 700,
-        refundTotal: 200,
-        netDeposits: 500,
-        shortfall: 0.01,
-      });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ invoice: { amount: number } }>().invoice.amount).toBe(499.99);
+      const rows = app.db
+        .select()
+        .from(invoiceDeposits)
+        .where(eq(invoiceDeposits.invoiceId, invoiceId))
+        .all();
+      expect(rows.map((r) => r.amount).sort((x, y) => x - y)).toEqual([200, 700]);
     });
 
     it('POST with impossible date 2026-02-31 returns 400 VALIDATION_ERROR', async () => {
