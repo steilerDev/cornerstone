@@ -354,7 +354,7 @@ describe('every AppError subclass', () => {
   ) as [string, ErrorCtor][];
 
   it('is discovered (guards against the table silently becoming empty)', () => {
-    expect(subclasses).toHaveLength(45);
+    expect(subclasses).toHaveLength(44);
   });
 
   it.each(subclasses)(
