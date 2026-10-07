@@ -14,5 +14,6 @@ When a story removes a server invariant (e.g. #2188 dropped `DEPOSITS_EXCEED_INV
 - Enumerate every `throw new <Error>` site and every client `code === '<CODE>'` branch; classify each as "protects the removed invariant" vs "independent".
 - `client/src/i18n/errorCodes.coverage.test.ts` (ERROR_CODES ⇔ en/de errors.json) and `i18n.parity.test.ts` (en ⇔ de) force shared tuple, en and de removals to land in the same PR — sequence translator after frontend, never split across PRs.
 - Client mirrors of the rule (pre-checks disabling submit, `role="alert"` banners, danger styling) become advisory: drop from `canConfirm`, demote to `role="status"` + warning tokens, recopy.
+- Deleting an `AppError` subclass breaks `server/src/errors/AppError.test.ts`'s hardcoded subclass count (`toHaveLength(N)`) — grepping the class name misses it; list it in the QA spec (#2188 CI failure).
 - Grep `docs/src/` for the rule's prose — user guides state the old rule and need a docs-writer pass.
 - Related: [[review-round-discipline]]
