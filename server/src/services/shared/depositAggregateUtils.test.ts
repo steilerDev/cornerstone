@@ -12,6 +12,7 @@ import {
   computeStatusContributionExcludingTagged,
   sumTaggedDepositContributions,
   sumTaggedDepositContributionsByInvoice,
+  aggregateClaimableBreakdown,
   type DepositAwareRow,
   type InvoiceDepositRow,
 } from './depositAggregateUtils.js';
@@ -1614,5 +1615,91 @@ describe('sumTaggedDepositContributionsByInvoice', () => {
     ];
     const result = sumTaggedDepositContributionsByInvoice(rows, new Set(['paid']));
     expect(result.get('inv-1')).toBe(350);
+  });
+});
+
+// ─── Over-deposited invoices: Σ deposits > invoice amount (#2188, AC12) ───────
+
+describe('over-deposited invoices (#2188)', () => {
+  // Invoice 1000 (pending) with deposits 800 (paid) + 700 (pending) → Σ = 1500 > 1000.
+  const overDeposits = [
+    { id: 'd-1', amount: 800, status: 'paid' },
+    { id: 'd-2', amount: 700, status: 'pending' },
+  ];
+
+  it('splitByDeposits: residualFraction is 0 (not negative) and deposit fractions sum above 1', () => {
+    const rows = overDeposits.map((d) => makeSplitRow('inv-1', 1000, 'pending', d));
+    const split = splitByDeposits(rows).get('inv-1')!;
+
+    expect(split.residualFraction).toBe(0);
+    expect(split.depositFractions.map((f) => f.fraction)).toEqual([0.8, 0.7]);
+    const sum = split.depositFractions.reduce((acc, f) => acc + f.fraction, 0);
+    expect(sum).toBeCloseTo(1.5);
+    expect(Number.isNaN(sum)).toBe(false);
+  });
+
+  it('splitByDepositsExcludingTagged: same clamp, tagged deposits omitted from fractions but still reduce the residual', () => {
+    const rows = [
+      makeTaggableSplitRow('inv-1', 1000, 'pending', { ...overDeposits[0]!, budgetSourceId: null }),
+      makeTaggableSplitRow('inv-1', 1000, 'pending', {
+        ...overDeposits[1]!,
+        budgetSourceId: 'src-A',
+      }),
+    ];
+    const split = splitByDepositsExcludingTagged(rows).get('inv-1')!;
+
+    expect(split.residualFraction).toBe(0);
+    expect(split.depositFractions).toHaveLength(1);
+    expect(split.depositFractions[0]!.fraction).toBeCloseTo(0.8);
+  });
+
+  it('computeDepositAwareAggregates: paid cost = itemized x paid fractions, finite and non-negative', () => {
+    const rows = overDeposits.map((d) => makeRow('ibl-1', 1000, 'inv-1', 1000, 'pending', d));
+    const result = computeDepositAwareAggregates(rows);
+
+    expect(result.actualCostPaid).toBeCloseTo(800);
+    expect(result.actualCostClaimed).toBe(0);
+    for (const v of Object.values(result)) {
+      expect(Number.isFinite(v)).toBe(true);
+      expect(v).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it('computeFinalPaymentAmount: clamps to 0 (not negative, not NaN) when deposits exceed the amount', () => {
+    const entries = [
+      { amount: 800, status: 'paid', entryType: 'deposit' },
+      { amount: 700, status: 'pending', entryType: 'deposit' },
+    ];
+    const result = computeFinalPaymentAmount(1000, entries);
+    expect(result).toBe(0);
+    expect(Object.is(result, -0)).toBe(false);
+  });
+
+  it('computeFinalPaymentAmounts: bulk map gives 0 for the over-deposited invoice', () => {
+    const rows = overDeposits.map((d) => makeInvoiceRow('inv-1', 1000, 'pending', d));
+    expect(computeFinalPaymentAmounts(rows).get('inv-1')).toBe(0);
+  });
+
+  it('aggregateInvoiceStatusBreakdown: no negative buckets for an over-deposited invoice', () => {
+    const rows = overDeposits.map((d) => makeInvoiceRow('inv-1', 1000, 'pending', d));
+    const result = aggregateInvoiceStatusBreakdown(rows);
+
+    for (const bucket of Object.values(result)) {
+      expect(bucket.totalAmount).toBeGreaterThanOrEqual(0);
+      expect(Number.isFinite(bucket.totalAmount)).toBe(true);
+    }
+    expect(result['paid']?.totalAmount).toBe(800);
+  });
+
+  it('aggregateClaimableBreakdown: no negative claimable total for an over-deposited invoice', () => {
+    const rows = overDeposits.map((d) => ({
+      ...makeInvoiceRow('inv-1', 1000, 'pending', d),
+      deposit_is_discretionary: false,
+    }));
+    const result = aggregateClaimableBreakdown(rows);
+
+    expect(result.claimable.totalAmount).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(result.claimable.totalAmount)).toBe(true);
+    expect(result.quotationCoveredByDeposits).toBe(0);
   });
 });

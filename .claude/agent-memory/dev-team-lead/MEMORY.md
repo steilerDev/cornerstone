@@ -32,3 +32,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Global aggregate page specs](global-aggregate-page-specs.md) — shared E2E DB scoping, drafts, disabled-at-end focus drop (useLayoutEffect), scoped document keydown, h1 in every state
 - [Crash-recovery swap specs](crash-recovery-specs.md) — per-loop marker phases, atomic marker, basenames, marker-last, no data-deleting sweep, rw SQLite staging validation
 - [Unmodified-tests constraint](unmodified-tests-constraint.md) — optional props/fields, dynamic import past partial ESM mocks, new test files
+- [Invariant removal specs](invariant-removal-specs.md) — grep every guard under the error code incl. inverse paths; lock-step ERROR_CODES/en/de; advisory client mirrors; docs

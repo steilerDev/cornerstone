@@ -14,7 +14,7 @@ A deposit is a partial payment recorded against an invoice. Each deposit has its
 The math is simple:
 
 - `Σ deposits + final payment = invoice total`
-- Deposit total **must not exceed** the invoice total. The form refuses to save if it would.
+- Net deposits (deposits minus refunds) may exceed the invoice total. When they do, the form shows a non-blocking warning and the excess is treated as an overpaid amount.
 
 Each deposit is one of three statuses, mirroring the parent invoice status model:
 
@@ -38,7 +38,7 @@ Click **Add deposit** to open the form:
 
 | Field | Description |
 |-------|-------------|
-| **Amount** | Deposit amount. Must be positive and must keep the running total at or below the invoice total. |
+| **Amount** | Deposit amount. Must be positive. The form warns if net deposits (deposits minus refunds) would exceed the invoice total, but does not block the save. |
 | **Due date** | When the deposit is owed -- used for the schedule and for the overdue indicator. |
 | **Status** | Pending (default), Paid, or Claimed. |
 | **Paid date** | Shown when status is Paid or Claimed -- defaults to today, change if it was paid earlier. |

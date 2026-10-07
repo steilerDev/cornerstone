@@ -208,7 +208,7 @@ describe('Invoice Deposit Routes', () => {
       expect(response.statusCode).toBe(404);
     });
 
-    it('scenario 45: 400 sum invariant violation; error.code === DEPOSITS_EXCEED_INVOICE_TOTAL', async () => {
+    it('scenario 45: 201 when the deposit exceeds the invoice amount (no deposit cap, #2188)', async () => {
       const { cookie } = await createUserWithSession('user5@test.com', 'Test User', 'password123');
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 500);
@@ -220,9 +220,8 @@ describe('Invoice Deposit Routes', () => {
         payload: { amount: 600, dueDate: '2026-02-01' },
       });
 
-      expect(response.statusCode).toBe(400);
-      const body = response.json<ApiErrorResponse>();
-      expect(body.error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(response.statusCode).toBe(201);
+      expect(response.json<{ deposit: { amount: number } }>().deposit.amount).toBe(600);
     });
 
     it('scenario QQ: 201 creates deposit on quotation invoice', async () => {
@@ -350,17 +349,14 @@ describe('Invoice Deposit Routes', () => {
       });
       expect(refundResponse.statusCode).toBe(201);
 
-      // Exceeding either type's cap fails with its own error code. #2109 (sanctioned contract
-      // change): the deposit cap is NET of refunds. With deposits 10000 and refunds 10000, a
-      // further +1 deposit is now allowed (net 1); it takes +10000.01 to exceed the cap.
+      // #2188: deposits are never capped; only refunds are, against max(invoice amount, gross deposits).
       const overDeposit = await app.inject({
         method: 'POST',
         url: `/api/invoices/${invoiceId}/deposits`,
         headers: { cookie },
         payload: { amount: 10000.01, dueDate: '2026-02-01', entryType: 'deposit' },
       });
-      expect(overDeposit.statusCode).toBe(400);
-      expect(overDeposit.json<ApiErrorResponse>().error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
+      expect(overDeposit.statusCode).toBe(201);
 
       const netAllowedDeposit = await app.inject({
         method: 'POST',
@@ -374,7 +370,7 @@ describe('Invoice Deposit Routes', () => {
         method: 'POST',
         url: `/api/invoices/${invoiceId}/deposits`,
         headers: { cookie },
-        payload: { amount: 1, dueDate: '2026-02-01', entryType: 'refund' },
+        payload: { amount: 10001.02, dueDate: '2026-02-01', entryType: 'refund' },
       });
       expect(overRefund.statusCode).toBe(400);
       expect(overRefund.json<ApiErrorResponse>().error.code).toBe('REFUND_EXCEEDS_INVOICE');
@@ -1070,53 +1066,124 @@ describe('Invoice Deposit Routes', () => {
     });
   });
 
-  describe('POST net-of-refunds violation (#2109)', () => {
-    it('returns 400 DEPOSITS_EXCEED_INVOICE_TOTAL with refundTotal and netDeposits in details', async () => {
+  describe('over-deposit and refund cap (#2188)', () => {
+    async function seedOver() {
       const { userId, cookie } = await createUserWithSession(
-        'net2109@test.com',
+        'over2188@test.com',
         'Test User',
         'password123',
       );
       const vendorId = createTestVendor();
       const invoiceId = createTestInvoice(vendorId, 1000);
-      createTestDeposit(invoiceId, userId, 800, 'pending', 'deposit');
-      createTestDeposit(invoiceId, userId, 100, 'pending', 'refund');
+      return { userId, cookie, invoiceId };
+    }
+
+    it('POST deposit 1500 on a 1000 invoice returns 201; GET invoice shows finalPaymentAmount 0 (not negative/NaN)', async () => {
+      const { cookie, invoiceId } = await seedOver();
+
+      const created = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1500, dueDate: '2026-02-01' },
+      });
+      expect(created.statusCode).toBe(201);
+
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/api/invoices/${invoiceId}`,
+        headers: { cookie },
+      });
+      expect(detail.statusCode).toBe(200);
+      const body = detail.json<{ invoice: { finalPaymentAmount: number } }>();
+      expect(body.invoice.finalPaymentAmount).toBe(0);
+      expect(Number.isNaN(body.invoice.finalPaymentAmount)).toBe(false);
+    });
+
+    it('PATCH deposit so that net exceeds the invoice returns 200', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
+      const depositId = createTestDeposit(invoiceId, userId, 300, 'pending', 'deposit');
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${depositId}`,
+        headers: { cookie },
+        payload: { amount: 1200 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ deposit: { amount: number } }>().deposit.amount).toBe(1200);
+    });
+
+    it('refund of 1500.01 against gross deposits 1500 returns 400 REFUND_EXCEEDS_INVOICE with cap details', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
+      createTestDeposit(invoiceId, userId, 1500, 'pending', 'deposit');
 
       const response = await app.inject({
         method: 'POST',
         url: `/api/invoices/${invoiceId}/deposits`,
         headers: { cookie },
-        payload: { amount: 400, dueDate: '2026-02-01' },
+        payload: { amount: 1500.01, dueDate: '2026-02-01', entryType: 'refund' },
       });
 
       expect(response.statusCode).toBe(400);
       const error = response.json<ApiErrorResponse>().error;
-      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect(error.details).toMatchObject({
-        refundTotal: 100,
-        netDeposits: 1100,
-        availableHeadroom: 300,
+      expect(error.code).toBe('REFUND_EXCEEDS_INVOICE');
+      expect(error.details).toEqual({
+        invoiceTotal: 1000,
+        depositTotal: 1500,
+        refundCap: 1500,
+        currentRefundSum: 0,
+        requestedAmount: 1500.01,
+        availableHeadroom: 1500,
       });
     });
-  });
 
-  describe('refund decrease/delete net rule (#2127)', () => {
-    async function seed() {
-      const { userId, cookie } = await createUserWithSession(
-        'net2127@test.com',
-        'Test User',
-        'password123',
-      );
-      const vendorId = createTestVendor();
-      const invoiceId = createTestInvoice(vendorId, 1000);
+    it('refund of exactly 1500 against gross deposits 1500 returns 201', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
+      createTestDeposit(invoiceId, userId, 1500, 'pending', 'deposit');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: `/api/invoices/${invoiceId}/deposits`,
+        headers: { cookie },
+        payload: { amount: 1500, dueDate: '2026-02-01', entryType: 'refund' },
+      });
+
+      expect(response.statusCode).toBe(201);
+    });
+
+    it('PATCH increasing a refund past the cap returns 400 with currentRefundSum excluding the entry', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
+      createTestDeposit(invoiceId, userId, 1500, 'pending', 'deposit');
+      createTestDeposit(invoiceId, userId, 400, 'pending', 'refund');
+      const refundId = createTestDeposit(invoiceId, userId, 300, 'pending', 'refund');
+
+      const ok = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
+        headers: { cookie },
+        payload: { amount: 1100 },
+      });
+      expect(ok.statusCode).toBe(200);
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
+        headers: { cookie },
+        payload: { amount: 1100.01 },
+      });
+      expect(response.statusCode).toBe(400);
+      const error = response.json<ApiErrorResponse>().error;
+      expect(error.code).toBe('REFUND_EXCEEDS_INVOICE');
+      expect(error.details).toMatchObject({ currentRefundSum: 400, availableHeadroom: 1100 });
+    });
+
+    it('PATCH lowering a refund returns 200 (never checked)', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
       createTestDeposit(invoiceId, userId, 1000, 'pending', 'deposit');
       const refundId = createTestDeposit(invoiceId, userId, 300, 'pending', 'refund');
       createTestDeposit(invoiceId, userId, 300, 'pending', 'deposit');
-      return { userId, cookie, invoiceId, refundId };
-    }
-
-    it('PATCH lowering a refund too far returns 400 with minimumRefundAmount', async () => {
-      const { cookie, invoiceId, refundId } = await seed();
 
       const response = await app.inject({
         method: 'PATCH',
@@ -1125,46 +1192,15 @@ describe('Invoice Deposit Routes', () => {
         payload: { amount: 299.99 },
       });
 
-      expect(response.statusCode).toBe(400);
-      const error = response.json<ApiErrorResponse>().error;
-      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect(error.details).toMatchObject({ minimumRefundAmount: 300, requestedAmount: 299.99 });
+      expect(response.statusCode).toBe(200);
+      expect(response.json<{ deposit: { amount: number } }>().deposit.amount).toBe(299.99);
     });
 
-    it('DELETE of a refund that would push net above the total returns 400; refund is still listed', async () => {
-      const { cookie, invoiceId, refundId } = await seed();
-
-      const response = await app.inject({
-        method: 'DELETE',
-        url: `/api/invoices/${invoiceId}/deposits/${refundId}`,
-        headers: { cookie },
-      });
-
-      expect(response.statusCode).toBe(400);
-      const error = response.json<ApiErrorResponse>().error;
-      expect(error.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect(error.details).toMatchObject({ minimumRefundAmount: 300, requestedAmount: 0 });
-
-      const list = await app.inject({
-        method: 'GET',
-        url: `/api/invoices/${invoiceId}/deposits`,
-        headers: { cookie },
-      });
-      expect(list.statusCode).toBe(200);
-      const body = list.json<{ deposits: Array<{ id: string }> }>();
-      expect(body.deposits.map((d) => d.id)).toContain(refundId);
-    });
-
-    it('DELETE of a refund returns 204 when net stays within the total', async () => {
-      const { userId, cookie } = await createUserWithSession(
-        'net2127b@test.com',
-        'Test User',
-        'password123',
-      );
-      const vendorId = createTestVendor();
-      const invoiceId = createTestInvoice(vendorId, 1000);
-      createTestDeposit(invoiceId, userId, 600, 'pending', 'deposit');
-      const refundId = createTestDeposit(invoiceId, userId, 100, 'pending', 'refund');
+    it('DELETE of a refund returns 204 even when net deposits exceed the invoice; row is gone', async () => {
+      const { userId, cookie, invoiceId } = await seedOver();
+      createTestDeposit(invoiceId, userId, 1000, 'pending', 'deposit');
+      const refundId = createTestDeposit(invoiceId, userId, 300, 'pending', 'refund');
+      createTestDeposit(invoiceId, userId, 300, 'pending', 'deposit');
 
       const response = await app.inject({
         method: 'DELETE',

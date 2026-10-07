@@ -110,10 +110,27 @@ export function computeFinalPayment(finalAmount: number, deposits: InvoiceDeposi
   return fromCents(Math.max(0, cents));
 }
 
-/** Amount by which net deposits exceed the final amount (0 when not blocked). */
+/** Amount by which net deposits exceed the final amount (0 when deposits do not exceed the final amount). */
 export function computeShortfall(finalAmount: number, deposits: InvoiceDeposit[]): number {
   const { netDeposits } = computeDepositTotals(deposits);
   return fromCents(Math.max(0, toCents(netDeposits) - toCents(finalAmount)));
+}
+
+/**
+ * Amount by which net deposits (deposit − refund, all statuses, excluding `excludeId`)
+ * plus `enteredAmount` exceed `invoiceAmount`; 0 when within or when input is invalid (#2188).
+ */
+export function computeDepositExcess(
+  invoiceAmount: number,
+  entries: InvoiceDeposit[],
+  enteredAmount: number | null,
+  excludeId?: string,
+): number {
+  if (enteredAmount === null || !Number.isFinite(enteredAmount) || enteredAmount <= 0) return 0;
+  const { netDeposits } = computeDepositTotals(entries.filter((e) => e.id !== excludeId));
+  return fromCents(
+    Math.max(0, toCents(netDeposits) + toCents(enteredAmount) - toCents(invoiceAmount)),
+  );
 }
 
 /** Mirrors the server's total-mismatch warning: |extracted - reference| > reference * 1%. */

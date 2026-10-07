@@ -125,6 +125,8 @@ jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
     mode: string;
     lockEntryType?: boolean;
     initialValues?: Record<string, unknown>;
+    invoiceAmount?: number;
+    existingEntries?: Array<{ id: string }>;
     onSaved: (deposit: unknown) => void;
     onClose: () => void;
   }) => (
@@ -134,6 +136,8 @@ jest.unstable_mockModule('./InvoiceDepositFormModal.js', () => ({
           mode: props.mode,
           lockEntryType: props.lockEntryType,
           initialValues: props.initialValues,
+          invoiceAmount: props.invoiceAmount,
+          existingEntryIds: props.existingEntries?.map((e) => e.id),
         })}
       </span>
       <button type="button" data-testid="stub-refund-save" onClick={() => props.onSaved({})}>
@@ -364,6 +368,29 @@ describe('InvoiceDetailPage', () => {
       mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
       renderPage();
       expect(screen.getByText('Loading invoice...')).toBeInTheDocument();
+    });
+  });
+
+  describe('deposits section wiring (#2188)', () => {
+    it('passes the invoice amount and the existing entries to the deposit form modal', async () => {
+      mockFetchInvoiceById.mockResolvedValue({
+        ...mockInvoice,
+        amount: 1500,
+        deposits: [paidDeposit(400)],
+      });
+      renderPage();
+      await screen.findByTestId('invoice-budget-lines-section');
+
+      fireEvent.click(await screen.findByRole('button', { name: /add deposit/i }));
+
+      const props = JSON.parse((await screen.findByTestId('stub-refund-props')).textContent!) as {
+        mode: string;
+        invoiceAmount: number;
+        existingEntryIds: string[];
+      };
+      expect(props.mode).toBe('add');
+      expect(props.invoiceAmount).toBe(1500);
+      expect(props.existingEntryIds).toEqual(['dep-1']);
     });
   });
 
@@ -982,24 +1009,19 @@ describe('InvoiceDetailPage', () => {
       expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
     });
 
-    it('scenario 20: DEPOSITS_EXCEED_INVOICE_TOTAL shows amountBelowNetDeposits with formatted netDeposits and keeps the modal open', async () => {
+    it('scenario 20: lowering the amount below deposits is no longer special-cased; an unknown code falls back to the translateApiError humanised text and keeps the modal open', async () => {
       mockUpdateInvoice.mockRejectedValue(
         new MockApiClientError(400, {
-          code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
+          code: 'SOME_FUTURE_ERROR',
           message: 'raw server text',
-          details: { netDeposits: 500, shortfall: 0.01 },
-        } as never),
+        }),
       );
 
       await openEditAndSave();
 
-      await waitFor(() =>
-        expect(
-          screen.getByText(
-            'The amount cannot be lower than the deposits net of refunds ($500.00). Add a refund entry or reduce the deposits first.',
-          ),
-        ).toBeInTheDocument(),
-      );
+      await waitFor(() => expect(screen.getByText('Some Future Error')).toBeInTheDocument());
+      expect(screen.queryByText(/raw server text/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/net of refunds/)).not.toBeInTheDocument();
       expect(screen.getByRole('heading', { name: 'Edit Invoice', level: 2 })).toBeInTheDocument();
     });
 
@@ -1011,14 +1033,6 @@ describe('InvoiceDetailPage', () => {
       await waitFor(() =>
         expect(screen.getByText(/itemized total of \$0\.00/)).toBeInTheDocument(),
       );
-    });
-
-    it('falls back to a formatted zero net deposits when the error details are missing', async () => {
-      mockUpdateInvoice.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'DEPOSITS_EXCEED_INVOICE_TOTAL', message: 'raw' }),
-      );
-      await openEditAndSave();
-      await waitFor(() => expect(screen.getByText(/refunds \(\$0\.00\)/)).toBeInTheDocument());
     });
 
     it('scenario 21: VALIDATION_ERROR shows the errors-namespace translation, not the raw server message', async () => {

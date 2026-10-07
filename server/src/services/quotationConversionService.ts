@@ -1,11 +1,10 @@
 import { and, eq } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { invoices, invoiceBudgetLines, invoiceDeposits, documentLinks } from '../db/schema.js';
+import { invoices, invoiceBudgetLines, documentLinks } from '../db/schema.js';
 import type { ConvertQuotationRequest, Invoice } from '@cornerstone/shared';
 import {
   AppError,
-  DepositsExceedInvoiceTotalError,
   InvoiceNotQuotationError,
   ItemizedSumExceedsInvoiceError,
   NotFoundError,
@@ -30,7 +29,6 @@ const MAX_NOTES_LENGTH = 10000;
  * @throws InvoiceNotQuotationError if the invoice status is not 'quotation'
  * @throws ValidationError on invalid input
  * @throws ItemizedSumExceedsInvoiceError if itemized lines would exceed the final amount
- * @throws DepositsExceedInvoiceTotalError if net deposits exceed the final amount
  * @throws AppError (DUPLICATE_DOCUMENT_LINK) if the document is linked as quotation/deposit
  */
 export function convertQuotation(
@@ -117,31 +115,7 @@ export function convertQuotation(
       );
     }
 
-    // g. Deposits (never modified)
-    const depositRows = db
-      .select()
-      .from(invoiceDeposits)
-      .where(eq(invoiceDeposits.invoiceId, invoiceId))
-      .all();
-    const depositTotal = depositRows
-      .filter((d) => d.entryType === 'deposit')
-      .reduce((acc, d) => acc + d.amount, 0);
-    const refundTotal = depositRows
-      .filter((d) => d.entryType === 'refund')
-      .reduce((acc, d) => acc + d.amount, 0);
-    const net = depositTotal - refundTotal;
-    if (exceedsAmount(net, data.amount)) {
-      throw new DepositsExceedInvoiceTotalError(
-        'Net deposits exceed the final invoice amount; add a refund entry or increase the amount',
-        {
-          invoiceTotal: data.amount,
-          depositTotal,
-          refundTotal,
-          netDeposits: net,
-          shortfall: Math.round((net - data.amount) * 100) / 100,
-        },
-      );
-    }
+    // g. Deposits are never modified and never block conversion (#2188).
 
     // g2. Decide document link outcome (validation before any write)
     let linkAction: 'none' | 'create' | 'upgrade' = 'none';

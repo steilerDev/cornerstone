@@ -18,7 +18,6 @@ import { listAllInvoices } from './invoiceService.js';
 import { getSourceReport } from './sourceReportService.js';
 import {
   AppError,
-  DepositsExceedInvoiceTotalError,
   InvoiceNotQuotationError,
   ItemizedSumExceedsInvoiceError,
   NotFoundError,
@@ -745,43 +744,47 @@ describe('quotationConversionService', () => {
   // ─── Deposits ───────────────────────────────────────────────────────────────
 
   describe('deposits', () => {
-    it('scenario 11: paid deposit 6,000 with final 5,000 is blocked with shortfall 1000; a refund clears it and deposit rows stay byte-identical', () => {
+    it('scenario 11: paid deposit 6,000 with final 5,000 converts successfully and deposit rows stay byte-identical (#2188)', () => {
       const userId = insertUser();
       const invoiceId = insertInvoice(insertVendor());
       insertDeposit(invoiceId, { amount: 6000, status: 'paid', paidDate: '2026-01-20' });
       const before = getDepositRows(invoiceId);
 
-      let caught: unknown;
-      try {
-        convertQuotation(db, invoiceId, request({ amount: 5000 }), userId);
-      } catch (e) {
-        caught = e;
-      }
-
-      expect(caught).toBeInstanceOf(DepositsExceedInvoiceTotalError);
-      const err = caught as DepositsExceedInvoiceTotalError;
-      expect(err.code).toBe('DEPOSITS_EXCEED_INVOICE_TOTAL');
-      expect(err.details).toEqual({
-        invoiceTotal: 5000,
-        depositTotal: 6000,
-        refundTotal: 0,
-        netDeposits: 6000,
-        shortfall: 1000,
-      });
-      expect(getInvoiceRow(invoiceId).status).toBe('quotation');
-      expect(getInvoiceRow(invoiceId).amount).toBe(10000);
-
-      // Add a pending refund of 1,000 -> net 5,000 -> allowed
-      insertDeposit(invoiceId, { amount: 1000, entryType: 'refund', status: 'pending' });
-      const beforeWithRefund = getDepositRows(invoiceId);
-
       const result = convertQuotation(db, invoiceId, request({ amount: 5000 }), userId);
 
       expect(result.status).toBe('pending');
       expect(result.amount).toBe(5000);
-      expect(getDepositRows(invoiceId)).toEqual(beforeWithRefund);
+      expect(result.finalPaymentAmount).toBe(0);
+      expect(getInvoiceRow(invoiceId).status).toBe('pending');
+      expect(getInvoiceRow(invoiceId).amount).toBe(5000);
+      expect(getDepositRows(invoiceId)).toEqual(before);
       expect(before).toHaveLength(1);
-      expect(getDepositRows(invoiceId).find((d) => d.entryType === 'deposit')).toEqual(before[0]);
+      expect(before[0]!.amount).toBe(6000);
+    });
+
+    it('over-deposit with a refund present also converts and leaves both rows unchanged', () => {
+      const userId = insertUser();
+      const invoiceId = insertInvoice(insertVendor());
+      insertDeposit(invoiceId, { amount: 6000, status: 'paid', paidDate: '2026-01-20' });
+      insertDeposit(invoiceId, { amount: 500, entryType: 'refund', status: 'pending' });
+      const before = getDepositRows(invoiceId);
+
+      const result = convertQuotation(db, invoiceId, request({ amount: 5000 }), userId);
+
+      expect(result.amount).toBe(5000);
+      expect(getDepositRows(invoiceId)).toEqual(before);
+    });
+
+    it('over-deposit does not mask the itemized-sum check (itemized over the final amount still rejects)', () => {
+      const userId = insertUser();
+      const invoiceId = insertInvoice(insertVendor());
+      insertLine(invoiceId, 9000);
+      insertDeposit(invoiceId, { amount: 6000, status: 'paid', paidDate: '2026-01-20' });
+
+      expect(() => convertQuotation(db, invoiceId, request({ amount: 8000 }), userId)).toThrow(
+        ItemizedSumExceedsInvoiceError,
+      );
+      expect(getInvoiceRow(invoiceId).status).toBe('quotation');
     });
 
     it('accepts net deposits exactly equal to the final amount', () => {

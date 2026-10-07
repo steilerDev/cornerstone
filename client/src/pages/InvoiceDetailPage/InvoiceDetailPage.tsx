@@ -196,14 +196,6 @@ export function InvoiceDetailPage() {
               itemizedTotal: formatCurrency(itemizedTotal),
             }),
           );
-        } else if (err.error.code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          const netDeposits =
-            (err.error.details as { netDeposits?: number } | undefined)?.netDeposits ?? 0;
-          setEditError(
-            t('invoiceDetail.messages.amountBelowNetDeposits', {
-              netDeposits: formatCurrency(netDeposits),
-            }),
-          );
         } else {
           setEditError(translateApiError(err.error.code, tErrors));
         }
@@ -380,6 +372,7 @@ export function InvoiceDetailPage() {
         <InvoiceDepositsSection
           invoiceId={id!}
           invoiceStatus={invoice.status}
+          invoiceAmount={invoice.amount}
           deposits={invoice.deposits}
           finalPaymentAmount={invoice.finalPaymentAmount}
           onDepositMutated={() => void loadInvoice()}

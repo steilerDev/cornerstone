@@ -737,7 +737,7 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
             <div
               id={ids.overpaidBanner}
               className={styles.overpaidBanner}
-              role="alert"
+              role="status"
               data-testid="convert-overpaid-banner"
             >
               <p className={styles.overpaidMessage}>

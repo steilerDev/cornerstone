@@ -4,8 +4,8 @@
  * A quotation invoice shows a "Convert to final invoice" button on the Invoice Detail page.
  * The conversion flow (ConvertQuotationModal) lets the user set the final amount, proposes
  * pro-rata amounts for the existing itemized budget lines, surfaces the deposits/final-payment
- * arithmetic, blocks confirmation when deposits exceed the final amount (with an in-flow
- * "Add refund" sub-flow), and submits everything atomically via
+ * arithmetic, shows an advisory overpaid banner when deposits exceed the final amount (with an in-flow
+ * optional "Add refund" sub-flow), and submits everything atomically via
  * POST /api/invoices/:invoiceId/convert-quotation.
  *
  * Scenarios (numbering follows the E2E spec):
@@ -14,7 +14,8 @@
  *   3.  Keep existing itemization
  *   4.  Over-allocation blocks Confirm
  *   5.  Quotation without budget lines
- *   6.  Overpaid deposit -> Add refund round trip -> Confirm
+ *   6.  Overpaid deposit (advisory) -> Add refund round trip -> Confirm
+ *   6b. Convert with overpaid deposits and no refund succeeds
  *   7.  Already paid (status radio)
  *   8.  Cancel and Escape discard everything
  *   9.  Paperless not configured (default env)
@@ -553,7 +554,7 @@ test.describe('Quotation conversion - no budget lines (Scenario 5)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', () => {
-  test('Overpaid banner blocks Confirm; Add refund round trip keeps state and unblocks', async ({
+  test('Overpaid banner is advisory; Add refund round trip still works', async ({
     page,
     testPrefix,
   }) => {
@@ -574,7 +575,8 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
 
       await detail.convertFinalAmount.fill('5000');
       await expect(detail.convertOverpaidBanner).toBeVisible();
-      await expect(detail.convertConfirm).toBeDisabled();
+      await expect(detail.convertOverpaidBanner).toHaveAttribute('role', 'status');
+      await expect(detail.convertConfirm).toBeEnabled();
 
       // Scenario 17: focus trap - Tab never leaves the dialog
       await detail.convertFinalAmount.focus();
@@ -617,6 +619,49 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
       expect(invoice.deposits.find((d) => d.entryType === 'deposit')?.amount).toBe(6000);
       expect(invoice.deposits.find((d) => d.entryType === 'refund')?.amount).toBe(1000);
       expect(invoice.amount).toBe(5000);
+    } finally {
+      await cleanup(page, fixture);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 6b: Overpaid deposits, no refund -> confirm succeeds
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', () => {
+  test('Confirm succeeds with deposits above the final amount; nothing is auto-refunded', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(viewportKind(page) === 'mobile', 'Desktop/tablet layout');
+    const detail = new InvoiceDetailPage(page);
+    let fixture: Fixture | null = null;
+    try {
+      fixture = await createQuotation(page, testPrefix, { lines: [] });
+      await createDepositViaApi(page, fixture.invoiceId, {
+        amount: 6000,
+        dueDate: '2026-02-01',
+        status: 'paid',
+        paidDate: '2026-02-01',
+      });
+      await detail.goto(fixture.invoiceId);
+      await detail.openConvert();
+
+      await detail.convertFinalAmount.fill('5000');
+      await expect(detail.convertOverpaidBanner).toBeVisible();
+      await expect(detail.convertConfirm).toBeEnabled();
+
+      expect(await detail.confirmConvert()).toBe(200);
+      await expect(detail.statusBadge).toContainText('Pending');
+
+      const invoice = await getInvoice(page, fixture.invoiceId);
+      expect(invoice.amount).toBe(5000);
+      expect(invoice.deposits).toHaveLength(1);
+      expect(invoice.deposits[0]?.entryType).toBe('deposit');
+      expect(invoice.deposits[0]?.amount).toBe(6000);
+      expect(invoice.deposits.filter((d) => d.entryType === 'refund')).toHaveLength(0);
+      await expect(detail.finalPaymentAmount).toHaveText(/^\D*0[.,]00\D*$/);
     } finally {
       await cleanup(page, fixture);
     }
@@ -1000,7 +1045,7 @@ test.describe('Quotation conversion - dark mode (Scenario 16)', () => {
       await detail.convertFinalAmount.fill('5000');
       await expect(detail.convertOverpaidBanner).toBeVisible();
       await expect(detail.convertDialog).toBeVisible();
-      await expect(detail.convertConfirm).toBeDisabled();
+      await expect(detail.convertConfirm).toBeEnabled();
     } finally {
       await cleanup(page, fixture);
     }

@@ -220,7 +220,6 @@ export function useConvertQuotation({
     Object.keys(fieldErrors).length === 0 &&
     invalidLineIds.size === 0 &&
     !overAllocated &&
-    shortfall === 0 &&
     !isSaving &&
     aiState !== 'analyzing';
 
@@ -539,10 +538,7 @@ export function useConvertQuotation({
     } catch (err) {
       if (err instanceof ApiClientError) {
         const code = err.error.code;
-        if (code === 'DEPOSITS_EXCEED_INVOICE_TOTAL') {
-          setSaveError(t('invoiceDetail.convertModal.errors.depositsExceed'));
-          void refreshInvoice().catch(() => undefined);
-        } else if (code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
+        if (code === 'ITEMIZED_SUM_EXCEEDS_INVOICE') {
           setSaveError(t('invoiceDetail.convertModal.errors.itemizedExceeds'));
         } else if (code === 'INVOICE_NOT_QUOTATION') {
           setSaveError(t('invoiceDetail.convertModal.errors.notQuotation'));

@@ -314,21 +314,46 @@ describe('#1959 inline PDF label typography', () => {
   }
 });
 
-describe('#2127 refund net-rule error keys', () => {
-  const keys = ['refundReductionExceedsTotal', 'refundDeleteExceedsTotal'] as const;
-  const bundles = { en: enBudget, de: deBudget } as Record<string, unknown>;
+describe('#2188 deposits-exceed-invoice copy', () => {
+  type DepositsBundle = {
+    invoiceDetail: {
+      deposits: { errors: Record<string, string>; form: Record<string, string> };
+      convertModal: {
+        errors: Record<string, string>;
+        overpaid: Record<string, string>;
+      };
+      messages: Record<string, string>;
+    };
+  };
+  const bundles = { en: enBudget, de: deBudget } as unknown as Record<string, DepositsBundle>;
 
   for (const [locale, bundle] of Object.entries(bundles)) {
-    for (const key of keys) {
-      it(`${locale}: budget invoiceDetail.deposits.errors.${key} exists and keeps {{minimumRefundAmount}}`, () => {
-        const errors = (
-          bundle as {
-            invoiceDetail: { deposits: { errors: Record<string, string> } };
-          }
-        ).invoiceDetail.deposits.errors;
-        expect(typeof errors[key]).toBe('string');
-        expect(errors[key]).toContain('{{minimumRefundAmount}}');
-      });
-    }
+    it(`${locale}: removed net-deposit error keys are gone`, () => {
+      const { deposits, convertModal, messages } = bundle.invoiceDetail;
+      expect(deposits.errors).not.toHaveProperty('exceedsTotal');
+      expect(deposits.errors).not.toHaveProperty('refundReductionExceedsTotal');
+      expect(deposits.errors).not.toHaveProperty('refundDeleteExceedsTotal');
+      expect(convertModal.errors).not.toHaveProperty('depositsExceed');
+      expect(messages).not.toHaveProperty('amountBelowNetDeposits');
+    });
+
+    it(`${locale}: deposits.form.exceedsInvoiceWarning exists and keeps {{amount}}`, () => {
+      const value = bundle.invoiceDetail.deposits.form.exceedsInvoiceWarning;
+      expect(typeof value).toBe('string');
+      expect(value).toContain('{{amount}}');
+    });
+
+    it(`${locale}: refundExceedsTotal keeps {{availableHeadroom}}`, () => {
+      expect(bundle.invoiceDetail.deposits.errors.refundExceedsTotal).toContain(
+        '{{availableHeadroom}}',
+      );
+    });
+
+    it(`${locale}: convertModal.overpaid.message keeps {{shortfall}} and {{deposits}}; resolved is a string`, () => {
+      const { overpaid } = bundle.invoiceDetail.convertModal;
+      expect(overpaid.message).toContain('{{shortfall}}');
+      expect(overpaid.message).toContain('{{deposits}}');
+      expect(typeof overpaid.resolved).toBe('string');
+    });
   }
 });

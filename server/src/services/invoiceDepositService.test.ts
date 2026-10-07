@@ -22,7 +22,6 @@ import {
 import * as invoiceService from './invoiceService.js';
 import {
   NotFoundError,
-  DepositsExceedInvoiceTotalError,
   RefundExceedsInvoiceError,
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
@@ -153,47 +152,24 @@ describe('invoiceDepositService', () => {
       expect(deposit.amount).toBe(1000);
     });
 
-    it('scenario 3: create deposit exceeding invoice amount throws DepositsExceedInvoiceTotalError with correct details', () => {
+    it('scenario 3: create deposit exceeding invoice amount succeeds (#2188: deposits never checked against the amount)', () => {
       const { userId, invoiceId } = setup();
 
-      expect(() => {
-        createDeposit(db, invoiceId, { amount: 1001, dueDate: '2026-02-01' }, userId);
-      }).toThrow(DepositsExceedInvoiceTotalError);
+      const deposit = createDeposit(db, invoiceId, { amount: 1500, dueDate: '2026-02-01' }, userId);
 
-      try {
-        createDeposit(db, invoiceId, { amount: 1001, dueDate: '2026-02-01' }, userId);
-      } catch (e) {
-        const err = e as DepositsExceedInvoiceTotalError;
-        expect(err.details).toMatchObject({
-          invoiceTotal: 1000,
-          currentDepositSum: 0,
-          requestedAmount: 1001,
-          availableHeadroom: 1000,
-        });
-      }
+      expect(deposit.amount).toBe(1500);
+      expect(listDepositsForInvoice(db, invoiceId)).toHaveLength(1);
     });
 
-    it('scenario 4: first and second deposits within headroom succeed; third that exceeds is rejected', () => {
+    it('scenario 4: a third deposit pushing net deposits above the invoice amount succeeds and all rows persist', () => {
       const { userId, invoiceId } = setup();
 
       createDeposit(db, invoiceId, { amount: 400, dueDate: '2026-02-01' }, userId);
       createDeposit(db, invoiceId, { amount: 400, dueDate: '2026-02-02' }, userId);
+      const third = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-03' }, userId);
 
-      expect(() => {
-        createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-03' }, userId);
-      }).toThrow(DepositsExceedInvoiceTotalError);
-
-      try {
-        createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-03' }, userId);
-      } catch (e) {
-        const err = e as DepositsExceedInvoiceTotalError;
-        expect(err.details).toMatchObject({
-          invoiceTotal: 1000,
-          currentDepositSum: 800,
-          requestedAmount: 300,
-          availableHeadroom: 200,
-        });
-      }
+      expect(third.amount).toBe(300);
+      expect(getDepositEntryTotals(db, invoiceId).depositTotal).toBe(1100);
     });
 
     it('scenario 5: update deposit amount within headroom succeeds', () => {
@@ -205,16 +181,16 @@ describe('invoiceDepositService', () => {
       expect(updated.amount).toBe(500);
     });
 
-    it('scenario 6: update deposit amount that would exceed invoice total throws DepositsExceedInvoiceTotalError', () => {
+    it('scenario 6: update deposit amount so that the total exceeds the invoice amount succeeds', () => {
       const { userId, invoiceId } = setup();
 
       createDeposit(db, invoiceId, { amount: 400, dueDate: '2026-02-01' }, userId);
       const deposit2 = createDeposit(db, invoiceId, { amount: 300, dueDate: '2026-02-02' }, userId);
 
-      // deposit2 is 300, other is 400 — trying to update deposit2 to 700 would make total 1100
-      expect(() => {
-        updateDeposit(db, invoiceId, deposit2.id, { amount: 700 });
-      }).toThrow(DepositsExceedInvoiceTotalError);
+      const updated = updateDeposit(db, invoiceId, deposit2.id, { amount: 700 });
+
+      expect(updated.amount).toBe(700);
+      expect(getDepositEntryTotals(db, invoiceId).depositTotal).toBe(1100);
     });
 
     it('scenario 7: update deposit amount to same value succeeds (self-exclusion)', () => {
@@ -247,28 +223,15 @@ describe('invoiceDepositService', () => {
       expect(deposit3.amount).toBe(334.11);
     });
 
-    it('scenario 9: still rejects a create that genuinely exceeds the invoice total by one cent, reporting correct availableHeadroom', () => {
+    it('scenario 9: a deposit one cent over the invoice total is accepted (no deposit cap)', () => {
       const { userId, invoiceId } = setup();
 
       createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
       createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
 
-      expect(() => {
-        createDeposit(db, invoiceId, { amount: 334.12, dueDate: '2026-02-03' }, userId); // mathematically 1000.01
-      }).toThrow(DepositsExceedInvoiceTotalError);
+      const d = createDeposit(db, invoiceId, { amount: 334.12, dueDate: '2026-02-03' }, userId);
 
-      try {
-        createDeposit(db, invoiceId, { amount: 334.12, dueDate: '2026-02-03' }, userId);
-      } catch (e) {
-        const err = e as DepositsExceedInvoiceTotalError;
-        expect(err.details).toMatchObject({
-          invoiceTotal: 1000,
-          requestedAmount: 334.12,
-        });
-        // availableHeadroom must reflect the non-float-noise remaining headroom
-        // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
-        expect(err.details?.availableHeadroom as number).toBeCloseTo(334.11);
-      }
+      expect(d.amount).toBe(334.12);
     });
 
     it('scenario 10: update that sums to exactly the invoice total despite floating-point summation noise (issue #1806)', () => {
@@ -283,25 +246,14 @@ describe('invoiceDepositService', () => {
       expect(updated.amount).toBe(334.11);
     });
 
-    it('scenario 11: still rejects an update that genuinely exceeds the invoice total by one cent, reporting correct availableHeadroom', () => {
+    it('scenario 11: an update one cent over the invoice total is accepted (no deposit cap)', () => {
       const { userId, invoiceId } = setup();
 
       createDeposit(db, invoiceId, { amount: 332.85, dueDate: '2026-02-01' }, userId);
       createDeposit(db, invoiceId, { amount: 333.04, dueDate: '2026-02-02' }, userId);
       const deposit3 = createDeposit(db, invoiceId, { amount: 100, dueDate: '2026-02-03' }, userId);
 
-      expect(() => {
-        updateDeposit(db, invoiceId, deposit3.id, { amount: 334.12 }); // mathematically 1000.01
-      }).toThrow(DepositsExceedInvoiceTotalError);
-
-      try {
-        updateDeposit(db, invoiceId, deposit3.id, { amount: 334.12 });
-      } catch (e) {
-        const err = e as DepositsExceedInvoiceTotalError;
-        // availableHeadroom must reflect the non-float-noise remaining headroom
-        // (1000 - (332.85 + 333.04)), not a value polluted by summation noise.
-        expect(err.details?.availableHeadroom as number).toBeCloseTo(334.11);
-      }
+      expect(updateDeposit(db, invoiceId, deposit3.id, { amount: 334.12 }).amount).toBe(334.12);
     });
   });
 
@@ -985,28 +937,23 @@ describe('invoiceDepositService', () => {
       expect(deposit.amount).toBe(9000);
       expect(refund.amount).toBe(9000);
 
-      // Exceeding either cap fails with its own distinct error code. #2109 (sanctioned
-      // contract change): the deposit cap is now NET of refunds (9000 + x - 9000 > 10000),
-      // so a +1001 deposit is allowed; it takes +10000.01 to exceed it. Refund cap stays gross.
-      let depositError: unknown;
-      try {
+      // #2188: deposits have no cap at all, so a large deposit is accepted; the refund cap is
+      // max(invoice amount, gross deposits), so a refund beyond it is what fails.
+      expect(
         createDeposit(
           db,
           invoiceId,
           { amount: 10000.01, dueDate: '2026-02-03', entryType: 'deposit' },
           userId,
-        );
-      } catch (err) {
-        depositError = err;
-      }
-      expect(depositError).toBeInstanceOf(DepositsExceedInvoiceTotalError);
+        ).amount,
+      ).toBe(10000.01);
 
       let refundError: unknown;
       try {
         createDeposit(
           db,
           invoiceId,
-          { amount: 1001, dueDate: '2026-02-04', entryType: 'refund' },
+          { amount: 10001.02, dueDate: '2026-02-04', entryType: 'refund' },
           userId,
         );
       } catch (err) {
@@ -1677,9 +1624,9 @@ describe('invoiceDepositService', () => {
     });
   });
 
-  // ─── #2109 net-of-refunds deposit rule, #2113 impossible dates ───────────────
+  // ─── #2188: deposits may exceed the invoice amount; refund cap = max(amount, deposits) ──
 
-  describe('net-of-refunds deposit rule (#2109)', () => {
+  describe('over-deposit is allowed (#2188)', () => {
     function mk(
       userId: string,
       invoiceId: string,
@@ -1689,121 +1636,68 @@ describe('invoiceDepositService', () => {
       return createDeposit(db, invoiceId, { amount, dueDate: '2026-02-01', entryType }, userId);
     }
 
-    function caught(fn: () => unknown): DepositsExceedInvoiceTotalError {
-      try {
-        fn();
-      } catch (e) {
-        return e as DepositsExceedInvoiceTotalError;
-      }
-      throw new Error('expected function to throw');
+    function amountInDb(id: string): number | undefined {
+      return db
+        .select({ amount: schema.invoiceDeposits.amount })
+        .from(schema.invoiceDeposits)
+        .where(eq(schema.invoiceDeposits.id, id))
+        .get()?.amount;
     }
 
-    it('scenario 10: create deposit whose net-of-refund total exceeds the invoice is rejected with full details; 300 headroom fits', () => {
+    function lowerInvoice(invoiceId: string, amount: number) {
+      db.update(schema.invoices).set({ amount }).where(eq(schema.invoices.id, invoiceId)).run();
+    }
+
+    it('create deposit with no existing entries and amount 1500 on a 1000 invoice succeeds', () => {
+      const { userId, invoiceId } = setup();
+      const d = mk(userId, invoiceId, 'deposit', 1500);
+      expect(amountInDb(d.id)).toBe(1500);
+    });
+
+    it('adding a deposit when net deposits already exceed the invoice succeeds', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'deposit', 1200);
+      const d = mk(userId, invoiceId, 'deposit', 100);
+      expect(d.amount).toBe(100);
+      expect(getDepositEntryTotals(db, invoiceId).depositTotal).toBe(1300);
+    });
+
+    it('editing a deposit so net exceeds the invoice amount succeeds', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'deposit', 600);
+      const d = mk(userId, invoiceId, 'deposit', 300);
+      expect(updateDeposit(db, invoiceId, d.id, { amount: 900 }).amount).toBe(900);
+    });
+
+    it('deposit above the invoice with refunds present succeeds (no net rule)', () => {
       const { userId, invoiceId } = setup();
       mk(userId, invoiceId, 'deposit', 800);
       mk(userId, invoiceId, 'refund', 100);
-
-      const err = caught(() => mk(userId, invoiceId, 'deposit', 400));
-      expect(err).toBeInstanceOf(DepositsExceedInvoiceTotalError);
-      expect(err.details).toEqual({
-        invoiceTotal: 1000,
-        currentDepositSum: 800,
-        refundTotal: 100,
-        requestedAmount: 400,
-        netDeposits: 1100,
-        availableHeadroom: 300,
-      });
-
-      expect(mk(userId, invoiceId, 'deposit', 300).amount).toBe(300);
+      expect(mk(userId, invoiceId, 'deposit', 400).amount).toBe(400);
     });
 
-    it('scenario 11: deposit 1000 + refund 300 → a further deposit of 300 is ok, then 0.01 is rejected with headroom 0', () => {
+    it('status change on an over-deposited invoice succeeds', () => {
       const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
-      mk(userId, invoiceId, 'refund', 300);
-
-      expect(mk(userId, invoiceId, 'deposit', 300).amount).toBe(300);
-
-      const err = caught(() => mk(userId, invoiceId, 'deposit', 0.01));
-      expect(err.details?.availableHeadroom).toBe(0);
+      mk(userId, invoiceId, 'deposit', 600);
+      const d = mk(userId, invoiceId, 'deposit', 600);
+      const updated = updateDeposit(db, invoiceId, d.id, { amount: 600, status: 'paid' });
+      expect(updated.status).toBe('paid');
     });
 
-    describe('scenario 12: invoice lowered below existing deposits (legacy state)', () => {
-      function legacy() {
-        const { userId, invoiceId } = setup();
-        const d1 = mk(userId, invoiceId, 'deposit', 600);
-        const d2 = mk(userId, invoiceId, 'deposit', 400);
-        db.update(schema.invoices)
-          .set({ amount: 600 })
-          .where(eq(schema.invoices.id, invoiceId))
-          .run();
-        return { userId, invoiceId, d1, d2 };
-      }
-
-      it('allows decreasing a deposit', () => {
-        const { invoiceId, d2 } = legacy();
-        expect(updateDeposit(db, invoiceId, d2.id, { amount: 300 }).amount).toBe(300);
-      });
-
-      it('allows a status change with the same amount', () => {
-        const { invoiceId, d2 } = legacy();
-        const updated = updateDeposit(db, invoiceId, d2.id, { amount: 400, status: 'paid' });
-        expect(updated.status).toBe('paid');
-      });
-
-      it('rejects increasing a deposit (net check, excluding the entry itself)', () => {
-        const { invoiceId, d2 } = legacy();
-        const err = caught(() => updateDeposit(db, invoiceId, d2.id, { amount: 401 }));
-        expect(err.details).toMatchObject({
-          invoiceTotal: 600,
-          currentDepositSum: 600,
-          requestedAmount: 401,
-        });
-      });
-    });
-
-    it('scenario 13: refund gross rule unchanged; decreasing a refund beyond-cap is allowed; increase past headroom rejected', () => {
+    it('invoice lowered below existing deposits: deposit decrease, increase and delete all succeed', () => {
       const { userId, invoiceId } = setup();
-      const r1 = mk(userId, invoiceId, 'refund', 600);
-      mk(userId, invoiceId, 'refund', 400);
-      db.update(schema.invoices)
-        .set({ amount: 800 })
-        .where(eq(schema.invoices.id, invoiceId))
-        .run();
+      const d1 = mk(userId, invoiceId, 'deposit', 600);
+      const d2 = mk(userId, invoiceId, 'deposit', 400);
+      lowerInvoice(invoiceId, 500);
 
-      expect(updateDeposit(db, invoiceId, r1.id, { amount: 500 }).amount).toBe(500);
-      expect(() => updateDeposit(db, invoiceId, r1.id, { amount: 600 })).toThrow(
-        RefundExceedsInvoiceError,
-      );
-    });
-
-    it('create refund past the gross cap still throws RefundExceedsInvoiceError regardless of deposits', () => {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'refund', 1000);
-      expect(() => mk(userId, invoiceId, 'refund', 1)).toThrow(RefundExceedsInvoiceError);
-    });
-
-    it('decreasing a deposit amount skips the sum check (same amount also ok)', () => {
-      const { userId, invoiceId } = setup();
-      const d = mk(userId, invoiceId, 'deposit', 500);
-      expect(updateDeposit(db, invoiceId, d.id, { amount: 500 }).amount).toBe(500);
-      expect(updateDeposit(db, invoiceId, d.id, { amount: 100 }).amount).toBe(100);
-    });
-
-    it('increasing a deposit within net headroom (refunds offset) succeeds', () => {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 900);
-      mk(userId, invoiceId, 'refund', 500);
-      const d = mk(userId, invoiceId, 'deposit', 100);
-      // others 900, refunds 500, headroom for this entry = 1000 + 500 - 900 = 600
-      expect(updateDeposit(db, invoiceId, d.id, { amount: 600 }).amount).toBe(600);
-      expect(() => updateDeposit(db, invoiceId, d.id, { amount: 600.01 })).toThrow(
-        DepositsExceedInvoiceTotalError,
-      );
+      expect(updateDeposit(db, invoiceId, d2.id, { amount: 300 }).amount).toBe(300);
+      expect(updateDeposit(db, invoiceId, d2.id, { amount: 401 }).amount).toBe(401);
+      deleteDeposit(db, invoiceId, d1.id);
+      expect(amountInDb(d1.id)).toBeUndefined();
     });
   });
 
-  describe('refund decrease/delete net rule (#2127)', () => {
+  describe('refund cap = max(invoice amount, gross deposits) (#2188)', () => {
     function mk(
       userId: string,
       invoiceId: string,
@@ -1813,11 +1707,12 @@ describe('invoiceDepositService', () => {
       return createDeposit(db, invoiceId, { amount, dueDate: '2026-02-01', entryType }, userId);
     }
 
-    function caught(fn: () => unknown): DepositsExceedInvoiceTotalError {
+    function refundError(fn: () => unknown): RefundExceedsInvoiceError {
       try {
         fn();
       } catch (e) {
-        return e as DepositsExceedInvoiceTotalError;
+        expect(e).toBeInstanceOf(RefundExceedsInvoiceError);
+        return e as RefundExceedsInvoiceError;
       }
       throw new Error('expected function to throw');
     }
@@ -1830,91 +1725,105 @@ describe('invoiceDepositService', () => {
         .get()?.amount;
     }
 
-    /** deposit 1000, refund `refund`, deposit `extra` on a 1000 invoice. */
-    function withRefund(refund: number, extra: number) {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
-      const r = mk(userId, invoiceId, 'refund', refund);
-      mk(userId, invoiceId, 'deposit', extra);
-      return { userId, invoiceId, r };
-    }
-
     function lowerInvoice(invoiceId: string, amount: number) {
       db.update(schema.invoices).set({ amount }).where(eq(schema.invoices.id, invoiceId)).run();
     }
 
-    it('scenario 1: lowering a refund so net exceeds the invoice throws with full details; DB unchanged', () => {
-      const { invoiceId, r } = withRefund(300, 300);
+    it('invoice 1000 with gross deposits 1500: refunds totalling exactly 1500 are accepted', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'deposit', 1500);
+      mk(userId, invoiceId, 'refund', 1000);
+      expect(mk(userId, invoiceId, 'refund', 500).amount).toBe(500);
+    });
 
-      const err = caught(() => updateDeposit(db, invoiceId, r.id, { amount: 299.99 }));
-      expect(err).toBeInstanceOf(DepositsExceedInvoiceTotalError);
+    it('a refund of 1500.01 is rejected with the full cap details', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'deposit', 1500);
+
+      const err = refundError(() => mk(userId, invoiceId, 'refund', 1500.01));
+
+      expect(err.code).toBe('REFUND_EXCEEDS_INVOICE');
       expect(err.details).toEqual({
         invoiceTotal: 1000,
-        currentDepositSum: 1300,
-        refundTotal: 0,
-        requestedAmount: 299.99,
-        netDeposits: 1000.01,
-        minimumRefundAmount: 300,
+        depositTotal: 1500,
+        refundCap: 1500,
+        currentRefundSum: 0,
+        requestedAmount: 1500.01,
+        availableHeadroom: 1500,
       });
-      expect(amountInDb(r.id)).toBe(300);
+      expect(listDepositsForInvoice(db, invoiceId)).toHaveLength(1);
     });
 
-    it('scenario 2: lowering a refund to exactly net = invoice total succeeds (boundary)', () => {
-      const { invoiceId, r } = withRefund(400, 300);
-
-      expect(updateDeposit(db, invoiceId, r.id, { amount: 300 }).amount).toBe(300);
-      expect(amountInDb(r.id)).toBe(300);
-    });
-
-    it('scenario 3: deleting a refund that would leave net above the invoice throws; row remains', () => {
-      const { invoiceId, r } = withRefund(300, 300);
-
-      const err = caught(() => deleteDeposit(db, invoiceId, r.id));
-      expect(err).toBeInstanceOf(DepositsExceedInvoiceTotalError);
-      expect(err.details).toEqual({
-        invoiceTotal: 1000,
-        currentDepositSum: 1300,
-        refundTotal: 0,
-        requestedAmount: 0,
-        netDeposits: 1300,
-        minimumRefundAmount: 300,
-      });
-      expect(amountInDb(r.id)).toBe(300);
-    });
-
-    it('scenario 4: deleting a refund while net stays within the invoice succeeds; row removed', () => {
+    it('availableHeadroom reflects refunds already recorded', () => {
       const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 600);
-      const r = mk(userId, invoiceId, 'refund', 100);
+      mk(userId, invoiceId, 'deposit', 1500);
+      mk(userId, invoiceId, 'refund', 1200);
 
-      deleteDeposit(db, invoiceId, r.id);
-      expect(amountInDb(r.id)).toBeUndefined();
+      const err = refundError(() => mk(userId, invoiceId, 'refund', 300.01));
+
+      expect(err.details).toMatchObject({ currentRefundSum: 1200, availableHeadroom: 300 });
     });
 
-    it('scenario 4b: deleting a refund at the boundary (net after delete = invoice total) succeeds', () => {
+    it('with deposits below the invoice amount the cap is the invoice amount', () => {
       const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
-      const r = mk(userId, invoiceId, 'refund', 100);
-
-      deleteDeposit(db, invoiceId, r.id);
-      expect(amountInDb(r.id)).toBeUndefined();
-    });
-
-    it('scenario 5: deleting a deposit-type entry is never checked, even in an over-total legacy state', () => {
-      const { userId, invoiceId } = setup();
-      const d1 = mk(userId, invoiceId, 'deposit', 600);
       mk(userId, invoiceId, 'deposit', 400);
-      lowerInvoice(invoiceId, 500);
+      expect(mk(userId, invoiceId, 'refund', 1000).amount).toBe(1000);
 
-      deleteDeposit(db, invoiceId, d1.id);
-      expect(amountInDb(d1.id)).toBeUndefined();
+      const err = refundError(() => mk(userId, invoiceId, 'refund', 0.01));
+      expect(err.details).toMatchObject({
+        invoiceTotal: 1000,
+        depositTotal: 400,
+        refundCap: 1000,
+        availableHeadroom: 0,
+      });
     });
 
-    it('scenario 6: same-amount refund update with a status change succeeds while net is already over', () => {
+    it('with no deposits and refund = invoice total the cap is the invoice amount', () => {
       const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
+      expect(mk(userId, invoiceId, 'refund', 1000).amount).toBe(1000);
+      expect(() => mk(userId, invoiceId, 'refund', 1)).toThrow(RefundExceedsInvoiceError);
+    });
+
+    it('cent-precision boundary: float-noise sum equal to the cap is accepted, one cent over is rejected', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'refund', 332.85);
+      mk(userId, invoiceId, 'refund', 333.04);
+      expect(332.85 + 333.04 + 334.11).not.toBe(1000);
+      expect(mk(userId, invoiceId, 'refund', 334.11).amount).toBe(334.11);
+      expect(() => mk(userId, invoiceId, 'refund', 0.01)).toThrow(RefundExceedsInvoiceError);
+    });
+
+    it('increasing a refund excludes the entry itself and is rejected past the cap', () => {
+      const { userId, invoiceId } = setup();
+      mk(userId, invoiceId, 'deposit', 1500);
+      const r1 = mk(userId, invoiceId, 'refund', 600);
+      mk(userId, invoiceId, 'refund', 400);
+
+      expect(updateDeposit(db, invoiceId, r1.id, { amount: 1100 }).amount).toBe(1100);
+
+      const err = refundError(() => updateDeposit(db, invoiceId, r1.id, { amount: 1100.01 }));
+      expect(err.details).toMatchObject({
+        currentRefundSum: 400,
+        requestedAmount: 1100.01,
+        refundCap: 1500,
+        availableHeadroom: 1100,
+      });
+      expect(amountInDb(r1.id)).toBe(1100);
+    });
+
+    it('refund decrease is never checked, even when refunds already exceed the cap', () => {
+      const { userId, invoiceId } = setup();
+      const r1 = mk(userId, invoiceId, 'refund', 600);
+      mk(userId, invoiceId, 'refund', 400);
+      lowerInvoice(invoiceId, 800);
+
+      expect(updateDeposit(db, invoiceId, r1.id, { amount: 500 }).amount).toBe(500);
+    });
+
+    it('same-amount refund edit (status change) is never checked against the cap', () => {
+      const { userId, invoiceId } = setup();
       const r = mk(userId, invoiceId, 'refund', 300);
-      lowerInvoice(invoiceId, 600); // net 700 > 600
+      lowerInvoice(invoiceId, 100);
 
       const updated = updateDeposit(db, invoiceId, r.id, {
         amount: 300,
@@ -1922,89 +1831,31 @@ describe('invoiceDepositService', () => {
         paidDate: '2026-02-02',
       });
       expect(updated.status).toBe('paid');
-      expect(updated.amount).toBe(300);
     });
 
-    it('scenario 7: raising a refund within the gross cap succeeds even when net is already over; past the cap hits the gross rule', () => {
+    it('cap is checked only at refund write time: deposit decrease/delete after refunds never fails', () => {
+      const { userId, invoiceId } = setup();
+      const d = mk(userId, invoiceId, 'deposit', 1500);
+      mk(userId, invoiceId, 'refund', 1500);
+
+      expect(updateDeposit(db, invoiceId, d.id, { amount: 100 }).amount).toBe(100);
+      deleteDeposit(db, invoiceId, d.id);
+      expect(amountInDb(d.id)).toBeUndefined();
+    });
+
+    it('refund delete is always allowed', () => {
       const { userId, invoiceId } = setup();
       mk(userId, invoiceId, 'deposit', 1000);
-      const r = mk(userId, invoiceId, 'refund', 100);
-      lowerInvoice(invoiceId, 600); // net 900 > 600
+      const r = mk(userId, invoiceId, 'refund', 300);
+      mk(userId, invoiceId, 'deposit', 300);
 
-      expect(updateDeposit(db, invoiceId, r.id, { amount: 200 }).amount).toBe(200);
-      expect(() => updateDeposit(db, invoiceId, r.id, { amount: 601 })).toThrow(
-        RefundExceedsInvoiceError,
-      );
-    });
-
-    it('scenario 8: decreasing a deposit-type entry is never checked by the refund rule', () => {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 600);
-      const d = mk(userId, invoiceId, 'deposit', 400);
-      lowerInvoice(invoiceId, 300);
-
-      expect(updateDeposit(db, invoiceId, d.id, { amount: 399.99 }).amount).toBe(399.99);
-    });
-
-    it('scenario 9: float noise in the JS-side net subtraction does not throw at the boundary', () => {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
-      mk(userId, invoiceId, 'refund', 0.01);
-      const r = mk(userId, invoiceId, 'refund', 0.1);
-      lowerInvoice(invoiceId, 999.93);
-
-      // Precondition: the subtraction really is noisy, so a bare `>` would reject it.
-      expect(1000 - 0.01 - 0.06).toBe(999.9300000000001);
-      expect(1000 - 0.01 - 0.06 > 999.93).toBe(true);
-
-      // net = 1000 - 0.01 - 0.06 = 999.93 in cents: exactly at the invoice total, allowed.
-      expect(updateDeposit(db, invoiceId, r.id, { amount: 0.06 }).amount).toBe(0.06);
-
-      // One cent lower puts net at 999.94 (> 999.93) and must be rejected.
-      expect(() => updateDeposit(db, invoiceId, r.id, { amount: 0.05 })).toThrow(
-        DepositsExceedInvoiceTotalError,
-      );
-    });
-
-    it('scenario 10: with two refunds, refundTotal excludes only the edited refund', () => {
-      const { userId, invoiceId } = setup();
-      mk(userId, invoiceId, 'deposit', 1000);
-      const r1 = mk(userId, invoiceId, 'refund', 300);
-      mk(userId, invoiceId, 'refund', 200);
-      mk(userId, invoiceId, 'deposit', 500); // net 1000
-
-      const patchErr = caught(() => updateDeposit(db, invoiceId, r1.id, { amount: 100 }));
-      expect(patchErr.details).toEqual({
-        invoiceTotal: 1000,
-        currentDepositSum: 1500,
-        refundTotal: 200,
-        requestedAmount: 100,
-        netDeposits: 1200,
-        minimumRefundAmount: 300,
-      });
-
-      const delErr = caught(() => deleteDeposit(db, invoiceId, r1.id));
-      expect(delErr.details).toMatchObject({
-        refundTotal: 200,
-        requestedAmount: 0,
-        minimumRefundAmount: 300,
-      });
+      deleteDeposit(db, invoiceId, r.id);
+      expect(amountInDb(r.id)).toBeUndefined();
     });
 
     it('deleting a non-existent deposit throws NotFoundError', () => {
       const { invoiceId } = setup();
       expect(() => deleteDeposit(db, invoiceId, 'missing')).toThrow(NotFoundError);
-    });
-
-    it('deleteDeposit throws NotFoundError and keeps the refund when the invoice row is gone', () => {
-      const { userId, invoiceId } = setup();
-      const r = mk(userId, invoiceId, 'refund', 100);
-      // Simulate an invoice that vanished between ownership check and transaction.
-      sqlite.pragma('foreign_keys = OFF');
-      db.delete(schema.invoices).where(eq(schema.invoices.id, invoiceId)).run();
-      sqlite.pragma('foreign_keys = ON');
-      expect(() => deleteDeposit(db, invoiceId, r.id)).toThrow(NotFoundError);
-      expect(amountInDb(r.id)).toBe(100);
     });
   });
 

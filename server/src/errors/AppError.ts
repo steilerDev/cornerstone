@@ -333,16 +333,6 @@ export class InvoiceNotQuotationError extends AppError {
   }
 }
 
-export class DepositsExceedInvoiceTotalError extends AppError {
-  constructor(
-    message = 'Sum of deposit amounts would exceed the invoice total',
-    details?: Record<string, unknown>,
-  ) {
-    super('DEPOSITS_EXCEED_INVOICE_TOTAL', 400, message, details);
-    this.name = 'DepositsExceedInvoiceTotalError';
-  }
-}
-
 export class InvalidDepositStatusTransitionError extends AppError {
   constructor(
     message = 'Deposit status transition is not allowed',

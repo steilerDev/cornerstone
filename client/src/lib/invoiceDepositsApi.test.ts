@@ -229,20 +229,22 @@ describe('invoiceDepositsApi', () => {
       expect(body.claimedDate).toBe('2026-02-15');
     });
 
-    it('propagates DEPOSITS_EXCEED_INVOICE_TOTAL error', async () => {
+    it('propagates REFUND_EXCEEDS_INVOICE error with its headroom details', async () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 400,
         json: async () => ({
           error: {
-            code: 'DEPOSITS_EXCEED_INVOICE_TOTAL',
-            message: 'Deposits exceed invoice total',
-            details: { available: 40 },
+            code: 'REFUND_EXCEEDS_INVOICE',
+            message: 'Refunds exceed cap',
+            details: { availableHeadroom: 40 },
           },
         }),
       } as Response);
 
-      await expect(createDeposit(INVOICE_ID, createPayload)).rejects.toThrow();
+      await expect(createDeposit(INVOICE_ID, createPayload)).rejects.toMatchObject({
+        error: { code: 'REFUND_EXCEEDS_INVOICE', details: { availableHeadroom: 40 } },
+      });
     });
 
     it('propagates 401 UNAUTHORIZED error', async () => {
