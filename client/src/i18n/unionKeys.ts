@@ -14,21 +14,30 @@
  */
 import {
   ATTACHMENT_TYPES,
+  BUDGET_SOURCE_STATUSES,
   BUDGET_SOURCE_TYPES,
+  BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
   DIARY_ENTRY_TYPES,
+  DIARY_ISSUE_RESOLUTIONS,
   DIARY_SOURCE_ENTITY_TYPES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
+  INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
+  MANUAL_DIARY_ENTRY_TYPES,
+  MILESTONE_DISPLAY_STATUSES,
   OIDC_LOGIN_ERROR_CODES,
+  SCHEDULE_SIGNALS,
   SOURCE_REPORT_TYPES,
   SUBSIDY_APPLICATION_STATUSES,
+  WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
-export type UnionKeyNamespace = 'budget' | 'documents' | 'householdItems' | 'diary' | 'auth';
+export type UnionKeyNamespace =
+  'budget' | 'documents' | 'householdItems' | 'diary' | 'auth' | 'common';
 
 export interface UnionKeySet<U extends string> {
   /** Namespace the consuming t() is bound to. */
@@ -67,7 +76,7 @@ export const I18N_UNION_KEYS = {
   ),
   /** budget — PDF source-type label. */
   reportSourceType: unionKeySet('budget', 'sourceReports.sourceType', BUDGET_SOURCE_TYPES),
-  /** budget — invoice status label (PDF overview Status column). */
+  /** budget — invoice status label (PDF overview Status column). @deprecated superseded by statusVocabularyInvoice; removed by #2195 */
   invoiceStatus: unionKeySet('budget', 'sources.lines.invoiceStatus', INVOICE_STATUSES),
   /** budget — PDF attachment-type note (replaces #1912's ATTACHMENT_TYPE_KEYS). */
   reportAttachmentType: unionKeySet(
@@ -77,17 +86,17 @@ export const I18N_UNION_KEYS = {
   ),
   /** documents — attachment-type label for the document card / live-region announcement. */
   documentAttachmentType: unionKeySet('documents', 'documentCard.attachmentType', ATTACHMENT_TYPES),
-  /** diary — entry-type label (type badge, photo viewer history list). */
+  /** diary — entry-type label (type badge, photo viewer history list). @deprecated superseded by statusVocabularyDiaryType (manual types only); removed by #2195 */
   diaryEntryType: unionKeySet('diary', 'entryTypes', DIARY_ENTRY_TYPES),
-  /** diary — short filter-chip label (DiaryFilterBar). */
+  /** diary — short filter-chip label (DiaryFilterBar). @deprecated superseded by statusVocabularyDiaryType (manual types only); removed by #2195 */
   diaryEntryTypeChip: unionKeySet('diary', 'entryTypeChips', DIARY_ENTRY_TYPES),
   /** budget — source-report use-case title (wizard step 1, report list). */
   reportUseCase: unionKeySet('budget', 'sourceReports.useCase', SOURCE_REPORT_TYPES),
   /** budget — source-report use-case helper text (wizard step 1). */
   reportUseCaseHelper: unionKeySet('budget', 'sourceReports.useCaseHelper', SOURCE_REPORT_TYPES),
-  /** budget — invoice status label on the invoices list / vendor / auto-itemize pages. */
+  /** budget — invoice status label on the invoices list / vendor / auto-itemize pages. @deprecated superseded by statusVocabularyInvoice; removed by #2195 */
   invoicesStatusLabel: unionKeySet('budget', 'invoices.statusLabels', INVOICE_STATUSES),
-  /** budget — invoice status label on the invoice detail page. */
+  /** budget — invoice status label on the invoice detail page. @deprecated superseded by statusVocabularyInvoice; removed by #2195 */
   invoiceDetailStatusLabel: unionKeySet('budget', 'invoiceDetail.statusLabels', INVOICE_STATUSES),
   /** budget — invoice deposit entry-type label. */
   depositEntryType: unionKeySet(
@@ -95,7 +104,7 @@ export const I18N_UNION_KEYS = {
     'invoiceDetail.deposits.entryTypeLabels',
     INVOICE_DEPOSIT_ENTRY_TYPES,
   ),
-  /** budget — subsidy application status label. */
+  /** budget — subsidy application status label. @deprecated superseded by statusVocabularyGrant; removed by #2195 */
   subsidyApplicationStatus: unionKeySet(
     'budget',
     'subsidies.statusLabels',
@@ -105,10 +114,69 @@ export const I18N_UNION_KEYS = {
   confidenceLevel: unionKeySet('budget', 'sources.lines.confidence', CONFIDENCE_LEVELS),
   /** budget — reason a report document was skipped (client-local tuple). */
   reportSkipReason: unionKeySet('budget', 'sourceReports.table', REPORT_SKIP_REASONS),
-  /** householdItems — household item status label. */
+  /** householdItems — household item status label. @deprecated superseded by statusVocabularyPurchase; removed by #2195 */
   householdItemStatus: unionKeySet('householdItems', 'status', HOUSEHOLD_ITEM_STATUSES),
   /** diary — source-entity type label on the diary detail page / card. */
   diarySourceType: unionKeySet('diary', 'detailPage.sourceType', DIARY_SOURCE_ENTITY_TYPES),
   /** auth — OIDC login error banner message. */
   oidcLoginError: unionKeySet('auth', 'login.oidcErrors', OIDC_LOGIN_ERROR_CODES),
+  // ── Canonical status vocabulary (glossary v1, #2192) ─────────────────────────────────────
+  // Exactly ONE canonical set per status vocabulary: namespace 'common', prefix
+  // 'statusVocabulary.<vocabulary>', labels = glossary.json English canon / approved German.
+  // Every status surface reads these; the legacy per-surface duplicates above are removed by
+  // #2195 when the chips switch over.
+  /** common — invoice status chip (pending / paid / claimed / quotation). */
+  statusVocabularyInvoice: unionKeySet('common', 'statusVocabulary.invoice', INVOICE_STATUSES),
+  /** common — progress-payment (deposit) status chip. */
+  statusVocabularyProgressPayment: unionKeySet(
+    'common',
+    'statusVocabulary.progressPayment',
+    INVOICE_DEPOSIT_STATUSES,
+  ),
+  /** common — task status chip. */
+  statusVocabularyTask: unionKeySet('common', 'statusVocabulary.task', WORK_ITEM_STATUSES),
+  /** common — task / purchase schedule signal chip (takes {{days}} for late). */
+  statusVocabularyScheduleSignal: unionKeySet(
+    'common',
+    'statusVocabulary.scheduleSignal',
+    SCHEDULE_SIGNALS,
+  ),
+  /** common — purchase status chip. */
+  statusVocabularyPurchase: unionKeySet(
+    'common',
+    'statusVocabulary.purchase',
+    HOUSEHOLD_ITEM_STATUSES,
+  ),
+  /** common — milestone display status chip (takes {{days}} for late / early). */
+  statusVocabularyMilestone: unionKeySet(
+    'common',
+    'statusVocabulary.milestone',
+    MILESTONE_DISPLAY_STATUSES,
+  ),
+  /** common — grant (subsidy application) status chip. */
+  statusVocabularyGrant: unionKeySet(
+    'common',
+    'statusVocabulary.grant',
+    SUBSIDY_APPLICATION_STATUSES,
+  ),
+  /** common — funding source status chip. */
+  statusVocabularyFundingSource: unionKeySet(
+    'common',
+    'statusVocabulary.fundingSource',
+    BUDGET_SOURCE_STATUSES,
+  ),
+  /** common — defect (diary issue) resolution chip. */
+  statusVocabularyDefect: unionKeySet('common', 'statusVocabulary.defect', DIARY_ISSUE_RESOLUTIONS),
+  /** common — "Left to spend" budget verdict. */
+  statusVocabularyBudgetVerdict: unionKeySet(
+    'common',
+    'statusVocabulary.budgetVerdict',
+    BUDGET_VERDICTS,
+  ),
+  /** common — site-diary entry type (manual types only). */
+  statusVocabularyDiaryType: unionKeySet(
+    'common',
+    'statusVocabulary.diaryType',
+    MANUAL_DIARY_ENTRY_TYPES,
+  ),
 } as const;

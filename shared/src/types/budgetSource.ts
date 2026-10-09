@@ -25,9 +25,15 @@ export const BUDGET_SOURCE_TYPES = [
 export type BudgetSourceType = (typeof BUDGET_SOURCE_TYPES)[number];
 
 /**
+ * Lifecycle statuses of a budget source.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const BUDGET_SOURCE_STATUSES = ['active', 'exhausted', 'closed'] as const;
+
+/**
  * The current lifecycle status of a budget source.
  */
-export type BudgetSourceStatus = 'active' | 'exhausted' | 'closed';
+export type BudgetSourceStatus = (typeof BUDGET_SOURCE_STATUSES)[number];
 
 /**
  * Budget source entity as returned by the API.

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // build-baseline.mjs -- measures the UI pattern counts of client/src and compares them with the
 // committed baseline (plan/restructure/baseline.json). Counting rules are documented verbatim in
-// plan/restructure/README.md; the baseline may only rise through allowedAdditions.
+// plan/restructure/README.md; the baseline may only rise through allowedAdditions, or by a money label that is an English glossary form.
 //
 // Usage: node plan/restructure/scripts/build-baseline.mjs [--check|--write] [--client <dir>]
 //   --check (default): exit 1 on rises; drops, new screens and consumed allowed additions
@@ -558,13 +558,46 @@ export function auditClient(clientSrcDir) {
 
 // --- comparison -----------------------------------------------------------------------
 
+/** English forms a glossary term may appear as (client/src/i18n/glossary.json, schema v2). */
+const GLOSSARY_EN_FORM_KEYS = [
+  'singular',
+  'plural',
+  'verb',
+  'noun',
+  'chip',
+  'sentence',
+  'shortForm',
+];
+
+/**
+ * Normalised English forms of every glossary term — the owner-approved vocabulary. A new money
+ * label equal to one of them is recorded by plan:build, not counted as a rise.
+ * @param {any} glossary parsed glossary.json (missing/odd shapes yield an empty set)
+ * @returns {Set<string>}
+ */
+export function glossaryLabels(glossary) {
+  const out = new Set();
+  const terms = glossary?.terms;
+  if (!terms || typeof terms !== 'object') return out;
+  for (const term of Object.values(terms)) {
+    for (const k of GLOSSARY_EN_FORM_KEYS) {
+      const value = term?.en?.[k];
+      if (typeof value !== 'string' || value === '') continue;
+      const norm = normalizeLabel(value);
+      if (norm) out.add(norm);
+    }
+  }
+  return out;
+}
+
 /**
  * Compare a measurement with the baseline.
  * @param {any} baseline parsed baseline.json
  * @param {ReturnType<typeof auditClient>} measured
+ * @param {Set<string>} [approvedLabels] normalised glossary labels (see glossaryLabels)
  * @returns {{ rises: string[], drops: string[], unrecorded: string[] }}
  */
-export function compareBaseline(baseline, measured) {
+export function compareBaseline(baseline, measured, approvedLabels = new Set()) {
   const rises = [];
   const drops = [];
   const unrecorded = [];
@@ -608,7 +641,10 @@ export function compareBaseline(baseline, measured) {
 
   const baseLabels = new Set(base.moneyLabels?.values ?? []);
   for (const label of measured.moneyLabels.values) {
-    if (!baseLabels.has(label)) rises.push(`moneyLabels: new label "${label}"`);
+    if (baseLabels.has(label)) continue;
+    if (approvedLabels.has(label))
+      unrecorded.push(`moneyLabels: glossary label "${label}" not yet recorded`);
+    else rises.push(`moneyLabels: new label "${label}"`);
   }
   for (const label of baseLabels) {
     if (!measured.moneyLabels.values.includes(label)) drops.push(`moneyLabels: "${label}" removed`);
@@ -650,6 +686,8 @@ export async function run({ root = REPO_ROOT, mode = 'check', clientDir } = {}) 
   if (!existsSync(clientSrc)) return { name, errors: [`input missing: ${clientSrc}`], notes: [] };
 
   const measured = auditClient(clientSrc);
+  const glossaryPath = join(clientSrc, 'i18n/glossary.json');
+  const approved = existsSync(glossaryPath) ? glossaryLabels(readJson(glossaryPath)) : new Set();
   const existing = existsSync(baselinePath) ? readJson(baselinePath) : null;
   const errors = [];
   const notes = [];
@@ -662,7 +700,7 @@ export async function run({ root = REPO_ROOT, mode = 'check', clientDir } = {}) 
         notes,
       };
     }
-    const { rises, drops, unrecorded } = compareBaseline(existing, measured);
+    const { rises, drops, unrecorded } = compareBaseline(existing, measured, approved);
     errors.push(...rises);
     const behind = [...drops, ...unrecorded];
     if (behind.length > 0) {
@@ -673,7 +711,7 @@ export async function run({ root = REPO_ROOT, mode = 'check', clientDir } = {}) 
   }
 
   if (existing) {
-    const { rises } = compareBaseline(existing, measured);
+    const { rises } = compareBaseline(existing, measured, approved);
     if (rises.length > 0) {
       return { name, errors: ['refusing to write while rises exist:', ...rises], notes };
     }

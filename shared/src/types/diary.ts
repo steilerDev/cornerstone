@@ -61,8 +61,14 @@ export type DiaryInspectionOutcome = 'pass' | 'fail' | 'conditional';
 /** Issue severity levels. */
 export type DiaryIssueSeverity = 'low' | 'medium' | 'high' | 'critical';
 
+/**
+ * Issue resolution statuses.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const DIARY_ISSUE_RESOLUTIONS = ['open', 'in_progress', 'resolved'] as const;
+
 /** Issue resolution status. */
-export type DiaryIssueResolution = 'open' | 'in_progress' | 'resolved';
+export type DiaryIssueResolution = (typeof DIARY_ISSUE_RESOLUTIONS)[number];
 
 /** Metadata for daily_log entries. */
 export interface DailyLogMetadata {

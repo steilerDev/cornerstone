@@ -5,6 +5,17 @@
  */
 
 /**
+ * Derived schedule signals shown next to a task's or purchase's stored status (glossary v1:
+ * Late · n d, Held up, Critical). Derived from isLate / isHeldUp / critical-path membership;
+ * never stored. Purchases use only 'late'.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const SCHEDULE_SIGNALS = ['late', 'held_up', 'critical'] as const;
+
+/** A derived schedule signal. */
+export type ScheduleSignal = (typeof SCHEDULE_SIGNALS)[number];
+
+/**
  * Request body for POST /api/schedule.
  */
 export interface ScheduleRequest {

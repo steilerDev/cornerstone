@@ -4034,7 +4034,7 @@
     "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change."
+    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases."
   },
   "PLT-102": {
     "name": "Create a photo orientation (viewing direction) with description and sort order",

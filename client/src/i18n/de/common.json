@@ -191,5 +191,68 @@
     "budget": "Navigation im Bereich Budget",
     "settings": "Navigation im Bereich Einstellungen",
     "schedule": "Navigation im Bereich Zeitplan"
+  },
+  "statusVocabulary": {
+    "invoice": {
+      "pending": "Zu zahlen",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht",
+      "quotation": "Angebot"
+    },
+    "progressPayment": {
+      "pending": "Zu zahlen",
+      "paid": "Bezahlt",
+      "claimed": "Eingereicht"
+    },
+    "task": {
+      "not_started": "Nicht begonnen",
+      "in_progress": "In Arbeit",
+      "completed": "Abgeschlossen"
+    },
+    "scheduleSignal": {
+      "late": "Verspätet · {{days}} T",
+      "held_up": "Aufgehalten",
+      "critical": "Kritisch"
+    },
+    "purchase": {
+      "planned": "Geplant",
+      "purchased": "Bestellt",
+      "scheduled": "Lieferung geplant",
+      "arrived": "Geliefert"
+    },
+    "milestone": {
+      "upcoming": "Anstehend",
+      "late": "Verspätet · {{days}} T",
+      "early": "Vorzeitig · {{days}} T",
+      "reached": "Erreicht"
+    },
+    "grant": {
+      "eligible": "Berechtigt",
+      "applied": "Beantragt",
+      "approved": "Genehmigt",
+      "received": "Erhalten",
+      "rejected": "Abgelehnt"
+    },
+    "fundingSource": {
+      "active": "Aktiv",
+      "exhausted": "Ausgeschöpft",
+      "closed": "Geschlossen"
+    },
+    "defect": {
+      "open": "Offen",
+      "in_progress": "Wird behoben",
+      "resolved": "Behoben"
+    },
+    "budgetVerdict": {
+      "on_budget": "Im Rahmen",
+      "over_budget": "Über Budget"
+    },
+    "diaryType": {
+      "daily_log": "Tagesbericht",
+      "site_visit": "Begehung",
+      "delivery": "Lieferung",
+      "issue": "Mangel",
+      "general_note": "Notiz"
+    }
   }
 }

@@ -7,6 +7,16 @@
 import type { UserSummary, WorkItemSummary } from './workItem.js';
 
 /**
+ * Display status of a milestone (glossary v1): derived from isCompleted and the projected
+ * date (isLate / isEarly, story 0.8); never stored. 'Pending' and 'Delayed' are retired.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const MILESTONE_DISPLAY_STATUSES = ['upcoming', 'late', 'early', 'reached'] as const;
+
+/** A milestone's derived display status. */
+export type MilestoneDisplayStatus = (typeof MILESTONE_DISPLAY_STATUSES)[number];
+
+/**
  * Milestone summary shape — used in list responses.
  * Includes a computed workItemCount instead of full work item details.
  */

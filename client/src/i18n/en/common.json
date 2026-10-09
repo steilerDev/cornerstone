@@ -191,5 +191,45 @@
     "budget": "Budget section navigation",
     "settings": "Settings section navigation",
     "schedule": "Schedule section navigation"
+  },
+  "statusVocabulary": {
+    "invoice": {
+      "pending": "To pay",
+      "paid": "Paid",
+      "claimed": "Submitted",
+      "quotation": "Offer"
+    },
+    "progressPayment": { "pending": "To pay", "paid": "Paid", "claimed": "Submitted" },
+    "task": { "not_started": "Not started", "in_progress": "In progress", "completed": "Done" },
+    "scheduleSignal": { "late": "Late · {{days}} d", "held_up": "Held up", "critical": "Critical" },
+    "purchase": {
+      "planned": "Planned",
+      "purchased": "Ordered",
+      "scheduled": "Delivery scheduled",
+      "arrived": "Delivered"
+    },
+    "milestone": {
+      "upcoming": "Upcoming",
+      "late": "Late · {{days}} d",
+      "early": "Early · {{days}} d",
+      "reached": "Reached"
+    },
+    "grant": {
+      "eligible": "Eligible",
+      "applied": "Applied",
+      "approved": "Approved",
+      "received": "Received",
+      "rejected": "Rejected"
+    },
+    "fundingSource": { "active": "Active", "exhausted": "Used up", "closed": "Closed" },
+    "defect": { "open": "Open", "in_progress": "Being fixed", "resolved": "Fixed" },
+    "budgetVerdict": { "on_budget": "On budget", "over_budget": "Over budget" },
+    "diaryType": {
+      "daily_log": "Daily log",
+      "site_visit": "Site visit",
+      "delivery": "Delivery",
+      "issue": "Defect",
+      "general_note": "Note"
+    }
   }
 }
