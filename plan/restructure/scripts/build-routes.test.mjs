@@ -255,7 +255,7 @@ describe('extractRouterRoutesChecked', () => {
       appPath,
       readFileSync(appPath, 'utf8').replace('path="tasks"', 'path={TASKS_PATH}'),
     );
-    const res = await run({ root, mode: 'write' });
+    const res = await run({ root, mode: 'check' });
     assert.ok(res.errors.some((e) => /^App\.tsx:\d+: unreadable route path$/.test(e)));
   });
 });
