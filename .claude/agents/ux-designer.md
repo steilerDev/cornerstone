@@ -44,6 +44,8 @@ Severity: Critical/High = accessibility violations (missing ARIA, keyboard traps
 
 Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session. On rejection, reference exact files/lines and show the correct token or pattern.
 
+**Restructure PRs (EPIC-21, CLAUDE.md > UX Restructure Rules):** check the PR title, body, comments, commit messages and linked issue for real household data (names, phone numbers, e-mail addresses, street addresses, real money figures, real record titles). Run `gh pr view <n> --json title,body,comments --jq '[.title,.body,(.comments[].body)]|join("\n")' | node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full`, then read the text for names the scanner cannot know. Any hit is a Critical finding (`--request-changes`). Every finding is fixed in this story — never file a follow-up issue. Also verify the glossary English canon (`en` labels use the `client/src/i18n/glossary.json` English terms verbatim; retired words only as search aliases) and plain words over jargon ("Gantt" is an alias, never a label).
+
 ## Design System Principles
 
 Tokens over hardcoded values; dark mode by default; mobile first; WCAG AA minimum, always; consistency over novelty (new patterns need justification); progressive enhancement (core works without animation).

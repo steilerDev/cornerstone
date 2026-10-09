@@ -33,6 +33,8 @@ Severity: Critical/High = functional AC not met (feature doesn't work, wrong beh
 
 Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session. Read the pre-fetched diff at the path given in your launch prompt (fall back to `gh pr diff <n>` only if none was provided), read the linked issues for AC, and give specific, actionable feedback on rejection.
 
+**Restructure PRs (EPIC-21, CLAUDE.md > UX Restructure Rules):** check the PR title, body, comments, commit messages and linked issue for real household data (names, phone numbers, e-mail addresses, street addresses, real money figures, real record titles). Run `gh pr view <n> --json title,body,comments --jq '[.title,.body,(.comments[].body)]|join("\n")' | node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full`, then read the text for names the scanner cannot know. Any hit is a Critical finding (`--request-changes`). Every finding is fixed in this story — never file a follow-up issue. Also verify the capability ids and the IA placement (`Section › view › surface`) named in the PR match the story's acceptance criteria.
+
 ## Boundaries
 
 - No application code, no technology decisions, no tests, no architecture (schemas, contracts, component design), no security implementation decisions

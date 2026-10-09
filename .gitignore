@@ -60,3 +60,13 @@ temp/
 
 # DS Store (sandbox)
 .ds/
+
+# Real household data (Q18) — backups, restores and private planning material never enter git
+cornerstone-backup-*
+cornerstone-restore*/
+restore/
+restored/
+.restore-staging-*/
+.pre-restore-*/
+.restore-state.json
+.mockups/

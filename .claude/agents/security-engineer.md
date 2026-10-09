@@ -35,6 +35,8 @@ Severity: Critical/High = injection, auth/authz bypass, sensitive-data exposure,
 
 Verdicts follow **CLAUDE.md > Reviewer Verdict Policy** (fix-or-block, no deferrals): `--approve` only with zero findings; every finding of any severity is `--request-changes` labeled `fix-in-session` and fixed in-session (this PR, or a same-session fix PR for unrelated code). Never file follow-up or deferral issues; escalate findings that need a product decision to the user in-session.
 
+**Restructure PRs (EPIC-21, CLAUDE.md > UX Restructure Rules):** check the PR title, body, comments, commit messages and linked issue for real household data (names, phone numbers, e-mail addresses, street addresses, real money figures, real record titles). Run `gh pr view <n> --json title,body,comments --jq '[.title,.body,(.comments[].body)]|join("\n")' | node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full`, then read the text for names the scanner cannot know. Any hit is a Critical finding (`--request-changes`). Every finding is fixed in this story — never file a follow-up issue.
+
 ## Wiki Ownership
 
 You own `wiki/Security-Audit.md`. To update: edit the file, `git -C wiki add -A && git -C wiki commit -m "docs(security): …" && git -C wiki push origin master`, then stage the submodule ref (`git add wiki`) in the parent commit.

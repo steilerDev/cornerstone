@@ -77,7 +77,9 @@ async function main() {
       dumpError(v4.error, '    ');
       console.log('  IPv6 error:');
       dumpError(v6.error, '    ');
-      console.log('\nMost likely: container has no DNS resolver, or your network blocks DNS for this host.');
+      console.log(
+        '\nMost likely: container has no DNS resolver, or your network blocks DNS for this host.',
+      );
       process.exit(2);
     }
     console.log(`OK in ${ms}ms`);
@@ -105,7 +107,9 @@ async function main() {
   } catch (err) {
     console.log('FAIL:');
     dumpError(err);
-    console.log('\nMost likely: egress firewall blocks outbound HTTPS to this host, or TLS handshake failed.');
+    console.log(
+      '\nMost likely: egress firewall blocks outbound HTTPS to this host, or TLS handshake failed.',
+    );
     console.log('Tip: HTTPS_PROXY env var? Corporate MITM proxy with its own CA?');
     process.exit(3);
   }
@@ -140,13 +144,21 @@ async function main() {
     if (!res.ok) {
       console.log('\nInterpretation:');
       if (res.status === 401 || res.status === 403) {
-        console.log('  Auth failed. Check LLM_API_KEY value, header name (we use Authorization: Bearer), and that the key is allowed for this model.');
+        console.log(
+          '  Auth failed. Check LLM_API_KEY value, header name (we use Authorization: Bearer), and that the key is allowed for this model.',
+        );
       } else if (res.status === 404) {
-        console.log('  Endpoint not found. Either LLM_BASE_URL is wrong, or this provider does not expose /chat/completions at that path.');
+        console.log(
+          '  Endpoint not found. Either LLM_BASE_URL is wrong, or this provider does not expose /chat/completions at that path.',
+        );
       } else if (res.status === 400) {
-        console.log('  Provider rejected the request. Check LLM_MODEL value matches an available model.');
+        console.log(
+          '  Provider rejected the request. Check LLM_MODEL value matches an available model.',
+        );
       } else if (res.status >= 500) {
-        console.log('  Upstream server-side error. Try again in a minute; if persistent, check the provider status page.');
+        console.log(
+          '  Upstream server-side error. Try again in a minute; if persistent, check the provider status page.',
+        );
       }
       process.exit(4);
     }
@@ -155,7 +167,9 @@ async function main() {
     console.log('FAIL during POST:');
     dumpError(err);
     if (err?.name === 'AbortError') {
-      console.log(`\nTimed out after ${TIMEOUT_MS}ms. Try setting LLM_REQUEST_TIMEOUT_MS=60000 in env and restarting the server.`);
+      console.log(
+        `\nTimed out after ${TIMEOUT_MS}ms. Try setting LLM_REQUEST_TIMEOUT_MS=60000 in env and restarting the server.`,
+      );
     }
     process.exit(4);
   }
@@ -170,8 +184,10 @@ async function main() {
   //   `response_format: { type: 'json_object' }`.
   // The full response body is printed verbatim so you can see the provider's
   // exact complaint.
-  const SYSTEM_PROMPT_SHORT = 'You are an expert at extracting structured line items from German construction-trade invoices. Return a JSON object: { "lines": [{ "description": string, "totalAmount": number, "confidence": number }] }. Output ONLY valid JSON.';
-  const USER_PROMPT_SHORT = 'Extract line items from:\n\nRechnung Nr. 123\nMaterial Kies, 2 m³, 50 EUR/m³, gesamt 100 EUR\n\nReturn { "lines": ExtractedLine[] }.';
+  const SYSTEM_PROMPT_SHORT =
+    'You are an expert at extracting structured line items from German construction-trade invoices. Return a JSON object: { "lines": [{ "description": string, "totalAmount": number, "confidence": number }] }. Output ONLY valid JSON.';
+  const USER_PROMPT_SHORT =
+    'Extract line items from:\n\nRechnung Nr. 123\nMaterial Kies, 2 m³, 50 EUR/m³, gesamt 100 EUR\n\nReturn { "lines": ExtractedLine[] }.';
   const productionBody = {
     model: MODEL,
     messages: [

@@ -143,6 +143,7 @@ Every epic has two phases: **Development** (`/develop`) where QA and E2E write a
 - **Continue agents through fix loops** — fix iterations continue the previously launched agent via SendMessage (it keeps the context it built) instead of launching a fresh agent each round.
 - **dev-team-lead is launched once per story** — the `[MODE: spec]` launch is the only cold start; all subsequent `[MODE: review]` and `[MODE: commit]` invocations for that story continue the same agent via SendMessage, so it never re-reads the spec, the checklist, or the changed files it already holds.
 - **CI is gated once, at merge time** — `[MODE: commit]` ends when the PR exists; reviews run in parallel with CI, and the single `scripts/ci-wait.sh` call happens right before merge.
+- **EPIC-21 restructure stories follow extra rules** — capability map, IA placement, single route source, pattern baseline, glossary canon, full E2E gating and no real data; see **UX Restructure Rules (EPIC-21)** below.
 
 ### PR Review Gate
 
@@ -165,6 +166,20 @@ One verdict matrix for all reviewer agents (product-architect, security-engineer
 - **Findings that need a product decision** (ambiguous requirement, conflicting AC, a trade-off only the user can make) are escalated to the user **in-session** with the options laid out — never filed as an issue for later.
 - **Never use `--comment` as a verdict** — with one mechanical exception: GitHub rejects `--approve`/`--request-changes` from the token that authored the PR. When that happens, post the review as a comment whose **first line** is `VERDICT: APPROVE` or `VERDICT: REQUEST_CHANGES`; the orchestrator treats it identically.
 - **The external review loop is capped at 2 rounds.** If findings remain after round 2, stop and escalate them to the user in-session instead of looping further — never convert them into issues.
+
+### UX Restructure Rules (EPIC-21)
+
+A **restructure story** is any sub-issue of EPIC-21 (#2190) — list them with `gh api repos/steilerDev/cornerstone/issues/2190/sub_issues --paginate --jq '.[].number'`. Its PR is a **restructure PR**. These rules add to, and where they conflict override, the rest of this file:
+
+- **NavConfig is the only route source.** Navigation (sidebar, phone shell, title menus, command-search destinations) comes from NavConfig (`client/src/navigation/`), which references route ids of the shared route map (`shared/src/routes/`). App URLs are built only with `routeUrl()` — no hand-written tab arrays, no string-literal app paths. Until story 0.10 creates those modules, any route added or changed in `client/src/App.tsx` is recorded in `plan/restructure/routemap.json` in the same PR (ADR-038 §2).
+- **Capability-map rule.** Each story names the capability ids it touches (in the issue and the PR body) and updates `plan/restructure/capmap.json` (plus `routemap.json` on any route change) in the same PR. Capabilities may be moved, merged or tucked away, never removed; demoted ones stay at most 2 clicks from their object's page (ADR-038 §4–§5). `npm run plan:check` runs on every PR and enforces placement and the click bound for every capability, capmap ↔ inventory consistency, route coverage and drift against `client/src/App.tsx`, the pattern baseline and privacy. It cannot see a removal (a capability deleted from both files, or a permanent route-map entry deleted together with its route), so reviewers check the diffs of `plan/restructure/capabilities.json`, `capmap.json` and `routemap.json` for removed entries.
+- **IA placement named per story.** Every touched capability states its placement as `Section › view › surface`, consistent with NavConfig and the route map.
+- **Glossary English canon.** English terms in `client/src/i18n/glossary.json` are the canonical UI words: `en` labels use them verbatim, other locales use the approved translation. Retired words survive only as search aliases ("formerly …"). Plain words over jargon — "Gantt" is an alias, never a label.
+- **Full E2E gating.** Restructure PRs wait on `bash scripts/ci-wait.sh <pr> main` (Quality Gates + E2E Gates) even though they target `beta`.
+- **Pattern baseline.** No count in `plan/restructure/baseline.json` may rise. The dev-team-lead checks it in every `[MODE: review]`; lowered counts, new screens and consumed planned components are re-baselined in the same PR.
+- **Synthetic fixtures only** — tests, E2E fixtures, seeds, docs screenshots and examples use invented data.
+- **No real data in the repo, wiki, issues or PRs.** No real names, phone numbers, e-mail addresses, street addresses, real money figures or real record titles — in code, fixtures, `plan/restructure/`, wiki/ADRs, issue and PR titles/bodies/comments, or commit messages. Quote results and aggregates, never rows. Backups, restore folders and `.mockups/` stay git-ignored. Check text with `node plan/restructure/scripts/scan-privacy.mjs` (`--stdin` for issue/PR text); CI runs the generic profile, and locally `--denylist-db <local backup>` additionally catches real names and amounts.
+- **No follow-up issues.** Every finding is fixed in the story that raised it — by reviewers and implementers alike.
 
 ### Delegation Enforcement
 
@@ -384,6 +399,7 @@ cornerstone/
   CLAUDE.md                 # This file
   Dockerfile                # Multi-stage Docker build
   plan/                     # Requirements document
+    restructure/            # EPIC-21 capability map, route map, pattern baseline + plan:check scripts
   wiki/                     # GitHub Wiki (git submodule) — architecture, ADRs, API contract
   shared/                   # @cornerstone/shared — TypeScript types
     src/types/              # API types, entity types
@@ -546,22 +562,25 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 
 ### Common Commands
 
-| Command                    | Description                                                 |
-| -------------------------- | ----------------------------------------------------------- |
-| `npm run dev`              | Start both server and client in watch mode                  |
-| `npm run dev:server`       | Start only the Fastify server (node --watch)                |
-| `npm run dev:client`       | Start only the Webpack dev server                           |
-| `npm run build`            | Build all packages (shared -> client -> server)             |
-| `npm test`                 | Run all tests                                               |
-| `npm run test:collect`     | List all tests (suites + names) without executing them      |
-| `npm run lint`             | Lint all code                                               |
-| `npm run format`           | Format all code                                             |
-| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)       |
-| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                 |
-| `npm run db:migrate`       | Run pending SQL migrations                                  |
-| `npm run docs:dev`         | Start docs site dev server (port 3001)                      |
-| `npm run docs:build`       | Build docs site to `docs/build/`                            |
-| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/` |
+| Command                    | Description                                                    |
+| -------------------------- | -------------------------------------------------------------- |
+| `npm run dev`              | Start both server and client in watch mode                     |
+| `npm run dev:server`       | Start only the Fastify server (node --watch)                   |
+| `npm run dev:client`       | Start only the Webpack dev server                              |
+| `npm run build`            | Build all packages (shared -> client -> server)                |
+| `npm test`                 | Run all tests                                                  |
+| `npm run test:collect`     | List all tests (suites + names) without executing them         |
+| `npm run lint`             | Lint all code                                                  |
+| `npm run format`           | Format all code                                                |
+| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)          |
+| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                    |
+| `npm run db:migrate`       | Run pending SQL migrations                                     |
+| `npm run docs:dev`         | Start docs site dev server (port 3001)                         |
+| `npm run docs:build`       | Build docs site to `docs/build/`                               |
+| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/`    |
+| `npm run plan:check`       | Validate the EPIC-21 capability/route map and pattern baseline |
+| `npm run plan:build`       | Regenerate derived `plan/restructure/` JSON                    |
+| `npm run test:plan`        | Run the `plan/restructure/scripts` test suites                 |
 
 ### Documentation Site
 

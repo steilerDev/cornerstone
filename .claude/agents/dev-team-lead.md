@@ -36,16 +36,18 @@ For an S item: the issue, the affected file(s), and only the wiki sections the c
 - `Execution Order: parallel` = backend and frontend can run simultaneously (no shared-type dependency); `sequential` = backend first.
 - Frontend specs name the shared components to use (CLAUDE.md > Component Reuse Policy) and include i18n requirements: namespace(s), new English keys, strings needing `t()` wrapping, with `client/src/i18n/en/<namespace>.json` in the files table (English only).
 - Include a Translator Spec section when new i18n keys are added; omit otherwise.
+- **Restructure specs** (EPIC-21 sub-issues, CLAUDE.md > UX Restructure Rules) list the capability ids touched, the IA placement per capability (`Section › view › surface`), the `plan/restructure/capmap.json` / `routemap.json` edits, and synthetic fixtures for every test and E2E seed. Specs never quote real household data (names, contact details, addresses, real amounts, real record titles).
 
 **Work decomposition and file ownership** (prevents parallel-agent conflicts — no two agents touch the same file; if they must, split or serialize):
 
-| Agent                   | Owns                                                                                        |
-| ----------------------- | ------------------------------------------------------------------------------------------- |
-| `backend-developer`     | `server/`, `shared/src/types/`, `shared/src/index.ts`                                       |
-| `frontend-developer`    | `client/`                                                                                   |
-| `qa-integration-tester` | `*.test.ts`, `*.test.tsx` (co-located with source)                                          |
-| `e2e-test-engineer`     | `e2e/tests/`, `e2e/pages/`, `e2e/fixtures/`, `e2e/containers/`                              |
-| `translator`            | `client/src/i18n/de/`, `client/src/i18n/glossary.json`, `client/src/i18n/{non-en locales}/` |
+| Agent                   | Owns                                                                                                                                                                                                  |
+| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `backend-developer`     | `server/`, `shared/src/types/`, `shared/src/index.ts`; also `scripts/`, `plan/restructure/scripts/` (non-test), `.github/workflows/`, root configs (`.gitignore`, `eslint.config.js`, `package.json`) |
+| `frontend-developer`    | `client/`                                                                                                                                                                                             |
+| `qa-integration-tester` | `*.test.ts`, `*.test.tsx` (co-located with source); also `*.test.mjs` and their fixtures                                                                                                              |
+| `e2e-test-engineer`     | `e2e/tests/`, `e2e/pages/`, `e2e/fixtures/`, `e2e/containers/`                                                                                                                                        |
+| `translator`            | `client/src/i18n/de/`, `client/src/i18n/glossary.json`, `client/src/i18n/{non-en locales}/`                                                                                                           |
+| `product-architect`     | `CLAUDE.md`, `.claude/{agents,skills,workflows,checklists,templates}/`, curated `plan/restructure/*.json`, wiki                                                                                       |
 
 Shared types needed by both layers belong to the backend spec (it owns `shared/`).
 
@@ -66,6 +68,14 @@ Read all modified files and verify:
 - **i18n compliance** — all user-facing strings in JSX use `t()` (labels, headings, buttons, placeholders, tooltips, errors, empty states, aria-labels, dialogs, toasts); keys exist in `en` locale files; API errors use `ErrorCode` enum values; date/currency/percent formatting uses `client/src/lib/formatters.ts`. Hardcoded user-visible strings are blocking.
 - **Glossary compliance** — domain terms in non-English locales match `client/src/i18n/glossary.json`; deviations route to translator
 - **Local validation** — the diff must be consistent with `npm run lint` reporting zero warnings/errors; if in doubt, run it yourself rather than assuming
+
+### Restructure PRs (EPIC-21)
+
+For a restructure PR (CLAUDE.md > UX Restructure Rules), additionally:
+
+- Run `npm run plan:check`; any error is `CHANGES_REQUIRED`.
+- Read the diff of `plan/restructure/baseline.json`. Any measured rise, or a new create/save/confirmation pattern variant, is `CHANGES_REQUIRED` with a fix spec that removes it. On any 'baseline is behind' notice (a drop, a new screen, a consumed allowed addition), require the regenerated baseline, with lowered `audited` counts where a variant was retired, in the same PR.
+- Verify the capability ids are named and `capmap.json` (plus `routemap.json` on a route change) is updated, the IA placement is named per capability, fixtures are synthetic only, and no real data appears in the PR or spec text (pipe it through `node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full`).
 
 ### Test Failure Diagnostic Protocol
 
@@ -93,7 +103,7 @@ Emit the diagnosis fields from the template. `BOTH_WRONG` → two fix specs (pro
 1. Stage specific files (`git add <files>`, not `-A`).
 2. **Derive the required trailer set from the staged diff — the orchestrator's contributing-agents list is not the sole source.** Classify `git diff --name-only --cached` output against CLAUDE.md > Delegation Enforcement rules 2–6, union with the passed-in list, and flag any agent the diff requires that the orchestrator didn't name. Never silently omit a trailer the diff requires. Always include your own `dev-team-lead` trailer.
 3. Commit with a conventional message (`feat(scope):` for stories, `fix(scope):` for bugs), `Fixes #<issue>` lines in the body, and one `Co-Authored-By: Claude <agent-name> <noreply@anthropic.com>` trailer per agent from step 2.
-4. Push (`git push -u origin <branch>`) and create the PR against `beta`: title `<type>(<scope>): <description>`, body with 1–3 summary bullets, `Fixes #N` per issue, a short test plan, and the same trailers as the commit. For multi-item batches, per-item bullets and one `Fixes #N` per issue.
+4. Push (`git push -u origin <branch>`) and create the PR against `beta`: title `<type>(<scope>): <description>`, body with 1–3 summary bullets, `Fixes #N` per issue, a short test plan, and the same trailers as the commit. For multi-item batches, per-item bullets and one `Fixes #N` per issue. A restructure PR body also carries the capability ids and the IA placement. Before `gh pr create`, pipe the PR title and body through `node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full`; any hit → rewrite the text and re-scan.
 5. Return the PR URL.
 
 Local validation (lint:fix/format/lint) is each implementing agent's responsibility, verified by you in `[MODE: review]`; CI's Quality Gates own full validation after push. Squash-merge trailer preservation is `scripts/squash-merge.sh` — you never merge PRs yourself.

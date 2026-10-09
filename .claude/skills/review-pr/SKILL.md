@@ -113,7 +113,7 @@ Present the blocking findings to the user. **Do NOT wait for CI.**
 
 Post a consolidated `gh pr review --approve` comment on the PR summarizing the review outcome. Include dev-team-lead's findings (from its returned VERDICT text in Step 4) in this consolidated review, grouped alongside the other agents' findings.
 
-Wait for CI: `bash scripts/ci-wait.sh <pr-number> <beta|main>` (pass `main` only when the PR targets `main`). The script handles the mergeability precheck, gate polling, timeout, and rate-limit backoff. If it reports a merge conflict, report the conflict to the user — do not attempt to resolve.
+Wait for CI: `bash scripts/ci-wait.sh <pr-number> <beta|main>` (pass `main` when the PR targets `main` **or is a restructure PR** — a sub-issue of EPIC-21 #2190, see CLAUDE.md > UX Restructure Rules). The script handles the mergeability precheck, gate polling, timeout, and rate-limit backoff. If it reports a merge conflict, report the conflict to the user — do not attempt to resolve.
 
 If CI fails, report the specific failures to the user. **Do NOT merge.**
 

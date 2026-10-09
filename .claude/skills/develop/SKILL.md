@@ -107,14 +107,24 @@ Process each entry in the items list:
 
 If all items are rejected, abort the session. If at least one remains, continue.
 
+#### Restructure classification (both modes)
+
+Classify every resolved issue as **restructure** or not — a restructure item is any sub-issue of EPIC-21 (#2190), see CLAUDE.md > UX Restructure Rules:
+
+```bash
+gh api repos/steilerDev/cornerstone/issues/2190/sub_issues --paginate --jq '.[].number'
+```
+
+Record the result per item (add a `Restructure` column to the summary table below). If any item is a restructure item, the whole PR is a restructure PR for steps 6, 7, 8 and 10.
+
 Print a summary table before proceeding:
 
 ```
-| #   | Issue | Title                          | Label      |
-| --- | ----- | ------------------------------ | ---------- |
-| 1   | #42   | Tooltip positioning is wrong   | bug        |
-| 2   | #55   | Budget rounding error          | bug        |
-| 3   | #61   | Add export button to Gantt     | user-story |
+| #   | Issue | Title                          | Label      | Restructure |
+| --- | ----- | ------------------------------ | ---------- | ----------- |
+| 1   | #42   | Tooltip positioning is wrong   | bug        | no          |
+| 2   | #55   | Budget rounding error          | bug        | no          |
+| 3   | #61   | Add export button to Gantt     | user-story | yes         |
 ```
 
 ### 3. Visual Spec (conditional)
@@ -176,6 +186,7 @@ Launch the **dev-team-lead** in `[MODE: spec]`. **This is the only cold start of
 - UX visual spec reference (if posted in step 3)
 - Branch name
 - Reminder to read `.claude/checklists/implementation-checklist.md` and include a `## Compliance Checklist` section per spec
+- `restructure: yes` when any item is a restructure item (step 2) — the spec then lists capability ids, IA placement, capmap/routemap edits and synthetic fixtures (CLAUDE.md > UX Restructure Rules)
 
 The dev-team-lead returns a structured spec document with `## Backend Spec`, `## Frontend Spec`, `## QA Spec`, and `## E2E Spec` sections (each with a `### Compliance Checklist` subsection). Store the full spec — you will pass sections to implementation agents and the full spec to review.
 
@@ -293,6 +304,15 @@ EOF
 
 Include `Fixes #<issue-number>` in the PR body. Use `feat(scope):` for stories, `fix(scope):` for bugs.
 
+**Restructure items** (step 2) add two lines to the `## Summary` section of either template below:
+
+```
+Capability ids: <ids touched, e.g. WRK-092, JRN-051>
+IA placement: <Section › view › surface per capability>
+```
+
+**No real data**: the PR title and body (and every later PR comment) contain no real names, contact details, addresses, real money figures or real record titles — synthetic examples only. Pipe the title and body through `node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full` before `gh pr create` and rewrite on any hit.
+
 #### Multi-item mode
 
 **PR title**: Descriptive conventional commit summary with issue refs:
@@ -344,7 +364,7 @@ gh pr diff <n> --name-only   # source for the per-reviewer file lists
 
 Scopes: `ux-designer` → files under `client/src/`; `security-engineer` → the files matching the Security Review Trigger Rules; `product-architect` and `product-owner` → the full file list.
 
-Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, diffPath: "/tmp/pr-<n>.diff", reviewers: [{agent: "product-architect", files: [...]}, {agent: "security-engineer", files: [...]}, ...]}}` — one entry per applicable reviewer. If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool, passing the same diffPath and file scopes (keep each review short if the changes are minimal).
+Then invoke the Workflow tool with `{name: "pr-review", args: {pr: <n>, diffPath: "/tmp/pr-<n>.diff", restructure: <true when any item is a restructure item>, reviewers: [{agent: "product-architect", files: [...]}, {agent: "security-engineer", files: [...]}, ...]}}` — one entry per applicable reviewer. If the Workflow tool is unavailable, fall back to launching the applicable reviewer agents in parallel with the Agent tool, passing the same diffPath and file scopes (keep each review short if the changes are minimal).
 
 #### Security Review Trigger Rules
 
@@ -389,10 +409,11 @@ If any reviewer reports any finding (every finding is blocking under the Reviewe
 Once all reviews are clean, wait for CI to go green — **this is the single CI gate of the whole cycle**:
 
 ```bash
-bash scripts/ci-wait.sh <pr-number>
+bash scripts/ci-wait.sh <pr-number>        # no restructure items
+bash scripts/ci-wait.sh <pr-number> main   # any restructure item
 ```
 
-The script handles the mergeability precheck, gate polling, timeouts, and rate-limit backoff. If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
+When any item is a restructure item (step 2), pass `main` even though the PR targets `beta`: it waits for E2E Gates too — full E2E shards are required for EPIC-21 (CLAUDE.md > UX Restructure Rules). The script handles the mergeability precheck, gate polling, timeouts, and rate-limit backoff. If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
 
 **If CI fails**: continue the **dev-team-lead** with the failure logs — it returns a CI fix spec (diagnosis + target agent). Route the fix, have the dev-team-lead re-commit in `[MODE: commit]`, and re-run `ci-wait.sh`. Escalate to the user after 3 CI fix attempts.
 

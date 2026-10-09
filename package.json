@@ -33,13 +33,16 @@
     "lint:fix": "eslint . --fix && npm run stylelint:fix",
     "stylelint": "stylelint \"client/src/**/*.css\" \"client/src/**/*.module.css\"",
     "stylelint:fix": "stylelint \"client/src/**/*.css\" \"client/src/**/*.module.css\" --fix",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
-    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,css,md}\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mjs,cjs,json,css,md}\"",
     "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w client && npm run typecheck -w e2e",
     "db:migrate": "npm run db:migrate -w server",
     "docs:dev": "npm run dev -w docs",
     "docs:build": "npm run build -w docs",
-    "docs:screenshots": "npm run screenshots -w e2e"
+    "docs:screenshots": "npm run screenshots -w e2e",
+    "plan:check": "node plan/restructure/scripts/check-all.mjs",
+    "plan:build": "node plan/restructure/scripts/check-all.mjs --write",
+    "test:plan": "node --test \"plan/restructure/scripts/**/*.test.mjs\""
   },
   "type": "module",
   "engines": {

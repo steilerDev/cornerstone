@@ -93,7 +93,7 @@ If there are refinement items to address:
    ```
    gh pr create --base beta --title "chore: address refinement items for epic #<epic-number>" --body "..."
    ```
-8. Wait for CI: `bash scripts/ci-wait.sh <pr-number>` (handles the mergeability precheck, gate polling, timeout, and rate-limit backoff). If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
+8. Wait for CI: `bash scripts/ci-wait.sh <pr-number>` — pass `main` as the second argument for EPIC-21 refinement PRs (restructure PRs need E2E Gates, see CLAUDE.md > UX Restructure Rules) — (handles the mergeability precheck, gate polling, timeout, and rate-limit backoff). If it reports a merge conflict, rebase onto `beta`, force-push, and re-run it.
 9. Squash merge — write a body summarizing the refinement items addressed to a temp file, then:
 
    ```bash

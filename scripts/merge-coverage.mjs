@@ -71,7 +71,8 @@ writeFileSync(join(outputDir, 'coverage-final.json'), JSON.stringify(merged));
 // 2. Compute per-file and total summary
 // ---------------------------------------------------------------------------
 
-const pct = (covered, total) => (total === 0 ? 100 : parseFloat(((covered / total) * 100).toFixed(2)));
+const pct = (covered, total) =>
+  total === 0 ? 100 : parseFloat(((covered / total) * 100).toFixed(2));
 
 const fileSummaries = {};
 let totalS = 0,
@@ -158,11 +159,21 @@ writeFileSync(join(outputDir, 'coverage-summary.json'), JSON.stringify(summary, 
 
 const pad = (s, n) => String(s).padStart(n);
 
-console.log(`\nCoverage Report (${files.length} shards merged, ${Object.keys(merged).length} files)\n`);
+console.log(
+  `\nCoverage Report (${files.length} shards merged, ${Object.keys(merged).length} files)\n`,
+);
 console.log('Category     | Coverage | Covered / Total');
 console.log('-------------|----------|----------------');
-console.log(`Statements   | ${pad(summary.total.statements.pct.toFixed(2), 7)}% | ${coveredS} / ${totalS}`);
-console.log(`Branches     | ${pad(summary.total.branches.pct.toFixed(2), 7)}% | ${coveredB} / ${totalB}`);
-console.log(`Functions    | ${pad(summary.total.functions.pct.toFixed(2), 7)}% | ${coveredF} / ${totalF}`);
-console.log(`Lines        | ${pad(summary.total.lines.pct.toFixed(2), 7)}% | ${coveredL} / ${totalL}`);
+console.log(
+  `Statements   | ${pad(summary.total.statements.pct.toFixed(2), 7)}% | ${coveredS} / ${totalS}`,
+);
+console.log(
+  `Branches     | ${pad(summary.total.branches.pct.toFixed(2), 7)}% | ${coveredB} / ${totalB}`,
+);
+console.log(
+  `Functions    | ${pad(summary.total.functions.pct.toFixed(2), 7)}% | ${coveredF} / ${totalF}`,
+);
+console.log(
+  `Lines        | ${pad(summary.total.lines.pct.toFixed(2), 7)}% | ${coveredL} / ${totalL}`,
+);
 console.log('');
