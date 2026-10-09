@@ -24,7 +24,9 @@ export const GLOSSARY_GROUPS = [
 export type GlossaryGroup = (typeof GLOSSARY_GROUPS)[number];
 
 /** Locales a term carries forms for: English plus every `_meta.locales` entry. */
-export type GlossaryLocale = 'en' | 'de';
+export const GLOSSARY_LOCALES = ['de'] as const;
+export type GlossaryExtraLocale = (typeof GLOSSARY_LOCALES)[number];
+export type GlossaryLocale = 'en' | GlossaryExtraLocale;
 
 export const GLOSSARY_FORM_KEYS = [
   'singular',
@@ -66,7 +68,7 @@ export interface GlossaryTerm {
 export interface GlossaryMeta {
   schemaVersion: 2;
   glossaryVersion: string;
-  locales: readonly GlossaryLocale[];
+  locales: readonly GlossaryExtraLocale[];
   lastUpdated: string;
   approval: {
     owner: { decision: string; date: string };
@@ -136,8 +138,10 @@ function parseMeta(raw: unknown): GlossaryMeta {
   const transition = expectString(meta.transition, '_meta.transition');
 
   const locales = expectArray(meta.locales, '_meta.locales').map((locale, i) => {
-    if (locale !== 'de') return fail(`_meta.locales[${i}]`, 'must be "de"');
-    return locale as GlossaryLocale;
+    if (!includes(GLOSSARY_LOCALES, locale)) {
+      return fail(`_meta.locales[${i}]`, `must be one of ${GLOSSARY_LOCALES.join(', ')}`);
+    }
+    return locale;
   });
 
   const approval = expectRecord(meta.approval, '_meta.approval');
@@ -184,8 +188,9 @@ function parseBannedWord(raw: unknown, path: string): GlossaryBannedWord {
   const record = expectRecord(raw, path);
   expectOnlyKeys(record, ['word', 'locale', 'context'], path);
   const word = expectString(record.word, `${path}.word`);
-  if (record.locale !== 'en' && record.locale !== 'de') {
-    return fail(`${path}.locale`, 'must be "en" or "de"');
+  const bannedLocales: readonly GlossaryLocale[] = ['en', ...GLOSSARY_LOCALES];
+  if (!includes(bannedLocales, record.locale)) {
+    return fail(`${path}.locale`, `must be one of ${bannedLocales.join(', ')}`);
   }
   const banned: GlossaryBannedWord = { word, locale: record.locale };
   if (record.context !== undefined) {
@@ -194,7 +199,15 @@ function parseBannedWord(raw: unknown, path: string): GlossaryBannedWord {
   return banned;
 }
 
-const TERM_KEYS = ['groups', 'en', 'de', 'deSource', 'definition', 'doNotUse', 'formerly'] as const;
+const TERM_KEYS: readonly string[] = [
+  'groups',
+  'en',
+  ...GLOSSARY_LOCALES,
+  'deSource',
+  'definition',
+  'doNotUse',
+  'formerly',
+];
 
 function parseTerm(canon: string, raw: unknown): GlossaryTerm {
   const path = `terms["${canon}"]`;

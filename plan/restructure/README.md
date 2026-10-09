@@ -94,22 +94,22 @@ the build and commit the result.
 - **handRolledDialogs**: intrinsic JSX with `role="dialog"` or `aria-modal`, outside
   `components/Modal/`.
 
-Comparison: a rise is any measured number above the baseline, any new money label, or any new shared
-component that is not listed in `allowedAdditions.sharedComponents` (matched by basename). A screen
-missing from the baseline only counts as a rise when it has more than one primary button or more than
-one search field.
+Comparison: a rise is any measured number above the baseline, any new money label that is not an
+English glossary form (see the glossary exemption below), or any new shared component that is not
+listed in `allowedAdditions.sharedComponents` (matched by basename). A screen missing from the
+baseline only counts as a rise when it has more than one primary button or more than one search field.
 
 Glossary exemption (#2192, dev-team-lead approval in that story's spec): a new money label that equals
 the normalised English form (`singular`, `plural`, `verb`, `noun`, `chip`, `sentence`, `shortForm`) of
-a term in `client/src/i18n/glossary.json` is owner-approved vocabulary. It is reported as "not yet
-recorded" and recorded by `plan:build`, never counted as a rise. Any other new money label is still a
-rise. A missing glossary exempts nothing. This rule and `glossaryLabels()` in `build-baseline.mjs`
-change together.
+a term in `client/src/i18n/glossary.json` is owner-approved vocabulary. It is not a rise: it is reported
+as "baseline is behind" ("glossary label … not yet recorded") and recorded by `plan:build`. Any other
+new money label is still a rise. A missing glossary exempts nothing. This rule and `glossaryLabels()`
+in `build-baseline.mjs` change together.
 
 ### Changing the baseline
 
-- Any pull request that triggers the "baseline is behind" notice (a drop, a new screen, or a consumed
-  addition) commits the output of `npm run plan:build`.
+- Any pull request that triggers the "baseline is behind" notice (a drop, a new screen, a consumed
+  addition, or a new glossary money label) commits the output of `npm run plan:build`.
 - `plan:build` refuses to write while an unallowed rise exists. A shared component outside the seeded
   list enters `allowedAdditions` only with dev-team-lead approval in that PR; `plan:build` moves a name
   out of the list once the component exists.
