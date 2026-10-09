@@ -164,20 +164,23 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--spacing-6);
+  min-width: 0;
 }
 
 /* ---- Mobile section layout ---- */
 
 .mobileSections {
   display: none;
+  min-width: 0;
 }
 
 .mobileSection {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-4);
+  min-width: 0;
 }
 
 .sectionDetails {
@@ -240,6 +243,7 @@ details[open] > .sectionSummary > .sectionChevron {
   gap: var(--spacing-4);
   padding: var(--spacing-4);
   background-color: var(--color-bg-primary);
+  min-width: 0;
 }
 
 .srOnly {
@@ -266,7 +270,7 @@ details[open] > .sectionSummary > .sectionChevron {
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--spacing-5);
   }
 

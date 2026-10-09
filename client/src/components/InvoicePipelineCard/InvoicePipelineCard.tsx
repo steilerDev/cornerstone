@@ -4,6 +4,9 @@ import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import styles from './InvoicePipelineCard.module.css';
 
+/** Rows shown per section (pending / quotes); the dashboard requests exactly this many. */
+export const INVOICE_PIPELINE_ROWS = 5;
+
 interface InvoicePipelineCardProps {
   invoices: Invoice[];
   summary: InvoiceStatusBreakdown;
@@ -22,13 +25,13 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
   const pendingInvoices = invoices
     .filter((inv) => inv.status === 'pending')
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 5);
+    .slice(0, INVOICE_PIPELINE_ROWS);
 
   // Filter to quotation invoices, sort by date descending (newest first), take first 5
   const quotationInvoices = invoices
     .filter((inv) => inv.status === 'quotation')
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 5);
+    .slice(0, INVOICE_PIPELINE_ROWS);
 
   // Helper to check if invoice is overdue
   const isOverdue = (invoice: Invoice): boolean => {
@@ -67,7 +70,9 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
                 className={`${styles.item} ${overdue ? styles.itemOverdue : ''}`}
               >
                 <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
-                  <span className={styles.vendorName}>{invoice.vendorName}</span>
+                  <span className={styles.vendorName} title={invoice.vendorName}>
+                    {invoice.vendorName}
+                  </span>
                   <span className={styles.invoiceNumber}>{displayInvoiceNumber}</span>
                   <span className={styles.amount}>{formatCurrency(invoice.amount)}</span>
                   <span className={styles.date}>{formatDate(invoice.date)}</span>
@@ -93,7 +98,9 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
               return (
                 <li key={invoice.id} data-testid="quotation-row" className={styles.item}>
                   <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
-                    <span className={styles.vendorName}>{invoice.vendorName}</span>
+                    <span className={styles.vendorName} title={invoice.vendorName}>
+                      {invoice.vendorName}
+                    </span>
                     <span className={styles.invoiceNumber}>{displayInvoiceNumber}</span>
                     <span className={styles.amount}>{formatCurrency(invoice.amount)}</span>
                     <span className={styles.date}>{formatDate(invoice.date)}</span>

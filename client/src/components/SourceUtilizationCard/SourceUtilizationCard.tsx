@@ -41,7 +41,9 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
         return (
           <div key={source.id} data-testid="source-row" className={styles.sourceRow}>
             <div className={styles.sourceHeader}>
-              <span className={styles.sourceName}>{source.name}</span>
+              <span className={styles.sourceName} title={source.name}>
+                {source.name}
+              </span>
               <span
                 className={`${styles.typeBadge} ${styles[`type${getTypeClass(source.sourceType)}`]}`}
               >

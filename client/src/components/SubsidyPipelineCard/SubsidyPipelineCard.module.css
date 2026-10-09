@@ -15,19 +15,24 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-secondary);
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: var(--spacing-1);
 }
 
 .groupCount {
   flex: 1;
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
+  min-width: 0;
 }
 
 .groupReduction {
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
-  flex-shrink: 0;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .deadlineWarning {

@@ -4,17 +4,15 @@ import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 
 interface BudgetHealthIndicatorProps {
-  remainingVsProjectedMax: number;
+  /** The figure displayed next to the badge; the badge must never be computed from a different scenario than its figure (D-03). */
+  remaining: number;
   availableFunds: number;
 }
 
 type HealthStatus = 'on-budget' | 'at-risk' | 'over-budget';
 
-function resolveHealthStatus(
-  remainingVsProjectedMax: number,
-  availableFunds: number,
-): HealthStatus {
-  if (remainingVsProjectedMax < 0) {
+function resolveHealthStatus(remaining: number, availableFunds: number): HealthStatus {
+  if (remaining < 0) {
     return 'over-budget';
   }
 
@@ -23,7 +21,7 @@ function resolveHealthStatus(
     return 'at-risk';
   }
 
-  const margin = remainingVsProjectedMax / availableFunds;
+  const margin = remaining / availableFunds;
 
   if (margin > 0.1) {
     return 'on-budget';
@@ -32,12 +30,9 @@ function resolveHealthStatus(
   return 'at-risk';
 }
 
-export function BudgetHealthIndicator({
-  remainingVsProjectedMax,
-  availableFunds,
-}: BudgetHealthIndicatorProps) {
+export function BudgetHealthIndicator({ remaining, availableFunds }: BudgetHealthIndicatorProps) {
   const { t } = useTranslation('budget');
-  const status = resolveHealthStatus(remainingVsProjectedMax, availableFunds);
+  const status = resolveHealthStatus(remaining, availableFunds);
 
   const variants = useMemo(
     (): BadgeVariantMap => ({

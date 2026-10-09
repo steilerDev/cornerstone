@@ -40,6 +40,8 @@
   gap: var(--spacing-2);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+  flex-wrap: wrap;
+  row-gap: var(--spacing-1);
 }
 
 .emptyState {
@@ -53,6 +55,8 @@
 .link {
   color: var(--color-primary);
   text-decoration: none;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .link:hover {
@@ -78,6 +82,7 @@
   gap: var(--spacing-2);
   font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+  min-width: 0;
 }
 
 .legendDot {
@@ -91,4 +96,24 @@
   margin-left: auto;
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.milestoneMeta {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex-shrink: 0;
+}
+
+.milestoneDate {
+  color: var(--color-text-muted);
+}
+
+.milestoneTitle {
+  composes: link;
+  flex: 1 1 8rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

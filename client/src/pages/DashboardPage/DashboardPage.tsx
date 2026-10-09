@@ -11,6 +11,7 @@ import type {
   SubsidyProgram,
   DiaryEntrySummary,
 } from '@cornerstone/shared';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -30,7 +31,10 @@ import { WorkItemProgressCard } from '../../components/TimelineStatusCards/WorkI
 import { CriticalPathCard } from '../../components/TimelineStatusCards/CriticalPathCard.js';
 import { MiniGanttCard } from '../../components/MiniGanttCard/MiniGanttCard.js';
 import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
-import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
+import {
+  InvoicePipelineCard,
+  INVOICE_PIPELINE_ROWS,
+} from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
 import styles from './DashboardPage.module.css';
@@ -212,7 +216,24 @@ export function DashboardPage() {
       fetchBudgetSources(),
       fetchSubsidyPrograms(),
       getTimeline(),
-      fetchAllInvoices({ pageSize: 10 }),
+      // Status-scoped requests so older pending invoices and quotations are never missed
+      Promise.all([
+        fetchAllInvoices({
+          status: 'pending',
+          sortBy: 'date',
+          sortOrder: 'asc',
+          pageSize: INVOICE_PIPELINE_ROWS,
+        }),
+        fetchAllInvoices({
+          status: 'quotation',
+          sortBy: 'date',
+          sortOrder: 'desc',
+          pageSize: INVOICE_PIPELINE_ROWS,
+        }),
+      ]).then(([pending, quotations]) => ({
+        invoices: [...pending.invoices, ...quotations.invoices],
+        summary: pending.summary, // global, filter-independent: identical on both responses
+      })),
       listDiaryEntries({ pageSize: 5, status: 'saved' }),
     ]);
 
@@ -335,6 +356,8 @@ export function DashboardPage() {
 
     // Update invoices state
     if (invoicesResult.status === 'fulfilled') {
+      const { summary } = invoicesResult.value;
+      const totalInvoices = INVOICE_STATUSES.reduce((n, status) => n + summary[status].count, 0);
       setInvoices(invoicesResult.value.invoices);
       setInvoiceSummary(invoicesResult.value.summary);
       setDataStates((prev) => ({
@@ -342,8 +365,7 @@ export function DashboardPage() {
         invoices: {
           isLoading: false,
           error: null,
-          isEmpty:
-            invoicesResult.value.invoices.filter((inv) => inv.status === 'pending').length === 0,
+          isEmpty: totalInvoices === 0,
         },
       }));
     } else {
@@ -455,7 +477,14 @@ export function DashboardPage() {
         emptyAction={'emptyAction' in card ? card.emptyAction : undefined}
       >
         {card.id === 'budget-summary' && budgetOverview ? (
-          <BudgetSummaryCard overview={budgetOverview} />
+          <BudgetSummaryCard
+            overview={budgetOverview}
+            paidAmount={
+              invoiceSummary
+                ? invoiceSummary.paid.totalAmount + invoiceSummary.claimed.totalAmount
+                : null
+            }
+          />
         ) : card.id === 'source-utilization' ? (
           <SourceUtilizationCard sources={budgetSources} />
         ) : card.id === 'upcoming-milestones' && timelineData ? (

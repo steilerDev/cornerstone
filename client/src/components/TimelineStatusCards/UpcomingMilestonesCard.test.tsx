@@ -222,9 +222,9 @@ describe('UpcomingMilestonesCard', () => {
     expect(healthBadge).toHaveTextContent('Delayed');
   });
 
-  // ── Test 11: Milestone title is a link to /schedule/milestones/:id ─────────
+  // ── Test 11: Milestone title links to the real milestone route (D-01) ──────
 
-  it('renders the milestone title as a link to /schedule/milestones/:id', () => {
+  it('renders the milestone title as a link to /project/milestones/:id, never the dead /schedule/ URL', () => {
     const milestones: TimelineMilestone[] = [
       { ...baseMilestone, id: 42, title: 'Roof Complete', targetDate: '2026-06-15' },
     ];
@@ -233,6 +233,7 @@ describe('UpcomingMilestonesCard', () => {
 
     const link = screen.getByRole('link', { name: 'Roof Complete' });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/schedule/milestones/42');
+    expect(link).toHaveAttribute('href', '/project/milestones/42');
+    expect(link).not.toHaveAttribute('href', expect.stringContaining('/schedule/'));
   });
 });

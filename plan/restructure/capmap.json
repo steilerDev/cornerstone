@@ -3628,7 +3628,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Home on phones: sections in the stated order; each section collapses.",
-    "note": "No collapsed 'Timeline' details hiding schedule health (GLB-03)."
+    "note": "No collapsed 'Timeline' details hiding schedule health (GLB-03). #2193: no Home card overflows horizontally from 320 to 1440 px (D-04)."
   },
   "PLT-053": {
     "name": "Jump from an empty dashboard card to the page where its data is created",
@@ -3637,7 +3637,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "First-run checklist steps open the form that creates the missing data; EmptyState actions are router links.",
-    "note": "GLB-05; D-25 EmptyState reload fixed."
+    "note": "GLB-05; D-25 EmptyState reload fixed. #2193: the Invoice Pipeline empty state (\"No invoices yet\") now appears only when no invoice exists at all."
   },
   "PLT-054": {
     "name": "See the remaining budget at a glance",
@@ -3647,7 +3647,7 @@
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Home > Pulse); every old URL redirects there in one hop.",
     "decision": "Q4",
-    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1)."
+    "note": "D-03 averaged figure retired. Verdict (owner, 7 Oct, PLAN §2.0 #23): Over budget whenever the figure is below zero, with the range inside the figure (PLAN §6.1). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card."
   },
   "PLT-055": {
     "name": "See a budget health verdict (On Budget / At Risk / Over Budget)",
@@ -3657,7 +3657,7 @@
     "gate": "none",
     "acceptance": "Pulse verdict chip from the money service (On budget / Over budget).",
     "decision": "Q4",
-    "note": "One health rule shared with Money > Overview (P02)."
+    "note": "One health rule shared with Money > Overview (P02). Interim fix on today's Home (#2193): figure, bar and badge use one scenario (the min/max midpoint) until the Pulse replaces the card."
   },
   "PLT-056": {
     "name": "See planned cost range, actual spend and expected subsidy savings on the dashboard",
@@ -3666,7 +3666,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Overview); every old URL redirects there in one hop.",
-    "note": "Home keeps only one money figure."
+    "note": "Home keeps only one money figure. Interim fix on today's Home (#2193): \"Actual Spend\" is money paid (paid and claimed invoices incl. progress payments, itemised or not)."
   },
   "PLT-057": {
     "name": "Be warned on the dashboard when subsidies are oversubscribed",
@@ -3709,7 +3709,7 @@
     "to": "Home > milestone rows -> Milestone page",
     "change": "same",
     "gate": "none",
-    "note": "404 link fixed (D-01)."
+    "note": "404 link fixed (D-01). Interim fix on today's Home (#2193): the card links to /project/milestones/:id."
   },
   "PLT-062": {
     "name": "See work-item progress by status",
@@ -3754,7 +3754,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Still to pay' (sum, count) -> Invoices To pay sorted oldest first with Overdue chips and footer sum; N4–N6 rows on Home.",
-    "note": "The pending total and the full oldest-first list stay one click from Home (C-01)."
+    "note": "The pending total and the full oldest-first list stay one click from Home (C-01). Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02)."
   },
   "PLT-067": {
     "name": "See the newest quotations and the quotes total on the dashboard",
@@ -3763,7 +3763,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Offers summary: Offers total, Paid, Remaining on offer.",
-    "note": "Quotes get their own list instead of a 5-row Home sample."
+    "note": "Quotes get their own list instead of a 5-row Home sample. Interim fix on today's Home (#2193): pending and quote rows are read across all invoices (oldest pending, newest quotes), not from the 10 newest (D-02)."
   },
   "PLT-068": {
     "name": "Open an invoice, or the full invoice list, from the dashboard",

@@ -24,6 +24,8 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   line-height: 1.2;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .healthRow {
@@ -32,6 +34,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--spacing-2);
+  flex-wrap: wrap;
 }
 
 .metricsGrid {
@@ -51,6 +54,7 @@
   align-items: baseline;
   justify-content: space-between;
   gap: var(--spacing-2);
+  flex-wrap: wrap;
 }
 
 .metricItemLabel {
@@ -65,6 +69,9 @@
   color: var(--color-text-primary);
   text-align: right;
   margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .oversubscribedWarning {
