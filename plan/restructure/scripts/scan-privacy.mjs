@@ -230,7 +230,7 @@ export async function loadDenylistFromDb(dbPath) {
 
 // --- file walking ------------------------------------------------------------
 
-const SCAN_EXTENSIONS = new Set(['.json', '.md', '.mjs', '.txt']);
+const SCAN_EXTENSIONS = new Set(['.json', '.md', '.mjs', '.txt', '.ts', '.tsx', '.js', '.cjs']);
 
 /**
  * @param {string} path file or directory
@@ -245,7 +245,7 @@ export function collectFiles(path) {
     const full = join(path, name);
     const s = statSync(full);
     if (s.isDirectory()) out.push(...collectFiles(full));
-    else if (SCAN_EXTENSIONS.has(extname(name)) && !name.endsWith('.test.mjs')) out.push(full);
+    else if (SCAN_EXTENSIONS.has(extname(name)) && !/\.test\.[^.]+$/.test(name)) out.push(full);
   }
   return out;
 }

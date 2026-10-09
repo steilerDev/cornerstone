@@ -93,6 +93,7 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npm run test:plan
 
+      # Re-scanned on PR title/body edits by .github/workflows/pr-text-scan.yml (non-blocking).
       - name: Scan PR title and body for personal data
         if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]' }}
         env:

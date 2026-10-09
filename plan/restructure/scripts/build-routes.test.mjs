@@ -10,6 +10,7 @@ import {
   CHANGE_VALUES,
   baseFroms,
   extractRouterRoutes,
+  extractRouterRoutesChecked,
   run,
   validateRouteMap,
 } from './build-routes.mjs';
@@ -190,6 +191,72 @@ describe('extractRouterRoutes', () => {
       '<Routes><Route element={<Layout />}><Route path="m" element={<M />} /></Route></Routes>',
     );
     assert.equal(out[0].guard, 'public');
+  });
+});
+
+describe('extractRouterRoutesChecked', () => {
+  it('returns routes and no errors for the readable fixture, equal to extractRouterRoutes', () => {
+    const src = readFileSync(FIXTURE_APP, 'utf8');
+    const checked = extractRouterRoutesChecked(src);
+    assert.deepEqual(checked.errors, []);
+    assert.deepEqual(checked.routes, extractRouterRoutes(src));
+    assert.ok(Array.isArray(extractRouterRoutes(src)));
+  });
+
+  it('reports an unreadable route path with the correct line', () => {
+    const src = [
+      '<Routes>',
+      '  <Route path="ok" element={<OkPage />} />',
+      '  <Route path={P} element={<PPage />} />',
+      '  <Route',
+      '    path={ROUTES.x.path}',
+      '    element={<XPage />}',
+      '  />',
+      '</Routes>',
+    ].join('\n');
+    const { errors } = extractRouterRoutesChecked(src);
+    assert.deepEqual(errors, [
+      'App.tsx:3: unreadable route path',
+      'App.tsx:4: unreadable route path',
+    ]);
+  });
+
+  it('reports non-literal Navigate and ParamRedirect targets and emits no redirect for them', () => {
+    const src = [
+      '<Routes>',
+      '  <Route path="a" element={<Navigate to={X} />} />',
+      '  <Route path="b" element={<ParamRedirect to={build(1)} />} />',
+      '</Routes>',
+    ].join('\n');
+    const { routes, errors } = extractRouterRoutesChecked(src);
+    assert.deepEqual(errors, [
+      'App.tsx:2: unreadable redirect target',
+      'App.tsx:3: unreadable redirect target',
+    ]);
+    assert.deepEqual(routes, []);
+  });
+
+  it('does not re-parent children of an unreadable route silently', () => {
+    const src = [
+      '<Routes>',
+      '  <Route path={P}>',
+      '    <Route path="child" element={<Child />} />',
+      '  </Route>',
+      '</Routes>',
+    ].join('\n');
+    const { errors } = extractRouterRoutesChecked(src);
+    assert.deepEqual(errors, ['App.tsx:2: unreadable route path']);
+  });
+
+  it('makes run() fail in check mode', async () => {
+    const root = makeRoot();
+    const appPath = join(root, 'client/src/App.tsx');
+    writeFileSync(
+      appPath,
+      readFileSync(appPath, 'utf8').replace('path="tasks"', 'path={TASKS_PATH}'),
+    );
+    const res = await run({ root, mode: 'write' });
+    assert.ok(res.errors.some((e) => /^App\.tsx:\d+: unreadable route path$/.test(e)));
   });
 });
 

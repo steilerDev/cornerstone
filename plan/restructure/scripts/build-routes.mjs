@@ -67,7 +67,7 @@ function childRoutes(node) {
 }
 
 /** @returns {{ kind: 'page', element: string } | { kind: 'redirect', target: string } | null} */
-function analyseElement(routeNode, parentPath) {
+function analyseElement(routeNode, parentPath, onError) {
   const a = attr(routeNode, 'element');
   if (!a?.initializer || !ts.isJsxExpression(a.initializer) || !a.initializer.expression) {
     return null;
@@ -86,7 +86,10 @@ function analyseElement(routeNode, parentPath) {
     }
     if (tag === 'Navigate' || tag === 'ParamRedirect') {
       const to = stringValue(attr(node, 'to'));
-      if (to === undefined) return null;
+      if (to === undefined) {
+        onError(node, 'unreadable redirect target');
+        return null;
+      }
       return { kind: 'redirect', target: to.startsWith('/') ? to : joinPaths(parentPath, to) };
     }
     if (/^[A-Z]/.test(tag)) return { kind: 'page', element: tag };
@@ -106,7 +109,7 @@ function joinPaths(parent, child) {
  * @param {string} tsxSource
  * @returns {{ path: string, kind: 'page'|'redirect', guard: 'public'|'member', element?: string, target?: string }[]}
  */
-export function extractRouterRoutes(tsxSource) {
+export function extractRouterRoutesChecked(tsxSource) {
   const sf = ts.createSourceFile(
     'App.tsx',
     tsxSource,
@@ -115,10 +118,16 @@ export function extractRouterRoutes(tsxSource) {
     ts.ScriptKind.TSX,
   );
   const out = [];
+  const errors = [];
+  const onError = (node, message) =>
+    errors.push(
+      `App.tsx:${sf.getLineAndCharacterOfPosition(node.getStart()).line + 1}: ${message}`,
+    );
 
   function visit(node, parentPath, guard) {
     const pathAttr = attr(node, 'path');
     const path = stringValue(pathAttr);
+    if (pathAttr && path === undefined) onError(node, 'unreadable route path');
     const isIndex = Boolean(attr(node, 'index'));
     let full = parentPath;
     if (path !== undefined) {
@@ -132,7 +141,7 @@ export function extractRouterRoutes(tsxSource) {
       if (expr && isJsx(expr) && tagNameOf(expr) === 'AuthGuard') nextGuard = 'member';
     }
     if (path !== undefined || isIndex) {
-      const analysed = analyseElement(node, full === '*' ? '/' : full);
+      const analysed = analyseElement(node, full === '*' ? '/' : full, onError);
       if (analysed) {
         const route = { path: full, guard: nextGuard };
         out.push({ ...route, ...analysed });
@@ -154,7 +163,18 @@ export function extractRouterRoutes(tsxSource) {
   }
   findRoots(sf);
 
-  return out.sort((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind));
+  out.sort((a, b) => a.path.localeCompare(b.path) || a.kind.localeCompare(b.kind));
+  return { routes: out, errors };
+}
+
+/**
+ * Extract every route the router serves from the TSX source of the app component.
+ * Routes whose path or redirect target is not a string literal are not dropped silently:
+ * use extractRouterRoutesChecked to receive them as errors.
+ * @param {string} tsxSource
+ */
+export function extractRouterRoutes(tsxSource) {
+  return extractRouterRoutesChecked(tsxSource).routes;
 }
 
 // --- route-map validation -------------------------------------------------------
@@ -251,7 +271,9 @@ export async function run({ root = REPO_ROOT, mode = 'check' } = {}) {
   const notes = [];
 
   if (!existsSync(appPath)) return { name, errors: [`input missing: ${appPath}`], notes };
-  const routes = extractRouterRoutes(readFileSync(appPath, 'utf8'));
+  const extracted = extractRouterRoutesChecked(readFileSync(appPath, 'utf8'));
+  const routes = extracted.routes;
+  errors.push(...extracted.errors);
   notes.push(`${routes.length} router routes extracted from client/src/App.tsx`);
 
   const content = await formatJson(outPath, { routes });

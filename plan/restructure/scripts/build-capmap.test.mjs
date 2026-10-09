@@ -149,6 +149,37 @@ describe('validateCapmap', () => {
     }
   });
 
+  it('reports a name that differs from the inventory', () => {
+    const inv = [
+      { id: 'CAP-A', name: 'Name', currentLocations: ['Old place'] },
+      { id: 'CAP-B' },
+      { id: 'CAP-C' },
+    ];
+    const cm = { ...goodCapmap(), 'CAP-A': placement({ name: 'Other' }) };
+    assert.deepEqual(validate(cm, inv), ['CAP-A: name differs from capabilities.json']);
+  });
+
+  it('reports a from that differs from currentLocations joined with " | "', () => {
+    const inv = [
+      { id: 'CAP-A', name: 'Name', currentLocations: ['Old place', 'Second place'] },
+      { id: 'CAP-B' },
+      { id: 'CAP-C' },
+    ];
+    const bad = { ...goodCapmap(), 'CAP-A': placement({ from: 'Old place' }) };
+    assert.deepEqual(validate(bad, inv), ['CAP-A: from differs from capabilities.json']);
+    const good = { ...goodCapmap(), 'CAP-A': placement({ from: 'Old place | Second place' }) };
+    assert.deepEqual(validate(good, inv), []);
+  });
+
+  it('compares against a string "from" on the inventory entry', () => {
+    const inv = [{ id: 'CAP-A', from: 'Elsewhere' }, { id: 'CAP-B' }, { id: 'CAP-C' }];
+    assert.deepEqual(validate(goodCapmap(), inv), ['CAP-A: from differs from capabilities.json']);
+  });
+
+  it('skips the name and from comparison when the inventory lacks those fields', () => {
+    assert.deepEqual(validate(goodCapmap()), []);
+  });
+
   it('reports a gate outside the capmap gate list', () => {
     const cm = { ...goodCapmap(), 'CAP-A': placement({ gate: 'lunar' }) };
     assert.match(

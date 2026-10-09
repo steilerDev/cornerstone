@@ -1,0 +1,38 @@
+name: PR Text Scan
+
+# Scans the PR title and body for personal data (Q18). Runs again whenever the text is edited,
+# which the Quality Gates workflow does not (it ignores `edited` events). The blocking scan on
+# open/push is the step of the same name in ci.yml (static-analysis job).
+on:
+  pull_request:
+    branches: [main, beta]
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pr-text-scan-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: PR Text Scan
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        with:
+          node-version-file: .nvmrc
+
+      # The scanner uses Node built-ins only, so no dependency install is needed.
+      - name: Scan PR title and body for personal data
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | node plan/restructure/scripts/scan-privacy.mjs --stdin --profile contact

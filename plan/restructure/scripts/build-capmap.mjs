@@ -80,6 +80,7 @@ export function validateCapmap({ inventory, capmap, routemap }) {
     return ['capmap.json must be an object keyed by capability id'];
   }
   const ids = new Set(inventory.map((c) => c?.id));
+  const inventoryById = new Map(inventory.map((c) => [c?.id, c]));
   const patterns = routePatterns(routemap);
 
   for (const id of [...ids].sort()) {
@@ -102,6 +103,21 @@ export function validateCapmap({ inventory, capmap, routemap }) {
     }
     if (!nonEmpty(entry.name)) errors.push(`${id} name must not be empty`);
     if (!nonEmpty(entry.from)) errors.push(`${id} from must not be empty`);
+    const source = inventoryById.get(id);
+    if (source) {
+      if (source.name !== undefined && entry.name !== source.name) {
+        errors.push(`${id}: name differs from capabilities.json`);
+      }
+      const sourceFrom =
+        typeof source.from === 'string'
+          ? source.from
+          : Array.isArray(source.currentLocations)
+            ? source.currentLocations.join(' | ')
+            : undefined;
+      if (sourceFrom !== undefined && entry.from !== sourceFrom) {
+        errors.push(`${id}: from differs from capabilities.json`);
+      }
+    }
 
     const hasClicks = entry.clicks !== undefined && entry.clicks !== null;
     if (hasClicks) {

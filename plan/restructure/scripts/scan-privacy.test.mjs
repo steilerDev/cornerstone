@@ -365,6 +365,34 @@ describe('collectFiles and scanPaths', () => {
   });
 });
 
+describe('collectFiles extensions', () => {
+  const root = join(tmp, 'exts');
+  mkdirSync(root, { recursive: true });
+  for (const ext of ['ts', 'tsx', 'js', 'cjs']) {
+    writeFileSync(join(root, `src.${ext}`), 'x');
+    writeFileSync(join(root, `foo.test.${ext}`), 'x');
+  }
+  writeFileSync(join(root, 'foo.spec.ts'), 'x');
+  writeFileSync(join(root, 'style.css'), 'x');
+
+  it('scans .ts .tsx .js and .cjs files and skips every *.test.* file', () => {
+    const names = collectFiles(root).map((f) => f.slice(root.length + 1));
+    assert.deepEqual(names, ['foo.spec.ts', 'src.cjs', 'src.js', 'src.ts', 'src.tsx']);
+  });
+
+  it('finds a positive sample in a .tsx but not in a foo.test.tsx', () => {
+    const dir = join(tmp, 'tsx-sample');
+    mkdirSync(dir);
+    const sample = 'const mail = "x@company-alpha.de";\n';
+    writeFileSync(join(dir, 'Comp.tsx'), sample);
+    writeFileSync(join(dir, 'foo.test.tsx'), sample);
+    writeFileSync(join(dir, 'bar.test.ts'), sample);
+    const lines = scanPaths([dir], { cwd: dir });
+    assert.equal(lines.length, 1);
+    assert.match(lines[0], /^Comp\.tsx:1:\d+ email /);
+  });
+});
+
 describe('parseArgs', () => {
   it('parses flags and paths', () => {
     assert.deepEqual(parseArgs(['--stdin', '--profile', 'contact', '--denylist-db', 'x.db', 'p']), {
