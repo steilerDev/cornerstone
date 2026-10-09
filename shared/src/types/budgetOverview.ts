@@ -4,6 +4,17 @@
  * subsidy reductions, and four remaining-funds perspectives.
  */
 
+/**
+ * Budget verdict of "Left to spend" (ADR-039 §4, strict rule): over_budget when the expected
+ * figure is below zero, otherwise on_budget; null (no verdict) is not a member. There is no
+ * 'tight' verdict.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
+ */
+export const BUDGET_VERDICTS = ['on_budget', 'over_budget'] as const;
+
+/** The budget verdict of "Left to spend". */
+export type BudgetVerdict = (typeof BUDGET_VERDICTS)[number];
+
 export interface BudgetOverview {
   availableFunds: number; // SUM(active budget_sources.total_amount)
   sourceCount: number;

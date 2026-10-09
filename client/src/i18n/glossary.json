@@ -1,62 +1,2164 @@
 {
   "_meta": {
-    "description": "Single source of truth for domain terminology translations. The translator agent enforces these.",
+    "description": "Glossary v1 (EPIC-21): the canonical English UI words, their approved translations, one-line definitions, banned synonyms and permanent search aliases. The translator agent enforces it.",
+    "schemaVersion": 2,
+    "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-02"
+    "lastUpdated": "2026-10-09",
+    "approval": {
+      "owner": {
+        "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
+        "date": "2026-10-07"
+      },
+      "translatorSignOff": {
+        "agent": "translator",
+        "date": "2026-10-09",
+        "statement": "Every German form was checked against the owner-approved glossary v1; terms marked shipped match the current German UI."
+      }
+    },
+    "transition": "Words under formerly and doNotUse may remain in existing strings until the EPIC-21 story that renames that label replaces them; every new or changed string uses the canon. Former names stay search aliases permanently and are never removed."
   },
   "terms": {
-    "Work Item": { "de": { "singular": "Arbeitspaket", "plural": "Arbeitspakete" } },
-    "Household Item": { "de": { "singular": "Haushaltsartikel", "plural": "Haushaltsartikel" } },
-    "Vendor": { "de": { "singular": "Auftragnehmer", "plural": "Auftragnehmer" } },
-    "Budget Line": { "de": { "singular": "Budgetposition", "plural": "Budgetpositionen" } },
-    "Budget Source": { "de": { "singular": "Budgetquelle", "plural": "Budgetquellen" } },
-    "Milestone": { "de": { "singular": "Meilenstein", "plural": "Meilensteine" } },
-    "Schedule": { "de": { "singular": "Zeitplan", "plural": "Zeitpläne" } },
-    "Invoice": { "de": { "singular": "Rechnung", "plural": "Rechnungen" } },
-    "Subsidy": { "de": { "singular": "Förderprogramm", "plural": "Förderprogramme" } },
-    "Dependency": { "de": { "singular": "Abhängigkeit", "plural": "Abhängigkeiten" } },
-    "Subtask": { "de": { "singular": "Teilaufgabe", "plural": "Teilaufgaben" } },
-    "Diary Entry": { "de": { "singular": "Tagebucheintrag", "plural": "Tagebucheinträge" } },
-    "Category": { "de": { "singular": "Kategorie", "plural": "Kategorien" } },
-    "Critical Path": { "de": { "singular": "Kritischer Pfad" } },
-    "Gantt Chart": { "de": { "singular": "Gantt-Diagramm" } },
-    "Dashboard": { "de": { "singular": "Projektübersicht" } },
-    "Quotation": { "de": { "singular": "Angebot", "plural": "Angebote" } },
-    "Area": { "de": { "singular": "Bereich", "plural": "Bereiche" } },
-    "Trade": { "de": { "singular": "Gewerk", "plural": "Gewerke" } },
-    "Unassigned": { "de": { "singular": "Nicht zugewiesen" } },
-    "Deposit": {
+    "Home": {
+      "groups": ["primaryNoun", "view"],
+      "en": {
+        "singular": "Home"
+      },
+      "de": {
+        "singular": "Start"
+      },
+      "deSource": "approved",
+      "definition": "The start page: what needs you, this week, and how the build is doing.",
+      "doNotUse": [
+        {
+          "word": "Dashboard",
+          "locale": "en"
+        },
+        {
+          "word": "Overview",
+          "locale": "en",
+          "context": "as a page name; it stays a tab word"
+        },
+        {
+          "word": "Project",
+          "locale": "en",
+          "context": "as a page name"
+        },
+        {
+          "word": "Projektübersicht",
+          "locale": "de"
+        }
+      ],
+      "formerly": ["Dashboard", "Overview", "Project", "Projekt", "Projektübersicht"]
+    },
+    "Task": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Task",
+        "plural": "Tasks"
+      },
+      "de": {
+        "singular": "Aufgabe",
+        "plural": "Aufgaben"
+      },
+      "deSource": "approved",
+      "definition": "A piece of building work in an area, done by a company or by you, with dates, cost and the tasks it waits for.",
+      "doNotUse": [
+        {
+          "word": "Work item",
+          "locale": "en"
+        },
+        {
+          "word": "Arbeitspaket",
+          "locale": "de"
+        },
+        {
+          "word": "item",
+          "locale": "en",
+          "context": "bare; name the object"
+        }
+      ],
+      "formerly": ["Work item", "Work items", "Arbeitspaket", "Arbeitspakete"]
+    },
+    "Purchase": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Purchase",
+        "plural": "Purchases"
+      },
+      "de": {
+        "singular": "Anschaffung",
+        "plural": "Anschaffungen"
+      },
+      "deSource": "approved",
+      "definition": "Something you buy for the house rather than build, such as furniture, appliances or fixtures, with its delivery and cost.",
+      "doNotUse": [
+        {
+          "word": "Household item",
+          "locale": "en"
+        },
+        {
+          "word": "Haushaltsartikel",
+          "locale": "de"
+        },
+        {
+          "word": "item",
+          "locale": "en",
+          "context": "bare; name the object"
+        }
+      ],
+      "formerly": ["Household item", "Household items", "Haushaltsartikel"]
+    },
+    "Site diary": {
+      "groups": ["primaryNoun", "tabWord", "view"],
+      "en": {
+        "singular": "Site diary"
+      },
+      "de": {
+        "singular": "Bautagebuch"
+      },
+      "deSource": "approved",
+      "definition": "The record of what happened on site, day by day, mostly told through photos.",
+      "doNotUse": [],
+      "formerly": ["Construction diary", "Diary", "Tagebuch"]
+    },
+    "Diary entry": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Diary entry",
+        "plural": "Diary entries"
+      },
+      "de": {
+        "singular": "Tagebucheintrag",
+        "plural": "Tagebucheinträge"
+      },
+      "deSource": "shipped",
+      "definition": "What happened on site on one day for one trade or delivery.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Photo": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Photo",
+        "plural": "Photos"
+      },
+      "de": {
+        "singular": "Foto",
+        "plural": "Fotos"
+      },
+      "deSource": "shipped",
+      "definition": "A site photo tagged with an area and an orientation.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Spot": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Spot",
+        "plural": "Spots"
+      },
+      "de": {
+        "singular": "Blickpunkt",
+        "plural": "Blickpunkte",
+        "note": "An (area × orientation) combination representing a specific viewpoint for photos in the photo browser. The term 'Blickpunkt' (viewpoint) naturally conveys the sense of a particular perspective from which photos are taken."
+      },
+      "deSource": "shipped",
+      "definition": "One area plus one orientation, seen over time in its photos.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Orientation": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Orientation",
+        "plural": "Orientations"
+      },
+      "de": {
+        "singular": "Ausrichtung",
+        "plural": "Ausrichtungen"
+      },
+      "deSource": "shipped",
+      "definition": "The household's own label for where a photo looks, such as a wall, the ceiling or the street side; \"No orientation\" is valid.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Caption": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Caption",
+        "plural": "Captions"
+      },
+      "de": {
+        "singular": "Bildunterschrift",
+        "plural": "Bildunterschriften"
+      },
+      "deSource": "approved",
+      "definition": "The one text field of a photo; it replaces the separate caption and description.",
+      "doNotUse": [],
+      "formerly": ["Photo description"]
+    },
+    "Company": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Company",
+        "plural": "Companies"
+      },
+      "de": {
+        "singular": "Firma",
+        "plural": "Firmen"
+      },
+      "deSource": "approved",
+      "definition": "A business you work with or buy from, with its trade, contact persons and phone.",
+      "doNotUse": [
+        {
+          "word": "Vendor",
+          "locale": "en"
+        },
+        {
+          "word": "Auftragnehmer",
+          "locale": "de"
+        }
+      ],
+      "formerly": ["Vendor", "Vendors", "Auftragnehmer"]
+    },
+    "Contact person": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Contact person",
+        "plural": "Contact persons"
+      },
+      "de": {
+        "singular": "Ansprechpartner",
+        "plural": "Ansprechpartner"
+      },
+      "deSource": "approved",
+      "definition": "A person at a company you can call or write to.",
+      "doNotUse": [],
+      "formerly": ["Contact"]
+    },
+    "Offer": {
+      "groups": ["primaryNoun", "statusWord"],
+      "en": {
+        "singular": "Offer",
+        "plural": "Offers"
+      },
+      "de": {
+        "singular": "Angebot",
+        "plural": "Angebote"
+      },
+      "deSource": "approved",
+      "definition": "A company's priced proposal, cost estimate or order confirmation; progress payments are made against it and it becomes the final invoice.",
+      "doNotUse": [
+        {
+          "word": "Quotation",
+          "locale": "en"
+        },
+        {
+          "word": "Quote",
+          "locale": "en",
+          "context": "as a noun"
+        }
+      ],
+      "formerly": ["Quotation", "Quotations", "Quote"]
+    },
+    "Invoice": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Invoice",
+        "plural": "Invoices"
+      },
+      "de": {
+        "singular": "Rechnung",
+        "plural": "Rechnungen"
+      },
+      "deSource": "shipped",
+      "definition": "A bill to pay: split into cost lines on tasks and purchases, then paid, then submitted to the bank.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Area": {
+      "groups": ["primaryNoun"],
+      "en": {
+        "singular": "Area",
+        "plural": "Areas"
+      },
+      "de": {
+        "singular": "Bereich",
+        "plural": "Bereiche"
+      },
+      "deSource": "shipped",
+      "definition": "A part of the house: a building, a floor or a room; every task, purchase and photo sits in one.",
+      "doNotUse": [],
+      "formerly": ["Room", "Location"]
+    },
+    "Money": {
+      "groups": ["primaryNoun", "view"],
+      "en": {
+        "singular": "Money"
+      },
+      "de": {
+        "singular": "Finanzen"
+      },
+      "deSource": "approved",
+      "definition": "The section for budget, offers, invoices and funding.",
+      "doNotUse": [],
+      "formerly": ["Budget"]
+    },
+    "Milestone": {
+      "groups": ["supportingNoun", "view"],
+      "en": {
+        "singular": "Milestone",
+        "plural": "Milestones"
+      },
+      "de": {
+        "singular": "Meilenstein",
+        "plural": "Meilensteine"
+      },
+      "deSource": "shipped",
+      "definition": "A date the build works towards, such as finishing a floor.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Cost line": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Cost line",
+        "plural": "Cost lines"
+      },
+      "de": {
+        "singular": "Kostenposition",
+        "plural": "Kostenpositionen"
+      },
+      "deSource": "approved",
+      "definition": "One priced line on a task or purchase: an estimate, or a line of an offer or invoice.",
+      "doNotUse": [
+        {
+          "word": "Budget line",
+          "locale": "en"
+        },
+        {
+          "word": "Line item",
+          "locale": "en"
+        }
+      ],
+      "formerly": [
+        "Budget line",
+        "Budget lines",
+        "Budgetposition",
+        "Budgetpositionen",
+        "Line item",
+        "Allocation"
+      ]
+    },
+    "Progress payment": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Progress payment",
+        "plural": "Progress payments"
+      },
       "de": {
         "singular": "Abschlagszahlung",
         "plural": "Abschlagszahlungen",
         "shortForm": "Abschlag",
         "shortFormNote": "product-owner-approved (#1917) short-form variant of 'Abschlagszahlung', permitted ONLY under a measured space constraint — do not use elsewhere. Origin: the report PDF's 'abzgl. Abschlag' inline label lives in a 75pt table column. 'Abschlagszahlung' alone already measures 72.85pt, so no qualifier of any length fits alongside it — not 'abzgl.', not 'ohne', not './.'. There is no third option: keeping the full term forces dropping the qualifier, which collapses this label into the separate constituted-deposit label '(Abschlagszahlung)' (#1923 AC2.1) — a different fact ('this row IS a deposit' vs. 'this amount is reduced because deposits were claimed separately'). A future compliance sweep must NOT revert this to 'Abschlagszahlung' without re-measuring the 75pt column budget first; doing so silently breaks the PDF (label wraps mid-bracket, #1959)."
-      }
+      },
+      "deSource": "approved",
+      "definition": "A part payment against an offer or invoice.",
+      "doNotUse": [],
+      "formerly": ["Deposit", "Deposits", "Instalment"]
     },
-    "Refund": { "de": { "singular": "Rückerstattung", "plural": "Rückerstattungen" } },
-    "Final payment": { "de": { "singular": "Schlusszahlung" } },
-    "Draft": { "de": { "singular": "Entwurf", "plural": "Entwürfe" } },
-    "Annotation": { "de": { "singular": "Annotation", "plural": "Annotationen" } },
-    "Annotate": { "de": { "verb": "annotieren" } },
-    "Callout": { "de": { "singular": "Sprechblase", "plural": "Sprechblasen" } },
-    "Freehand": { "de": { "singular": "Freihand" } },
-    "Funding Source": {
-      "de": { "singular": "Finanzierungsquelle", "plural": "Finanzierungsquellen" }
-    },
-    "Itemize": { "de": { "verb": "aufschlüsseln", "noun": "Aufschlüsselung" } },
-    "Orientation": { "de": { "singular": "Ausrichtung", "plural": "Ausrichtungen" } },
-    "Correspondent": { "de": { "singular": "Korrespondent", "plural": "Korrespondenten" } },
-    "AI": { "de": { "singular": "KI" } },
-    "AI Assistance": { "de": { "singular": "KI-Unterstützung" } },
-    "Claimed": { "de": { "singular": "Eingereicht" } },
-    "Applied": { "de": { "singular": "Beantragt" } },
-    "Photo": { "de": { "singular": "Foto", "plural": "Fotos" } },
-    "Spot": {
+    "Refund": {
+      "groups": ["supportingNoun", "statusWord"],
+      "en": {
+        "singular": "Refund",
+        "plural": "Refunds"
+      },
       "de": {
-        "singular": "Blickpunkt",
-        "plural": "Blickpunkte",
-        "note": "An (area × orientation) combination representing a specific viewpoint for photos in the photo browser. The term 'Blickpunkt' (viewpoint) naturally conveys the sense of a particular perspective from which photos are taken."
-      }
+        "singular": "Rückerstattung",
+        "plural": "Rückerstattungen"
+      },
+      "deSource": "shipped",
+      "definition": "Money a company pays back, recorded against an offer or invoice.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Final payment": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Final payment"
+      },
+      "de": {
+        "singular": "Schlusszahlung"
+      },
+      "deSource": "shipped",
+      "definition": "The last payment that settles an invoice after its progress payments.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Funding source": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Funding source",
+        "plural": "Funding sources"
+      },
+      "de": {
+        "singular": "Finanzierungsquelle",
+        "plural": "Finanzierungsquellen"
+      },
+      "deSource": "approved",
+      "definition": "A loan, a credit line or your own funds.",
+      "doNotUse": [
+        {
+          "word": "Budget source",
+          "locale": "en"
+        },
+        {
+          "word": "Sources",
+          "locale": "en"
+        },
+        {
+          "word": "Geldquellen",
+          "locale": "de"
+        }
+      ],
+      "formerly": [
+        "Budget source",
+        "Budget sources",
+        "Source",
+        "Sources",
+        "Budgetquelle",
+        "Budgetquellen",
+        "Geldquellen"
+      ]
+    },
+    "Own funds": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Own funds"
+      },
+      "de": {
+        "singular": "Eigenmittel"
+      },
+      "deSource": "approved",
+      "definition": "The built-in funding source for money you pay yourselves.",
+      "doNotUse": [
+        {
+          "word": "Discretionary",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Discretionary"]
+    },
+    "Grant": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Grant",
+        "plural": "Grants"
+      },
+      "de": {
+        "singular": "Förderprogramm",
+        "plural": "Förderprogramme"
+      },
+      "deSource": "approved",
+      "definition": "A programme that pays back a percentage of the eligible costs of specific tasks and purchases, up to a cap.",
+      "doNotUse": [
+        {
+          "word": "Payback",
+          "locale": "en"
+        },
+        {
+          "word": "Subsidy",
+          "locale": "en",
+          "context": "in the English UI"
+        },
+        {
+          "word": "Zuschüsse",
+          "locale": "de"
+        }
+      ],
+      "formerly": [
+        "Subsidy",
+        "Subsidies",
+        "Subsidy program",
+        "Payback",
+        "Rückzahlung",
+        "Zuschuss",
+        "Zuschüsse"
+      ]
+    },
+    "Draw-down request": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Draw-down request",
+        "plural": "Draw-down requests"
+      },
+      "de": {
+        "singular": "Mittelabruf",
+        "plural": "Mittelabrufe"
+      },
+      "deSource": "approved",
+      "definition": "A bank report asking the lender to pay out against invoices.",
+      "doNotUse": [],
+      "formerly": ["Claim"]
+    },
+    "Bank report": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Bank report",
+        "plural": "Bank reports"
+      },
+      "de": {
+        "singular": "Bankbericht",
+        "plural": "Bankberichte"
+      },
+      "deSource": "approved",
+      "definition": "The step-by-step report for the bank: a draw-down request, a budget overview or a proof of funds.",
+      "doNotUse": [],
+      "formerly": ["Reports", "Berichte"]
+    },
+    "Trade": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Trade",
+        "plural": "Trades"
+      },
+      "de": {
+        "singular": "Gewerk",
+        "plural": "Gewerke"
+      },
+      "deSource": "shipped",
+      "definition": "A craft such as plumbing or drywall.",
+      "doNotUse": [],
+      "formerly": ["Specialty"]
+    },
+    "Cost category": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Cost category",
+        "plural": "Cost categories"
+      },
+      "de": {
+        "singular": "Kostenkategorie",
+        "plural": "Kostenkategorien"
+      },
+      "deSource": "approved",
+      "definition": "A classification list for cost lines, kept in Project setup.",
+      "doNotUse": [],
+      "formerly": ["Budget category", "Budget categories"]
+    },
+    "Purchase category": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Purchase category",
+        "plural": "Purchase categories"
+      },
+      "de": {
+        "singular": "Anschaffungskategorie",
+        "plural": "Anschaffungskategorien"
+      },
+      "deSource": "approved",
+      "definition": "A classification list for purchases, kept in Project setup.",
+      "doNotUse": [],
+      "formerly": ["Household item category", "Household item categories"]
+    },
+    "Category": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Category",
+        "plural": "Categories"
+      },
+      "de": {
+        "singular": "Kategorie",
+        "plural": "Kategorien"
+      },
+      "deSource": "shipped",
+      "definition": "An entry of a classification list (see Cost category and Purchase category).",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "House": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "House"
+      },
+      "de": {
+        "singular": "Haus"
+      },
+      "deSource": "approved",
+      "definition": "The project's name, address and entry language; shown in the app and used as the sender of bank letters.",
+      "doNotUse": [
+        {
+          "word": "Household",
+          "locale": "en",
+          "context": "for the sender"
+        }
+      ],
+      "formerly": ["Household"]
+    },
+    "History": {
+      "groups": ["supportingNoun", "tabWord", "view"],
+      "en": {
+        "singular": "History"
+      },
+      "de": {
+        "singular": "Verlauf"
+      },
+      "deSource": "approved",
+      "definition": "The automatic record of changes to an object.",
+      "doNotUse": [],
+      "formerly": ["Automatic diary entries"]
+    },
+    "Checklist": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Checklist",
+        "plural": "Checklists"
+      },
+      "de": {
+        "singular": "Checkliste",
+        "plural": "Checklisten"
+      },
+      "deSource": "approved",
+      "definition": "The small to-dos of a task.",
+      "doNotUse": [],
+      "formerly": ["Subtasks", "Teilaufgaben"]
+    },
+    "Checklist item": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Checklist item",
+        "plural": "Checklist items"
+      },
+      "de": {
+        "singular": "Checklistenpunkt",
+        "plural": "Checklistenpunkte"
+      },
+      "deSource": "approved",
+      "definition": "One small to-do on a task.",
+      "doNotUse": [],
+      "formerly": ["Subtask", "Teilaufgabe"]
+    },
+    "Note": {
+      "groups": ["supportingNoun", "diaryType"],
+      "en": {
+        "singular": "Note",
+        "plural": "Notes"
+      },
+      "de": {
+        "singular": "Notiz",
+        "plural": "Notizen"
+      },
+      "deSource": "approved",
+      "definition": "A short written comment: on a task, or a diary entry without a fixed type.",
+      "doNotUse": [],
+      "formerly": ["General note", "Allgemeine Notiz"]
+    },
+    "Who": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Who"
+      },
+      "de": {
+        "singular": "Wer"
+      },
+      "deSource": "approved",
+      "definition": "The company or household member doing a task (one of the two).",
+      "doNotUse": [],
+      "formerly": ["Assigned to", "Responsible"]
+    },
+    "Dependency": {
+      "groups": ["supportingNoun"],
+      "en": {
+        "singular": "Dependency",
+        "plural": "Dependencies"
+      },
+      "de": {
+        "singular": "Abhängigkeit",
+        "plural": "Abhängigkeiten"
+      },
+      "deSource": "shipped",
+      "definition": "A link that makes one task wait for another task or a milestone.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Unassigned": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Unassigned"
+      },
+      "de": {
+        "singular": "Nicht zugewiesen"
+      },
+      "deSource": "shipped",
+      "definition": "No value is set yet, for example no area or no company.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Draft": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Draft",
+        "plural": "Drafts"
+      },
+      "de": {
+        "singular": "Entwurf",
+        "plural": "Entwürfe"
+      },
+      "deSource": "shipped",
+      "definition": "A saved record that is not final yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Correspondent": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Correspondent",
+        "plural": "Correspondents"
+      },
+      "de": {
+        "singular": "Korrespondent",
+        "plural": "Korrespondenten"
+      },
+      "deSource": "shipped",
+      "definition": "The sender or recipient of a Paperless document.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "AI": {
+      "groups": ["general"],
+      "en": {
+        "singular": "AI"
+      },
+      "de": {
+        "singular": "KI"
+      },
+      "deSource": "shipped",
+      "definition": "Artificial intelligence: the configured language model that suggests values.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "AI assistance": {
+      "groups": ["general"],
+      "en": {
+        "singular": "AI assistance"
+      },
+      "de": {
+        "singular": "KI-Unterstützung"
+      },
+      "deSource": "shipped",
+      "definition": "Features where the AI drafts or extracts values for you to check.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "AI certainty": {
+      "groups": ["general"],
+      "en": {
+        "singular": "AI certainty"
+      },
+      "de": {
+        "singular": "KI-Sicherheit"
+      },
+      "deSource": "approved",
+      "definition": "How sure the AI is about a value it extracted.",
+      "doNotUse": [],
+      "formerly": ["Confidence"]
+    },
+    "Annotation": {
+      "groups": ["photoMarkup"],
+      "en": {
+        "singular": "Annotation",
+        "plural": "Annotations"
+      },
+      "de": {
+        "singular": "Annotation",
+        "plural": "Annotationen"
+      },
+      "deSource": "shipped",
+      "definition": "A mark drawn on a photo: a shape, an arrow, freehand or a callout.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Annotate": {
+      "groups": ["photoMarkup", "verb"],
+      "en": {
+        "verb": "Annotate"
+      },
+      "de": {
+        "verb": "annotieren"
+      },
+      "deSource": "shipped",
+      "definition": "Draw marks on a photo.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Callout": {
+      "groups": ["photoMarkup"],
+      "en": {
+        "singular": "Callout",
+        "plural": "Callouts"
+      },
+      "de": {
+        "singular": "Sprechblase",
+        "plural": "Sprechblasen"
+      },
+      "deSource": "shipped",
+      "definition": "A text bubble drawn on a photo.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Freehand": {
+      "groups": ["photoMarkup"],
+      "en": {
+        "singular": "Freehand"
+      },
+      "de": {
+        "singular": "Freihand"
+      },
+      "deSource": "shipped",
+      "definition": "A line drawn by hand on a photo.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Schedule": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Schedule"
+      },
+      "de": {
+        "singular": "Zeitplan"
+      },
+      "deSource": "shipped",
+      "definition": "The time view of tasks, purchases and milestones.",
+      "doNotUse": [
+        {
+          "word": "Timeline",
+          "locale": "en"
+        },
+        {
+          "word": "Gantt",
+          "locale": "en",
+          "context": "as a label; it stays a search alias"
+        }
+      ],
+      "formerly": ["Gantt", "Gantt chart", "Gantt-Diagramm", "Timeline"]
+    },
+    "Calendar": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Calendar"
+      },
+      "de": {
+        "singular": "Kalender"
+      },
+      "deSource": "approved",
+      "definition": "The month and week view of tasks, purchases and milestones.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Financing": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Financing"
+      },
+      "de": {
+        "singular": "Finanzierung"
+      },
+      "deSource": "approved",
+      "definition": "The Money view of funding sources, grants and bank reports.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Settings": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Settings"
+      },
+      "de": {
+        "singular": "Einstellungen"
+      },
+      "deSource": "shipped",
+      "definition": "Settings only: project setup, account, users, backups and integrations.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Project setup": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Project setup"
+      },
+      "de": {
+        "singular": "Projekteinrichtung"
+      },
+      "deSource": "approved",
+      "definition": "The settings of the house: lists, categories, trades and photo orientations.",
+      "doNotUse": [
+        {
+          "word": "Manage",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Manage", "Verwalten"]
+    },
+    "Account": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Account"
+      },
+      "de": {
+        "singular": "Konto"
+      },
+      "deSource": "approved",
+      "definition": "Your own login, name, language and theme.",
+      "doNotUse": [],
+      "formerly": ["Profile", "Profil"]
+    },
+    "Users": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Users"
+      },
+      "de": {
+        "singular": "Benutzer"
+      },
+      "deSource": "approved",
+      "definition": "The household members who can sign in, and their roles.",
+      "doNotUse": [],
+      "formerly": ["User management", "Benutzerverwaltung"]
+    },
+    "Backups": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Backups"
+      },
+      "de": {
+        "singular": "Sicherungen"
+      },
+      "deSource": "shipped",
+      "definition": "Copies of the database you can create and restore.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Integrations": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Integrations"
+      },
+      "de": {
+        "singular": "Integrationen"
+      },
+      "deSource": "approved",
+      "definition": "Connections to other services such as Paperless, AI and calendar feeds.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Documents": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Documents"
+      },
+      "de": {
+        "singular": "Dokumente"
+      },
+      "deSource": "shipped",
+      "definition": "The Paperless documents linked to your records (only with Paperless).",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Daily log": {
+      "groups": ["diaryType"],
+      "en": {
+        "singular": "Daily log",
+        "plural": "Daily logs"
+      },
+      "de": {
+        "singular": "Tagesbericht",
+        "plural": "Tagesberichte"
+      },
+      "deSource": "approved",
+      "definition": "A diary entry about a normal working day on site.",
+      "doNotUse": [
+        {
+          "word": "Tägliches Protokoll",
+          "locale": "de"
+        }
+      ],
+      "formerly": ["Tägliches Protokoll", "Tagesprotokoll"]
+    },
+    "Site visit": {
+      "groups": ["diaryType"],
+      "en": {
+        "singular": "Site visit",
+        "plural": "Site visits"
+      },
+      "de": {
+        "singular": "Begehung",
+        "plural": "Begehungen"
+      },
+      "deSource": "approved",
+      "definition": "A diary entry recording a walk through the site, with its start and end time.",
+      "doNotUse": [
+        {
+          "word": "Inspection",
+          "locale": "en"
+        },
+        {
+          "word": "Standortbesuch",
+          "locale": "de"
+        }
+      ],
+      "formerly": ["Inspection", "Standortbesuch", "Ortstermin"]
+    },
+    "Delivery": {
+      "groups": ["diaryType"],
+      "en": {
+        "singular": "Delivery",
+        "plural": "Deliveries"
+      },
+      "de": {
+        "singular": "Lieferung",
+        "plural": "Lieferungen"
+      },
+      "deSource": "shipped",
+      "definition": "A diary entry recording what arrived on site and from whom.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Defect": {
+      "groups": ["diaryType"],
+      "en": {
+        "singular": "Defect",
+        "plural": "Defects"
+      },
+      "de": {
+        "singular": "Mangel",
+        "plural": "Mängel"
+      },
+      "deSource": "approved",
+      "definition": "A diary entry about something built wrong or damaged, kept until it is fixed.",
+      "doNotUse": [],
+      "formerly": ["Issue", "Problem"]
+    },
+    "Late": {
+      "groups": ["scheduleWord", "statusWord"],
+      "en": {
+        "singular": "Late",
+        "chip": "Late · {{days}} d",
+        "sentence": "{{count}} days late"
+      },
+      "de": {
+        "singular": "Verspätet",
+        "chip": "Verspätet · {{days}} T",
+        "sentence": "{{count}} Tage verspätet"
+      },
+      "deSource": "approved",
+      "definition": "A task or purchase past its planned date, or a milestone projected after its target.",
+      "doNotUse": [
+        {
+          "word": "Delayed",
+          "locale": "en"
+        },
+        {
+          "word": "Running over",
+          "locale": "en"
+        },
+        {
+          "word": "Overdue",
+          "locale": "en",
+          "context": "for tasks, purchases and milestones; it stays the invoice word"
+        }
+      ],
+      "formerly": ["Delayed"]
+    },
+    "Early": {
+      "groups": ["scheduleWord", "statusWord"],
+      "en": {
+        "singular": "Early",
+        "chip": "Early · {{days}} d"
+      },
+      "de": {
+        "singular": "Vorzeitig",
+        "chip": "Vorzeitig · {{days}} T"
+      },
+      "deSource": "approved",
+      "definition": "A milestone projected before its target date.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Waits for": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Waits for"
+      },
+      "de": {
+        "singular": "Wartet auf"
+      },
+      "deSource": "approved",
+      "definition": "The tasks or milestones this one cannot start before.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Holds up": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Holds up"
+      },
+      "de": {
+        "singular": "Hält auf"
+      },
+      "deSource": "approved",
+      "definition": "Every unfinished task that moves if this one slips, milestone gates included.",
+      "doNotUse": [
+        {
+          "word": "Downstream",
+          "locale": "en"
+        },
+        {
+          "word": "Blocks",
+          "locale": "en"
+        },
+        {
+          "word": "Depends on it",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Blocked by this"]
+    },
+    "Held up": {
+      "groups": ["scheduleWord", "statusWord"],
+      "en": {
+        "singular": "Held up"
+      },
+      "de": {
+        "singular": "Aufgehalten"
+      },
+      "deSource": "approved",
+      "definition": "A task waiting for a late task.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Counts toward": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Counts toward"
+      },
+      "de": {
+        "singular": "Zählt zu"
+      },
+      "deSource": "approved",
+      "definition": "A task linked to a milestone it helps to reach.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Waiting for this milestone": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Waiting for this milestone"
+      },
+      "de": {
+        "singular": "Wartet auf diesen Meilenstein"
+      },
+      "deSource": "approved",
+      "definition": "A task that cannot start before the milestone is reached.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Critical": {
+      "groups": ["scheduleWord", "statusWord"],
+      "en": {
+        "singular": "Critical"
+      },
+      "de": {
+        "singular": "Kritisch"
+      },
+      "deSource": "approved",
+      "definition": "On the chain of tasks that sets the end date: if it slips, the end date moves.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Critical path": {
+      "groups": ["scheduleWord"],
+      "en": {
+        "singular": "Critical path"
+      },
+      "de": {
+        "singular": "Kritischer Pfad"
+      },
+      "deSource": "shipped",
+      "definition": "The chain of tasks that sets the end date.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "To pay": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "To pay"
+      },
+      "de": {
+        "singular": "Zu zahlen"
+      },
+      "deSource": "approved",
+      "definition": "An invoice or progress payment that is due and not paid yet.",
+      "doNotUse": [
+        {
+          "word": "Pending",
+          "locale": "en",
+          "context": "as an invoice or progress-payment status"
+        },
+        {
+          "word": "Open",
+          "locale": "en",
+          "context": "as a payable status"
+        }
+      ],
+      "formerly": ["Pending", "Open", "Ausstehend"]
+    },
+    "Paid": {
+      "groups": ["statusWord", "figureWord"],
+      "en": {
+        "singular": "Paid"
+      },
+      "de": {
+        "singular": "Bezahlt"
+      },
+      "deSource": "approved",
+      "definition": "Paid, but not yet included in a draw-down request; as a figure, the paid and submitted amounts together.",
+      "doNotUse": [
+        {
+          "word": "Paid so far",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Paid so far", "Actual spend"]
+    },
+    "Submitted": {
+      "groups": ["statusWord", "figureWord"],
+      "en": {
+        "singular": "Submitted"
+      },
+      "de": {
+        "singular": "Eingereicht"
+      },
+      "deSource": "approved",
+      "definition": "Paid or due, and included in a draw-down request to the bank.",
+      "doNotUse": [
+        {
+          "word": "Claimed",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Claimed"]
+    },
+    "Overdue": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Overdue"
+      },
+      "de": {
+        "singular": "Überfällig"
+      },
+      "deSource": "approved",
+      "definition": "An invoice still to pay after its due date.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Not started": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Not started"
+      },
+      "de": {
+        "singular": "Nicht begonnen"
+      },
+      "deSource": "approved",
+      "definition": "A task whose work has not begun.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "In progress": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "In progress"
+      },
+      "de": {
+        "singular": "In Arbeit"
+      },
+      "deSource": "approved",
+      "definition": "A task whose work has begun and is not done.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Done": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Done"
+      },
+      "de": {
+        "singular": "Abgeschlossen"
+      },
+      "deSource": "approved",
+      "definition": "A task whose work is finished.",
+      "doNotUse": [],
+      "formerly": ["Completed"]
+    },
+    "Planned": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Planned"
+      },
+      "de": {
+        "singular": "Geplant"
+      },
+      "deSource": "approved",
+      "definition": "A purchase that is not ordered yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Ordered": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Ordered"
+      },
+      "de": {
+        "singular": "Bestellt"
+      },
+      "deSource": "approved",
+      "definition": "A purchase that is ordered and has no delivery date yet.",
+      "doNotUse": [],
+      "formerly": ["Purchased", "Gekauft"]
+    },
+    "Delivery scheduled": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Delivery scheduled"
+      },
+      "de": {
+        "singular": "Lieferung geplant"
+      },
+      "deSource": "approved",
+      "definition": "A purchase that is ordered and has a delivery date.",
+      "doNotUse": [],
+      "formerly": ["Scheduled"]
+    },
+    "Delivered": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Delivered"
+      },
+      "de": {
+        "singular": "Geliefert"
+      },
+      "deSource": "approved",
+      "definition": "A purchase that has arrived.",
+      "doNotUse": [],
+      "formerly": ["Arrived", "Angekommen"]
+    },
+    "Upcoming": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Upcoming"
+      },
+      "de": {
+        "singular": "Anstehend"
+      },
+      "deSource": "approved",
+      "definition": "A milestone not reached yet and on time.",
+      "doNotUse": [
+        {
+          "word": "Pending",
+          "locale": "en",
+          "context": "as a milestone status"
+        }
+      ],
+      "formerly": ["Pending"]
+    },
+    "Reached": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Reached"
+      },
+      "de": {
+        "singular": "Erreicht"
+      },
+      "deSource": "approved",
+      "definition": "A milestone that has been reached.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Eligible": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Eligible"
+      },
+      "de": {
+        "singular": "Berechtigt"
+      },
+      "deSource": "shipped",
+      "definition": "A grant you qualify for but have not applied for.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Applied": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Applied"
+      },
+      "de": {
+        "singular": "Beantragt"
+      },
+      "deSource": "shipped",
+      "definition": "A grant you have applied for.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Approved": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Approved"
+      },
+      "de": {
+        "singular": "Genehmigt"
+      },
+      "deSource": "shipped",
+      "definition": "A grant the programme has approved.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Received": {
+      "groups": ["statusWord", "figureWord"],
+      "en": {
+        "singular": "Received"
+      },
+      "de": {
+        "singular": "Erhalten"
+      },
+      "deSource": "shipped",
+      "definition": "A grant whose payout has arrived (the end marker; no amount is tracked).",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Rejected": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Rejected"
+      },
+      "de": {
+        "singular": "Abgelehnt"
+      },
+      "deSource": "shipped",
+      "definition": "A grant the programme has turned down.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Active": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Active"
+      },
+      "de": {
+        "singular": "Aktiv"
+      },
+      "deSource": "approved",
+      "definition": "A funding source you can still allocate costs to.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Used up": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Used up"
+      },
+      "de": {
+        "singular": "Ausgeschöpft"
+      },
+      "deSource": "approved",
+      "definition": "A funding source with nothing left to allocate.",
+      "doNotUse": [],
+      "formerly": ["Exhausted"]
+    },
+    "Closed": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Closed"
+      },
+      "de": {
+        "singular": "Geschlossen"
+      },
+      "deSource": "approved",
+      "definition": "A funding source you no longer use.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Open": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Open"
+      },
+      "de": {
+        "singular": "Offen"
+      },
+      "deSource": "approved",
+      "definition": "A defect that is not being fixed yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Being fixed": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Being fixed"
+      },
+      "de": {
+        "singular": "Wird behoben"
+      },
+      "deSource": "approved",
+      "definition": "A defect someone is fixing.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Fixed": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Fixed"
+      },
+      "de": {
+        "singular": "Behoben"
+      },
+      "deSource": "approved",
+      "definition": "A defect that has been fixed.",
+      "doNotUse": [],
+      "formerly": ["Resolved"]
+    },
+    "On budget": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "On budget"
+      },
+      "de": {
+        "singular": "Im Rahmen"
+      },
+      "deSource": "approved",
+      "definition": "The verdict when Left to spend is zero or more.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Over budget": {
+      "groups": ["statusWord"],
+      "en": {
+        "singular": "Over budget"
+      },
+      "de": {
+        "singular": "Über Budget"
+      },
+      "deSource": "approved",
+      "definition": "The verdict when Left to spend is below zero.",
+      "doNotUse": [
+        {
+          "word": "Tight",
+          "locale": "en",
+          "context": "as a budget verdict"
+        }
+      ],
+      "formerly": []
+    },
+    "Left to spend": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Left to spend"
+      },
+      "de": {
+        "singular": "Noch verfügbar"
+      },
+      "deSource": "approved",
+      "definition": "Funding total and expected grants minus expected cost, shown with its range.",
+      "doNotUse": [
+        {
+          "word": "Remaining",
+          "locale": "en",
+          "context": "bare"
+        }
+      ],
+      "formerly": ["Remaining budget", "Headroom"]
+    },
+    "Funding total": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Funding total"
+      },
+      "de": {
+        "singular": "Finanzierung gesamt"
+      },
+      "deSource": "approved",
+      "definition": "The sum of all active funding sources.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Expected cost": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Expected cost"
+      },
+      "de": {
+        "singular": "Erwartete Kosten"
+      },
+      "deSource": "approved",
+      "definition": "Everything signed or billed, plus open estimates and amounts not yet split.",
+      "doNotUse": [
+        {
+          "word": "Committed",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Committed", "Cost basis", "Planned cost range"]
+    },
+    "Expected grants": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Expected grants"
+      },
+      "de": {
+        "singular": "Erwartete Förderung"
+      },
+      "deSource": "approved",
+      "definition": "What the approved grants are expected to pay back, from their rates and caps.",
+      "doNotUse": [],
+      "formerly": ["Expected payback"]
+    },
+    "After grants": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "After grants"
+      },
+      "de": {
+        "singular": "Nach Förderung"
+      },
+      "deSource": "approved",
+      "definition": "Expected cost minus expected grants.",
+      "doNotUse": [
+        {
+          "word": "Net",
+          "locale": "en",
+          "context": "for after grants"
+        }
+      ],
+      "formerly": ["Net", "Net cost"]
+    },
+    "Still to pay": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Still to pay"
+      },
+      "de": {
+        "singular": "Noch zu zahlen"
+      },
+      "deSource": "approved",
+      "definition": "Invoices and progress payments that are due and not paid yet.",
+      "doNotUse": [
+        {
+          "word": "Outstanding",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Outstanding balance", "Pending amount"]
+    },
+    "Not yet paid": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Not yet paid"
+      },
+      "de": {
+        "singular": "Noch nicht bezahlt"
+      },
+      "deSource": "approved",
+      "definition": "Expected cost minus what is paid: unpaid invoices plus offers and estimates not invoiced yet.",
+      "doNotUse": [],
+      "formerly": ["Outstanding"]
+    },
+    "Ready to submit": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Ready to submit"
+      },
+      "de": {
+        "singular": "Einreichbar"
+      },
+      "deSource": "approved",
+      "definition": "Paid or due amounts funded by a loan or credit line that no draw-down request includes yet.",
+      "doNotUse": [
+        {
+          "word": "Claimable",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Claimable"]
+    },
+    "Remaining on offer": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Remaining on offer"
+      },
+      "de": {
+        "singular": "Restbetrag"
+      },
+      "deSource": "approved",
+      "definition": "An offer's amount minus the progress payments made against it.",
+      "doNotUse": [],
+      "formerly": ["Remaining amount"]
+    },
+    "Not yet split": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Not yet split"
+      },
+      "de": {
+        "singular": "Nicht aufgeschlüsselt"
+      },
+      "deSource": "approved",
+      "definition": "The part of an offer or invoice not divided into cost lines yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Allocated": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Allocated"
+      },
+      "de": {
+        "singular": "Zugeordnet"
+      },
+      "deSource": "approved",
+      "definition": "The cost of the cost lines a funding source pays for.",
+      "doNotUse": [],
+      "formerly": ["Utilized"]
+    },
+    "Unallocated": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Unallocated"
+      },
+      "de": {
+        "singular": "Frei"
+      },
+      "deSource": "approved",
+      "definition": "A funding source's amount minus what is allocated, when that is zero or more.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Over-allocated": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Over-allocated"
+      },
+      "de": {
+        "singular": "Überzogen"
+      },
+      "deSource": "approved",
+      "definition": "What is allocated beyond a funding source's amount.",
+      "doNotUse": [],
+      "formerly": ["Overflow"]
+    },
+    "Amount": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Amount"
+      },
+      "de": {
+        "singular": "Betrag"
+      },
+      "deSource": "shipped",
+      "definition": "The record's own amount: an offer, invoice, progress payment or funding source.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Eligible costs up to": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Eligible costs up to"
+      },
+      "de": {
+        "singular": "Förderfähig bis"
+      },
+      "deSource": "approved",
+      "definition": "A grant's cap on eligible costs, as in the grant letter.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Estimate": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Estimate",
+        "plural": "Estimates"
+      },
+      "de": {
+        "singular": "Schätzung",
+        "plural": "Schätzungen"
+      },
+      "deSource": "approved",
+      "definition": "The planned amount of a cost line that has no offer or invoice yet.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Range": {
+      "groups": ["figureWord"],
+      "en": {
+        "singular": "Range"
+      },
+      "de": {
+        "singular": "Spanne",
+        "note": "Decision recorded on #2190 (comment 6090378393); pending owner veto at the P0 checkpoint."
+      },
+      "deSource": "approved",
+      "definition": "The best and the worst case around a money figure.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Needs attention": {
+      "groups": ["homeWord"],
+      "en": {
+        "singular": "Needs attention"
+      },
+      "de": {
+        "singular": "Braucht dich"
+      },
+      "deSource": "approved",
+      "definition": "Facts on Home that need a decision or an action from the household.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Tidy up": {
+      "groups": ["homeWord"],
+      "en": {
+        "singular": "Tidy up"
+      },
+      "de": {
+        "singular": "Aufräumen"
+      },
+      "deSource": "approved",
+      "definition": "Records on Home with missing or inconsistent details to complete.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "This week": {
+      "groups": ["homeWord"],
+      "en": {
+        "singular": "This week"
+      },
+      "de": {
+        "singular": "Diese Woche"
+      },
+      "deSource": "approved",
+      "definition": "What starts, ends or is due in the next days, with a link to the schedule.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Not now": {
+      "groups": ["homeWord"],
+      "en": {
+        "singular": "Not now"
+      },
+      "de": {
+        "singular": "Später"
+      },
+      "deSource": "approved",
+      "definition": "Hides a row on Home for 7 days.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Status change": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Status change"
+      },
+      "de": {
+        "singular": "Statusänderung"
+      },
+      "deSource": "approved",
+      "definition": "A record's status changed.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Payment": {
+      "groups": ["historyEventType", "tabWord"],
+      "en": {
+        "singular": "Payment",
+        "plural": "Payments"
+      },
+      "de": {
+        "singular": "Zahlung",
+        "plural": "Zahlungen"
+      },
+      "deSource": "approved",
+      "definition": "An invoice or progress payment was paid; as a tab, the payments of a record.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Invoice recorded": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Invoice recorded"
+      },
+      "de": {
+        "singular": "Rechnung erfasst"
+      },
+      "deSource": "approved",
+      "definition": "An invoice was added.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Milestone moved": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Milestone moved"
+      },
+      "de": {
+        "singular": "Meilenstein verschoben"
+      },
+      "deSource": "approved",
+      "definition": "A milestone's projected date changed.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Grant status": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Grant status"
+      },
+      "de": {
+        "singular": "Förderstatus"
+      },
+      "deSource": "approved",
+      "definition": "A grant's status changed.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Submission": {
+      "groups": ["historyEventType"],
+      "en": {
+        "singular": "Submission"
+      },
+      "de": {
+        "singular": "Einreichung"
+      },
+      "deSource": "approved",
+      "definition": "Amounts were included in a draw-down request.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Overview": {
+      "groups": ["tabWord"],
+      "en": {
+        "singular": "Overview"
+      },
+      "de": {
+        "singular": "Übersicht"
+      },
+      "deSource": "shipped",
+      "definition": "The first tab of a detail page: its summary.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Timing": {
+      "groups": ["tabWord"],
+      "en": {
+        "singular": "Timing"
+      },
+      "de": {
+        "singular": "Termine"
+      },
+      "deSource": "approved",
+      "definition": "The tab with dates, dependencies and milestones.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Work": {
+      "groups": ["tabWord"],
+      "en": {
+        "singular": "Work"
+      },
+      "de": {
+        "singular": "Arbeiten"
+      },
+      "deSource": "approved",
+      "definition": "The tab with the tasks or purchases that belong to a record.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Cost": {
+      "groups": ["tabWord"],
+      "en": {
+        "singular": "Cost"
+      },
+      "de": {
+        "singular": "Kosten"
+      },
+      "deSource": "approved",
+      "definition": "The tab with cost lines, offers and invoices.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "New": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "New"
+      },
+      "de": {
+        "verb": "Neu",
+        "note": "Inflects with the noun: Neue Aufgabe, Neuer Meilenstein, Neues Angebot. Decision recorded on #2190 (comment 6090378393); pending owner veto at the P0 checkpoint."
+      },
+      "deSource": "approved",
+      "definition": "Create a record.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Add": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Add"
+      },
+      "de": {
+        "verb": "Hinzufügen"
+      },
+      "deSource": "shipped",
+      "definition": "Add a sub-record: a cost line, progress payment, contact person or checklist item.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Link": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Link"
+      },
+      "de": {
+        "verb": "Verknüpfen"
+      },
+      "deSource": "shipped",
+      "definition": "Connect two existing records.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Remove": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Remove"
+      },
+      "de": {
+        "verb": "Entfernen"
+      },
+      "deSource": "shipped",
+      "definition": "Disconnect a linked record without deleting it.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Delete": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Delete"
+      },
+      "de": {
+        "verb": "Löschen"
+      },
+      "deSource": "shipped",
+      "definition": "Destroy a record.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Edit": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Edit"
+      },
+      "de": {
+        "verb": "Bearbeiten"
+      },
+      "deSource": "shipped",
+      "definition": "Open a section's form.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Save": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Save"
+      },
+      "de": {
+        "verb": "Speichern"
+      },
+      "deSource": "shipped",
+      "definition": "The only commit verb, for every form.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Cancel": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Cancel"
+      },
+      "de": {
+        "verb": "Abbrechen"
+      },
+      "deSource": "shipped",
+      "definition": "Leave a form without saving; it always comes before Save.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Log": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Log"
+      },
+      "de": {
+        "verb": "Erfassen",
+        "note": "Example: Heute erfassen. Decision recorded on #2190 (comment 6090378393); pending owner veto at the P0 checkpoint."
+      },
+      "deSource": "approved",
+      "definition": "Create a diary entry, as in \"Log today\".",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Mark": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Mark ‹state›"
+      },
+      "de": {
+        "verb": "Als ‹Zustand› markieren"
+      },
+      "deSource": "shipped",
+      "definition": "Set a state directly: Mark done, Mark paid, Mark reached, Mark delivered, Mark ordered.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Start": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Start"
+      },
+      "de": {
+        "verb": "Starten",
+        "note": "Decision recorded on #2190 (comment 6090378393); pending owner veto at the P0 checkpoint."
+      },
+      "deSource": "approved",
+      "definition": "Begin a task now.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Split": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Split"
+      },
+      "de": {
+        "verb": "aufschlüsseln",
+        "noun": "Aufschlüsselung"
+      },
+      "deSource": "shipped",
+      "definition": "Divide an offer or invoice into cost lines.",
+      "doNotUse": [
+        {
+          "word": "Itemize",
+          "locale": "en"
+        }
+      ],
+      "formerly": ["Itemize", "Itemization"]
     }
   }
 }

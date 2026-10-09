@@ -510,7 +510,16 @@ The application supports multiple locales (English and German) via `i18next` and
 
 - **Frontend**: All user-facing strings must use `t()` — never hardcode text in JSX. Translation files: `client/src/i18n/{lang}/{namespace}.json`. Dev agents write English (`en`) keys only; never write non-English translations.
 - **Translator owns non-English locales**: `translator` agent translates new keys and enforces glossary compliance.
-- **Glossary**: `client/src/i18n/glossary.json` — domain-specific terms only (Work Item, Invoice, etc.). Translator proposes new terms; product-owner approves. To add a locale: update `glossary.json` `_meta.locales`, create `client/src/i18n/{locale}/` namespace files, register in `client/src/i18n/index.ts`.
+- **Glossary** (`client/src/i18n/glossary.json`, schema v2, glossary v1 approved by the owner): domain terms and fixed UI words only. `_meta` holds `schemaVersion: 2`, `glossaryVersion`, `locales`, `lastUpdated`, `approval` (owner decision and the translator's sign-off) and `transition`. Each key of `terms` is the **English canon**. A term has:
+  - `groups` (`primaryNoun`, `supportingNoun`, `view`, `diaryType`, `scheduleWord`, `statusWord`, `figureWord`, `homeWord`, `historyEventType`, `tabWord`, `verb`, `photoMarkup`, `general`);
+  - `en` and `de` forms (`singular`, `plural`, `verb`, `noun`, `chip`, `sentence`, `shortForm`, `shortFormNote`, `note`);
+  - `deSource` (`approved` | `shipped`);
+  - a one-line English `definition`, the source of term hints and empty-state wording;
+  - `doNotUse` (`{ word, locale, context? }`, the banned synonyms; a banned word that is also a valid canon carries a `context`);
+  - `formerly`: former names, which are **permanent search aliases** and are never removed.
+
+  Read it only through `client/src/i18n/glossary.ts` (`GLOSSARY`, `getSearchAliases`, `findTermsByAlias`, `getBannedSynonyms`), which validates the schema. Status labels come from the canonical `statusVocabulary.*` key sets in `I18N_UNION_KEYS` (namespace `common`), one per status vocabulary. During EPIC-21, words in `formerly` or `doNotUse` stay in existing strings until the story that renames that label. The translator proposes new terms and the product owner (or the owner) approves them. To add a locale: update `glossary.json` `_meta.locales` and every term's forms, create `client/src/i18n/{locale}/` namespace files, and register them in `client/src/i18n/index.ts`.
+
 - **Backend**: API error responses use `ErrorCode` enum values; frontend translates via `translateApiError()`. `CURRENCY` env var (default: `EUR`) exposed via `GET /api/config`.
 - **Formatting**: Use `formatDate`, `formatCurrency`, `formatPercent`, `formatWeekdayShort`, `formatFileSize`, `formatFileSizeDecimal` (1 MB = 1,000,000 B; used for the report size limit and the sizes shown beside it), and `formatHours` from `client/src/lib/formatters.ts` — never raw `toLocaleDateString()` or `Intl.NumberFormat`.
 - **Union-derived keys**: A union enumerated at runtime is an exported `as const` tuple (in `shared/`, or client-local when only the client enumerates it, e.g. `REPORT_SKIP_REASONS`) with its type derived from it (`export type X = (typeof XS)[number]`). Any i18n key built from a union member goes through a key set in `I18N_UNION_KEYS` (`client/src/i18n/unionKeys.ts`, `set.key(member)`) — never a template-literal key — so `unionKeys.test.ts` fails when a member lacks a key in any locale (#2029), and `templateLiteralKeys.test.ts` fails on a new template-literal key outside its allow-list.

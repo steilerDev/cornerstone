@@ -99,6 +99,13 @@ component that is not listed in `allowedAdditions.sharedComponents` (matched by 
 missing from the baseline only counts as a rise when it has more than one primary button or more than
 one search field.
 
+Glossary exemption (#2192, dev-team-lead approval in that story's spec): a new money label that equals
+the normalised English form (`singular`, `plural`, `verb`, `noun`, `chip`, `sentence`, `shortForm`) of
+a term in `client/src/i18n/glossary.json` is owner-approved vocabulary. It is reported as "not yet
+recorded" and recorded by `plan:build`, never counted as a rise. Any other new money label is still a
+rise. A missing glossary exempts nothing. This rule and `glossaryLabels()` in `build-baseline.mjs`
+change together.
+
 ### Changing the baseline
 
 - Any pull request that triggers the "baseline is behind" notice (a drop, a new screen, or a consumed

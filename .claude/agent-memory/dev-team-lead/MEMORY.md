@@ -33,4 +33,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Crash-recovery swap specs](crash-recovery-specs.md) — per-loop marker phases, atomic marker, basenames, marker-last, no data-deleting sweep, rw SQLite staging validation
 - [Unmodified-tests constraint](unmodified-tests-constraint.md) — optional props/fields, dynamic import past partial ESM mocks, new test files
 - [Governance story specs](governance-story-specs.md) — owners for plan/.claude/.github/CLAUDE.md, residual policy text in pr-review.js, privacy scanner w/o leaking denylist
+- [Restructure i18n specs](restructure-i18n-specs.md) — new en money-word values fail plan:check baseline; canonical statusVocabulary sets; transition rule; §2.0 supersedes
 - [Invariant removal specs](invariant-removal-specs.md) — grep every guard under the error code incl. inverse paths; lock-step ERROR_CODES/en/de; advisory client mirrors; docs

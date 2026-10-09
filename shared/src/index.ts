@@ -238,6 +238,7 @@ export type {
   BudgetOverview,
   BudgetOverviewResponse,
   OversubscribedSubsidy,
+  BudgetVerdict,
 } from './types/budgetOverview.js';
 
 // Budget Breakdown
@@ -269,11 +270,18 @@ export { CONFIDENCE_MARGINS } from './types/workItemBudget.js';
 
 // Runtime union tuples (#2029)
 export { SOURCE_REPORT_TYPES } from './types/sourceReport.js';
-export { BUDGET_SOURCE_TYPES } from './types/budgetSource.js';
-export { INVOICE_STATUSES, INVOICE_DEPOSIT_ENTRY_TYPES } from './types/invoice.js';
+export { BUDGET_SOURCE_TYPES, BUDGET_SOURCE_STATUSES } from './types/budgetSource.js';
+export {
+  INVOICE_STATUSES,
+  INVOICE_DEPOSIT_STATUSES,
+  INVOICE_DEPOSIT_ENTRY_TYPES,
+} from './types/invoice.js';
 export { SUBSIDY_APPLICATION_STATUSES } from './types/subsidyProgram.js';
 export { HOUSEHOLD_ITEM_STATUSES } from './types/householdItem.js';
-export { DIARY_SOURCE_ENTITY_TYPES } from './types/diary.js';
+export { DIARY_SOURCE_ENTITY_TYPES, DIARY_ISSUE_RESOLUTIONS } from './types/diary.js';
+export { SCHEDULE_SIGNALS } from './types/schedule.js';
+export { MILESTONE_DISPLAY_STATUSES } from './types/milestone.js';
+export { BUDGET_VERDICTS } from './types/budgetOverview.js';
 export { CONFIDENCE_LEVELS } from './types/budget.js';
 export { ATTACHMENT_TYPES } from './types/document.js';
 export {
@@ -293,6 +301,7 @@ export type {
   MilestoneListResponse,
   LinkWorkItemRequest,
   MilestoneWorkItemLinkResponse,
+  MilestoneDisplayStatus,
 } from './types/milestone.js';
 
 // Scheduling
@@ -302,6 +311,7 @@ export type {
   ScheduledItem,
   ScheduleWarningType,
   ScheduleWarning,
+  ScheduleSignal,
 } from './types/schedule.js';
 
 // Timeline

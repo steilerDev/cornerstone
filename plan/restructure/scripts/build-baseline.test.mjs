@@ -11,6 +11,7 @@ import {
   auditClient,
   buildBaseline,
   compareBaseline,
+  glossaryLabels,
   isPrimaryClass,
   normalizeLabel,
   parseCss,
@@ -572,6 +573,137 @@ describe('compareBaseline', () => {
       'A.primaryButtons: 0 → 1',
       'A.searchFields: 0 → 1',
     ]);
+  });
+});
+
+describe('glossaryLabels', () => {
+  it('collects normalised English forms only', () => {
+    const labels = glossaryLabels({
+      terms: {
+        'To pay': { en: { singular: 'To pay' } },
+        X: { en: { chip: 'Late · {{days}} d', note: 'ignored' }, de: { singular: 'Verspätet' } },
+      },
+    });
+    assert.ok(labels.has('to pay'));
+    assert.ok(labels.has('late · d'));
+    assert.ok(!labels.has('ignored'));
+    assert.ok(!labels.has('verspätet'));
+  });
+
+  it('covers every English form key and skips empty or non-string values', () => {
+    const labels = glossaryLabels({
+      terms: {
+        A: {
+          en: {
+            singular: 'Alpha one',
+            plural: 'Alpha ones',
+            verb: 'Alphabetise',
+            noun: 'Alphabet',
+            sentence: 'An alpha sentence',
+            shortForm: 'Alp',
+            chip: '',
+          },
+        },
+        B: { en: { singular: 42 } },
+        C: null,
+        D: { en: { singular: '{{x}}' } },
+      },
+    });
+    assert.deepEqual(
+      [...labels].sort(),
+      ['alp', 'alpha one', 'alpha ones', 'alphabet', 'alphabetise', 'an alpha sentence'].sort(),
+    );
+  });
+
+  it('returns an empty set for null, empty or malformed input', () => {
+    assert.equal(glossaryLabels(null).size, 0);
+    assert.equal(glossaryLabels({}).size, 0);
+    assert.equal(glossaryLabels({ terms: 'nope' }).size, 0);
+  });
+});
+
+describe('compareBaseline with approved glossary labels', () => {
+  const withNewLabel = () => {
+    const m = measuredBase();
+    m.moneyLabels.values = ['paid', 'to pay'];
+    return m;
+  };
+
+  it('records an approved new money label as unrecorded, not a rise', () => {
+    const res = compareBaseline(baselineOf(measuredBase()), withNewLabel(), new Set(['to pay']));
+    assert.deepEqual(res.rises, []);
+    assert.deepEqual(res.unrecorded, ['moneyLabels: glossary label "to pay" not yet recorded']);
+  });
+
+  it('still flags a new label that is not approved', () => {
+    const res = compareBaseline(baselineOf(measuredBase()), withNewLabel(), new Set(['other']));
+    assert.deepEqual(res.rises, ['moneyLabels: new label "to pay"']);
+    assert.deepEqual(res.unrecorded, []);
+  });
+
+  it('behaves as before with no third argument', () => {
+    const res = compareBaseline(baselineOf(measuredBase()), withNewLabel());
+    assert.deepEqual(res.rises, ['moneyLabels: new label "to pay"']);
+  });
+
+  it('does not report a label already in the baseline even if approved', () => {
+    const res = compareBaseline(baselineOf(measuredBase()), measuredBase(), new Set(['paid']));
+    assert.deepEqual(res, { rises: [], drops: [], unrecorded: [] });
+  });
+});
+
+describe('run with a glossary file', () => {
+  const addLabel = (root) =>
+    writeFileSync(
+      join(root, S, 'i18n/en/common.json'),
+      JSON.stringify({
+        a: 'Remaining budget',
+        b: 'Total cost:',
+        c: 'Costs…',
+        d: 'Hello world',
+        e: 'The total amount of everything here',
+        f: 'Paid {{count}}',
+        g: 'Total cost',
+        h: 'Netzwerk',
+        nested: { i: 'Unallocated', j: '  Over-allocated  ', n: 42 },
+        pay: 'To pay',
+      }),
+    );
+
+  it('passes with a "baseline is behind" note when the new label is an approved glossary form', async () => {
+    const root = makeRoot(TREE);
+    await run({ root, mode: 'write' });
+    addLabel(root);
+    writeFileSync(
+      join(root, S, 'i18n/glossary.json'),
+      JSON.stringify({ terms: { 'To pay': { en: { singular: 'To pay' } } } }),
+    );
+    const res = await run({ root, mode: 'check' });
+    assert.deepEqual(res.errors, []);
+    assert.equal(res.notes[0], 'baseline is behind: run npm run plan:build');
+    assert.ok(res.notes.includes('  moneyLabels: glossary label "to pay" not yet recorded'));
+  });
+
+  it('reports a rise for the same label without a glossary file', async () => {
+    const root = makeRoot(TREE);
+    await run({ root, mode: 'write' });
+    addLabel(root);
+    const res = await run({ root, mode: 'check' });
+    assert.deepEqual(res.errors, ['moneyLabels: new label "to pay"']);
+  });
+
+  it('write records the approved label into the baseline', async () => {
+    const root = makeRoot(TREE);
+    await run({ root, mode: 'write' });
+    addLabel(root);
+    writeFileSync(
+      join(root, S, 'i18n/glossary.json'),
+      JSON.stringify({ terms: { 'To pay': { en: { singular: 'To pay' } } } }),
+    );
+    const res = await run({ root, mode: 'write' });
+    assert.deepEqual(res.errors, []);
+    const doc = JSON.parse(readFileSync(join(root, 'plan/restructure/baseline.json'), 'utf8'));
+    assert.ok(doc.measured.moneyLabels.values.includes('to pay'));
   });
 });
 

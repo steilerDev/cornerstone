@@ -23,9 +23,13 @@ export const INVOICE_STATUSES = ['pending', 'paid', 'claimed', 'quotation'] as c
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number];
 
 /**
- * Deposit status within an invoice: pending, paid, or claimed.
+ * Deposit (progress payment) status within an invoice.
+ * Runtime source of truth for the union — add new members here; the i18n parity guard in `client/src/i18n/unionKeys.test.ts` then requires a locale key (#2029).
  */
-export type InvoiceDepositStatus = 'pending' | 'paid' | 'claimed';
+export const INVOICE_DEPOSIT_STATUSES = ['pending', 'paid', 'claimed'] as const;
+
+/** Deposit (progress payment) status within an invoice. */
+export type InvoiceDepositStatus = (typeof INVOICE_DEPOSIT_STATUSES)[number];
 
 /**
  * Deposit entry type: either a regular deposit or a refund.

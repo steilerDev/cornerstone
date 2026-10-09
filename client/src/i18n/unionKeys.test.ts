@@ -1,21 +1,33 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   ATTACHMENT_TYPES,
+  BUDGET_SOURCE_STATUSES,
   BUDGET_SOURCE_TYPES,
+  BUDGET_VERDICTS,
   DIARY_ENTRY_TYPES,
+  DIARY_ISSUE_RESOLUTIONS,
+  HOUSEHOLD_ITEM_STATUSES,
+  INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
+  MANUAL_DIARY_ENTRY_TYPES,
+  MILESTONE_DISPLAY_STATUSES,
+  SCHEDULE_SIGNALS,
   SOURCE_REPORT_TYPES,
+  SUBSIDY_APPLICATION_STATUSES,
+  WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import enBudget from './en/budget.json';
 import enDocuments from './en/documents.json';
 import enDiary from './en/diary.json';
 import enHouseholdItems from './en/householdItems.json';
 import enAuth from './en/auth.json';
+import enCommon from './en/common.json';
 import deBudget from './de/budget.json';
 import deDocuments from './de/documents.json';
 import deDiary from './de/diary.json';
 import deHouseholdItems from './de/householdItems.json';
 import deAuth from './de/auth.json';
+import deCommon from './de/common.json';
 import { I18N_UNION_KEYS } from './unionKeys.js';
 import type { UnionKeyNamespace, UnionKeySet } from './unionKeys.js';
 
@@ -26,6 +38,7 @@ const LOCALE_JSON: Record<UnionKeyNamespace, Record<'en' | 'de', Record<string, 
   diary: { en: enDiary, de: deDiary },
   householdItems: { en: enHouseholdItems, de: deHouseholdItems },
   auth: { en: enAuth, de: deAuth },
+  common: { en: enCommon, de: deCommon },
 };
 
 /** Keys whose dot-path does not resolve to a NON-EMPTY STRING leaf (object node or '' = missing). */
@@ -54,8 +67,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 20 registered sets', () => {
-    expect(SETS).toHaveLength(20);
+  it('iterates all 31 registered sets', () => {
+    expect(SETS).toHaveLength(31);
   });
 });
 
@@ -134,7 +147,7 @@ describe('I18N_UNION_KEYS registry', () => {
     );
   });
 
-  it('registers the 20 sets in declaration order', () => {
+  it('registers the 31 sets in declaration order', () => {
     expect(Object.keys(I18N_UNION_KEYS)).toEqual([
       'reportTitle',
       'reportCoverLetterSubject',
@@ -156,10 +169,91 @@ describe('I18N_UNION_KEYS registry', () => {
       'householdItemStatus',
       'diarySourceType',
       'oidcLoginError',
+      'statusVocabularyInvoice',
+      'statusVocabularyProgressPayment',
+      'statusVocabularyTask',
+      'statusVocabularyScheduleSignal',
+      'statusVocabularyPurchase',
+      'statusVocabularyMilestone',
+      'statusVocabularyGrant',
+      'statusVocabularyFundingSource',
+      'statusVocabularyDefect',
+      'statusVocabularyBudgetVerdict',
+      'statusVocabularyDiaryType',
     ]);
   });
 
   it.each(Object.entries(I18N_UNION_KEYS))('freezes key set %s', (_name, set) => {
     expect(Object.isFrozen(set)).toBe(true);
+  });
+});
+
+describe('canonical status vocabulary sets (glossary v1, #2192)', () => {
+  const VOCABULARIES = [
+    ['statusVocabularyInvoice', INVOICE_STATUSES],
+    ['statusVocabularyProgressPayment', INVOICE_DEPOSIT_STATUSES],
+    ['statusVocabularyTask', WORK_ITEM_STATUSES],
+    ['statusVocabularyScheduleSignal', SCHEDULE_SIGNALS],
+    ['statusVocabularyPurchase', HOUSEHOLD_ITEM_STATUSES],
+    ['statusVocabularyMilestone', MILESTONE_DISPLAY_STATUSES],
+    ['statusVocabularyGrant', SUBSIDY_APPLICATION_STATUSES],
+    ['statusVocabularyFundingSource', BUDGET_SOURCE_STATUSES],
+    ['statusVocabularyDefect', DIARY_ISSUE_RESOLUTIONS],
+    ['statusVocabularyBudgetVerdict', BUDGET_VERDICTS],
+    ['statusVocabularyDiaryType', MANUAL_DIARY_ENTRY_TYPES],
+  ] as const;
+
+  it.each(VOCABULARIES)('%s iterates its shared tuple by reference', (name, tuple) => {
+    expect(I18N_UNION_KEYS[name].members).toBe(tuple);
+  });
+
+  it.each(VOCABULARIES)(
+    'exactly one canonical statusVocabulary set exists for the %s tuple',
+    (_name, tuple) => {
+      const canonical = Object.values(I18N_UNION_KEYS).filter(
+        (set) =>
+          (set.members as readonly string[]) === tuple &&
+          set.ns === 'common' &&
+          set.prefix.startsWith('statusVocabulary.'),
+      );
+      expect(canonical).toHaveLength(1);
+    },
+  );
+
+  it('pins the members of the six new tuples (no "tight" budget verdict)', () => {
+    expect(INVOICE_DEPOSIT_STATUSES).toEqual(['pending', 'paid', 'claimed']);
+    expect(BUDGET_SOURCE_STATUSES).toEqual(['active', 'exhausted', 'closed']);
+    expect(DIARY_ISSUE_RESOLUTIONS).toEqual(['open', 'in_progress', 'resolved']);
+    expect(SCHEDULE_SIGNALS).toEqual(['late', 'held_up', 'critical']);
+    expect(MILESTONE_DISPLAY_STATUSES).toEqual(['upcoming', 'late', 'early', 'reached']);
+    expect(BUDGET_VERDICTS).toEqual(['on_budget', 'over_budget']);
+    expect(BUDGET_VERDICTS).not.toContain('tight');
+  });
+
+  it('puts every set in the common namespace under statusVocabulary.<vocabulary>', () => {
+    for (const [name] of VOCABULARIES) {
+      expect(I18N_UNION_KEYS[name].ns).toBe('common');
+      expect(I18N_UNION_KEYS[name].prefix).toMatch(/^statusVocabulary\.[a-zA-Z]+$/);
+    }
+  });
+
+  it('derives the key shapes', () => {
+    expect(I18N_UNION_KEYS.statusVocabularyScheduleSignal.key('held_up')).toBe(
+      'statusVocabulary.scheduleSignal.held_up',
+    );
+    expect(I18N_UNION_KEYS.statusVocabularyDiaryType.key('issue')).toBe(
+      'statusVocabulary.diaryType.issue',
+    );
+  });
+
+  it('fails when a member has no key in the common namespace', () => {
+    const fake: UnionKeySet<string> = {
+      ns: 'common',
+      prefix: 'statusVocabulary.task',
+      members: ['bogus'],
+      key: (m) => `statusVocabulary.task.${m}`,
+    };
+    expect(missingKeys(fake, enCommon)).toEqual(['statusVocabulary.task.bogus']);
+    expect(missingKeys(fake, deCommon)).toEqual(['statusVocabulary.task.bogus']);
   });
 });

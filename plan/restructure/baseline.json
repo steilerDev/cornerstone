@@ -153,7 +153,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 197,
+      "count": 198,
       "values": [
         "% allocated",
         "(refund)",
@@ -339,6 +339,7 @@
         "subsidy status",
         "this budget source",
         "this subsidy program",
+        "to pay",
         "total",
         "total amount",
         "total amount ($)",
