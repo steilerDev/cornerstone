@@ -117,6 +117,9 @@
   .dismissButton {
     min-width: 44px;
     min-height: 44px;
+    /* Offset must match this breakpoint's card padding (spacing-4 / header spacing-2),
+       otherwise the base spacing-5 offset pulls the button 4px past the card edge */
+    margin: calc(var(--spacing-4) * -1) calc(var(--spacing-4) * -1) calc(var(--spacing-2) * -1) 0;
   }
 }
 
