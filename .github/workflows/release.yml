@@ -212,7 +212,7 @@ jobs:
 
       - name: Docker Scout compare to latest
         if: matrix.platform == 'linux/amd64' && github.actor == 'steilerdev'
-        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
         with:
           command: compare
           image: registry://steilerdev/cornerstone@${{ steps.build.outputs.digest }}
@@ -340,7 +340,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Docker Scout CVE scan
-        uses: docker/scout-action@7c6b6c3f7844478ace1ffd4e7aef649053d1f87d # v1.24.0
+        uses: docker/scout-action@221e7f4860634eeb1579e3bd7ca232e577bd1864 # v1.26.0
         with:
           command: cves
           image: steilerdev/cornerstone:${{ needs.release.outputs.new-release-version }}
