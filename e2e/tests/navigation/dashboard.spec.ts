@@ -21,6 +21,11 @@
  */
 
 import { test, expect } from '../../fixtures/isolatedUser.js';
+import type {
+  Invoice,
+  InvoiceListPaginatedResponse,
+  InvoiceStatusBreakdown,
+} from '@cornerstone/shared';
 import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/DashboardPage.js';
 import { createMilestoneViaApi, deleteMilestoneViaApi } from '../../fixtures/apiHelpers.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
@@ -173,7 +178,7 @@ type SummaryBucket = { count: number; totalAmount: number };
  */
 function mockInvoiceSummary(
   overrides: Partial<Record<'pending' | 'paid' | 'claimed' | 'quotation', SummaryBucket>> = {},
-) {
+): InvoiceStatusBreakdown {
   return {
     pending: { count: 2, totalAmount: 15000 },
     paid: { count: 5, totalAmount: 75000 },
@@ -199,7 +204,7 @@ function mockInvoice(
     date: string;
     dueDate: string | null;
   }> = {},
-) {
+): Invoice {
   return {
     id,
     vendorId: `vendor-${id}`,
@@ -214,6 +219,7 @@ function mockInvoice(
     remainingAmount: 0,
     deposits: [],
     finalPaymentAmount: 0,
+    createdBy: null,
     createdAt: '2026-01-15T00:00:00.000Z',
     updatedAt: '2026-01-15T00:00:00.000Z',
     ...extra,
@@ -221,12 +227,17 @@ function mockInvoice(
 }
 
 function mockInvoices(
-  invoices: unknown[] = [],
-  summary: ReturnType<typeof mockInvoiceSummary> = mockInvoiceSummary(),
-) {
+  invoices: Invoice[] = [],
+  summary: InvoiceStatusBreakdown = mockInvoiceSummary(),
+): InvoiceListPaginatedResponse {
   return {
     invoices,
-    pagination: { total: invoices.length, page: 1, pageSize: 5, totalPages: 1, totalItems: 0 },
+    pagination: {
+      page: 1,
+      pageSize: 5,
+      totalItems: invoices.length,
+      totalPages: 1,
+    },
     summary,
   };
 }

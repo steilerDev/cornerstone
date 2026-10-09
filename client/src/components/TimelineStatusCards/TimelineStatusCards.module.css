@@ -112,7 +112,7 @@
 
 .milestoneTitle {
   composes: link;
-  flex: 1 1 0;
+  flex: 1 1 8rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

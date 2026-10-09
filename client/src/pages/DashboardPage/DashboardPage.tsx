@@ -11,6 +11,7 @@ import type {
   SubsidyProgram,
   DiaryEntrySummary,
 } from '@cornerstone/shared';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -30,12 +31,13 @@ import { WorkItemProgressCard } from '../../components/TimelineStatusCards/WorkI
 import { CriticalPathCard } from '../../components/TimelineStatusCards/CriticalPathCard.js';
 import { MiniGanttCard } from '../../components/MiniGanttCard/MiniGanttCard.js';
 import { QuickActionsCard } from '../../components/QuickActionsCard/QuickActionsCard.js';
-import { InvoicePipelineCard } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
+import {
+  InvoicePipelineCard,
+  INVOICE_PIPELINE_ROWS,
+} from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
 import styles from './DashboardPage.module.css';
-
-const INVOICE_PIPELINE_ROWS = 5; // rows per section in InvoicePipelineCard
 
 const PROJECT_TABS: SubNavTab[] = [
   { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
@@ -355,11 +357,7 @@ export function DashboardPage() {
     // Update invoices state
     if (invoicesResult.status === 'fulfilled') {
       const { summary } = invoicesResult.value;
-      const totalInvoices =
-        summary.pending.count +
-        summary.paid.count +
-        summary.claimed.count +
-        summary.quotation.count;
+      const totalInvoices = INVOICE_STATUSES.reduce((n, status) => n + summary[status].count, 0);
       setInvoices(invoicesResult.value.invoices);
       setInvoiceSummary(invoicesResult.value.summary);
       setDataStates((prev) => ({
