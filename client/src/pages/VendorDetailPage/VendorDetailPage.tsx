@@ -36,7 +36,7 @@ const EMPTY_INVOICE_FORM: InvoiceFormState = {
   amount: '',
   date: '',
   dueDate: '',
-  status: 'quotation',
+  status: 'pending',
   notes: '',
 };
 
@@ -229,11 +229,6 @@ export function VendorDetailPage() {
     void loadInvoices();
   }, [id, loadInvoices]);
 
-  /** Computes outstanding balance from client-side invoice list (pending + claimed). */
-  const computedOutstandingBalance = invoices
-    .filter((inv) => inv.status === 'pending' || inv.status === 'claimed')
-    .reduce((sum, inv) => sum + inv.amount, 0);
-
   const openCreateModal = () => {
     setCreateForm(EMPTY_INVOICE_FORM);
     setCreateError('');
@@ -354,6 +349,9 @@ export function VendorDetailPage() {
     );
   }
 
+  // One server figure (ADR-039 Still to pay) drives both the stats card and the invoices header
+  const hasStillToPay = vendor.outstandingBalance > 0;
+
   return (
     <div className={styles.container}>
       <div className={styles.content}>
@@ -395,9 +393,7 @@ export function VendorDetailPage() {
           </div>
           <div className={styles.statCard}>
             <span className={styles.statLabel}>{t('vendorDetail.outstandingBalance')}</span>
-            <span
-              className={`${styles.statValue} ${vendor.outstandingBalance > 0 ? styles.statValueDanger : ''}`}
-            >
+            <span className={`${styles.statValue} ${hasStillToPay ? styles.statValueDanger : ''}`}>
               {formatCurrency(vendor.outstandingBalance)}
             </span>
           </div>
@@ -596,12 +592,8 @@ export function VendorDetailPage() {
               {invoices.length > 0 && (
                 <span className={styles.outstandingBalance}>
                   {t('vendorDetail.outstanding')}{' '}
-                  <strong
-                    className={
-                      computedOutstandingBalance > 0 ? styles.outstandingAmount : undefined
-                    }
-                  >
-                    {formatCurrency(computedOutstandingBalance)}
+                  <strong className={hasStillToPay ? styles.outstandingAmount : undefined}>
+                    {formatCurrency(vendor.outstandingBalance)}
                   </strong>
                 </span>
               )}

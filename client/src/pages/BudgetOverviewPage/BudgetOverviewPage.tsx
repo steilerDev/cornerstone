@@ -243,7 +243,7 @@ export function BudgetOverviewPage() {
             role="menuitem"
             onClick={() => {
               setAddOpen(false);
-              void navigate('/budget/invoices');
+              void navigate('/budget/invoices?create=1');
             }}
             data-testid="budget-overview-add-invoice"
           >

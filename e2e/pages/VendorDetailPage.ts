@@ -497,4 +497,26 @@ export class VendorDetailPage {
     await card.getByRole('button', { name: 'Delete Contact' }).click();
     await responsePromise;
   }
+
+  // ─── Money truth (#2194) ──────────────────────────────────────────────────
+
+  /** The "Outstanding" figure in the Invoices section header (same server figure as the stat). */
+  get invoicesHeaderOutstanding(): Locator {
+    return this.invoicesSection.locator('[class*="outstandingBalance"] strong');
+  }
+
+  /** Stat card value element of Outstanding Balance. */
+  get outstandingBalanceValue(): Locator {
+    return this.outstandingBalanceStat.locator('[class*="statValue"]');
+  }
+
+  /** "Add Invoice" button in the Invoices section header. */
+  get addInvoiceButton(): Locator {
+    return this.invoicesSection.getByRole('button', { name: 'Add Invoice', exact: true });
+  }
+
+  /** Status select of the create-invoice modal on the company page. */
+  get createInvoiceStatusSelect(): Locator {
+    return this.page.locator('#create-status');
+  }
 }

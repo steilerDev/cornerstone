@@ -172,7 +172,8 @@
       "summaryProjectedLabel": "Projiziert",
       "summaryPaidLabel": "Bezahlt",
       "summaryClaimedLabel": "Eingereicht",
-      "srOnly": "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}"
+      "srOnly": "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}",
+      "overAllocated": "Überzogen um {{amount}}"
     },
     "lines": {
       "expand": "Positionen einblenden",
@@ -955,7 +956,9 @@
     "overAvailable": "{{amount}} über verfügbar",
     "willRemain": "{{amount}} verbleiben",
     "availableOnInvoice": "{{amount}} auf dieser Rechnung verfügbar",
-    "overAllocated": "Überzuteilt um {{amount}}",
+    "overAllocated": "Überzogen um {{amount}}",
+    "fullyAllocated": "Vollständig zugeordnet – nichts mehr zu verknüpfen",
+    "nothingLeftToLink": "Nichts mehr zu verknüpfen",
     "invoiceFallbackLabel": "Rechnung {{id}}",
     "successToast": "Budgetposition erfolgreich mit Rechnung verknüpft",
     "errors": {
@@ -974,7 +977,7 @@
     "onBudget": "Im Budget"
   },
   "bar": {
-    "overflowLabel": "Überlauf",
+    "overflowLabel": "Überzogen",
     "ariaBreakdown": "Budgetaufschlüsselung: {{details}}",
     "ariaNoData": "Budgetaufschlüsselung: keine Daten"
   },
@@ -1282,13 +1285,13 @@
     },
     "useCaseHelper": {
       "budget-overview": "Eine Zusammenfassung aller Rechnungen und ihrer Zuordnungen",
-      "claim": "Dokumentiert als bezahlt oder eingereicht markierte Rechnungen",
+      "claim": "Zu zahlende oder bezahlte Rechnungen, die noch nicht eingereicht sind",
       "proof-of-funds": "Zeigt nur eingereichte Rechnungen an"
     },
     "sourceLabel": "Wählen Sie eine Budgetquelle aus",
     "amountLabel": {
       "overview": "Gesamtbetrag",
-      "claim": "Ausstehender Betrag",
+      "claim": "Zu zahlen oder bezahlt, nicht eingereicht",
       "proofOfFunds": "Eingereichter Betrag"
     },
     "discretionary": "Diskretionär",

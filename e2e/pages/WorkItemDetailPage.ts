@@ -353,4 +353,21 @@ export class WorkItemDetailPage {
       return null;
     }
   }
+
+  // ─── Money truth (#2194): Link to Invoice modal ───────────────────────────
+
+  /** "Link to Invoice" button on an unlinked budget line (only one exists before the modal opens). */
+  get linkToInvoiceButton(): Locator {
+    return this.budgetSection.getByRole('button', { name: 'Link to Invoice', exact: true }).first();
+  }
+
+  /** The Link to Invoice modal. */
+  get invoiceLinkModal(): Locator {
+    return this.page.getByRole('dialog', { name: 'Link to Invoice' });
+  }
+
+  /** Invoice option row in the modal's dropdown (testid invoice-link-option-<id>). */
+  invoiceLinkOption(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoice-link-option-${invoiceId}`);
+  }
 }

@@ -15,6 +15,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.tsx', () => ({
     locale: 'en' as const,
     resolvedLocale: 'en' as const,
     currency: 'EUR',
+    vatRate: 0.19,
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
   })),
@@ -633,6 +634,87 @@ describe('InvoiceBudgetLinesSection', () => {
       await waitFor(() =>
         expect(screen.getByLabelText('2 budget lines linked')).toBeInTheDocument(),
       );
+    });
+  });
+
+  describe('gross amounts and remaining (#2194 D-19, D-20)', () => {
+    it('shows the gross Planned amount for a net-entered linked line (100 net -> 119.00)', async () => {
+      const lines = [makeDetailLine('ibl-net', { plannedAmount: 100, includesVat: false })];
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 500.0));
+      renderSection();
+      await waitFor(() => expect(screen.getByText('$119.00')).toBeInTheDocument());
+      expect(screen.queryByText('$100.00')).not.toBeInTheDocument();
+    });
+
+    it('keeps a gross-entered linked line Planned amount unchanged', async () => {
+      const lines = [makeDetailLine('ibl-gross', { plannedAmount: 100, includesVat: true })];
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse(lines, 500.0));
+      renderSection();
+      await waitFor(() => expect(screen.getByText('$100.00')).toBeInTheDocument());
+    });
+
+    /** Opens the picker step 2 for the work item with one unlinked line. */
+    async function openPickerWithLine(
+      line: ReturnType<typeof makeBudgetLineStub>,
+      serverRemaining: number,
+      invoiceTotal: number,
+    ) {
+      mockFetchWorkItemBudgets.mockResolvedValue([line]);
+      mockFetchInvoiceBudgetLines.mockResolvedValue(makeListResponse([], serverRemaining));
+      renderSection(INVOICE_ID, invoiceTotal);
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /\+ Add Budget Line/i })).not.toBeDisabled(),
+      );
+      fireEvent.click(screen.getByRole('button', { name: /\+ Add Budget Line/i }));
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('work-item-picker'));
+      });
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: /Add Selected Lines/i })).toBeInTheDocument(),
+      );
+    }
+
+    const remainingValueEl = () =>
+      screen.getByText('Remaining to allocate:').nextElementSibling as HTMLElement;
+
+    it('picker shows the gross Planned label and pre-fills the gross amount for a net line', async () => {
+      const netLine = { ...makeBudgetLineStub('wib-net', 100), includesVat: false };
+      await openPickerWithLine(netLine, 1000, 1000);
+
+      expect(screen.getByText('Planned: $119.00')).toBeInTheDocument();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('checkbox'));
+      });
+      const input = screen.getByRole('spinbutton', { name: /Itemized amount for/i });
+      expect((input as HTMLInputElement).value).toBe('119');
+    });
+
+    it('Remaining to allocate subtracts already-linked lines: server 400 of 1,000, tick 150 -> 250.00', async () => {
+      await openPickerWithLine(makeBudgetLineStub('wib-r', 100), 400, 1000);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('checkbox'));
+      });
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Itemized amount for/i }), {
+        target: { value: '150' },
+      });
+
+      expect(remainingValueEl()).toHaveTextContent('$250.00');
+      expect(remainingValueEl().className).not.toContain('remainingExceeds');
+    });
+
+    it('flags remainingExceeds when ticked amounts exceed the server remainder (400 vs 500)', async () => {
+      await openPickerWithLine(makeBudgetLineStub('wib-x', 100), 400, 1000);
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('checkbox'));
+      });
+      fireEvent.change(screen.getByRole('spinbutton', { name: /Itemized amount for/i }), {
+        target: { value: '500' },
+      });
+
+      expect(remainingValueEl()).toHaveTextContent('$-100.00');
+      expect(remainingValueEl().className).toContain('remainingExceeds');
     });
   });
 

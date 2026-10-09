@@ -116,6 +116,29 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   deleteWorkItemBudget: mockDeleteWorkItemBudget,
 }));
 
+// InvoiceLinkModal calls useToast; the page itself has no ToastProvider in these tests (#2194).
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: unknown }) => children,
+  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+}));
+
+// The Link to Invoice modal loads the invoice list (#2194); an empty list keeps its plain amount
+// input, which carries the page-provided defaultAmount.
+jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
+  fetchAllInvoices: jest.fn(() =>
+    Promise.resolve({
+      invoices: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+      summary: {},
+    }),
+  ),
+  fetchInvoices: jest.fn(),
+  fetchInvoiceById: jest.fn(),
+  createInvoice: jest.fn(),
+  updateInvoice: jest.fn(),
+  deleteInvoice: jest.fn(),
+}));
+
 jest.unstable_mockModule('../../lib/notesApi.js', () => ({
   listNotes: mockListNotes,
   createNote: mockCreateNote,
@@ -1719,6 +1742,48 @@ describe('WorkItemDetailPage', () => {
       await expectInlineError(ie.removeRequiredMilestone);
       fireEvent.click(screen.getByRole('button', { name: 'Remove linked milestone: M-link' }));
       await expectInlineError(ie.removeLinkedMilestone);
+    });
+  });
+
+  describe('Link to Invoice default amount is gross (#2194 D-19)', () => {
+    const lineWith = (plannedAmount: number, includesVat: boolean) => ({
+      id: 'bl-net',
+      workItemId: 'work-1',
+      description: 'Net line',
+      plannedAmount,
+      confidence: 'own_estimate' as const,
+      confidenceMargin: 0.2,
+      budgetCategory: null,
+      budgetSource: null,
+      vendor: null,
+      actualCost: 0,
+      actualCostPaid: 0,
+      invoiceCount: 0,
+      invoiceLink: null,
+      createdBy: null,
+      createdAt: '2024-01-15T10:00:00Z',
+      updatedAt: '2024-01-15T10:00:00Z',
+      quantity: null,
+      unit: null,
+      unitPrice: null,
+      includesVat,
+    });
+
+    async function openLinkModal(includesVat: boolean) {
+      mockFetchWorkItemBudgets.mockResolvedValue([lineWith(100, includesVat)]);
+      renderPage();
+      fireEvent.click(await screen.findByRole('button', { name: 'Link to Invoice' }));
+      return (await screen.findByLabelText(/itemized amount/i)) as HTMLInputElement;
+    }
+
+    it('prefills the gross amount (100 net at 19% VAT -> 119) for a net-entered line', async () => {
+      const input = await openLinkModal(false);
+      expect(input.value).toBe('119');
+    });
+
+    it('prefills the planned amount unchanged for a gross-entered line', async () => {
+      const input = await openLinkModal(true);
+      expect(input.value).toBe('100');
     });
   });
 });

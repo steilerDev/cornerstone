@@ -691,4 +691,26 @@ export class BudgetSourcesPage {
   async confirmMove(): Promise<void> {
     await this.moveModalConfirmButton.click();
   }
+
+  // ─── Money truth (#2194): over-allocation note + overflow segment ─────────
+
+  /** The source card (list row) whose name matches. */
+  sourceRow(sourceName: string): Locator {
+    return this.page.locator('[class*="sourceRow_"]').filter({ hasText: sourceName });
+  }
+
+  /** Visible "Over-allocated by {amount}" note under the source's budget bar. */
+  overAllocatedNote(sourceName: string): Locator {
+    return this.sourceRow(sourceName).getByTestId('budget-bar-overflow-note');
+  }
+
+  /** The striped overflow segment drawn inside the source's budget bar. */
+  overflowSegment(sourceName: string): Locator {
+    return this.sourceRow(sourceName).getByRole('img').locator('[class*="overflow"]');
+  }
+
+  /** The budget bar (role=img) of the source card. */
+  budgetBar(sourceName: string): Locator {
+    return this.sourceRow(sourceName).getByRole('img').first();
+  }
 }

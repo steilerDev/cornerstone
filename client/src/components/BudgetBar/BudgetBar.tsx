@@ -9,10 +9,15 @@ export interface BudgetBarSegment {
   totalValue?: number; // Cumulative total for this segment (shown in tooltips instead of incremental value)
 }
 
+export const BUDGET_BAR_OVERFLOW_KEY = '__overflow__';
+
 interface BudgetBarProps {
   segments: BudgetBarSegment[];
-  maxValue: number; // Total bar width = this value (available funds)
-  overflow?: number; // Amount exceeding maxValue (shown in danger color)
+  /** Capacity: the amount available (e.g. a funding source's amount). Segments are drawn up to it. */
+  maxValue: number;
+  overflow?: number; // Amount beyond capacity, drawn as a striped danger segment
+  /** Visible text stated under the bar when overflow > 0, e.g. "Over-allocated by 250.00". */
+  overflowNote?: string;
   height?: 'sm' | 'md' | 'lg'; // sm=16px, md=24px, lg=32px — default md
   onSegmentHover?: (segment: BudgetBarSegment | null) => void;
   onSegmentClick?: (segment: BudgetBarSegment | null) => void;
@@ -29,6 +34,7 @@ export function BudgetBar({
   segments,
   maxValue,
   overflow = 0,
+  overflowNote,
   height = 'md',
   onSegmentHover,
   onSegmentClick,
@@ -60,7 +66,19 @@ export function BudgetBar({
     }
   }
 
-  return (
+  const capacity = maxValue > 0 ? maxValue : 1;
+  const hasOverflow = overflow > 0;
+  const scale = hasOverflow ? capacity + overflow : capacity;
+  let consumed = 0;
+
+  const overflowSegment: BudgetBarSegment = {
+    key: BUDGET_BAR_OVERFLOW_KEY,
+    value: overflow,
+    color: 'var(--color-budget-overflow)',
+    label: t('bar.overflowLabel')!,
+  };
+
+  const bar = (
     <div
       role="img"
       aria-label={ariaLabel}
@@ -71,7 +89,10 @@ export function BudgetBar({
       {segments.map((segment) => {
         if (segment.value <= 0) return null;
 
-        const widthPct = Math.min((segment.value / maxValue) * 100, 100);
+        const drawn = Math.max(0, Math.min(segment.value, capacity - consumed));
+        consumed += drawn;
+        if (drawn <= 0) return null;
+        const widthPct = (drawn / scale) * 100;
 
         return (
           <div
@@ -90,33 +111,31 @@ export function BudgetBar({
         );
       })}
 
-      {overflow > 0 && (
+      {hasOverflow && (
         <div
           className={`${styles.segment} ${styles.overflow}`}
           style={{
-            width: `${Math.min((overflow / maxValue) * 100, 100)}%`,
-            flexShrink: 0,
+            left: `${(capacity / scale) * 100}%`,
+            width: `${(overflow / scale) * 100}%`,
           }}
-          onMouseEnter={() =>
-            onSegmentHover?.({
-              key: '__overflow__',
-              value: overflow,
-              color: 'var(--color-budget-overflow)',
-              label: t('bar.overflowLabel')!,
-            })
-          }
+          onMouseEnter={() => onSegmentHover?.(overflowSegment)}
           onMouseLeave={() => onSegmentHover?.(null)}
-          onClick={() =>
-            onSegmentClick?.({
-              key: '__overflow__',
-              value: overflow,
-              color: 'var(--color-budget-overflow)',
-              label: t('bar.overflowLabel')!,
-            })
-          }
+          onClick={() => onSegmentClick?.(overflowSegment)}
           aria-hidden="true"
         />
       )}
     </div>
   );
+
+  if (overflowNote && hasOverflow) {
+    return (
+      <>
+        {bar}
+        <p className={styles.overflowNote} data-testid="budget-bar-overflow-note">
+          <span aria-hidden="true">⚠</span> {overflowNote}
+        </p>
+      </>
+    );
+  }
+  return bar;
 }

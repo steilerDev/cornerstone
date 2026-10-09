@@ -273,4 +273,35 @@ export class DashboardPage {
   recentDiaryViewAllLink(): Locator {
     return this.recentDiaryCard().getByRole('link', { name: 'View All' });
   }
+
+  // ─── Money truth (#2194): source utilization rows ─────────────────────────
+
+  /**
+   * Source utilization row by source name. The desktop grid and the mobile sections both mount
+   * the card, so only the visible instance is returned.
+   */
+  sourceRow(name: string): Locator {
+    return this.page.getByTestId('source-row').filter({ hasText: name }).filter({ visible: true });
+  }
+
+  /** "Over-allocated by {amount}" note of a source row. */
+  sourceOverAllocatedNote(name: string): Locator {
+    return this.sourceRow(name).getByTestId('budget-bar-overflow-note');
+  }
+
+  /**
+   * On mobile the Budget Details section is a collapsed <details>; open it when its summary is
+   * visible and the section is closed. No-op on desktop/tablet.
+   */
+  async openBudgetDetailsIfCollapsed(): Promise<void> {
+    const summary = this.page
+      .locator('details > summary')
+      .filter({ hasText: 'Budget Details' })
+      .filter({ visible: true });
+    if ((await summary.count()) === 0) return;
+    const details = this.page.locator('details').filter({ has: summary });
+    if ((await details.getAttribute('open')) === null) {
+      await summary.click();
+    }
+  }
 }

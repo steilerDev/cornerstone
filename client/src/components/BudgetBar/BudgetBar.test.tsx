@@ -4,7 +4,7 @@
 import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { BudgetBar } from './BudgetBar.js';
+import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from './BudgetBar.js';
 import type { BudgetBarSegment } from './BudgetBar.js';
 
 // CSS modules mocked via identity-obj-proxy
@@ -60,7 +60,7 @@ describe('BudgetBar', () => {
 
     expect(screen.getByRole('img')).toHaveAttribute(
       'aria-label',
-      expect.stringContaining('Overflow'),
+      expect.stringContaining('Over-allocated €15000'),
     );
   });
 
@@ -168,6 +168,143 @@ describe('BudgetBar', () => {
     expect(overflowDiv).toBeInTheDocument();
   });
 
+  // ── Overflow geometry & note (#2194 D-05) ───────────────────────────────────
+
+  describe('overflow geometry and note', () => {
+    const overSeg: BudgetBarSegment[] = [
+      { key: 'used', value: 1250, color: 'var(--color-budget-paid)', label: 'Used' },
+    ];
+
+    it('draws segments to capacity and the overflow as the final 20% (1,000 + 250)', () => {
+      const { container } = render(<BudgetBar segments={overSeg} maxValue={1000} overflow={250} />);
+
+      const [segment, overflow] = Array.from(
+        container.querySelectorAll('[aria-hidden="true"]'),
+      ) as HTMLElement[];
+      expect(segment!.style.width).toBe('80%');
+      expect(overflow!.style.left).toBe('80%');
+      expect(overflow!.style.width).toBe('20%');
+    });
+
+    it('places the overflow after the full capacity even when segments fall short of it', () => {
+      const short: BudgetBarSegment[] = [{ key: 'paid', value: 400, color: '#0f0', label: 'Paid' }];
+      const { container } = render(<BudgetBar segments={short} maxValue={1000} overflow={100} />);
+
+      const [segment, overflow] = Array.from(
+        container.querySelectorAll('[aria-hidden="true"]'),
+      ) as HTMLElement[];
+      expect(parseFloat(segment!.style.width)).toBeCloseTo((400 / 1100) * 100, 5);
+      expect(parseFloat(overflow!.style.left)).toBeCloseTo((1000 / 1100) * 100, 5);
+      expect(parseFloat(overflow!.style.width)).toBeCloseTo((100 / 1100) * 100, 5);
+    });
+
+    it('clips cumulative segments at capacity (700 + 700 of 1,000 become 70% / 30%)', () => {
+      const two: BudgetBarSegment[] = [
+        { key: 'a', value: 700, color: '#f00', label: 'A' },
+        { key: 'b', value: 700, color: '#0f0', label: 'B' },
+      ];
+      const { container } = render(<BudgetBar segments={two} maxValue={1000} />);
+
+      const rendered = Array.from(
+        container.querySelectorAll('[aria-hidden="true"]'),
+      ) as HTMLElement[];
+      expect(rendered.map((el) => el.style.width)).toEqual(['70%', '30%']);
+    });
+
+    it('scales clipped segments by capacity plus overflow', () => {
+      const two: BudgetBarSegment[] = [
+        { key: 'a', value: 700, color: '#f00', label: 'A' },
+        { key: 'b', value: 700, color: '#0f0', label: 'B' },
+      ];
+      const { container } = render(<BudgetBar segments={two} maxValue={1000} overflow={500} />);
+
+      const rendered = Array.from(
+        container.querySelectorAll('[aria-hidden="true"]'),
+      ) as HTMLElement[];
+      expect(parseFloat(rendered[0]!.style.width)).toBeCloseTo((700 / 1500) * 100, 5);
+      expect(parseFloat(rendered[1]!.style.width)).toBeCloseTo((300 / 1500) * 100, 5);
+    });
+
+    it('skips a segment entirely once capacity is already consumed', () => {
+      const two: BudgetBarSegment[] = [
+        { key: 'a', value: 1000, color: '#f00', label: 'A' },
+        { key: 'b', value: 200, color: '#0f0', label: 'B' },
+      ];
+      const { container } = render(<BudgetBar segments={two} maxValue={1000} />);
+
+      expect(container.querySelectorAll('[aria-hidden="true"]')).toHaveLength(1);
+    });
+
+    it('guards a zero capacity without NaN widths', () => {
+      const { container } = render(
+        <BudgetBar segments={[{ key: 'a', value: 5, color: '#f00', label: 'A' }]} maxValue={0} />,
+      );
+
+      expect((container.querySelector('[aria-hidden="true"]') as HTMLElement).style.width).toBe(
+        '100%',
+      );
+    });
+
+    it('renders the visible note after the bar when overflowNote and overflow are set', () => {
+      render(
+        <BudgetBar
+          segments={overSeg}
+          maxValue={1000}
+          overflow={250}
+          overflowNote="Over-allocated by 250.00"
+        />,
+      );
+
+      const note = screen.getByTestId('budget-bar-overflow-note');
+      expect(note).toHaveTextContent('Over-allocated by 250.00');
+      expect(screen.getByRole('img')).toBeInTheDocument();
+    });
+
+    it('renders no note and no fragment sibling without overflow (DOM identical to a plain bar)', () => {
+      const { container } = render(
+        <BudgetBar segments={overSeg} maxValue={2000} overflowNote="Over-allocated by 0" />,
+      );
+
+      expect(screen.queryByTestId('budget-bar-overflow-note')).not.toBeInTheDocument();
+      expect(container.children).toHaveLength(1);
+      expect(container.firstElementChild).toBe(screen.getByRole('img'));
+    });
+
+    it('renders no note when overflow is set but no overflowNote is given', () => {
+      const { container } = render(<BudgetBar segments={overSeg} maxValue={1000} overflow={250} />);
+
+      expect(screen.queryByTestId('budget-bar-overflow-note')).not.toBeInTheDocument();
+      expect(container.children).toHaveLength(1);
+    });
+
+    it('passes BUDGET_BAR_OVERFLOW_KEY on overflow hover and click', async () => {
+      const user = userEvent.setup();
+      const onHover = jest.fn<(s: BudgetBarSegment | null) => void>();
+      const onClick = jest.fn<(s: BudgetBarSegment | null) => void>();
+      const { container } = render(
+        <BudgetBar
+          segments={overSeg}
+          maxValue={1000}
+          overflow={250}
+          onSegmentHover={onHover}
+          onSegmentClick={onClick}
+        />,
+      );
+      const all = container.querySelectorAll('[aria-hidden="true"]');
+      const overflow = all[all.length - 1] as HTMLElement;
+
+      await user.hover(overflow);
+      await user.click(overflow);
+
+      expect(onHover).toHaveBeenCalledWith(expect.objectContaining({ key: '__overflow__' }));
+      expect(onClick).toHaveBeenCalledWith(
+        expect.objectContaining({ key: BUDGET_BAR_OVERFLOW_KEY, value: 250 }),
+      );
+      await user.unhover(overflow);
+      expect(onHover).toHaveBeenLastCalledWith(null);
+    });
+  });
+
   // ── Height variants ────────────────────────────────────────────────────────
 
   it('applies barMd class by default', () => {
@@ -243,7 +380,7 @@ describe('BudgetBar', () => {
     await user.hover(overflowSegment);
 
     expect(onSegmentHover).toHaveBeenCalledWith(
-      expect.objectContaining({ key: '__overflow__', label: 'Overflow' }),
+      expect.objectContaining({ key: BUDGET_BAR_OVERFLOW_KEY, label: 'Over-allocated' }),
     );
   });
 

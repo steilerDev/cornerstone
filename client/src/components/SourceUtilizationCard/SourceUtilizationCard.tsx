@@ -37,6 +37,8 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
     <div className={styles.list}>
       {sortedSources.map((source) => {
         const maxValue = source.totalAmount > 0 ? source.totalAmount : 1;
+        const overAllocated =
+          Math.round(Math.max(0, source.usedAmount - source.totalAmount) * 100) / 100;
 
         return (
           <div key={source.id} data-testid="source-row" className={styles.sourceRow}>
@@ -61,6 +63,14 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
                 },
               ]}
               maxValue={maxValue}
+              overflow={overAllocated}
+              overflowNote={
+                overAllocated > 0
+                  ? t('cards.sourceUtilization.overAllocated', {
+                      amount: formatCurrency(overAllocated),
+                    })!
+                  : undefined
+              }
               height="sm"
               formatValue={formatCurrency}
             />

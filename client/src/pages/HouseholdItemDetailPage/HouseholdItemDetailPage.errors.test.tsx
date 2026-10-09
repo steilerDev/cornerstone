@@ -86,6 +86,22 @@ class MockApiClientError extends Error {
   }
 }
 
+// useLocale throws outside a LocaleProvider; the page reads vatRate from it (#2194).
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 // Mock only API modules — do NOT mock react-router-dom (causes OOM)
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   createHouseholdItem: jest.fn<typeof HouseholdItemsApiTypes.createHouseholdItem>(),

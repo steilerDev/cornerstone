@@ -72,16 +72,19 @@
   border-top: none;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
   box-shadow: var(--shadow-md);
-  max-height: 200px;
+  max-height: 264px;
   overflow-y: auto;
   z-index: var(--z-dropdown);
 }
 
 .dropdownItem {
   display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-  padding: var(--spacing-2-5) var(--spacing-3);
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  min-height: 44px;
+  padding: var(--spacing-2) var(--spacing-3);
   width: 100%;
   border: none;
   background: transparent;
@@ -101,44 +104,56 @@
   background: var(--color-bg-secondary);
 }
 
+.dropdownItem:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
 .dropdownItemActive {
   background: var(--color-primary);
   color: var(--color-primary-text);
 }
 
-.dropdownItemActive .dropdownItemDescription {
-  color: var(--color-primary-text);
-  opacity: 0.9;
+.dropdownItemMain {
+  display: flex;
+  align-items: baseline;
+  gap: var(--spacing-2);
+  min-width: 0;
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .dropdownItemNumber {
   font-weight: var(--font-weight-semibold);
   color: inherit;
-}
-
-.dropdownItemAmount {
-  font-size: var(--font-size-2xs);
-  color: inherit;
-  opacity: 0.85;
-}
-
-.dropdownItemDescription {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex-shrink: 0;
 }
 
 .dropdownItemVendor {
-  font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  margin-top: var(--spacing-0-5);
+  font-size: var(--font-size-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.dropdownItemActive .dropdownItemVendor {
+.dropdownItemAmount {
+  flex-shrink: 0;
+  font-size: var(--font-size-sm);
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.dropdownItemDone .dropdownItemAmount {
+  color: var(--color-text-muted);
+}
+
+.dropdownItemActive .dropdownItemVendor,
+.dropdownItemActive .dropdownItemAmount {
   color: var(--color-primary-text);
-  opacity: 0.9;
 }
 
 .dropdownEmpty {
@@ -243,6 +258,16 @@
 .submitButton:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dropdownItem,
+  .input,
+  .searchInput,
+  .cancelButton,
+  .submitButton {
+    transition: none;
+  }
 }
 
 /* ─── Responsive ──────────────────────────────────────────────────────────── */

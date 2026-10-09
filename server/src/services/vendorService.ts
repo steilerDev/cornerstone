@@ -2,7 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
-import { vendors, invoices, workItemBudgets, users, trades } from '../db/schema.js';
+import {
+  vendors,
+  invoices,
+  invoiceDeposits,
+  workItemBudgets,
+  users,
+  trades,
+} from '../db/schema.js';
 import type {
   Vendor,
   VendorDetail,
@@ -15,6 +22,8 @@ import type {
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
 import * as vendorContactService from './vendorContactService.js';
+import { computeOpenAmounts } from './shared/depositAggregateUtils.js';
+import type { InvoiceDepositRow } from './shared/depositAggregateUtils.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -70,7 +79,9 @@ function toVendor(db: DbType, row: typeof vendors.$inferSelect): Vendor {
 /**
  * Compute invoice statistics for a vendor.
  * invoiceCount: total invoice count
- * outstandingBalance: sum of amount for pending + overdue invoices
+ * outstandingBalance: ADR-039 'Still to pay' — pending invoices minus their non-refund progress
+ * payments, plus pending progress payments (also on offers). Paid and claimed (submitted)
+ * invoices never count. Same helper as the Invoices page open-payable figure.
  */
 function getVendorStats(
   db: DbType,
@@ -82,15 +93,25 @@ function getVendorStats(
     .where(eq(invoices.vendorId, vendorId))
     .get();
 
-  const balanceResult = db
-    .select({ total: sql<number>`COALESCE(SUM(${invoices.amount}), 0)` })
+  const rows: InvoiceDepositRow[] = db
+    .select({
+      invoice_id: invoices.id,
+      invoice_amount: invoices.amount,
+      invoice_status: invoices.status,
+      deposit_id: invoiceDeposits.id,
+      deposit_amount: invoiceDeposits.amount,
+      deposit_status: invoiceDeposits.status,
+      deposit_entry_type: invoiceDeposits.entryType,
+    })
     .from(invoices)
-    .where(and(eq(invoices.vendorId, vendorId), sql`${invoices.status} IN ('pending', 'claimed')`))
-    .get();
+    .leftJoin(invoiceDeposits, eq(invoiceDeposits.invoiceId, invoices.id))
+    .where(eq(invoices.vendorId, vendorId))
+    .all();
+  const outstandingBalance = computeOpenAmounts(rows).openPayable.totalAmount;
 
   return {
     invoiceCount: countResult?.count ?? 0,
-    outstandingBalance: balanceResult?.total ?? 0,
+    outstandingBalance,
   };
 }
 

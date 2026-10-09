@@ -169,6 +169,14 @@ export class BudgetOverviewPage {
     return this.page.getByTestId('budget-overview-add-button');
   }
 
+  /**
+   * The "Add Invoice" item of the Add dropdown (#2194: navigates to /budget/invoices?create=1,
+   * which opens the create-invoice modal).
+   */
+  get addInvoiceMenuItem(): Locator {
+    return this.page.getByTestId('budget-overview-add-invoice');
+  }
+
   // ── Source filter helpers ─────────────────────────────────────────────────
 
   /**

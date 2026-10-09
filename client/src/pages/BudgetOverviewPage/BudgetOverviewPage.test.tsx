@@ -476,7 +476,7 @@ describe('BudgetOverviewPage', () => {
     /** Captures the current router location so we can assert navigation. */
     function LocationDisplay() {
       const location = useLocation();
-      return <div data-testid="location">{location.pathname}</div>;
+      return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
     }
 
     function renderWithLocation() {
@@ -573,7 +573,7 @@ describe('BudgetOverviewPage', () => {
       expect(screen.queryByTestId('budget-overview-add-vendor')).not.toBeInTheDocument();
     });
 
-    it('clicking Add Invoice menu item navigates to /budget/invoices', async () => {
+    it('clicking Add Invoice menu item opens the invoice create flow (?create=1)', async () => {
       const user = userEvent.setup();
       mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
 
@@ -583,7 +583,7 @@ describe('BudgetOverviewPage', () => {
       await user.click(screen.getByTestId('budget-overview-add-button'));
       await user.click(screen.getByTestId('budget-overview-add-invoice'));
 
-      expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices');
+      expect(screen.getByTestId('location').textContent).toBe('/budget/invoices?create=1');
     });
 
     it('clicking Add Vendor menu item navigates to /settings/vendors', async () => {

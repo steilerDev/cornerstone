@@ -53,6 +53,8 @@ import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
+import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
@@ -87,6 +89,7 @@ const HI_STATUS_VARIANTS = {
 };
 
 export function HouseholdItemDetailPage() {
+  const { vatRate } = useLocale();
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -1508,9 +1511,10 @@ export function HouseholdItemDetailPage() {
         <InvoiceLinkModal
           budgetLineId={invoiceLinkingBudgetId}
           budgetLineType="household_item"
-          defaultAmount={
-            budgetLines.find((line) => line.id === invoiceLinkingBudgetId)?.plannedAmount || 0
-          }
+          defaultAmount={(() => {
+            const linkLine = budgetLines.find((line) => line.id === invoiceLinkingBudgetId);
+            return linkLine ? effectivePlannedAmount(linkLine, vatRate) : 0;
+          })()}
           onSuccess={handleInvoiceLinkSuccess}
           onClose={() => {
             setShowInvoiceLinkModal(false);

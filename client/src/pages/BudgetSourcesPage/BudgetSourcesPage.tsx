@@ -21,7 +21,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
-import { BudgetBar } from '../../components/BudgetBar/BudgetBar.js';
+import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
@@ -106,8 +106,8 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
   const projectedVal = Math.max(0, source.projectedMinAmount - source.paidAmount);
   const uncertaintyVal = Math.max(0, source.projectedMaxAmount - source.projectedMinAmount);
 
-  const maxValue = Math.max(source.totalAmount, source.projectedMaxAmount, 1);
-  const overflow = Math.max(0, source.projectedMaxAmount - source.totalAmount);
+  const maxValue = source.totalAmount > 0 ? source.totalAmount : 1;
+  const overflow = Math.round(Math.max(0, source.usedAmount - source.totalAmount) * 100) / 100;
 
   const projectedSecondaryNegative =
     source.totalAmount - source.projectedMinAmount < 0 ||
@@ -154,6 +154,11 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
           segments={segments}
           maxValue={maxValue}
           overflow={overflow}
+          overflowNote={
+            overflow > 0
+              ? t('sources.barChart.overAllocated', { amount: formatCurrency(overflow) })
+              : undefined
+          }
           height="sm"
           onSegmentHover={handleSegmentHover}
           onSegmentClick={handleSegmentClick}
@@ -175,17 +180,21 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
               <span className={styles.segmentTooltipValue}>
                 {formatCurrency(hoveredSegment.totalValue ?? hoveredSegment.value)}
               </span>
-              <span className={styles.segmentTooltipPct}>
-                {source.totalAmount > 0
-                  ? `${formatPercent(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100, 1)} ${t('sources.barChart.ofTotal')}`
-                  : `${formatPercent(0, 1)} ${t('sources.barChart.ofTotal')}`}
-              </span>
-              <span className={styles.segmentTooltipPct}>
-                {t('sources.barChart.remaining')}{' '}
-                {formatCurrency(
-                  source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value),
-                )}
-              </span>
+              {hoveredSegment.key !== BUDGET_BAR_OVERFLOW_KEY && (
+                <>
+                  <span className={styles.segmentTooltipPct}>
+                    {source.totalAmount > 0
+                      ? `${formatPercent(((hoveredSegment.totalValue ?? hoveredSegment.value) / source.totalAmount) * 100, 1)} ${t('sources.barChart.ofTotal')}`
+                      : `${formatPercent(0, 1)} ${t('sources.barChart.ofTotal')}`}
+                  </span>
+                  <span className={styles.segmentTooltipPct}>
+                    {t('sources.barChart.remaining')}{' '}
+                    {formatCurrency(
+                      source.totalAmount - (hoveredSegment.totalValue ?? hoveredSegment.value),
+                    )}
+                  </span>
+                </>
+              )}
             </div>
           </div>
         )}

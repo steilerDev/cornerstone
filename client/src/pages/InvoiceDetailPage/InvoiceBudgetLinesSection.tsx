@@ -21,7 +21,8 @@ import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
+import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
 import { WorkItemPicker } from '../../components/WorkItemPicker/WorkItemPicker.js';
 import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/HouseholdItemPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
@@ -50,6 +51,7 @@ export function InvoiceBudgetLinesSection({
   invoiceTotal,
 }: InvoiceBudgetLinesSectionProps) {
   const { formatCurrency } = useFormatters();
+  const { vatRate } = useLocale();
   const { t: tSettings } = useTranslation('settings');
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
@@ -436,6 +438,10 @@ export function InvoiceBudgetLinesSection({
     [selectedBudgetLine, closeBudgetLineModal, loadBudgetLines],
   );
 
+  // Picker: server remainder (invoice total minus already-linked lines) minus the ticked amounts
+  const selectedTotal = Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0);
+  const remainingToAllocate = Math.round((remainingAmount - selectedTotal) * 100) / 100;
+
   // Determine remaining color
   const getRemainingColor = () => {
     if (remainingAmount > 0.01) return 'warning'; // > 0
@@ -561,7 +567,9 @@ export function InvoiceBudgetLinesSection({
                         )
                       : '—'}
                   </td>
-                  <td className={styles.tdPlanned}>{formatCurrency(line.plannedAmount)}</td>
+                  <td className={styles.tdPlanned}>
+                    {formatCurrency(effectivePlannedAmount(line, vatRate))}
+                  </td>
                   <td className={styles.tdItemized}>
                     <span>{formatCurrency(line.itemizedAmount)}</span>
                   </td>
@@ -829,7 +837,7 @@ export function InvoiceBudgetLinesSection({
                                       // Auto-populate with planned amount
                                       setItemizedAmounts((prev) => ({
                                         ...prev,
-                                        [line.id]: line.plannedAmount,
+                                        [line.id]: effectivePlannedAmount(line, vatRate),
                                       }));
                                     } else {
                                       setSelectedLineIds((prev) => {
@@ -875,7 +883,9 @@ export function InvoiceBudgetLinesSection({
                                       )}
                                       <span className={styles.budgetLinePlanned}>
                                         {t('invoiceDetail.budgetLines.picker.plannedLabel', {
-                                          amount: formatCurrency(line.plannedAmount),
+                                          amount: formatCurrency(
+                                            effectivePlannedAmount(line, vatRate),
+                                          ),
                                         })}
                                       </span>
                                     </div>
@@ -920,16 +930,10 @@ export function InvoiceBudgetLinesSection({
                           </span>
                           <span
                             className={`${styles.remainingAmount} ${
-                              Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0) >
-                              invoiceTotal
-                                ? styles.remainingExceeds
-                                : ''
+                              remainingToAllocate < 0 ? styles.remainingExceeds : ''
                             }`}
                           >
-                            {formatCurrency(
-                              invoiceTotal -
-                                Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0),
-                            )}
+                            {formatCurrency(remainingToAllocate)}
                           </span>
                         </div>
 

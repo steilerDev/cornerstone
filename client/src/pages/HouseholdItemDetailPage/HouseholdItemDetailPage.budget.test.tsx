@@ -11,7 +11,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
@@ -1076,6 +1076,29 @@ describe('HouseholdItemDetailPage — budget line rendering (bug #436)', () => {
       expect(screen.getByText('Own Estimate')).toBeInTheDocument();
       // Budget summary shows Expected Cost
       expect(screen.getByText('Expected Cost')).toBeInTheDocument();
+    });
+  });
+
+  describe('Link to Invoice default amount is gross (#2194 D-19)', () => {
+    async function openLinkModal(overrides: Partial<HouseholdItemBudgetLine>) {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemBudgets.mockResolvedValue([makeBudgetLine(overrides)]);
+      mockFetchInvoices.mockResolvedValue([]);
+
+      renderPage();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Link to Invoice' }));
+      return (await screen.findByLabelText(/itemized amount/i)) as HTMLInputElement;
+    }
+
+    it('prefills the gross amount (100 net at 19% VAT -> 119) for a net-entered line', async () => {
+      const input = await openLinkModal({ plannedAmount: 100, includesVat: false });
+      expect(input.value).toBe('119');
+    });
+
+    it('prefills the planned amount unchanged for a gross-entered line', async () => {
+      const input = await openLinkModal({ plannedAmount: 100, includesVat: true });
+      expect(input.value).toBe('100');
     });
   });
 });

@@ -2,10 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Invoice } from '@cornerstone/shared';
 import { fetchAllInvoices } from '../../lib/invoicesApi.js';
-import {
-  createInvoiceBudgetLine,
-  fetchInvoiceBudgetLines,
-} from '../../lib/invoiceBudgetLinesApi.js';
+import { createInvoiceBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -13,6 +10,8 @@ import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
 import { FormError } from '../FormError/index.js';
 import styles from './InvoiceLinkModal.module.css';
+
+const toCents = (n: number) => Math.round(n * 100) / 100;
 
 export interface InvoiceLinkModalProps {
   budgetLineId: string;
@@ -49,7 +48,6 @@ export function InvoiceLinkModal({
   const [remainingAmount, setRemainingAmount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isLoadingRemaining, setIsLoadingRemaining] = useState(false);
   const [error, setError] = useState<InvoiceLinkError | null>(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -68,10 +66,12 @@ export function InvoiceLinkModal({
         setInvoices(response.invoices);
         setFilteredInvoices(response.invoices);
         if (response.invoices.length > 0) {
-          const firstInvoice = response.invoices[0]!; // guarded by length check
-          setSelectedInvoiceId(firstInvoice.id);
-          setSelectedInvoice(firstInvoice);
-          await loadRemainingAmount(firstInvoice.id);
+          // Prefer an invoice that still has room, so the modal never opens on a dead end
+          const initial =
+            response.invoices.find((i) => toCents(i.remainingAmount) > 0) ?? response.invoices[0]!; // guarded by length check
+          setSelectedInvoiceId(initial.id);
+          setSelectedInvoice(initial);
+          setRemainingAmount(toCents(initial.remainingAmount));
         }
       } catch {
         setError({
@@ -84,20 +84,6 @@ export function InvoiceLinkModal({
 
     loadInvoices();
   }, [vendorId, t]);
-
-  // Load remaining amount when invoice is selected
-  const loadRemainingAmount = async (invoiceId: string) => {
-    try {
-      setIsLoadingRemaining(true);
-      const response = await fetchInvoiceBudgetLines(invoiceId);
-      setRemainingAmount(response.remainingAmount);
-    } catch (err) {
-      console.error('Failed to load remaining amount:', err);
-      setRemainingAmount(0);
-    } finally {
-      setIsLoadingRemaining(false);
-    }
-  };
 
   // Handle invoice search input
   const handleSearchChange = (value: string) => {
@@ -118,7 +104,7 @@ export function InvoiceLinkModal({
   };
 
   // Handle invoice selection from dropdown
-  const handleSelectInvoice = async (invoice: Invoice) => {
+  const handleSelectInvoice = (invoice: Invoice) => {
     setSelectedInvoiceId(invoice.id);
     setSelectedInvoice(invoice);
     setSearchInput('');
@@ -126,7 +112,7 @@ export function InvoiceLinkModal({
     if (error?.field === 'invoice') {
       setError(null);
     }
-    await loadRemainingAmount(invoice.id);
+    setRemainingAmount(toCents(invoice.remainingAmount));
   };
 
   // Close dropdown when clicking outside
@@ -213,8 +199,14 @@ export function InvoiceLinkModal({
 
   const parsedAmount = parseFloat(itemizedAmount);
   const amountAvailable = remainingAmount - parsedAmount;
+  const fullyAllocated = remainingAmount === 0;
+  const overAllocated = remainingAmount < 0;
+  const exceedsRemaining = !isNaN(parsedAmount) && parsedAmount > remainingAmount;
+  // Every disabled cause has a visible reason: the allocation note or the red indicator
+  const linkDisabled =
+    isSaving || invoices.length === 0 || remainingAmount <= 0 || exceedsRemaining;
   const amountIndicator =
-    selectedInvoice && !isNaN(parsedAmount) ? (
+    selectedInvoice && remainingAmount > 0 && !isNaN(parsedAmount) ? (
       <div
         className={`${styles.amountIndicator} ${amountAvailable < 0 ? styles.amountIndicatorWarning : ''}`}
       >
@@ -244,7 +236,7 @@ export function InvoiceLinkModal({
             type="submit"
             form="invoice-link-form"
             className={styles.submitButton}
-            disabled={isSaving || invoices.length === 0}
+            disabled={linkDisabled}
           >
             {isSaving ? t('invoiceLinkModal.linking') : t('invoiceLinkModal.linkButton')}
           </button>
@@ -289,25 +281,28 @@ export function InvoiceLinkModal({
                       <button
                         key={inv.id}
                         type="button"
-                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''}`}
+                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''} ${toCents(inv.remainingAmount) <= 0 ? styles.dropdownItemDone : ''}`}
+                        title={inv.notes ?? undefined}
+                        data-testid={`invoice-link-option-${inv.id}`}
                         onClick={() => handleSelectInvoice(inv)}
                       >
-                        <span className={styles.dropdownItemNumber}>
-                          {inv.invoiceNumber
-                            ? `#${inv.invoiceNumber}`
-                            : t('invoiceLinkModal.invoiceFallbackLabel', {
-                                id: inv.id.slice(0, 8),
-                              })}
+                        <span className={styles.dropdownItemMain}>
+                          <span className={styles.dropdownItemNumber}>
+                            {inv.invoiceNumber
+                              ? `#${inv.invoiceNumber}`
+                              : t('invoiceLinkModal.invoiceFallbackLabel', {
+                                  id: inv.id.slice(0, 8),
+                                })}
+                          </span>
+                          {inv.vendorName && (
+                            <span className={styles.dropdownItemVendor}>{inv.vendorName}</span>
+                          )}
                         </span>
                         <span className={styles.dropdownItemAmount}>
-                          {formatCurrency(inv.amount)}
+                          {toCents(inv.remainingAmount) > 0
+                            ? formatCurrency(toCents(inv.remainingAmount))
+                            : t('invoiceLinkModal.nothingLeftToLink')}
                         </span>
-                        {inv.vendorName && (
-                          <span className={styles.dropdownItemVendor}>{inv.vendorName}</span>
-                        )}
-                        {inv.notes && (
-                          <span className={styles.dropdownItemDescription}>{inv.notes}</span>
-                        )}
                       </button>
                     ))}
                   </div>
@@ -317,17 +312,19 @@ export function InvoiceLinkModal({
                 )}
               </div>
               {error?.field === 'invoice' && <FormError message={error.message} variant="field" />}
-              {selectedInvoice && !isLoadingRemaining && (
+              {selectedInvoice && (
                 <div
-                  className={`${styles.remainingAmountInfo} ${remainingAmount < 0 ? styles.remainingAmountWarning : ''}`}
+                  className={`${styles.remainingAmountInfo} ${overAllocated ? styles.remainingAmountWarning : ''}`}
                 >
-                  {remainingAmount >= 0
-                    ? t('invoiceLinkModal.availableOnInvoice', {
-                        amount: formatCurrency(remainingAmount),
-                      })
-                    : t('invoiceLinkModal.overAllocated', {
+                  {overAllocated
+                    ? t('invoiceLinkModal.overAllocated', {
                         amount: formatCurrency(Math.abs(remainingAmount)),
-                      })}
+                      })
+                    : fullyAllocated
+                      ? t('invoiceLinkModal.fullyAllocated')
+                      : t('invoiceLinkModal.availableOnInvoice', {
+                          amount: formatCurrency(remainingAmount),
+                        })}
                 </div>
               )}
             </>

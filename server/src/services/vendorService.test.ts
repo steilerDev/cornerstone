@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
+import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
@@ -105,6 +106,30 @@ describe('Vendor Service', () => {
       })
       .run();
     return id;
+  }
+
+  /**
+   * Helper: Insert a progress payment (deposit/refund entry) on an invoice.
+   */
+  function createTestDeposit(
+    invoiceId: string,
+    amount: number,
+    status: 'pending' | 'paid' | 'claimed',
+    entryType: 'deposit' | 'refund' = 'deposit',
+  ) {
+    const now = new Date().toISOString();
+    db.insert(schema.invoiceDeposits)
+      .values({
+        id: `dep-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+        invoiceId,
+        amount,
+        dueDate: '2026-01-15',
+        status,
+        entryType,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
   }
 
   /**
@@ -500,16 +525,81 @@ describe('Vendor Service', () => {
       expect(result.invoiceCount).toBe(3);
     });
 
-    it('calculates outstandingBalance as sum of pending + claimed invoices', () => {
+    // Mutation guard for every outstandingBalance case below: the old implementation was
+    // SUM(amount) WHERE status IN ('pending','claimed'); each assertion fails under it.
+    it('counts only pending invoices; claimed (submitted) and paid never count', () => {
       const vendor = createTestVendor('Balance Vendor');
       createTestInvoice(vendor.id, 'pending', 500);
-      createTestInvoice(vendor.id, 'claimed', 300);
-      createTestInvoice(vendor.id, 'paid', 1000); // paid — should NOT count
+      createTestInvoice(vendor.id, 'claimed', 300); // old SUM would have added 300
+      createTestInvoice(vendor.id, 'paid', 1000);
 
       const result = vendorService.getVendorById(db, vendor.id);
 
-      expect(result.outstandingBalance).toBe(800);
+      expect(result.outstandingBalance).toBe(500);
       expect(result.invoiceCount).toBe(3);
+    });
+
+    it('outstandingBalance is 0 with only paid and claimed invoices', () => {
+      const vendor = createTestVendor('Settled Vendor');
+      createTestInvoice(vendor.id, 'paid', 1000);
+      createTestInvoice(vendor.id, 'claimed', 250);
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(0);
+    });
+
+    it('subtracts a paid progress payment from a pending invoice', () => {
+      const vendor = createTestVendor('Progress Vendor');
+      const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
+      createTestDeposit(invoiceId, 400, 'paid');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(600);
+    });
+
+    it('subtracts claimed progress payments too', () => {
+      const vendor = createTestVendor('Progress Vendor 2');
+      const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
+      createTestDeposit(invoiceId, 400, 'paid');
+      createTestDeposit(invoiceId, 100, 'claimed');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(500);
+    });
+
+    it('adds a pending progress payment on a quotation (quotation itself adds nothing)', () => {
+      const vendor = createTestVendor('Quote Vendor');
+      const invoiceId = createTestInvoice(vendor.id, 'pending', 2000);
+      db.update(schema.invoices)
+        .set({ status: 'quotation' })
+        .where(eq(schema.invoices.id, invoiceId))
+        .run();
+      createTestDeposit(invoiceId, 300, 'pending');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(300);
+    });
+
+    it('keeps a pending progress payment inside a pending invoice total (no double count)', () => {
+      const vendor = createTestVendor('Pending Progress Vendor');
+      const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
+      createTestDeposit(invoiceId, 250, 'pending');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(1000);
+    });
+
+    it('ignores a pending refund entry', () => {
+      const vendor = createTestVendor('Refund Vendor');
+      const invoiceId = createTestInvoice(vendor.id, 'pending', 1000);
+      createTestDeposit(invoiceId, 200, 'pending', 'refund');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(1000);
+    });
+
+    it('excludes another vendor invoices and progress payments', () => {
+      const vendor = createTestVendor('Mine');
+      const other = createTestVendor('Theirs');
+      createTestInvoice(vendor.id, 'pending', 100);
+      const otherInvoice = createTestInvoice(other.id, 'pending', 5000);
+      createTestDeposit(otherInvoice, 700, 'pending');
+
+      expect(vendorService.getVendorById(db, vendor.id).outstandingBalance).toBe(100);
     });
 
     it('outstandingBalance is 0 when all invoices are paid', () => {

@@ -212,8 +212,8 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       await invoicesPage.openCreateModal();
       await expect(invoicesPage.createModal).toBeVisible();
 
-      // Fill required fields. Default status on the form is 'quotation'; the test
-      // asserts the pending summary count so we must explicitly set pending here.
+      // Fill required fields. Default status on the form is 'pending' (To pay, #2194); it is
+      // still set explicitly so this test does not depend on the form default.
       await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
       await invoicesPage.createAmountInput.fill('1500.00');
       await invoicesPage.createDateInput.fill('2026-01-15');
@@ -233,7 +233,7 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       // Wait for list to reload and show data
       await invoicesPage.waitForLoaded();
 
-      // Verify summary cards update (pending count increased since new invoice is pending by default).
+      // Verify summary cards update (pending count increased since the new invoice is pending).
       // Summary and list share one API response but the list render can show stale rows during
       // the re-fetch; poll the count so the retry covers the brief interleaving window.
       await expect

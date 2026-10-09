@@ -97,7 +97,11 @@ let InvoiceLinkModal: (typeof InvoiceLinkModalModule)['InvoiceLinkModal'];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function buildInvoice(id: string, invoiceNumber: string | null = `INV-${id}`): Invoice {
+function buildInvoice(
+  id: string,
+  invoiceNumber: string | null = `INV-${id}`,
+  remainingAmount = 1000,
+): Invoice {
   return {
     id,
     vendorId: 'vendor-1',
@@ -109,7 +113,7 @@ function buildInvoice(id: string, invoiceNumber: string | null = `INV-${id}`): I
     status: 'pending',
     notes: null,
     budgetLines: [],
-    remainingAmount: 1000,
+    remainingAmount,
     deposits: [],
     finalPaymentAmount: 1000,
     createdBy: null,
@@ -152,11 +156,6 @@ function buildProps(overrides?: Partial<InvoiceLinkModalProps>): InvoiceLinkModa
 describe('InvoiceLinkModal', () => {
   beforeEach(async () => {
     jest.clearAllMocks();
-    // Default: remaining amount covers typical test amounts
-    mockFetchInvoiceBudgetLines.mockResolvedValue({
-      budgetLines: [],
-      remainingAmount: 1000,
-    });
     const module = await import('./InvoiceLinkModal.js');
     InvoiceLinkModal = module.InvoiceLinkModal;
   });
@@ -741,18 +740,19 @@ describe('InvoiceLinkModal', () => {
       expect(screen.queryByText('Please enter a valid amount')).not.toBeInTheDocument();
     });
 
-    it('shows "Amount exceeds available balance" when the amount exceeds remainingAmount', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
+    it('shows "Amount exceeds available balance" when a form submit bypasses the disabled button', async () => {
+      const invoices = [buildInvoice('inv-1', 'INV-001', 200)];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 200 });
 
-      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+      const { container } = render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
 
       await waitFor(() => {
         expect(screen.queryByText('Loading invoices...')).toBeNull();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
+      // The button is disabled (red indicator explains why); Enter-key submit still hits the guard
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+      fireEvent.submit(container.ownerDocument.getElementById('invoice-link-form')!);
 
       await waitFor(() => {
         expect(
@@ -821,9 +821,8 @@ describe('InvoiceLinkModal', () => {
     });
 
     it('shows "{{amount}} will remain" when the itemized amount is under the remaining balance', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      const invoices = [buildInvoice('inv-1', 'INV-001', 1000)];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 1000 });
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
 
@@ -833,9 +832,8 @@ describe('InvoiceLinkModal', () => {
     });
 
     it('shows "{{amount}} over available" when the itemized amount exceeds the remaining balance', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      const invoices = [buildInvoice('inv-1', 'INV-001', 100)];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 100 });
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
 
@@ -845,9 +843,8 @@ describe('InvoiceLinkModal', () => {
     });
 
     it('shows "{{amount}} available on this invoice" when remainingAmount is non-negative', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      const invoices = [buildInvoice('inv-1', 'INV-001', 250)];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 250 });
 
       render(<InvoiceLinkModal {...buildProps()} />);
 
@@ -857,27 +854,13 @@ describe('InvoiceLinkModal', () => {
     });
 
     it('shows "Over-allocated by {{amount}}" when remainingAmount is negative', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
+      const invoices = [buildInvoice('inv-1', 'INV-001', -50)];
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: -50 });
 
       render(<InvoiceLinkModal {...buildProps()} />);
 
       await waitFor(() => {
         expect(screen.getByText(/Over-allocated by/)).toBeInTheDocument();
-      });
-    });
-
-    it('falls back to remainingAmount 0 when fetchInvoiceBudgetLines fails', async () => {
-      const invoices = [buildInvoice('inv-1', 'INV-001')];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
-      mockFetchInvoiceBudgetLines.mockRejectedValue(new Error('network error'));
-
-      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
-
-      await waitFor(() => {
-        // remainingAmount falls back to 0 → "available on this invoice" shows €0.00
-        expect(screen.getByText(/available on this invoice/)).toBeInTheDocument();
       });
     });
 
@@ -1007,6 +990,283 @@ describe('InvoiceLinkModal', () => {
       await waitFor(() => {
         expect(screen.queryByText('Beta Ltd')).not.toBeInTheDocument();
       });
+    });
+  });
+
+  // ─── #2194 D-27: compact rows, preselect, neutral fully-allocated state ─────
+
+  describe('compact rows and fully-allocated state (#2194)', () => {
+    const noInvoiceLevelRed = () => {
+      expect(document.querySelector('[class*="remainingAmountWarning"]')).toBeNull();
+      expect(document.querySelector('[class*="amountIndicatorWarning"]')).toBeNull();
+      expect(document.querySelector('[class*="inputError"]')).toBeNull();
+    };
+
+    const waitLoaded = () =>
+      waitFor(() => {
+        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      });
+
+    it('reads remaining from the list rows and never fetches per-invoice budget lines', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 200 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/available on this invoice/)).toBeInTheDocument();
+      });
+      expect(mockFetchInvoiceBudgetLines).not.toHaveBeenCalled();
+    });
+
+    it('(a) preselects the first invoice that still has room when the first is fully allocated', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001', 0),
+          buildInvoice('inv-2', 'INV-002', 300),
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 200 })} />);
+
+      await waitFor(() => {
+        const search = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
+        expect(search.value).toContain('#INV-002');
+      });
+      noInvoiceLevelRed();
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeEnabled();
+    });
+
+    it('(b) a single fully allocated invoice shows the neutral note, no red, and a disabled button', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 0)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      });
+      noInvoiceLevelRed();
+      expect(screen.queryByText(/over available/)).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+    });
+
+    it('(c) remaining 300 with default 500 shows the red indicator and disables the button', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/over available/)).toBeInTheDocument();
+      });
+      expect(document.querySelector('[class*="amountIndicatorWarning"]')).not.toBeNull();
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+    });
+
+    it('(d) remaining 300 with amount 200 enables the button and submits itemizedAmount 200', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+      mockCreateInvoiceBudgetLine.mockResolvedValue({
+        budgetLine: {} as never,
+        remainingAmount: 100,
+      });
+      const onSuccess = jest.fn();
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500, onSuccess })} />);
+
+      await waitLoaded();
+      fireEvent.change(screen.getByLabelText(/itemized amount/i), { target: { value: '200' } });
+      const button = screen.getByRole('button', { name: /link to invoice/i });
+      expect(button).toBeEnabled();
+      fireEvent.click(button);
+
+      await waitFor(() => {
+        expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+          'inv-1',
+          expect.objectContaining({ itemizedAmount: 200 }),
+        );
+      });
+      await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    });
+
+    it('(e) an empty amount keeps the button enabled and submit shows the invalid-amount error', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 500 })} />);
+
+      await waitLoaded();
+      fireEvent.change(screen.getByLabelText(/itemized amount/i), { target: { value: '' } });
+      const button = screen.getByRole('button', { name: /link to invoice/i });
+      expect(button).toBeEnabled();
+      // The input is `required`, so a click is stopped by native validation (browser tooltip);
+      // submitting the form directly reaches the component's own invalid-amount guard.
+      fireEvent.submit(document.getElementById('invoice-link-form')!);
+
+      await waitFor(() => {
+        expect(screen.getByText('Please enter a valid amount')).toBeInTheDocument();
+      });
+      expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
+    });
+
+    it('(f) a row with nothing left says "Nothing left to link", stays selectable, notes in title', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001', 300),
+          { ...buildInvoice('inv-2', 'INV-002', 0), notes: 'Roof deposit' },
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitLoaded();
+      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+
+      const row = await screen.findByTestId('invoice-link-option-inv-2');
+      expect(row).toHaveTextContent('Nothing left to link');
+      expect(row).toHaveAttribute('title', 'Roof deposit');
+      expect(screen.getByTestId('invoice-link-option-inv-1')).not.toHaveAttribute('title');
+      expect(screen.getByTestId('invoice-link-option-inv-1')).toHaveTextContent(/300\.00/);
+
+      fireEvent.click(row);
+      await waitFor(() => {
+        expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      });
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+    });
+
+    it('rows are one line: number and vendor on the left, amount on the right', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitLoaded();
+      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      const row = await screen.findByTestId('invoice-link-option-inv-1');
+
+      expect(row.children).toHaveLength(2);
+      expect(row.children[0]).toHaveTextContent('#INV-001');
+      expect(row.children[0]).toHaveTextContent('Acme Corp');
+      expect(row.children[1]).toHaveTextContent(/300\.00/);
+    });
+
+    // Float residue (e.g. 1e-13 left after summing cents) must read as fully allocated.
+    const expectNeutralFullyAllocated = () => {
+      expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      expect(screen.queryByText(/Over-allocated by/)).not.toBeInTheDocument();
+      expect(document.querySelector('[class*="amountIndicatorWarning"]')).toBeNull();
+      expect(document.querySelector('[class*="remainingAmountWarning"]')).toBeNull();
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+    };
+
+    it('(rounding a) a 1e-13 first invoice is skipped and shown as "Nothing left to link"', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001', 1e-13),
+          buildInvoice('inv-2', 'INV-002', 300),
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitFor(() => {
+        const search = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
+        expect(search.value).toContain('#INV-002');
+      });
+      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      expect(await screen.findByTestId('invoice-link-option-inv-1')).toHaveTextContent(
+        'Nothing left to link',
+      );
+    });
+
+    it('(rounding b) a single 1e-13 invoice shows the neutral fully-allocated state', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 1e-13)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      });
+      expectNeutralFullyAllocated();
+    });
+
+    it('(rounding c) a single -1e-13 invoice is fully allocated, not over-allocated', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', -1e-13)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      });
+      expectNeutralFullyAllocated();
+    });
+
+    it('(rounding d) selecting a 1e-13 row from the dropdown gives the same neutral state', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001', 300),
+          buildInvoice('inv-2', 'INV-002', 1e-13),
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/available on this invoice/)).toBeInTheDocument();
+      });
+      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
+
+      await waitFor(() => {
+        expect(screen.getByText('Fully allocated – nothing left to link')).toBeInTheDocument();
+      });
+      expectNeutralFullyAllocated();
+    });
+
+    it('(g) a negative remaining shows the over-allocated warning and disables the button', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', -50)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Over-allocated by/)).toBeInTheDocument();
+      });
+      expect(document.querySelector('[class*="remainingAmountWarning"]')).not.toBeNull();
+      expect(screen.getByRole('button', { name: /link to invoice/i })).toBeDisabled();
+    });
+
+    it('selecting another invoice from the dropdown switches the remaining to that row', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001', 300),
+          buildInvoice('inv-2', 'INV-002', 777),
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+
+      await waitLoaded();
+      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
+
+      await waitFor(() => {
+        expect(screen.getByText(/777\.00 available on this invoice/)).toBeInTheDocument();
+      });
+      expect(mockFetchInvoiceBudgetLines).not.toHaveBeenCalled();
     });
   });
 });

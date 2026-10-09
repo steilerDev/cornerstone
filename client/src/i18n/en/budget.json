@@ -157,6 +157,7 @@
       "closed": "Closed"
     },
     "barChart": {
+      "overAllocated": "Over-allocated by {{amount}}",
       "claimed": "Claimed",
       "paidUnclaimed": "Paid (unclaimed)",
       "projected": "Projected",
@@ -1104,6 +1105,8 @@
     "willRemain": "{{amount}} will remain",
     "availableOnInvoice": "{{amount}} available on this invoice",
     "overAllocated": "Over-allocated by {{amount}}",
+    "fullyAllocated": "Fully allocated – nothing left to link",
+    "nothingLeftToLink": "Nothing left to link",
     "invoiceFallbackLabel": "Invoice {{id}}",
     "successToast": "Budget line linked to invoice successfully",
     "errors": {
@@ -1122,7 +1125,7 @@
     "onBudget": "On Budget"
   },
   "bar": {
-    "overflowLabel": "Overflow",
+    "overflowLabel": "Over-allocated",
     "ariaBreakdown": "Budget breakdown: {{details}}",
     "ariaNoData": "Budget breakdown: no data"
   },
@@ -1269,13 +1272,13 @@
     },
     "useCaseHelper": {
       "budget-overview": "A summary of all invoices and their allocations",
-      "claim": "Document invoices marked as paid or claimed",
+      "claim": "Invoices to pay or paid that are not yet submitted",
       "proof-of-funds": "Show only claimed invoices"
     },
     "sourceLabel": "Select a budget source",
     "amountLabel": {
       "overview": "Total Amount",
-      "claim": "Pending Amount",
+      "claim": "To pay or paid, not submitted",
       "proofOfFunds": "Claimed Amount"
     },
     "discretionary": "Discretionary",
