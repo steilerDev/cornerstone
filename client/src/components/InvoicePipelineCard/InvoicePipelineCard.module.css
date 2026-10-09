@@ -15,6 +15,9 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--color-border);
   background-color: var(--color-bg-secondary);
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: var(--spacing-1);
 }
 
 .itemOverdue {
@@ -26,16 +29,19 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  flex: 1 1 8rem;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
+  min-width: 0;
 }
 
 .invoiceNumber {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
-  flex-shrink: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .amount {
@@ -43,6 +49,9 @@
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-align: right;
 }
 
 .date {
@@ -80,11 +89,14 @@
   border-top: 1px solid var(--color-border);
   margin-top: var(--spacing-2);
   font-size: var(--font-size-sm);
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
 }
 
 .footerTotal {
   color: var(--color-text-secondary);
   font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .link {
@@ -110,6 +122,9 @@
   text-decoration: none;
   color: inherit;
   width: 100%;
+  flex-wrap: wrap;
+  min-width: 0;
+  row-gap: var(--spacing-1);
 }
 
 .itemLink:hover {

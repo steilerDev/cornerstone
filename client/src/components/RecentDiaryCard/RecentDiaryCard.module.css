@@ -35,6 +35,8 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .entryTitle {
@@ -44,7 +46,8 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  flex: 1 1 8rem;
+  min-width: 0;
 }
 
 .entryPreview {

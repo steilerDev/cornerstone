@@ -14,16 +14,18 @@
   display: flex;
   align-items: center;
   gap: var(--spacing-2);
+  min-width: 0;
 }
 
 .sourceName {
-  flex: 1;
+  flex: 1 1 8rem;
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  min-width: 0;
 }
 
 .typeBadge {
@@ -63,6 +65,8 @@
   gap: var(--spacing-1);
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  flex-wrap: wrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .srOnly {

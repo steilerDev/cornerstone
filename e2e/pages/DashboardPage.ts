@@ -190,6 +190,51 @@ export class DashboardPage {
   }
 
   /**
+   * Expands both mobile collapsible sections (Timeline, Budget Details) so their cards are
+   * measurable. No-op when the sections are absent or already open.
+   */
+  async openMobileSections(): Promise<void> {
+    await this.mobileSections.locator('details').evaluateAll((els) => {
+      for (const el of els) (el as HTMLDetailsElement).open = true;
+    });
+  }
+
+  /**
+   * Measures horizontal overflow at the current viewport width. Returns a list of human-readable
+   * problems (empty when the page and every VISIBLE card fit). Only cards that are rendered
+   * (the grid and the mobile layout both exist in the DOM; one is display:none) are measured.
+   */
+  async measureHorizontalOverflow(): Promise<string[]> {
+    return this.page.evaluate(() => {
+      const problems: string[] = [];
+      const vw = window.innerWidth;
+      const doc = document.documentElement;
+      if (doc.scrollWidth > vw) {
+        problems.push(`page: scrollWidth ${doc.scrollWidth} > innerWidth ${vw}`);
+      }
+      const cards = Array.from(
+        document.querySelectorAll<HTMLElement>('article[aria-labelledby^="card-"]'),
+      ).filter((el) => el.getClientRects().length > 0);
+      for (const card of cards) {
+        const id = card.getAttribute('aria-labelledby') ?? 'unknown-card';
+        if (card.scrollWidth > card.clientWidth + 1) {
+          problems.push(`${id}: scrollWidth ${card.scrollWidth} > clientWidth ${card.clientWidth}`);
+        }
+        const region = card.closest<HTMLElement>('[role="region"]');
+        const box = card.getBoundingClientRect();
+        const bounds = region ? region.getBoundingClientRect() : null;
+        if (bounds && (box.left < bounds.left - 1 || box.right > bounds.right + 1)) {
+          problems.push(
+            `${id}: box [${Math.round(box.left)}, ${Math.round(box.right)}] outside region ` +
+              `[${Math.round(bounds.left)}, ${Math.round(bounds.right)}]`,
+          );
+        }
+      }
+      return problems;
+    });
+  }
+
+  /**
    * Checks whether the mobile collapsible "Timeline" section is present on page.
    */
   timelineSection(): Locator {

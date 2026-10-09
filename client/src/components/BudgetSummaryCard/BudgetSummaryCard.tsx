@@ -8,9 +8,11 @@ import styles from './BudgetSummaryCard.module.css';
 
 interface BudgetSummaryCardProps {
   overview: BudgetOverview;
+  /** Money actually paid: paid + claimed invoice totals (deposit-aware, itemised or not). null while unknown. */
+  paidAmount: number | null;
 }
 
-export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
+export function BudgetSummaryCard({ overview, paidAmount }: BudgetSummaryCardProps) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('dashboard');
 
@@ -18,36 +20,35 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
     availableFunds,
     minPlanned,
     maxPlanned,
-    actualCost,
     remainingVsMinPlanned,
     remainingVsMaxPlanned,
     subsidySummary,
   } = overview;
 
-  // Medium net remaining: average of min and max remaining
-  const mediumNetRemaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2;
+  // Single scenario for figure, bar and badge: midpoint of min/max planned (D-03)
+  const remaining = (remainingVsMinPlanned + remainingVsMaxPlanned) / 2;
 
   // Build budget bar segments
   const segments: BudgetBarSegment[] = [
     {
       key: 'actual-cost',
-      value: Math.max(0, actualCost),
+      value: Math.max(0, paidAmount ?? 0),
       color: 'var(--color-budget-paid)',
       label: t('cards.budgetSummary.actualSpend')!,
     },
   ];
 
   // Add remaining segment or overflow
-  if (mediumNetRemaining >= 0) {
+  if (remaining >= 0) {
     segments.push({
       key: 'remaining',
-      value: mediumNetRemaining,
+      value: remaining,
       color: 'var(--color-budget-track)',
       label: t('cards.budgetSummary.remainingBudget')!,
     });
   }
 
-  const overflow = mediumNetRemaining < 0 ? Math.abs(mediumNetRemaining) : 0;
+  const overflow = remaining < 0 ? Math.abs(remaining) : 0;
 
   return (
     <div className={styles.content}>
@@ -55,7 +56,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
       <div className={styles.primaryMetric}>
         <span className={styles.metricLabel}>{t('cards.budgetSummary.remainingBudget')}</span>
         <span className={styles.metricValue} data-testid="remaining-budget">
-          {formatCurrency(mediumNetRemaining)}
+          {formatCurrency(remaining)}
         </span>
       </div>
 
@@ -70,10 +71,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
 
       {/* Health row */}
       <div className={styles.healthRow}>
-        <BudgetHealthIndicator
-          remainingVsProjectedMax={remainingVsMaxPlanned}
-          availableFunds={availableFunds}
-        />
+        <BudgetHealthIndicator remaining={remaining} availableFunds={availableFunds} />
       </div>
 
       {/* Metrics grid */}
@@ -88,7 +86,7 @@ export function BudgetSummaryCard({ overview }: BudgetSummaryCardProps) {
         <div className={styles.metricItem}>
           <dt className={styles.metricItemLabel}>{t('cards.budgetSummary.actualSpend')}</dt>
           <dd className={styles.metricItemValue} data-testid="actual-spend">
-            {formatCurrency(actualCost)}
+            {paidAmount === null ? '—' : formatCurrency(paidAmount)}
           </dd>
         </div>
 

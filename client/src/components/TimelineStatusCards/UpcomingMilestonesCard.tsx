@@ -53,13 +53,15 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
 
           return (
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>
-              <Link to={`/schedule/milestones/${milestone.id}`} className={styles.link}>
+              <Link
+                to={`/project/milestones/${milestone.id}`}
+                className={styles.milestoneTitle}
+                title={milestone.title}
+              >
                 {milestone.title}
               </Link>
-              <div style={{ display: 'flex', gap: 'var(--spacing-2)' }}>
-                <span style={{ color: 'var(--color-text-muted)' }}>
-                  {formatDate(milestone.targetDate)}
-                </span>
+              <div className={styles.milestoneMeta}>
+                <span className={styles.milestoneDate}>{formatDate(milestone.targetDate)}</span>
                 <Badge
                   testId="milestone-health"
                   variants={healthVariants}

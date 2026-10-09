@@ -35,6 +35,8 @@ import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/Subsid
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
 import styles from './DashboardPage.module.css';
 
+const INVOICE_PIPELINE_ROWS = 5; // rows per section in InvoicePipelineCard
+
 const PROJECT_TABS: SubNavTab[] = [
   { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
   { labelKey: 'subnav.project.workItems', to: '/project/work-items', ns: 'common' },
@@ -212,7 +214,24 @@ export function DashboardPage() {
       fetchBudgetSources(),
       fetchSubsidyPrograms(),
       getTimeline(),
-      fetchAllInvoices({ pageSize: 10 }),
+      // Status-scoped requests so older pending invoices and quotations are never missed
+      Promise.all([
+        fetchAllInvoices({
+          status: 'pending',
+          sortBy: 'date',
+          sortOrder: 'asc',
+          pageSize: INVOICE_PIPELINE_ROWS,
+        }),
+        fetchAllInvoices({
+          status: 'quotation',
+          sortBy: 'date',
+          sortOrder: 'desc',
+          pageSize: INVOICE_PIPELINE_ROWS,
+        }),
+      ]).then(([pending, quotations]) => ({
+        invoices: [...pending.invoices, ...quotations.invoices],
+        summary: pending.summary, // global, filter-independent: identical on both responses
+      })),
       listDiaryEntries({ pageSize: 5, status: 'saved' }),
     ]);
 
@@ -335,6 +354,12 @@ export function DashboardPage() {
 
     // Update invoices state
     if (invoicesResult.status === 'fulfilled') {
+      const { summary } = invoicesResult.value;
+      const totalInvoices =
+        summary.pending.count +
+        summary.paid.count +
+        summary.claimed.count +
+        summary.quotation.count;
       setInvoices(invoicesResult.value.invoices);
       setInvoiceSummary(invoicesResult.value.summary);
       setDataStates((prev) => ({
@@ -342,8 +367,7 @@ export function DashboardPage() {
         invoices: {
           isLoading: false,
           error: null,
-          isEmpty:
-            invoicesResult.value.invoices.filter((inv) => inv.status === 'pending').length === 0,
+          isEmpty: totalInvoices === 0,
         },
       }));
     } else {
@@ -455,7 +479,14 @@ export function DashboardPage() {
         emptyAction={'emptyAction' in card ? card.emptyAction : undefined}
       >
         {card.id === 'budget-summary' && budgetOverview ? (
-          <BudgetSummaryCard overview={budgetOverview} />
+          <BudgetSummaryCard
+            overview={budgetOverview}
+            paidAmount={
+              invoiceSummary
+                ? invoiceSummary.paid.totalAmount + invoiceSummary.claimed.totalAmount
+                : null
+            }
+          />
         ) : card.id === 'source-utilization' ? (
           <SourceUtilizationCard sources={budgetSources} />
         ) : card.id === 'upcoming-milestones' && timelineData ? (

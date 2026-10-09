@@ -15,10 +15,15 @@
  * 9.  Keyboard navigation: Tab to Mini Gantt container, Enter navigates to /schedule
  * 10. Dark mode: page renders without horizontal scroll in dark mode
  * 11. No horizontal scroll on current viewport
+ * 14. Home trust (#2193): D-01 milestone link opens the milestone page; D-02 invoice rows come from
+ *     status-scoped requests and the empty state follows global counts; D-03 one budget scenario
+ *     and Actual Spend = paid + claimed; D-04 no horizontal overflow from 320 to 1440 px
  */
 
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/DashboardPage.js';
+import { createMilestoneViaApi, deleteMilestoneViaApi } from '../../fixtures/apiHelpers.js';
+import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Preference isolation (Issue #1957)
@@ -160,15 +165,69 @@ function mockTimeline() {
   };
 }
 
-function mockInvoices() {
+type SummaryBucket = { count: number; totalAmount: number };
+
+/**
+ * Full InvoiceStatusBreakdown (the dashboard reads summary.quotation.count and
+ * summary.paid/claimed.totalAmount, so every bucket must be present).
+ */
+function mockInvoiceSummary(
+  overrides: Partial<Record<'pending' | 'paid' | 'claimed' | 'quotation', SummaryBucket>> = {},
+) {
   return {
-    invoices: [],
-    pagination: { total: 0, page: 1, pageSize: 10, totalPages: 0 },
-    summary: {
-      pending: { count: 2, totalAmount: 15000 },
-      paid: { count: 5, totalAmount: 75000 },
-      claimed: { count: 1, totalAmount: 10000 },
-    },
+    pending: { count: 2, totalAmount: 15000 },
+    paid: { count: 5, totalAmount: 75000 },
+    claimed: { count: 1, totalAmount: 10000 },
+    quotation: { count: 0, totalAmount: 0 },
+    overdue: { count: 0, totalAmount: 0 },
+    claimable: { count: 0, totalAmount: 0 },
+    quotationCoveredByDeposits: 0,
+    openPayable: { count: 0, totalAmount: 0 },
+    refundsDue: { count: 0, totalAmount: 0 },
+    ...overrides,
+  };
+}
+
+/** Builds a synthetic invoice list row (only the fields the dashboard reads matter). */
+function mockInvoice(
+  id: string,
+  status: 'pending' | 'quotation',
+  extra: Partial<{
+    vendorName: string;
+    invoiceNumber: string | null;
+    amount: number;
+    date: string;
+    dueDate: string | null;
+  }> = {},
+) {
+  return {
+    id,
+    vendorId: `vendor-${id}`,
+    vendorName: 'Example Roofing Co',
+    invoiceNumber: `INV-${id}`,
+    amount: 1000,
+    date: '2026-01-15',
+    dueDate: null,
+    status,
+    notes: null,
+    budgetLines: [],
+    remainingAmount: 0,
+    deposits: [],
+    finalPaymentAmount: 0,
+    createdAt: '2026-01-15T00:00:00.000Z',
+    updatedAt: '2026-01-15T00:00:00.000Z',
+    ...extra,
+  };
+}
+
+function mockInvoices(
+  invoices: unknown[] = [],
+  summary: ReturnType<typeof mockInvoiceSummary> = mockInvoiceSummary(),
+) {
+  return {
+    invoices,
+    pagination: { total: invoices.length, page: 1, pageSize: 5, totalPages: 1, totalItems: 0 },
+    summary,
   };
 }
 
@@ -218,7 +277,20 @@ function mockDiaryEntries() {
  * This ensures consistent data across all viewports and prevents flakiness
  * from real data state in the test container.
  */
-async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['page']) {
+interface DashboardMockOverrides {
+  overview?: unknown;
+  sources?: unknown;
+  timeline?: unknown;
+  subsidyPrograms?: unknown;
+  diary?: unknown;
+  /** Responds to GET /api/invoices; receives the `status` query param (null when absent). */
+  invoices?: (status: string | null) => unknown;
+}
+
+async function interceptDashboardApis(
+  page: InstanceType<typeof DashboardPage>['page'],
+  overrides: DashboardMockOverrides = {},
+) {
   // Note: preferences are reset by the global beforeEach hook (PATCH to clear hiddenCards).
   // We do NOT intercept GET /api/users/me/preferences here because the "dismissed card
   // stays hidden after reload" test needs to read real server-side state after reload.
@@ -228,7 +300,7 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ overview: mockBudgetOverview() }),
+        body: JSON.stringify({ overview: overrides.overview ?? mockBudgetOverview() }),
       });
     } else {
       await route.continue();
@@ -240,7 +312,7 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockBudgetSources()),
+        body: JSON.stringify(overrides.sources ?? mockBudgetSources()),
       });
     } else {
       await route.continue();
@@ -252,7 +324,7 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockTimeline()),
+        body: JSON.stringify(overrides.timeline ?? mockTimeline()),
       });
     } else {
       await route.continue();
@@ -264,7 +336,11 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockInvoices()),
+        body: JSON.stringify(
+          overrides.invoices
+            ? overrides.invoices(new URL(route.request().url()).searchParams.get('status'))
+            : mockInvoices(),
+        ),
       });
     } else {
       await route.continue();
@@ -276,7 +352,7 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockSubsidyPrograms()),
+        body: JSON.stringify(overrides.subsidyPrograms ?? mockSubsidyPrograms()),
       });
     } else {
       await route.continue();
@@ -288,7 +364,7 @@ async function interceptDashboardApis(page: InstanceType<typeof DashboardPage>['
       await route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify(mockDiaryEntries()),
+        body: JSON.stringify(overrides.diary ?? mockDiaryEntries()),
       });
     } else {
       await route.continue();
@@ -1368,6 +1444,385 @@ test.describe('ARIA and accessibility', { tag: '@responsive' }, () => {
       await expect(miniGanttBtn).toBeVisible();
       await expect(miniGanttBtn).toHaveAttribute('role', 'button');
       await expect(miniGanttBtn).toHaveAttribute('aria-label', 'View full schedule');
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 14: Home trust (#2193) — D-01..D-04
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Opens the mobile Timeline <details> when the layout is the sectioned phone layout. */
+async function revealTimelineCards(dashboardPage: DashboardPage): Promise<void> {
+  const viewport = dashboardPage.page.viewportSize();
+  if (viewport && viewport.width < 768) {
+    await dashboardPage.openMobileSections();
+  }
+}
+
+test.describe('Home trust (Scenario 14, #2193)', { tag: '@responsive' }, () => {
+  test('D-01: Upcoming Milestones title opens the milestone page, not a 404', async ({
+    page,
+    testPrefix,
+  }) => {
+    const dashboardPage = new DashboardPage(page);
+    const milestoneDetail = new MilestoneDetailPage(page);
+    const title = `${testPrefix} Dashboard Milestone`;
+
+    // A real milestone; /api/timeline is deliberately NOT intercepted. The target date is far
+    // in the past so the milestone sorts first among incomplete milestones regardless of what
+    // other parallel specs have created (the card shows the 5 earliest).
+    const milestoneId = await createMilestoneViaApi(page, { title, targetDate: '2000-01-01' });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+      await revealTimelineCards(dashboardPage);
+
+      const link = page.getByRole('link', { name: title });
+      await expect(link).toBeVisible();
+      await expect(link).toHaveAttribute('href', `/project/milestones/${milestoneId}`);
+      await link.click();
+
+      await page.waitForURL(new RegExp(`/project/milestones/${milestoneId}$`));
+      await expect(milestoneDetail.heading).toHaveText(title);
+      await expect(milestoneDetail.notFoundState).toHaveCount(0);
+    } finally {
+      await deleteMilestoneViaApi(page, milestoneId);
+    }
+  });
+
+  test('D-02: pending and quotation rows come from status-scoped requests', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+    const pendingRows = Array.from({ length: 5 }, (_, i) =>
+      mockInvoice(`pend-${i}`, 'pending', { date: `2025-0${i + 1}-10` }),
+    );
+    const quotationRows = [mockInvoice('quot-0', 'quotation'), mockInvoice('quot-1', 'quotation')];
+    const summary = mockInvoiceSummary({
+      pending: { count: 12, totalAmount: 12000 },
+      paid: { count: 20, totalAmount: 50000 },
+      quotation: { count: 2, totalAmount: 2000 },
+    });
+
+    const requested: string[] = [];
+    page.on('request', (req) => {
+      if (req.method() === 'GET' && new URL(req.url()).pathname === '/api/invoices') {
+        requested.push(req.url());
+      }
+    });
+
+    await interceptDashboardApis(page, {
+      invoices: (status) =>
+        mockInvoices(
+          status === 'pending' ? pendingRows : status === 'quotation' ? quotationRows : [],
+          summary,
+        ),
+    });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      const card = dashboardPage.card('Invoice Pipeline').filter({ visible: true });
+      await expect(card.getByTestId('invoice-row')).toHaveCount(5);
+      await expect(card.getByTestId('quotation-row')).toHaveCount(2);
+      await expect(card.getByText('No invoices yet')).toHaveCount(0);
+
+      const pendingUrl = requested.find((u) => u.includes('status=pending'));
+      const quotationUrl = requested.find((u) => u.includes('status=quotation'));
+      expect(pendingUrl, 'a status=pending request was made').toBeDefined();
+      expect(quotationUrl, 'a status=quotation request was made').toBeDefined();
+      expect(pendingUrl).toContain('sortOrder=asc');
+      expect(quotationUrl).toContain('sortOrder=desc');
+      expect(requested.filter((u) => u.includes('pageSize=10'))).toHaveLength(0);
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('D-02: "No invoices yet" appears only when no invoice exists at all', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page, {
+      invoices: () =>
+        mockInvoices(
+          [],
+          mockInvoiceSummary({
+            pending: { count: 0, totalAmount: 0 },
+            paid: { count: 0, totalAmount: 0 },
+            claimed: { count: 0, totalAmount: 0 },
+          }),
+        ),
+    });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      const card = dashboardPage.card('Invoice Pipeline').filter({ visible: true });
+      await expect(card.getByText('No invoices yet')).toBeVisible();
+      await expect(card.getByRole('link', { name: 'Create an invoice' })).toBeVisible();
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('D-02: invoices exist but none is open shows "No pending invoices"', async ({ page }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    await interceptDashboardApis(page, {
+      invoices: () =>
+        mockInvoices(
+          [],
+          mockInvoiceSummary({
+            pending: { count: 0, totalAmount: 0 },
+            paid: { count: 3, totalAmount: 9000 },
+            claimed: { count: 0, totalAmount: 0 },
+          }),
+        ),
+    });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      const card = dashboardPage.card('Invoice Pipeline').filter({ visible: true });
+      await expect(card.getByText('No pending invoices')).toBeVisible();
+      await expect(card.getByText('No invoices yet')).toHaveCount(0);
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+
+  test('D-03: figure and badge share one scenario; Actual Spend is paid + claimed', async ({
+    page,
+  }) => {
+    const dashboardPage = new DashboardPage(page);
+
+    // Midpoint remaining = (50000 + -10000) / 2 = 20000 (positive) while the worst case is
+    // negative: the badge must follow the figure and say "On Budget", not "Over Budget".
+    await interceptDashboardApis(page, {
+      overview: {
+        ...mockBudgetOverview(),
+        availableFunds: 100000,
+        remainingVsMinPlanned: 50000,
+        remainingVsMaxPlanned: -10000,
+        actualCost: 99999,
+      },
+      invoices: () =>
+        mockInvoices(
+          [],
+          mockInvoiceSummary({
+            paid: { count: 4, totalAmount: 1200 },
+            claimed: { count: 1, totalAmount: 300 },
+          }),
+        ),
+    });
+
+    try {
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      const card = dashboardPage.card('Budget Summary').filter({ visible: true });
+      const compact = async (testId: string) =>
+        ((await card.getByTestId(testId).textContent()) ?? '').replace(/\s/g, '');
+
+      await expect(card.getByTestId('remaining-budget')).toBeVisible();
+      expect(await compact('remaining-budget')).toMatch(/20[,.]?000/);
+      await expect(card.getByText('On Budget', { exact: true })).toBeVisible();
+      await expect(card.getByText('Over Budget', { exact: true })).toHaveCount(0);
+
+      // 1,200 + 300 = 1,500 (not the 99,999 itemised actualCost)
+      const actual = await compact('actual-spend');
+      expect(actual).toMatch(/1[,.]?500(?!\d)/);
+      expect(actual).not.toMatch(/99[,.]?999/);
+    } finally {
+      await uninterceptDashboardApis(page);
+    }
+  });
+});
+
+// D-04: long synthetic content, widths set explicitly via setViewportSize, so it runs once in
+// the desktop project only.
+const D04_WIDTHS = [320, 375, 768, 1024, 1440] as const;
+const longText = (prefix: string) => `${prefix}${'x'.repeat(120 - prefix.length)}`;
+const D04_TITLES = {
+  vendor: longText('Vendor'),
+  milestone: longText('Milestone'),
+  diary: longText('Diary'),
+  source: longText('Source'),
+  workItem: longText('WorkItem'),
+  subsidy: longText('Subsidy'),
+};
+const D04_INVOICE_NUMBER = `INV-${'9'.repeat(36)}`;
+const D04_BIG_AMOUNT = 9999999999.99;
+
+function d04Mocks(): DashboardMockOverrides {
+  const today = new Date();
+  const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
+  const target = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 10)
+    .toISOString()
+    .slice(0, 10);
+
+  const timeline = {
+    workItems: [
+      {
+        id: 'wi-long',
+        title: D04_TITLES.workItem,
+        status: 'in_progress',
+        startDate,
+        endDate,
+        durationDays: 30,
+        dependencies: [],
+        assignedUser: null,
+        isCriticalPath: true,
+      },
+    ],
+    dependencies: [],
+    criticalPath: ['wi-long'],
+    milestones: [
+      {
+        id: 4242,
+        title: D04_TITLES.milestone,
+        targetDate: target,
+        isCompleted: false,
+        completedAt: null,
+        color: null,
+        workItemIds: [],
+        projectedDate: null,
+        isCritical: false,
+      },
+    ],
+    dateRange: { earliest: startDate, latest: endDate },
+  };
+
+  const sources = {
+    budgetSources: [
+      {
+        ...mockBudgetSources().budgetSources[0],
+        id: 'src-long',
+        name: D04_TITLES.source,
+        sourceType: 'bank_loan',
+        status: 'active',
+        totalAmount: D04_BIG_AMOUNT,
+        usedAmount: D04_BIG_AMOUNT / 2,
+        availableAmount: D04_BIG_AMOUNT / 2,
+        claimedAmount: 0,
+        unclaimedAmount: 0,
+        paidAmount: 0,
+        actualAvailableAmount: D04_BIG_AMOUNT,
+        projectedAmount: 0,
+        projectedMinAmount: 0,
+        projectedMaxAmount: 0,
+        interestRate: null,
+        terms: null,
+      },
+    ],
+  };
+
+  const overview = {
+    ...mockBudgetOverview(),
+    availableFunds: D04_BIG_AMOUNT,
+    minPlanned: D04_BIG_AMOUNT,
+    maxPlanned: D04_BIG_AMOUNT,
+    actualCost: D04_BIG_AMOUNT,
+    remainingVsMinPlanned: D04_BIG_AMOUNT,
+    remainingVsMaxPlanned: D04_BIG_AMOUNT,
+    subsidySummary: {
+      totalReductions: D04_BIG_AMOUNT,
+      activeSubsidyCount: 1,
+      minTotalPayback: 0,
+      maxTotalPayback: 0,
+      oversubscribedSubsidies: [],
+    },
+  };
+
+  const subsidyPrograms = {
+    subsidyPrograms: [
+      {
+        ...mockSubsidyPrograms().subsidyPrograms[0],
+        id: 'sub-long',
+        name: D04_TITLES.subsidy,
+        maxAmount: D04_BIG_AMOUNT,
+      },
+    ],
+  };
+
+  const diary = mockDiaryEntries();
+  diary.items[0] = { ...diary.items[0]!, id: 'diary-long', title: D04_TITLES.diary };
+
+  const pendingRows = [
+    mockInvoice('long-pend', 'pending', {
+      vendorName: D04_TITLES.vendor,
+      invoiceNumber: D04_INVOICE_NUMBER,
+      amount: D04_BIG_AMOUNT,
+      date: '2025-01-10',
+      dueDate: '2025-02-01', // in the past, so the overdue badge renders
+    }),
+  ];
+  const quotationRows = [
+    mockInvoice('long-quot', 'quotation', {
+      vendorName: D04_TITLES.vendor,
+      invoiceNumber: D04_INVOICE_NUMBER,
+      amount: D04_BIG_AMOUNT,
+    }),
+  ];
+  const summary = mockInvoiceSummary({
+    pending: { count: 1, totalAmount: D04_BIG_AMOUNT },
+    paid: { count: 1, totalAmount: D04_BIG_AMOUNT },
+    claimed: { count: 1, totalAmount: D04_BIG_AMOUNT },
+    quotation: { count: 1, totalAmount: D04_BIG_AMOUNT },
+  });
+
+  return {
+    overview,
+    sources,
+    timeline,
+    subsidyPrograms,
+    diary,
+    invoices: (status) =>
+      mockInvoices(
+        status === 'pending' ? pendingRows : status === 'quotation' ? quotationRows : [],
+        summary,
+      ),
+  };
+}
+
+test.describe('No card overflows horizontally (Scenario 14, D-04)', () => {
+  test('Page and every visible card fit from 320 to 1440 px with long content', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'desktop', 'Widths are set explicitly; run once.');
+
+    const dashboardPage = new DashboardPage(page);
+    await interceptDashboardApis(page, d04Mocks());
+
+    try {
+      await page.setViewportSize({ width: D04_WIDTHS[D04_WIDTHS.length - 1]!, height: 900 });
+      await dashboardPage.goto();
+      await dashboardPage.waitForCardsLoaded();
+
+      // Entity titles carry the full text in a title attribute (truncated visually).
+      await expect(page.locator(`[title="${D04_TITLES.vendor}"]`).first()).toBeAttached();
+      await expect(page.locator(`[title="${D04_TITLES.milestone}"]`).first()).toBeAttached();
+      await expect(page.locator(`[title="${D04_TITLES.source}"]`).first()).toBeAttached();
+      await expect(page.locator(`[title="${D04_TITLES.diary}"]`).first()).toBeAttached();
+
+      for (const width of D04_WIDTHS) {
+        await page.setViewportSize({ width, height: 900 });
+        if (width < 768) {
+          await dashboardPage.openMobileSections();
+        }
+
+        await expect
+          .poll(() => dashboardPage.measureHorizontalOverflow(), {
+            message: `horizontal overflow at ${width}px`,
+          })
+          .toEqual([]);
+      }
     } finally {
       await uninterceptDashboardApis(page);
     }

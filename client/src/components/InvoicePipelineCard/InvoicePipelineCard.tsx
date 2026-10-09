@@ -67,7 +67,9 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
                 className={`${styles.item} ${overdue ? styles.itemOverdue : ''}`}
               >
                 <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
-                  <span className={styles.vendorName}>{invoice.vendorName}</span>
+                  <span className={styles.vendorName} title={invoice.vendorName}>
+                    {invoice.vendorName}
+                  </span>
                   <span className={styles.invoiceNumber}>{displayInvoiceNumber}</span>
                   <span className={styles.amount}>{formatCurrency(invoice.amount)}</span>
                   <span className={styles.date}>{formatDate(invoice.date)}</span>
@@ -93,7 +95,9 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
               return (
                 <li key={invoice.id} data-testid="quotation-row" className={styles.item}>
                   <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
-                    <span className={styles.vendorName}>{invoice.vendorName}</span>
+                    <span className={styles.vendorName} title={invoice.vendorName}>
+                      {invoice.vendorName}
+                    </span>
                     <span className={styles.invoiceNumber}>{displayInvoiceNumber}</span>
                     <span className={styles.amount}>{formatCurrency(invoice.amount)}</span>
                     <span className={styles.date}>{formatDate(invoice.date)}</span>

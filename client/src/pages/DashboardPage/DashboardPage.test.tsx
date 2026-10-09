@@ -17,7 +17,9 @@ import enErrors from '../../i18n/en/errors.json';
 import enDashboard from '../../i18n/en/dashboard.json';
 import type {
   BudgetOverview,
+  Invoice,
   InvoiceListPaginatedResponse,
+  InvoiceStatusBreakdown,
   SubsidyProgramListResponse,
   TimelineResponse,
   UserPreference,
@@ -1043,6 +1045,196 @@ describe('DashboardPage', () => {
         (call) => (call[0] as { status?: string })?.status === 'draft',
       );
       expect(hasDraftCall).toBe(false);
+    });
+  });
+
+  // ─── Story #2193: home trust (D-02 invoice scope, D-03 paid amount) ─────
+
+  describe('invoice pipeline data scope and Actual Spend (#2193)', () => {
+    function makeInvoice(id: string, status: Invoice['status'], vendorName: string): Invoice {
+      return {
+        id,
+        vendorId: `vendor-${id}`,
+        vendorName,
+        invoiceNumber: `SYN-${id}`,
+        amount: 1000,
+        date: '2026-01-10',
+        dueDate: null,
+        status,
+        notes: null,
+        budgetLines: [],
+        remainingAmount: 1000,
+        deposits: [],
+        finalPaymentAmount: 1000,
+        createdBy: null,
+        createdAt: '2026-01-10T00:00:00.000Z',
+        updatedAt: '2026-01-10T00:00:00.000Z',
+      };
+    }
+
+    function summaryWith(overrides: Partial<InvoiceStatusBreakdown>): InvoiceStatusBreakdown {
+      return { ...emptyInvoicesResponse.summary, ...overrides };
+    }
+
+    function responseWith(
+      invoices: Invoice[],
+      summary: InvoiceStatusBreakdown,
+    ): InvoiceListPaginatedResponse {
+      return {
+        invoices,
+        pagination: { page: 1, pageSize: 5, totalItems: invoices.length, totalPages: 1 },
+        summary,
+      };
+    }
+
+    it('makes exactly two status-scoped requests and never a pageSize 10 request', async () => {
+      renderPage();
+
+      await waitFor(() => {
+        expect(mockFetchAllInvoices).toHaveBeenCalledTimes(2);
+      });
+      expect(mockFetchAllInvoices).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'pending',
+          sortBy: 'date',
+          sortOrder: 'asc',
+          pageSize: 5,
+        }),
+      );
+      expect(mockFetchAllInvoices).toHaveBeenCalledWith(
+        expect.objectContaining({
+          status: 'quotation',
+          sortBy: 'date',
+          sortOrder: 'desc',
+          pageSize: 5,
+        }),
+      );
+      expect(mockFetchAllInvoices).not.toHaveBeenCalledWith(
+        expect.objectContaining({ pageSize: 10 }),
+      );
+    });
+
+    it('passes rows from both scoped responses to the card (5 pending + 2 quotations)', async () => {
+      const summary = summaryWith({
+        pending: { count: 9, totalAmount: 9000 },
+        quotation: { count: 2, totalAmount: 2000 },
+      });
+      const pending = ['a', 'b', 'c', 'd', 'e'].map((id) =>
+        makeInvoice(id, 'pending', `Pending Vendor ${id}`),
+      );
+      const quotes = ['q1', 'q2'].map((id) => makeInvoice(id, 'quotation', `Quote Vendor ${id}`));
+      mockFetchAllInvoices.mockImplementation(async (params) =>
+        params?.status === 'pending'
+          ? responseWith(pending, summary)
+          : responseWith(quotes, summary),
+      );
+
+      renderPage();
+
+      // Each card renders in both the desktop grid and the mobile section
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-row')).toHaveLength(10);
+      });
+      expect(screen.getAllByTestId('quotation-row')).toHaveLength(4);
+    });
+
+    it('shows "No invoices yet" and the create action only when no invoice exists at all', async () => {
+      renderPage(); // default mock: every summary count is 0
+
+      await waitFor(() => {
+        expect(screen.getAllByText('No invoices yet')).toHaveLength(2);
+      });
+      expect(screen.getAllByRole('link', { name: 'Create an invoice' }).length).toBeGreaterThan(0);
+      expect(screen.queryByTestId('invoice-empty')).toBeNull();
+    });
+
+    it('shows "No pending invoices" instead of "No invoices yet" when only paid invoices exist', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        responseWith([], summaryWith({ paid: { count: 3, totalAmount: 3000 } })),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('invoice-empty')).toHaveLength(2);
+      });
+      expect(screen.getAllByTestId('invoice-empty')[0]).toHaveTextContent('No pending invoices');
+      expect(screen.queryByText('No invoices yet')).toBeNull();
+      expect(screen.queryByRole('link', { name: 'Create an invoice' })).toBeNull();
+    });
+
+    it.each(['pending', 'claimed', 'quotation'] as const)(
+      'counts %s invoices towards "any invoice exists"',
+      async (status) => {
+        mockFetchAllInvoices.mockResolvedValue(
+          responseWith([], summaryWith({ [status]: { count: 1, totalAmount: 10 } })),
+        );
+
+        renderPage();
+
+        await waitFor(() => {
+          expect(screen.getAllByRole('heading', { name: 'Invoice Pipeline' })[0]).toBeVisible();
+        });
+        await waitFor(() => {
+          expect(screen.queryByText('No invoices yet')).toBeNull();
+        });
+      },
+    );
+
+    it('shows the invoice card error with Retry when the quotation request fails, other cards unaffected', async () => {
+      mockFetchAllInvoices.mockImplementation(async (params) => {
+        if (params?.status === 'quotation') {
+          throw new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' });
+        }
+        return emptyInvoicesResponse;
+      });
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText(enErrors.INTERNAL_ERROR)).toHaveLength(2);
+      });
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      expect(screen.getAllByRole('button', { name: /retry/i }).length).toBeGreaterThan(0);
+      // Budget Summary still renders its data
+      await waitFor(() => {
+        expect(screen.getAllByTestId('remaining-budget')[0]).toBeInTheDocument();
+      });
+    });
+
+    it('shows Actual Spend as paid + claimed from the invoice summary, not overview.actualCost', async () => {
+      mockFetchBudgetOverview.mockResolvedValue({ ...minimalBudgetOverview, actualCost: 9999 });
+      mockFetchAllInvoices.mockResolvedValue(
+        responseWith(
+          [],
+          summaryWith({
+            paid: { count: 1, totalAmount: 1200 },
+            claimed: { count: 1, totalAmount: 300 },
+          }),
+        ),
+      );
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('actual-spend')[0]).toHaveTextContent('€1,500.00');
+      });
+      expect(screen.getAllByTestId('actual-spend')[0]).not.toHaveTextContent('9,999');
+    });
+
+    it('shows an em dash for Actual Spend when the invoice summary is unavailable (invoice load failed)', async () => {
+      // The page commits all slots in one batch after allSettled, so "unknown" is
+      // reachable only when the invoice slot rejects while the overview succeeds.
+      mockFetchAllInvoices.mockRejectedValue(new Error('network down'));
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByTestId('actual-spend')).toHaveLength(2);
+      });
+      for (const el of screen.getAllByTestId('actual-spend')) {
+        expect(el).toHaveTextContent('—');
+      }
     });
   });
 });
