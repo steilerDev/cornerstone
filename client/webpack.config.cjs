@@ -62,10 +62,7 @@ module.exports = (env, argv) => {
         {
           test: /\.css$/,
           exclude: /\.module\.css$/,
-          use: [
-            isProduction ? MiniCssExtractPlugin.loader : 'style-loader',
-            'css-loader',
-          ],
+          use: [isProduction ? MiniCssExtractPlugin.loader : 'style-loader', 'css-loader'],
         },
       ],
     },
@@ -75,10 +72,7 @@ module.exports = (env, argv) => {
             chunks: 'all',
           },
           runtimeChunk: 'single',
-          minimizer: [
-            '...',
-            new CssMinimizerPlugin(),
-          ],
+          minimizer: ['...', new CssMinimizerPlugin()],
         }
       : {},
     plugins: [

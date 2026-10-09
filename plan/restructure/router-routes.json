@@ -1,0 +1,217 @@
+{
+  "routes": [
+    { "path": "*", "guard": "member", "kind": "page", "element": "NotFoundPage" },
+    { "path": "/", "guard": "member", "kind": "redirect", "target": "/project" },
+    { "path": "/admin/users", "guard": "member", "kind": "redirect", "target": "/settings/users" },
+    { "path": "/budget", "guard": "member", "kind": "redirect", "target": "/budget/overview" },
+    {
+      "path": "/budget/categories",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/settings/manage?tab=budget-categories"
+    },
+    { "path": "/budget/invoices", "guard": "member", "kind": "page", "element": "InvoicesPage" },
+    {
+      "path": "/budget/invoices/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "InvoiceDetailPage"
+    },
+    {
+      "path": "/budget/invoices/:id/auto-itemize/:documentId",
+      "guard": "member",
+      "kind": "page",
+      "element": "AutoItemizePage"
+    },
+    {
+      "path": "/budget/invoices/new/paperless",
+      "guard": "member",
+      "kind": "page",
+      "element": "PaperlessInvoiceReviewPage"
+    },
+    {
+      "path": "/budget/overview",
+      "guard": "member",
+      "kind": "page",
+      "element": "BudgetOverviewPage"
+    },
+    { "path": "/budget/reports", "guard": "member", "kind": "page", "element": "ReportWizardPage" },
+    {
+      "path": "/budget/sources",
+      "guard": "member",
+      "kind": "page",
+      "element": "BudgetSourcesPage"
+    },
+    {
+      "path": "/budget/subsidies",
+      "guard": "member",
+      "kind": "page",
+      "element": "SubsidyProgramsPage"
+    },
+    {
+      "path": "/budget/vendors",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/settings/vendors"
+    },
+    {
+      "path": "/budget/vendors/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/settings/vendors/:id"
+    },
+    { "path": "/diary", "guard": "member", "kind": "page", "element": "DiaryPage" },
+    { "path": "/diary/:id", "guard": "member", "kind": "page", "element": "DiaryEntryDetailPage" },
+    {
+      "path": "/diary/:id/edit",
+      "guard": "member",
+      "kind": "page",
+      "element": "DiaryEntryEditPage"
+    },
+    { "path": "/diary/new", "guard": "member", "kind": "page", "element": "DiaryEntryCreatePage" },
+    {
+      "path": "/household-items",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/household-items"
+    },
+    {
+      "path": "/household-items/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/household-items/:id"
+    },
+    {
+      "path": "/household-items/:id/edit",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/household-items/:id/edit"
+    },
+    {
+      "path": "/household-items/new",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/household-items/new"
+    },
+    { "path": "/invoices", "guard": "member", "kind": "redirect", "target": "/budget/invoices" },
+    {
+      "path": "/invoices/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/budget/invoices/:id"
+    },
+    { "path": "/login", "guard": "public", "kind": "page", "element": "LoginPage" },
+    { "path": "/manage", "guard": "member", "kind": "redirect", "target": "/settings/manage" },
+    { "path": "/photos", "guard": "member", "kind": "page", "element": "PhotosPage" },
+    {
+      "path": "/photos/spot/:areaKey/:orientationKey",
+      "guard": "member",
+      "kind": "page",
+      "element": "PhotoSpotViewerPage"
+    },
+    { "path": "/profile", "guard": "member", "kind": "redirect", "target": "/settings/profile" },
+    { "path": "/project", "guard": "member", "kind": "redirect", "target": "/project/overview" },
+    {
+      "path": "/project/household-items",
+      "guard": "member",
+      "kind": "page",
+      "element": "HouseholdItemsPage"
+    },
+    {
+      "path": "/project/household-items/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "HouseholdItemDetailPage"
+    },
+    {
+      "path": "/project/household-items/:id/edit",
+      "guard": "member",
+      "kind": "page",
+      "element": "HouseholdItemEditPage"
+    },
+    {
+      "path": "/project/household-items/new",
+      "guard": "member",
+      "kind": "page",
+      "element": "HouseholdItemCreatePage"
+    },
+    {
+      "path": "/project/milestones",
+      "guard": "member",
+      "kind": "page",
+      "element": "MilestonesPage"
+    },
+    {
+      "path": "/project/milestones/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "MilestoneDetailPage"
+    },
+    {
+      "path": "/project/milestones/new",
+      "guard": "member",
+      "kind": "page",
+      "element": "MilestoneCreatePage"
+    },
+    { "path": "/project/overview", "guard": "member", "kind": "page", "element": "DashboardPage" },
+    {
+      "path": "/project/work-items",
+      "guard": "member",
+      "kind": "page",
+      "element": "WorkItemsPage"
+    },
+    {
+      "path": "/project/work-items/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "WorkItemDetailPage"
+    },
+    {
+      "path": "/project/work-items/new",
+      "guard": "member",
+      "kind": "page",
+      "element": "WorkItemCreatePage"
+    },
+    { "path": "/schedule", "guard": "member", "kind": "redirect", "target": "/schedule/gantt" },
+    { "path": "/schedule/calendar", "guard": "member", "kind": "page", "element": "TimelinePage" },
+    { "path": "/schedule/gantt", "guard": "member", "kind": "page", "element": "TimelinePage" },
+    { "path": "/settings", "guard": "member", "kind": "redirect", "target": "/settings/profile" },
+    { "path": "/settings/backups", "guard": "member", "kind": "page", "element": "BackupsPage" },
+    { "path": "/settings/manage", "guard": "member", "kind": "page", "element": "ManagePage" },
+    { "path": "/settings/profile", "guard": "member", "kind": "page", "element": "ProfilePage" },
+    {
+      "path": "/settings/users",
+      "guard": "member",
+      "kind": "page",
+      "element": "UserManagementPage"
+    },
+    { "path": "/settings/vendors", "guard": "member", "kind": "page", "element": "VendorsPage" },
+    {
+      "path": "/settings/vendors/:id",
+      "guard": "member",
+      "kind": "page",
+      "element": "VendorDetailPage"
+    },
+    { "path": "/setup", "guard": "public", "kind": "page", "element": "SetupPage" },
+    { "path": "/tags", "guard": "member", "kind": "redirect", "target": "/settings/manage" },
+    { "path": "/timeline", "guard": "member", "kind": "redirect", "target": "/schedule/gantt" },
+    {
+      "path": "/work-items",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/work-items"
+    },
+    {
+      "path": "/work-items/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/work-items/:id"
+    },
+    {
+      "path": "/work-items/new",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/work-items/new"
+    }
+  ]
+}

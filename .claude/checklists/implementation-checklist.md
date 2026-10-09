@@ -152,3 +152,16 @@ This checklist is updated after each epic's lessons-learned sync (see `/epic-clo
 - [ ] **Use `t()` for all user-facing strings**: Never hardcode text in JSX. Use `t('namespace:key')` from react-i18next.
 - [ ] **Never render server text — the lint rule sees only one channel**: API errors are shown via `translateApiError(err.error.code, tErrors)` or a code-specific key (#2129). ESLint bans `.error.message`, but `ApiClientError#message` carries the same server text, and `err.error.details` strings (e.g. a `fieldErrors` map) are a third sink — check `instanceof ApiClientError` before any generic `err instanceof Error ? err.message` branch, and never copy `details` strings into the UI. A specific reason must be a top-level `code`, never `details.code`.
 - [ ] **A tuple migration must convert every derivation in the file**: when a badge map moves onto an `as const` tuple and its `I18N_UNION_KEYS` set, grep the same file for hand-listed `enumOptions: [{ value: '<member>' … }]` filters and `<option value="<member>">` selects of the same union and derive them from the tuple too. The template-literal guard cannot see literal keys, so a new member silently gets a badge but no filter/select option (PR #2171).
+
+## EPIC-21 Restructure
+
+Applies to every sub-issue of EPIC-21 (#2190) — see CLAUDE.md > UX Restructure Rules.
+
+- [ ] **Capability map in the same PR**: the issue and PR body name the capability ids touched; `plan/restructure/capmap.json` (plus `routemap.json` on any route change) is updated in this PR, and `npm run plan:check` is green. Capabilities are moved, merged or tucked away, never removed.
+- [ ] **IA placement named**: every touched capability states `Section › view › surface`, consistent with NavConfig and the route map.
+- [ ] **One route source**: navigation comes only from NavConfig (`client/src/navigation/`) and app URLs only from `routeUrl()` over the shared route map — no hand-written tab arrays or string-literal app paths once story 0.10 lands; until then every route added or changed in `client/src/App.tsx` has a `plan/restructure/routemap.json` entry.
+- [ ] **Pattern baseline never rises**: no count in `plan/restructure/baseline.json` goes up and no new create/save/confirmation variant appears; lowered counts are re-baselined in the same PR.
+- [ ] **Synthetic data only**: tests, E2E fixtures, seeds, docs screenshots and examples use invented data; PR, issue and spec text is scanned with `node plan/restructure/scripts/scan-privacy.mjs --stdin --profile full` and contains no real names, contact details, addresses, real amounts or real record titles.
+- [ ] **Full E2E gating**: the PR waits on `bash scripts/ci-wait.sh <pr> main` (Quality Gates + E2E Gates) although it targets `beta`.
+- [ ] **Glossary English canon, plain words**: `en` labels use the English terms of `client/src/i18n/glossary.json` verbatim; retired words appear only as search aliases; no jargon labels ("Gantt" is an alias, never a label).
+- [ ] **No follow-up issues**: every finding raised on the story is fixed in that story.

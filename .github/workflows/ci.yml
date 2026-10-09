@@ -85,6 +85,21 @@ jobs:
         if: ${{ !cancelled() && steps.install.outcome == 'success' }}
         run: npx eslint . --max-warnings=0
 
+      - name: Restructure maps, route drift, pattern baseline and privacy check
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run plan:check
+
+      - name: Restructure builder tests
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run test:plan
+
+      - name: Scan PR title and body for personal data
+        if: ${{ !cancelled() && github.event_name == 'pull_request' && github.event.pull_request.user.login != 'dependabot[bot]' }}
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: printf '%s\n%s\n' "$PR_TITLE" "$PR_BODY" | node plan/restructure/scripts/scan-privacy.mjs --stdin --profile contact
+
   trailer-check:
     name: Trailer Check
     runs-on: ubuntu-latest

@@ -71,7 +71,7 @@ export default tseslint.config(
 
   // Node scripts (build/diagnostic tooling)
   {
-    files: ['scripts/**/*.{mjs,js,cjs}'],
+    files: ['scripts/**/*.{mjs,js,cjs}', 'plan/**/*.{mjs,js,cjs}'],
     languageOptions: {
       globals: {
         console: 'readonly',
