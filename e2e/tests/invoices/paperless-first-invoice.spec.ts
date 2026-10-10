@@ -861,7 +861,9 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
       // Waiting for the number text is more stable than the bare heading role check because
       // it requires the API response data to be present in the DOM, not just the element to
       // exist. The test also verifies the correct invoice landed on screen.
-      await expect(page.getByRole('heading', { level: 1, name: '#INV-2026-001' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { level: 1, name: `${testPrefix} PF Builder Co · INV-2026-001` }),
+      ).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -1626,7 +1628,9 @@ test.describe('Scenario 17 — Fill inline form and save creates budget line + i
 
       // ── Assert: navigate to invoice detail ─────────────────────────────────
       await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
-      await expect(page.getByRole('heading', { level: 1, name: /#INV-2026-S17/i })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { level: 1, name: `${testPrefix} PF-S17 Vendor · INV-2026-S17` }),
+      ).toBeVisible();
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
