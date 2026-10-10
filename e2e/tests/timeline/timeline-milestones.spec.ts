@@ -140,7 +140,7 @@ test.describe('Milestone diamond markers on Gantt', () => {
 
       const ariaLabel = await diamond.getAttribute('aria-label');
       expect(ariaLabel).toContain('Phase 1 Done');
-      expect(ariaLabel).toContain('incomplete');
+      expect(ariaLabel).toContain('Upcoming');
     } finally {
       await page.unroute('**/api/timeline');
     }
