@@ -7,7 +7,7 @@
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
@@ -634,6 +634,66 @@ describe('HouseholdItemsPage', () => {
       await waitFor(() => {
         expect(mockUseAreas).toHaveBeenCalled();
       });
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    function Probe() {
+      const location = useLocation();
+      const type = useNavigationType();
+      return (
+        <>
+          <div data-testid="probe-type">{type}</div>
+          <div data-testid="probe-search">{location.search}</div>
+        </>
+      );
+    }
+
+    function renderWithProbe() {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/project/household-items']}>
+            <HouseholdItemsPage />
+            <Probe />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('shows exactly one h1 "Purchases" and sets the tab title', async () => {
+      renderPage();
+
+      expect(await screen.findByRole('heading', { name: 'Purchases', level: 1 })).toBeVisible();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Purchases · Cornerstone'));
+    });
+
+    it('is a view: it renders no "You are here" trail and no Back link', async () => {
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Purchases', level: 1 });
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
+    });
+
+    it('does not push a history entry on mount', async () => {
+      renderWithProbe();
+
+      await screen.findByRole('heading', { name: 'Purchases', level: 1 });
+      expect(screen.getByTestId('probe-type')).toHaveTextContent('POP');
+    });
+
+    it('replaces (not pushes) the history entry when a filter changes', async () => {
+      renderWithProbe();
+
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      fireEvent.click(dialog.querySelector('input') as HTMLInputElement);
+
+      await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
+      expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
     });
   });
 });

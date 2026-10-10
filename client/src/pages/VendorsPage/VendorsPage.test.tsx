@@ -856,4 +856,15 @@ describe('VendorsPage', () => {
       expect(button).toHaveAttribute('aria-label', enCommon.actions);
     });
   });
+
+  // ── Page identity (#2202): tab title only, the h1 is unchanged ──────────────
+
+  describe('tab title (#2202)', () => {
+    it('sets the tab title "Companies · <house>" (the section word is not repeated)', async () => {
+      document.title = 'initial';
+      renderPage();
+
+      await waitFor(() => expect(document.title).toBe('Companies · Cornerstone'));
+    });
+  });
 });

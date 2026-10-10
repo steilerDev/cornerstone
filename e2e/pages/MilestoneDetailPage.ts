@@ -5,8 +5,7 @@
  *
  * **View mode** (default, isEditing = false):
  * - h1 with milestone title (class pageTitle)
- * - "← Back to Milestones" button (class backButton) — <button> calling navigate()
- * - "To Schedule" secondary nav button
+ * - Breadcrumbs (Story #2202): trail "Tasks" > "Milestones" + optional "Back to {origin}"
  * - View card (.viewCard) containing:
  *   - h2 = milestone.title (class milestoneTitle)
  *   - Status badge: "Reached" or "Upcoming"
@@ -33,13 +32,12 @@
  *   text: "Delete Milestone" / "Deleting..."
  *
  * **Not found state** (is404 = true):
- * - div.notFound with h2 t('milestones.detail.notFound') = "Milestone not found"
- * - Link "Back to Milestones"
+ * - div.notFound with the page h1 t('milestones.detail.notFound') = "Milestone not found"
+ * - Link "Back to Milestones" (h1 is now "Milestone not found")
  *
  * **Error banner** (role="alert", class errorBanner) — shown for API errors
  *
  * Key DOM observations from source code:
- * - Back button is a <button> calling navigate('/project/milestones'), NOT an <a>
  * - Delete modal uses role="dialog" with aria-modal="true" (own implementation, not shared Modal)
  * - Edit button and save button use data-testid for stable selection
  * - The page h1 = milestone.title (not a fixed string)
@@ -47,13 +45,13 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export class MilestoneDetailPage {
   readonly page: Page;
 
   // Header — shown in BOTH view and edit modes
-  readonly backButton: Locator; // "← Back to Milestones"
-  readonly toScheduleButton: Locator; // "To Schedule"
+  readonly breadcrumbs: BreadcrumbsBar;
   readonly heading: Locator; // h1 = milestone.title
 
   // View mode elements
@@ -87,9 +85,7 @@ export class MilestoneDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Navigation buttons — <button> elements (NOT anchors)
-    this.backButton = page.getByRole('button', { name: /← Back to Milestones/i });
-    this.toScheduleButton = page.getByRole('button', { name: 'To Schedule', exact: true });
+    this.breadcrumbs = new BreadcrumbsBar(page);
     // h1 = milestone.title (dynamic — matched by level only, caller checks text)
     this.heading = page.getByRole('heading', { level: 1 });
 

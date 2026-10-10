@@ -16,6 +16,7 @@ import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './VendorDetailPage.module.css';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
@@ -51,6 +52,7 @@ export function VendorDetailPage() {
   const { trades } = useTrades();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
+  useDocumentTitle(vendor?.name ?? null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 

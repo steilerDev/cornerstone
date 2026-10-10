@@ -3,9 +3,6 @@
     "errors": {
       "loadFailed": "An unexpected error occurred while loading the timeline."
     },
-    "page": {
-      "title": "Schedule"
-    },
     "toolbar": {
       "entityFilter": "Entity filter",
       "workItems": "Work Items",
@@ -169,9 +166,6 @@
     "errors": {
       "loadFailed": "An unexpected error occurred while loading milestones."
     },
-    "page": {
-      "title": "Project"
-    },
     "newButton": "New Milestone",
     "empty": {
       "noItems": "No milestones yet",
@@ -221,8 +215,6 @@
       "errors": {
         "createFailed": "Failed to create milestone. Please try again."
       },
-      "title": "Create Milestone",
-      "backLink": "← Milestones",
       "form": {
         "title": {
           "label": "Title",
@@ -245,14 +237,9 @@
       "submitting": "Creating..."
     },
     "detail": {
-      "backButton": "← Back to Milestones",
-      "toSchedule": "To Schedule",
-      "backToSchedule": "← Back to Schedule",
-      "toMilestones": "To Milestones",
       "loading": "Loading milestone...",
       "notFound": "Milestone not found",
       "notFoundMessage": "The milestone you're looking for doesn't exist.",
-      "backLink": "Back to Milestones",
       "error": "Failed to load milestone. Please try again.",
       "editButton": "Edit",
       "edit": {

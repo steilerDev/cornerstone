@@ -111,7 +111,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
         newParams.delete('q');
       }
       newParams.set('page', '1');
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
     },
     [searchParams, setSearchParams],
   );
@@ -125,7 +125,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
         newParams.set(paramKey, value);
       }
       newParams.set('page', '1');
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
     },
     [searchParams, setSearchParams],
   );
@@ -151,7 +151,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
         newParams.set('sortOrder', 'asc');
       }
 
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
     },
     [searchParams, setSearchParams],
   );
@@ -160,7 +160,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
     (page: number) => {
       const newParams = new URLSearchParams(searchParams);
       newParams.set('page', page.toString());
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
     },
     [searchParams, setSearchParams],
   );
@@ -170,7 +170,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
       const newParams = new URLSearchParams(searchParams);
       newParams.set('pageSize', size.toString());
       newParams.set('page', '1');
-      setSearchParams(newParams);
+      setSearchParams(newParams, { replace: true });
     },
     [searchParams, setSearchParams],
   );
@@ -239,7 +239,7 @@ export function useTableState(options: UseTableStateOptions = {}): UseTableState
       }
     }
     newParams.set('page', '1');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   }, [searchInput, reservedParams, searchParams, setSearchParams]);
 
   return {

@@ -29,7 +29,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     await workItemsPage.goto();
 
     await expect(workItemsPage.heading).toBeVisible();
-    await expect(workItemsPage.heading).toHaveText('Project');
+    await expect(workItemsPage.heading).toHaveText('Tasks');
   });
 
   test('Page URL is /project/work-items', async ({ page }) => {

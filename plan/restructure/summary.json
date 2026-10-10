@@ -78,15 +78,15 @@
     "dailyWeeklyInSettings": 0
   },
   "routes": {
-    "total": 88,
-    "byKind": { "page": 42, "redirect": 46 },
+    "total": 89,
+    "byKind": { "page": 42, "redirect": 47 },
     "byChange": {
       "conditional": 5,
       "kept": 30,
       "merged": 2,
       "moved": 3,
       "new": 11,
-      "query-map": 10,
+      "query-map": 11,
       "redirect": 13,
       "redirect-becomes-page": 1,
       "repair": 4,
@@ -106,7 +106,7 @@
       "Settings": 16,
       "Site diary": 4,
       "System": 1,
-      "Tasks": 16
+      "Tasks": 17
     },
     "permanent": [
       "/budget/vendors/:id",

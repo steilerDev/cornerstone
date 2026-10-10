@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  baseFrom,
   matchLocation,
   matchPattern,
   resolveLocation,
   type RouteContext,
   type RouteResolution,
 } from './match.js';
+import { baseFrom } from './paths.js';
 import { ROUTE_MAP } from './routeMap.js';
 
 const ADMIN: RouteContext = {
@@ -72,6 +72,40 @@ describe('matchLocation', () => {
 
   it('returns null for an unknown path', () => {
     expect(matchLocation('/nope/nope')).toBeNull();
+  });
+});
+
+describe('resolveLocation: live /schedule?view=calendar query map (D-11)', () => {
+  it('redirects to the calendar in one hop, consuming the view key and keeping the hash', () => {
+    expect(resolveLocation('/schedule?view=calendar#h', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/schedule/calendar#h',
+    });
+    expect(resolveLocation('/schedule?view=calendar&q=1#h', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/schedule/calendar?q=1#h',
+    });
+  });
+
+  it('lands on a served page after that single hop', () => {
+    const first = resolveLocation('/schedule?view=calendar', ADMIN);
+    expect(first.kind).toBe('redirect');
+    if (first.kind !== 'redirect') return;
+    expect(pageId(resolveLocation(first.to, ADMIN))).toBe('scheduleCalendar');
+  });
+
+  it('keeps the plain redirect (and the pair) for view=gantt', () => {
+    expect(resolveLocation('/schedule?view=gantt', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/schedule/gantt?view=gantt',
+    });
+  });
+
+  it('keeps the plain redirect for a bare /schedule', () => {
+    expect(resolveLocation('/schedule', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/schedule/gantt',
+    });
   });
 });
 

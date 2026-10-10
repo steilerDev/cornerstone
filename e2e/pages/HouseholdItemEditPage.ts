@@ -2,8 +2,8 @@
  * Page Object Model for the Household Item Edit page (/project/household-items/:id/edit)
  *
  * The page renders:
- * - A back button "← Back to Item" (navigates to /project/household-items/:id)
- * - An h1 heading "Edit Household Item"
+ * - Breadcrumbs (Story #2202): trail "Purchases" > {purchase name}; no header back buttons
+ * - An h1 heading "Edit purchase"
  * - An error banner for load failures
  * - A form with:
  *   - #name (required text input)
@@ -19,8 +19,7 @@
  *
  * Key DOM observations from source code (HouseholdItemEditPage.tsx):
  * - Route: /project/household-items/:id/edit
- * - h1 text: t('edit.title') = "Edit Household Item"
- * - Back button: class="backButton", text = t('edit.backButton') = "← Back to Item"
+ * - h1 text: common navigation.editPurchase = "Edit purchase"
  * - Error banner for load: class="errorBanner" (no role="alert" on the load error itself)
  * - Field validation errors: id="hi-edit-name-error", id="hi-edit-category-error",
  *   id="hi-edit-quantity-error" — each has role="alert"
@@ -30,12 +29,13 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export class HouseholdItemEditPage {
   readonly page: Page;
 
   // Navigation
-  readonly backButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Page heading
   readonly heading: Locator;
@@ -66,13 +66,12 @@ export class HouseholdItemEditPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Back button — class="backButton", text "← Back to Item"
-    this.backButton = page.getByRole('button', { name: /Back to Item/i });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // h1 heading
     this.heading = page.getByRole('heading', {
       level: 1,
-      name: 'Edit Household Item',
+      name: 'Edit purchase',
       exact: true,
     });
 
@@ -101,7 +100,7 @@ export class HouseholdItemEditPage {
     // Not-found heading (shown when 404 response on load)
     this.notFoundHeading = page.getByRole('heading', {
       level: 1,
-      name: 'Household Item Not Found',
+      name: 'Purchase not found',
       exact: true,
     });
   }

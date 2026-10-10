@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
@@ -27,6 +27,9 @@ import {
   AssignmentPicker,
   decodeAssignment,
 } from '../../components/AssignmentPicker/AssignmentPicker.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './WorkItemCreatePage.module.css';
 
 interface PendingDependency {
@@ -56,7 +59,10 @@ function buildAreaSummary(
 
 export default function WorkItemCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation('workItems');
+  const { t: tc } = useTranslation('common');
+  useDocumentTitle(tc('navigation.newTask'));
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
 
@@ -201,9 +207,15 @@ export default function WorkItemCreatePage() {
 
       // Navigate to detail page, optionally with error state
       if (failedDeps.length > 0) {
-        navigate(routeUrl('workItem', { id: workItem.id }, { depError: failedDeps.join(', ') }));
+        navigate(routeUrl('workItem', { id: workItem.id }, { depError: failedDeps.join(', ') }), {
+          replace: true,
+          state: forwardOriginState(location.state),
+        });
       } else {
-        navigate(routeUrl('workItem', { id: workItem.id }));
+        navigate(routeUrl('workItem', { id: workItem.id }), {
+          replace: true,
+          state: forwardOriginState(location.state),
+        });
       }
     } catch (err) {
       setError(t('create.errors.createFailed'));
@@ -215,6 +227,8 @@ export default function WorkItemCreatePage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.title}>{tc('navigation.newTask')}</h1>
         <div className={styles.loading}>{t('create.loading')}</div>
       </div>
     );
@@ -222,16 +236,9 @@ export default function WorkItemCreatePage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigate(routeUrl('workItems'))}
-          disabled={isSubmitting}
-        >
-          {t('create.backToWorkItems')}
-        </button>
-        <h1 className={styles.title}>{t('create.pageTitle')}</h1>
+        <h1 className={styles.title}>{tc('navigation.newTask')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -446,7 +453,9 @@ export default function WorkItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(routeUrl('workItems'))}
+            onClick={() =>
+              navigate(originHrefOr(location.state, routeUrl('workItems')), { replace: true })
+            }
             disabled={isSubmitting}
           >
             {t('create.actions.cancel')}

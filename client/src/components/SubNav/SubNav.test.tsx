@@ -3,7 +3,8 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useNavigationType, useLocation } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
 import { SubNav } from './SubNav.js';
 import type { SubNavTab } from './SubNav.js';
 
@@ -173,5 +174,27 @@ describe('SubNav', () => {
     renderSubNav(tabs);
 
     expect(screen.getByText('Save')).toBeInTheDocument();
+  });
+
+  // ── history hygiene (#2202, AC5) ──────────────────────────────────────────
+
+  it('switches tabs with REPLACE so Back leaves the page instead of stepping through tabs', async () => {
+    function Probe() {
+      const type = useNavigationType();
+      const { pathname } = useLocation();
+      return <div data-testid="probe">{`${type} ${pathname}`}</div>;
+    }
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/items/save']}>
+        <SubNav tabs={BASIC_TABS} ariaLabel="Test navigation" />
+        <Probe />
+      </MemoryRouter>,
+    );
+    expect(screen.getByTestId('probe')).toHaveTextContent('POP /items/save');
+
+    await user.click(screen.getByRole('link', { name: 'Cancel' }));
+
+    expect(screen.getByTestId('probe')).toHaveTextContent('REPLACE /items/cancel');
   });
 });

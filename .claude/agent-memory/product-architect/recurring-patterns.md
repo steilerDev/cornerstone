@@ -1990,3 +1990,14 @@ literal starts with `?`. **Review step:** grep for `routeUrl(` followed by `?`/`
 for `${base}?`. An AST extractor that expands a generator (`LIVE_REDIRECT_ROUTES.map(r => <Route …>)`)
 must also check the generated element's wiring (`path={r.from}`, `rule={r}`), not just the tag shape.
 Otherwise a wrong `path` still reports every map entry as served, and the drift check passes vacuously.
+
+## Plan checks validated against the route _model_, not the router (PR #2278)
+
+`resolveLocation` (shared) is a model of the router, and `legacyUrlWalk.test.ts` and some `build-routes`
+rules check against that model. When a PR adds a routing capability (here: live query maps), find the
+router component that actually applies it. Here that is only `RouteRedirect` on `LIVE_REDIRECT_ROUTES`.
+Then check that every `plan:check` rule and every model branch accepts only what that component serves.
+Here, rule 4 and `resolveLocation` both accepted a page-base query map (`/diary?…`) that the router
+ignores, so the story that flips one would have passed every check except E2E. Also grep for a second
+derivation of the same "live X" filter: `liveQueryMaps` excluded conditional entries, but the
+`resolveLocation` loop did not.

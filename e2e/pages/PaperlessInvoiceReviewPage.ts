@@ -212,8 +212,9 @@ export class PaperlessInvoiceReviewPage {
     this.heading = page.getByRole('heading', { level: 1 });
 
     // Loading state
-    // Spinner from Spinner component — rendered as role="img" or just a div with class*="spinner"
-    this.spinner = page.locator('[class*="spinner"], [class*="loadingState"]').first();
+    // Loading state: the "Analyzing document…" heading (budget:autoItemize.extractingFromDocument)
+    // is rendered only while pageStatus === 'loading', next to the Spinner (role="img").
+    this.spinner = page.getByRole('heading', { name: 'Analyzing document…', level: 2 });
     this.loadingMessage = page.getByRole('heading', { name: /Analyzing document/i });
 
     // Fatal error state (pageStatus='error')

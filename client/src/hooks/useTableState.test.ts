@@ -1,7 +1,7 @@
 import { renderHook, act } from '@testing-library/react';
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import React from 'react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useNavigationType } from 'react-router-dom';
 
 import { useTableState } from './useTableState.js';
 
@@ -518,5 +518,45 @@ describe('useTableState', () => {
       expect(result.current.tableState.filters.get('openOnly')?.value).toBe('true');
       expect(result.current.tableState.filters.get('status')?.value).toBe('paid');
     });
+  });
+
+  // ─── history hygiene (#2202, AC5) ───────────────────────────────────────────
+
+  describe('history: every URL-state change replaces the entry', () => {
+    function renderWithNavType(initial: string) {
+      return renderHook(
+        () => ({
+          table: useTableState({ reservedParams: RESERVED_PARAMS }),
+          type: useNavigationType(),
+        }),
+        { wrapper: makeWrapper([initial]) },
+      );
+    }
+
+    it('does not push on mount', () => {
+      const { result } = renderWithNavType('/?page=2&status=active');
+
+      expect(result.current.type).toBe('POP');
+    });
+
+    const CASES: ReadonlyArray<readonly [string, (t: ReturnType<typeof useTableState>) => void]> = [
+      ['setSearch', (t) => t.setSearch('sofa')],
+      ['setFilter', (t) => t.setFilter('status', 'paid')],
+      ['setSort', (t) => t.setSort('title')],
+      ['setPage', (t) => t.setPage(3)],
+      ['setPageSize', (t) => t.setPageSize(50)],
+      ['resetFilters', (t) => t.resetFilters()],
+    ];
+    for (const [name, call] of CASES) {
+      it(`${name} uses REPLACE, not PUSH`, () => {
+        const { result } = renderWithNavType('/?status=active');
+
+        act(() => {
+          call(result.current.table);
+        });
+
+        expect(result.current.type).toBe('REPLACE');
+      });
+    }
   });
 });

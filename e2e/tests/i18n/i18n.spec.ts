@@ -198,6 +198,33 @@ test.describe('i18n: Language Switching', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Bautagebuch' })).toBeVisible();
   });
 
+  test('Page identity renders in German: h1 and tab title of Tasks, Calendar and Purchases (#2202)', async ({
+    page,
+  }) => {
+    // Given: Language is set to German
+    await setLanguage(page, 'de');
+
+    // Tasks list: h1 "Aufgaben", title "Aufgaben · <house name or Cornerstone>"
+    // (the house name is shared state, so only the page and section segments are asserted)
+    await page.goto(ROUTES.workItems);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: 'Aufgaben' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page).toHaveTitle(/^Aufgaben · [^·]+$/);
+
+    // Calendar: h1 "Kalender", title "Kalender · Aufgaben · ..."
+    await page.goto('/schedule/calendar');
+    await expect(page.getByRole('heading', { level: 1, name: 'Kalender' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Kalender · Aufgaben · [^·]+$/);
+
+    // Purchases list: h1 "Anschaffungen"
+    await page.goto(ROUTES.householdItems);
+    await expect(page.getByRole('heading', { level: 1, name: 'Anschaffungen' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Anschaffungen · [^·]+$/);
+  });
+
   test('Language can be switched back to English from German', async ({ page }) => {
     // Given: Language was set to German (via API + localStorage)
     await setLanguage(page, 'de');
@@ -294,10 +321,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
 
     // When: User navigates to work items
     await page.goto(ROUTES.workItems);
-    await page.getByRole('heading', { level: 1, name: 'Projekt' }).waitFor({ state: 'visible' });
+    await page.getByRole('heading', { level: 1, name: 'Aufgaben' }).waitFor({ state: 'visible' });
 
-    // Then: The page renders with the German h1 heading and the translated Project sub-nav name
-    await expect(page.getByRole('heading', { level: 1, name: 'Projekt' })).toBeVisible();
+    // Then: The page renders with the German h1 heading (#2202: "Aufgaben", the page's own name)
+    // and the translated Project sub-nav name
+    await expect(page.getByRole('heading', { level: 1, name: 'Aufgaben' })).toBeVisible();
     await expect(
       page.getByRole('navigation', { name: 'Navigation im Bereich Projekt' }),
     ).toBeVisible();

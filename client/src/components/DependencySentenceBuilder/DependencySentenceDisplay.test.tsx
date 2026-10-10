@@ -7,6 +7,8 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { DependencyResponse } from '@cornerstone/shared';
 import { DependencySentenceDisplay } from './DependencySentenceDisplay.js';
+import type { OriginState } from '../../navigation/origin.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 
 // Helper factory for mock DependencyResponse
 function mockDependencyResponse(overrides: Partial<DependencyResponse> = {}): DependencyResponse {
@@ -283,5 +285,68 @@ describe('DependencySentenceDisplay', () => {
         screen.getByText('Must finish before Kitchen renovation can start:'),
       ).toBeInTheDocument();
     });
+  });
+});
+
+describe('DependencySentenceDisplay — linkState (#2202)', () => {
+  const predecessor = mockDependencyResponse({
+    workItem: { ...mockDependencyResponse().workItem, id: 'wi-pred', title: 'Pour concrete' },
+  });
+  const successor = mockDependencyResponse({
+    workItem: { ...mockDependencyResponse().workItem, id: 'wi-succ', title: 'Hang drywall' },
+  });
+
+  function renderWithState(linkState?: OriginState) {
+    return render(
+      <MemoryRouter initialEntries={['/project/work-items/wi-self']}>
+        <DependencySentenceDisplay
+          predecessors={[predecessor]}
+          successors={[successor]}
+          onDelete={jest.fn<OnDeleteFn>()}
+          linkState={linkState}
+        />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  const origin: OriginState = {
+    origin: { to: '/project/work-items/wi-self', name: 'Current task' },
+  };
+
+  it('forwards the state to a predecessor task link', async () => {
+    const user = userEvent.setup();
+    renderWithState(origin);
+
+    await user.click(screen.getByRole('link', { name: 'Pour concrete' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-pred');
+    expect(probedOrigin()).toEqual({
+      to: '/project/work-items/wi-self',
+      name: 'Current task',
+    });
+  });
+
+  it('forwards the state to a successor task link', async () => {
+    const user = userEvent.setup();
+    renderWithState(origin);
+
+    await user.click(screen.getByRole('link', { name: 'Hang drywall' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-succ');
+    expect(probedOrigin()).toEqual({
+      to: '/project/work-items/wi-self',
+      name: 'Current task',
+    });
+  });
+
+  it('carries no origin when no linkState is given', async () => {
+    const user = userEvent.setup();
+    renderWithState(undefined);
+
+    await user.click(screen.getByRole('link', { name: 'Pour concrete' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-pred');
+    expect(probedOrigin()).toBeNull();
   });
 });

@@ -2,6 +2,7 @@ import { routeUrl } from '@cornerstone/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { DependencyResponse, DependencyType } from '@cornerstone/shared';
+import type { OriginState } from '../../navigation/origin.js';
 import { dependencyTypeToVerbs } from './dependencyVerbs.js';
 import styles from './DependencySentenceDisplay.module.css';
 
@@ -11,6 +12,8 @@ interface DependencySentenceDisplayProps {
   /** Label for "this item" in group headers. Default: "this" */
   thisItemLabel?: string;
   onDelete: (type: 'predecessor' | 'successor', workItemId: string, title: string) => void;
+  /** Router state for the task links (origin of the opened task page). */
+  linkState?: OriginState;
 }
 
 interface DependencyGroup {
@@ -33,6 +36,7 @@ export function DependencySentenceDisplay({
   successors,
   thisItemLabel = 'this',
   onDelete,
+  linkState,
 }: DependencySentenceDisplayProps) {
   const { t: _t } = useTranslation('workItems');
   const predecessorGroups = groupByType(predecessors);
@@ -56,6 +60,7 @@ export function DependencySentenceDisplay({
                 <li key={dep.workItem.id} className={styles.item}>
                   <Link
                     to={routeUrl('workItem', { id: dep.workItem.id })}
+                    state={linkState}
                     className={styles.itemLink}
                   >
                     {dep.workItem.title}
@@ -87,6 +92,7 @@ export function DependencySentenceDisplay({
                 <li key={dep.workItem.id} className={styles.item}>
                   <Link
                     to={routeUrl('workItem', { id: dep.workItem.id })}
+                    state={linkState}
                     className={styles.itemLink}
                   >
                     {dep.workItem.title}

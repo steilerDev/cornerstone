@@ -4,6 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 
 // ─── Mock: LocaleContext (MUST be before any module that imports formatters) ──
 // Defensive layer to ensure useLocale never reaches the real LocaleContext
@@ -1642,5 +1643,62 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
       expect(mockDeleteInvoiceBudgetLine).not.toHaveBeenCalled();
     });
+  });
+});
+
+// ─── Origin (#2202): the linked item link carries the invoice URL ─────────────
+
+describe('InvoiceBudgetLinesSection — linked item origin (#2202)', () => {
+  function renderProbed() {
+    return render(
+      <MemoryRouter initialEntries={[`/budget/invoices/${INVOICE_ID}?tab=lines`]}>
+        <LocaleProviderStub>
+          <InvoiceBudgetLinesSection invoiceId={INVOICE_ID} invoiceTotal={INVOICE_TOTAL} />
+        </LocaleProviderStub>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  it('opens a linked task with the invoice URL as origin, no name', async () => {
+    mockFetchInvoiceBudgetLines.mockResolvedValue(
+      makeListResponse(
+        [
+          makeDetailLine('ibl-001', {
+            parentItemId: 'wi-001',
+            parentItemTitle: 'Foundation',
+            parentItemType: 'work_item',
+          }),
+        ],
+        1000.0,
+      ),
+    );
+    renderProbed();
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Foundation' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-001');
+    expect(probedOrigin()).toEqual({ to: `/budget/invoices/${INVOICE_ID}?tab=lines` });
+  });
+
+  it('opens a linked purchase with the invoice URL as origin, no name', async () => {
+    mockFetchInvoiceBudgetLines.mockResolvedValue(
+      makeListResponse(
+        [
+          makeDetailLine('ibl-002', {
+            parentItemId: 'hi-001',
+            parentItemTitle: 'Sofa',
+            parentItemType: 'household_item',
+          }),
+        ],
+        1000.0,
+      ),
+    );
+    renderProbed();
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Sofa' }));
+
+    expect(probedPath()).toBe('/project/household-items/hi-001');
+    expect(probedOrigin()).toEqual({ to: `/budget/invoices/${INVOICE_ID}?tab=lines` });
   });
 });

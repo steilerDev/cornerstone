@@ -318,6 +318,8 @@ async function mockPreview(
     suggestedVendorId?: string | null;
     extractedTotal?: number;
     delayMs?: number;
+    /** Hold the response until this promise resolves (deterministic loading-state window). */
+    gate?: Promise<void>;
     errorStatus?: number;
   } = {},
 ): Promise<void> {
@@ -327,6 +329,9 @@ async function mockPreview(
   await page.route('**/api/invoices/auto-itemize/preview', async (route: Route) => {
     if (delayMs > 0) {
       await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    if (opts.gate) {
+      await opts.gate;
     }
     if (opts.errorStatus !== undefined) {
       await route.fulfill({
@@ -535,8 +540,13 @@ test.describe('Scenario 3 — Document selection triggers extraction', () => {
     await mockDocuments(page);
     await mockTags(page);
     await mockDocumentDetail(page, MOCK_DOC_1.id);
-    // Add delay to preview to observe spinner
-    await mockPreview(page, { delayMs: 200 });
+    // Hold the extraction response until the loading state has been asserted, so the
+    // transient spinner cannot be missed (a fixed delay races on fast runners).
+    let releaseExtraction: () => void = () => {};
+    const extractionGate = new Promise<void>((resolve) => {
+      releaseExtraction = resolve;
+    });
+    await mockPreview(page, { gate: extractionGate });
 
     const invoicesPage = new InvoicesPage(page);
     await invoicesPage.goto();
@@ -553,7 +563,15 @@ test.describe('Scenario 3 — Document selection triggers extraction', () => {
 
     // Review page shows loading state
     const reviewPage = new PaperlessInvoiceReviewPage(page);
-    await reviewPage.waitForLoading();
+    try {
+      await reviewPage.waitForLoading();
+      await expect(reviewPage.formColumn).toBeHidden();
+    } finally {
+      releaseExtraction();
+    }
+
+    // Releasing the gate completes the extraction and shows the ready state
+    await reviewPage.waitForExtractionComplete();
   });
 });
 

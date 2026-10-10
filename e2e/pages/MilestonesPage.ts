@@ -2,7 +2,7 @@
  * Page Object Model for the Milestones list page (/project/milestones)
  *
  * The page renders:
- * - A PageLayout with h1 "Project" (schedule namespace: milestones.page.title = "Project")
+ * - A PageLayout with h1 "Milestones" (common navigation.milestones)
  *   and a "New Milestone" button (data-testid="new-milestone-button")
  * - A SubNav with tabs including "Milestones" (active)
  * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
@@ -66,8 +66,8 @@ export class MilestonesPage {
   constructor(page: Page) {
     this.page = page;
 
-    // PageLayout renders h1 with t('milestones.page.title') = "Project"
-    this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
+    // PageLayout renders h1 with common navigation.milestones = "Milestones"
+    this.heading = page.getByRole('heading', { level: 1, name: 'Milestones', exact: true });
     // New Milestone button uses data-testid for stable selection
     this.newMilestoneButton = page.getByTestId('new-milestone-button');
 

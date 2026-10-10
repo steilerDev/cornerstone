@@ -20,12 +20,14 @@ import { fetchVendors, deleteVendor } from '../../lib/vendorsApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './VendorsPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
+  useDocumentTitle(tCommon('navigation.companies'));
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();

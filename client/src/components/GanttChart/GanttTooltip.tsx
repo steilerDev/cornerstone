@@ -11,6 +11,7 @@ import { plannedRangeText, showsPlannedRow } from '../../lib/scheduleDates.js';
 import { Badge } from '../Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../Badge/statusBadgeVariants.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { estimateWorkItemTooltipHeight } from './tooltipData.js';
 import styles from './GanttTooltip.module.css';
 
@@ -173,6 +174,7 @@ function WorkItemTooltipContent({
   const { t } = useTranslation('schedule');
   const { formatDate } = useFormatters();
   const { resolvedLocale } = useLocale();
+  const originState = useOriginState();
 
   const { task: taskVariants, scheduleSignal: scheduleSignalVariants } = useStatusBadgeVariants();
   const plannedValue = showsPlannedRow(data)
@@ -395,6 +397,7 @@ function WorkItemTooltipContent({
           <div className={styles.separator} aria-hidden="true" />
           <Link
             to={routeUrl('workItem', { id: data.workItemId })}
+            state={originState}
             className={styles.viewItemLink}
             aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
           >

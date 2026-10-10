@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -32,7 +32,14 @@ jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
 
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -63,9 +70,11 @@ describe('MilestoneCreatePage', () => {
     }
   });
 
-  function renderPage() {
+  function renderPage(
+    entry: string | { pathname: string; state?: unknown } = '/project/milestones/new',
+  ) {
     return render(
-      <MemoryRouter initialEntries={['/project/milestones/new']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route
             path="/project/milestones/new"
@@ -106,13 +115,11 @@ describe('MilestoneCreatePage', () => {
       expect(screen.getByTestId('create-milestone-button')).toBeInTheDocument();
     });
 
-    it('renders the back link to milestones list', () => {
+    it('has no "← Milestones" back link and no project tab row any more', () => {
       renderPage();
 
-      // The header back link ("← Milestones") is the anchor with a "←" prefix;
-      // narrower regex avoids matching the SubNav Milestones tab or Cancel link.
-      const backLink = screen.getByRole('link', { name: /←\s*milestones/i });
-      expect(backLink).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /←\s*milestones/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: /project/i })).not.toBeInTheDocument();
     });
 
     it('title input starts empty', () => {
@@ -230,6 +237,29 @@ describe('MilestoneCreatePage', () => {
       });
     });
 
+    it('replaces the create form in history and forwards the origin to the milestone', async () => {
+      const user = userEvent.setup();
+      mockCreateMilestone.mockResolvedValueOnce(createdMilestone);
+      renderPage({
+        pathname: '/project/milestones/new',
+        state: { origin: { to: '/schedule/calendar?calendarMode=week' }, unrelated: true },
+      });
+
+      await user.type(screen.getByTestId('milestone-title-input'), 'Roof Complete');
+      fireEvent.change(screen.getByTestId('milestone-target-date-input'), {
+        target: { value: '2026-06-15' },
+      });
+      await user.click(screen.getByTestId('create-milestone-button'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones/42');
+      });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/schedule/calendar?calendarMode=week' },
+      });
+    });
+
     it('includes description when provided', async () => {
       const user = userEvent.setup();
       mockCreateMilestone.mockResolvedValueOnce(createdMilestone);
@@ -341,6 +371,73 @@ describe('MilestoneCreatePage', () => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
       });
       expect(screen.getByTestId('create-milestone-button')).not.toBeDisabled();
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    it('shows exactly one h1 "New milestone" and no form-card h2', () => {
+      renderPage();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'New milestone', level: 1 })).toBeVisible();
+      expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
+    });
+
+    it('sets the tab title under the Tasks section', async () => {
+      renderPage();
+
+      await waitFor(() =>
+        expect(document.title).toBe('New milestone \u00B7 Tasks \u00B7 Cornerstone'),
+      );
+    });
+
+    it('trails Tasks then Milestones, in order', () => {
+      renderPage();
+
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      const links = within(nav).getAllByRole('link');
+      expect(links.map((a) => (a.textContent ?? '').replace('\u2039', ''))).toEqual([
+        'Tasks',
+        'Milestones',
+      ]);
+      expect(links.map((a) => a.getAttribute('href'))).toEqual([
+        '/project/work-items',
+        '/project/milestones',
+      ]);
+    });
+
+    it('offers Back to Calendar when opened from the calendar', () => {
+      renderPage({
+        pathname: '/project/milestones/new',
+        state: { origin: { to: '/schedule/calendar' } },
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Calendar');
+    });
+
+    it('Cancel replaces the entry with the origin URL', async () => {
+      const user = userEvent.setup();
+      renderPage({
+        pathname: '/project/milestones/new',
+        state: { origin: { to: '/schedule/gantt?x=1' } },
+      });
+
+      await user.click(screen.getByRole('link', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/schedule/gantt');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+    });
+
+    it('Cancel replaces the entry with the milestones list when there is no origin', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(screen.getByRole('link', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
   });
 });

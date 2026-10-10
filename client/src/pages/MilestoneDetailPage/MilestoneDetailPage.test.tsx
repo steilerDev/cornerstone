@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSchedule from '../../i18n/en/schedule.json';
@@ -124,7 +124,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
 
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -206,9 +213,12 @@ describe('MilestoneDetailPage', () => {
     }
   });
 
-  function renderPage(id: string = '1') {
+  function renderPage(
+    id: string = '1',
+    entry: string | { pathname: string; state?: unknown } = `/project/milestones/${id}`,
+  ) {
     return render(
-      <MemoryRouter initialEntries={[`/project/milestones/${id}`]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route
             path="/project/milestones/:id"
@@ -639,6 +649,7 @@ describe('MilestoneDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/project/milestones');
       });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
 
     it('shows error banner when delete fails', async () => {
@@ -1011,6 +1022,131 @@ describe('MilestoneDetailPage', () => {
             enSchedule.milestones.detail.failedRemoveDependent,
           );
         });
+      });
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
+
+    beforeEach(() => {
+      makeDefaultListResponses();
+      document.title = 'initial';
+    });
+
+    it('shows one h1 with the milestone title and sets the tab title under Tasks', async () => {
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+
+      renderPage();
+
+      expect(
+        await screen.findByRole('heading', { name: 'Foundation Complete', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      await waitFor(() =>
+        expect(document.title).toBe('Foundation Complete \u00B7 Tasks \u00B7 Cornerstone'),
+      );
+    });
+
+    it('falls back to "Untitled milestone" for a whitespace-only title', async () => {
+      mockGetMilestone.mockResolvedValueOnce({ ...sampleMilestoneDetail, title: '   ' });
+
+      renderPage();
+
+      expect(
+        await screen.findByRole('heading', { name: 'Untitled milestone', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+    });
+
+    it('shows the typed h1 "Milestone" with the trail while loading', async () => {
+      mockGetMilestone.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      expect(screen.getByRole('heading', { name: 'Milestone', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(
+        within(nav)
+          .getAllByRole('link')
+          .map((a) => (a.textContent ?? '').replace('\u2039', '')),
+      ).toEqual(['Tasks', 'Milestones']);
+    });
+
+    it('promotes the not-found text to the single h1 and keeps the trail', async () => {
+      mockGetMilestone.mockRejectedValueOnce(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Milestone not found' }),
+      );
+
+      renderPage('999');
+
+      expect(
+        await screen.findByRole('heading', { name: 'Milestone not found', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.queryAllByRole('heading', { level: 2 })).toHaveLength(0);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      expect(screen.getByRole('link', { name: 'Back to Milestones' })).toHaveAttribute(
+        'href',
+        '/project/milestones',
+      );
+    });
+
+    it('removes the old back, To Schedule and To Milestones buttons', async () => {
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Foundation Complete', level: 1 });
+      expect(screen.queryByRole('button', { name: /to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to milestones/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to milestones/i })).not.toBeInTheDocument();
+    });
+
+    it('offers Back to Calendar from the calendar, keeping the trail Tasks > Milestones', async () => {
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+
+      renderPage('1', {
+        pathname: '/project/milestones/1',
+        state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
+      });
+
+      await screen.findByRole('heading', { name: 'Foundation Complete', level: 1 });
+      expect(screen.getByRole('link', { name: /Back to Calendar/ })).toHaveAttribute(
+        'href',
+        '/schedule/calendar?calendarMode=week',
+      );
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(2);
+    });
+
+    it('offers Back to a task by name when opened from that task', async () => {
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+
+      renderPage('1', {
+        pathname: '/project/milestones/1',
+        state: { origin: { to: '/project/work-items/wi-9', name: 'Synthetic task' } },
+      });
+
+      await screen.findByRole('heading', { name: 'Foundation Complete', level: 1 });
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Synthetic task');
+    });
+
+    it('passes origin (with the milestone title) to a linked task link', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+
+      renderPage();
+
+      await user.click(await screen.findByRole('link', { name: 'Pour Foundation' }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/wi-100');
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/project/milestones/1', name: 'Foundation Complete' },
       });
     });
   });

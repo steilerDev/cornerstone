@@ -149,6 +149,10 @@ const rows: Row[] = [
   ['light', '--color-danger', '--color-danger-bg', 4.5], // 5.91
   ['dark', '--color-danger', '--color-bg-primary', 4.5], // 5.29
   ['both', '--color-text-placeholder', '--color-bg-primary', 4.5], // 5.77 / 5.71
+  // Breadcrumbs row (#2202) sits on the page background: trail links, Back link, separators
+  ['both', '--color-text-muted', '--color-bg-page', 4.5], // 5.52 / 7.18
+  ['both', '--color-text-secondary', '--color-bg-page', 4.5], // 9.86 / 12.39
+  ['light', '--color-text-muted', '--color-bg-primary', 4.5], // 5.77
   // Cross-rule: calendar week view "today" header (WeekGrid .dayName on .headerCellToday)
   ['light', '--color-text-muted', '--color-primary-bg', 4.5], // 4.73
   ['dark', '--color-role-member-text', '--color-role-member-bg', 4.5], // 8.40

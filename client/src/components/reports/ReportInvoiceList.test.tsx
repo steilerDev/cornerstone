@@ -39,6 +39,7 @@ import type {
   SourceReportDeposit,
 } from '@cornerstone/shared';
 import { renderWithRouter } from '../../test/testUtils.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { ReportInvoiceList as ReportInvoiceListType } from './ReportInvoiceList.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
@@ -1686,6 +1687,87 @@ describe('ReportInvoiceList', () => {
       expect(cell.textContent).toContain('sourceReports.expand.dueDate');
       expect(cell.textContent).toContain('sourceReports.expand.paidDate');
       expect(cell.textContent).toContain('sourceReports.expand.claimedDate');
+    });
+  });
+
+  // ── Origin (#2202): linked item links carry the current URL ────────────────
+
+  describe('linked item links carry origin state', () => {
+    const workItemLine = {
+      id: 'line-2',
+      description: 'Roofing',
+      allocatedPortion: 200,
+      linkedItem: {
+        type: 'work_item' as const,
+        id: 'wi-1',
+        name: 'Roof Replacement',
+        areaId: null,
+        areaName: null,
+      },
+    };
+    const householdItemLine = {
+      id: 'line-3',
+      description: 'Cabinet',
+      allocatedPortion: 100,
+      linkedItem: {
+        type: 'household_item' as const,
+        id: 'hi-1',
+        name: 'Kitchen Cabinet',
+        areaId: null,
+        areaName: null,
+      },
+    };
+
+    function renderExpanded(line: typeof workItemLine | typeof householdItemLine) {
+      const report = makeReport([
+        makeInvoice({ invoiceId: 'inv-1', budgetLinesForSource: [line] }),
+      ]);
+      const view = renderWithRouter(
+        <>
+          <ReportInvoiceList
+            report={report}
+            excludedInvoiceIds={new Set()}
+            excludedLineIds={new Set()}
+            onToggle={jest.fn()}
+            onToggleLine={jest.fn()}
+            onToggleAll={jest.fn()}
+            t={t}
+          />
+          <OriginProbe />
+        </>,
+        { initialEntries: ['/budget/reports?sourceId=src-1'] },
+      );
+      fireEvent.click(
+        view.container.querySelector(`[aria-controls="invoice-expand-inv-1"]`) as HTMLElement,
+      );
+    }
+
+    it('opens a linked task (table row) with the report URL as origin, no name', () => {
+      renderExpanded(workItemLine);
+
+      fireEvent.click(screen.getAllByRole('link', { name: 'Roof Replacement' })[0]!);
+
+      expect(probedPath()).toBe('/project/work-items/wi-1');
+      expect(probedOrigin()).toEqual({ to: '/budget/reports?sourceId=src-1' });
+    });
+
+    it('opens a linked task from the mobile card with the report URL as origin', () => {
+      renderExpanded(workItemLine);
+
+      const links = screen.getAllByRole('link', { name: 'Roof Replacement' });
+      fireEvent.click(links[links.length - 1]!);
+
+      expect(probedPath()).toBe('/project/work-items/wi-1');
+      expect(probedOrigin()).toEqual({ to: '/budget/reports?sourceId=src-1' });
+    });
+
+    it('opens a linked purchase with the report URL as origin', () => {
+      renderExpanded(householdItemLine);
+
+      fireEvent.click(screen.getAllByRole('link', { name: 'Kitchen Cabinet' })[0]!);
+
+      expect(probedPath()).toBe('/project/household-items/hi-1');
+      expect(probedOrigin()).toEqual({ to: '/budget/reports?sourceId=src-1' });
     });
   });
 });

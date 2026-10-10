@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -37,6 +38,7 @@ export function HouseholdItemsPage() {
   const { t: tSettings } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  useDocumentTitle(tCommon('navigation.purchases'));
   const navigate = useNavigate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -166,7 +168,7 @@ export function HouseholdItemsPage() {
       }
     }
 
-    setSearchParams(params);
+    setSearchParams(params, { replace: true });
   };
 
   const openDeleteConfirm = (item: HouseholdItemSummary) => {
@@ -444,7 +446,7 @@ export function HouseholdItemsPage() {
 
   return (
     <PageLayout
-      title={t('page.title')}
+      title={tCommon('navigation.purchases')}
       action={
         <button
           type="button"

@@ -2,7 +2,7 @@
  * E2E tests for Milestones CRUD (/project/milestones)
  *
  * Scenarios covered:
- * 1.  List page loads with heading "Project" and "New Milestone" button
+ * 1.  List page loads with heading "Milestones" and "New Milestone" button
  * 2.  Empty state when no milestones exist (mocked)
  * 3.  "New Milestone" button navigates to /project/milestones/new
  * 4.  Create milestone with title + targetDate only — happy path, redirects to detail
@@ -45,7 +45,7 @@ test.describe('Milestones list page load (Scenario 1)', { tag: '@responsive' }, 
       await milestonesPage.goto();
 
       await expect(milestonesPage.heading).toBeVisible();
-      await expect(milestonesPage.heading).toHaveText('Project');
+      await expect(milestonesPage.heading).toHaveText('Milestones');
       await expect(milestonesPage.newMilestoneButton).toBeVisible();
     },
   );
@@ -206,15 +206,16 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     }
   });
 
-  test('Form heading shows "Create Milestone" and required fields are visible', async ({
+  test('Heading shows "New milestone", the trail is Tasks > Milestones and required fields are visible', async ({
     page,
   }) => {
     const createPage = new MilestoneCreatePage(page);
 
     await createPage.goto();
 
-    await expect(createPage.formHeading).toBeVisible();
-    await expect(createPage.formHeading).toHaveText('Create Milestone');
+    await expect(createPage.heading).toBeVisible();
+    await expect(createPage.heading).toHaveText('New milestone');
+    await createPage.breadcrumbs.expectTrail(['Tasks', 'Milestones']);
     await expect(createPage.titleInput).toBeVisible();
     await expect(createPage.targetDateInput).toBeVisible();
     await expect(createPage.descriptionInput).toBeVisible();
@@ -297,13 +298,13 @@ test.describe('Create form navigation (Scenario 8)', { tag: '@responsive' }, () 
     expect(page.url()).not.toContain('/project/milestones/new');
   });
 
-  test('"← Milestones" back link navigates to /project/milestones', async ({ page }) => {
+  test('"Milestones" breadcrumb navigates to /project/milestones', async ({ page }) => {
     const createPage = new MilestoneCreatePage(page);
 
     await createPage.goto();
 
-    // Click the back link
-    await createPage.backLink.click();
+    // Click the parent in the trail (the only visible trail link on a phone)
+    await createPage.breadcrumbs.trailLink('Milestones').click();
 
     await page.waitForURL('**/project/milestones');
     expect(page.url()).toContain('/project/milestones');
@@ -440,8 +441,9 @@ test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
         // Status badge should say "Upcoming" (new milestone is not completed)
         await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
 
-        // Back button is visible
-        await expect(detailPage.backButton).toBeVisible();
+        // Breadcrumb trail is Tasks > Milestones (parents only), no Back from a fresh goto
+        await detailPage.breadcrumbs.expectTrail(['Tasks', 'Milestones']);
+        await detailPage.breadcrumbs.expectNoBack();
 
         // Edit button is visible
         await expect(detailPage.editButton).toBeVisible();
@@ -454,7 +456,7 @@ test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
     },
   );
 
-  test('"← Back to Milestones" button navigates back to the list', async ({ page, testPrefix }) => {
+  test('"Milestones" breadcrumb navigates back to the list', async ({ page, testPrefix }) => {
     const detailPage = new MilestoneDetailPage(page);
     let createdId: number | null = null;
 
@@ -465,9 +467,9 @@ test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.breadcrumbs.trailLink('Milestones')).toBeVisible();
 
-      await detailPage.backButton.click();
+      await detailPage.breadcrumbs.trailLink('Milestones').click();
 
       await page.waitForURL('**/project/milestones');
       expect(page.url()).toContain('/project/milestones');
@@ -750,7 +752,10 @@ test.describe('Detail page 404 (Scenario 17)', () => {
     const isNotFound = await detailPage.isInNotFoundState();
     expect(isNotFound).toBe(true);
 
-    // "Back to Milestones" link is visible in the not-found state
+    // The h1 is "Milestone not found" and the "Back to Milestones" link is visible
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Milestone not found' }),
+    ).toBeVisible();
     await expect(page.getByRole('link', { name: 'Back to Milestones' })).toBeVisible();
   });
 });
@@ -924,9 +929,9 @@ test.describe('Dark mode rendering (Scenario 21)', { tag: '@responsive' }, () =>
     });
 
     const createPage = new MilestoneCreatePage(page);
-    await createPage.formHeading.waitFor({ state: 'visible' });
+    await createPage.heading.waitFor({ state: 'visible' });
 
-    await expect(createPage.formHeading).toBeVisible();
+    await expect(createPage.heading).toBeVisible();
     await expect(createPage.titleInput).toBeVisible();
 
     const hasHorizontalScroll = await page.evaluate(() => {

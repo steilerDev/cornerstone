@@ -37,6 +37,8 @@ import {
 } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './DashboardPage.module.css';
 
 const PROJECT_TABS: SubNavTab[] = [
@@ -61,7 +63,9 @@ export function DashboardPage() {
   const { t } = useTranslation('dashboard');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  useDocumentTitle(tCommon('navigation.home'));
   const navigate = useNavigate();
+  const originState = useOriginState();
 
   const CARD_DEFINITIONS = [
     {
@@ -548,7 +552,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('workItemNew'));
+                    void navigate(routeUrl('workItemNew'), { state: originState });
                   }}
                   data-testid="dashboard-add-work-item"
                 >
@@ -560,7 +564,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('householdItemNew'));
+                    void navigate(routeUrl('householdItemNew'), { state: originState });
                   }}
                   data-testid="dashboard-add-household-item"
                 >
@@ -572,7 +576,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('milestoneNew'));
+                    void navigate(routeUrl('milestoneNew'), { state: originState });
                   }}
                   data-testid="dashboard-add-milestone"
                 >

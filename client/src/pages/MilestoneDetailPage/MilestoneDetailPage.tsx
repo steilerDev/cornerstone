@@ -1,6 +1,6 @@
 import type { FormEvent } from 'react';
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   MilestoneDetail,
@@ -25,6 +25,9 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './MilestoneDetailPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -40,11 +43,6 @@ export function MilestoneDetailPage() {
   const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-
-  const locationState = location.state as { from?: string; view?: string } | null;
-  const fromSchedule = locationState?.from === 'schedule';
-  const fromView = locationState?.view;
 
   const milestoneId = id ? parseInt(id, 10) : NaN;
 
@@ -440,7 +438,7 @@ export function MilestoneDetailPage() {
 
     try {
       await deleteMilestone(milestone.id);
-      navigate(routeUrl('milestones'));
+      navigate(routeUrl('milestones'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -451,9 +449,20 @@ export function MilestoneDetailPage() {
     }
   };
 
+  const displayTitle = milestone?.title.trim() || tCommon('navigation.untitledMilestone');
+  const h1Text = isLoading
+    ? tCommon('navigation.milestone')
+    : is404 || !milestone
+      ? t('milestones.detail.notFound')
+      : displayTitle;
+  useDocumentTitle(h1Text);
+  const originState = useOriginState(milestone && !isLoading ? displayTitle : undefined);
+
   if (isLoading) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.pageTitle}>{h1Text}</h1>
         <div className={styles.loading}>{t('milestones.detail.loading')}</div>
       </div>
     );
@@ -462,11 +471,12 @@ export function MilestoneDetailPage() {
   if (is404 || !milestone) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
         <div className={styles.notFound}>
-          <h2>{t('milestones.detail.notFound')}</h2>
+          <h1>{h1Text}</h1>
           <p>{t('milestones.detail.notFoundMessage')}</p>
           <Link to={routeUrl('milestones')} className={styles.linkButton}>
-            {t('milestones.detail.backLink')}
+            {tCommon('navigation.backTo', { origin: tCommon('navigation.milestones') })}
           </Link>
         </div>
       </div>
@@ -475,52 +485,9 @@ export function MilestoneDetailPage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.header}>
-        <div className={styles.navButtons}>
-          {fromSchedule ? (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() =>
-                  navigate(
-                    fromView
-                      ? routeUrl('schedule', undefined, { view: fromView })
-                      : routeUrl('schedule'),
-                  )
-                }
-              >
-                {t('milestones.detail.backToSchedule')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('milestones'))}
-              >
-                {t('milestones.detail.toMilestones')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() => navigate(routeUrl('milestones'))}
-              >
-                {t('milestones.detail.backButton')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('schedule'))}
-              >
-                {t('milestones.detail.toSchedule')}
-              </button>
-            </>
-          )}
-        </div>
-
-        <h1 className={styles.pageTitle}>{milestone.title}</h1>
+        <h1 className={styles.pageTitle}>{displayTitle}</h1>
       </div>
 
       {error && (
@@ -625,6 +592,7 @@ export function MilestoneDetailPage() {
                       <div className={styles.workItemTitleCell}>
                         <Link
                           to={routeUrl('workItem', { id: item.id })}
+                          state={originState}
                           className={styles.workItemLink}
                         >
                           {item.title}
@@ -650,6 +618,7 @@ export function MilestoneDetailPage() {
                       </span>
                       <Link
                         to={routeUrl('householdItem', { id: item.id })}
+                        state={originState}
                         className={styles.workItemLink}
                       >
                         {item.name}
@@ -750,6 +719,7 @@ export function MilestoneDetailPage() {
                     <li key={item.id} className={styles.linkedWorkItem}>
                       <Link
                         to={routeUrl('workItem', { id: item.id })}
+                        state={originState}
                         className={styles.workItemLink}
                       >
                         {item.title}

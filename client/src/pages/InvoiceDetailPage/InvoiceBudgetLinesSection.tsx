@@ -36,6 +36,7 @@ import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import { EditBudgetLineModal } from '../../components/budget/EditBudgetLineModal.js';
 import sharedStyles from '../../styles/shared.module.css';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
 interface InvoiceBudgetLinesSectionProps {
@@ -55,6 +56,7 @@ export function InvoiceBudgetLinesSection({
   const { formatCurrency } = useFormatters();
   const { vatRate } = useLocale();
   const { t: tSettings } = useTranslation('settings');
+  const originState = useOriginState();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
 
@@ -610,6 +612,7 @@ export function InvoiceBudgetLinesSection({
                               ? routeUrl('workItem', { id: line.parentItemId! })
                               : routeUrl('householdItem', { id: line.parentItemId! })
                           }
+                          state={originState}
                           className={styles.linkedItemLink}
                         >
                           {line.parentItemTitle}

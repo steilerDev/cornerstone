@@ -19,7 +19,7 @@ test.describe('Deep Linking', () => {
 
     // Work Items
     await page.goto(ROUTES.workItems);
-    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.workItems);
 
     // Budget
@@ -34,7 +34,7 @@ test.describe('Deep Linking', () => {
 
     // Household Items
     await page.goto(ROUTES.householdItems);
-    await expect(page.getByRole('heading', { level: 1, name: 'Project' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Purchases' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.householdItems);
 
     // Profile

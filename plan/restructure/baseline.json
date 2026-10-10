@@ -19,7 +19,7 @@
       "InvoicesPage": { "destinations": 9, "primaryButtons": 7, "searchFields": 2 },
       "LoginPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "ManagePage": { "destinations": 6, "primaryButtons": 11, "searchFields": 0 },
-      "MilestoneCreatePage": { "destinations": 7, "primaryButtons": 1, "searchFields": 0 },
+      "MilestoneCreatePage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "MilestoneDetailPage": { "destinations": 4, "primaryButtons": 7, "searchFields": 2 },
       "MilestonesPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 1 },
       "NoAccessPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
@@ -41,7 +41,7 @@
       "WorkItemsPage": { "destinations": 6, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 108,
+      "count": 109,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -50,6 +50,7 @@
         "AuthGuard/AuthGuard",
         "AutosaveIndicator/AutosaveIndicator",
         "Badge/Badge",
+        "Breadcrumbs/Breadcrumbs",
         "BudgetBar/BudgetBar",
         "BudgetHealthIndicator/BudgetHealthIndicator",
         "BudgetSummaryCard/BudgetSummaryCard",
@@ -351,7 +352,6 @@
       "BottomBar",
       "MoreSheet",
       "UserMenu",
-      "Breadcrumbs",
       "CommandSearch",
       "CreateMenu",
       "ObjectForm",

@@ -1154,6 +1154,23 @@ export const ROUTE_MAP = [
     },
   },
   {
+    from: '/schedule?view=calendar',
+    to: '/schedule/calendar',
+    kind: 'redirect',
+    change: 'query-map',
+    section: 'Tasks',
+    guard: 'member',
+    gate: 'none',
+    permanent: false,
+    carries: ['*'],
+    stage: 'done',
+    match: {
+      query: {
+        view: 'calendar',
+      },
+    },
+  },
+  {
     from: '/budget/invoices/new/paperless (Paperless off)',
     to: '/budget/invoices?create=1',
     kind: 'redirect',

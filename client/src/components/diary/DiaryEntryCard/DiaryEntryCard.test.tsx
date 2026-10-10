@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, render } from '@testing-library/react';
+import { screen, render, fireEvent } from '@testing-library/react';
+import { OriginProbe, probedOrigin, probedPath } from '../../../test/originProbe.js';
 import { MemoryRouter } from 'react-router-dom';
 import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
 import enDiary from '../../../i18n/en/diary.json';
@@ -379,5 +380,41 @@ describe('DiaryEntryCard', () => {
   it('Scenario 55: saved entry does NOT render Draft Badge', () => {
     renderCard(manualEntry);
     expect(screen.queryByTestId('draft-badge-de-manual-1')).not.toBeInTheDocument();
+  });
+
+  // ─── Origin (#2202): source entity links carry the current URL ──────────────
+
+  describe('source entity link origin', () => {
+    function renderProbed(entry: DiaryEntrySummary) {
+      return render(
+        <MemoryRouter initialEntries={['/diary?filterMode=all']}>
+          <DiaryEntryCard entry={entry} />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+    }
+
+    it('automatic entry: the related-item link carries the diary URL as origin, no name', () => {
+      renderProbed(automaticEntry);
+
+      fireEvent.click(screen.getByTestId('source-link-wi-kitchen-1'));
+
+      expect(probedPath()).toBe('/project/work-items/wi-kitchen-1');
+      expect(probedOrigin()).toEqual({ to: '/diary?filterMode=all' });
+    });
+
+    it('manual entry: the footer source link carries the diary URL as origin', () => {
+      renderProbed({
+        ...manualEntry,
+        sourceEntityType: 'work_item',
+        sourceEntityId: 'wi-manual-1',
+        sourceEntityTitle: 'Kitchen work',
+      });
+
+      fireEvent.click(screen.getByTestId('source-link-wi-manual-1'));
+
+      expect(probedPath()).toBe('/project/work-items/wi-manual-1');
+      expect(probedOrigin()).toEqual({ to: '/diary?filterMode=all' });
+    });
   });
 });

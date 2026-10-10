@@ -1,0 +1,141 @@
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--spacing-4);
+  margin-bottom: var(--spacing-3);
+  min-height: var(--spacing-8);
+}
+
+.link,
+.linkDynamic,
+.back {
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+  transition: color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+
+.link,
+.linkDynamic {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.back {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.link:hover,
+.linkDynamic:hover,
+.back:hover {
+  color: var(--color-text-primary);
+  text-decoration: underline;
+}
+
+.link:focus-visible,
+.linkDynamic:focus-visible,
+.back:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+}
+
+.backGlyph {
+  margin-inline-end: var(--spacing-1);
+}
+
+.trail {
+  min-width: 0;
+}
+
+.list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  min-width: 0;
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.item:has(.linkDynamic) {
+  flex: 0 1 auto;
+}
+
+.linkDynamic {
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.separator {
+  color: var(--color-text-muted);
+  margin-inline: var(--spacing-2);
+}
+
+.phoneGlyph {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  .row {
+    margin-bottom: var(--spacing-2);
+    min-height: 44px;
+  }
+
+  .row[data-has-back='true'] .trail {
+    display: none;
+  }
+
+  .item:not(:last-child) {
+    display: none;
+  }
+
+  .phoneGlyph {
+    display: inline;
+    margin-inline-end: var(--spacing-1);
+  }
+}
+
+@media (max-width: 1023px) {
+  .link,
+  .linkDynamic,
+  .back {
+    min-height: 44px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .link,
+  .linkDynamic,
+  .back {
+    transition: none;
+  }
+}
+
+@media print {
+  .row {
+    display: none;
+  }
+}

@@ -3,7 +3,7 @@
  *
  * The page renders:
  * - An error state (class `error`) if the work item cannot be loaded (404, etc.)
- * - A back button ("← Back to Work Items", a <button> not a <Link>)
+ * - Breadcrumbs (Story #2202): `breadcrumbs` POM = "You are here" trail + origin-aware "Back to ..." link
  * - An inline-editable h1 title (click to edit, or press "e" shortcut)
  * - A status select dropdown
  * - Left column sections:
@@ -35,22 +35,22 @@
  * - Inline error banner (role="alert", class errorBanner) for inline failures
  *
  * Key DOM observations from source code:
- * - Back button is a <button> calling navigate('/project/work-items'), NOT an <a>
  * - Delete modal uses a plain div[class*="modal"] — no role="dialog", no aria-labelledby
  *   The h2 inside is "Delete Work Item?" (with question mark)
- * - Error state uses class `error` (div.error with a "Back to Work Items" button inside)
+ * - Error state uses class `error` (errorCard with a "Back to Tasks" button inside)
  * - Vendors are now assigned per budget line (no separate vendor picker)
  * - Subsidy picker only renders when availableSubsidies.length > 0
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export class WorkItemDetailPage {
   readonly page: Page;
 
   // Header
-  readonly backButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
   readonly heading: Locator; // h1 (work item title)
   readonly statusSelect: Locator;
 
@@ -112,7 +112,7 @@ export class WorkItemDetailPage {
     this.page = page;
 
     // Header
-    this.backButton = page.getByRole('button', { name: /← Back to Work Items/i });
+    this.breadcrumbs = new BreadcrumbsBar(page);
     this.heading = page.getByRole('heading', { level: 1 });
     this.statusSelect = page.locator('[class*="statusSelect"]');
 

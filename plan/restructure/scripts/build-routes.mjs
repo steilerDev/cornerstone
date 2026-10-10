@@ -431,6 +431,20 @@ function validateAgainstModule(routemap, routerRoutes, routeModule) {
     }
   }
 
+  // 4. A live query map sits on a redirect route: the browser applies query maps only through
+  // RouteRedirect over LIVE_REDIRECT_ROUTES.
+  for (const entry of shared) {
+    if (entry.stage !== 'done' || !entry.match?.query) continue;
+    const base = byFrom.get(routeModule.baseFrom(entry.from));
+    if (!base) {
+      errors.push(`live query map ${entry.from} has no served base path`);
+    } else if (base.kind !== 'redirect') {
+      errors.push(
+        `live query map ${entry.from} needs a redirect base path, the router serves a page`,
+      );
+    }
+  }
+
   // 5. Guards of router pages.
   for (const route of routerRoutes) {
     if (route.kind !== 'page') continue;

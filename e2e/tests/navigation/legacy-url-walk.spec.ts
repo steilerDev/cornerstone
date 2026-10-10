@@ -8,7 +8,9 @@
  * Scenarios:
  * - E0  The map and the frozen table of today's 26 live redirects agree (fails when a route
  *       is added to / removed from the map without updating this walk)
- * - E1  Every live redirect lands on its target in one hop (bare, and with ?q=walk#walk)
+ * - E1  Every live redirect lands on its target in one hop (bare, and with ?q=walk#walk);
+ *       /schedule?view=calendar is the one live query map (D-11, #2202) and lands on
+ *       /schedule/calendar
  * - E1b Every page the map serves (every id'd route, 'interim: page' included) loads on its
  *       own URL without a redirect hop; planned routes are not served; planned query maps
  *       keep rendering today's page with the query intact
@@ -52,6 +54,7 @@ import {
 } from '../../fixtures/apiHelpers.js';
 import { mockConfig, mockPaperlessConfigured } from '../../fixtures/paperlessInvoiceMocks.js';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
+import { installRouteLog, readRouteLog } from '../../fixtures/routeLog.js';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { NotFoundPage } from '../../pages/NotFoundPage.js';
 import { PaperlessInvoiceReviewPage } from '../../pages/PaperlessInvoiceReviewPage.js';
@@ -131,40 +134,8 @@ const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Landing log: records every URL-changing history call the app makes
+// Landing assertions (the history log itself lives in fixtures/routeLog.ts)
 // ─────────────────────────────────────────────────────────────────────────────
-
-interface RouteLogEntry {
-  kind: 'pushState' | 'replaceState';
-  url: string;
-}
-
-/**
- * Wraps history.pushState/replaceState so every navigation the router performs is recorded
- * (framenavigated does not fire for same-document navigations). Calls without a URL argument
- * (router bookkeeping such as scroll/state idx) do not change the URL and are not logged.
- */
-async function installRouteLog(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const w = window as unknown as { __routeLog: Array<{ kind: string; url: string }> };
-    w.__routeLog = [];
-    for (const kind of ['pushState', 'replaceState'] as const) {
-      const original = history[kind].bind(history);
-      history[kind] = (data: unknown, unused: string, url?: string | URL | null) => {
-        if (url !== undefined && url !== null) {
-          w.__routeLog.push({ kind, url: new URL(String(url), location.href).href });
-        }
-        original(data, unused, url);
-      };
-    }
-  });
-}
-
-async function readRouteLog(page: Page): Promise<RouteLogEntry[]> {
-  return page.evaluate(
-    () => (window as unknown as { __routeLog: RouteLogEntry[] }).__routeLog ?? [],
-  );
-}
 
 /**
  * Single hop: the router never pushed, and every URL it set has the landing pathname (no
@@ -330,6 +301,12 @@ test.describe('Legacy URL walk (route map)', () => {
       expect(rule, `${from} must be a live redirect in the route map`).toBeDefined();
       expect(rule?.target.split(/[?#]/)[0], `target of ${from}`).toBe(landing);
     }
+    // Live query maps (#2202): only /schedule has one, and it is the D-11 calendar map.
+    const withMaps = LIVE_REDIRECT_ROUTES.filter((rule) => rule.queryMaps.length > 0);
+    expect(withMaps.map((rule) => rule.from)).toEqual(['/schedule']);
+    expect(withMaps[0]?.queryMaps).toEqual([
+      { query: { view: 'calendar' }, target: routeUrl('scheduleCalendar') },
+    ]);
     // The groups below cover every one of the 26.
     expect(GROUPS.flatMap((group) => group.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
@@ -394,14 +371,43 @@ test.describe('Legacy URL walk (route map)', () => {
     );
   });
 
-  test('E1: /schedule?view=calendar keeps its query and still lands on the Gantt (D-11 is later)', async ({
+  test('E1: /schedule?view=calendar lands on /schedule/calendar in one hop (D-11, #2202)', async ({
     page,
   }) => {
     await installRouteLog(page);
     await page.goto('/schedule?view=calendar');
+    // The query map consumes the matched view key; no other pair is invented.
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('scheduleCalendar') && url.search === '',
+    );
+    await waitForShell(page);
+    await expectSingleHop(page, routeUrl('scheduleCalendar'), true);
+  });
+
+  test('E1: /schedule?view=calendar&q=walk#walk consumes only view and carries the rest', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    await page.goto('/schedule?view=calendar&q=walk#walk');
     await expect(page).toHaveURL(
       (url) =>
-        url.pathname === routeUrl('scheduleGantt') && url.searchParams.get('view') === 'calendar',
+        url.pathname === routeUrl('scheduleCalendar') &&
+        url.searchParams.get('q') === 'walk' &&
+        !url.searchParams.has('view') &&
+        url.hash === '#walk',
+    );
+    await waitForShell(page);
+    await expectSingleHop(page, routeUrl('scheduleCalendar'), true);
+  });
+
+  test('E1: /schedule?view=gantt keeps today’s behaviour (lands on the Gantt, query carried)', async ({
+    page,
+  }) => {
+    await installRouteLog(page);
+    await page.goto('/schedule?view=gantt');
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === routeUrl('scheduleGantt') && url.searchParams.get('view') === 'gantt',
     );
     await waitForShell(page);
     await expectSingleHop(page, routeUrl('scheduleGantt'), true);

@@ -40,6 +40,7 @@ function TabLink({ tab }: { tab: SubNavTab }) {
   const { t } = useTranslation(tab.ns ?? 'common');
   return (
     <NavLink
+      replace
       to={tab.to}
       end
       className={({ isActive }) => `${styles.tab} ${isActive ? styles.tabActive : ''}`}

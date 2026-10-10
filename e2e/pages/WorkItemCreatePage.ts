@@ -2,8 +2,8 @@
  * Page Object Model for the Work Item Create page (/project/work-items/new)
  *
  * The page renders:
- * - A header with a back button ("← Back to Work Items", a <button> not a <Link>)
- *   and h1 "Create Work Item"
+ * - Breadcrumbs (Story #2202): trail "Tasks" + optional "Back to {origin}" (no header back button)
+ *   and h1 "New task"
  * - A form with all work item fields:
  *   - #title (text, required) — shows .inputError and .errorText when empty on submit
  *   - #description (textarea)
@@ -32,6 +32,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const WORK_ITEM_CREATE_ROUTE = routeUrl('workItemNew');
 
@@ -52,7 +53,7 @@ export class WorkItemCreatePage {
 
   // Header
   readonly heading: Locator;
-  readonly backButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Form fields
   readonly titleInput: Locator;
@@ -90,9 +91,8 @@ export class WorkItemCreatePage {
     this.page = page;
 
     // Header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Create Work Item', exact: true });
-    // Back button is a <button> (not <Link>)
-    this.backButton = page.getByRole('button', { name: /← Back to Work Items/i });
+    this.heading = page.getByRole('heading', { level: 1, name: 'New task', exact: true });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Form fields
     this.titleInput = page.locator('#title');

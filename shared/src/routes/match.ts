@@ -5,7 +5,9 @@ import {
   conditionHolds,
   effectiveTarget,
   liveConditionalRules,
+  liveQueryMaps,
   resolveRedirect,
+  resolveRedirectRule,
   type RouteGateContext,
 } from './redirects.js';
 import { ROUTE_MAP } from './routeMap.js';
@@ -13,12 +15,6 @@ import type { RouteId } from './routeUrl.js';
 import type { RouteMapEntry } from './types.js';
 
 const ENTRIES: readonly RouteMapEntry[] = ROUTE_MAP;
-
-/** The plain path of a `from`: everything up to the first `?`, `#` or ` (`. */
-export function baseFrom(from: string): string {
-  const cut = from.search(/[?# ]/);
-  return cut >= 0 ? from.slice(0, cut) : from;
-}
 
 function segmentsOf(path: string): string[] {
   const trimmed = path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
@@ -90,13 +86,6 @@ function splitUrl(url: string): { pathname: string; search: string; hash: string
   };
 }
 
-function queryHolds(query: Readonly<Record<string, string | true>>, search: string): boolean {
-  const incoming = new URLSearchParams(search);
-  return Object.entries(query).every(([key, expected]) =>
-    expected === true ? incoming.has(key) : incoming.get(key) === expected,
-  );
-}
-
 /** Resolve a URL the way the router does (see ADR-038 §3). */
 export function resolveLocation(url: string, ctx: RouteContext): RouteResolution {
   const { pathname, search, hash } = splitUrl(url);
@@ -107,15 +96,8 @@ export function resolveLocation(url: string, ctx: RouteContext): RouteResolution
 
   const target = effectiveTarget(entry);
   if (target !== null) {
-    return { kind: 'redirect', to: resolveRedirect(target, params, search, hash), entry };
-  }
-
-  for (const mapEntry of ENTRIES) {
-    if (mapEntry.stage !== 'done' || !mapEntry.match?.query) continue;
-    if (baseFrom(mapEntry.from) !== entry.from || !queryHolds(mapEntry.match.query, search)) {
-      continue;
-    }
-    return { kind: 'redirect', to: resolveRedirect(mapEntry.to, params, search, hash), entry };
+    const rule = { from: entry.from, target, queryMaps: liveQueryMaps(entry.from) };
+    return { kind: 'redirect', to: resolveRedirectRule(rule, params, search, hash), entry };
   }
 
   if (entry.id !== undefined) {

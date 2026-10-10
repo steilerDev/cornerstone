@@ -9,6 +9,7 @@ import { Badge } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
 import { DiaryEntryTypeBadge } from '../DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { DiaryMetadataSummary } from '../DiaryMetadataSummary/DiaryMetadataSummary.js';
+import { useOriginState } from '../../../navigation/useOriginState.js';
 import styles from './DiaryEntryCard.module.css';
 
 interface DiaryEntryCardProps {
@@ -43,6 +44,7 @@ function getSourceEntityLabel(sourceType: DiarySourceEntityType, t: TFunction): 
 export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
   const { formatDate, formatTime } = useFormatters();
   const { t } = useTranslation('diary');
+  const originState = useOriginState();
   const route = getSourceEntityRoute(entry);
   const sourceLabel = entry.sourceEntityType
     ? getSourceEntityLabel(entry.sourceEntityType, t)
@@ -94,6 +96,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
             <div className={styles.autoEntityLink}>
               <Link
                 to={route}
+                state={originState}
                 className={styles.sourceLink}
                 onClick={(e) => e.stopPropagation()}
                 title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}
@@ -122,6 +125,7 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
         {!entry.isAutomatic && route && (
           <Link
             to={route}
+            state={originState}
             className={styles.sourceLink}
             onClick={(e) => e.stopPropagation()}
             title={entry.sourceEntityTitle ?? sourceLabel ?? undefined}

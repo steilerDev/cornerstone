@@ -8,7 +8,7 @@
  * patterns established by HouseholdItemDetailPage:
  *
  * - Loading state: element with role="status" containing "Loading" text
- * - 404 error:  role="alert" card with "Work Item Not Found" heading, back button, NO retry
+ * - 404 error:  role="alert" card with "Task not found" heading, back button, NO retry
  * - Generic error: role="alert" card with "Error" heading, message, Retry + back buttons
  * - Empty notes: "No notes yet. Use the form above to add one."
  * - Empty subtasks: "No subtasks yet. Add one above."
@@ -432,7 +432,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       });
     });
 
-    it('shows "Work Item Not Found" heading for 404 errors', async () => {
+    it('shows "Task not found" heading for 404 errors', async () => {
       mockGetWorkItem.mockRejectedValue(
         new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
       );
@@ -440,11 +440,13 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /work item not found/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: 'Task not found', level: 1 }),
+        ).toBeInTheDocument();
       });
     });
 
-    it('shows "Back to Work Items" button for 404 errors', async () => {
+    it('shows "Back to Tasks" button for 404 errors', async () => {
       mockGetWorkItem.mockRejectedValue(
         new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
       );
@@ -452,7 +454,7 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeInTheDocument();
       });
     });
 
@@ -518,13 +520,13 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
       });
     });
 
-    it('shows "Back to Work Items" button for generic errors', async () => {
+    it('shows "Back to Tasks" button for generic errors', async () => {
       mockGetWorkItem.mockRejectedValue({ statusCode: 500, message: 'Server error' });
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeInTheDocument();
       });
     });
   });

@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { UserResponse } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
@@ -99,7 +99,14 @@ jest.unstable_mockModule('../../components/AreaPicker/AreaPicker.js', () => ({
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 describe('WorkItemCreatePage', () => {
@@ -155,9 +162,11 @@ describe('WorkItemCreatePage', () => {
     });
   });
 
-  function renderPage() {
+  function renderPage(
+    entry: string | { pathname: string; state?: unknown } = '/project/work-items/new',
+  ) {
     return render(
-      <MemoryRouter initialEntries={['/project/work-items/new']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route path="/project/work-items/new" element={<WorkItemCreatePageModule.default />} />
           <Route path="/project/work-items/:id" element={<div>Work Item Detail</div>} />
@@ -188,7 +197,7 @@ describe('WorkItemCreatePage', () => {
       });
 
       // Check heading is present
-      expect(screen.getByRole('heading', { name: 'Create Work Item' })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'New task', level: 1 })).toBeInTheDocument();
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/status/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/assigned to/i)).toBeInTheDocument();
@@ -247,12 +256,12 @@ describe('WorkItemCreatePage', () => {
       expect(screen.getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
 
-    it('renders back button', async () => {
+    it('has no header back button (the breadcrumb replaces it)', async () => {
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
-      });
+      await screen.findByLabelText(/title/i);
+      expect(screen.queryByRole('button', { name: /back to work items/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to tasks/i })).not.toBeInTheDocument();
     });
 
     it('status select lists WORK_ITEM_STATUSES in order with translated labels', async () => {
@@ -404,6 +413,44 @@ describe('WorkItemCreatePage', () => {
       });
     });
 
+    it('replaces the create form in history and forwards the origin to the new task', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({
+        id: 'work-9',
+      } as unknown as Awaited<ReturnType<typeof WorkItemsApiTypes.createWorkItem>>);
+      renderPage({
+        pathname: '/project/work-items/new',
+        state: { origin: { to: '/schedule/gantt' }, unrelated: true },
+      });
+
+      await user.type(await screen.findByLabelText(/title/i), 'From the schedule');
+      await user.click(screen.getByRole('button', { name: /create work item/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/work-9');
+      });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/schedule/gantt' },
+      });
+    });
+
+    it('forwards no state when there is no valid origin', async () => {
+      const user = userEvent.setup();
+      mockCreateWorkItem.mockResolvedValue({
+        id: 'work-9',
+      } as unknown as Awaited<ReturnType<typeof WorkItemsApiTypes.createWorkItem>>);
+      renderPage({ pathname: '/project/work-items/new', state: { origin: { to: '//evil' } } });
+
+      await user.type(await screen.findByLabelText(/title/i), 'No origin');
+      await user.click(screen.getByRole('button', { name: /create work item/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/work-9');
+      });
+      expect(screen.getByTestId('location-state')).toHaveTextContent('null');
+    });
+
     it('shows error banner on creation failure', async () => {
       const user = userEvent.setup();
       mockCreateWorkItem.mockRejectedValue(new Error('Network error'));
@@ -515,20 +562,36 @@ describe('WorkItemCreatePage', () => {
   });
 
   describe('navigation', () => {
-    it('navigates back to work items list on back button click', async () => {
+    it('navigates to the work items list from the Tasks breadcrumb', async () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
+      await user.click(await screen.findByRole('link', { name: /Tasks/ }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
+    });
+
+    it('cancel goes to the origin URL (replacing the entry) when opened from the Schedule', async () => {
+      const user = userEvent.setup();
+      renderPage({
+        pathname: '/project/work-items/new',
+        state: { origin: { to: '/schedule/gantt?x=1' } },
       });
 
-      const backButton = screen.getByRole('button', { name: /back to work items/i });
-      await user.click(backButton);
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
 
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
-      });
+      expect(screen.getByTestId('location')).toHaveTextContent('/schedule/gantt');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+    });
+
+    it('cancel replaces the entry with the list when there is no origin', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
 
     it('navigates back to work items list on cancel button click', async () => {
@@ -790,6 +853,43 @@ describe('WorkItemCreatePage', () => {
         expect(screen.queryByRole('navigation', { name: /area path/i })).not.toBeInTheDocument();
         expect(screen.getByText('No area')).toBeInTheDocument();
       });
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    it('shows exactly one h1 "New task" in the loaded form and sets the tab title', async () => {
+      renderPage();
+
+      await screen.findByLabelText(/title/i);
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'New task', level: 1 })).toBeVisible();
+      await waitFor(() => expect(document.title).toBe('New task \u00B7 Tasks \u00B7 Cornerstone'));
+    });
+
+    it('shows the h1 and the breadcrumb already while loading', () => {
+      mockListUsers.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'New task', level: 1 })).toBeVisible();
+      expect(screen.getByRole('link', { name: /Tasks/ })).toHaveAttribute(
+        'href',
+        '/project/work-items',
+      );
+    });
+
+    it('trails Tasks and offers Back to Schedule when opened from the Schedule', async () => {
+      renderPage({
+        pathname: '/project/work-items/new',
+        state: { origin: { to: '/schedule/gantt' } },
+      });
+
+      await screen.findByLabelText(/title/i);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Schedule');
     });
   });
 });

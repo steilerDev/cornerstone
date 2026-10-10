@@ -3,7 +3,7 @@
  *
  * Scenarios covered:
  * 1.  Page loads with work item title as heading
- * 2.  Back button navigates to /project/work-items
+ * 2.  "Tasks" breadcrumb navigates to /project/work-items
  * 3.  Notes — add a note and verify it appears
  * 4.  Subtasks — add a subtask and verify it appears
  * 5.  Vendor linking regression — vendor dropdown loads without error
@@ -91,13 +91,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /project/work-items
+// Scenario 2: "Tasks" breadcrumb navigates to /project/work-items
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Work Items" button navigates to the work items list', async ({
-    page,
-    testPrefix,
-  }) => {
+test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Tasks" breadcrumb navigates to the work items list', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -106,7 +103,7 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
       await detailPage.goto(createdId);
 
-      await detailPage.backButton.click();
+      await detailPage.breadcrumbs.trailLink('Tasks').click();
 
       // No explicit timeout — uses project-level navigationTimeout (15s for WebKit).
       await page.waitForURL('**/project/work-items');
@@ -475,15 +472,16 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
     const isError = await detailPage.isInErrorState();
     expect(isError).toBe(true);
 
-    // Error state includes a "Back to Work Items" button
+    // Error state includes a "Back to Tasks" button and the h1 "Task not found"
+    await expect(page.getByRole('heading', { level: 1, name: 'Task not found' })).toBeVisible();
     const backButton = detailPage.errorState.getByRole('button', {
-      name: /Back to Work Items/i,
+      name: 'Back to Tasks',
     });
     // No explicit timeout — uses project-level expect.timeout (15s for WebKit).
     await expect(backButton).toBeVisible();
   });
 
-  test('Error state "Back to Work Items" button navigates to the list', async ({ page }) => {
+  test('Error state "Back to Tasks" button navigates to the list', async ({ page }) => {
     const detailPage = new WorkItemDetailPage(page);
 
     await page.goto('/project/work-items/nonexistent-id-abc');
@@ -492,7 +490,7 @@ test.describe('Error state for non-existent ID (Scenario 8)', { tag: '@responsiv
     expect(isError).toBe(true);
 
     const backButton = detailPage.errorState.getByRole('button', {
-      name: /Back to Work Items/i,
+      name: 'Back to Tasks',
     });
     await backButton.click();
 
@@ -577,7 +575,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
 
       // Key elements visible in dark mode
       await expect(detailPage.heading).toBeVisible();
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.breadcrumbs.trailLink('Tasks')).toBeVisible();
       await expect(detailPage.deleteButton).toBeVisible();
 
       // No horizontal scroll

@@ -13,6 +13,8 @@ import {
   SIDEBAR_WIDTH,
 } from '../../components/GanttChart/ganttUtils.js';
 import { barDates } from '../../lib/scheduleDates.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './TimelinePage.module.css';
 import { routeUrl, routePattern } from '@cornerstone/shared';
 
@@ -179,6 +181,7 @@ const ZOOM_STEP_FACTOR = 0.2; // 20% per step
 
 export function TimelinePage() {
   const { t } = useTranslation('schedule');
+  const { t: tc } = useTranslation('common');
   const [zoom, setZoom] = useState<ZoomLevel>('month');
   const [showArrows, setShowArrows] = useState(true);
   const [highlightCriticalPath, setHighlightCriticalPath] = useState(true);
@@ -289,26 +292,30 @@ export function TimelinePage() {
   )
     ? 'calendar'
     : 'gantt';
+  const viewTitle =
+    activeView === 'calendar' ? tc('navigation.calendar') : tc('navigation.schedule');
+  useDocumentTitle(viewTitle);
+  const originState = useOriginState();
 
   const handleItemClick = useCallback(
     (id: string) => {
-      void navigate(routeUrl('workItem', { id: id }), { state: { from: 'schedule' } });
+      void navigate(routeUrl('workItem', { id: id }), { state: originState });
     },
-    [navigate],
+    [navigate, originState],
   );
 
   const handleHouseholdItemClick = useCallback(
     (id: string) => {
-      void navigate(routeUrl('householdItem', { id: id }), { state: { from: 'schedule' } });
+      void navigate(routeUrl('householdItem', { id: id }), { state: originState });
     },
-    [navigate],
+    [navigate, originState],
   );
 
   const handleMilestoneClick = useCallback(
     (id: number) => {
-      void navigate(routeUrl('milestone', { id: id }), { state: { from: 'schedule' } });
+      void navigate(routeUrl('milestone', { id: id }), { state: originState });
     },
-    [navigate],
+    [navigate, originState],
   );
 
   // ---- Filtered data arrays for display ----
@@ -336,7 +343,7 @@ export function TimelinePage() {
     <div className={styles.page} data-testid="timeline-page">
       {/* Page header: title + toolbar */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{t('timeline.page.title')}</h1>
+        <h1 className={styles.pageTitle}>{viewTitle}</h1>
 
         <div className={styles.toolbar}>
           {/* Entity filter toggle — shown in both views */}
@@ -528,7 +535,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('workItemNew'));
+                    void navigate(routeUrl('workItemNew'), { state: originState });
                   }}
                   data-testid="timeline-add-work-item"
                 >
@@ -540,7 +547,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('householdItemNew'));
+                    void navigate(routeUrl('householdItemNew'), { state: originState });
                   }}
                   data-testid="timeline-add-household-item"
                 >
@@ -552,7 +559,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('milestoneNew'));
+                    void navigate(routeUrl('milestoneNew'), { state: originState });
                   }}
                   data-testid="timeline-add-milestone"
                 >

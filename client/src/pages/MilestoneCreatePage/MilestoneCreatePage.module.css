@@ -15,30 +15,12 @@
   margin-bottom: 1rem;
 }
 
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--color-text-secondary);
-  text-decoration: none;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.backLink:hover {
-  background-color: var(--color-bg-tertiary);
-}
-
 .pageTitle {
   font-size: 2rem;
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .formCard {
@@ -47,13 +29,6 @@
   border-radius: 0.5rem;
   box-shadow: var(--shadow-md);
   padding: 2rem;
-}
-
-.formTitle {
-  font-size: 1.5rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-  margin: 0 0 1.5rem 0;
 }
 
 .errorBanner {
@@ -164,21 +139,12 @@
     align-items: stretch;
   }
 
-  .backLink {
-    width: 100%;
-    justify-content: center;
-  }
-
   .pageTitle {
     font-size: 1.5rem;
   }
 
   .formCard {
     padding: 1rem;
-  }
-
-  .formTitle {
-    font-size: 1.25rem;
   }
 
   .formActions {

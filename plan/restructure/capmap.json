@@ -176,7 +176,7 @@
     "to": "Tasks > Task page (/project/work-items/:id, URL kept)",
     "change": "same",
     "gate": "none",
-    "note": "One object template: header, summary strip, 5 tabs. #2196: two-column grid can no longer overflow on phones (long titles wrap)."
+    "note": "One object template: header, summary strip, 5 tabs. #2196: two-column grid can no longer overflow on phones (long titles wrap). #2202: every in-app opener passes origin, so the task page offers Back to it."
   },
   "WRK-024": {
     "name": "Return to where you came from (work-item list or schedule) from the detail page",
@@ -184,7 +184,7 @@
     "to": "Global > breadcrumb + top-bar Back (returns to origin view, filters and scroll)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Two swapping back buttons become one origin-aware Back (NAV-09, D-11). #2196: the secondary nav button is no longer dimmed."
+    "note": "Two swapping back buttons become one origin-aware Back (NAV-09, D-11). #2196: the secondary nav button is no longer dimmed. #2202: breadcrumb (parents only) plus one origin-aware \"‹ Back to ‹origin›\" replace the swapping back/\"To …\" buttons; Back returns to the exact origin URL (Schedule or Calendar view and query kept, D-11)."
   },
   "WRK-025": {
     "name": "Rename a work item inline",
@@ -622,7 +622,7 @@
     "to": "Global > breadcrumb + top-bar Back (origin-aware)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed. #2202: breadcrumb (parents only) plus one origin-aware \"‹ Back to ‹origin›\" replace the swapping back/\"To …\" buttons; Back returns to the exact origin URL (Schedule or Calendar view and query kept, D-11)."
   },
   "WRK-092": {
     "name": "Open the project schedule",
@@ -632,7 +632,7 @@
     "gate": "none",
     "acceptance": "Sidebar view 'Schedule' under Tasks, title menu 'Tasks ▾' > Schedule, Home > This week 'Open schedule', search 'Schedule' or 'Gantt', key g s all open /schedule/gantt.",
     "decision": "Q1b, PLAN §2.0 #1",
-    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'."
+    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view)."
   },
   "WRK-093": {
     "name": "Switch between Gantt and Calendar views",
@@ -640,7 +640,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar views under Tasks in the sidebar and the title menu (URLs /schedule/gantt and /schedule/calendar kept; ?view=calendar on /schedule is preserved, D-11)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2202: /schedule?view=calendar lands on /schedule/calendar in one hop (live query map); Gantt/Calendar tab switches use history replace."
   },
   "WRK-094": {
     "name": "Show or hide work items, milestones and household items on the schedule",
@@ -824,7 +824,7 @@
     "to": "Tasks > Calendar > click item opens Task / Purchase page",
     "change": "same",
     "gate": "none",
-    "note": "Purchases pass their origin too (D-11). #2198: tasks and purchases show their tooltip on keyboard focus and read status, area and dates."
+    "note": "Purchases pass their origin too (D-11). #2198: tasks and purchases show their tooltip on keyboard focus and read status, area and dates. #2202: tasks and purchases opened from the calendar carry origin \"Calendar\"."
   },
   "WRK-117": {
     "name": "Open a milestone from the calendar (currently does nothing)",
@@ -832,7 +832,7 @@
     "to": "Tasks > Calendar > click milestone opens Milestone page",
     "change": "same",
     "gate": "none",
-    "note": "Dead click fixed (D-11). #2198: calendar milestones open the milestone page and show a tooltip on keyboard focus."
+    "note": "Dead click fixed (D-11). #2198: calendar milestones open the milestone page and show a tooltip on keyboard focus. #2202: milestones opened from the calendar carry origin \"Calendar\" (trail Tasks › Milestones)."
   },
   "WRK-122": {
     "name": "Have start/end dates recalculated automatically (CPM) after every scheduling-relevant change",
@@ -2219,7 +2219,7 @@
     "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; category and area in the summary strip)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2227,7 +2227,7 @@
     "to": "Global > breadcrumb + top-bar Back (origin-aware)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed. #2202: breadcrumb (parents only) plus one origin-aware \"‹ Back to ‹origin›\" replace the swapping back/\"To …\" buttons; Back returns to the exact origin URL (Schedule or Calendar view and query kept, D-11)."
   },
   "HHI-044": {
     "name": "View item details (description, vendor, product URL, quantity)",
@@ -2269,7 +2269,7 @@
     "to": "Purchases > Purchase page > error state (Retry / Back to Purchases)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Shared error state; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Shared error state; only the shared page template, the words and the navigation around it change (rare use). #2202: error state keeps Retry and \"Back to Purchases\" (glossary word)."
   },
   "HHI-049": {
     "name": "Change the purchase status inline",
@@ -3957,7 +3957,7 @@
     "to": "Settings > Project setup > House (name, address — bank-report sender — and 'Language of your entries'); the name shows in the sidebar header and the browser title",
     "change": "promoted",
     "gate": "none",
-    "note": "The project gets an identity (GLB-04). Project setup > House also holds the 'Language of your entries' setting (default Deutsch for this household) used for lang + hyphenation of user content (no schema change: app_settings)."
+    "note": "The project gets an identity (GLB-04). Project setup > House also holds the 'Language of your entries' setting (default Deutsch for this household) used for lang + hyphenation of user content (no schema change: app_settings). #2202: the house name shows in the browser title (‹page› · ‹section› · ‹house›)."
   },
   "PLT-093": {
     "name": "Create an area (room/zone) with colour, sort order, optional parent and description",

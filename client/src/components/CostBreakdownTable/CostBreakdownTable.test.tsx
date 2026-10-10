@@ -4,6 +4,7 @@
 import { jest, describe, it, expect, beforeAll, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { CostBreakdownTable as CostBreakdownTableType } from './CostBreakdownTable.js';
 import type { BudgetBreakdown, BudgetOverview } from '@cornerstone/shared';
 import type { BudgetSourceSummaryBreakdown } from '@cornerstone/shared';
@@ -5061,5 +5062,59 @@ describe('source badge print visibility (#1390)', () => {
     // The Badge inside has aria-label set by the source-badge code path.
     const badgeChild = label!.querySelector('[aria-label]');
     expect(badgeChild).not.toBeNull();
+  });
+});
+
+describe('item links carry origin state (#2202)', () => {
+  function renderProbed(breakdown: BudgetBreakdown) {
+    return render(
+      <MemoryRouter initialEntries={['/budget/overview?tab=breakdown']}>
+        <CostBreakdownTable
+          breakdown={breakdown}
+          overview={buildOverview()}
+          deselectedSourceIds={new Set()}
+          onSourceToggle={() => {}}
+          onSelectAllSources={() => {}}
+          paymentStatus="all"
+          onPaymentStatusChange={() => {}}
+        />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  it('opens a task with the current URL as origin, no name', () => {
+    const { container } = renderProbed(
+      buildBreakdownWithWI({
+        workItemId: 'wi-origin',
+        itemTitle: 'Origin task',
+        categoryName: 'Materials',
+        categoryId: 'cat-origin',
+      }),
+    );
+    fireEvent.click(getButtonByControls(container, 'wi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'wi-cat-cat-origin-items'));
+
+    fireEvent.click(screen.getByRole('link', { name: 'Origin task' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-origin');
+    expect(probedOrigin()).toEqual({ to: '/budget/overview?tab=breakdown' });
+  });
+
+  it('opens a purchase with the current URL as origin, no name', () => {
+    const { container } = renderProbed(
+      buildBreakdownWithHI({
+        hiCategory: 'Bathroom',
+        householdItemId: 'hi-origin',
+        itemName: 'Origin sink',
+      }),
+    );
+    fireEvent.click(getButtonByControls(container, 'hi-section-categories'));
+    fireEvent.click(getButtonByControls(container, 'hi-cat-Bathroom-items'));
+
+    fireEvent.click(screen.getByRole('link', { name: 'Origin sink' }));
+
+    expect(probedPath()).toBe('/project/household-items/hi-origin');
+    expect(probedOrigin()).toEqual({ to: '/budget/overview?tab=breakdown' });
   });
 });

@@ -501,4 +501,26 @@ describe('MilestonesPage', () => {
       expect(screen.getAllByText('Framing Complete')[0]!).toBeInTheDocument();
     });
   });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    it('shows exactly one h1 "Milestones" and the tab title under Tasks', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+      renderPage();
+
+      expect(await screen.findByRole('heading', { name: 'Milestones', level: 1 })).toBeVisible();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Milestones · Tasks · Cornerstone'));
+    });
+
+    it('is a view: it renders no "You are here" trail and no Back link', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Milestones', level: 1 });
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
+    });
+  });
 });

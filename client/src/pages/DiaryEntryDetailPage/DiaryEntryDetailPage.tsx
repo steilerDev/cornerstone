@@ -26,6 +26,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
@@ -368,6 +369,7 @@ interface SourceEntityLinkProps {
 
 function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLinkProps) {
   const { t } = useTranslation('diary');
+  const originState = useOriginState();
 
   const getRoute = (): string | null => {
     switch (sourceType) {
@@ -393,5 +395,9 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
     return <span>{label}</span>;
   }
 
-  return <Link to={route}>{label}</Link>;
+  return (
+    <Link to={route} state={originState}>
+      {label}
+    </Link>
+  );
 }

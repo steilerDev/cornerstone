@@ -1,7 +1,4 @@
 {
-  "page": {
-    "title": "Project"
-  },
   "newButton": "New Household Item",
   "search": {
     "placeholder": "Search household items...",
@@ -113,8 +110,6 @@
     "errors": {
       "loadFailed": "Failed to load form data. Please try again."
     },
-    "title": "New Household Item",
-    "backButton": "← Back to Household Items",
     "loading": "Loading...",
     "errorBanner": "Failed to load form data. Please try again.",
     "form": {
@@ -187,11 +182,8 @@
     "errors": {
       "loadFailed": "Failed to load form data. Please try again."
     },
-    "title": "Edit Household Item",
-    "backButton": "← Back to Item",
     "loading": "Loading...",
     "errorBanner": "Failed to load form data. Please try again.",
-    "notFound": "Household Item Not Found",
     "notFoundMessage": "The household item you are looking for does not exist.",
     "form": {
       "name": {
@@ -248,14 +240,8 @@
   "detail": {
     "loading": "Loading household item...",
     "error": "Error",
-    "notFound": "Item Not Found",
     "notFoundMessage": "The household item you're looking for doesn't exist or has been removed.",
-    "backToHouseholdItems": "Back to Household Items",
     "retry": "Retry",
-    "backToSchedule": "← Back to Schedule",
-    "toHouseholdItems": "To Household Items",
-    "backButton": "← Back to Household Items",
-    "toSchedule": "To Schedule",
     "edit": "Edit",
     "details": {
       "title": "Details",

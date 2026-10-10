@@ -1809,4 +1809,28 @@ describe('VendorDetailPage', () => {
       expect(dialog).toHaveTextContent('this invoice');
     });
   });
+
+  // ── Page identity (#2202): tab title only, the h1 is unchanged ──────────────
+
+  describe('tab title (#2202)', () => {
+    it('shows only "Companies · <house>" while the company loads', async () => {
+      document.title = 'initial';
+      mockFetchVendor.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      await waitFor(() => expect(document.title).toBe('Companies · Cornerstone'));
+    });
+
+    it('shows "<company name> · Companies · <house>" once the company has loaded', async () => {
+      document.title = 'initial';
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+
+      renderPage();
+
+      await waitFor(() =>
+        expect(document.title).toBe(`${sampleVendor.name} · Companies · Cornerstone`),
+      );
+    });
+  });
 });

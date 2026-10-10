@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -34,6 +35,7 @@ export function MilestonesPage() {
   const { t } = useTranslation('schedule');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  useDocumentTitle(tCommon('navigation.milestones'));
   const navigate = useNavigate();
 
   // Data state
@@ -384,7 +386,7 @@ export function MilestonesPage() {
 
   return (
     <PageLayout
-      title={t('milestones.page.title')}
+      title={tCommon('navigation.milestones')}
       action={
         <button
           type="button"
