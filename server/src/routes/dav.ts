@@ -58,6 +58,10 @@ async function davAuth(request: FastifyRequest): Promise<void> {
 
 const DAV_PREFIX = '/dav';
 
+/** HTTP methods the DAV server actually implements (HEAD is derived from GET). */
+const DAV_ALLOWED_METHODS = ['OPTIONS', 'GET', 'HEAD', 'PROPFIND', 'PROPPATCH', 'REPORT'];
+const DAV_ALLOW_HEADER = DAV_ALLOWED_METHODS.join(', ');
+
 /**
  * Build a DescriptionMap from the database for CalDAV DESCRIPTION fields.
  * Queries work_items.description, milestones.description, and household_items.description.
@@ -104,6 +108,23 @@ export default async function davRoutes(fastify: FastifyInstance) {
     }
   });
 
+  // ─── Unmatched requests under /dav ───────────────────────────────────────
+  // Encapsulated to this plugin (/dav prefix): never falls through to the SPA
+  // fallback. Auth runs first (401 before 405/404). Unimplemented methods get
+  // 405 + Allow; implemented methods on unknown paths get the JSON 404.
+  fastify.setNotFoundHandler({ preHandler: davAuth }, async (request, reply) => {
+    if (!DAV_ALLOWED_METHODS.includes(request.method)) {
+      // DAV clients ignore bodies; no JSON error code is defined for 405.
+      return reply.header('Allow', DAV_ALLOW_HEADER).status(405).send();
+    }
+    return reply.status(404).send({
+      error: {
+        code: 'ROUTE_NOT_FOUND',
+        message: `Route ${request.method} ${request.url} not found`,
+      },
+    });
+  });
+
   // ─── OPTIONS (DAV capabilities) ──────────────────────────────────────────
 
   /**
@@ -113,7 +134,7 @@ export default async function davRoutes(fastify: FastifyInstance) {
   fastify.options<{ Params: { wildcard?: string } }>('/*', async (request, reply) => {
     return reply
       .header('DAV', '1, 2, 3, calendar-access, addressbook')
-      .header('Allow', 'OPTIONS, GET, HEAD, PROPFIND, REPORT, PROPPATCH, PUT, DELETE, POST')
+      .header('Allow', DAV_ALLOW_HEADER)
       .status(200)
       .send();
   });
