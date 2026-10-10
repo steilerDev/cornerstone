@@ -1,5 +1,5 @@
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 interface TestItem {
@@ -255,6 +255,10 @@ describe('DataTable', () => {
   });
 
   describe('search toolbar', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
     it('renders search input', () => {
       renderDataTable();
       expect(screen.getByRole('searchbox')).toBeInTheDocument();
@@ -265,14 +269,18 @@ describe('DataTable', () => {
       expect(screen.getByRole('searchbox')).toHaveValue('my search');
     });
 
-    it('calls onStateChange with new search when input changes', () => {
+    it('calls onStateChange with new search once the 300 ms debounce has elapsed', () => {
+      jest.useFakeTimers();
       const mockOnStateChange = jest.fn();
       renderDataTable({ onStateChange: mockOnStateChange });
       fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'hello' } });
-      expect(mockOnStateChange).toHaveBeenCalled();
+      expect(mockOnStateChange).not.toHaveBeenCalled();
+      act(() => {
+        jest.advanceTimersByTime(300);
+      });
+      expect(mockOnStateChange).toHaveBeenCalledTimes(1);
       const calls = mockOnStateChange.mock.calls as [TableState][];
-      const lastCall = calls[calls.length - 1]!;
-      expect(lastCall[0]!.search).toBe('hello');
+      expect(calls[0]![0]!.search).toBe('hello');
     });
 
     it('shows Clear Filters button when search is active', () => {
@@ -297,6 +305,186 @@ describe('DataTable', () => {
       const lastCall = calls[calls.length - 1]!;
       expect(lastCall[0]!.search).toBe('');
       expect(lastCall[0]!.filters.size).toBe(0);
+    });
+  });
+
+  describe('search draft, debounce and stable toolbar (#2197)', () => {
+    function table(props: {
+      items?: TestItem[];
+      isLoading?: boolean;
+      tableState?: TableState;
+      onStateChange?: jest.Mock;
+    }) {
+      return (
+        <DataTable<TestItem>
+          pageKey="test-page"
+          columns={COLUMNS}
+          items={props.items ?? SAMPLE_ITEMS}
+          totalItems={(props.items ?? SAMPLE_ITEMS).length}
+          totalPages={1}
+          currentPage={1}
+          isLoading={props.isLoading ?? false}
+          error={null}
+          getRowKey={(item) => item.id}
+          tableState={props.tableState ?? makeTableState()}
+          onStateChange={props.onStateChange ?? jest.fn()}
+        />
+      );
+    }
+
+    function type(value: string) {
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value } });
+    }
+
+    function advance(ms: number) {
+      act(() => {
+        jest.advanceTimersByTime(ms);
+      });
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('updates the input immediately but does not call onStateChange before 300 ms', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange }));
+      type('d');
+      expect(screen.getByRole('searchbox')).toHaveValue('d');
+      advance(299);
+      expect(onStateChange).not.toHaveBeenCalled();
+    });
+
+    it('calls onStateChange once with the final text after several quick keystrokes', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange }));
+      type('d');
+      advance(100);
+      type('dr');
+      advance(100);
+      type('dry');
+      advance(299);
+      expect(onStateChange).not.toHaveBeenCalled();
+      advance(1);
+      expect(onStateChange).toHaveBeenCalledTimes(1);
+      expect((onStateChange.mock.calls as [TableState][])[0]![0].search).toBe('dry');
+    });
+
+    it('resets page to 1 when the debounced search commits', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange, tableState: makeTableState({ page: 3 }) }));
+      type('x');
+      advance(300);
+      expect((onStateChange.mock.calls as [TableState][])[0]![0].page).toBe(1);
+    });
+
+    it('commits immediately on Enter and does not fire a second time after the delay', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange }));
+      type('roof');
+      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
+      expect(onStateChange).toHaveBeenCalledTimes(1);
+      expect((onStateChange.mock.calls as [TableState][])[0]![0].search).toBe('roof');
+      advance(500);
+      expect(onStateChange).toHaveBeenCalledTimes(1);
+    });
+
+    it('ignores keys other than Enter', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange }));
+      type('roof');
+      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'a' });
+      expect(onStateChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onStateChange on Enter when the draft equals the committed search', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange, tableState: makeTableState({ search: 'same' }) }));
+      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'Enter' });
+      expect(onStateChange).not.toHaveBeenCalled();
+    });
+
+    it('does not call onStateChange when the text is typed back to the committed value', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange }));
+      type('x');
+      type('');
+      advance(300);
+      expect(onStateChange).not.toHaveBeenCalled();
+    });
+
+    it('mirrors an external search change into the input when nothing is pending', () => {
+      const { rerender } = render(table({}));
+      expect(screen.getByRole('searchbox')).toHaveValue('');
+      rerender(table({ tableState: makeTableState({ search: 'from-url' }) }));
+      expect(screen.getByRole('searchbox')).toHaveValue('from-url');
+    });
+
+    it('does not overwrite text typed within the debounce window on an external change', () => {
+      const { rerender } = render(table({}));
+      type('typing');
+      advance(100);
+      rerender(table({ tableState: makeTableState({ search: 'external' }) }));
+      expect(screen.getByRole('searchbox')).toHaveValue('typing');
+    });
+
+    it('Clear filters cancels a pending search and empties the input', () => {
+      const onStateChange = jest.fn();
+      render(table({ onStateChange, tableState: makeTableState({ search: 'existing' }) }));
+      type('stale draft');
+      fireEvent.click(screen.getByRole('button', { name: /clear filters/i }));
+      expect(screen.getByRole('searchbox')).toHaveValue('');
+      advance(1000);
+      expect(onStateChange).toHaveBeenCalledTimes(1);
+      expect((onStateChange.mock.calls as [TableState][])[0]![0].search).toBe('');
+    });
+
+    it('keeps the same focused search box when a reload starts and results are empty', () => {
+      const { rerender } = render(table({}));
+      const input = screen.getByRole('searchbox');
+      input.focus();
+      expect(input).toHaveFocus();
+
+      rerender(table({ isLoading: true, items: [] }));
+
+      const after = screen.getByRole('searchbox');
+      expect(after).toBe(input);
+      expect(after).toHaveFocus();
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByRole('columnheader', { name: /title/i })).toBeInTheDocument();
+    });
+
+    it('keeps typed text and focus across a reload cycle', () => {
+      const { rerender } = render(table({}));
+      const input = screen.getByRole('searchbox');
+      input.focus();
+      type('abc');
+      rerender(table({ isLoading: true, items: [] }));
+      type('abcd');
+      rerender(table({ isLoading: false, items: SAMPLE_ITEMS }));
+      expect(screen.getByRole('searchbox')).toBe(input);
+      expect(input).toHaveValue('abcd');
+      expect(input).toHaveFocus();
+    });
+
+    it('renders only the skeleton (no toolbar) on the initial load', () => {
+      render(table({ isLoading: true, items: [] }));
+      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.queryByRole('searchbox')).not.toBeInTheDocument();
+    });
+
+    it('sets aria-busy on the table container only while loading', () => {
+      const { container, rerender } = render(table({}));
+      expect(container.querySelector('[aria-busy]')).not.toBeInTheDocument();
+      rerender(table({ isLoading: true, items: SAMPLE_ITEMS }));
+      expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+      expect(container.querySelector('table')!.closest('[aria-busy="true"]')).not.toBeNull();
+      rerender(table({ isLoading: false }));
+      expect(container.querySelector('[aria-busy]')).not.toBeInTheDocument();
     });
   });
 

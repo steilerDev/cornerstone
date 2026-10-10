@@ -27,6 +27,7 @@ import {
   ValidationError,
   ItemizedSumExceedsInvoiceError,
 } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
@@ -164,6 +165,7 @@ export function listInvoices(db: DbType, vendorId: string): Invoice[] {
 
 /**
  * List all invoices across all vendors with pagination, filtering, sorting, and a status summary.
+ * `q` matches the invoice number, the company (vendor) name, or the invoice description (notes).
  */
 export function listAllInvoices(
   db: DbType,
@@ -203,9 +205,10 @@ export function listAllInvoices(
     baseConditions.push(eq(invoices.vendorId, query.vendorId));
   }
   if (query.q) {
-    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const pattern = `%${escapedQ}%`;
-    baseConditions.push(sql`LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\'`);
+    const pattern = toLikeContainsPattern(query.q);
+    baseConditions.push(
+      sql`(LOWER(${invoices.invoiceNumber}) LIKE LOWER(${pattern}) ESCAPE '\\' OR LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\' OR LOWER(${invoices.notes}) LIKE LOWER(${pattern}) ESCAPE '\\')`,
+    );
   }
   if (query.dateFrom) {
     baseConditions.push(gte(invoices.date, query.dateFrom));

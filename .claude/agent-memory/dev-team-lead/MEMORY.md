@@ -40,4 +40,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Restructure baseline hazards](restructure-baseline-hazards.md) — closure-wide counts: `<a>`→`<Link>` in a shared component raises destinations; use useHref+useLinkClickHandler
 - [Empty-state replacement & calendar segments](empty-state-replacement-specs.md) — unmocked E2E break when EmptyState replaces a grid; unfiltered emptiness; segments in gridcells; count every stacked kind
 - [Read-time projection specs](read-time-projection-specs.md) — stale updated_at ETags, partial module mocks, stored-vs-two-run fallback, E2E timeline mocks, client second sources
+- [Route-map staging specs](route-map-staging-specs.md) — stage/interim for unbuilt targets, E2E has no shared/dist, plan tools transpile TS, fs tests in client, unmocked gates
 - [URL-state & search specs](url-state-specs.md) — history.state survives reload (test goto), waitForURL globs vs new ?params, RR7 transition drops keystrokes, scanner phones

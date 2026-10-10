@@ -1534,7 +1534,7 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       await expect(page.locator('select[id^="attachment-type-"]')).toHaveCount(0);
 
       await pickerModal.selectDocument(PF_DOC.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();

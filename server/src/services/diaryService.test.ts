@@ -213,6 +213,14 @@ describe('diaryService', () => {
       expect(result.items[0]!.id).toBe(matchId);
     });
 
+    it('treats a backslash in q as a literal character without throwing (#2197)', () => {
+      insertEntry({ title: 'Normal entry', body: 'No special chars' });
+      const matchId = insertEntry({ title: 'Path a\\b', body: 'Backslash entry' });
+
+      const result = listDiaryEntries(db, { q: '\\' });
+      expect(result.items.map((i) => i.id)).toEqual([matchId]);
+    });
+
     it('returns photoCount=1 for an entry with one photo after batch query refactor', () => {
       const id = insertEntry({ title: 'Entry with a photo' });
       const now = new Date().toISOString();

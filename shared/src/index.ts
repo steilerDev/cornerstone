@@ -118,6 +118,7 @@ export type {
 // Vendors
 export type {
   Vendor,
+  VendorListItem,
   VendorDetail,
   CreateVendorRequest,
   UpdateVendorRequest,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Vendor, VendorListQuery } from '@cornerstone/shared';
+import type { Vendor, VendorListItem, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -51,7 +51,7 @@ export function VendorsPage() {
   ];
 
   // Data state
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [vendors, setVendors] = useState<VendorListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
   const [totalItems, setTotalItems] = useState(0);
@@ -187,7 +187,7 @@ export function VendorsPage() {
 
   // Column definitions
   const columns = useMemo(
-    (): ColumnDef<Vendor>[] => [
+    (): ColumnDef<VendorListItem>[] => [
       {
         key: 'name',
         label: t('vendors.tableHeaders.name')!,
@@ -223,10 +223,11 @@ export function VendorsPage() {
         defaultVisible: true,
         render: (v) => {
           const parts = [];
-          if (v.phone) {
+          const phone = v.phone?.trim() ? v.phone : (v.firstContactPhone ?? null);
+          if (phone) {
             parts.push(
-              <a key="phone" href={`tel:${v.phone}`} className={styles.contactLink}>
-                {v.phone}
+              <a key="phone" href={`tel:${phone}`} className={styles.contactLink}>
+                {phone}
               </a>,
             );
           }
@@ -348,7 +349,7 @@ export function VendorsPage() {
       }
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
-      <DataTable<Vendor>
+      <DataTable<VendorListItem>
         pageKey="vendors"
         columns={columns}
         items={vendors}

@@ -1100,6 +1100,8 @@
     "analyzing": "Analyzing… ({{seconds}}s)",
     "spinnerLabel": "Analyzing invoice",
     "error": "Error loading auto-itemize",
+    "missingDocumentTitle": "No document chosen",
+    "missingDocument": "Go back to Invoices and choose a document to start a new invoice from it.",
     "loadError": "Failed to load invoice data. Please try again.",
     "saveError": "Failed to save auto-itemized invoice. Please try again.",
     "unexpectedResponse": "Unexpected response from LLM. Please try again.",

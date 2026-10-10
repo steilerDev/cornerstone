@@ -30,6 +30,7 @@ import {
   InvalidEntryTypeError,
   AlreadySavedError,
 } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 import { deletePhotosForEntity } from './photoService.js';
 import type {
   DiaryEntrySummary,
@@ -537,9 +538,7 @@ export function listDiaryEntries(
   }
 
   if (query.q) {
-    // Escape SQL LIKE wildcards
-    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const pattern = `%${escapedQ}%`;
+    const pattern = toLikeContainsPattern(query.q);
     conditions.push(
       or(
         sql`LOWER(${diaryEntries.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,

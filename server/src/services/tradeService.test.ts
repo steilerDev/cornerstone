@@ -91,6 +91,17 @@ describe('Trade Service', () => {
   // ─── listTrades() ──────────────────────────────────────────────────────────
 
   describe('listTrades()', () => {
+    it('treats %, _ and backslash in the search term as literal characters (#2197)', () => {
+      createTestTrade('Plain Trade');
+      createTestTrade('Half% Trade');
+      createTestTrade('Under_score Trade');
+      createTestTrade('Back\\slash Trade');
+
+      expect(tradeService.listTrades(db, '%').map((t) => t.name)).toEqual(['Half% Trade']);
+      expect(tradeService.listTrades(db, '_').map((t) => t.name)).toEqual(['Under_score Trade']);
+      expect(tradeService.listTrades(db, '\\').map((t) => t.name)).toEqual(['Back\\slash Trade']);
+    });
+
     it('returns empty list when no trades exist', () => {
       const result = tradeService.listTrades(db);
       expect(result).toHaveLength(0);

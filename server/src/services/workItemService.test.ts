@@ -1291,6 +1291,20 @@ describe('Work Item Service', () => {
       expect(result3.items[0]!.title).toBe('Foundation work');
     });
 
+    it('treats % and backslash in q as literal characters (#2197)', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      workItemService.createWorkItem(db, userId, { title: 'Plain task' });
+      workItemService.createWorkItem(db, userId, { title: '50% done' });
+      workItemService.createWorkItem(db, userId, { title: 'Folder a\\b' });
+
+      expect(workItemService.listWorkItems(db, { q: '%' }).items.map((i) => i.title)).toEqual([
+        '50% done',
+      ]);
+      expect(workItemService.listWorkItems(db, { q: '\\' }).items.map((i) => i.title)).toEqual([
+        'Folder a\\b',
+      ]);
+    });
+
     it('supports custom sorting by title ascending', () => {
       // Given: Work items with various titles
       const userId = createTestUser('user@example.com', 'Test User');

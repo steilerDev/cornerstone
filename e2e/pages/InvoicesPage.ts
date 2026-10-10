@@ -386,6 +386,21 @@ export class InvoicesPage {
   }
 
   /**
+   * Type into the search box key by key (no delay), like a user. Does not wait for the
+   * debounced commit; callers assert on URL / results.
+   */
+  async typeSearch(text: string): Promise<void> {
+    await this.searchInput.click();
+    await this.searchInput.pressSequentially(text);
+  }
+
+  /** Clear the search box with the keyboard (select all + Backspace). */
+  async clearSearchWithKeys(): Promise<void> {
+    await this.searchInput.press('ControlOrMeta+a');
+    await this.searchInput.press('Backspace');
+  }
+
+  /**
    * Navigate to the invoice list with a search query applied via URL.
    * Direct URL navigation avoids React debounce timing issues.
    */

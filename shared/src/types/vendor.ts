@@ -24,6 +24,18 @@ export interface Vendor {
 }
 
 /**
+ * Vendor row as returned by GET /api/vendors (list only).
+ */
+export interface VendorListItem extends Vendor {
+  /**
+   * Phone number of the first contact person (by creation order) that has a non-blank
+   * phone; null when none has one. Always sent by GET /api/vendors. Optional in the type
+   * so plain `Vendor` objects (pickers, test mocks) stay assignable.
+   */
+  firstContactPhone?: string | null;
+}
+
+/**
  * Vendor entity with computed invoice statistics.
  * Used in single-vendor responses (GET by ID, PATCH).
  */

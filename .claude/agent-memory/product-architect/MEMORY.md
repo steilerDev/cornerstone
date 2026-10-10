@@ -8,6 +8,7 @@
 - [fs.stat vs readability; pre-reply validation](recurring-patterns.md) — `stat` proves existence only, use `fs.access(R_OK)`; moving a check before the reply makes its error copy live, so re-read it (PR #2168)
 - [Phantom imports escape --omit=dev audit](recurring-patterns.md) — sweep shipped-source imports vs `dependencies`; nanoid case (PR #2180)
 - ["One map" consolidation PRs](recurring-patterns.md) — grep enum class names + undefined `--color-status-*` tokens; canonicalising one surface splits a vocabulary (PR #2270)
+- ["Every X" claims](recurring-patterns.md) — grep the old idiom repo-wide; the diff only shows converted sites (LIKE escaping, PR #2272)
 - [Re-runnable crash recovery](recurring-patterns.md) — flip the marker between a rollback's destructive and restoring loops; side effects before a fallible start step (ADR-037)
 - [Recovery steps on a full disk](recurring-patterns.md) — re-assert persisted state only when it differs; free regenerable space before any write (PR #2169)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION

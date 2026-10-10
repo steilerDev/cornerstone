@@ -343,6 +343,24 @@ describe('Standalone Invoice Routes', () => {
       expect(body.invoices).toHaveLength(2);
     });
 
+    it('filters by company name via q (case-insensitive, number need not match) (#2197)', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const drywall = createTestVendor('Sample Drywall Ltd');
+      const roofing = createTestVendor('Test Roofing Co');
+      createTestInvoice(drywall, { invoiceNumber: 'INV-TEST-0001' });
+      createTestInvoice(roofing, { invoiceNumber: 'INV-TEST-0002' });
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/invoices?q=DRYWALL',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ invoices: Invoice[] }>();
+      expect(body.invoices.map((i) => i.invoiceNumber)).toEqual(['INV-TEST-0001']);
+    });
+
     it('sorts by amount ascending', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendorId = createTestVendor('Vendor Sort Amount');

@@ -549,7 +549,7 @@ test.describe('Scenario 3 — Document selection triggers extraction', () => {
     await pickerModal.selectDocument(MOCK_DOC_1.title);
 
     // Navigation to review page occurs
-    await page.waitForURL('**/budget/invoices/new/paperless');
+    await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
     // Review page shows loading state
     const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -594,7 +594,7 @@ test.describe(
 
         // Select document — this calls navigate('/budget/invoices/new/paperless', { state: {...} })
         await pickerModal.selectDocument(MOCK_DOC_1.title);
-        await page.waitForURL('**/budget/invoices/new/paperless');
+        await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
         const reviewPage = new PaperlessInvoiceReviewPage(page);
         await reviewPage.waitForExtractionComplete();
@@ -813,7 +813,7 @@ test.describe('Scenario 7 — Full confirm flow', { tag: '@smoke' }, () => {
 
       // Step 2: Select document → navigate to review page
       await pickerModal.selectDocument(MOCK_DOC_1.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       // Step 3: Wait for extraction complete on review page
       const reviewPage = new PaperlessInvoiceReviewPage(page);
@@ -968,7 +968,7 @@ async function navigateToReviewPage(page: Page): Promise<PaperlessInvoiceReviewP
   await invoicesPage.clickNewInvoice();
   const pickerModal = await invoicesPage.waitForPickerModal();
   await pickerModal.selectDocument(MOCK_DOC_1.title);
-  await page.waitForURL('**/budget/invoices/new/paperless');
+  await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
   const reviewPage = new PaperlessInvoiceReviewPage(page);
   await reviewPage.waitForExtractionComplete();

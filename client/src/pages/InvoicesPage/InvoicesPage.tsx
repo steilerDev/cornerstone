@@ -418,9 +418,7 @@ export function InvoicesPage() {
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);
-    navigate('/budget/invoices/new/paperless', {
-      state: { documentId: doc.id, documentTitle: doc.title },
-    });
+    navigate(`/budget/invoices/new/paperless?documentId=${doc.id}`);
   };
 
   const handlePaperlessManualEntry = () => {

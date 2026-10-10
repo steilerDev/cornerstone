@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ReactNode } from 'react';
 import type { FilterMeta } from '@cornerstone/shared';
@@ -10,9 +10,12 @@ import { DataTableCard } from './DataTableCard.js';
 import { DataTablePagination } from './DataTablePagination.js';
 import { DataTableColumnSettings } from './DataTableColumnSettings.js';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import styles from './DataTable.module.css';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 /**
  * Filter type enumeration for DataTable column filters
@@ -174,7 +177,8 @@ export interface DataTableProps<T, C = unknown> {
  * DataTable component with integrated state management
  *
  * Provides:
- * - Search with debouncing
+ * - Search with a local draft, debounced 300 ms (Enter commits at once); the toolbar stays
+ *   mounted while results reload
  * - Column sorting (3-state cycling)
  * - Per-column filtering
  * - Pagination with configurable page sizes
@@ -213,6 +217,21 @@ export function DataTable<T, C = unknown>({
   const [clientFilters, setClientFilters] = useState<Map<string, { value: string }>>(
     () => new Map(),
   );
+
+  const [searchDraft, setSearchDraft] = useState(tableState.search);
+  const searchPendingRef = useRef(false);
+  // True once the first load has finished; afterwards loading never unmounts the toolbar.
+  const [hasSettled, setHasSettled] = useState(!isLoading);
+  if (!isLoading && !hasSettled) setHasSettled(true);
+
+  // Mirror external search changes (Clear filters, Back/Forward, ?q= links) into the draft
+  // without overwriting text the user is still typing.
+  useEffect(() => {
+    if (searchPendingRef.current) return;
+    /* eslint-disable @eslint-react/set-state-in-effect -- mirror external search changes into the draft */
+    setSearchDraft(tableState.search);
+    /* eslint-enable @eslint-react/set-state-in-effect */
+  }, [tableState.search]);
 
   // Expansion state for parent/child rows — component-local, never persisted to
   // TableState/URL. No effect resets it on `items` change: a real page reload
@@ -368,6 +387,23 @@ export function DataTable<T, C = unknown>({
     onStateChange(newState);
   };
 
+  const debouncedSearch = useDebouncedCallback((query: string) => {
+    searchPendingRef.current = false;
+    if (query !== tableState.search) handleSearch(query);
+  }, SEARCH_DEBOUNCE_MS);
+
+  const handleSearchInput = (query: string) => {
+    setSearchDraft(query);
+    searchPendingRef.current = true;
+    debouncedSearch.trigger(query);
+  };
+
+  const flushSearch = () => {
+    debouncedSearch.cancel();
+    searchPendingRef.current = false;
+    if (searchDraft !== tableState.search) handleSearch(searchDraft);
+  };
+
   const handleSort = (columnKey: string, columnSortKey?: string) => {
     const sortKey = columnSortKey || columnKey;
     let newSortDir: 'asc' | 'desc' | null = 'asc';
@@ -421,6 +457,9 @@ export function DataTable<T, C = unknown>({
   };
 
   const handleResetFilters = () => {
+    debouncedSearch.cancel();
+    searchPendingRef.current = false;
+    setSearchDraft('');
     setClientFilters(new Map());
     const newState = {
       ...tableState,
@@ -436,7 +475,7 @@ export function DataTable<T, C = unknown>({
     [tableState.search, tableState.filters, clientFilters],
   );
 
-  if (isLoading && items.length === 0) {
+  if (isLoading && !hasSettled && items.length === 0) {
     return (
       <div className={`${styles.dataTableContainer} ${className || ''}`}>
         <Skeleton lines={5} loadingLabel={t('dataTable.loading')} />
@@ -462,8 +501,11 @@ export function DataTable<T, C = unknown>({
             <input
               type="search"
               placeholder={t('dataTable.search.placeholder')}
-              value={tableState.search}
-              onChange={(e) => handleSearch(e.target.value)}
+              value={searchDraft}
+              onChange={(e) => handleSearchInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') flushSearch();
+              }}
               className={styles.searchInput}
               aria-label={t('dataTable.search.ariaLabel')}
             />
@@ -489,7 +531,7 @@ export function DataTable<T, C = unknown>({
       </div>
 
       {/* Desktop Table — always show header */}
-      <div className={styles.tableContainer}>
+      <div className={styles.tableContainer} aria-busy={isLoading || undefined}>
         <table className={styles.table}>
           <DataTableHeader<T>
             columns={sortedColumns}
@@ -574,7 +616,9 @@ export function DataTable<T, C = unknown>({
       </div>
 
       {/* Empty state or mobile cards */}
-      {filteredItems.length === 0 ? (
+      {isLoading && items.length === 0 ? (
+        <Skeleton lines={5} loadingLabel={t('dataTable.loading')} />
+      ) : filteredItems.length === 0 ? (
         <EmptyState
           message={
             hasActiveFilters

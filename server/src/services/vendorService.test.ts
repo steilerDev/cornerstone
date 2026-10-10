@@ -470,6 +470,97 @@ describe('Vendor Service', () => {
     });
   });
 
+  describe('listVendors() firstContactPhone (#2197)', () => {
+    let contactCounter = 0;
+
+    function addContact(
+      vendorId: string,
+      options: { phone?: string | null; createdAt?: string; id?: string } = {},
+    ) {
+      contactCounter += 1;
+      const createdAt = options.createdAt ?? '2026-01-01T00:00:00.000Z';
+      db.insert(schema.vendorContacts)
+        .values({
+          id: options.id ?? `contact-${contactCounter}`,
+          vendorId,
+          name: `Contact ${contactCounter}`,
+          phone: options.phone ?? null,
+          createdAt,
+          updatedAt: createdAt,
+        })
+        .run();
+    }
+
+    function phoneFor(vendorName: string) {
+      const row = vendorService.listVendors(db, {}).vendors.find((v) => v.name === vendorName);
+      return row?.firstContactPhone;
+    }
+
+    it('is null when the vendor has no contacts', () => {
+      createTestVendor('No Contacts Co');
+      expect(phoneFor('No Contacts Co')).toBeNull();
+    });
+
+    it('is null when contacts have no phone or a blank phone', () => {
+      const id = createTestVendor('Blank Phone Co').id;
+      addContact(id, { phone: null });
+      addContact(id, { phone: '  ' });
+      expect(phoneFor('Blank Phone Co')).toBeNull();
+    });
+
+    it('picks the contact with the earliest created_at that has a phone', () => {
+      const id = createTestVendor('Two Contacts Co').id;
+      addContact(id, { phone: '555-0102', createdAt: '2026-02-01T00:00:00.000Z' });
+      addContact(id, { phone: '555-0101', createdAt: '2026-01-01T00:00:00.000Z' });
+      expect(phoneFor('Two Contacts Co')).toBe('555-0101');
+    });
+
+    it('skips an earlier contact without a phone', () => {
+      const id = createTestVendor('Skip Co').id;
+      addContact(id, { phone: null, createdAt: '2026-01-01T00:00:00.000Z' });
+      addContact(id, { phone: '555-0103', createdAt: '2026-02-01T00:00:00.000Z' });
+      expect(phoneFor('Skip Co')).toBe('555-0103');
+    });
+
+    it('breaks created_at ties by the lower contact id', () => {
+      const id = createTestVendor('Tie Co').id;
+      addContact(id, { id: 'contact-b', phone: '555-0105' });
+      addContact(id, { id: 'contact-a', phone: '555-0104' });
+      expect(phoneFor('Tie Co')).toBe('555-0104');
+    });
+
+    it('is still set when the vendor has its own phone', () => {
+      const id = createTestVendor('Own Phone Co', { phone: '555-0102' }).id;
+      addContact(id, { phone: '555-0103' });
+      const row = vendorService.listVendors(db, {}).vendors.find((v) => v.name === 'Own Phone Co');
+      expect(row?.phone).toBe('555-0102');
+      expect(row?.firstContactPhone).toBe('555-0103');
+    });
+
+    it('does not include firstContactPhone in getVendorById or createVendor responses', () => {
+      const id = createTestVendor('Detail Co').id;
+      addContact(id, { phone: '555-0101' });
+      expect(vendorService.getVendorById(db, id)).not.toHaveProperty('firstContactPhone');
+      expect(
+        vendorService.createVendor(
+          db,
+          { name: 'Created Co' },
+          createTestUser('qa@example.com', 'QA'),
+        ),
+      ).not.toHaveProperty('firstContactPhone');
+    });
+
+    it('matches a literal % or backslash in q without wildcard behaviour', () => {
+      createTestVendor('Plain Co');
+      const pct = createTestVendor('Half% Co').id;
+      createTestVendor('Back\\slash Co');
+      expect(vendorService.listVendors(db, { q: '%' }).vendors.map((v) => v.id)).toEqual([pct]);
+      expect(vendorService.listVendors(db, { q: '\\' }).vendors.map((v) => v.name)).toEqual([
+        'Back\\slash Co',
+      ]);
+    });
+  });
+
   // ─── getVendorById() ────────────────────────────────────────────────────────
 
   describe('getVendorById()', () => {

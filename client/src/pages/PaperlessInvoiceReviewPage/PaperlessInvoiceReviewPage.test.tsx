@@ -388,12 +388,7 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
 // ─── Render helper ─────────────────────────────────────────────────────────────
 // Wraps in LocaleProvider (matches AutoItemizePage.test.tsx pattern).
 
-function renderPage(
-  state: { documentId: number; documentTitle: string } = {
-    documentId: 42,
-    documentTitle: 'Test Invoice',
-  },
-) {
+function renderPage(documentId: number = 42) {
   return render(
     React.createElement(
       LocaleProvider,
@@ -401,12 +396,7 @@ function renderPage(
       React.createElement(
         MemoryRouter,
         {
-          initialEntries: [
-            {
-              pathname: '/budget/invoices/new/paperless',
-              state,
-            },
-          ],
+          initialEntries: [`/budget/invoices/new/paperless?documentId=${documentId}`],
         },
         React.createElement(
           Routes,
@@ -456,7 +446,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(screen.getAllByText(/Analyzing/i).length).toBeGreaterThan(0);
     });
 
-    it('previewAutoItemize is called on mount with the documentId from location state', async () => {
+    it('previewAutoItemize is called on mount with the documentId from the ?documentId= query', async () => {
       // Allow the document fetch to proceed so the preview call fires
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       // Let vendors load
@@ -475,6 +465,7 @@ describe('PaperlessInvoiceReviewPage', () => {
         expect(mockPreviewAutoItemize).toHaveBeenCalledWith({ paperlessDocumentId: 42 });
       });
       expect(mockPreviewAutoItemize).toHaveBeenCalledTimes(1);
+      expect(mockGetPaperlessDocument).toHaveBeenCalledWith(42);
 
       // Clean up: resolve the pending preview to avoid act() warnings
       await act(async () => {
@@ -1140,16 +1131,14 @@ describe('PaperlessInvoiceReviewPage', () => {
   // ─── 11. Missing documentId guard ───────────────────────────────────────────
 
   describe('missing documentId guard', () => {
-    it('renders an error / fallback when no documentId in location state', async () => {
-      render(
+    function renderAt(entry: string | { pathname: string; state: unknown }) {
+      return render(
         React.createElement(
           LocaleProvider,
           null,
           React.createElement(
             MemoryRouter,
-            {
-              initialEntries: [{ pathname: '/budget/invoices/new/paperless', state: {} }],
-            },
+            { initialEntries: [entry as string] },
             React.createElement(
               Routes,
               null,
@@ -1157,53 +1146,68 @@ describe('PaperlessInvoiceReviewPage', () => {
                 path: '/budget/invoices/new/paperless',
                 element: React.createElement(PaperlessInvoiceReviewPage),
               }),
+              React.createElement(Route, {
+                path: '/budget/invoices',
+                element: React.createElement('div', { 'data-testid': 'invoices-list-page' }),
+              }),
             ),
           ),
         ),
       );
+    }
 
-      await waitFor(() => {
-        // The guard renders a simple <div> with the error translation key
-        // or an error page — either way the body is non-empty
-        const body = document.body.textContent ?? '';
-        expect(body.length).toBeGreaterThan(0);
+    const MISSING_URLS = [
+      '/budget/invoices/new/paperless',
+      '/budget/invoices/new/paperless?documentId=abc',
+      '/budget/invoices/new/paperless?documentId=0',
+      '/budget/invoices/new/paperless?documentId=-3',
+      '/budget/invoices/new/paperless?documentId=1.5',
+      '/budget/invoices/new/paperless?documentId=',
+      '/budget/invoices/new/paperless?documentId=99999999999999999999',
+    ];
+
+    it.each(MISSING_URLS)(
+      'shows the "No document chosen" layout for %s and makes no API call',
+      async (url) => {
+        renderAt(url);
+
+        expect(
+          await screen.findByRole('heading', { level: 1, name: 'No document chosen' }),
+        ).toBeInTheDocument();
+        expect(
+          screen.getByText(
+            'Go back to Invoices and choose a document to start a new invoice from it.',
+          ),
+        ).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to Invoices' })).toBeInTheDocument();
+        expect(screen.queryByRole('status')).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
+        ).not.toBeInTheDocument();
+        expect(mockGetPaperlessDocument).not.toHaveBeenCalled();
+        expect(mockPreviewAutoItemize).not.toHaveBeenCalled();
+      },
+    );
+
+    it('treats history state alone (no query) as a missing document', async () => {
+      renderAt({
+        pathname: '/budget/invoices/new/paperless',
+        state: { documentId: 42, documentTitle: 'Test Invoice' },
       });
 
-      // The loading spinner should NOT be present (no async fetch started)
-      // and no create invoice button should render
       expect(
-        screen.queryByRole('button', { name: 'Create Invoice & Itemize' }),
-      ).not.toBeInTheDocument();
+        await screen.findByRole('heading', { level: 1, name: 'No document chosen' }),
+      ).toBeInTheDocument();
+      expect(mockGetPaperlessDocument).not.toHaveBeenCalled();
+      expect(mockPreviewAutoItemize).not.toHaveBeenCalled();
     });
 
-    it('does not call previewAutoItemize when no documentId', async () => {
-      render(
-        React.createElement(
-          LocaleProvider,
-          null,
-          React.createElement(
-            MemoryRouter,
-            {
-              initialEntries: [{ pathname: '/budget/invoices/new/paperless', state: {} }],
-            },
-            React.createElement(
-              Routes,
-              null,
-              React.createElement(Route, {
-                path: '/budget/invoices/new/paperless',
-                element: React.createElement(PaperlessInvoiceReviewPage),
-              }),
-            ),
-          ),
-        ),
-      );
+    it('navigates to the invoices list when "Back to Invoices" is clicked', async () => {
+      renderAt('/budget/invoices/new/paperless');
 
-      // Allow effects to settle
-      await waitFor(() => {
-        expect(document.body.textContent?.length ?? 0).toBeGreaterThan(0);
-      });
+      fireEvent.click(await screen.findByRole('button', { name: 'Back to Invoices' }));
 
-      expect(mockPreviewAutoItemize).not.toHaveBeenCalled();
+      expect(await screen.findByTestId('invoices-list-page')).toBeInTheDocument();
     });
   });
 
@@ -1403,12 +1407,12 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(iframe!.getAttribute('title')).toBe('Invoice PDF preview');
     });
 
-    it('iframe src contains the documentId from location state', async () => {
+    it('iframe src contains the documentId from the query string', async () => {
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockPreviewAutoItemize.mockResolvedValue(makePreviewResponse({ suggestedVendorId: null }));
       mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
 
-      renderPage({ documentId: 42, documentTitle: 'Test Invoice' });
+      renderPage(42);
 
       await waitFor(
         () => {

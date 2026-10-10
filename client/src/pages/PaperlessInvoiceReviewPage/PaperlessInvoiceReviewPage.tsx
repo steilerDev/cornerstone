@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
@@ -56,13 +56,14 @@ interface MetadataEdits {
   status: InvoiceStatus;
 }
 
-interface LocationState {
-  documentId: number;
-  documentTitle: string;
+/** Positive integer document id from `?documentId=`, else null. */
+function parseDocumentId(raw: string | null): number | null {
+  if (raw === null || !/^\d+$/.test(raw)) return null;
+  const id = Number(raw);
+  return Number.isSafeInteger(id) && id > 0 ? id : null;
 }
 
 export function PaperlessInvoiceReviewPage() {
-  const location = useLocation();
   const navigate = useNavigate();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
@@ -72,8 +73,8 @@ export function PaperlessInvoiceReviewPage() {
   vatRateRef.current = vatRate;
   const { formatCurrency } = useFormatters();
 
-  const state = (location.state || {}) as LocationState;
-  const documentId = state.documentId;
+  const [searchParams] = useSearchParams();
+  const documentId = parseDocumentId(searchParams.get('documentId'));
 
   const createdFromExtractionVariants = useMemo(
     (): BadgeVariantMap => ({
@@ -164,7 +165,7 @@ export function PaperlessInvoiceReviewPage() {
 
   // Load document and run preview on mount
   useEffect(() => {
-    if (!documentId) return;
+    if (documentId === null) return;
 
     const loadData = async () => {
       setPageStatus('loading');
@@ -277,7 +278,7 @@ export function PaperlessInvoiceReviewPage() {
   };
 
   const handleSave = useCallback(async () => {
-    if (!documentId || !document) return;
+    if (documentId === null || !document) return;
 
     if (!vendorId) {
       setVendorError(t('autoItemize.vendorRequired'));
@@ -373,13 +374,11 @@ export function PaperlessInvoiceReviewPage() {
     };
   }, [computedTotal, metadataEdits.amount]);
 
-  if (!documentId) {
-    return <div>{t('autoItemize.error')}</div>;
-  }
+  const missingDocument = documentId === null;
 
   const isSaving = pageStatus === 'saving';
 
-  if (pageStatus === 'loading') {
+  if (!missingDocument && pageStatus === 'loading') {
     return (
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
@@ -403,7 +402,7 @@ export function PaperlessInvoiceReviewPage() {
     );
   }
 
-  if (pageStatus === 'error' || !document) {
+  if (documentId === null || pageStatus === 'error' || !document) {
     return (
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
@@ -412,10 +411,19 @@ export function PaperlessInvoiceReviewPage() {
               {t('autoItemize.cancel')}
             </button>
           </div>
-          <h1 className={styles.pageTitle}>{t('autoItemize.error')}</h1>
+          <h1 className={styles.pageTitle}>
+            {missingDocument ? t('autoItemize.missingDocumentTitle') : t('autoItemize.error')}
+          </h1>
         </div>
         <div className={styles.errorState}>
-          <FormError variant="banner" message={pageError || t('autoItemize.loadError')} />
+          <FormError
+            variant="banner"
+            message={
+              missingDocument
+                ? t('autoItemize.missingDocument')
+                : pageError || t('autoItemize.loadError')
+            }
+          />
           <button type="button" className={sharedStyles.btnPrimary} onClick={handleCancel}>
             {t('autoItemize.backToInvoices')}
           </button>

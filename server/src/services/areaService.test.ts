@@ -112,6 +112,17 @@ describe('Area Service', () => {
   // ─── listAreas() ───────────────────────────────────────────────────────────
 
   describe('listAreas()', () => {
+    it('treats %, _ and backslash in the search term as literal characters (#2197)', () => {
+      createTestArea('Plain Area');
+      createTestArea('Half% Area');
+      createTestArea('Under_score Area');
+      createTestArea('Back\\slash Area');
+
+      expect(areaService.listAreas(db, '%').map((a) => a.name)).toEqual(['Half% Area']);
+      expect(areaService.listAreas(db, '_').map((a) => a.name)).toEqual(['Under_score Area']);
+      expect(areaService.listAreas(db, '\\').map((a) => a.name)).toEqual(['Back\\slash Area']);
+    });
+
     it('returns empty list when no areas exist', () => {
       const result = areaService.listAreas(db);
       expect(result).toHaveLength(0);

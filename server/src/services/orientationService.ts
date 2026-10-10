@@ -9,6 +9,7 @@ import type {
   OrientationResponse,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, ConflictError } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -36,7 +37,7 @@ export function listOrientations(db: DbType, search?: string): OrientationRespon
     .from(orientations)
     .where(
       search
-        ? sql`LOWER(${orientations.name}) LIKE LOWER(${`%${search}%`}) OR LOWER(${orientations.description}) LIKE LOWER(${`%${search}%`})`
+        ? sql`(LOWER(${orientations.name}) LIKE LOWER(${toLikeContainsPattern(search)}) ESCAPE '\\' OR LOWER(${orientations.description}) LIKE LOWER(${toLikeContainsPattern(search)}) ESCAPE '\\')`
         : undefined,
     )
     .orderBy(asc(orientations.sortOrder), asc(orientations.name))

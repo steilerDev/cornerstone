@@ -202,8 +202,13 @@ export class PaperlessInvoiceReviewPage {
    */
   readonly pickerCreateBudgetLineButton: Locator;
 
+  /** Page h1 (extraction complete / missing document / error, depending on state). */
+  readonly heading: Locator;
+
   constructor(page: Page) {
     this.page = page;
+
+    this.heading = page.getByRole('heading', { level: 1 });
 
     // Loading state
     // Spinner from Spinner component — rendered as role="img" or just a div with class*="spinner"
@@ -322,6 +327,16 @@ export class PaperlessInvoiceReviewPage {
     this.mergeUndoButton = this.mergeErrorRow.getByRole('button', {
       name: /^Restore original lines$/i,
     });
+  }
+
+  /**
+   * Navigate directly to the review page. The document id lives in the URL
+   * (`?documentId=`), so a bookmark / reload / login redirect all work.
+   * Omit the id to reach the "No document chosen" state.
+   */
+  async goto(documentId?: number): Promise<void> {
+    const query = documentId === undefined ? '' : `?documentId=${documentId}`;
+    await this.page.goto(`/budget/invoices/new/paperless${query}`);
   }
 
   /**
