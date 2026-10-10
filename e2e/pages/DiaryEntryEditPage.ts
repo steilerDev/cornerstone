@@ -194,7 +194,7 @@ export class DiaryEntryEditPage {
     // Both modes render a type="submit" button; text differs by status.
     this.submitButton = page.getByRole('button', { name: /^Save$|^Save Changes$|Saving\.\.\./i });
     // "Cancel" in the form actions (navigates to /diary/:id or /diary) — NOT the modal cancel
-    this.cancelButton = page.locator('[class*="cancelButton"]').first();
+    this.cancelButton = page.locator('form').getByRole('button', { name: 'Cancel', exact: true });
     // "Delete Entry" button — opens the delete modal (only for saved entries)
     this.deleteButton = page.getByRole('button', { name: 'Delete Entry', exact: true });
 

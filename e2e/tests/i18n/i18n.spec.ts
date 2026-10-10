@@ -302,7 +302,8 @@ test.describe('i18n: Language Switching', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Fotos' })).toBeVisible();
     await expect(page).toHaveTitle(/^Fotos · [^·]+$/);
 
-    // Settings: Project setup / Account / Users / Backups (admin)
+    // Settings: Project setup (every user). This spec's dedicated user is a member, so the
+    // admin-only pages render "No access" (their German h1s are not reachable here).
     await page.goto(routeUrl('settingsManage'));
     await expect(
       page.getByRole('heading', { level: 1, name: 'Projekteinrichtung', exact: true }),
@@ -311,13 +312,9 @@ test.describe('i18n: Language Switching', () => {
 
     await page.goto(ROUTES.userManagement);
     await expect(
-      page.getByRole('heading', { level: 1, name: 'Benutzer', exact: true }),
+      page.getByRole('heading', { level: 1, name: 'Kein Zugriff', exact: true }),
     ).toBeVisible();
-
-    await page.goto(ROUTES.backups);
-    await expect(
-      page.getByRole('heading', { level: 1, name: 'Sicherungen', exact: true }),
-    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Kein Zugriff · [^·]+$/);
 
     // Page not found
     await page.goto('/pi-does-not-exist-de');

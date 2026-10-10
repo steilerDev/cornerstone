@@ -326,10 +326,16 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expectOneH1(page, NAMES.titled);
       await bc.expectBack('Home');
 
-      // ... and is gone when the same URL is opened fresh
-      await page.goto(page.url());
-      await expectOneH1(page, NAMES.titled);
-      await bc.expectNoBack();
+      // ... and is gone when the same URL is opened fresh (a new tab has no history state;
+      // a same-URL goto on this page would keep it)
+      const fresh = await page.context().newPage();
+      try {
+        await fresh.goto(page.url());
+        await expectOneH1(fresh, NAMES.titled);
+        await new BreadcrumbsBar(fresh).expectNoBack();
+      } finally {
+        await fresh.close();
+      }
 
       // Back returns to Home
       await page.goBack();
