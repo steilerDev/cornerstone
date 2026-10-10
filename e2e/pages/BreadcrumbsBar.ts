@@ -39,10 +39,18 @@ export class BreadcrumbsBar {
     return this.nav.getByRole('link', { name, exact: true });
   }
 
-  /** Assert the trail holds exactly these links, in order. */
+  /**
+   * Assert the trail holds exactly these links, in order.
+   *
+   * On a phone (< 768px) the row shows ONE link: Back when there is an origin, otherwise only
+   * the nearest parent (the last name), rendered "‹ parent". The other trail links are not
+   * rendered/visible, so the expectation shrinks to the last name there.
+   */
   async expectTrail(names: string[]): Promise<void> {
+    const width = this.page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER;
+    const expected = width < 768 ? names.slice(-1) : names;
     await expect(this.trailLinks).toHaveText(
-      names.map((name) => new RegExp(`^‹?${escapeRegExp(name)}$`)),
+      expected.map((name) => new RegExp(`^‹?${escapeRegExp(name)}$`)),
     );
   }
 

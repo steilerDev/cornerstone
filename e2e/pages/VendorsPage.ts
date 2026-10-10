@@ -15,6 +15,7 @@
  * - An empty state when no vendors exist (or no search matches)
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 
@@ -236,15 +237,13 @@ export class VendorsPage {
     } catch {
       return null;
     }
-    const rows = await this.getTableRows();
-    for (const row of rows) {
-      const link = row.locator('[class*="vendorLink"]');
-      const text = await link.textContent();
-      if (text?.trim() === vendorName) {
-        return row;
-      }
-    }
-    return null;
+    const escaped = vendorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const row = this.tableBody.locator('tr').filter({
+      has: this.page.locator('[class*="vendorLink"]', {
+        hasText: new RegExp(`^\\s*${escaped}\\s*$`),
+      }),
+    });
+    return (await row.count()) > 0 ? row.first() : null;
   }
 
   /**
@@ -254,30 +253,13 @@ export class VendorsPage {
    */
   async getVendorNames(): Promise<string[]> {
     const tableVisible = await this.tableContainer.isVisible();
-    if (tableVisible) {
-      const rows = await this.getTableRows();
-      const names: string[] = [];
-      for (const row of rows) {
-        const link = row.locator('[class*="vendorLink"]');
-        const linkCount = await link.count();
-        if (linkCount > 0) {
-          const text = await link.textContent();
-          if (text) names.push(text.trim());
-        }
-      }
-      return names;
-    }
-
-    // Mobile cards: the name column renders a vendorLink anchor inside a cardValue span.
-    // DataTable renders the same render() function inside cards, so vendorLink CSS class
-    // still appears inside the cardsContainer. Read from those links.
-    const cardLinks = await this.cardsContainer.locator('[class*="vendorLink"]').all();
-    const names: string[] = [];
-    for (const link of cardLinks) {
-      const text = await link.textContent();
-      if (text) names.push(text.trim());
-    }
-    return names;
+    // One atomic read of the matching links (no per-element snapshot loop). Mobile cards render
+    // the same vendorLink anchor inside a cardValue span.
+    const links = tableVisible
+      ? this.tableBody.locator('tr [class*="vendorLink"]')
+      : this.cardsContainer.locator('[class*="vendorLink"]');
+    const texts = await links.allTextContents();
+    return texts.map((text) => text.trim()).filter((text) => text.length > 0);
   }
 
   /**
@@ -299,60 +281,16 @@ export class VendorsPage {
    * then click the Delete item.
    */
   async openDeleteModal(vendorName: string): Promise<void> {
-    // VendorsPage uses a custom actions menu per row/card:
-    // - Menu button: class*="menuButton", aria-label=t('common:menu.actions')
-    // - Delete item: class*="menuItem" class*="menuItemDanger", text="Delete"
-    //
-    // On mobile the table container is CSS display:none — DataTableCard renders the same
-    // actions menu inside cards. Check table visibility and use the correct container.
-    const tableVisible = await this.tableContainer.isVisible();
+    // DataTable mounts the table row and the mobile card at once; contactCell() is the visible
+    // one for the exact vendor name. Wait for the (possibly just-filtered) list to settle on
+    // exactly that one match instead of walking a snapshot of rows/cards, which goes stale
+    // while a search re-renders the list.
+    const item = this.contactCell(vendorName);
+    await expect(item).toHaveCount(1);
 
-    if (tableVisible) {
-      // Desktop/tablet: find the row in the table by vendor name link
-      await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const link = row.locator('[class*="vendorLink"]');
-        const linkCount = await link.count();
-        if (linkCount > 0) {
-          const text = await link.textContent();
-          if (text?.trim() === vendorName) {
-            const menuButton = row.locator('[class*="menuButton"]');
-            await menuButton.click();
-            const deleteButton = row.locator('[class*="menuItem"][class*="menuItemDanger"]');
-            await deleteButton.click();
-            await this.deleteModal.waitFor({ state: 'visible' });
-            return;
-          }
-        }
-      }
-    } else {
-      // Mobile: find the card by vendor name and open its actions menu.
-      // DataTableCard renders the name column via the same render() function as the table —
-      // the vendor name link uses class vendorLink (Link with styles.vendorLink). There is
-      // no separate cardName class. Match by vendorLink text inside each card.
-      const cardLocator = this.cardsContainer
-        .locator('[class*="card"]')
-        .filter({ has: this.page.locator('[class*="vendorLink"]') });
-      await cardLocator.first().waitFor({ state: 'visible' });
-      const cards = await cardLocator.all();
-      for (const card of cards) {
-        const nameEl = card.locator('[class*="vendorLink"]');
-        const nameCount = await nameEl.count();
-        if (nameCount > 0) {
-          const text = await nameEl.textContent();
-          if (text?.trim() === vendorName) {
-            const menuButton = card.locator('[class*="menuButton"]');
-            await menuButton.click();
-            const deleteButton = card.locator('[class*="menuItem"][class*="menuItemDanger"]');
-            await deleteButton.click();
-            await this.deleteModal.waitFor({ state: 'visible' });
-            return;
-          }
-        }
-      }
-    }
-    throw new Error(`Vendor "${vendorName}" not found in list`);
+    await item.locator('[class*="menuButton"]').click();
+    await item.locator('[class*="menuItem"][class*="menuItemDanger"]').click();
+    await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**

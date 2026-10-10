@@ -579,11 +579,18 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.task);
       await bc.expectBack(NAMES.milestone);
 
-      // ... a fresh navigation (a copied link) has no origin
-      await page.goto(page.url());
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(NAMES.task);
-      await bc.expectNoBack();
-      await bc.expectTrail(['Tasks']);
+      // ... a fresh navigation (a copied link, opened in a new tab) has no origin. A same-URL
+      // page.goto() would keep the entry's history state, so it is not a fresh visit.
+      const freshPage = await page.context().newPage();
+      try {
+        const freshBc = new BreadcrumbsBar(freshPage);
+        await freshPage.goto(page.url());
+        await expect(freshPage.getByRole('heading', { level: 1 })).toHaveText(NAMES.task);
+        await freshBc.expectNoBack();
+        await freshBc.expectTrail(['Tasks']);
+      } finally {
+        await freshPage.close();
+      }
     });
 
     test('E7: a milestone opened from Home offers "Back to Home"', async ({ page }) => {
