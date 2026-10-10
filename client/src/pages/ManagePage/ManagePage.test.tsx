@@ -583,6 +583,30 @@ describe('ManagePage', () => {
       }
     });
 
+    it('an unknown ?tab= value falls back to Areas with a single tab stop on Areas', () => {
+      renderManagePage('/settings/manage?tab=bogus');
+
+      for (const name of TAB_NAMES) {
+        const tab = screen.getByRole('tab', { name });
+        expect(tab).toHaveAttribute('aria-selected', name === 'Areas' ? 'true' : 'false');
+        expect(tab).toHaveAttribute('tabindex', name === 'Areas' ? '0' : '-1');
+      }
+    });
+
+    it('only the selected tab has aria-controls, pointing at the rendered panel', () => {
+      renderManagePage('/settings/manage?tab=trades');
+
+      const panel = screen.getByRole('tabpanel');
+      for (const name of TAB_NAMES) {
+        const tab = screen.getByRole('tab', { name });
+        if (name === 'Trades') {
+          expect(tab).toHaveAttribute('aria-controls', panel.id);
+        } else {
+          expect(tab).not.toHaveAttribute('aria-controls');
+        }
+      }
+    });
+
     it('the tab panel is labelled by the active tab', async () => {
       const user = userEvent.setup();
       renderManagePage('/settings/manage?tab=areas');

@@ -49,17 +49,20 @@ import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
 
-type Tab =
-  'household' | 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
-
-const MANAGE_TABS: readonly Tab[] = [
+const MANAGE_TABS = [
   'household',
   'areas',
   'trades',
   'orientations',
   'budget-categories',
   'hi-categories',
-];
+] as const;
+
+type Tab = (typeof MANAGE_TABS)[number];
+
+function parseTab(value: string | null): Tab {
+  return MANAGE_TABS.find((tab) => tab === value) ?? 'areas';
+}
 
 // ============================================================
 // HOUSEHOLD TAB
@@ -2826,7 +2829,7 @@ export function ManagePage() {
   const { t: tCommon } = useTranslation('common');
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
+  const [activeTab, setActiveTab] = useState<Tab>(() => parseTab(searchParams.get('tab')));
 
   const isAdmin = user?.role === 'admin';
 
@@ -2893,7 +2896,7 @@ export function ManagePage() {
             role="tab"
             id={`manage-tab-${tab}`}
             aria-selected={activeTab === tab}
-            aria-controls={`${tab}-panel`}
+            aria-controls={activeTab === tab ? `${tab}-panel` : undefined}
             tabIndex={activeTab === tab ? 0 : -1}
             className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
             onClick={() => setActiveTab(tab)}

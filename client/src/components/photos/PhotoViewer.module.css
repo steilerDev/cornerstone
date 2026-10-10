@@ -71,13 +71,6 @@
   justify-content: center;
 }
 
-/* Desktop sidebar mode: align close button with metadata header */
-@media (min-width: 768px) {
-  .closeButton {
-    top: calc(var(--spacing-4) + 1.5rem); /* Align with h3 baseline */
-  }
-}
-
 .closeButton:hover {
   transform: scale(1.1);
 }
