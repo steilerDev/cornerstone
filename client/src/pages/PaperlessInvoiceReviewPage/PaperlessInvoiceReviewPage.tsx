@@ -541,7 +541,6 @@ export function PaperlessInvoiceReviewPage() {
                     onChange={(e) =>
                       setMetadataEdits((prev) => ({ ...prev, amount: e.target.value }))
                     }
-                    placeholder="0.00"
                     disabled={isSaving}
                   />
                 </div>
@@ -596,7 +595,9 @@ export function PaperlessInvoiceReviewPage() {
                   >
                     {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {t(I18N_UNION_KEYS.invoiceStatus.key(s))}
+                        {t(I18N_UNION_KEYS.statusVocabularyInvoice.key(s), {
+                          ns: I18N_UNION_KEYS.statusVocabularyInvoice.ns,
+                        })}
                       </option>
                     ))}
                   </select>

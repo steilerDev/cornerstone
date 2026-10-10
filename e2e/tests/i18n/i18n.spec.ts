@@ -40,9 +40,20 @@
  * sequentially-executed tests, so locale state must not carry over between them.
  */
 
-import type { Page } from '@playwright/test';
+import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { ROUTES } from '../../fixtures/testData.js';
+import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
+import {
+  createHouseholdItemViaApi,
+  deleteHouseholdItemViaApi,
+  createVendorViaApi,
+  deleteVendorViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createWorkItemViaApi,
+  deleteWorkItemViaApi,
+} from '../../fixtures/apiHelpers.js';
 
 test.use({
   isolatedUserPerWorker: { emailPrefix: 'i18n-switch', displayName: 'E2E i18n User' },
@@ -374,5 +385,172 @@ test.describe('i18n: Language Persistence via API', () => {
     // server preference → 'system' → the CI browser locale, English.
     await page.reload();
     await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 — canonical status vocabulary in German
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('i18n: German status words (Story #2195)', () => {
+  test.beforeEach(async ({ page }) => {
+    // Locale switching is not viewport-specific; keep the German cold-start runs on desktop.
+    const viewport = page.viewportSize();
+    if (viewport !== null && viewport.width < 1200) {
+      test.skip();
+    }
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetToEnglish(page);
+  });
+
+  test('AC5: the Household Items list tells "Geplant" apart from "Lieferung geplant"', async ({
+    page,
+    testPrefix,
+  }) => {
+    const created: string[] = [];
+    try {
+      created.push(
+        await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} HI De Planned`,
+          status: 'planned',
+        }),
+      );
+      created.push(
+        await createHouseholdItemViaApi(page, {
+          name: `${testPrefix} HI De Scheduled`,
+          status: 'scheduled',
+        }),
+      );
+
+      await setLanguage(page, 'de');
+      await page.goto(`/project/household-items?q=${encodeURIComponent(`${testPrefix} HI De`)}`);
+
+      const chip = (label: string): Locator =>
+        page.locator('[class*="badge"]').filter({ hasText: new RegExp(`^${label}$`) });
+      await expect(chip('Geplant').visible().first()).toBeVisible();
+      await expect(chip('Lieferung geplant').visible().first()).toBeVisible();
+    } finally {
+      for (const id of created) {
+        await deleteHouseholdItemViaApi(page, id);
+      }
+    }
+  });
+
+  test('AC7: a pending invoice is "Zu zahlen" in German, never "Ausstehend"', async ({
+    page,
+    testPrefix,
+  }) => {
+    let vendorId = '';
+    let invoiceId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} De Vendor` });
+      const response = await page.request.post(`/api/vendors/${vendorId}/invoices`, {
+        data: {
+          invoiceNumber: `${testPrefix}-DE-PEND`,
+          amount: 250,
+          date: '2026-03-01',
+          status: 'pending',
+        },
+      });
+      expect(response.ok(), `POST invoice failed: ${response.status()}`).toBeTruthy();
+      invoiceId = ((await response.json()) as { invoice: { id: string } }).invoice.id;
+
+      await setLanguage(page, 'de');
+      await page.goto(`/budget/invoices?vendorId=${vendorId}`);
+
+      const chip = page
+        .locator(
+          `[data-testid="invoice-status-${invoiceId}"], [data-testid="invoice-status-mobile-${invoiceId}"]`,
+        )
+        .visible();
+      await expect(chip).toHaveText('Zu zahlen');
+      await expect(page.locator('[class*="summaryGrid"]')).not.toContainText(/Ausstehend/i);
+      await expect(page.locator('main')).not.toContainText(/Ausstehend/i);
+    } finally {
+      if (invoiceId) await page.request.delete(`/api/vendors/${vendorId}/invoices/${invoiceId}`);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+test.describe('i18n: German report wizard submit wording (Story #2195, AC6)', () => {
+  test.beforeEach(async ({ page }) => {
+    const viewport = page.viewportSize();
+    if (viewport !== null && viewport.width < 1200) {
+      test.skip();
+    }
+  });
+
+  test.afterEach(async ({ page }) => {
+    await resetToEnglish(page);
+  });
+
+  test('The step-5 button and the success banner say "eingereicht"', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+    let vendorId = '';
+    let invoiceId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} DeWiz Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} DeWiz Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI DeWiz` });
+
+      const invoiceResp = await page.request.post(`/api/vendors/${vendorId}/invoices`, {
+        data: {
+          invoiceNumber: `${testPrefix}-DEWIZ-001`,
+          amount: 300,
+          date: '2026-02-01',
+          status: 'pending',
+        },
+      });
+      expect(invoiceResp.ok(), `POST invoice failed: ${invoiceResp.status()}`).toBeTruthy();
+      const invoice = ((await invoiceResp.json()) as { invoice: { id: string } }).invoice;
+      invoiceId = invoice.id;
+      const budgetResp = await page.request.post(`/api/work-items/${workItemId}/budgets`, {
+        data: { confidence: 'own_estimate', plannedAmount: 300, budgetSourceId: sourceId },
+      });
+      expect(budgetResp.ok(), `POST budget failed: ${budgetResp.status()}`).toBeTruthy();
+      const budgetId = ((await budgetResp.json()) as { budget: { id: string } }).budget.id;
+      const linkResp = await page.request.post(`/api/invoices/${invoiceId}/budget-lines`, {
+        data: { workItemBudgetId: budgetId, itemizedAmount: 300 },
+      });
+      expect(linkResp.ok(), `POST link failed: ${linkResp.status()}`).toBeTruthy();
+
+      await setLanguage(page, 'de');
+      await wizard.goto();
+      await wizard.selectUseCase('claim');
+      await wizard.goNextFromStep1();
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await wizard.goNextFromStep3();
+      await wizard.step4NextButton.click();
+
+      const markButton = page.getByRole('button', {
+        name: '1 Rechnung als eingereicht markieren',
+        exact: true,
+      });
+      await expect(markButton).toBeEnabled();
+      await markButton.click();
+
+      await page.getByRole('dialog').locator('[class*="btnPrimary"]').click();
+      await expect(wizard.claimSuccessBanner).toContainText(
+        '1 Rechnung und 0 Abschlagszahlungen als eingereicht markiert',
+      );
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (invoiceId) await page.request.delete(`/api/vendors/${vendorId}/invoices/${invoiceId}`);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
   });
 });

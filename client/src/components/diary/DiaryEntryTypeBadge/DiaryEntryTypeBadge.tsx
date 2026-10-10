@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntryType } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
+import { diaryEntryTypeLabelKey } from '../../../lib/diaryEntryTypeLabel.js';
 import styles from './DiaryEntryTypeBadge.module.css';
 
 interface DiaryEntryTypeBadgeProps {
@@ -40,7 +40,8 @@ const BADGE_CLASS_MAP: Record<DiaryEntryType, string> = {
 
 export function DiaryEntryTypeBadge({ entryType, size = 'sm' }: DiaryEntryTypeBadgeProps) {
   const { t } = useTranslation('diary');
-  const label = t(I18N_UNION_KEYS.diaryEntryType.key(entryType));
+  const typeKey = diaryEntryTypeLabelKey(entryType);
+  const label = t(typeKey.key, { ns: typeKey.ns });
   const emoji = EMOJI_MAP[entryType];
   const sizeClass = size === 'lg' ? styles.sizeLg : styles.sizeSm;
 

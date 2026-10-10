@@ -9,10 +9,17 @@
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineHouseholdItem } from '@cornerstone/shared';
 import type * as CalendarHouseholdItemTypes from './CalendarHouseholdItem.js';
+
+import type { ReactElement } from 'react';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -131,19 +138,19 @@ describe('CalendarHouseholdItem', () => {
     it('aria-label includes the status', () => {
       renderHI({ item: makeHouseholdItem({ status: 'planned' }) });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('planned');
+      expect(button.getAttribute('aria-label')).toContain('Planned');
     });
 
     it('aria-label includes purchased status', () => {
       renderHI({ item: makeHouseholdItem({ status: 'purchased' }) });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('purchased');
+      expect(button.getAttribute('aria-label')).toContain('Ordered');
     });
 
     it('aria-label includes the earliestDeliveryDate when set', () => {
       renderHI({ item: makeHouseholdItem({ earliestDeliveryDate: '2026-05-15' }) });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('2026-05-15');
+      expect(button.getAttribute('aria-label')).toContain('May 15, 2026');
     });
 
     it('aria-label says "unscheduled" when earliestDeliveryDate is null', () => {
@@ -151,7 +158,7 @@ describe('CalendarHouseholdItem', () => {
         item: makeHouseholdItem({ earliestDeliveryDate: null }),
       });
       const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('unscheduled');
+      expect(button.getAttribute('aria-label')).toContain('delivery not scheduled');
     });
   });
 

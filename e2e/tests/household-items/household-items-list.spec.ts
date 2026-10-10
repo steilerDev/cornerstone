@@ -396,7 +396,12 @@ test.describe('Status badge rendering (Scenario 9)', { tag: '@responsive' }, () 
       // so we check for DOM presence rather than visibility.
       await expect(async () => {
         for (const status of statuses) {
-          const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+          const statusLabel = {
+            planned: 'Planned',
+            purchased: 'Ordered',
+            scheduled: 'Delivery scheduled',
+            arrived: 'Delivered',
+          }[status];
           const badge = page.locator('[class*="badge"]', { hasText: statusLabel }).first();
           await expect(badge).toBeAttached();
         }
@@ -688,5 +693,57 @@ test.describe('Accessibility (Scenario 17)', { tag: '@responsive' }, () => {
     // DataTable renders aria-label="Search items" for all pages using the component.
     const label = await listPage.searchInput.getAttribute('aria-label');
     expect(label).toBe('Search items');
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 (AC2): purchase status chips are coloured (D-08 regression guard)
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Purchase status chip colour (Story #2195, AC2)', { tag: '@responsive' }, () => {
+  test('Every purchase status chip has a non-transparent background and the planned and scheduled chips differ in wording', async ({
+    page,
+    testPrefix,
+  }) => {
+    const listPage = new HouseholdItemsPage(page);
+    const created: string[] = [];
+    const statuses = [
+      ['planned', 'Planned'],
+      ['purchased', 'Ordered'],
+      ['scheduled', 'Delivery scheduled'],
+      ['arrived', 'Delivered'],
+    ] as const;
+
+    try {
+      for (const [status] of statuses) {
+        created.push(
+          await createHouseholdItemViaApi(page, {
+            name: `${testPrefix} HI Colour ${status}`,
+            status,
+          }),
+        );
+      }
+
+      await listPage.goto();
+      await listPage.waitForLoaded();
+      await listPage.search(`${testPrefix} HI Colour`);
+
+      for (const [, label] of statuses) {
+        const chip = page
+          .locator('[class*="badge"]')
+          .filter({ hasText: new RegExp(`^${label}$`) })
+          .visible()
+          .first();
+        await expect(chip).toBeVisible();
+        const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+        expect(
+          bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)',
+          `"${label}" chip background "${bg}" must not be transparent`,
+        ).toBe(true);
+      }
+    } finally {
+      for (const id of created) {
+        await deleteHouseholdItemViaApi(page, id);
+      }
+    }
   });
 });

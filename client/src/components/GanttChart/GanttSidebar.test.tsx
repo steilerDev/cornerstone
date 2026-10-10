@@ -195,7 +195,7 @@ describe('GanttSidebar', () => {
     const item = makeItem({ id: 'wi-1', title: 'Electrical Work' });
     render(<GanttSidebar items={[item]} />);
     const row = screen.getByTestId('gantt-sidebar-row-wi-1');
-    expect(row).toHaveAttribute('aria-label', 'Work item: Electrical Work');
+    expect(row).toHaveAttribute('aria-label', 'Task: Electrical Work');
   });
 
   it('row aria-label appends ", no dates set" when item has no startDate or endDate', () => {
@@ -207,7 +207,7 @@ describe('GanttSidebar', () => {
     });
     render(<GanttSidebar items={[item]} />);
     const row = screen.getByTestId('gantt-sidebar-row-wi-nodates');
-    expect(row).toHaveAttribute('aria-label', 'Work item: Undated Task, no dates set');
+    expect(row).toHaveAttribute('aria-label', 'Task: Undated Task, no dates set');
   });
 
   it('row aria-label has no suffix when item has startDate only', () => {
@@ -219,7 +219,7 @@ describe('GanttSidebar', () => {
     });
     render(<GanttSidebar items={[item]} />);
     const row = screen.getByTestId('gantt-sidebar-row-wi-startonly');
-    expect(row).toHaveAttribute('aria-label', 'Work item: Partial Task');
+    expect(row).toHaveAttribute('aria-label', 'Task: Partial Task');
   });
 
   it('each row is keyboard-focusable (tabIndex=0)', () => {
@@ -437,7 +437,7 @@ describe('GanttSidebar — household item rows', () => {
     const hi = makeHI({ id: 'hi-1', name: 'Flooring Material' });
     render(<GanttSidebar items={[]} unifiedRows={[makeHIRow(hi)]} />);
     const row = screen.getByTestId('gantt-sidebar-hi-hi-1');
-    expect(row).toHaveAttribute('aria-label', 'Household item: Flooring Material');
+    expect(row).toHaveAttribute('aria-label', 'Purchase: Flooring Material');
   });
 
   it('HI row is keyboard-focusable (tabIndex=0) — Issue #449', () => {

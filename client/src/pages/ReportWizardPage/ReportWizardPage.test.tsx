@@ -1886,7 +1886,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -1894,9 +1894,9 @@ describe('ReportWizardPage', () => {
         expect(mockMarkInvoicesClaimed).toHaveBeenCalledWith('src-1', ['inv-1'], []);
       });
       await waitFor(() => {
-        // Reworded success banner: "{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed"
+        // Reworded success banner: "{{invoices}} and {{progressPayments}} marked as submitted"
         expect(
-          screen.getByText('1 invoice(s) and 0 deposit(s) marked as claimed'),
+          screen.getByText('1 invoice and 0 progress payments marked as submitted'),
         ).toBeInTheDocument();
       });
       // Mark Claimed never touches the PDF-generation pipeline (no PDF step in this flow).
@@ -1943,7 +1943,7 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -1992,7 +1992,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -2001,7 +2001,7 @@ describe('ReportWizardPage', () => {
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Could not mark as claimed: invoice(s) INV-002 are not in a claimable state.',
+            'Could not mark invoices INV-002 as submitted: their current status does not allow it.',
           ),
         ).toBeInTheDocument();
       });
@@ -2023,14 +2023,14 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.',
+            'One or more invoices could not be marked as submitted. They may already be submitted, or their status does not allow it.',
           ),
         ).toBeInTheDocument();
       });
@@ -2052,14 +2052,14 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.',
+            'One or more invoices could not be marked as submitted. They may already be submitted, or their status does not allow it.',
           ),
         ).toBeInTheDocument();
       });
@@ -2127,7 +2127,7 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -2160,14 +2160,14 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
         expect(
           screen.getByText(
-            'Nothing can be marked as claimed: all selected invoices have excluded line items and there are no unclaimed deposits.',
+            'Nothing can be marked as submitted: all selected invoices have excluded line items and no progress payments are left to submit.',
           ),
         ).toBeInTheDocument();
       });
@@ -2176,7 +2176,7 @@ describe('ReportWizardPage', () => {
       expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
     });
 
-    it('all budget lines excluded but an unclaimed deposit remains → API is called with invoiceIds: [] and the deposit id, and the success banner reads "0 invoice(s) and 1 deposit(s)"', async () => {
+    it('all budget lines excluded but an unclaimed deposit remains → API is called with invoiceIds: [] and the deposit id, and the success banner reads "0 invoices and 1 progress payment"', async () => {
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
       mockGetSourceReport.mockResolvedValue(
         makeReport({
@@ -2238,7 +2238,7 @@ describe('ReportWizardPage', () => {
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -2247,7 +2247,7 @@ describe('ReportWizardPage', () => {
       });
       await waitFor(() => {
         expect(
-          screen.getByText('0 invoice(s) and 1 deposit(s) marked as claimed'),
+          screen.getByText('0 invoices and 1 progress payment marked as submitted'),
         ).toBeInTheDocument();
       });
     });
@@ -2264,7 +2264,7 @@ describe('ReportWizardPage', () => {
       expect(mockMarkInvoicesClaimed).not.toHaveBeenCalled();
       await waitFor(() => {
         expect(
-          screen.getByText('Report finished without marking invoices as claimed.'),
+          screen.getByText('Report finished without marking invoices as submitted.'),
         ).toBeInTheDocument();
       });
     });
@@ -2284,7 +2284,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
@@ -2302,13 +2302,13 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Confirm' }));
 
       await waitFor(() => {
         expect(
-          screen.getByText('Marking invoices as claimed failed. Please try again.'),
+          screen.getByText('Marking invoices as submitted failed. Please try again.'),
         ).toBeInTheDocument();
       });
     });
@@ -2320,7 +2320,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.keyboard('{Escape}');
 
@@ -2337,7 +2337,7 @@ describe('ReportWizardPage', () => {
       const user = userEvent.setup();
       await goToStep5(user);
 
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
       await user.click(screen.getByRole('button', { name: 'Cancel' }));
 
@@ -2432,12 +2432,12 @@ describe('ReportWizardPage', () => {
 
       await clickNext(user); // step 3 -> 4
       await clickNext(user); // step 4 -> 5
-      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices as claimed/ }));
+      await user.click(screen.getByRole('button', { name: /Mark [0-9]+ invoices? as submitted/ }));
       await waitFor(() => screen.getByRole('button', { name: 'Confirm' }));
 
       const warning = screen.getByRole('alert');
       expect(warning).toHaveTextContent(
-        '1 invoice(s) have excluded line items and will keep their current claim status',
+        '1 invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.',
       );
     });
 

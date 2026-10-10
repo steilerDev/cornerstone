@@ -1050,7 +1050,7 @@ describe('report PDF pipeline — real, unmocked end-to-end render', () => {
             splitLabel: ' (partial)',
             // The footnote WORDINGS that must no longer appear anywhere in the tree.
             goneFootnotes: ['This is a deposit'],
-            depositFootnoteText: 'This position reflects deposits claimed separately.',
+            depositFootnoteText: 'This position reflects progress payments submitted separately.',
             splitFootnoteText: 'Amount shown reflects only the portion allocated to this source.',
           },
         ],

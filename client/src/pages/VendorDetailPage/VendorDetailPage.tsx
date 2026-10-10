@@ -17,7 +17,9 @@ import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import styles from './VendorDetailPage.module.css';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { Badge } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
 // INVOICE_STATUS_LABELS will be dynamically generated from i18n
 
@@ -44,6 +46,7 @@ export function VendorDetailPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const statusVariants = useStatusBadgeVariants();
   const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -672,11 +675,11 @@ export function VendorDetailPage() {
                           {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
                         </td>
                         <td className={styles.tableCell}>
-                          <span
-                            className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
-                          >
-                            {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
-                          </span>
+                          <Badge
+                            variants={statusVariants.invoice}
+                            value={invoice.status}
+                            testId={`vendor-invoice-status-${invoice.id}`}
+                          />
                         </td>
                         <td className={`${styles.tableCell} ${styles.tableCellRight}`}>
                           <div className={styles.rowActions}>
@@ -712,11 +715,11 @@ export function VendorDetailPage() {
                       <span className={styles.invoiceCardNumber}>
                         {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Invoice #'}
                       </span>
-                      <span
-                        className={`${styles.invoiceStatusBadge} ${styles[`status_${invoice.status}`]}`}
-                      >
-                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(invoice.status))}
-                      </span>
+                      <Badge
+                        variants={statusVariants.invoice}
+                        value={invoice.status}
+                        testId={`vendor-invoice-status-mobile-${invoice.id}`}
+                      />
                     </div>
                     <div className={styles.invoiceCardRow}>
                       <span className={styles.invoiceCardAmount}>
@@ -860,7 +863,6 @@ export function VendorDetailPage() {
                     value={createForm.amount}
                     onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
                     className={styles.input}
-                    placeholder="0.00"
                     min="0"
                     step="0.01"
                     required
@@ -914,10 +916,11 @@ export function VendorDetailPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  <option value="quotation">{t('vendorDetail.invoiceForm.statusQuotation')}</option>
-                  <option value="pending">{t('vendorDetail.invoiceForm.statusPending')}</option>
-                  <option value="paid">{t('vendorDetail.invoiceForm.statusPaid')}</option>
-                  <option value="claimed">{t('vendorDetail.invoiceForm.statusClaimed')}</option>
+                  {INVOICE_STATUSES.map((status) => (
+                    <option key={status} value={status}>
+                      {statusVariants.invoice[status].label}
+                    </option>
+                  ))}
                 </select>
               </div>
 

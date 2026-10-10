@@ -114,34 +114,7 @@
 /* ---- Status badges ---- */
 
 .statusBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
   align-self: flex-start;
-}
-
-.status_pending {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
-}
-
-.status_paid {
-  background-color: var(--color-success-badge-bg);
-  color: var(--color-success-badge-text);
-}
-
-.status_claimed {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
-}
-
-.status_quotation {
-  background-color: var(--color-gray-200);
-  color: var(--color-gray-800);
 }
 
 /* ---- Card ---- */

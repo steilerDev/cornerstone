@@ -1,7 +1,8 @@
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { WorkItemStatus, DependencyType } from '@cornerstone/shared';
+import type { WorkItemStatus, DependencyType, HouseholdItemStatus } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
 import styles from './GanttTooltip.module.css';
 
@@ -83,7 +84,7 @@ export interface GanttTooltipHouseholdItemData {
   kind: 'household-item';
   name: string;
   category: string;
-  status: string;
+  status: HouseholdItemStatus;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
   targetDeliveryDate: string | null;
@@ -166,12 +167,14 @@ function WorkItemTooltipContent({
   isTouchDevice?: boolean;
 }) {
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
+  const taskStatusSet = I18N_UNION_KEYS.statusVocabularyTask;
   const statusLabels: Record<WorkItemStatus, string> = {
-    not_started: t('gantt.tooltip.status.not_started')!,
-    in_progress: t('gantt.tooltip.status.in_progress')!,
-    completed: t('gantt.tooltip.status.completed')!,
+    not_started: tCommon(taskStatusSet.key('not_started')),
+    in_progress: tCommon(taskStatusSet.key('in_progress')),
+    completed: tCommon(taskStatusSet.key('completed')),
   };
 
   const dependencyTypeLabels: Record<DependencyType, string> = {
@@ -546,9 +549,10 @@ function HouseholdItemTooltipContent({
   onNavigate?: (itemId: string) => void;
 }) {
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
-  const statusLabel = data.status.replace(/_/g, ' ');
+  const statusLabel = tCommon(I18N_UNION_KEYS.statusVocabularyPurchase.key(data.status));
 
   // Select badge colors based on delivery status
   const isDelivered = data.status === 'arrived';

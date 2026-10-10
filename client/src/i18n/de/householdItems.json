@@ -37,12 +37,6 @@
     "asc": "↑ Aufsteigend",
     "desc": "↓ Absteigend"
   },
-  "status": {
-    "planned": "Geplant",
-    "purchased": "Gekauft",
-    "scheduled": "Geplant",
-    "arrived": "Angekommen"
-  },
   "table": {
     "sectionTitle": "Haushaltsartikel",
     "headers": {
@@ -327,10 +321,6 @@
       "deleted": "Haushaltsartikel erfolgreich gelöscht"
     },
     "status": {
-      "planned": "Geplant",
-      "purchased": "Gekauft",
-      "scheduled": "Geplant",
-      "arrived": "Angekommen",
       "late": "Verspätet",
       "updated": "Status aktualisiert",
       "updateFailed": "Fehler beim Aktualisieren des Status. Bitte versuchen Sie es erneut."

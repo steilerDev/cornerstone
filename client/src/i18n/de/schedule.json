@@ -60,12 +60,22 @@
     "ariaLabel": "Arbeitspakete, Meilensteine und Haushaltsartikel"
   },
   "gantt": {
+    "aria": {
+      "workItem": "Aufgabe: {{title}}, {{status}}",
+      "workItem_range": "Aufgabe: {{title}}, {{status}}, {{start}} bis {{end}}",
+      "workItem_from": "Aufgabe: {{title}}, {{status}}, ab {{start}}",
+      "workItemCritical": "Aufgabe: {{title}}, {{status}}, auf dem kritischen Pfad",
+      "workItemCritical_range": "Aufgabe: {{title}}, {{status}}, {{start}} bis {{end}}, auf dem kritischen Pfad",
+      "workItemCritical_from": "Aufgabe: {{title}}, {{status}}, ab {{start}}, auf dem kritischen Pfad",
+      "milestone": "Meilenstein: {{title}}, {{status}}, Zieldatum {{date}}",
+      "milestoneCritical": "Meilenstein: {{title}}, {{status}}, auf dem kritischen Pfad, Zieldatum {{date}}",
+      "milestoneLayer": "Meilensteinmarkierungen ({{count}})",
+      "sidebarWorkItem": "Aufgabe: {{title}}",
+      "sidebarWorkItemNoDates": "Aufgabe: {{title}}, ohne Termine",
+      "sidebarMilestone": "Meilenstein: {{title}}",
+      "sidebarHouseholdItem": "Anschaffung: {{name}}"
+    },
     "tooltip": {
-      "status": {
-        "not_started": "Nicht begonnen",
-        "in_progress": "In Arbeit",
-        "completed": "Abgeschlossen"
-      },
       "duration": {
         "label": "Dauer",
         "planned": "Geplant",
@@ -124,8 +134,15 @@
     "workItemBarsAriaLabel": "Arbeitspaket-Balken"
   },
   "calendar": {
+    "milestone": {
+      "ariaLabel": "Meilenstein: {{title}}, {{status}}"
+    },
+    "householdItem": {
+      "ariaLabel": "Anschaffung: {{name}}, {{status}}, Lieferung {{date}}",
+      "ariaLabelUnscheduled": "Anschaffung: {{name}}, {{status}}, Lieferung nicht geplant"
+    },
     "item": {
-      "ariaLabel": "Arbeitspaket: {{title}}, Status: {{status}}"
+      "ariaLabel": "Aufgabe: {{title}}, Status: {{status}}"
     },
     "navigation": {
       "previousMonth": "Vorheriger Monat",
@@ -167,7 +184,7 @@
     },
     "status": {
       "completed": "Abgeschlossen",
-      "pending": "Ausstehend"
+      "pending": "Anstehend"
     },
     "card": {
       "targetDate": "Zieldatum:",
@@ -304,7 +321,7 @@
         "completedAt": "Abgeschlossen am",
         "status": {
           "completed": "Abgeschlossen",
-          "pending": "Ausstehend"
+          "pending": "Anstehend"
         }
       },
       "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuchen Sie es erneut.",

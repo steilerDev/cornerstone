@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type {
   UserResponse,
@@ -56,11 +57,7 @@ function buildAreaSummary(
 export default function WorkItemCreatePage() {
   const navigate = useNavigate();
   const { t } = useTranslation('workItems');
-  const statusLabels: Record<WorkItemStatus, string> = {
-    not_started: t('create.fields.statusOptions.notStarted'),
-    in_progress: t('create.fields.statusOptions.inProgress'),
-    completed: t('create.fields.statusOptions.completed'),
-  };
+  const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
 
   const [title, setTitle] = useState('');
@@ -290,7 +287,7 @@ export default function WorkItemCreatePage() {
             >
               {WORK_ITEM_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {statusLabels[status]}
+                  {statusVariants.task[status].label}
                 </option>
               ))}
             </select>

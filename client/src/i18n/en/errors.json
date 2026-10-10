@@ -43,7 +43,7 @@
   "LLM_INVALID_RESPONSE": "The AI service returned an unusable response. Please try again.",
   "LLM_UPSTREAM_ERROR": "The AI service reported an error. Please try again.",
   "REFUND_EXCEEDS_INVOICE": "Refund amount exceeds the invoice total.",
-  "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as claimed. They may have already been claimed or are in an invalid state.",
+  "INVOICES_NOT_CLAIMABLE": "One or more invoices could not be marked as submitted. They may already be submitted, or their status does not allow it.",
   "EMPTY_SELECTION": "Select at least one invoice.",
   "INVOICE_NOT_QUOTATION": "This invoice is not a quotation and cannot be converted.",
   "ALREADY_SAVED": "This diary entry has already been saved.",

@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { ManualDiaryEntryType } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import styles from './DiaryEntryCreatePage.module.css';
@@ -35,6 +36,7 @@ function TypeCard({ type, emoji, label, description, disabled, onSelect }: TypeC
 export default function DiaryEntryCreatePage() {
   const navigate = useNavigate();
   const { t } = useTranslation('diary');
+  const { t: tCommon } = useTranslation('common');
   const { showToast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const draftCreatingRef = useRef(false);
@@ -69,7 +71,7 @@ export default function DiaryEntryCreatePage() {
           <TypeCard
             type="daily_log"
             emoji="📋"
-            label={t('createPage.typeCardDaily')}
+            label={tCommon(I18N_UNION_KEYS.statusVocabularyDiaryType.key('daily_log'))}
             description={t('createPage.typeCardDailyDesc')}
             disabled={isCreating}
             onSelect={() => void handleTypeSelect('daily_log')}
@@ -77,7 +79,7 @@ export default function DiaryEntryCreatePage() {
           <TypeCard
             type="site_visit"
             emoji="🔍"
-            label={t('createPage.typeCardSiteVisit')}
+            label={tCommon(I18N_UNION_KEYS.statusVocabularyDiaryType.key('site_visit'))}
             description={t('createPage.typeCardSiteVisitDesc')}
             disabled={isCreating}
             onSelect={() => void handleTypeSelect('site_visit')}
@@ -85,7 +87,7 @@ export default function DiaryEntryCreatePage() {
           <TypeCard
             type="delivery"
             emoji="📦"
-            label={t('createPage.typeCardDelivery')}
+            label={tCommon(I18N_UNION_KEYS.statusVocabularyDiaryType.key('delivery'))}
             description={t('createPage.typeCardDeliveryDesc')}
             disabled={isCreating}
             onSelect={() => void handleTypeSelect('delivery')}
@@ -93,7 +95,7 @@ export default function DiaryEntryCreatePage() {
           <TypeCard
             type="issue"
             emoji="⚠️"
-            label={t('createPage.typeCardIssue')}
+            label={tCommon(I18N_UNION_KEYS.statusVocabularyDiaryType.key('issue'))}
             description={t('createPage.typeCardIssueDesc')}
             disabled={isCreating}
             onSelect={() => void handleTypeSelect('issue')}
@@ -101,7 +103,7 @@ export default function DiaryEntryCreatePage() {
           <TypeCard
             type="general_note"
             emoji="📝"
-            label={t('createPage.typeCardGeneralNote')}
+            label={tCommon(I18N_UNION_KEYS.statusVocabularyDiaryType.key('general_note'))}
             description={t('createPage.typeCardGeneralNoteDesc')}
             disabled={isCreating}
             onSelect={() => void handleTypeSelect('general_note')}

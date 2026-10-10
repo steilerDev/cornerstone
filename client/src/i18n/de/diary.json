@@ -52,11 +52,6 @@
     "typeGroupAriaLabel": "Nach Eintragstyp filtern"
   },
   "entryTypes": {
-    "daily_log": "Tägliches Protokoll",
-    "site_visit": "Standortbesuch",
-    "delivery": "Lieferung",
-    "issue": "Problem",
-    "general_note": "Allgemeine Notiz",
     "work_item_status": "Arbeitspaketstatus",
     "invoice_status": "Rechnungsstatus",
     "invoice_created": "Rechnung erstellt",
@@ -64,20 +59,6 @@
     "budget_breach": "Budgetüberschreitung",
     "auto_reschedule": "Automatische Umplanung",
     "subsidy_status": "Förderprogrammstatus"
-  },
-  "entryTypeChips": {
-    "daily_log": "Tagesprotokoll",
-    "site_visit": "Ortstermin",
-    "delivery": "Lieferung",
-    "issue": "Problem",
-    "general_note": "Notiz",
-    "work_item_status": "Arbeitspaket",
-    "invoice_status": "Rechnung",
-    "invoice_created": "Rechnung erstellt",
-    "milestone_delay": "Meilenstein",
-    "budget_breach": "Budget",
-    "auto_reschedule": "Zeitplan",
-    "subsidy_status": "Förderprogramm"
   },
   "create": {
     "backLink": "← Tagebuch",
@@ -262,15 +243,10 @@
     "backLink": "← Zurück zum Tagebuch",
     "title": "Neuer Tagebucheintrag",
     "selectEntryType": "Eintragstyp wählen",
-    "typeCardDaily": "Tägliches Protokoll",
     "typeCardDailyDesc": "Tägliche Standortbedingungen und Arbeitskräfte dokumentieren",
-    "typeCardSiteVisit": "Standortbesuch",
     "typeCardSiteVisitDesc": "Inspektion mit Inspektoreninformation und Ergebnis dokumentieren",
-    "typeCardDelivery": "Lieferung",
     "typeCardDeliveryDesc": "Lieferung von Materialien oder Ausrüstung dokumentieren",
-    "typeCardIssue": "Problem",
     "typeCardIssueDesc": "Problem oder Anliegen auf der Website melden",
-    "typeCardGeneralNote": "Allgemeine Notiz",
     "typeCardGeneralNoteDesc": "Fügen Sie weitere relevante Informationen hinzu",
     "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },

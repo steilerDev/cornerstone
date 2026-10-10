@@ -904,7 +904,6 @@ export function InvoiceBudgetLinesSection({
                                       }));
                                     }}
                                     className={styles.pickerAmountInput}
-                                    placeholder="0.00"
                                     min="0"
                                     step="0.01"
                                     aria-label={t(

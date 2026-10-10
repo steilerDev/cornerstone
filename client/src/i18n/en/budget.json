@@ -93,7 +93,7 @@
       "name": "Name",
       "type": "Type",
       "status": "Status",
-      "totalAmount": "Total Amount ($)",
+      "totalAmount": "Total amount",
       "interestRate": "Interest Rate (%)",
       "terms": "Terms",
       "reference": "Reference",
@@ -158,8 +158,8 @@
     },
     "barChart": {
       "overAllocated": "Over-allocated by {{amount}}",
-      "claimed": "Claimed",
-      "paidUnclaimed": "Paid (unclaimed)",
+      "claimed": "Submitted",
+      "paidUnclaimed": "Paid",
       "projected": "Projected",
       "projectedRange": "Projected",
       "projectedUncertainty": "Projected uncertainty",
@@ -172,8 +172,8 @@
       "totalBadgeAriaLabel": "Total amount: {{amount}}",
       "summaryProjectedLabel": "Projected",
       "summaryPaidLabel": "Paid",
-      "summaryClaimedLabel": "Claimed",
-      "srOnly": "Claimed {{claimed}}, Paid {{paid}}, Projected {{projectedMin}} to {{projectedMax}}, of total {{total}}"
+      "summaryClaimedLabel": "Submitted",
+      "srOnly": "Submitted {{submitted}}, Paid {{paid}}, Projected {{projectedMin}} to {{projectedMax}}, of total {{total}}"
     },
     "summary": {
       "remainingLabel": "Remaining"
@@ -203,11 +203,7 @@
       },
       "invoiceLinked": "Invoiced",
       "invoiceStatus": {
-        "none": "Not invoiced",
-        "pending": "Pending",
-        "paid": "Paid",
-        "claimed": "Claimed",
-        "quotation": "Quotation"
+        "none": "Not invoiced"
       },
       "typeColumnHeader": "Type",
       "statusColumnHeader": "Status"
@@ -227,10 +223,10 @@
         "targetLabel": "Destination source",
         "pickerPlaceholder": "Search sources…",
         "pickerEmpty": "No other sources found",
-        "claimedWarningHeading_one": "{{count}} line has a claimed invoice",
-        "claimedWarningHeading_other": "{{count}} lines have a claimed invoice",
+        "claimedWarningHeading_one": "{{count}} line has a submitted invoice",
+        "claimedWarningHeading_other": "{{count}} lines have a submitted invoice",
         "claimedWarningBody": "Reassigning these lines will not affect the invoice claim. Verify with your accountant before proceeding.",
-        "understoodLabel": "I understand this will reassign lines with a claimed invoice",
+        "understoodLabel": "I understand this will reassign lines with a submitted invoice",
         "confirmButton": "Move lines",
         "confirmDisabledHint": "Check the \"I understand\" checkbox to enable confirmation",
         "confirmDisabledNoTarget": "Select a destination source to enable confirmation",
@@ -400,10 +396,6 @@
       "invoiceDate": "Invoice Date",
       "dueDate": "Due Date",
       "status": "Status",
-      "statusQuotation": "Quotation",
-      "statusPending": "Pending",
-      "statusPaid": "Paid",
-      "statusClaimed": "Claimed",
       "notes": "Notes",
       "add": "Add Invoice",
       "adding": "Adding..."
@@ -415,12 +407,6 @@
       "warning": "This action cannot be undone.",
       "delete": "Delete Invoice",
       "deleting": "Deleting..."
-    },
-    "invoiceStatusLabels": {
-      "pending": "Pending",
-      "paid": "Paid",
-      "claimed": "Claimed",
-      "quotation": "Quotation"
     },
     "quotedLabel": "Quoted",
     "quotedAmount": "Quoted Amount",
@@ -466,16 +452,16 @@
     "noInvoicesTitle": "No invoices yet",
     "noInvoicesDescription": "Add your first invoice to start tracking vendor payments.",
     "searchPlaceholder": "Search by invoice number...",
-    "summaryPending": "Pending",
+    "summaryPending": "To pay",
     "summaryPaid": "Paid",
-    "summaryClaimed": "Claimed",
-    "summaryQuotation": "Quotation",
+    "summaryClaimed": "Submitted",
+    "summaryQuotation": "Offers",
     "summaryQuotationCovered": "{{amount}} already deposited",
-    "summaryClaimable": "Claimable",
+    "summaryClaimable": "Ready to submit",
     "summaryClaimableHint": "Excl. discretionary sources",
     "summaryOverdue": "Overdue",
-    "summaryOverdueWarning_one": "{{count}} pending invoice past due",
-    "summaryOverdueWarning_other": "{{count}} pending invoices past due",
+    "summaryOverdueWarning_one": "{{count}} invoice to pay is past due",
+    "summaryOverdueWarning_other": "{{count}} invoices to pay are past due",
     "filterByStatus": "Filter by status",
     "filterByVendor": "Filter by vendor",
     "allStatuses": "All Statuses",
@@ -520,7 +506,6 @@
       "placeholders": {
         "vendor": "Select a vendor...",
         "invoiceNumber": "e.g., INV-001",
-        "amount": "0.00",
         "notes": "Optional notes about this invoice"
       }
     },
@@ -539,12 +524,6 @@
     },
     "actions": {
       "menuAriaLabel": "Actions for invoice {{number}}"
-    },
-    "statusLabels": {
-      "pending": "Pending",
-      "paid": "Paid",
-      "claimed": "Claimed",
-      "quotation": "Quotation"
     },
     "modal": {
       "title": "Add Invoice",
@@ -593,13 +572,14 @@
       "expandLabel_other": "Expand {{invoiceNumber}}, {{count}} open deposits",
       "collapseLabel_one": "Collapse {{invoiceNumber}}, {{count}} open deposit",
       "collapseLabel_other": "Collapse {{invoiceNumber}}, {{count}} open deposits",
-      "summaryOpenPayable": "Open (payable)",
+      "summaryOpenPayable": "Still to pay",
       "summaryRefundsDue": "Refunds due to you",
-      "summaryRefundsDueHint": "Pending refunds, not netted against the open total",
+      "summaryRefundsDueHint": "Refunds not yet received, not netted against the open total",
       "empty": {
         "message": "Nothing open right now",
-        "description": "Every invoice and deposit is paid, claimed, or otherwise settled."
-      }
+        "description": "Every invoice and progress payment is paid, submitted or otherwise settled."
+      },
+      "dueSoonLabel": "Due soon"
     }
   },
   "invoiceDetail": {
@@ -649,12 +629,6 @@
       "cancel": "Cancel",
       "deleting": "Deleting...",
       "convertToFinal": "Convert to final invoice"
-    },
-    "statusLabels": {
-      "pending": "Pending",
-      "paid": "Paid",
-      "claimed": "Claimed",
-      "quotation": "Quotation"
     },
     "modal": {
       "editTitle": "Edit Invoice",
@@ -769,19 +743,19 @@
         "amount": "Amount",
         "status": "Status",
         "paidDate": "Paid date",
-        "claimedDate": "Claimed date",
+        "claimedDate": "Submitted date",
         "description": "Description",
         "actions": "Actions"
       },
       "mobile": {
         "due": "Due",
         "paid": "Paid",
-        "claimed": "Claimed"
+        "claimed": "Submitted"
       },
       "menu": {
         "markPaid": "Mark paid…",
-        "markClaimed": "Mark claimed…",
-        "revertToPending": "Revert to pending",
+        "markClaimed": "Mark submitted…",
+        "revertToPending": "Set status back to “To pay”",
         "revertToPaid": "Revert to paid",
         "edit": "Edit",
         "delete": "Delete",
@@ -792,18 +766,17 @@
         "editTitle": "Edit deposit",
         "deleteTitle": "Delete deposit",
         "deleteConfirm": "Delete this deposit? This cannot be undone.",
-        "deleteWarningPaidClaimed": "This deposit has been marked paid/claimed. Deleting it will remove its contribution from budget totals.",
+        "deleteWarningPaidClaimed": "This progress payment is marked paid or submitted. Deleting it removes its contribution from the budget totals.",
         "markPaidTitle": "Mark as paid",
-        "markClaimedTitle": "Mark as claimed"
+        "markClaimedTitle": "Mark as submitted"
       },
       "form": {
         "amount": "Amount",
         "dueDate": "Due date",
         "status": "Status",
         "paidDate": "Paid date",
-        "claimedDate": "Claimed date",
+        "claimedDate": "Submitted date",
         "description": "Description",
-        "amountPlaceholder": "0.00",
         "descriptionPlaceholder": "Optional description",
         "charCounter": "{{count}} / 500",
         "saving": "Saving...",
@@ -835,11 +808,11 @@
         "amountRequired": "Amount must be a positive number.",
         "dueDateRequired": "Due date is required.",
         "paidDateRequired": "Paid date is required.",
-        "claimedDateRequired": "Claimed date is required."
+        "claimedDateRequired": "Submitted date is required."
       },
       "stateConfirm": {
         "paidDateLabel": "Paid date",
-        "claimedDateLabel": "Claimed date"
+        "claimedDateLabel": "Submitted date"
       }
     },
     "convertModal": {
@@ -932,7 +905,7 @@
       },
       "status": {
         "heading": "Payment status",
-        "pending": "Leave as pending",
+        "pending": "Still to pay",
         "paid": "Already paid"
       }
     }
@@ -955,7 +928,7 @@
       "reductionType": "Reduction Type",
       "reductionValue": "Reduction Value",
       "valuePercentage": "Value (%)",
-      "valueFixed": "Value ($)",
+      "valueFixed": "Value",
       "applicationStatus": "Application Status",
       "deadline": "Deadline",
       "maximumAmount": "Maximum Amount (€)",
@@ -1003,13 +976,6 @@
         "eligibility": "Optional eligibility criteria",
         "notes": "Optional notes"
       }
-    },
-    "statusLabels": {
-      "eligible": "Eligible",
-      "applied": "Applied",
-      "approved": "Approved",
-      "received": "Received",
-      "rejected": "Rejected"
     },
     "buttons": {
       "create": "Create Program",
@@ -1273,13 +1239,13 @@
     "useCaseHelper": {
       "budget-overview": "A summary of all invoices and their allocations",
       "claim": "Invoices to pay or paid that are not yet submitted",
-      "proof-of-funds": "Show only claimed invoices"
+      "proof-of-funds": "Show only submitted invoices"
     },
     "sourceLabel": "Select a budget source",
     "amountLabel": {
-      "overview": "Total Amount",
+      "overview": "Total amount",
       "claim": "To pay or paid, not submitted",
-      "proofOfFunds": "Claimed Amount"
+      "proofOfFunds": "Submitted"
     },
     "discretionary": "Discretionary",
     "selectAllInvoices": "Select all invoices",
@@ -1309,17 +1275,15 @@
     "includeCoverLetterHelper": "Adds a formal letter to the report",
     "coverLetterDisabledReason": "This source has no contact address or reference number—cover letter is not available",
     "download": "Download PDF",
-    "markClaimed": "Mark {{count}} invoices as claimed",
     "finishWithoutMarking": "Finish without marking",
     "uploadPaperless": "Upload to Paperless",
     "uploadSuccess": "Document uploaded to Paperless",
-    "confirmClaimTitle": "Mark Invoices as Claimed?",
-    "confirmClaimBody": "This will mark {{count}} invoice(s) as claimed ({{pendingCount}} pending). This action cannot be undone.",
-    "claimSuccess": "{{invoices}} invoice(s) and {{deposits}} deposit(s) marked as claimed",
-    "claimNothingClaimable": "Nothing can be marked as claimed: all selected invoices have excluded line items and there are no unclaimed deposits.",
-    "finishedWithoutMarkingSuccess": "Report finished without marking invoices as claimed.",
-    "claimFailed": "Marking invoices as claimed failed. Please try again.",
-    "claimFailedWithInvoices": "Could not mark as claimed: invoice(s) {{invoiceNumbers}} are not in a claimable state.",
+    "confirmClaimTitle": "Mark invoices as submitted?",
+    "claimSuccess": "{{invoices}} and {{progressPayments}} marked as submitted",
+    "claimNothingClaimable": "Nothing can be marked as submitted: all selected invoices have excluded line items and no progress payments are left to submit.",
+    "finishedWithoutMarkingSuccess": "Report finished without marking invoices as submitted.",
+    "claimFailed": "Marking invoices as submitted failed. Please try again.",
+    "claimFailedWithInvoices": "Could not mark invoices {{invoiceNumbers}} as submitted: their current status does not allow it.",
     "uploadFailed": "Upload to Paperless failed. Please try again.",
     "viewInvoices": "View invoices",
     "errorLoadingData": "Failed to load report data",
@@ -1476,7 +1440,7 @@
       "footnoteFetchFailed": "Document could not be retrieved",
       "footnoteInvalidPdf": "Document is not a valid PDF",
       "splitFootnote": "Amount shown reflects only the portion allocated to this source.",
-      "depositReducedFootnote": "This position reflects deposits claimed separately.",
+      "depositReducedFootnote": "This position reflects progress payments submitted separately.",
       "splitInlineLabel": "partial",
       "depositReducedInlineLabel": "less deposit"
     },
@@ -1509,10 +1473,9 @@
       "entryTypeRefund": "Refund",
       "dueDate": "Due",
       "paidDate": "Paid",
-      "claimedDate": "Claimed"
+      "claimedDate": "Submitted"
     },
     "unassigned": "Unassigned",
-    "confirmClaimExcludedItemsWarning": "{{count}} invoice(s) have excluded line items and will keep their current claim status — the excluded portion stays claimable in a future report.",
     "sizing": {
       "progress": "Checking attachment sizes… {{current}} of {{total}}",
       "fetchFailed_one": "{{count}} attachment could not be loaded. Check the Paperless connection and try again, or continue without it.",
@@ -1520,7 +1483,18 @@
       "fetchFailedItem": "{{title}} ({{vendor}}, {{invoiceNumber}})",
       "documentFallbackTitle": "Document {{id}}",
       "continueAnyway": "Continue without them"
-    }
+    },
+    "markSubmitted_one": "Mark {{count}} invoice as submitted",
+    "markSubmitted_other": "Mark {{count}} invoices as submitted",
+    "markSubmittedNone": "No invoices to mark as submitted",
+    "invoiceCount_one": "{{count}} invoice",
+    "invoiceCount_other": "{{count}} invoices",
+    "progressPaymentCount_one": "{{count}} progress payment",
+    "progressPaymentCount_other": "{{count}} progress payments",
+    "confirmClaimBody_one": "This will mark {{count}} invoice as submitted ({{pendingCount}} still to pay). This cannot be undone.",
+    "confirmClaimBody_other": "This will mark {{count}} invoices as submitted ({{pendingCount}} still to pay). This cannot be undone.",
+    "confirmClaimExcludedItemsWarning_one": "{{count}} invoice has excluded line items and keeps its current status. The excluded part can be submitted in a later report.",
+    "confirmClaimExcludedItemsWarning_other": "{{count}} invoices have excluded line items and keep their current status. The excluded part can be submitted in a later report."
   },
   "common": {
     "loading": "Loading...",

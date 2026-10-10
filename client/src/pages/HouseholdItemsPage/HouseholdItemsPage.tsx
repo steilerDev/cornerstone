@@ -7,7 +7,8 @@ import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { useTableState } from '../../hooks/useTableState.js';
@@ -21,7 +22,6 @@ import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
 
@@ -204,17 +204,8 @@ export function HouseholdItemsPage() {
     }
   };
 
-  // Household item status badge variants
-  const hiStatusVariants = useMemo((): BadgeVariantMap => {
-    const variants: BadgeVariantMap = {};
-    for (const status of HOUSEHOLD_ITEM_STATUSES) {
-      variants[status] = {
-        label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
-        className: `badge-${status}`,
-      };
-    }
-    return variants;
-  }, [t]);
+  // Canonical purchase status chips (common:statusVocabulary.purchase)
+  const statusVariants = useStatusBadgeVariants();
 
   // Column definitions
   const columns = useMemo(
@@ -265,9 +256,9 @@ export function HouseholdItemsPage() {
         filterParamKey: 'status',
         enumOptions: HOUSEHOLD_ITEM_STATUSES.map((status) => ({
           value: status,
-          label: t(I18N_UNION_KEYS.householdItemStatus.key(status)),
+          label: statusVariants.purchase[status].label,
         })),
-        render: (item) => <Badge variants={hiStatusVariants} value={item.status} />,
+        render: (item) => <Badge variants={statusVariants.purchase} value={item.status} />,
       },
       {
         key: 'area',
@@ -387,7 +378,7 @@ export function HouseholdItemsPage() {
       },
     ],
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- tSettings is a stable i18n function
-    [t, tCommon, categories, formatCurrency, formatDate, hiStatusVariants, vendors, areas],
+    [t, tCommon, categories, formatCurrency, formatDate, statusVariants, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key

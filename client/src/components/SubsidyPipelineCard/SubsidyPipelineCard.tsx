@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { SubsidyProgram } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
@@ -20,32 +21,33 @@ interface StatusGroup {
 
 export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProps) {
   const { t } = useTranslation('dashboard');
+  const { t: tCommon } = useTranslation('common');
   const { formatCurrency } = useFormatters();
 
   const statusBadgeVariants = useMemo(
     (): BadgeVariantMap => ({
       eligible: {
-        label: t('cards.subsidyPipeline.statuses.eligible'),
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key('eligible')),
         className: badgeStyles.subsidyEligible!,
       },
       applied: {
-        label: t('cards.subsidyPipeline.statuses.applied'),
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key('applied')),
         className: badgeStyles.subsidyApplied!,
       },
       approved: {
-        label: t('cards.subsidyPipeline.statuses.approved'),
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key('approved')),
         className: badgeStyles.subsidyApproved!,
       },
       received: {
-        label: t('cards.subsidyPipeline.statuses.received'),
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key('received')),
         className: badgeStyles.subsidyApproved!,
       },
       rejected: {
-        label: t('cards.subsidyPipeline.statuses.rejected'),
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key('rejected')),
         className: badgeStyles.subsidyRejected!,
       },
     }),
-    [t],
+    [tCommon],
   );
 
   // Helper to check if deadline is within 14 days (inclusive) from today and >= 0 days in future
@@ -111,8 +113,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
           <li key={group.status} data-testid="subsidy-group" className={styles.groupRow}>
             <Badge testId="status-badge" variants={statusBadgeVariants} value={group.status} />
             <span data-testid="group-count" className={styles.groupCount}>
-              {group.count}{' '}
-              {t(`cards.subsidyPipeline.program_${group.count === 1 ? 'one' : 'other'}`)}
+              {group.count} {t('cards.subsidyPipeline.program', { count: group.count })}
             </span>
             {group.totalFixedReduction > 0 && (
               <span data-testid="group-reduction" className={styles.groupReduction}>

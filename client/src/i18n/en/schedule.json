@@ -60,12 +60,22 @@
     "ariaLabel": "Work items, milestones, and household items"
   },
   "gantt": {
+    "aria": {
+      "workItem": "Task: {{title}}, {{status}}",
+      "workItem_range": "Task: {{title}}, {{status}}, {{start}} to {{end}}",
+      "workItem_from": "Task: {{title}}, {{status}}, from {{start}}",
+      "workItemCritical": "Task: {{title}}, {{status}}, on the critical path",
+      "workItemCritical_range": "Task: {{title}}, {{status}}, {{start}} to {{end}}, on the critical path",
+      "workItemCritical_from": "Task: {{title}}, {{status}}, from {{start}}, on the critical path",
+      "milestone": "Milestone: {{title}}, {{status}}, target date {{date}}",
+      "milestoneCritical": "Milestone: {{title}}, {{status}}, on the critical path, target date {{date}}",
+      "milestoneLayer": "Milestone markers ({{count}})",
+      "sidebarWorkItem": "Task: {{title}}",
+      "sidebarWorkItemNoDates": "Task: {{title}}, no dates set",
+      "sidebarMilestone": "Milestone: {{title}}",
+      "sidebarHouseholdItem": "Purchase: {{name}}"
+    },
     "tooltip": {
-      "status": {
-        "not_started": "Not started",
-        "in_progress": "In progress",
-        "completed": "Completed"
-      },
       "duration": {
         "label": "Duration",
         "planned": "Planned",
@@ -124,8 +134,15 @@
     "workItemBarsAriaLabel": "Work item bars"
   },
   "calendar": {
+    "milestone": {
+      "ariaLabel": "Milestone: {{title}}, {{status}}"
+    },
+    "householdItem": {
+      "ariaLabel": "Purchase: {{name}}, {{status}}, delivery {{date}}",
+      "ariaLabelUnscheduled": "Purchase: {{name}}, {{status}}, delivery not scheduled"
+    },
     "item": {
-      "ariaLabel": "Work item: {{title}}, status: {{status}}"
+      "ariaLabel": "Task: {{title}}, status: {{status}}"
     },
     "navigation": {
       "previousMonth": "Previous month",
@@ -167,7 +184,7 @@
     },
     "status": {
       "completed": "Completed",
-      "pending": "Pending"
+      "pending": "Upcoming"
     },
     "card": {
       "targetDate": "Target Date:",
@@ -304,7 +321,7 @@
         "completedAt": "Completed At",
         "status": {
           "completed": "Completed",
-          "pending": "Pending"
+          "pending": "Upcoming"
         }
       },
       "failedLink": "Failed to link work item. Please try again.",

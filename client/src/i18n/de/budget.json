@@ -93,7 +93,7 @@
       "name": "Name",
       "type": "Typ",
       "status": "Status",
-      "totalAmount": "Gesamtbetrag (€)",
+      "totalAmount": "Gesamtbetrag",
       "interestRate": "Zinssatz (%)",
       "terms": "Bedingungen",
       "reference": "Referenz",
@@ -158,7 +158,7 @@
     },
     "barChart": {
       "claimed": "Eingereicht",
-      "paidUnclaimed": "Bezahlt (nicht eingereicht)",
+      "paidUnclaimed": "Bezahlt",
       "projected": "Projiziert",
       "projectedRange": "Projiziert",
       "projectedUncertainty": "Prognoseunsicherheit",
@@ -172,7 +172,7 @@
       "summaryProjectedLabel": "Projiziert",
       "summaryPaidLabel": "Bezahlt",
       "summaryClaimedLabel": "Eingereicht",
-      "srOnly": "Eingereicht {{claimed}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}",
+      "srOnly": "Eingereicht {{submitted}}, Bezahlt {{paid}}, Projiziert {{projectedMin}} bis {{projectedMax}}, von Gesamt {{total}}",
       "overAllocated": "Überzogen um {{amount}}"
     },
     "lines": {
@@ -199,11 +199,7 @@
       },
       "invoiceLinked": "Verrechnet",
       "invoiceStatus": {
-        "none": "Nicht abgerechnet",
-        "pending": "Ausstehend",
-        "paid": "Bezahlt",
-        "claimed": "Eingereicht",
-        "quotation": "Angebot"
+        "none": "Nicht abgerechnet"
       },
       "categoryVendorSeparator": " · ",
       "typeColumnHeader": "Typ",
@@ -400,10 +396,6 @@
       "invoiceDate": "Rechnungsdatum",
       "dueDate": "Fälligkeitsdatum",
       "status": "Status",
-      "statusQuotation": "Angebot",
-      "statusPending": "Ausstehend",
-      "statusPaid": "Bezahlt",
-      "statusClaimed": "Eingereicht",
       "notes": "Notizen",
       "add": "Rechnung Hinzufügen",
       "adding": "Wird hinzugefügt..."
@@ -415,12 +407,6 @@
       "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "delete": "Rechnung Löschen",
       "deleting": "Wird gelöscht..."
-    },
-    "invoiceStatusLabels": {
-      "pending": "Ausstehend",
-      "paid": "Bezahlt",
-      "claimed": "Eingereicht",
-      "quotation": "Angebot"
     },
     "quotedLabel": "Angebot",
     "quotedAmount": "Angebotsbetrag",
@@ -501,12 +487,6 @@
       "cancel": "Abbrechen",
       "deleting": "Wird gelöscht...",
       "convertToFinal": "In Endrechnung umwandeln"
-    },
-    "statusLabels": {
-      "pending": "Ausstehend",
-      "paid": "Bezahlt",
-      "claimed": "Eingereicht",
-      "quotation": "Angebot"
     },
     "modal": {
       "editTitle": "Rechnung Bearbeiten",
@@ -621,7 +601,7 @@
         "amount": "Betrag",
         "status": "Status",
         "paidDate": "Bezahlt am",
-        "claimedDate": "Eingereicht am",
+        "claimedDate": "Einreichungsdatum",
         "description": "Beschreibung",
         "actions": "Aktionen"
       },
@@ -633,7 +613,7 @@
       "menu": {
         "markPaid": "Als bezahlt markieren…",
         "markClaimed": "Als eingereicht markieren…",
-        "revertToPending": "Auf ausstehend zurücksetzen",
+        "revertToPending": "Status auf „Zu zahlen“ zurücksetzen",
         "revertToPaid": "Auf bezahlt zurücksetzen",
         "edit": "Bearbeiten",
         "delete": "Löschen",
@@ -644,7 +624,7 @@
         "editTitle": "Abschlagszahlung Bearbeiten",
         "deleteTitle": "Abschlagszahlung Löschen",
         "deleteConfirm": "Diese Abschlagszahlung löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "deleteWarningPaidClaimed": "Diese Abschlagszahlung wurde als bezahlt/eingereicht markiert. Beim Löschen wird ihr Beitrag aus den Budgetgesamtwerten entfernt.",
+        "deleteWarningPaidClaimed": "Diese Abschlagszahlung ist als bezahlt oder eingereicht markiert. Beim Löschen entfällt ihr Beitrag zu den Budgetsummen.",
         "markPaidTitle": "Als bezahlt markieren",
         "markClaimedTitle": "Als eingereicht markieren"
       },
@@ -653,9 +633,8 @@
         "dueDate": "Fälligkeitsdatum",
         "status": "Status",
         "paidDate": "Bezahlt am",
-        "claimedDate": "Eingereicht am",
+        "claimedDate": "Einreichungsdatum",
         "description": "Beschreibung",
-        "amountPlaceholder": "0.00",
         "descriptionPlaceholder": "Optionale Beschreibung",
         "charCounter": "{{count}} / 500",
         "saving": "Wird gespeichert...",
@@ -685,13 +664,13 @@
         "revertNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht zurückgesetzt werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         "stateConfirmNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht aktualisiert werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
-        "claimedDateRequired": "„Eingereicht am“ ist erforderlich.",
+        "claimedDateRequired": "Einreichungsdatum ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
         "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
       },
       "stateConfirm": {
         "paidDateLabel": "Bezahlt am",
-        "claimedDateLabel": "Eingereicht am"
+        "claimedDateLabel": "Einreichungsdatum"
       }
     },
     "convertModal": {
@@ -784,7 +763,7 @@
       },
       "status": {
         "heading": "Zahlungsstatus",
-        "pending": "Als ausstehend belassen",
+        "pending": "Noch zu zahlen",
         "paid": "Bereits bezahlt"
       }
     }
@@ -807,7 +786,7 @@
       "reductionType": "Reduktionstyp",
       "reductionValue": "Reduktionswert",
       "valuePercentage": "Wert (%)",
-      "valueFixed": "Wert ($)",
+      "valueFixed": "Wert",
       "applicationStatus": "Bewerbungsstatus",
       "deadline": "Frist",
       "maximumAmount": "Maximalbetrag (€)",
@@ -855,13 +834,6 @@
         "eligibility": "Optionale Zulassungskriterien",
         "notes": "Optionale Notizen"
       }
-    },
-    "statusLabels": {
-      "eligible": "Berechtigt",
-      "applied": "Beantragt",
-      "approved": "Genehmigt",
-      "received": "Erhalten",
-      "rejected": "Abgelehnt"
     },
     "buttons": {
       "create": "Programm Erstellen",
@@ -993,16 +965,16 @@
     "noInvoicesTitle": "Noch keine Rechnungen",
     "noInvoicesDescription": "Fügen Sie Ihre erste Rechnung hinzu, um die Auftragnehmer-Zahlungen zu verfolgen.",
     "searchPlaceholder": "Nach Rechnungsnummer suchen...",
-    "summaryPending": "Ausstehend",
+    "summaryPending": "Zu zahlen",
     "summaryPaid": "Bezahlt",
     "summaryClaimed": "Eingereicht",
-    "summaryQuotation": "Angebot",
+    "summaryQuotation": "Angebote",
     "summaryQuotationCovered": "{{amount}} bereits hinterlegt",
     "summaryClaimable": "Einreichbar",
     "summaryClaimableHint": "Ohne Eigenanteil",
     "summaryOverdue": "Überfällig",
-    "summaryOverdueWarning_one": "{{count}} ausstehende Rechnung überfällig",
-    "summaryOverdueWarning_other": "{{count}} ausstehende Rechnungen überfällig",
+    "summaryOverdueWarning_one": "{{count}} Rechnung zu zahlen ist überfällig",
+    "summaryOverdueWarning_other": "{{count}} Rechnungen zu zahlen sind überfällig",
     "filterByStatus": "Nach Status filtern",
     "filterByVendor": "Nach Auftragnehmer filtern",
     "allStatuses": "Alle Status",
@@ -1047,7 +1019,6 @@
       "placeholders": {
         "vendor": "Auftragnehmer auswählen...",
         "invoiceNumber": "z. B. RE-001",
-        "amount": "0.00",
         "notes": "Optionale Notizen zu dieser Rechnung"
       }
     },
@@ -1063,12 +1034,6 @@
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "view": "Anzeigen"
-    },
-    "statusLabels": {
-      "pending": "Ausstehend",
-      "paid": "Bezahlt",
-      "claimed": "Eingereicht",
-      "quotation": "Angebot"
     },
     "modal": {
       "title": "Rechnung Hinzufügen",
@@ -1120,13 +1085,14 @@
       "expandLabel_other": "{{invoiceNumber}} aufklappen, {{count}} offene Abschlagszahlungen",
       "collapseLabel_one": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlung",
       "collapseLabel_other": "{{invoiceNumber}} einklappen, {{count}} offene Abschlagszahlungen",
-      "summaryOpenPayable": "Offen (zu zahlen)",
+      "summaryOpenPayable": "Noch zu zahlen",
       "summaryRefundsDue": "Ihnen zustehende Rückerstattungen",
-      "summaryRefundsDueHint": "Ausstehende Rückerstattungen, nicht mit der offenen Summe verrechnet",
+      "summaryRefundsDueHint": "Noch nicht erhaltene Rückerstattungen, nicht mit der offenen Summe verrechnet",
       "empty": {
         "message": "Derzeit nichts offen",
         "description": "Jede Rechnung und Abschlagszahlung ist bezahlt, eingereicht oder anderweitig beglichen."
-      }
+      },
+      "dueSoonLabel": "Bald fällig"
     }
   },
   "autoItemize": {
@@ -1292,7 +1258,7 @@
     "amountLabel": {
       "overview": "Gesamtbetrag",
       "claim": "Zu zahlen oder bezahlt, nicht eingereicht",
-      "proofOfFunds": "Eingereichter Betrag"
+      "proofOfFunds": "Eingereicht"
     },
     "discretionary": "Diskretionär",
     "selectAllInvoices": "Alle Rechnungen auswählen",
@@ -1309,17 +1275,15 @@
     "includeCoverLetterHelper": "Fügt dem Bericht ein formelles Anschreiben hinzu",
     "coverLetterDisabledReason": "Diese Quelle hat weder eine Kontaktadresse noch eine Referenz – ein Anschreiben ist nicht verfügbar",
     "download": "PDF herunterladen",
-    "markClaimed": "{{count}} Rechnungen als eingereicht markieren",
     "finishWithoutMarking": "Abschließen ohne Markierung",
     "uploadPaperless": "Zu Paperless hochladen",
     "uploadSuccess": "Dokument zu Paperless hochgeladen",
     "confirmClaimTitle": "Rechnungen als eingereicht markieren?",
-    "confirmClaimBody": "Dadurch werden {{count}} Rechnung(en) als eingereicht markiert ({{pendingCount}} davon ausstehend). Diese Aktion kann nicht rückgängig gemacht werden.",
-    "claimSuccess": "{{invoices}} Rechnung(en) und {{deposits}} Abschlagszahlung(en) als eingereicht markiert",
-    "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es gibt keine nicht eingereichten Abschlagszahlungen.",
+    "claimSuccess": "{{invoices}} und {{progressPayments}} als eingereicht markiert",
+    "claimNothingClaimable": "Nichts kann als eingereicht markiert werden: Alle ausgewählten Rechnungen haben ausgeschlossene Positionen, und es sind keine Abschlagszahlungen mehr einzureichen.",
     "finishedWithoutMarkingSuccess": "Bericht abgeschlossen, ohne Rechnungen als eingereicht zu markieren.",
     "claimFailed": "Rechnungen konnten nicht als eingereicht markiert werden. Bitte versuchen Sie es erneut.",
-    "claimFailedWithInvoices": "Konnte nicht als eingereicht markiert werden: Rechnung(en) {{invoiceNumbers}} befinden sich nicht in einem einreichbaren Status.",
+    "claimFailedWithInvoices": "Rechnungen {{invoiceNumbers}} konnten nicht als eingereicht markiert werden: Ihr aktueller Status lässt das nicht zu.",
     "uploadFailed": "Hochladen zu Paperless fehlgeschlagen. Bitte versuchen Sie es erneut.",
     "viewInvoices": "Rechnungen anzeigen",
     "errorLoadingData": "Berichtsdaten konnten nicht geladen werden",
@@ -1512,7 +1476,6 @@
       "claimedDate": "Eingereicht"
     },
     "unassigned": "Nicht zugewiesen",
-    "confirmClaimExcludedItemsWarning": "{{count}} Rechnung(en) haben ausgeschlossene Positionen und behalten ihren aktuellen Einreichungsstatus – der ausgeschlossene Anteil bleibt für einen zukünftigen Bericht einreichbar.",
     "sizing": {
       "progress": "Anhanggrößen werden überprüft… {{current}} von {{total}}",
       "fetchFailed_one": "{{count}} Anhang konnte nicht geladen werden. Überprüfen Sie die Paperless-Verbindung und versuchen Sie es erneut, oder fahren Sie ohne ihn fort.",
@@ -1520,7 +1483,18 @@
       "fetchFailedItem": "{{title}} ({{vendor}}, {{invoiceNumber}})",
       "documentFallbackTitle": "Dokument {{id}}",
       "continueAnyway": "Ohne fehlende Anhänge fortfahren"
-    }
+    },
+    "markSubmitted_one": "{{count}} Rechnung als eingereicht markieren",
+    "markSubmitted_other": "{{count}} Rechnungen als eingereicht markieren",
+    "markSubmittedNone": "Keine Rechnungen zum Markieren als eingereicht",
+    "invoiceCount_one": "{{count}} Rechnung",
+    "invoiceCount_other": "{{count}} Rechnungen",
+    "progressPaymentCount_one": "{{count}} Abschlagszahlung",
+    "progressPaymentCount_other": "{{count}} Abschlagszahlungen",
+    "confirmClaimBody_one": "Dadurch wird {{count}} Rechnung als eingereicht markiert ({{pendingCount}} davon noch zu zahlen). Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirmClaimBody_other": "Dadurch werden {{count}} Rechnungen als eingereicht markiert ({{pendingCount}} davon noch zu zahlen). Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirmClaimExcludedItemsWarning_one": "{{count}} Rechnung hat ausgeschlossene Positionen und behält ihren aktuellen Status. Der ausgeschlossene Teil kann in einem späteren Bericht eingereicht werden.",
+    "confirmClaimExcludedItemsWarning_other": "{{count}} Rechnungen haben ausgeschlossene Positionen und behalten ihren aktuellen Status. Der ausgeschlossene Teil kann in einem späteren Bericht eingereicht werden."
   },
   "common": {
     "loading": "Wird geladen...",

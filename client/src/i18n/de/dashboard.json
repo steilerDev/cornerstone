@@ -93,9 +93,9 @@
       "title": "Rechnungspipeline",
       "emptyMessage": "Noch keine Rechnungen",
       "emptyAction": "Rechnung erstellen",
-      "noPendingInvoices": "Keine ausstehenden Rechnungen",
+      "noPendingInvoices": "Im Moment nichts zu zahlen",
       "overdue": "Überfällig",
-      "pendingTotal": "Ausstehender Gesamtbetrag:",
+      "pendingTotal": "Zu zahlen:",
       "quotesTitle": "Angebote",
       "quotesTotal": "Angebotssumme:",
       "viewAllInvoices": "Alle Rechnungen anzeigen"
@@ -108,14 +108,7 @@
       "deadlineSoon": "Frist naht",
       "viewAllSubsidies": "Alle Förderungen anzeigen",
       "program_one": "Programm",
-      "program_other": "Programme",
-      "statuses": {
-        "eligible": "Berechtigt",
-        "applied": "Beantragt",
-        "approved": "Genehmigt",
-        "received": "Erhalten",
-        "rejected": "Abgelehnt"
-      }
+      "program_other": "Programme"
     },
     "recentDiary": {
       "title": "Tagebuch-Einträge",

@@ -24,6 +24,7 @@ import type {
 } from '@cornerstone/shared';
 import type { Formatters } from '../formatters.js';
 import { buildReportContent } from './buildReportContent.js';
+import i18n from '../../i18n/index.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
@@ -190,7 +191,7 @@ describe('buildReportContent — rows', () => {
       t,
       formatters,
     );
-    expect(content.rows[0]!.statusText).toBe('sources.lines.invoiceStatus.paid');
+    expect(content.rows[0]!.statusText).toBe('statusVocabulary.invoice.paid::{"ns":"common"}');
   });
 
   it('[statusText] is null for the claim use case', () => {
@@ -1048,9 +1049,9 @@ describe('buildReportContent — t() call tracking sanity', () => {
     const report = makeReport([invoice]);
     buildReportContent(report, new Set(['inv-1']), 'budget-overview', tracked, formatters);
     const calledKeys = (tracked as unknown as jest.Mock).mock.calls.map((c) => c[0]);
-    // sources.lines.invoiceStatus.paid is called exactly once for the row (plus once more for the
+    // statusVocabulary.invoice.paid is called exactly once for the row (plus once more for the
     // subtotal label) — not re-derived anywhere else.
-    const statusCalls = calledKeys.filter((k) => k === 'sources.lines.invoiceStatus.paid');
+    const statusCalls = calledKeys.filter((k) => k === 'statusVocabulary.invoice.paid');
     expect(statusCalls.length).toBeGreaterThanOrEqual(1);
   });
 });
@@ -1117,7 +1118,36 @@ describe('buildReportContent — union-derived i18n keys (#2029)', () => {
         formatters,
       );
       expect(content.rows[0]!.status).toBe(status);
-      expect(content.rows[0]!.statusText).toBe(`sources.lines.invoiceStatus.${status}`);
+      expect(content.rows[0]!.statusText).toBe(
+        `statusVocabulary.invoice.${status}::{"ns":"common"}`,
+      );
     },
   );
+});
+
+describe('buildReportContent — bank PDF status column uses the canonical invoice words (#2195)', () => {
+  const cases = [
+    ['pending', 'To pay', 'Zu zahlen'],
+    ['paid', 'Paid', 'Bezahlt'],
+    ['claimed', 'Submitted', 'Eingereicht'],
+    ['quotation', 'Offer', 'Angebot'],
+  ] as const;
+
+  it.each(cases)('status %s reads %s (en) and %s (de)', (status, en, de) => {
+    const report = makeReport([makeInvoice({ status })]);
+    for (const [lang, expected] of [
+      ['en', en],
+      ['de', de],
+    ] as const) {
+      const reportT = i18n.getFixedT(lang, 'budget') as unknown as TFunction;
+      const content = buildReportContent(
+        report,
+        new Set(['inv-1']),
+        'budget-overview',
+        reportT,
+        formatters,
+      );
+      expect(content.rows[0]!.statusText).toBe(expected);
+    }
+  });
 });

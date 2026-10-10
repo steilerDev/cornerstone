@@ -17,7 +17,7 @@
  * Key DOM observations from source code (InvoiceDetailPage.tsx):
  * - Back button: type="button", class="backButton", text includes "Back to Invoices"
  * - h1: invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : t('invoiceDetail.invoiceDetails')
- * - Status badge: <span class="statusBadge status_*"> (not using the Badge component)
+ * - Status badge: shared <Badge> chip in the page heading, data-testid="invoice-status-badge"
  * - Edit button: class="editButton", text="Edit"
  * - Delete button: class="deleteButton", text="Delete"
  * - Edit modal: role="dialog", aria-labelledby="edit-modal-title", h2="Edit Invoice"
@@ -622,8 +622,8 @@ export class InvoiceDetailPage {
     // h1 heading — either "#InvoiceNumber" or "Invoice Details"
     this.heading = page.getByRole('heading', { level: 1 });
 
-    // Status badge — <span class="statusBadge status_*">
-    this.statusBadge = page.locator('[class*="statusBadge"]').first();
+    // Status badge — shared Badge chip in the heading (Story #2195)
+    this.statusBadge = page.getByTestId('invoice-status-badge');
 
     // Action buttons in the header row — scoped to header row to avoid matching
     // budget line edit buttons

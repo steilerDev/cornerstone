@@ -6,7 +6,9 @@
  */
 
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
+import { milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import styles from './CalendarMilestone.module.css';
 
 // ---------------------------------------------------------------------------
@@ -59,6 +61,8 @@ export function CalendarMilestone({
   onMouseLeave,
   onMouseMove,
 }: CalendarMilestoneProps) {
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   function handleClick() {
     onMilestoneClick?.(milestone.id);
   }
@@ -78,7 +82,7 @@ export function CalendarMilestone({
     onMouseMove?.(e.clientX, e.clientY);
   }
 
-  const statusLabel = milestone.isCompleted ? 'completed' : 'incomplete';
+  const statusLabel = milestoneStatusLabel(tCommon, milestone);
 
   return (
     <div
@@ -90,7 +94,10 @@ export function CalendarMilestone({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onMouseLeave?.()}
       onMouseMove={handleMouseMove}
-      aria-label={`Milestone: ${milestone.title}, ${statusLabel}`}
+      aria-label={t('calendar.milestone.ariaLabel', {
+        title: milestone.title,
+        status: statusLabel,
+      })}
       aria-describedby="calendar-view-tooltip"
       data-testid="calendar-milestone"
     >

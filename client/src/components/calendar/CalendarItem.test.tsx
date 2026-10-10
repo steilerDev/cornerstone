@@ -7,10 +7,17 @@
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import type * as CalendarItemTypes from './CalendarItem.js';
+
+import type { ReactElement } from 'react';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -113,7 +120,7 @@ describe('CalendarItem', () => {
       renderItem({ item });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        'Work item: Roof Installation, status: in progress',
+        'Task: Roof Installation, status: In progress',
       );
     });
 
@@ -276,30 +283,30 @@ describe('CalendarItem', () => {
   // ── aria-label status formatting ─────────────────────────────────────────
 
   describe('aria-label status text formatting', () => {
-    it('replaces underscore with space in status for not_started', () => {
+    it('uses the canonical word Not started for not_started', () => {
       const item = makeItem({ status: 'not_started' });
       renderItem({ item });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        expect.stringContaining('not started'),
+        expect.stringContaining('Not started'),
       );
     });
 
-    it('replaces underscore with space in status for in_progress', () => {
+    it('uses the canonical word In progress for in_progress', () => {
       const item = makeItem({ status: 'in_progress' });
       renderItem({ item });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        expect.stringContaining('in progress'),
+        expect.stringContaining('In progress'),
       );
     });
 
-    it('keeps single-word status as-is for completed', () => {
+    it('uses the canonical word Done for completed', () => {
       const item = makeItem({ status: 'completed' });
       renderItem({ item });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        expect.stringContaining('completed'),
+        expect.stringContaining('Done'),
       );
     });
   });

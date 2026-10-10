@@ -2,9 +2,8 @@ import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportResponse } from '@cornerstone/shared';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
-import type { BadgeVariantMap } from '../Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { Badge } from '../Badge/Badge.js';
 import { TriStateCheckbox } from '../TriStateCheckbox/TriStateCheckbox.js';
 import { SelectionActionBar } from '../SelectionActionBar/SelectionActionBar.js';
@@ -41,17 +40,7 @@ export function ReportInvoiceList({
   const lastExpandedIdRef = useRef<string | null>(null);
   const expandPanelRefsRef = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  // Invoice status badge variants
-  const invoiceStatusVariants = useMemo((): BadgeVariantMap => {
-    const variants: BadgeVariantMap = {};
-    for (const status of INVOICE_STATUSES) {
-      variants[status] = {
-        label: t(I18N_UNION_KEYS.invoiceStatus.key(status)),
-        className: styles[status]!,
-      };
-    }
-    return variants;
-  }, [t]);
+  const variants = useStatusBadgeVariants();
 
   const allocatedInvoices = useMemo(
     () =>
@@ -223,7 +212,7 @@ export function ReportInvoiceList({
 
               <Badge
                 className={styles.statusChip}
-                variants={invoiceStatusVariants}
+                variants={variants.invoice}
                 value={invoice.status}
               />
 
@@ -490,15 +479,7 @@ export function ReportInvoiceList({
                               <td>
                                 <div className={styles.depositAmountContainer}>
                                   {deposit.entryType === 'refund' && (
-                                    <Badge
-                                      variants={{
-                                        refund: {
-                                          label: t('sourceReports.expand.entryTypeRefund'),
-                                          className: styles.refund,
-                                        },
-                                      }}
-                                      value="refund"
-                                    />
+                                    <Badge variants={variants.refund} value="refund" />
                                   )}
                                   {formatCurrency(
                                     deposit.entryType === 'refund'
@@ -508,15 +489,7 @@ export function ReportInvoiceList({
                                 </div>
                               </td>
                               <td>
-                                <Badge
-                                  variants={{
-                                    [deposit.status]: {
-                                      label: t(I18N_UNION_KEYS.invoiceStatus.key(deposit.status)),
-                                      className: styles[deposit.status]!,
-                                    },
-                                  }}
-                                  value={deposit.status}
-                                />
+                                <Badge variants={variants.progressPayment} value={deposit.status} />
                               </td>
                               <td className={styles.depositDatesCell}>
                                 <div>
@@ -585,15 +558,7 @@ export function ReportInvoiceList({
                                 deposit.entryType === 'refund' ? -deposit.amount : deposit.amount,
                               )}
                             </span>
-                            <Badge
-                              variants={{
-                                [deposit.status]: {
-                                  label: t(I18N_UNION_KEYS.invoiceStatus.key(deposit.status)),
-                                  className: styles[deposit.status]!,
-                                },
-                              }}
-                              value={deposit.status}
-                            />
+                            <Badge variants={variants.progressPayment} value={deposit.status} />
                           </div>
                           <div className={styles.mobileCardRow}>
                             <span className={styles.mobileCardHeading}>

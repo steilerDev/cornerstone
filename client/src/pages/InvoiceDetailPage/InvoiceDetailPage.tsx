@@ -18,7 +18,8 @@ import { useConvertQuotation } from './useConvertQuotation.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import styles from './InvoiceDetailPage.module.css';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
 // STATUS_LABELS will be dynamically generated from i18n
 
@@ -42,6 +43,7 @@ export function InvoiceDetailPage() {
   } = useFormatters();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+  const statusVariants = useStatusBadgeVariants();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -290,9 +292,12 @@ export function InvoiceDetailPage() {
                 ? `#${invoice.invoiceNumber}`
                 : t('invoiceDetail.invoiceDetails')}
             </h1>
-            <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-              {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(invoice.status))}
-            </span>
+            <Badge
+              variants={statusVariants.invoice}
+              value={invoice.status}
+              className={styles.statusBadge}
+              testId="invoice-status-badge"
+            />
           </div>
           <div className={styles.pageActions}>
             {invoice.status === 'quotation' && (
@@ -351,9 +356,12 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.status')}</dt>
               <dd className={styles.infoValue}>
-                <span className={`${styles.statusBadge} ${styles[`status_${invoice.status}`]}`}>
-                  {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(invoice.status))}
-                </span>
+                <Badge
+                  variants={statusVariants.invoice}
+                  value={invoice.status}
+                  className={styles.statusBadge}
+                  testId="invoice-detail-status-badge"
+                />
               </dd>
             </div>
             <div className={styles.infoRow}>
@@ -456,7 +464,6 @@ export function InvoiceDetailPage() {
                     value={editForm.amount}
                     onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
                     className={styles.input}
-                    placeholder="0.00"
                     min="0.01"
                     step="0.01"
                     required
@@ -536,7 +543,7 @@ export function InvoiceDetailPage() {
                 >
                   {INVOICE_STATUSES.map((status) => (
                     <option key={status} value={status}>
-                      {t(I18N_UNION_KEYS.invoiceDetailStatusLabel.key(status))}
+                      {statusVariants.invoice[status].label}
                     </option>
                   ))}
                 </select>

@@ -218,11 +218,15 @@ function buildAreaTree(lines: BudgetSourceBudgetLine[]): AreaNode[] {
 }
 
 // Helper to get the localized invoice status label
-function getInvoiceStatusLabel(line: BudgetSourceBudgetLine, t: (key: string) => string): string {
+function getInvoiceStatusLabel(
+  line: BudgetSourceBudgetLine,
+  t: (key: string, options?: { ns: string }) => string,
+): string {
   if (line.invoiceLink === null) {
     return t('sources.lines.invoiceStatus.none');
   }
-  return t(I18N_UNION_KEYS.invoiceStatus.key(line.invoiceLink.invoiceStatus));
+  const set = I18N_UNION_KEYS.statusVocabularyInvoice;
+  return t(set.key(line.invoiceLink.invoiceStatus), { ns: set.ns });
 }
 
 // Helper to get the confidence label

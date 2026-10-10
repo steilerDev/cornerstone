@@ -554,7 +554,7 @@ export function SubsidyProgramsPage() {
                 >
                   {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {t(I18N_UNION_KEYS.subsidyApplicationStatus.key(value))}
+                      {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
                     </option>
                   ))}
                 </select>
@@ -855,7 +855,7 @@ export function SubsidyProgramsPage() {
                         >
                           {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                             <option key={value} value={value}>
-                              {t(I18N_UNION_KEYS.subsidyApplicationStatus.key(value))}
+                              {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
                             </option>
                           ))}
                         </select>
@@ -1064,10 +1064,8 @@ export function SubsidyProgramsPage() {
                           <span
                             className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
                           >
-                            {t(
-                              I18N_UNION_KEYS.subsidyApplicationStatus.key(
-                                program.applicationStatus,
-                              ),
+                            {tCommon(
+                              I18N_UNION_KEYS.statusVocabularyGrant.key(program.applicationStatus),
                             )}
                           </span>
                           <span className={styles.reductionBadge}>

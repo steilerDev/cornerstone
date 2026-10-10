@@ -20,7 +20,6 @@ import type {
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type {
   ColumnDef,
   TableState,
@@ -33,6 +32,7 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
@@ -46,7 +46,7 @@ import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePa
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import {
   todayIso,
-  isOverdue,
+  dueFlag,
   getOpenDeposits,
   isContainerOnly,
   isInvoiceOverdue,
@@ -133,6 +133,17 @@ function renderInvoiceNumberCell(
           testId={dataTableTestId('invoice-overdue', inv.id, surface)}
         />
       )}
+      {openOnly &&
+        !isInvoiceOverdue(inv, today) &&
+        !hasOverdueOpenDeposit(inv, today) &&
+        inv.status === 'pending' &&
+        dueFlag(inv.dueDate, today) === 'dueSoon' && (
+          <Badge
+            variants={flagVariants}
+            value="dueSoon"
+            testId={dataTableTestId('invoice-due-soon', inv.id, surface)}
+          />
+        )}
       {openOnly && isContainerOnly(inv) && (
         <Badge
           variants={flagVariants}
@@ -449,50 +460,24 @@ export function InvoicesPage() {
     }
   };
 
-  // Invoice status badge variants
-  const invoiceStatusVariants = useMemo((): BadgeVariantMap => {
-    const variants: BadgeVariantMap = {};
-    for (const status of INVOICE_STATUSES) {
-      variants[status] = {
-        label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
-        // Fix (Issue #2046): these classes live in Badge.module.css, not InvoicesPage.module.css —
-        // `styles[status]` resolved to undefined, so the invoice status badges rendered with no colour.
-        className: badgeStyles[status]!,
-      };
-    }
-    return variants;
-  }, [t]);
+  // Status chip variants: one canonical map for every invoice / progress-payment / refund chip
+  const statusVariants = useStatusBadgeVariants();
 
   // Open-items badge variants (Story #2046)
   const flagVariants = useMemo(
     (): BadgeVariantMap => ({
-      overdue: { label: t('invoices.openItems.overdueLabel')!, className: badgeStyles.overdue! },
+      overdue: {
+        label: t('invoices.openItems.overdueLabel')!,
+        className: badgeStyles.overduePast!,
+      },
       depositOverdue: {
         label: t('invoices.openItems.depositOverdueLabel')!,
-        className: badgeStyles.overdue!,
+        className: badgeStyles.overduePast!,
       },
+      dueSoon: { label: t('invoices.openItems.dueSoonLabel')!, className: badgeStyles.dueSoon! },
       containerOnly: {
         label: t('invoices.openItems.containerLabel')!,
         className: badgeStyles.containerOnly!,
-      },
-    }),
-    [t],
-  );
-
-  const depositStatusVariants = useMemo(
-    (): BadgeVariantMap => ({
-      pending: { label: t('invoiceDetail.statusLabels.pending')!, className: badgeStyles.pending! },
-      paid: { label: t('invoiceDetail.statusLabels.paid')!, className: badgeStyles.paid! },
-      claimed: { label: t('invoiceDetail.statusLabels.claimed')!, className: badgeStyles.claimed! },
-    }),
-    [t],
-  );
-
-  const entryTypeVariants = useMemo(
-    (): BadgeVariantMap => ({
-      refund: {
-        label: t('invoiceDetail.deposits.entryTypeLabels.refund')!,
-        className: badgeStyles.error!,
       },
     }),
     [t],
@@ -606,11 +591,11 @@ export function InvoicesPage() {
         filterParamKey: 'status',
         enumOptions: INVOICE_STATUSES.map((status) => ({
           value: status,
-          label: t(I18N_UNION_KEYS.invoicesStatusLabel.key(status)),
+          label: statusVariants.invoice[status].label,
         })),
         render: (inv, surface) => (
           <Badge
-            variants={invoiceStatusVariants}
+            variants={statusVariants.invoice}
             value={inv.status}
             testId={dataTableTestId('invoice-status', inv.id, surface)}
           />
@@ -646,7 +631,7 @@ export function InvoicesPage() {
         render: (inv) => formatCurrency(inv.finalPaymentAmount),
       },
     ],
-    [t, formatDate, formatCurrency, invoiceStatusVariants, flagVariants, vendors, openOnly, today],
+    [t, formatDate, formatCurrency, statusVariants, flagVariants, vendors, openOnly, today],
   );
 
   // Expandable child rows: open (pending) deposits nested under each invoice (Story #2046)
@@ -669,7 +654,7 @@ export function InvoicesPage() {
                 })}
               </span>
               {deposit.entryType === 'refund' ? (
-                <Badge variants={entryTypeVariants} value="refund" />
+                <Badge variants={statusVariants.refund} value="refund" />
               ) : (
                 ordinal &&
                 t('invoices.openItems.depositOrdinal', {
@@ -684,11 +669,11 @@ export function InvoicesPage() {
           return (
             <td key={key} className={dtStyles.tableCell}>
               {formatDate(deposit.dueDate)}
-              {isOverdue(deposit.dueDate, today) && (
+              {dueFlag(deposit.dueDate, today) && (
                 <Badge
                   variants={flagVariants}
-                  value="overdue"
-                  testId={`deposit-overdue-${deposit.id}`}
+                  value={dueFlag(deposit.dueDate, today)!}
+                  testId={`deposit-${dueFlag(deposit.dueDate, today) === 'overdue' ? 'overdue' : 'due-soon'}-${deposit.id}`}
                 />
               )}
             </td>
@@ -716,7 +701,7 @@ export function InvoicesPage() {
           return (
             <td key={key} className={dtStyles.tableCell}>
               <Badge
-                variants={depositStatusVariants}
+                variants={statusVariants.progressPayment}
                 value={deposit.status}
                 testId={`deposit-status-${deposit.id}`}
               />
@@ -742,17 +727,17 @@ export function InvoicesPage() {
       return (
         <>
           {deposit.entryType === 'refund' ? (
-            <Badge variants={entryTypeVariants} value="refund" />
+            <Badge variants={statusVariants.refund} value="refund" />
           ) : (
             ordinal &&
             t('invoices.openItems.depositOrdinal', { index: ordinal.index, total: ordinal.total })
           )}
           <span>{formatDate(deposit.dueDate)}</span>
-          {isOverdue(deposit.dueDate, today) && (
+          {dueFlag(deposit.dueDate, today) && (
             <Badge
               variants={flagVariants}
-              value="overdue"
-              testId={`deposit-overdue-mobile-${deposit.id}`}
+              value={dueFlag(deposit.dueDate, today)!}
+              testId={`deposit-${dueFlag(deposit.dueDate, today) === 'overdue' ? 'overdue' : 'due-soon'}-mobile-${deposit.id}`}
             />
           )}
           <span
@@ -770,7 +755,7 @@ export function InvoicesPage() {
             )}
           </span>
           <Badge
-            variants={depositStatusVariants}
+            variants={statusVariants.progressPayment}
             value={deposit.status}
             testId={`deposit-status-mobile-${deposit.id}`}
           />
@@ -790,16 +775,7 @@ export function InvoicesPage() {
       renderChildCells: (d, inv, keys) => keys.map((key) => renderDepositCell(key, d, inv)),
       renderChildCard: (d, inv) => renderDepositCard(d, inv),
     };
-  }, [
-    openOnly,
-    t,
-    today,
-    formatCurrency,
-    formatDate,
-    entryTypeVariants,
-    flagVariants,
-    depositStatusVariants,
-  ]);
+  }, [openOnly, t, today, formatCurrency, formatDate, statusVariants, flagVariants]);
 
   // Render actions menu
   const renderActions = (invoice: Invoice, surface: DataTableSurface) => (
@@ -1082,7 +1058,6 @@ export function InvoicesPage() {
                   value={createForm.amount}
                   onChange={(e) => setCreateForm({ ...createForm, amount: e.target.value })}
                   className={styles.input}
-                  placeholder={t('invoices.form.placeholders.amount')}
                   min="0.01"
                   step="0.01"
                   required
@@ -1138,7 +1113,7 @@ export function InvoicesPage() {
               >
                 {INVOICE_STATUSES.map((status) => (
                   <option key={status} value={status}>
-                    {t(I18N_UNION_KEYS.invoicesStatusLabel.key(status))}
+                    {statusVariants.invoice[status].label}
                   </option>
                 ))}
               </select>

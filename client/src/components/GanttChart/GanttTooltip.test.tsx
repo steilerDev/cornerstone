@@ -142,7 +142,7 @@ describe('GanttTooltip', () => {
     const statuses: { status: WorkItemStatus; expectedLabel: string }[] = [
       { status: 'not_started', expectedLabel: 'Not started' },
       { status: 'in_progress', expectedLabel: 'In progress' },
-      { status: 'completed', expectedLabel: 'Completed' },
+      { status: 'completed', expectedLabel: 'Done' },
     ];
 
     statuses.forEach(({ status, expectedLabel }) => {
@@ -156,6 +156,31 @@ describe('GanttTooltip', () => {
   // ---------------------------------------------------------------------------
   // Date formatting
   // ---------------------------------------------------------------------------
+
+  describe('household item status uses the canonical purchase words (#2195)', () => {
+    const base: GanttTooltipHouseholdItemData = {
+      kind: 'household-item',
+      name: 'Sample Cabinets',
+      category: 'furniture',
+      status: 'planned',
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+      targetDeliveryDate: null,
+      actualDeliveryDate: null,
+      isLate: false,
+    };
+
+    it.each([
+      ['planned', 'Planned'],
+      ['purchased', 'Ordered'],
+      ['scheduled', 'Delivery scheduled'],
+      ['arrived', 'Delivered'],
+    ] as const)('%s reads %s, never the raw status value', (status, word) => {
+      render(<GanttTooltip data={{ ...base, status }} position={DEFAULT_POSITION} />);
+      expect(screen.getByText(word)).toBeInTheDocument();
+      if (status === 'scheduled') expect(screen.queryByText('scheduled')).not.toBeInTheDocument();
+    });
+  });
 
   describe('date formatting', () => {
     it('formats a start date from ISO string to readable form', () => {

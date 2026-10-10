@@ -2,6 +2,7 @@
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--spacing-1);
   padding: var(--spacing-1) var(--spacing-2-5);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
@@ -10,6 +11,12 @@
   line-height: 1;
   border: none;
   cursor: default;
+}
+
+.icon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
 }
 
 /* WorkItemStatus variants */
@@ -97,25 +104,40 @@
   color: var(--color-status-not-started-text);
 }
 
-/* Invoice status variants */
+/* Invoice / progress-payment status (§7.3, #2195). Offer and Refund are info, never red. */
+.offer,
+.refund {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+}
+
 .pending {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
 }
 
 .paid {
-  background-color: var(--color-status-completed-bg);
-  color: var(--color-status-completed-text);
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
 }
 
 .claimed {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
+  background-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+  border: 1px solid var(--color-success-border);
 }
 
-.quotation {
-  background-color: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
+/* Due-date flags (#2195, restyles the #2046 Overdue flag): the single overdue indicator
+   never a second status chip. Due soon = within 7 days. */
+.dueSoon {
+  background-color: var(--color-warning-badge-bg);
+  color: var(--color-warning-text-on-light);
+}
+
+.overduePast {
+  background-color: var(--color-danger-bg-strong);
+  color: var(--color-danger-text-on-light);
 }
 
 /* Role badge: Admin */
@@ -309,17 +331,10 @@
   color: var(--color-attachment-invoice-text);
 }
 
-/* Overdue flag (Story #2046) — a flag on top of a status badge, never a replacement.
-   Reuses the page's existing "orange = overdue" vocabulary (.summaryCardOverdue). */
-.overdue {
-  background-color: var(--color-warning-badge-bg);
-  color: var(--color-warning-text-on-light);
-}
-
 /* Container-only parent (Story #2046) — muted/italic "not really this bucket"
    recipe, mirroring .iblUnassigned above. Uses --color-status-not-started-text
    (not --color-text-muted) to meet WCAG AA contrast on this background — the
-   same token .pending already uses here (8.33:1 light / 4.04:1 dark). */
+   token the not-started chip uses. */
 .containerOnly {
   background-color: var(--color-status-not-started-bg);
   color: var(--color-status-not-started-text);

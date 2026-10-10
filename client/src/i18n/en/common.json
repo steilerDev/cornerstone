@@ -231,5 +231,8 @@
       "issue": "Defect",
       "general_note": "Note"
     }
+  },
+  "statusHints": {
+    "submitted": "Paid or due, and included in a draw-down request to the bank"
   }
 }

@@ -748,7 +748,7 @@
 
   /* --- Status badges --- */
   --color-status-not-started-bg: var(--color-slate-500);
-  --color-status-not-started-text: var(--color-slate-200);
+  --color-status-not-started-text: var(--color-slate-100);
   --color-status-in-progress-bg: rgba(59, 130, 246, 0.2);
   --color-status-in-progress-text: var(--color-blue-300);
   --color-status-completed-bg: rgba(16, 185, 129, 0.15);

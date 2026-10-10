@@ -252,25 +252,25 @@ describe('MassMoveModal', () => {
       expect(screen.getByRole('alert')).toBeInTheDocument();
     });
 
-    it('renders warning heading containing "claimed invoice" when claimedCount=1', () => {
+    it('renders warning heading containing "submitted invoice" when claimedCount=1', () => {
       render(<MassMoveModal {...buildProps({ claimedCount: 1 })} />);
 
-      // claimedWarningHeading_one: "{{count}} line has a claimed invoice"
-      expect(screen.getByText(/1 line has a claimed invoice/i)).toBeInTheDocument();
+      // claimedWarningHeading_one: "{{count}} line has a submitted invoice"
+      expect(screen.getByText(/1 line has a submitted invoice/i)).toBeInTheDocument();
     });
 
     it('renders warning heading for multiple claimed lines when claimedCount=3', () => {
       render(<MassMoveModal {...buildProps({ claimedCount: 3 })} />);
 
-      // claimedWarningHeading_other: "{{count}} lines have a claimed invoice"
-      expect(screen.getByText(/3 lines have a claimed invoice/i)).toBeInTheDocument();
+      // claimedWarningHeading_other: "{{count}} lines have a submitted invoice"
+      expect(screen.getByText(/3 lines have a submitted invoice/i)).toBeInTheDocument();
     });
 
     it('renders "I understand" checkbox when claimedCount > 0', () => {
       render(<MassMoveModal {...buildProps({ claimedCount: 1 })} />);
 
       expect(
-        screen.getByLabelText(/I understand this will reassign lines with a claimed invoice/i),
+        screen.getByLabelText(/I understand this will reassign lines with a submitted invoice/i),
       ).toBeInTheDocument();
     });
   });
@@ -297,7 +297,7 @@ describe('MassMoveModal', () => {
 
       // Check "I understand" but don't pick a target
       const understoodCheckbox = screen.getByLabelText(
-        /I understand this will reassign lines with a claimed invoice/i,
+        /I understand this will reassign lines with a submitted invoice/i,
       );
       fireEvent.click(understoodCheckbox);
 
@@ -330,7 +330,7 @@ describe('MassMoveModal', () => {
 
       // Check "I understand"
       const understoodCheckbox = screen.getByLabelText(
-        /I understand this will reassign lines with a claimed invoice/i,
+        /I understand this will reassign lines with a submitted invoice/i,
       );
       fireEvent.click(understoodCheckbox);
 

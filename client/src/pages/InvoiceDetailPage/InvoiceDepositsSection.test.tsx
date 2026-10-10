@@ -435,7 +435,7 @@ describe('InvoiceDepositsSection', () => {
 
       const menuItems = screen.getAllByRole('menuitem');
       const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('claimed'))).toBe(false);
+      expect(labels.some((l) => l.includes('submitted'))).toBe(false);
       expect(labels.some((l) => l.includes('revert'))).toBe(false);
     });
 
@@ -448,8 +448,8 @@ describe('InvoiceDepositsSection', () => {
 
       const menuItems = screen.getAllByRole('menuitem');
       const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('claimed'))).toBe(true);
-      expect(labels.some((l) => l.includes('pending'))).toBe(true);
+      expect(labels.some((l) => l.includes('submitted'))).toBe(true);
+      expect(labels.some((l) => l.includes('to pay'))).toBe(true);
       expect(labels.some((l) => l.includes('edit'))).toBe(true);
       expect(labels.some((l) => l.includes('delete'))).toBe(true);
     });
@@ -763,7 +763,7 @@ describe('InvoiceDepositsSection', () => {
       fireEvent.change(statusSelect, { target: { value: 'claimed' } });
 
       const paidDateInput = screen.getByLabelText(/paid date/i);
-      const claimedDateInput = screen.getByLabelText(/claimed date/i);
+      const claimedDateInput = screen.getByLabelText(/submitted date/i);
 
       const paidContainer = paidDateInput.closest('[class*="conditionalField"]');
       const claimedContainer = claimedDateInput.closest('[class*="conditionalField"]');
@@ -778,7 +778,7 @@ describe('InvoiceDepositsSection', () => {
       const statusSelect = screen.getByLabelText(/status/i);
       fireEvent.change(statusSelect, { target: { value: 'paid' } });
 
-      const claimedDateInput = screen.getByLabelText(/claimed date/i);
+      const claimedDateInput = screen.getByLabelText(/submitted date/i);
       const container = claimedDateInput.closest('[class*="conditionalField"]');
       expect(container?.className).toContain('Hidden');
     });
@@ -852,7 +852,7 @@ describe('InvoiceDepositsSection', () => {
 
       const markClaimedBtn = screen
         .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('claimed'))!;
+        .find((m) => m.textContent?.toLowerCase().includes('submitted'))!;
       fireEvent.click(markClaimedBtn);
 
       expect(screen.getByRole('dialog')).toBeInTheDocument();
@@ -871,7 +871,7 @@ describe('InvoiceDepositsSection', () => {
       fireEvent.click(menuBtn);
       const markClaimedBtn = screen
         .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('claimed'))!;
+        .find((m) => m.textContent?.toLowerCase().includes('submitted'))!;
       fireEvent.click(markClaimedBtn);
 
       await waitFor(() => screen.getByRole('dialog'));
@@ -909,7 +909,7 @@ describe('InvoiceDepositsSection', () => {
 
       const revertBtn = screen
         .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('pending'))!;
+        .find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
@@ -1140,14 +1140,14 @@ describe('InvoiceDepositsSection', () => {
 
       it('paid: Mark claimed opens the state-confirm modal', async () => {
         renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-        await clickItem(idx, /mark claimed/i);
+        await clickItem(idx, /mark submitted/i);
         expect(screen.getByTestId('state-confirm-button')).toBeInTheDocument();
       });
 
       it('paid: Revert to pending updates the deposit to pending', async () => {
         mockUpdateDeposit.mockResolvedValue({} as never);
         renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-        await clickItem(idx, /revert to pending/i);
+        await clickItem(idx, /set status back to “to pay”/i);
         expect(mockUpdateDeposit).toHaveBeenCalledTimes(1);
         expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'pending' });
       });
@@ -1223,7 +1223,7 @@ describe('InvoiceDepositsSection', () => {
         fireEvent.click(kebab);
         const item = screen
           .getAllByRole('menuitem')
-          .find((m) => /revert to pending/i.test(m.textContent ?? ''))!;
+          .find((m) => /set status back to “to pay”/i.test(m.textContent ?? ''))!;
         await act(async () => {
           fireEvent.click(item);
         });
@@ -1499,7 +1499,7 @@ describe('InvoiceDepositsSection', () => {
 
       const menuItems = openMenuForFirstDeposit();
       // For a paid deposit, "Revert to pending" is a menu item
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
@@ -1523,7 +1523,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
       await act(async () => {
         fireEvent.click(revertBtn);
       });
@@ -1583,7 +1583,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection([deposit]);
 
       const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('pending'))!;
+      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
 
       await act(async () => {
         fireEvent.click(revertBtn);

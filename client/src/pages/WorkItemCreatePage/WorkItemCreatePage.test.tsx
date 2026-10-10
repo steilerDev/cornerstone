@@ -7,7 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { UserResponse } from '@cornerstone/shared';
-import enWorkItems from '../../i18n/en/workItems.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as DependenciesApiTypes from '../../lib/dependenciesApi.js';
@@ -261,9 +261,9 @@ describe('WorkItemCreatePage', () => {
       const select = (await screen.findByLabelText(/status/i)) as HTMLSelectElement;
 
       expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual([
-        ['not_started', enWorkItems.create.fields.statusOptions.notStarted],
-        ['in_progress', enWorkItems.create.fields.statusOptions.inProgress],
-        ['completed', enWorkItems.create.fields.statusOptions.completed],
+        ['not_started', enCommon.statusVocabulary.task.not_started],
+        ['in_progress', enCommon.statusVocabulary.task.in_progress],
+        ['completed', enCommon.statusVocabulary.task.completed],
       ]);
       expect(Array.from(select.options).map((o) => o.value)).toEqual([...WORK_ITEM_STATUSES]);
     });
@@ -495,11 +495,11 @@ describe('WorkItemCreatePage', () => {
 
       // A pending dependency chip should appear with sentence text
       await waitFor(() => {
-        expect(screen.getByRole('list', { name: /pending dependencies/i })).toBeInTheDocument();
+        expect(screen.getByRole('list', { name: /dependencies to add/i })).toBeInTheDocument();
       });
 
       // Verify the sentence format is used (not old direction pill format)
-      const list = screen.getByRole('list', { name: /pending dependencies/i });
+      const list = screen.getByRole('list', { name: /dependencies to add/i });
       expect(list.textContent).toMatch(/must finish before|must start before/i);
     });
   });

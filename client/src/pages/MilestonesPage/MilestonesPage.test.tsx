@@ -251,6 +251,21 @@ describe('MilestonesPage', () => {
     });
   });
 
+  // ─── Status words (#2195) ─────────────────────────────────────────────────
+
+  describe('status words', () => {
+    it('a not-yet-reached milestone reads "Upcoming", never "Pending"', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Upcoming').length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+    });
+  });
+
   // ─── Actions menu ─────────────────────────────────────────────────────────
 
   describe('actions menu', () => {

@@ -94,58 +94,6 @@
   max-width: 12rem;
 }
 
-.statusBadge {
-  display: inline-block;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  text-transform: capitalize;
-  white-space: nowrap;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-}
-
-.statusBadge.status_pending {
-  background: var(--color-orange-100);
-  color: var(--color-orange-800);
-}
-
-[data-theme='dark'] .statusBadge.status_pending {
-  background: var(--color-orange-400);
-  color: var(--color-black);
-}
-
-.statusBadge.status_paid {
-  background: var(--color-green-100);
-  color: var(--color-green-700);
-}
-
-[data-theme='dark'] .statusBadge.status_paid {
-  background: var(--color-emerald-400);
-  color: var(--color-black);
-}
-
-.statusBadge.status_claimed {
-  background: var(--color-blue-100);
-  color: var(--color-blue-800);
-}
-
-[data-theme='dark'] .statusBadge.status_claimed {
-  background: var(--color-blue-300);
-  color: var(--color-black);
-}
-
-.statusBadge.status_quotation {
-  background: var(--color-gray-200);
-  color: var(--color-gray-800);
-}
-
-[data-theme='dark'] .statusBadge.status_quotation {
-  background: var(--color-slate-500);
-  color: var(--color-white);
-}
-
 /* ─── Amounts Display ────────────────────────────────────────────────────── */
 
 .amounts {

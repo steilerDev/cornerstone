@@ -108,11 +108,6 @@
       "description": "Beschreibung",
       "descriptionPlaceholder": "Beschreiben Sie die zu erledigende Arbeit",
       "status": "Status",
-      "statusOptions": {
-        "notStarted": "Nicht begonnen",
-        "inProgress": "In Bearbeitung",
-        "completed": "Abgeschlossen"
-      },
       "assignedTo": "Zugewiesen an",
       "unassigned": "Nicht zugewiesen",
       "durationDays": "Dauer (Tage)",
@@ -125,7 +120,7 @@
       "dependencies": "Abhängigkeiten"
     },
     "pendingDeps": {
-      "ariaLabel": "Ausstehende Abhängigkeiten",
+      "ariaLabel": "Hinzuzufügende Abhängigkeiten",
       "thisItemPredecessor": "Dieses Element muss {{predecessorVerb}}, bevor „{{otherItemTitle}}“ {{successorVerb}} kann",
       "otherItemPredecessor": "„{{otherItemTitle}}“ muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
       "removeAriaLabel": "Abhängigkeit zu {{otherItemTitle}} entfernen"
@@ -168,11 +163,6 @@
     "titleEdit": {
       "save": "Speichern",
       "cancel": "Abbrechen"
-    },
-    "statusOptions": {
-      "notStarted": "Nicht begonnen",
-      "inProgress": "In Bearbeitung",
-      "completed": "Abgeschlossen"
     },
     "sections": {
       "description": "Beschreibung",
@@ -279,12 +269,6 @@
         "outdoor": "Außenbereich",
         "storage": "Aufbewahrung",
         "other": "Sonstiges"
-      },
-      "statuses": {
-        "planned": "Geplant",
-        "purchased": "Gekauft",
-        "scheduled": "Terminiert",
-        "arrived": "Angekommen"
       }
     },
     "footer": {

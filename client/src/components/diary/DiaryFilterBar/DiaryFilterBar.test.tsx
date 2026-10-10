@@ -317,7 +317,7 @@ describe('DiaryFilterBar', () => {
     expect(toggleButton.textContent).not.toMatch(/[1-9]/);
   });
 
-  // ─── Chip labels and order (diary:entryTypeChips) ──────────────────────────
+  // ─── Chip labels and order (one word per type: common canonical or diary automatic) ──────────────────────────
 
   const chipOrder = (): (string | null)[] =>
     screen
@@ -358,11 +358,15 @@ describe('DiaryFilterBar', () => {
     ]);
   });
 
-  it('shows the short English chip labels from diary:entryTypeChips', () => {
+  it('shows one word per type: canonical for manual, diary:entryTypes for automatic', () => {
     renderFilterBar();
     expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Note$/);
-    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice$/);
-    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(/^Work Item$/);
+    expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Invoice Status$/);
+    expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
+      /^Work Item Status$/,
+    );
+    expect(screen.getByTestId('type-filter-issue')).toHaveTextContent(/^Defect$/);
+    expect(screen.getByTestId('type-filter-daily_log')).toHaveTextContent(/^Daily log$/);
   });
 
   it('shows the English filters toggle text', () => {
@@ -380,9 +384,11 @@ describe('DiaryFilterBar', () => {
       renderFilterBar();
       expect(screen.getByTestId('type-filter-general_note')).toHaveTextContent(/^Notiz$/);
       expect(screen.getByTestId('type-filter-work_item_status')).toHaveTextContent(
-        /^Arbeitspaket$/,
+        /^Arbeitspaketstatus$/,
       );
-      expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(/^Rechnung$/);
+      expect(screen.getByTestId('type-filter-invoice_status')).toHaveTextContent(
+        /^Rechnungsstatus$/,
+      );
       expect(screen.getByRole('button', { name: 'Filter ein-/ausblenden' })).toHaveTextContent(
         /^🔍 Filter\s*$/,
       );

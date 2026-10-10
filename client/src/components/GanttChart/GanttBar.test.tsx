@@ -8,6 +8,7 @@
 import { jest, describe, it, expect } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttBar } from './GanttBar.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import type { BarInteractionState } from './GanttBar.js';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import type { WorkItemStatus } from '@cornerstone/shared';
@@ -17,9 +18,11 @@ import type { WorkItemStatus } from '@cornerstone/shared';
 // Helper to render GanttBar inside an SVG (required for SVG elements in jsdom)
 function renderInSvg(props: React.ComponentProps<typeof GanttBar>): ReturnType<typeof render> {
   return render(
-    <svg>
-      <GanttBar {...props} />
-    </svg>,
+    <LocaleProvider>
+      <svg>
+        <GanttBar {...props} />
+      </svg>
+    </LocaleProvider>,
   );
 }
 
@@ -105,7 +108,7 @@ describe('GanttBar', () => {
   it('builds aria-label from title and status', () => {
     renderInSvg({ ...DEFAULT_PROPS, title: 'Roof Installation', status: 'completed' });
     const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', 'Work item: Roof Installation, Completed');
+    expect(group).toHaveAttribute('aria-label', 'Task: Roof Installation, Done');
   });
 
   it('aria-label maps not_started status correctly', () => {
@@ -133,7 +136,7 @@ describe('GanttBar', () => {
     const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
-      'Work item: Foundation Work, In progress, 2024-06-01 to 2024-07-31',
+      'Task: Foundation Work, In progress, Jun 1, 2024 to Jul 31, 2024',
     );
   });
 
@@ -146,7 +149,7 @@ describe('GanttBar', () => {
       endDate: null,
     });
     const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', 'Work item: Framing, Not started, from 2024-05-01');
+    expect(group).toHaveAttribute('aria-label', 'Task: Framing, Not started, from May 1, 2024');
   });
 
   it('aria-label has no date segment when neither startDate nor endDate is provided', () => {
@@ -158,14 +161,14 @@ describe('GanttBar', () => {
       endDate: null,
     });
     const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', 'Work item: Electrical, Not started');
+    expect(group).toHaveAttribute('aria-label', 'Task: Electrical, Not started');
   });
 
   it('aria-label has no date segment when startDate and endDate are both undefined', () => {
     // DEFAULT_PROPS has no startDate/endDate — omitting both props
     renderInSvg({ ...DEFAULT_PROPS, title: 'Plumbing', status: 'not_started' });
     const group = screen.getByRole('graphics-symbol');
-    expect(group).toHaveAttribute('aria-label', 'Work item: Plumbing, Not started');
+    expect(group).toHaveAttribute('aria-label', 'Task: Plumbing, Not started');
   });
 
   it('aria-label includes critical path suffix after date range', () => {
@@ -180,7 +183,7 @@ describe('GanttBar', () => {
     const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
-      'Work item: Roofing, In progress, 2024-08-01 to 2024-08-15, critical path',
+      'Task: Roofing, In progress, Aug 1, 2024 to Aug 15, 2024, on the critical path',
     );
   });
 
@@ -196,7 +199,7 @@ describe('GanttBar', () => {
     const group = screen.getByRole('graphics-symbol');
     expect(group).toHaveAttribute(
       'aria-label',
-      'Work item: Insulation, Not started, critical path',
+      'Task: Insulation, Not started, on the critical path',
     );
   });
 
@@ -343,9 +346,11 @@ describe('GanttBar', () => {
 
       // Re-render with dimmed state
       rerender(
-        <svg>
-          <GanttBar {...DEFAULT_PROPS} interactionState={'dimmed' as BarInteractionState} />
-        </svg>,
+        <LocaleProvider>
+          <svg>
+            <GanttBar {...DEFAULT_PROPS} interactionState={'dimmed' as BarInteractionState} />
+          </svg>
+        </LocaleProvider>,
       );
       expect(group?.getAttribute('class')).toContain('dimmed');
       expect(group?.getAttribute('class')).not.toContain('highlighted');
@@ -361,9 +366,11 @@ describe('GanttBar', () => {
 
       // Re-render with default state
       rerender(
-        <svg>
-          <GanttBar {...DEFAULT_PROPS} interactionState={'default' as BarInteractionState} />
-        </svg>,
+        <LocaleProvider>
+          <svg>
+            <GanttBar {...DEFAULT_PROPS} interactionState={'default' as BarInteractionState} />
+          </svg>
+        </LocaleProvider>,
       );
       expect(group?.getAttribute('class')).not.toContain('dimmed');
       expect(group?.getAttribute('class')).not.toContain('highlighted');

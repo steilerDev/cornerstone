@@ -26,20 +26,6 @@
     "batchAppendedAndEndAnnouncement_one": "{{count}} more entry loaded. You've reached the end.",
     "batchAppendedAndEndAnnouncement_other": "{{count}} more entries loaded. You've reached the end."
   },
-  "entryTypeChips": {
-    "daily_log": "Daily Log",
-    "site_visit": "Site Visit",
-    "delivery": "Delivery",
-    "issue": "Issue",
-    "general_note": "Note",
-    "work_item_status": "Work Item",
-    "invoice_status": "Invoice",
-    "invoice_created": "Invoice Created",
-    "milestone_delay": "Milestone",
-    "budget_breach": "Budget",
-    "auto_reschedule": "Schedule",
-    "subsidy_status": "Subsidy"
-  },
   "filterBar": {
     "filtersToggle": "Filters",
     "search": "Search entries...",
@@ -69,11 +55,6 @@
     "ariaLabel": "Entry type: {{type}}"
   },
   "entryTypes": {
-    "daily_log": "Daily Log",
-    "site_visit": "Site Visit",
-    "delivery": "Delivery",
-    "issue": "Issue",
-    "general_note": "General Note",
     "work_item_status": "Work Item Status",
     "invoice_status": "Invoice Status",
     "invoice_created": "Invoice Created",
@@ -262,15 +243,10 @@
     "backLink": "← Back to Diary",
     "title": "New Diary Entry",
     "selectEntryType": "Select Entry Type",
-    "typeCardDaily": "Daily Log",
     "typeCardDailyDesc": "Record daily site conditions and worker presence",
-    "typeCardSiteVisit": "Site Visit",
     "typeCardSiteVisitDesc": "Document an inspection with inspector info and outcome",
-    "typeCardDelivery": "Delivery",
     "typeCardDeliveryDesc": "Record delivery of materials or equipment",
-    "typeCardIssue": "Issue",
     "typeCardIssueDesc": "Report a problem or concern on the site",
-    "typeCardGeneralNote": "General Note",
     "typeCardGeneralNoteDesc": "Add any other relevant information",
     "draftCreateError": "Failed to create draft. Please try again."
   },

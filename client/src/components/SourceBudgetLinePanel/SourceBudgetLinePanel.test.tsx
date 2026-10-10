@@ -7,7 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
-import enBudget from '../../i18n/en/budget.json';
+import enCommon from '../../i18n/en/common.json';
 import type { BudgetSourceBudgetLine, BudgetSourceBudgetLinesResponse } from '@cornerstone/shared';
 
 // ─── Mock: formatters ──────────────────────────────────────────────────────────
@@ -433,7 +433,7 @@ describe('SourceBudgetLinePanel', () => {
       expect(screen.getByText('Paid')).toBeInTheDocument();
     });
 
-    it('renders status as "Claimed" when invoiceLink exists with claimed status', () => {
+    it('renders status as "Submitted" when invoiceLink exists with claimed status', () => {
       const line = makeLine({
         invoiceLink: {
           invoiceBudgetLineId: 'ibl-1',
@@ -448,7 +448,7 @@ describe('SourceBudgetLinePanel', () => {
       });
       renderPanel({ data: makeResponse([line], []) });
 
-      expect(screen.getByText('Claimed')).toBeInTheDocument();
+      expect(screen.getByText('Submitted')).toBeInTheDocument();
     });
 
     it.each(INVOICE_STATUSES)('renders the translated label for a %s invoice', (status) => {
@@ -466,7 +466,7 @@ describe('SourceBudgetLinePanel', () => {
       });
       renderPanel({ data: makeResponse([line], []) });
 
-      expect(screen.getByText(enBudget.sources.lines.invoiceStatus[status])).toBeInTheDocument();
+      expect(screen.getByText(enCommon.statusVocabulary.invoice[status])).toBeInTheDocument();
     });
 
     it('renders status as "Not invoiced" when invoiceLink is null', () => {

@@ -680,7 +680,9 @@ export function AutoItemizePage() {
                   >
                     {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {t(I18N_UNION_KEYS.invoicesStatusLabel.key(s))}
+                        {t(I18N_UNION_KEYS.statusVocabularyInvoice.key(s), {
+                          ns: I18N_UNION_KEYS.statusVocabularyInvoice.ns,
+                        })}
                       </option>
                     ))}
                   </select>

@@ -37,3 +37,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Invariant removal specs](invariant-removal-specs.md) — grep every guard under the error code incl. inverse paths; lock-step ERROR_CODES/en/de; advisory client mirrors; docs
 - [Status vocabulary switch specs](status-vocabulary-switch-specs.md) — hidden parallel colour maps/literal label maps, partial canonical sets, PDF getFixedT ns, banned-word test scope
 - [UX visual spec verification](ux-visual-spec-verification.md) — check named tokens exist, new short money labels vs baseline, confirm "can't find" claims from CSS
+- [Restructure baseline hazards](restructure-baseline-hazards.md) — closure-wide counts: `<a>`→`<Link>` in a shared component raises destinations; use useHref+useLinkClickHandler
+- [URL-state & search specs](url-state-specs.md) — history.state survives reload (test goto), waitForURL globs vs new ?params, RR7 transition drops keystrokes, scanner phones

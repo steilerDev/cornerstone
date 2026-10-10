@@ -19,6 +19,7 @@ import { InvoiceDepositFormModal, type DepositFormState } from './InvoiceDeposit
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './InvoiceDepositsSection.module.css';
 
@@ -109,21 +110,7 @@ export function InvoiceDepositsSection({
     };
   }, []);
 
-  const invoiceStatusVariants: BadgeVariantMap = {
-    pending: {
-      label: t('invoiceDetail.statusLabels.pending')!,
-      className: styles.statusPending!,
-    },
-    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
-    claimed: {
-      label: t('invoiceDetail.statusLabels.claimed')!,
-      className: styles.statusClaimed!,
-    },
-    quotation: {
-      label: t('invoiceDetail.statusLabels.quotation')!,
-      className: styles.statusQuotation!,
-    },
-  };
+  const variants = useStatusBadgeVariants();
 
   // Compute source map and stats from budget lines (for auto-default and hint display)
   const sourceStats = (() => {
@@ -367,6 +354,8 @@ export function InvoiceDepositsSection({
                     onMarkClaimed={() => openStateConfirm(deposit, 'mark-claimed')}
                     onRevertToPending={handleRevertToPending}
                     onRevertToPaid={handleRevertToPaid}
+                    statusVariants={variants.progressPayment}
+                    refundVariants={variants.refund}
                     t={t}
                     formatCurrency={formatCurrency}
                     formatDate={formatDate}
@@ -389,6 +378,8 @@ export function InvoiceDepositsSection({
                 onMarkClaimed={() => openStateConfirm(deposit, 'mark-claimed')}
                 onRevertToPending={handleRevertToPending}
                 onRevertToPaid={handleRevertToPaid}
+                statusVariants={variants.progressPayment}
+                refundVariants={variants.refund}
                 t={t}
                 formatCurrency={formatCurrency}
                 formatDate={formatDate}
@@ -402,7 +393,7 @@ export function InvoiceDepositsSection({
               {t('budget:invoiceDetail.deposits.finalPayment')}
             </span>
             <div className={styles.finalPaymentRight}>
-              <Badge variants={invoiceStatusVariants} value={invoiceStatus} />
+              <Badge variants={variants.invoice} value={invoiceStatus} />
               <span
                 className={`${styles.finalPaymentAmount} ${finalPaymentAmount === 0 ? styles.finalPaymentAmountMuted : ''}`}
                 aria-live="polite"
@@ -479,6 +470,8 @@ interface DepositRowProps {
   onMarkClaimed: () => void;
   onRevertToPending: (deposit: InvoiceDeposit) => void;
   onRevertToPaid: (deposit: InvoiceDeposit) => void;
+  statusVariants: BadgeVariantMap;
+  refundVariants: BadgeVariantMap;
   t: (key: string, opts?: Record<string, unknown>) => string;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
@@ -493,29 +486,12 @@ function DepositRow({
   onMarkClaimed,
   onRevertToPending,
   onRevertToPaid,
+  statusVariants,
+  refundVariants,
   t,
   formatCurrency,
   formatDate,
 }: DepositRowProps) {
-  const statusVariants: BadgeVariantMap = {
-    pending: {
-      label: t('invoiceDetail.statusLabels.pending')!,
-      className: styles.statusPending!,
-    },
-    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
-    claimed: {
-      label: t('invoiceDetail.statusLabels.claimed')!,
-      className: styles.statusClaimed!,
-    },
-  };
-
-  const entryTypeVariants: BadgeVariantMap = {
-    refund: {
-      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
-      className: styles.refund!,
-    },
-  };
-
   // Build menu items based on deposit status
   const menuItems: OverflowMenuItem[] = [];
 
@@ -590,7 +566,7 @@ function DepositRow({
       <td>{formatDate(deposit.dueDate)}</td>
       <td>
         <div className={styles.amountCell}>
-          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          {deposit.entryType === 'refund' && <Badge variants={refundVariants} value="refund" />}
           <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
             {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
           </span>
@@ -638,29 +614,12 @@ function DepositCard({
   onMarkClaimed,
   onRevertToPending,
   onRevertToPaid,
+  statusVariants,
+  refundVariants,
   t,
   formatCurrency,
   formatDate,
 }: DepositCardProps) {
-  const statusVariants: BadgeVariantMap = {
-    pending: {
-      label: t('invoiceDetail.statusLabels.pending')!,
-      className: styles.statusPending!,
-    },
-    paid: { label: t('invoiceDetail.statusLabels.paid')!, className: styles.statusPaid! },
-    claimed: {
-      label: t('invoiceDetail.statusLabels.claimed')!,
-      className: styles.statusClaimed!,
-    },
-  };
-
-  const entryTypeVariants: BadgeVariantMap = {
-    refund: {
-      label: t('budget:invoiceDetail.deposits.entryTypeLabels.refund')!,
-      className: styles.refund!,
-    },
-  };
-
   // Build menu items based on deposit status
   const menuItems: OverflowMenuItem[] = [];
 
@@ -732,7 +691,7 @@ function DepositCard({
     <div className={styles.mobileCard}>
       <div className={styles.cardTopRow}>
         <div className={styles.cardAmount}>
-          {deposit.entryType === 'refund' && <Badge variants={entryTypeVariants} value="refund" />}
+          {deposit.entryType === 'refund' && <Badge variants={refundVariants} value="refund" />}
           <span className={deposit.entryType === 'refund' ? styles.amountNegative : undefined}>
             {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
           </span>

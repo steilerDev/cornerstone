@@ -4,7 +4,10 @@ import type {
   MouseEvent as ReactMouseEvent,
   FocusEvent as ReactFocusEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
+import { milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
 import type { ChartRange, ZoomLevel } from './ganttUtils.js';
 import styles from './GanttMilestones.module.css';
@@ -285,24 +288,31 @@ export const GanttMilestones = memo(function GanttMilestones({
   onMilestoneBlur,
   onMilestoneClick,
 }: GanttMilestonesProps) {
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
+  const { formatDate } = useFormatters();
+
   if (milestones.length === 0) {
     return null;
   }
 
   return (
-    <g aria-label={`Milestone markers (${milestones.length})`} data-testid="gantt-milestones-layer">
+    <g
+      aria-label={t('gantt.aria.milestoneLayer', { count: milestones.length })}
+      data-testid="gantt-milestones-layer"
+    >
       {milestones.map((milestone) => {
         const status = computeMilestoneStatus(milestone);
-        const statusLabel =
-          status === 'completed'
-            ? 'completed'
-            : status === 'late'
-              ? 'late'
-              : status === 'ahead'
-                ? 'ahead'
-                : 'incomplete';
+        const statusLabel = milestoneStatusLabel(tCommon, milestone);
         const isCriticalMilestone = criticalMilestoneIds?.has(milestone.id) ?? false;
-        const ariaLabel = `Milestone: ${milestone.title}, ${statusLabel}${isCriticalMilestone ? ', critical path' : ''}, target date ${milestone.targetDate}`;
+        const ariaLabel = t(
+          isCriticalMilestone ? 'gantt.aria.milestoneCritical' : 'gantt.aria.milestone',
+          {
+            title: milestone.title,
+            status: statusLabel,
+            date: formatDate(milestone.targetDate),
+          },
+        );
 
         // Row index from the unified sorted list
         const milestoneRowIndex = milestoneRowIndices.get(milestone.id) ?? 0;

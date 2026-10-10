@@ -167,7 +167,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
         />
         <span className={styles.srOnly} role="status" aria-atomic="true">
           {t('sources.barChart.srOnly', {
-            claimed: formatCurrency(source.claimedAmount),
+            submitted: formatCurrency(source.claimedAmount),
             paid: formatCurrency(source.paidAmount),
             projectedMin: formatCurrency(source.projectedMinAmount),
             projectedMax: formatCurrency(source.projectedMaxAmount),
@@ -867,7 +867,6 @@ export function BudgetSourcesPage() {
                   value={newTotalAmount}
                   onChange={(e) => setNewTotalAmount(e.target.value)}
                   className={styles.input}
-                  placeholder="0.00"
                   min={0}
                   step="0.01"
                   disabled={isCreating}

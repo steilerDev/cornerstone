@@ -4,7 +4,7 @@ import {
   BUDGET_SOURCE_STATUSES,
   BUDGET_SOURCE_TYPES,
   BUDGET_VERDICTS,
-  DIARY_ENTRY_TYPES,
+  AUTOMATIC_DIARY_ENTRY_TYPES,
   DIARY_ISSUE_RESOLUTIONS,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
@@ -67,8 +67,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 31 registered sets', () => {
-    expect(SETS).toHaveLength(31);
+  it('iterates all 25 registered sets', () => {
+    expect(SETS).toHaveLength(25);
   });
 });
 
@@ -120,24 +120,20 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.reportCoverLetterSubject.members).toBe(SOURCE_REPORT_TYPES);
     expect(I18N_UNION_KEYS.reportCoverLetterBody.members).toBe(SOURCE_REPORT_TYPES);
     expect(I18N_UNION_KEYS.reportSourceType.members).toBe(BUDGET_SOURCE_TYPES);
-    expect(I18N_UNION_KEYS.invoiceStatus.members).toBe(INVOICE_STATUSES);
     expect(I18N_UNION_KEYS.reportAttachmentType.members).toBe(ATTACHMENT_TYPES);
     expect(I18N_UNION_KEYS.documentAttachmentType.members).toBe(ATTACHMENT_TYPES);
-    expect(I18N_UNION_KEYS.diaryEntryType.members).toBe(DIARY_ENTRY_TYPES);
-    expect(I18N_UNION_KEYS.diaryEntryTypeChip.members).toBe(DIARY_ENTRY_TYPES);
+    expect(I18N_UNION_KEYS.diaryAutomaticEntryType.members).toBe(AUTOMATIC_DIARY_ENTRY_TYPES);
   });
 
   it('pins namespaces and literal key shapes', () => {
     expect(I18N_UNION_KEYS.reportTitle.ns).toBe('budget');
     expect(I18N_UNION_KEYS.documentAttachmentType.ns).toBe('documents');
-    expect(I18N_UNION_KEYS.diaryEntryType.ns).toBe('diary');
-    expect(I18N_UNION_KEYS.diaryEntryType.key('general_note')).toBe('entryTypes.general_note');
-    expect(I18N_UNION_KEYS.diaryEntryTypeChip.ns).toBe('diary');
-    expect(I18N_UNION_KEYS.diaryEntryTypeChip.key('general_note')).toBe(
-      'entryTypeChips.general_note',
+    expect(I18N_UNION_KEYS.diaryAutomaticEntryType.ns).toBe('diary');
+    expect(I18N_UNION_KEYS.diaryAutomaticEntryType.key('work_item_status')).toBe(
+      'entryTypes.work_item_status',
     );
-    expect(I18N_UNION_KEYS.invoiceStatus.key('claimed')).toBe(
-      'sources.lines.invoiceStatus.claimed',
+    expect(I18N_UNION_KEYS.statusVocabularyInvoice.key('claimed')).toBe(
+      'statusVocabulary.invoice.claimed',
     );
     expect(I18N_UNION_KEYS.reportCoverLetterBody.key('proof-of-funds')).toBe(
       'sourceReports.coverLetter.body.proof-of-funds',
@@ -147,26 +143,19 @@ describe('I18N_UNION_KEYS registry', () => {
     );
   });
 
-  it('registers the 31 sets in declaration order', () => {
+  it('registers the sets in declaration order', () => {
     expect(Object.keys(I18N_UNION_KEYS)).toEqual([
       'reportTitle',
       'reportCoverLetterSubject',
       'reportCoverLetterBody',
       'reportSourceType',
-      'invoiceStatus',
       'reportAttachmentType',
       'documentAttachmentType',
-      'diaryEntryType',
-      'diaryEntryTypeChip',
       'reportUseCase',
       'reportUseCaseHelper',
-      'invoicesStatusLabel',
-      'invoiceDetailStatusLabel',
       'depositEntryType',
-      'subsidyApplicationStatus',
       'confidenceLevel',
       'reportSkipReason',
-      'householdItemStatus',
       'diarySourceType',
       'oidcLoginError',
       'statusVocabularyInvoice',
@@ -180,7 +169,22 @@ describe('I18N_UNION_KEYS registry', () => {
       'statusVocabularyDefect',
       'statusVocabularyBudgetVerdict',
       'statusVocabularyDiaryType',
+      'diaryAutomaticEntryType',
     ]);
+  });
+
+  it('no longer registers the legacy status duplicates removed by #2195', () => {
+    for (const legacy of [
+      'invoiceStatus',
+      'invoicesStatusLabel',
+      'invoiceDetailStatusLabel',
+      'diaryEntryType',
+      'diaryEntryTypeChip',
+      'householdItemStatus',
+      'subsidyApplicationStatus',
+    ]) {
+      expect(Object.keys(I18N_UNION_KEYS)).not.toContain(legacy);
+    }
   });
 
   it.each(Object.entries(I18N_UNION_KEYS))('freezes key set %s', (_name, set) => {

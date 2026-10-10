@@ -1044,7 +1044,7 @@ describe('ReportContentEditor — summary rows and footnotes', () => {
         {
           id: 'depositReduced',
           marker: 'less deposit',
-          text: 'This position reflects deposits claimed separately.',
+          text: 'This position reflects progress payments submitted separately.',
         },
       ],
     });

@@ -37,12 +37,6 @@
     "asc": "↑ Asc",
     "desc": "↓ Desc"
   },
-  "status": {
-    "planned": "Planned",
-    "purchased": "Purchased",
-    "scheduled": "Scheduled",
-    "arrived": "Arrived"
-  },
   "table": {
     "sectionTitle": "Household Items",
     "headers": {
@@ -327,10 +321,6 @@
       "deleted": "Household item deleted successfully"
     },
     "status": {
-      "planned": "Planned",
-      "purchased": "Purchased",
-      "scheduled": "Scheduled",
-      "arrived": "Arrived",
       "late": "Late",
       "updated": "Status updated",
       "updateFailed": "Failed to update status. Please try again."

@@ -1114,7 +1114,10 @@ describe('HouseholdItemDetailPage', () => {
         o.textContent,
       ]);
       expect(options).toEqual(
-        HOUSEHOLD_ITEM_STATUSES.map((status) => [status, enHouseholdItems.detail.status[status]]),
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [
+          status,
+          enCommon.statusVocabulary.purchase[status],
+        ]),
       );
     });
 

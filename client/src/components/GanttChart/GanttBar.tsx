@@ -4,7 +4,10 @@ import type {
   KeyboardEvent as ReactKeyboardEvent,
   FocusEvent as ReactFocusEvent,
 } from 'react';
+import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus } from '@cornerstone/shared';
+import { useFormatters } from '../../lib/formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { BAR_HEIGHT, BAR_OFFSET_Y, ROW_HEIGHT } from './ganttUtils.js';
 import styles from './GanttBar.module.css';
 
@@ -57,12 +60,6 @@ export interface GanttBarProps {
   onBlur?: () => void;
 }
 
-const STATUS_LABELS: Record<WorkItemStatus, string> = {
-  not_started: 'Not started',
-  in_progress: 'In progress',
-  completed: 'Completed',
-};
-
 /**
  * GanttBar renders a single work item as an SVG bar in the chart canvas.
  *
@@ -102,13 +99,20 @@ export const GanttBar = memo(function GanttBar({
 }: GanttBarProps) {
   const rowY = rowIndex * ROW_HEIGHT;
   const barY = rowY + BAR_OFFSET_Y;
-  const statusLabel = STATUS_LABELS[status];
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
+  const { formatDate } = useFormatters();
+  const statusLabel = tCommon(I18N_UNION_KEYS.statusVocabularyTask.key(status));
 
-  // Build a descriptive aria-label including dates when available
-  const dateRange =
-    startDate && endDate ? `, ${startDate} to ${endDate}` : startDate ? `, from ${startDate}` : '';
-  const criticalSuffix = isCritical ? ', critical path' : '';
-  const ariaLabel = `Work item: ${title}, ${statusLabel}${dateRange}${criticalSuffix}`;
+  // Build a descriptive aria-label (full translated sentence) including dates when available
+  const dateContext = startDate && endDate ? 'range' : startDate ? 'from' : undefined;
+  const ariaLabel = t(isCritical ? 'gantt.aria.workItemCritical' : 'gantt.aria.workItem', {
+    title,
+    status: statusLabel,
+    start: startDate ? formatDate(startDate) : '',
+    end: endDate ? formatDate(endDate) : '',
+    context: dateContext,
+  });
 
   const interactionClass = INTERACTION_STATE_CLASSES[interactionState];
 

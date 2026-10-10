@@ -1,15 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { BaseBudgetLine } from '@cornerstone/shared';
+import type { BaseBudgetLine, InvoiceStatus } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { Badge } from '../Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import styles from './InvoiceGroup.module.css';
 
 export interface InvoiceGroupProps<T extends BaseBudgetLine> {
   invoiceId: string;
   invoiceNumber: string | null;
-  invoiceStatus: string;
+  invoiceStatus: InvoiceStatus;
   itemizedTotal: number;
   plannedTotal: number;
   lines: T[];
@@ -43,6 +45,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
 }: InvoiceGroupProps<T>) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
+  const statusVariants = useStatusBadgeVariants();
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
   const toggleButtonRef = useRef<HTMLButtonElement>(null);
@@ -63,13 +66,6 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
       contentRef.current.focus();
     }
   }, [isExpanded]);
-
-  const statusBadgeClass = `${styles.statusBadge} ${styles[`status_${invoiceStatus}`] || ''}`;
-
-  const _getStatusLabel = (status: string): string => {
-    if (status === 'quotation') return t('vendorDetail.quotedLabel');
-    return t('vendorDetail.invoiceStatusLabels.paid'); // Default to "Invoiced" equivalent
-  };
 
   const amountLabel =
     invoiceStatus === 'quotation'
@@ -101,7 +97,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
               </Link>
               {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
             </div>
-            <span className={statusBadgeClass}>{invoiceStatus}</span>
+            <Badge variants={statusVariants.invoice} value={invoiceStatus} />
           </div>
           <div className={styles.amounts}>
             <div className={styles.amountGroup}>

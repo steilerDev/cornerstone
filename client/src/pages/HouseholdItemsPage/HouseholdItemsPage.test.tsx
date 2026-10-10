@@ -17,7 +17,6 @@ import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
 import type { HouseholdItemSummary } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
-import enHouseholdItems from '../../i18n/en/householdItems.json';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
@@ -268,6 +267,24 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
+    it.each(HOUSEHOLD_ITEM_STATUSES)(
+      'renders the %s status badge with the shared Badge class and canonical word (D-08)',
+      async (status) => {
+        mockListHouseholdItems.mockResolvedValueOnce(
+          defaultListResponse([makeHouseholdItem({ id: 'hi-1', name: 'Sample Sofa', status })]),
+        );
+        renderPage();
+        const label = enCommon.statusVocabulary.purchase[status];
+        await waitFor(() => {
+          expect(screen.getAllByText(label).length).toBeGreaterThan(0);
+        });
+        const badge = screen.getAllByText(label).find((el) => el.className.includes('badge'));
+        expect(badge).toBeDefined();
+        expect(badge!.className).toContain(status);
+        expect(badge!.className).not.toContain('badge-');
+      },
+    );
+
     it('status filter lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
       renderPage();
       fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
@@ -280,7 +297,7 @@ describe('HouseholdItemsPage', () => {
       expect(rows).toEqual(
         HOUSEHOLD_ITEM_STATUSES.map((status) => [
           `enum-${status}`,
-          enHouseholdItems.status[status],
+          enCommon.statusVocabulary.purchase[status],
         ]),
       );
     });

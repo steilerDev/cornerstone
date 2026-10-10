@@ -16,4 +16,5 @@ When a story switches status labels or chips to the canonical sets, the deprecat
 - Plan defect line refs can be stale. css-loader keeps class names as-is (`namedExport:false`), so `styles[\`status_x\`]` works wherever the class exists. Verify which classes are actually missing.
 - Bank PDF uses `i18n.getFixedT(lang, 'budget')`. A canonical `common` key needs `{ ns }`, and resources are bundled statically, so this works.
 - Scope a banned-word test by **meaning**. Rename stray non-status hits (for example, milestone "Pending" → "Upcoming") rather than allow-list them. Exclude only words a later story owns (#2194 kept "Outstanding" for story 4.12), and derive the de exclusion from the en value.
+- When legacy hard-coded sentences become new i18n keys, implementers copy the old English nouns ("Work item:", "Household item:") while the translator writes the German canon (Aufgabe, Anschaffung). In #2195 review, diff the new en keys against glossary `doNotUse`, and state the canonical nouns in the spec.
 - Every rewritten short label must pass the money-label baseline. See [[restructure-i18n-specs]] and [[ux-visual-spec-verification]].

@@ -1,5 +1,7 @@
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { INVOICE_DEPOSIT_STATUSES } from '@cornerstone/shared';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import type {
   BudgetSource,
   InvoiceDeposit,
@@ -97,6 +99,7 @@ export function InvoiceDepositFormModal({
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+  const statusVariants = useStatusBadgeVariants();
   const [form, setForm] = useState<DepositFormState>(() =>
     buildInitialForm(mode, deposit, initialValues),
   );
@@ -336,7 +339,6 @@ export function InvoiceDepositFormModal({
               value={form.amount}
               onChange={(e) => setForm({ ...form, amount: e.target.value })}
               className={sharedStyles.input}
-              placeholder={t('budget:invoiceDetail.deposits.form.amountPlaceholder')}
               min="0.01"
               step="0.01"
               required
@@ -395,9 +397,11 @@ export function InvoiceDepositFormModal({
             className={sharedStyles.select}
             disabled={isMutating}
           >
-            <option value="pending">{t('invoiceDetail.statusLabels.pending')}</option>
-            <option value="paid">{t('invoiceDetail.statusLabels.paid')}</option>
-            <option value="claimed">{t('invoiceDetail.statusLabels.claimed')}</option>
+            {INVOICE_DEPOSIT_STATUSES.map((status) => (
+              <option key={status} value={status}>
+                {statusVariants.progressPayment[status].label}
+              </option>
+            ))}
           </select>
         </div>
 

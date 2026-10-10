@@ -559,3 +559,51 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 (AC2): the shared status chips are coloured and use the canonical words
+// ─────────────────────────────────────────────────────────────────────────────
+test.describe('Status chip colour and wording (Story #2195, AC2)', { tag: '@responsive' }, () => {
+  test('Work item status chips read "In progress" / "Done" and have a non-transparent background', async ({
+    page,
+    testPrefix,
+  }) => {
+    const workItemsPage = new WorkItemsPage(page);
+    const created: string[] = [];
+
+    try {
+      created.push(
+        await createWorkItemViaApi(page, {
+          title: `${testPrefix} Chip Active`,
+          status: 'in_progress',
+        }),
+      );
+      created.push(
+        await createWorkItemViaApi(page, {
+          title: `${testPrefix} Chip Finished`,
+          status: 'completed',
+        }),
+      );
+
+      await workItemsPage.goto();
+      await workItemsPage.waitForLoaded();
+      await workItemsPage.search(`${testPrefix} Chip`);
+
+      for (const label of ['In progress', 'Done']) {
+        const chip = page
+          .locator('[class*="badge"]')
+          .filter({ hasText: new RegExp(`^${label}$`) })
+          .visible()
+          .first();
+        await expect(chip).toBeVisible();
+        const bg = await chip.evaluate((el) => getComputedStyle(el).backgroundColor);
+        expect(
+          bg !== 'transparent' && bg !== 'rgba(0, 0, 0, 0)',
+          `"${label}" chip background "${bg}" must not be transparent`,
+        ).toBe(true);
+      }
+    } finally {
+      for (const id of created) await deleteWorkItemViaApi(page, id);
+    }
+  });
+});

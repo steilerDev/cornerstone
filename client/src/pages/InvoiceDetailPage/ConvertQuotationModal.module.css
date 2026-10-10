@@ -402,26 +402,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-.refundBadge {
-  composes: refund from './InvoiceDepositsSection.module.css';
-}
-
-.statusPending {
-  composes: statusPending from './InvoiceDepositsSection.module.css';
-}
-
-.statusPaid {
-  composes: statusPaid from './InvoiceDepositsSection.module.css';
-}
-
-.statusClaimed {
-  composes: statusClaimed from './InvoiceDepositsSection.module.css';
-}
-
-.statusQuotation {
-  composes: statusQuotation from './InvoiceDepositsSection.module.css';
-}
-
 .overpaidBanner {
   display: flex;
   align-items: flex-start;

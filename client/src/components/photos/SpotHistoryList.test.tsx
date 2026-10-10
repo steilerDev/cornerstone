@@ -55,27 +55,27 @@ describe('SpotHistoryList', () => {
     expect(onSelect).toHaveBeenCalledWith(2);
   });
 
-  it('shows "Daily Log – Title" on line two when the entry has a title', () => {
+  it('shows "Daily log – Title" on line two when the entry has a title', () => {
     render(<SpotHistoryList photos={PHOTOS} currentIndex={0} onSelect={() => {}} />);
-    expect(screen.getByText('Daily Log – Plastering done')).toBeInTheDocument();
+    expect(screen.getByText('Daily log – Plastering done')).toBeInTheDocument();
     expect(screen.getAllByText('Sep 11, 2026')).toHaveLength(3);
   });
 
   it('shows only the type when the title is null or blank', () => {
     render(<SpotHistoryList photos={PHOTOS} currentIndex={0} onSelect={() => {}} />);
-    expect(screen.getByText('Issue')).toBeInTheDocument();
-    expect(screen.getByText('Site Visit')).toBeInTheDocument();
+    expect(screen.getByText('Defect')).toBeInTheDocument();
+    expect(screen.getByText('Site visit')).toBeInTheDocument();
   });
 
   it('builds the accessible name with long date, type and title (or without title)', () => {
     render(<SpotHistoryList photos={PHOTOS} currentIndex={0} onSelect={() => {}} />);
     expect(screen.getByTestId('spot-history-item-p1')).toHaveAttribute(
       'aria-label',
-      'September 11, 2026, Daily Log: Plastering done',
+      'September 11, 2026, Daily log: Plastering done',
     );
     expect(screen.getByTestId('spot-history-item-p2')).toHaveAttribute(
       'aria-label',
-      'September 11, 2026, Issue',
+      'September 11, 2026, Defect',
     );
   });
 
@@ -86,9 +86,9 @@ describe('SpotHistoryList', () => {
       render(<SpotHistoryList photos={[PHOTOS[1]!]} currentIndex={0} onSelect={() => {}} />);
       expect(screen.getByTestId('spot-history-item-p2')).toHaveAttribute(
         'aria-label',
-        '11. September 2026, Problem',
+        '11. September 2026, Mangel',
       );
-      expect(screen.queryByText('Issue')).not.toBeInTheDocument();
+      expect(screen.queryByText('Defect')).not.toBeInTheDocument();
     } finally {
       await act(async () => {
         await i18n.changeLanguage('en');

@@ -14,7 +14,7 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
-import enBudget from '../../i18n/en/budget.json';
+import enCommon from '../../i18n/en/common.json';
 import enErrors from '../../i18n/en/errors.json';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
@@ -743,10 +743,10 @@ describe('InvoicesPage', () => {
 
       // All four status labels should be present (getAllByText: labels appear in both
       // summary cards and filter dropdown, so multiple matches are expected)
-      expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('To pay').length).toBeGreaterThan(0);
       expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Quotation').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Offers').length).toBeGreaterThan(0);
     });
 
     it('renders the Claimed card with correct count and amount', async () => {
@@ -769,7 +769,7 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
       });
 
       // Count 3 should appear in the DOM (summaryCount span under the Claimed card)
@@ -800,7 +800,7 @@ describe('InvoicesPage', () => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
     });
 
     it('Claimable card shows only claimable summary data (not combined with claimed)', async () => {
@@ -830,8 +830,8 @@ describe('InvoicesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Claimable').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Ready to submit').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
       });
 
       // Claimable total is €12,000 and claimed total is €900 — they must appear as separate amounts
@@ -1171,7 +1171,7 @@ describe('InvoicesPage', () => {
     });
 
     // #2194 D-17: the manual create modal opens on Pending, never Quotation
-    it('manual create modal opens with the status preset to Pending', async () => {
+    it('manual create modal opens with the status preset to To pay', async () => {
       mockGetPaperlessStatus.mockResolvedValue({
         configured: false,
         reachable: false,
@@ -1277,7 +1277,7 @@ describe('InvoicesPage', () => {
       expect(rows).toEqual(
         INVOICE_STATUSES.map((status) => [
           `enum-${status}`,
-          enBudget.invoices.statusLabels[status],
+          enCommon.statusVocabulary.invoice[status],
         ]),
       );
     });

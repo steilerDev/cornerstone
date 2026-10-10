@@ -77,15 +77,27 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
     line,
     children,
     unlinkAction,
+    onEdit,
+    onDelete,
+    onConfirmDelete,
+    onCancelDelete,
   }: {
     line: BaseBudgetLine;
     children?: React.ReactNode;
     unlinkAction?: React.ReactNode;
+    onEdit?: () => void;
+    onDelete?: () => void;
+    onConfirmDelete?: () => void;
+    onCancelDelete?: () => void;
   }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}
       {unlinkAction}
+      <button type="button" data-testid={`stub-edit-${line.id}`} onClick={onEdit} />
+      <button type="button" data-testid={`stub-delete-${line.id}`} onClick={onDelete} />
+      <button type="button" data-testid={`stub-confirm-${line.id}`} onClick={onConfirmDelete} />
+      <button type="button" data-testid={`stub-cancel-${line.id}`} onClick={onCancelDelete} />
     </div>
   ),
 }));
@@ -242,7 +254,7 @@ describe('InvoiceGroup', () => {
   it('header shows invoice status badge', () => {
     renderGroup(<InvoiceGroup {...buildProps({ invoiceStatus: 'paid' })} />);
 
-    expect(screen.getByText('paid')).toBeTruthy();
+    expect(screen.getByText('Paid')).toBeTruthy();
   });
 
   it('header shows itemized total formatted as currency', () => {
@@ -319,7 +331,7 @@ describe('InvoiceGroup', () => {
   it('status badge uses status text in content', () => {
     renderGroup(<InvoiceGroup {...buildProps({ invoiceStatus: 'claimed' })} />);
 
-    expect(screen.getByText('claimed')).toBeTruthy();
+    expect(screen.getByText('Submitted')).toBeTruthy();
   });
 
   it('second click collapses the group again', () => {
@@ -448,12 +460,12 @@ describe('InvoiceGroup', () => {
     expect(identity).not.toBeNull();
 
     // The status badge must NOT be inside invoiceIdentity
-    const badgeInsideIdentity = identity?.querySelector('[class*="statusBadge"]');
-    expect(badgeInsideIdentity).toBeNull();
+    const badge = screen.getByText('Paid');
+    expect(identity?.contains(badge)).toBe(false);
 
-    // But the badge must still exist in the document
-    const badge = container.querySelector('[class*="statusBadge"]');
-    expect(badge).not.toBeNull();
+    // But the shared Badge (paid variant) must still exist in the document
+    expect(container.contains(badge)).toBe(true);
+    expect(badge.className).toContain('paid');
   });
 
   it('null vendor: invoiceIdentity contains only the invoice link, no vendorName child', () => {
@@ -487,5 +499,60 @@ describe('InvoiceGroup', () => {
 
     const quotedSpan = container.querySelector('[class*="amountValueQuoted"]');
     expect(quotedSpan).toBeNull();
+  });
+
+  // ─── Line callbacks, link click, keyboard, amount label (#2195 coverage) ────
+
+  it('forwards the card edit / delete / confirm / cancel callbacks with the line', () => {
+    const props = buildProps();
+    renderGroup(<InvoiceGroup {...props} />);
+    fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
+
+    fireEvent.click(screen.getByTestId('stub-edit-line-1'));
+    expect(props.onEdit).toHaveBeenCalledWith(props.lines[0]);
+    fireEvent.click(screen.getByTestId('stub-delete-line-1'));
+    expect(props.onDelete).toHaveBeenCalledWith('line-1');
+    fireEvent.click(screen.getByTestId('stub-confirm-line-1'));
+    expect(props.onConfirmDelete).toHaveBeenCalledWith('line-1');
+    fireEvent.click(screen.getByTestId('stub-cancel-line-1'));
+    expect(props.onCancelDelete).toHaveBeenCalledWith('line-1');
+  });
+
+  it('passes the per-line isDeleting flag through (missing key is false)', () => {
+    renderGroup(<InvoiceGroup {...buildProps({ isDeleting: { 'line-1': true } })} />);
+    fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
+    expect(screen.getByTestId('budget-line-card-line-1')).toBeInTheDocument();
+  });
+
+  it('clicking the invoice link does not toggle the group (propagation stopped)', () => {
+    renderGroup(<InvoiceGroup {...buildProps()} />);
+    const toggle = screen.getByRole('button', { name: /INV-001/ });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('link', { name: '#INV-001' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('other keys on the toggle do not expand the group', () => {
+    renderGroup(<InvoiceGroup {...buildProps()} />);
+    const toggle = screen.getByRole('button', { name: /INV-001/ });
+    fireEvent.keyDown(toggle, { key: 'Tab' });
+    fireEvent.keyDown(toggle, { key: 'a' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  });
+
+  it('expanding moves focus to the lines container', () => {
+    renderGroup(<InvoiceGroup {...buildProps()} />);
+    fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
+    expect(document.activeElement?.id).toBe('invoice-group-inv-1');
+  });
+
+  it('quoted vs invoiced amount label', () => {
+    const { unmount } = renderGroup(
+      <InvoiceGroup {...buildProps({ invoiceStatus: 'quotation' })} />,
+    );
+    expect(screen.getByText('Quoted Amount')).toBeInTheDocument();
+    unmount();
+    renderGroup(<InvoiceGroup {...buildProps({ invoiceStatus: 'paid' })} />);
+    expect(screen.getByText('Invoiced Amount')).toBeInTheDocument();
   });
 });

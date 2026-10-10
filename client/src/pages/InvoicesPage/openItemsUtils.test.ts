@@ -3,6 +3,8 @@ import type { Invoice, InvoiceDeposit } from '@cornerstone/shared';
 import {
   todayIso,
   isOverdue,
+  dueFlag,
+  DUE_SOON_DAYS,
   getOpenDeposits,
   isContainerOnly,
   isInvoiceOverdue,
@@ -259,5 +261,56 @@ describe('openItemsUtils', () => {
     it('returns a well-formed YYYY-MM-DD string', () => {
       expect(todayIso()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     });
+  });
+});
+
+describe('dueFlag (#2195)', () => {
+  const TODAY = '2026-03-10';
+
+  it('uses a 7-day window', () => {
+    expect(DUE_SOON_DAYS).toBe(7);
+  });
+
+  it('returns null for a null or empty due date', () => {
+    expect(dueFlag(null, TODAY)).toBeNull();
+    expect(dueFlag('', TODAY)).toBeNull();
+  });
+
+  it('returns overdue for a date strictly before today', () => {
+    expect(dueFlag('2026-03-09', TODAY)).toBe('overdue');
+    expect(dueFlag('2025-01-01', TODAY)).toBe('overdue');
+  });
+
+  it('returns dueSoon when due today (not overdue)', () => {
+    expect(dueFlag(TODAY, TODAY)).toBe('dueSoon');
+  });
+
+  it('returns dueSoon on the last day of the window (today + 7)', () => {
+    expect(dueFlag('2026-03-17', TODAY)).toBe('dueSoon');
+  });
+
+  it('returns null one day past the window (today + 8)', () => {
+    expect(dueFlag('2026-03-18', TODAY)).toBeNull();
+  });
+
+  it('handles a month boundary in the window', () => {
+    expect(dueFlag('2026-04-02', '2026-03-27')).toBe('dueSoon');
+    expect(dueFlag('2026-04-04', '2026-03-27')).toBeNull();
+  });
+
+  it('handles a year boundary in the window', () => {
+    expect(dueFlag('2027-01-03', '2026-12-27')).toBe('dueSoon');
+    expect(dueFlag('2027-01-04', '2026-12-27')).toBeNull();
+  });
+
+  it('handles a leap-day boundary in the window (2028)', () => {
+    expect(dueFlag('2028-03-02', '2028-02-24')).toBe('dueSoon');
+    expect(dueFlag('2028-03-03', '2028-02-24')).toBeNull();
+  });
+
+  it('agrees with isOverdue for past dates', () => {
+    for (const d of ['2026-03-09', '2026-03-10', '2026-03-11']) {
+      expect(dueFlag(d, TODAY) === 'overdue').toBe(isOverdue(d, TODAY));
+    }
   });
 });

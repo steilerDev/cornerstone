@@ -12,7 +12,7 @@
  *   1. Empty state: invoice with zero deposits shows EmptyState + "Add deposit" CTA, no Final Payment row
  *   2. Add deposit happy path: modal opens, fill form, save → row appears with Pending badge,
  *      Final Payment = total − deposit amount
- *   3. Full lifecycle: add → mark paid → mark claimed → revert to paid → edit → delete
+ *   3. Full lifecycle: add → mark paid → mark submitted → revert to paid → edit → delete
  *   4. Delete paid deposit: warning banner visible in delete modal
  *   5. Over-deposit shows a non-blocking warning (net deposits above invoice amount); save still succeeds
  *   6. Responsive tablet: table renders, Final Payment row visible (768px)
@@ -159,7 +159,7 @@ test.describe('Deposits — empty state (Scenario 1)', { tag: '@responsive' }, (
 
 test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, () => {
   test(
-    'Add deposit → row appears with Pending badge; Final Payment = invoice total − deposit amount',
+    'Add deposit → row appears with To pay badge; Final Payment = invoice total − deposit amount',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const detailPage = new InvoiceDetailPage(page);
@@ -268,7 +268,7 @@ test.describe('Deposits — add deposit (Scenario 2)', { tag: '@responsive' }, (
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — full lifecycle (Scenario 3)', () => {
-  test('Add → mark paid → mark claimed → revert to paid → edit amount → delete pending deposit', async ({
+  test('Add → mark paid → mark submitted → revert to paid → edit amount → delete pending deposit', async ({
     page,
     testPrefix,
   }) => {
@@ -316,17 +316,17 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
       // The section should contain "Paid" text after the re-render.
       await expect(detailPage.depositsSection).toContainText('Paid');
 
-      // ── Step 3: Mark claimed (overflow menu → "Mark claimed…") ──
+      // ── Step 3: Mark claimed (overflow menu → "Mark submitted…") ──
       await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark claimed/);
+      await detailPage.clickDepositMenuItem(/Mark submitted/);
 
       await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as claimed') }),
+        page.getByRole('dialog').filter({ has: page.getByText('Mark as submitted') }),
       ).toBeVisible();
 
       await detailPage.confirmStateTransition();
 
-      await expect(detailPage.depositsSection).toContainText('Claimed');
+      await expect(detailPage.depositsSection).toContainText('Submitted');
 
       // ── Step 4: Revert to paid (overflow menu → "Revert to paid") ──
       await detailPage.openDepositMenu();
@@ -340,7 +340,7 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
       await revertToPaidResponsePromise;
 
       // Badge reverts to "Paid".
-      // Note: we do NOT assert not.toContainText('Claimed') here because the table
+      // Note: we do NOT assert not.toContainText('Submitted') here because the table
       // always renders a "Claimed date" column header that contains the text "Claimed".
       // The containText('Paid') assertion above is sufficient to confirm the badge state.
       await expect(detailPage.depositsSection).toContainText('Paid');
@@ -371,9 +371,9 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
           resp.request().method() === 'PATCH' &&
           resp.status() === 200,
       );
-      await detailPage.clickDepositMenuItem(/Revert to pending/);
+      await detailPage.clickDepositMenuItem(/Set status back to/);
       await revertToPendingResponsePromise;
-      await expect(detailPage.depositsSection).toContainText('Pending');
+      await expect(detailPage.depositsSection).toContainText('To pay');
 
       // ── Step 7: Delete the deposit ──
       await detailPage.openDepositMenu();
@@ -909,11 +909,11 @@ test.describe('Deposits — revert-to-pending API error (Scenario 8)', () => {
       });
 
       // ── Action ───────────────────────────────────────────────────────────
-      // Open overflow menu for the paid deposit and click "Revert to pending".
-      // The menu for a 'paid' deposit contains: "Mark claimed…", "Revert to pending",
-      // "Edit", "Delete" — no confirm dialog for "Revert to pending".
+      // Open overflow menu for the paid deposit and click "Set status back to “To pay”".
+      // The menu for a 'paid' deposit contains: "Mark submitted…", "Set status back to “To pay”",
+      // "Edit", "Delete" — no confirm dialog for "Set status back to “To pay”".
       await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Revert to pending/);
+      await detailPage.clickDepositMenuItem(/Set status back to/);
 
       // ── Assert ───────────────────────────────────────────────────────────
       // The section-level error banner should appear after the mocked 400 response.
@@ -1149,7 +1149,7 @@ test.describe('Refund entries — edit is entry-type-locked (Scenario 11, #1876)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Refund entries — status lifecycle reuses deposit menu/badges (Scenario 12, #1876)', () => {
-  test('Refund: pending → paid → claimed → revert to paid uses the same menu items and status badges as a deposit', async ({
+  test('Refund: pending → paid → submitted → revert to paid uses the same menu items and status badges as a deposit', async ({
     page,
     testPrefix,
   }) => {
@@ -1177,7 +1177,7 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
       });
       await detailPage.saveDepositForm(201);
 
-      await expect(detailPage.depositsSection).toContainText('Pending');
+      await expect(detailPage.depositsSection).toContainText('To pay');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       // Pending refund does not yet reduce the final payment amount
       await expect(detailPage.finalPaymentAmount).toContainText('1,000');
@@ -1194,15 +1194,15 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
       await expect(detailPage.refundBadge.first()).toBeVisible();
       await expect(detailPage.finalPaymentAmount).toContainText('900');
 
-      // ── Mark claimed — same menu item text as a regular deposit ("Mark claimed…") ──
+      // ── Mark claimed — same menu item text as a regular deposit ("Mark submitted…") ──
       await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark claimed/);
+      await detailPage.clickDepositMenuItem(/Mark submitted/);
       await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as claimed') }),
+        page.getByRole('dialog').filter({ has: page.getByText('Mark as submitted') }),
       ).toBeVisible();
       await detailPage.confirmStateTransition();
 
-      await expect(detailPage.depositsSection).toContainText('Claimed');
+      await expect(detailPage.depositsSection).toContainText('Submitted');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       // Claimed refunds still count as "received" in the final payment formula
       await expect(detailPage.finalPaymentAmount).toContainText('900');

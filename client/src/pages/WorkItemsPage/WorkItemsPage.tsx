@@ -1,19 +1,15 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type {
-  WorkItemSummary,
-  WorkItemListQuery,
-  WorkItemStatus,
-  FilterMeta,
-} from '@cornerstone/shared';
+import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
@@ -208,28 +204,8 @@ export function WorkItemsPage() {
     }
   };
 
-  // Status labels: literal keys (not a template) so extraction sees them; the Record makes a new
-  // status a type error. Shared by the badge variants and the status filter options.
-  const wiStatusLabels = useMemo(
-    (): Record<WorkItemStatus, string> => ({
-      not_started: t('create.fields.statusOptions.notStarted'),
-      in_progress: t('create.fields.statusOptions.inProgress'),
-      completed: t('create.fields.statusOptions.completed'),
-    }),
-    [t],
-  );
-
-  // Work item status badge variants
-  const wiStatusVariants = useMemo((): BadgeVariantMap => {
-    const variants: BadgeVariantMap = {};
-    for (const status of WORK_ITEM_STATUSES) {
-      variants[status] = {
-        label: wiStatusLabels[status],
-        className: `badge-${status}`,
-      };
-    }
-    return variants;
-  }, [wiStatusLabels]);
+  // Canonical status chips (common:statusVocabulary.task), one colour map for every surface
+  const statusVariants = useStatusBadgeVariants();
 
   // Column definitions
   const columns = useMemo(
@@ -260,9 +236,9 @@ export function WorkItemsPage() {
         filterParamKey: 'status',
         enumOptions: WORK_ITEM_STATUSES.map((status) => ({
           value: status,
-          label: wiStatusLabels[status],
+          label: statusVariants.task[status].label,
         })),
-        render: (item) => <Badge variants={wiStatusVariants} value={item.status} />,
+        render: (item) => <Badge variants={statusVariants.task} value={item.status} />,
       },
       {
         key: 'assignedTo',
@@ -336,7 +312,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, tCommon, formatDate, wiStatusVariants, wiStatusLabels, users, vendors, areas],
+    [t, tCommon, formatDate, statusVariants, users, vendors, areas],
   );
 
   // Close action menu on outside click and Escape key

@@ -1,0 +1,179 @@
+/**
+ * @jest-environment jsdom
+ */
+import { describe, it, expect } from '@jest/globals';
+import { render, screen } from '@testing-library/react';
+import {
+  HOUSEHOLD_ITEM_STATUSES,
+  INVOICE_DEPOSIT_STATUSES,
+  INVOICE_STATUSES,
+  WORK_ITEM_STATUSES,
+} from '@cornerstone/shared';
+import enCommon from '../../i18n/en/common.json';
+import enBudget from '../../i18n/en/budget.json';
+import { Badge } from './Badge.js';
+import badgeStyles from './Badge.module.css';
+import {
+  CheckIcon,
+  buildInvoiceStatusVariants,
+  buildProgressPaymentStatusVariants,
+  buildPurchaseStatusVariants,
+  buildRefundVariants,
+  buildTaskStatusVariants,
+} from './statusBadgeVariants.js';
+import type { StatusLabelT } from './statusBadgeVariants.js';
+
+// identity-obj-proxy: badgeStyles.<name> === '<name>'
+
+const RESOURCES: Record<string, unknown> = { common: enCommon, budget: enBudget };
+
+/** Real-resource t(): resolves a dotted key in the real en JSON; unknown keys fail loudly. */
+const realT: StatusLabelT = (key, { ns }) => {
+  let node: unknown = RESOURCES[ns];
+  for (const part of key.split('.')) {
+    node = (node as Record<string, unknown> | undefined)?.[part];
+  }
+  if (typeof node !== 'string') throw new Error(`missing key ${ns}:${key}`);
+  return node;
+};
+
+const vocab = enCommon.statusVocabulary;
+
+describe('buildInvoiceStatusVariants', () => {
+  const variants = buildInvoiceStatusVariants(realT);
+
+  it('has exactly one entry per InvoiceStatus', () => {
+    expect(Object.keys(variants).sort()).toEqual([...INVOICE_STATUSES].sort());
+  });
+
+  it('labels come from the canonical en vocabulary (To pay / Paid / Submitted / Offer)', () => {
+    expect(variants.pending.label).toBe(vocab.invoice.pending);
+    expect(variants.paid.label).toBe(vocab.invoice.paid);
+    expect(variants.claimed.label).toBe(vocab.invoice.claimed);
+    expect(variants.quotation.label).toBe(vocab.invoice.quotation);
+    expect([variants.pending.label, variants.paid.label, variants.claimed.label]).toEqual([
+      'To pay',
+      'Paid',
+      'Submitted',
+    ]);
+  });
+
+  it('maps quotation to the offer class, never a quotation class', () => {
+    expect(variants.quotation.className).toBe('offer');
+    expect(Object.values(variants).map((v) => v.className)).not.toContain('quotation');
+    expect(variants.pending.className).toBe('pending');
+    expect(variants.paid.className).toBe('paid');
+    expect(variants.claimed.className).toBe('claimed');
+  });
+
+  it('gives only the claimed chip a decorative icon and a tooltip', () => {
+    expect(variants.claimed.icon).toBeDefined();
+    expect(variants.claimed.title).toBe(enCommon.statusHints.submitted);
+    for (const status of ['pending', 'paid', 'quotation'] as const) {
+      expect(variants[status].icon).toBeUndefined();
+      expect(variants[status].title).toBeUndefined();
+    }
+  });
+
+  it('renders the Submitted chip with an aria-hidden svg first and the label as text', () => {
+    render(<Badge variants={variants} value="claimed" testId="chip" />);
+    const chip = screen.getByTestId('chip');
+    const first = chip.firstElementChild;
+    expect(first?.tagName.toLowerCase()).toBe('svg');
+    expect(first).toHaveAttribute('aria-hidden', 'true');
+    expect(first).toHaveAttribute('focusable', 'false');
+    expect(chip).toHaveAttribute('title', enCommon.statusHints.submitted);
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
+    expect(chip.textContent).toBe('Submitted');
+  });
+
+  it('renders the To pay chip without an svg or tooltip', () => {
+    render(<Badge variants={variants} value="pending" testId="chip" />);
+    const chip = screen.getByTestId('chip');
+    expect(chip.querySelector('svg')).toBeNull();
+    expect(chip).not.toHaveAttribute('title');
+  });
+});
+
+describe('buildProgressPaymentStatusVariants', () => {
+  const variants = buildProgressPaymentStatusVariants(realT);
+
+  it('has exactly one entry per InvoiceDepositStatus', () => {
+    expect(Object.keys(variants).sort()).toEqual([...INVOICE_DEPOSIT_STATUSES].sort());
+  });
+
+  it('labels come from the progressPayment vocabulary and reuse the invoice classes', () => {
+    expect(variants.pending.label).toBe(vocab.progressPayment.pending);
+    expect(variants.paid.label).toBe(vocab.progressPayment.paid);
+    expect(variants.claimed.label).toBe(vocab.progressPayment.claimed);
+    expect(variants.pending.className).toBe('pending');
+    expect(variants.paid.className).toBe('paid');
+    expect(variants.claimed.className).toBe('claimed');
+  });
+
+  it('gives the claimed progress payment the check icon and tooltip', () => {
+    expect(variants.claimed.icon).toBeDefined();
+    expect(variants.claimed.title).toBe(enCommon.statusHints.submitted);
+    expect(variants.pending.icon).toBeUndefined();
+    expect(variants.paid.icon).toBeUndefined();
+  });
+});
+
+describe('buildTaskStatusVariants', () => {
+  const variants = buildTaskStatusVariants(realT);
+
+  it('has exactly one entry per WorkItemStatus', () => {
+    expect(Object.keys(variants).sort()).toEqual([...WORK_ITEM_STATUSES].sort());
+  });
+
+  it('uses the canonical words (completed reads Done) and the matching classes', () => {
+    expect(variants.not_started.label).toBe('Not started');
+    expect(variants.in_progress.label).toBe('In progress');
+    expect(variants.completed.label).toBe('Done');
+    for (const status of WORK_ITEM_STATUSES) {
+      expect(variants[status].className).toBe(status);
+    }
+  });
+});
+
+describe('buildPurchaseStatusVariants', () => {
+  const variants = buildPurchaseStatusVariants(realT);
+
+  it('has exactly one entry per HouseholdItemStatus', () => {
+    expect(Object.keys(variants).sort()).toEqual([...HOUSEHOLD_ITEM_STATUSES].sort());
+  });
+
+  it('uses the canonical words and the matching classes', () => {
+    expect(variants.planned.label).toBe('Planned');
+    expect(variants.purchased.label).toBe('Ordered');
+    expect(variants.scheduled.label).toBe('Delivery scheduled');
+    expect(variants.arrived.label).toBe('Delivered');
+    for (const status of HOUSEHOLD_ITEM_STATUSES) {
+      expect(variants[status].className).toBe(status);
+    }
+  });
+
+  it('keeps planned and scheduled as different words', () => {
+    expect(variants.planned.label).not.toBe(variants.scheduled.label);
+  });
+});
+
+describe('buildRefundVariants', () => {
+  it('uses the refund class (info pair, not error red) and the entry-type label', () => {
+    const { refund } = buildRefundVariants(realT);
+    expect(refund.className).toBe(badgeStyles.refund);
+    expect(refund.className).toBe('refund');
+    expect(refund.label).toBe(enBudget.invoiceDetail.deposits.entryTypeLabels.refund);
+    expect(refund.icon).toBeUndefined();
+  });
+});
+
+describe('CheckIcon', () => {
+  it('is a decorative, non-focusable svg using currentColor', () => {
+    const { container } = render(<>{CheckIcon()}</>);
+    const svg = container.querySelector('svg');
+    expect(svg).toHaveAttribute('aria-hidden', 'true');
+    expect(svg).toHaveAttribute('focusable', 'false');
+    expect(svg?.querySelector('path')).toHaveAttribute('stroke', 'currentColor');
+  });
+});
