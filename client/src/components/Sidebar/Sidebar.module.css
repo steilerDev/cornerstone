@@ -6,6 +6,8 @@
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
+  position: sticky;
+  top: 0;
 }
 
 .logoArea {
@@ -112,99 +114,6 @@
   flex-shrink: 0;
 }
 
-/* Below 1024 px only, until #2207 (the top bar's user menu owns these from 1024 px) */
-.footerLegacy {
-  display: block;
-}
-
-@media (min-width: 1024px) {
-  .footerLegacy {
-    display: none;
-  }
-}
-
-.projectInfo {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--spacing-1);
-  padding: var(--spacing-2) var(--spacing-6);
-  font-size: var(--font-size-xs);
-  color: var(--color-sidebar-text);
-  opacity: 0.5;
-}
-
-.githubLink {
-  color: inherit;
-  text-decoration: none;
-}
-
-.githubLink:hover {
-  text-decoration: underline;
-  opacity: 0.8;
-}
-
-.logoutButton {
-  padding: var(--spacing-3) var(--spacing-6);
-  color: var(--color-sidebar-text);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-  width: 100%;
-  transition: background-color var(--transition-medium);
-}
-
-.logoutButton:hover {
-  background-color: var(--color-sidebar-hover);
-}
-
-.logoutButton:focus-visible {
-  outline: 2px solid var(--color-sidebar-focus-ring);
-  outline-offset: -2px;
-}
-
-/* Mobile and tablet: fixed position, hidden by default */
-@media (max-width: 1023px) {
-  .sidebar {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    height: auto;
-    width: 240px;
-    z-index: var(--z-sidebar);
-    transform: translateX(-100%);
-    transition: transform var(--transition-slow);
-    will-change: transform;
-  }
-
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  .navLink {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-  }
-
-  .logoutButton {
-    min-height: 44px;
-    display: flex;
-    align-items: center;
-  }
-}
-
-/* Desktop: static position, always visible */
-@media (min-width: 1024px) {
-  .sidebar {
-    position: sticky;
-    top: 0;
-  }
-}
-
 /* Short viewports: let the whole sidebar scroll so an open group never hides the list */
 @media (max-height: 640px) {
   .sidebar {
@@ -220,7 +129,6 @@
 @media (prefers-reduced-motion: reduce) {
   .sidebar,
   .navLink,
-  .logoutButton,
   .logoArea {
     transition: none;
   }

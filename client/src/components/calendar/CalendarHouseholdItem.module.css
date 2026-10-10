@@ -46,8 +46,8 @@
    padding-box clipping keeps the visible chip exactly the non-touch chip height. */
 .touchSized {
   height: auto;
-  min-height: 44px;
-  border-block: calc((44px - var(--chip-height)) / 2) solid transparent;
+  min-height: var(--touch-target-min);
+  border-block: calc((var(--touch-target-min) - var(--chip-height)) / 2) solid transparent;
   background-clip: padding-box;
   box-sizing: border-box;
 }

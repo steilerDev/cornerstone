@@ -1,21 +1,15 @@
-import { useMemo } from 'react';
 import type { RouteId } from '@cornerstone/shared';
-import { Link, useLocation } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useAuth } from '../../contexts/AuthContext.js';
-import { GITHUB_URL } from '../../lib/externalLinks.js';
-import { navSections } from '../../navigation/navConfig.js';
 import type { NavGroup, NavLabelKey, NavSection } from '../../navigation/navConfig.js';
-import { navHref, resolveNavActive } from '../../navigation/navActive.js';
+import { navHref } from '../../navigation/navActive.js';
 import type { NavActive } from '../../navigation/navActive.js';
-import { useNavContext } from '../../navigation/useNavContext.js';
 import { Logo } from '../Logo/Logo.js';
-import { ThemeToggle } from '../ThemeToggle/ThemeToggle.js';
 import styles from './Sidebar.module.css';
 
 interface SidebarProps {
-  isOpen: boolean;
-  onClose: () => void;
+  readonly sections: readonly NavSection[];
+  readonly active: NavActive | null;
 }
 
 type LinkVariant = 'top' | 'quiet' | 'nested';
@@ -38,19 +32,10 @@ interface SidebarLinkProps {
   state: LinkState;
   variant: LinkVariant;
   replace: boolean;
-  onNavigate: () => void;
   testId: string;
 }
 
-function SidebarLink({
-  route,
-  labelKey,
-  state,
-  variant,
-  replace,
-  onNavigate,
-  testId,
-}: SidebarLinkProps) {
+function SidebarLink({ route, labelKey, state, variant, replace, testId }: SidebarLinkProps) {
   const { t } = useTranslation('common');
   const className = [styles.navLink, VARIANT_CLASS[variant], STATE_CLASS[state]]
     .filter(Boolean)
@@ -61,7 +46,6 @@ function SidebarLink({
       replace={replace}
       className={className}
       aria-current={state === 'active' ? 'page' : undefined}
-      onClick={onNavigate}
       data-testid={testId}
     >
       {t(labelKey)}
@@ -73,10 +57,9 @@ interface SidebarSectionItemProps {
   section: NavSection;
   active: NavActive | null;
   quiet: boolean;
-  onNavigate: () => void;
 }
 
-function SidebarSectionItem({ section, active, quiet, onNavigate }: SidebarSectionItemProps) {
+function SidebarSectionItem({ section, active, quiet }: SidebarSectionItemProps) {
   const isCurrent = active?.sectionId === section.id;
   const replace = isCurrent && active.exact;
   const state: LinkState = !isCurrent
@@ -92,7 +75,6 @@ function SidebarSectionItem({ section, active, quiet, onNavigate }: SidebarSecti
         state={state}
         variant={quiet ? 'quiet' : 'top'}
         replace={replace}
-        onNavigate={onNavigate}
         testId={`sidebar-section-${section.id}`}
       />
       {isCurrent && section.views.length > 0 && (
@@ -105,7 +87,6 @@ function SidebarSectionItem({ section, active, quiet, onNavigate }: SidebarSecti
                 state={view.route === active.viewRoute ? 'active' : 'none'}
                 variant="nested"
                 replace={replace}
-                onNavigate={onNavigate}
                 testId={`sidebar-view-${view.route}`}
               />
             </li>
@@ -116,40 +97,23 @@ function SidebarSectionItem({ section, active, quiet, onNavigate }: SidebarSecti
   );
 }
 
-export function Sidebar({ isOpen, onClose }: SidebarProps) {
+export function Sidebar({ sections, active }: SidebarProps) {
   const { t } = useTranslation('common');
-  const { logout } = useAuth();
-  const ctx = useNavContext();
-  const sections = useMemo(() => navSections(ctx), [ctx]);
-  const { pathname } = useLocation();
-  const active = useMemo(() => resolveNavActive(pathname, sections), [pathname, sections]);
   const byGroup = (group: NavGroup) => sections.filter((s) => s.group === group);
   const primary = byGroup('primary');
   const quiet = byGroup('secondary');
   const footer = byGroup('footer');
-  const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
-    <aside className={sidebarClassName} data-open={isOpen}>
-      <Link
-        to={navHref('home')}
-        className={styles.logoArea}
-        aria-label={t('aria.goToHome')}
-        onClick={onClose}
-      >
+    <aside className={styles.sidebar}>
+      <Link to={navHref('home')} className={styles.logoArea} aria-label={t('aria.goToHome')}>
         <Logo size={32} className={styles.logo} />
         <span className={styles.logoText}>{t('appName')}</span>
       </Link>
       <nav className={styles.nav} aria-label={t('aria.mainNavigation')}>
         <ul className={styles.navList}>
           {primary.map((section) => (
-            <SidebarSectionItem
-              key={section.id}
-              section={section}
-              active={active}
-              quiet={false}
-              onNavigate={onClose}
-            />
+            <SidebarSectionItem key={section.id} section={section} active={active} quiet={false} />
           ))}
         </ul>
         {quiet.length > 0 && (
@@ -157,13 +121,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             <div className={styles.navSeparator} aria-hidden="true" />
             <ul className={styles.navList}>
               {quiet.map((section) => (
-                <SidebarSectionItem
-                  key={section.id}
-                  section={section}
-                  active={active}
-                  quiet
-                  onNavigate={onClose}
-                />
+                <SidebarSectionItem key={section.id} section={section} active={active} quiet />
               ))}
             </ul>
           </>
@@ -179,37 +137,11 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
                   section={section}
                   active={active}
                   quiet={false}
-                  onNavigate={onClose}
                 />
               ))}
             </ul>
           </nav>
         )}
-        <div className={styles.footerLegacy} data-testid="sidebar-footer-legacy">
-          <ThemeToggle />
-          <button
-            type="button"
-            className={styles.logoutButton}
-            onClick={() => {
-              void logout().then(() => onClose());
-            }}
-          >
-            {t('userMenu.logOut')}
-          </button>
-          <div className={styles.projectInfo}>
-            <span>
-              {t('appName')} v{__APP_VERSION__}
-            </span>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.githubLink}
-            >
-              GitHub
-            </a>
-          </div>
-        </div>
       </div>
     </aside>
   );

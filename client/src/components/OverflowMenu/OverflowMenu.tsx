@@ -47,6 +47,8 @@ export interface OverflowMenuLinkItem {
   /** Screen-reader-only suffix, e.g. "(opens in a new tab)". */
   srSuffix?: string;
   testId?: string;
+  /** The current page: aria-current="page", highlighted, with a leading checkmark. */
+  current?: boolean;
 }
 
 export interface OverflowMenuSeparator {
@@ -86,6 +88,28 @@ export type OverflowMenuEntry =
   | OverflowMenuChoiceGroup
   | OverflowMenuGroup;
 
+/** Props a custom trigger (`renderTrigger`) must spread onto its `<button>`. */
+export interface OverflowMenuTriggerProps {
+  readonly ref: RefObject<HTMLButtonElement | null>;
+  readonly id: string;
+  readonly type: 'button';
+  readonly 'aria-haspopup': 'menu';
+  readonly 'aria-expanded': boolean;
+  readonly 'aria-controls': string | undefined;
+  readonly 'aria-label': string;
+  readonly 'data-testid': string | undefined;
+  readonly disabled: boolean;
+  readonly onClick: () => void;
+  readonly onKeyDown: (event: ReactKeyboardEvent) => void;
+}
+
+type OverflowMenuPlacement = 'bottom-end' | 'top-end' | 'bottom-start';
+
+function menuPlacementClass(placement: OverflowMenuPlacement): string | undefined {
+  if (placement === 'top-end') return styles.menuTop;
+  return placement === 'bottom-start' ? styles.menuBottomStart : styles.menuBottom;
+}
+
 export interface OverflowMenuProps {
   items: readonly OverflowMenuEntry[];
   triggerAriaLabel: string;
@@ -100,7 +124,15 @@ export interface OverflowMenuProps {
   closeSignal?: unknown;
   /** Caller-owned trigger ref (to restore focus after a dialog the menu opened). */
   triggerRef?: RefObject<HTMLButtonElement | null>;
-  placement?: 'bottom-end' | 'top-end';
+  /**
+   * 'bottom-start' is a non-portal, left-aligned panel below the trigger; with `usePortal`
+   * it falls back to 'bottom-end' positioning.
+   */
+  placement?: OverflowMenuPlacement;
+  /** Replaces the built-in trigger `<button>` inside the wrapper. */
+  renderTrigger?: (props: OverflowMenuTriggerProps) => ReactNode;
+  /** Appended to the wrapper's class. */
+  wrapperClassName?: string;
   disabled?: boolean;
   usePortal?: boolean;
   'data-testid'?: string;
@@ -118,6 +150,8 @@ export function OverflowMenu({
   closeSignal,
   triggerRef: externalTriggerRef,
   placement = 'bottom-end',
+  renderTrigger,
+  wrapperClassName,
   disabled = false,
   usePortal = false,
   'data-testid': dataTestId,
@@ -209,9 +243,10 @@ export function OverflowMenu({
     if (usePortal) {
       const rect = triggerRef.current!.getBoundingClientRect();
       setTriggerRect(rect);
-      setEffectivePlacement(placement);
+      const portalPlacement = placement === 'top-end' ? 'top-end' : 'bottom-end';
+      setEffectivePlacement(portalPlacement);
       setMenuPos({
-        top: placement === 'top-end' ? rect.top - 4 : rect.bottom + 4,
+        top: portalPlacement === 'top-end' ? rect.top - 4 : rect.bottom + 4,
         right: window.innerWidth - rect.right,
       });
     }
@@ -350,11 +385,17 @@ export function OverflowMenu({
           role="menuitem"
           tabIndex={-1}
           href={item.href}
-          className={styles.item}
+          className={`${styles.item} ${item.current ? styles.itemCurrent : ''}`}
+          aria-current={item.current ? 'page' : undefined}
           data-testid={item.testId}
           onClick={(e) => handleLinkClick(item, e)}
           {...(item.newTab ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
         >
+          {item.current && (
+            <span aria-hidden="true" className={styles.checkmark}>
+              ✓
+            </span>
+          )}
           {item.label}
           {item.newTab && (
             <>
@@ -447,7 +488,7 @@ export function OverflowMenu({
       className={[
         styles.menu,
         usePortal && styles.menuFixed,
-        !usePortal && (placement === 'top-end' ? styles.menuTop : styles.menuBottom),
+        !usePortal && menuPlacementClass(placement),
         menuClassName,
       ]
         .filter(Boolean)
@@ -482,24 +523,32 @@ export function OverflowMenu({
     </div>
   );
 
+  const triggerProps: OverflowMenuTriggerProps = {
+    ref: triggerRef,
+    id: triggerId,
+    type: 'button',
+    'aria-haspopup': 'menu',
+    'aria-expanded': open,
+    'aria-controls': open ? menuId : undefined,
+    'aria-label': triggerAriaLabel,
+    'data-testid': dataTestId,
+    disabled,
+    onClick: handleTriggerClick,
+    onKeyDown: handleTriggerKeyDown,
+  };
+
   return (
-    <div ref={wrapperRef} className={styles.wrapper}>
-      <button
-        ref={triggerRef}
-        id={triggerId}
-        type="button"
-        className={triggerClassName ?? styles.trigger}
-        aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
-        aria-label={triggerAriaLabel}
-        data-testid={dataTestId}
-        disabled={disabled}
-        onClick={handleTriggerClick}
-        onKeyDown={handleTriggerKeyDown}
-      >
-        {triggerIcon}
-      </button>
+    <div
+      ref={wrapperRef}
+      className={wrapperClassName ? `${styles.wrapper} ${wrapperClassName}` : styles.wrapper}
+    >
+      {renderTrigger ? (
+        renderTrigger(triggerProps)
+      ) : (
+        <button {...triggerProps} className={triggerClassName ?? styles.trigger}>
+          {triggerIcon}
+        </button>
+      )}
       {open && usePortal ? createPortal(menuElement, document.body) : open && menuElement}
     </div>
   );

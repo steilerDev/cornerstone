@@ -2,19 +2,20 @@
  * E2E desktop top bar (Story #2206 / EPIC-21, P1.1)
  *
  * From 1024px a sticky top bar holds the breadcrumb row (exactly one "You are here"), the
- * Search / New / bell placeholders and the user menu. Below 1024px the bar is hidden and the
- * sidebar footer keeps theme, Log out, version and GitHub until #2207.
+ * Search / New / bell placeholders and the user menu. Below 1024px (#2207) the same banner is
+ * compact (Back / parent link, scrolled-past-heading title, search), the bottom bar carries the
+ * sections and the More sheet carries theme, language, Log out, version and GitHub.
  *
  * Scenarios:
  * - E1 (AC1)          bar contents on a task opened from the Schedule (so Back exists);
  *                     the trail leaves main; Home shows an empty slot in a 56px bar
- * - E2 (AC4, @resp.)  no button or link in the bar, the sidebar or the menu FAB paints the
- *                     primary colour, on desktop and with the drawer open on tablet/mobile
+ * - E2 (AC4, @resp.)  no button or link in the top bar, the sidebar, the bottom bar or the
+ *                     More sheet (open) paints the primary colour
  * - E4 (AC3, @resp.)  one Log out per viewport: desktop = user menu only (sidebar footer is
- *                     display:none), tablet/mobile = drawer button only (no bar)
+ *                     display:none), tablet/mobile = More sheet only
  * - E5 (AC5)          keyboard: Tab order through the bar, visible focus, menu-button pattern
  * - E6 (D1)           the bar stays at the top after scrolling; no document scroll on Schedule
- * - E7 (@resp.)       tablet/mobile: the bar is hidden and the trail renders inside main
+ * - E7 (@resp.)       tablet/mobile: the compact bar shows the Back link and no trail sits in main
  *
  * E3 (the user menu itself) lives in user-menu.spec.ts, which owns a dedicated member user.
  * The viewport-aware log-out helper (AppShellPage.logout) is covered by login-logout.spec.ts.
@@ -38,7 +39,7 @@ function isDesktop(page: Page): boolean {
   return (page.viewportSize()?.width ?? 0) >= 1024;
 }
 
-/** Every accessible element named "Log out" in the page (button in the sidebar, row in the menu). */
+/** Every accessible element named "Log out" in the page (menu row on desktop, sheet row below). */
 function logOutControls(page: Page) {
   return page
     .getByRole('button', { name: LOG_OUT })
@@ -227,14 +228,19 @@ test.describe('Top bar (desktop)', () => {
 });
 
 test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
-  test('E2: no control in the bar, the sidebar or the menu button paints the primary colour', async ({
+  test('E2: no control in the bar, the sidebar, the bottom bar or the sheet paints the primary colour', async ({
     page,
   }) => {
     const appShell = new AppShellPage(page);
     await page.goto(ROUTES.home);
-    await expect(appShell.sectionLink('home')).toBeAttached();
-    await appShell.openSidebarIfDrawer();
-    if (isDesktop(page)) await expect(appShell.topBar).toBeVisible();
+    if (isDesktop(page)) {
+      await expect(appShell.sectionLink('home')).toBeAttached();
+      await expect(appShell.topBar).toBeVisible();
+    } else {
+      await expect(appShell.bottomBar).toBeVisible();
+      // The sheet's controls (theme and language choices, rows) count too
+      await appShell.openMoreSheet();
+    }
 
     const primaryPainted = await page.evaluate(() => {
       const probe = document.createElement('div');
@@ -243,12 +249,14 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
       const primary = getComputedStyle(probe).backgroundColor;
       probe.remove();
       const controls = document.querySelectorAll(
-        'header button, header a, aside button, aside a, [data-testid="menu-fab"]',
+        'header button, header a, aside button, aside a, [data-testid="bottom-bar"] button, ' +
+          '[data-testid="bottom-bar"] a, [data-testid="more-sheet"] button, ' +
+          '[data-testid="more-sheet"] a, [data-testid="more-sheet"] label',
       );
       return Array.from(controls)
         .filter(
           (el) =>
-            // The current sidebar entry is a selected state, not a button; AC4 is about buttons
+            // The current entry is a selected state, not a button; AC4 is about buttons
             !el.hasAttribute('aria-current') &&
             el.checkVisibility() &&
             getComputedStyle(el).backgroundColor === primary,
@@ -263,16 +271,16 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
   }) => {
     const appShell = new AppShellPage(page);
     await page.goto(ROUTES.home);
-    await expect(appShell.sectionLink('home')).toBeAttached();
 
     if (isDesktop(page)) {
+      await expect(appShell.sectionLink('home')).toBeAttached();
       // AC3: the footer holds only the Settings entry
       await expect(appShell.settingsNav.getByRole('link')).toHaveCount(1);
       await expect(appShell.sidebar.getByRole('button')).toHaveCount(0);
       await expect(appShell.sidebar.getByRole('link', { name: /GitHub/i })).toHaveCount(0);
       await expect(page.getByText(/Cornerstone v/)).toBeHidden();
       await expect(page.getByRole('button', { name: /switch to .* mode/i })).toHaveCount(0);
-      await expect(page.getByTestId('sidebar-footer-legacy')).toBeHidden();
+      await expect(page.getByTestId('sidebar-footer-legacy')).toHaveCount(0);
 
       // One Log out, and only once the user menu is open
       await expect(logOutControls(page)).toHaveCount(0);
@@ -280,16 +288,20 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
       await expect(logOutControls(page)).toHaveCount(1);
       await expect(appShell.userMenu.getByRole('menuitem', { name: LOG_OUT })).toBeVisible();
     } else {
-      await appShell.openSidebar();
-      await expect(appShell.topBar).toBeHidden();
-      await expect(page.getByRole('banner')).toHaveCount(0);
-      await expect(
-        appShell.sidebar.getByRole('button', { name: /switch to .* mode/i }),
-      ).toBeVisible();
-      await expect(appShell.sidebar.getByRole('button', { name: LOG_OUT })).toBeVisible();
-      await expect(appShell.sidebar.getByRole('link', { name: 'GitHub' })).toBeVisible();
-      await expect(appShell.sidebar.getByText(/Cornerstone v/)).toBeVisible();
+      await expect(appShell.bottomBar).toBeVisible();
+      // No avatar, no sidebar, no drawer remnants
+      await expect(appShell.desktopUserMenuTrigger).toHaveCount(0);
+      await expect(page.locator('aside')).toHaveCount(0);
+      await expect(page.getByTestId('menu-fab')).toHaveCount(0);
+      await expect(page.getByTestId('sidebar-footer-legacy')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: /switch to .* mode/i })).toHaveCount(0);
+      // Closed sheet: nothing to reach; open sheet: exactly one Log out
+      await expect(logOutControls(page)).toHaveCount(0);
+      await appShell.openMoreSheet();
       await expect(logOutControls(page)).toHaveCount(1);
+      await expect(page.getByTestId('more-sheet-logout')).toBeVisible();
+      await expect(appShell.moreSheet.getByRole('link', { name: 'GitHub' })).toBeVisible();
+      await expect(appShell.moreSheet.getByText(/Cornerstone v/)).toBeVisible();
     }
   });
 
@@ -308,18 +320,26 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
       taskId = '';
     });
 
-    test('E7: below 1024px the bar is hidden and the trail renders inside main', async ({
+    test('E7: below 1024px the bar shows the compact Back link and no trail sits inside main', async ({
       page,
     }) => {
       test.skip(isDesktop(page), 'covered by E1 on desktop');
       const appShell = new AppShellPage(page);
       await page.goto(routeUrl('workItem', { id: taskId }));
 
-      const inMain = page.locator('main').getByTestId('breadcrumbs');
-      await expect(inMain).toBeVisible();
-      await expect(inMain).toHaveCount(1);
-      await expect(appShell.topBar).toBeHidden();
-      await expect(page.getByTestId('top-bar-slot').getByTestId('breadcrumbs')).toHaveCount(0);
+      // The only banner is the top bar, and the row lives in its slot (not in main)
+      await expect(page.getByRole('banner')).toHaveCount(1);
+      await expect(appShell.topBar).toBeVisible();
+      const inBar = appShell.topBar.getByTestId('breadcrumbs');
+      await expect(inBar).toHaveCount(1);
+      await expect(page.locator('main').getByTestId('breadcrumbs')).toHaveCount(0);
+
+      // Opened directly there is no origin, so the nearest parent is the single link
+      const parent = page.getByTestId('breadcrumbs-parent');
+      await expect(parent).toBeVisible();
+      await expect(parent).toHaveAccessibleName('Back to Tasks');
+      await expect(parent).toHaveText('‹Tasks');
+      await expect(page.getByRole('navigation', { name: 'You are here' })).toHaveCount(1);
     });
   });
 });

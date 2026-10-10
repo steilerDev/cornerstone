@@ -6,7 +6,7 @@
 
 .container {
   position: fixed;
-  bottom: var(--spacing-6);
+  bottom: calc(var(--spacing-6) + var(--shell-bottom-height));
   right: var(--spacing-6);
   z-index: var(--z-modal);
   display: flex;
@@ -114,7 +114,7 @@
 
 @media (max-width: 767px) {
   .container {
-    bottom: var(--spacing-4);
+    bottom: calc(var(--spacing-4) + var(--shell-bottom-height));
     right: var(--spacing-4);
     left: var(--spacing-4);
     width: auto;

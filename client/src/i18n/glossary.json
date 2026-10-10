@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-09",
+    "lastUpdated": "2026-10-10",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -2159,6 +2159,19 @@
         }
       ],
       "formerly": ["Itemize", "Itemization"]
+    },
+    "More": {
+      "groups": ["general"],
+      "en": {
+        "singular": "More"
+      },
+      "de": {
+        "singular": "Mehr"
+      },
+      "deSource": "approved",
+      "definition": "The phone and tablet sheet that holds every place not on the bottom bar and your personal settings.",
+      "doNotUse": [],
+      "formerly": []
     }
   }
 }

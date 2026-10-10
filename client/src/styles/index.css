@@ -13,6 +13,20 @@ html {
   -webkit-text-size-adjust: 100%;
 }
 
+/* Space the phone/tablet bottom bar occupies; 0 on desktop and while the on-screen keyboard is open */
+:root {
+  --shell-bottom-height: 0rem;
+}
+
+:root[data-shell-bar='shown'] {
+  --shell-bottom-height: calc(var(--spacing-16) + env(safe-area-inset-bottom, 0rem));
+}
+
+/* Set while the More sheet is open */
+html[data-scroll-locked='true'] {
+  overflow: hidden;
+}
+
 body {
   height: 100%;
   font-family:

@@ -168,6 +168,11 @@ const rows: Row[] = [
   // Role line in the menu header and the muted labels on the secondary surface
   ['both', '--color-text-muted', '--color-bg-secondary', 4.5],
   ...SURFACES.map((bg): Row => ['both', '--color-text-primary', bg, 4.5]),
+  // Phone and tablet shell (#2207): bottom bar and More sheet
+  ['dark', '--color-primary', '--color-bg-primary', 4.5], // active slot label on the bar
+  ['both', '--color-text-primary', '--color-bg-hover', 4.5], // slot / row hover wash
+  ['both', '--color-danger-text', '--color-danger', 4.5], // Home attention badge
+  ['both', '--color-text-secondary', '--color-bg-tertiary', 4.5], // inactive slot label while pressed
 ];
 
 const expanded = rows.flatMap(([theme, fg, bg, min]) =>
@@ -276,6 +281,11 @@ describe('top bar and user menu composites (#2206)', () => {
     const value = ratio(resolve('dark', '--color-primary'), bg);
     expect(value).toBeGreaterThanOrEqual(3);
     expect(value).toBeCloseTo(4.77, 1);
+  });
+
+  it('dark: the current More sheet row text (badge text on the composited primary wash over the sheet) is at least 4.5:1', () => {
+    const bg = compositeOver('dark', '--color-primary-bg', '--color-bg-primary');
+    expect(ratio(resolve('dark', '--color-primary-badge-text'), bg)).toBeGreaterThanOrEqual(4.5);
   });
 
   it('compositeOver rejects a token that is not translucent', () => {
@@ -428,14 +438,28 @@ describe('top bar and user menu rule pins (#2206)', () => {
   const sidebarRules = parseRules(sidebarCss);
   const topBar = readCss('components', 'TopBar', 'TopBar.module.css');
 
-  it('no AppShell rule paints a primary-coloured button background (AC4: the FAB is neutral)', () => {
-    for (const rule of appShell) {
-      const bg = rule.decls.get('background-color') ?? rule.decls.get('background');
-      expect(`${rule.selectors.join(',')}: ${bg ?? ''}`).not.toMatch(/var\(--color-primary\)/);
+  const bottomBar = readCss('components', 'BottomBar', 'BottomBar.module.css');
+  const moreSheet = readCss('components', 'MoreSheet', 'MoreSheet.module.css');
+  const sheet = readCss('components', 'Modal', 'Sheet.module.css');
+
+  it('no shell rule paints a primary-coloured background (the shell has no primary button)', () => {
+    for (const rules of [appShell, bottomBar, moreSheet, sheet, topBar]) {
+      for (const rule of rules) {
+        const bg = rule.decls.get('background-color') ?? rule.decls.get('background');
+        expect(`${rule.selectors.join(',')}: ${bg ?? ''}`).not.toMatch(/var\(--color-primary\)/);
+      }
     }
-    const fab = ruleFor(appShell, '.menuFab');
-    expect(fab.get('background-color')).toBe('var(--color-bg-primary)');
-    expect(fab.get('color')).toBe('var(--color-text-primary)');
+  });
+
+  it('AppShell no longer styles the retired floating menu button or overlay', () => {
+    for (const selector of ['.menuFab', '.menuFab:hover', '.overlay']) {
+      expect(() => ruleFor(appShell, selector)).toThrow(/No rule for/);
+    }
+    expect(
+      stripComments(
+        fs.readFileSync(path.join(srcDir, 'components/AppShell/AppShell.module.css'), 'utf8'),
+      ),
+    ).not.toMatch(/menuFab|overlay/);
   });
 
   it('OverflowMenu items focus with the focus-border token and inset ring, not the old ring token', () => {
@@ -445,51 +469,66 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(decls.get('outline')).toBe('none');
   });
 
-  it('Sidebar .footerLegacy is shown below 1024 px and display: none from 1024 px', () => {
-    const all = sidebarRules.filter((r) => r.selectors.includes('.footerLegacy'));
-    expect(all.map((r) => r.decls.get('display'))).toEqual(['block', 'none']);
-    // The none rule must sit in the min-width: 1024px block, not in a max-width one
-    expect(sidebarCss).toMatch(
-      /@media\s*\(min-width:\s*1024px\)\s*\{\s*\.footerLegacy\s*\{\s*display:\s*none;/,
-    );
+  it('Sidebar styles none of the retired drawer and footer controls', () => {
+    for (const selector of [
+      '.footerLegacy',
+      '.logoutButton',
+      '.projectInfo',
+      '.githubLink',
+      '.menuFab',
+      ".sidebar[data-open='true']",
+      '.sidebar.open',
+    ]) {
+      expect(sidebarRules.some((r) => r.selectors.includes(selector))).toBe(false);
+    }
+    expect(stripComments(sidebarCss)).not.toMatch(/footerLegacy|logoutButton|data-open/);
   });
 
-  it('Sidebar still styles the legacy footer controls (they remain below 1024 px)', () => {
-    for (const selector of ['.logoutButton', '.projectInfo', '.githubLink']) {
-      expect(sidebarRules.some((r) => r.selectors.includes(selector))).toBe(true);
-    }
+  it('Sidebar has no off-canvas drawer media block and is sticky at every width', () => {
+    expect(stripComments(sidebarCss)).not.toMatch(/max-width:\s*1023px/);
+    expect(stripComments(sidebarCss)).not.toMatch(/translateX/);
+    const decls = ruleFor(sidebarRules, '.sidebar');
+    expect(decls.get('position')).toBe('sticky');
+    expect(decls.get('top')).toBe('0');
+  });
+
+  it('the ThemeToggle component and its stylesheet are gone', () => {
+    expect(fs.existsSync(path.join(srcDir, 'components', 'ThemeToggle'))).toBe(false);
   });
 
   it('the shell breakpoints are 1023 / 1024 px (no 1024 / 1025 pair left to leave a gap)', () => {
     for (const file of [
       'components/AppShell/AppShell.module.css',
       'components/Sidebar/Sidebar.module.css',
-      'components/ThemeToggle/ThemeToggle.module.css',
+      'components/Breadcrumbs/Breadcrumbs.module.css',
+      'components/TopBar/TopBar.module.css',
+      'components/BottomBar/BottomBar.module.css',
     ]) {
       const css = stripComments(fs.readFileSync(path.join(srcDir, file), 'utf8'));
       expect(css).not.toMatch(/max-width:\s*1024px/);
       expect(css).not.toMatch(/min-width:\s*1025px/);
     }
-    const themeToggle = fs.readFileSync(
-      path.join(srcDir, 'components', 'ThemeToggle', 'ThemeToggle.module.css'),
-      'utf8',
-    );
-    expect(themeToggle).toMatch(/max-width:\s*1023px/);
   });
 
-  it('the top bar is hidden by default, a flex row from 1024 px and hidden in print', () => {
+  it('the top bar is a flex row at every width and hidden in print', () => {
     const all = topBar.filter((r) => r.selectors.includes('.topBar'));
-    expect(all.map((r) => r.decls.get('display')).filter(Boolean)).toEqual([
-      'none',
-      'flex',
-      'none',
-    ]);
+    expect(all.map((r) => r.decls.get('display')).filter(Boolean)).toEqual(['flex', 'none']);
     const css = fs.readFileSync(
       path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
       'utf8',
     );
-    expect(css).toMatch(/@media\s*\(min-width:\s*1024px\)\s*\{\s*\.topBar\s*\{\s*display:\s*flex;/);
+    expect(css).not.toMatch(/min-width:\s*1024px/);
     expect(css).toMatch(/@media\s+print\s*\{\s*\.topBar\s*\{\s*display:\s*none;/);
+  });
+
+  it('the compact top bar pads for the top safe-area inset without growing past --topbar-height', () => {
+    const decls = ruleFor(topBar, '.compact');
+    expect(decls.get('padding-top')).toBe('env(safe-area-inset-top)');
+    expect(decls.has('min-height')).toBe(false);
+    expect(decls.has('height')).toBe(false);
+    expect(ruleFor(appShell, '.compact').get('--topbar-height')).toBe(
+      'calc(var(--spacing-12) + var(--spacing-2) + env(safe-area-inset-top, 0rem))',
+    );
   });
 
   it('the top bar sticks to the viewport above page dropdowns and defines its height token', () => {
@@ -532,12 +571,6 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(decls.get('outline')).toBe('none');
   });
 
-  it('the floating menu button hover also changes its border to the primary token', () => {
-    const decls = ruleFor(appShell, '.menuFab:hover');
-    expect(decls.get('border-color')).toBe('var(--color-primary)');
-    expect(decls.get('background-color')).toBe('var(--color-bg-hover)');
-  });
-
   it('the top bar buttons turn their transition off for reduced motion', () => {
     const css = fs.readFileSync(
       path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
@@ -551,15 +584,32 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(rule?.decls.get('transition')).toBe('none');
   });
 
-  it('the Timeline page is the full dynamic viewport below 1024 px, with no fixed 60px header allowance', () => {
+  it('the compact title and search icon turn their transition off for reduced motion', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
+      'utf8',
+    );
+    const blocks = [
+      ...css.matchAll(/@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([^@]*?\})\s*\}/g),
+    ];
+    const rules = blocks.flatMap((b) => parseRules(b[0]));
+    const rule = rules.find((r) => r.selectors.includes('.title'));
+    expect(rule?.selectors).toEqual(['.title', '.searchIcon']);
+    expect(rule?.decls.get('transition')).toBe('none');
+  });
+
+  it('the Timeline page is one dynamic-viewport height minus the top bar and the bottom bar, at every width', () => {
     const css = fs.readFileSync(
       path.join(srcDir, 'pages', 'TimelinePage', 'TimelinePage.module.css'),
       'utf8',
     );
     const page = parseRules(css).filter((r) => r.selectors.includes('.page'));
-    expect(page[0]?.decls.get('height')).toBe('100dvh');
+    expect(page[0]?.decls.get('height')).toBe(
+      'calc(100dvh - var(--topbar-height) - var(--shell-bottom-height))',
+    );
     expect(stripComments(css)).not.toMatch(/-\s*60px/);
     expect(stripComments(css)).not.toMatch(/100vh/);
+    expect(stripComments(css)).not.toMatch(/min-width:\s*1024px/);
   });
 
   it.each([
@@ -569,13 +619,190 @@ describe('top bar and user menu rule pins (#2206)', () => {
     ['components/photos/SpotViewer.module.css', '.viewer'],
     ['components/photos/SpotViewer.module.css', '.image'],
     ['pages/PhotoSpotViewerPage/PhotoSpotViewerPage.module.css', '.root'],
-  ])('%s %s subtracts the bar height from the viewport from 1024 px', (file, selector) => {
+  ])('%s %s subtracts the top bar and the bottom bar from the viewport', (file, selector) => {
     const css = fs.readFileSync(path.join(srcDir, file), 'utf8');
     const rules = parseRules(css).filter((r) => r.selectors.includes(selector));
     const subtracts = rules.some((r) =>
-      [...r.decls.values()].some((v) => /100dvh[^;]*var\(--topbar-height\)/.test(v)),
+      [...r.decls.values()].some(
+        (v) =>
+          /100dvh/.test(v) &&
+          /var\(--topbar-height\)/.test(v) &&
+          /var\(--shell-bottom-height\)/.test(v),
+      ),
     );
     expect(subtracts).toBe(true);
+    // The old 1024 px override is gone: one rule at every width
+    expect(rules.every((r) => ![...r.decls.values()].some((v) => /100vh/.test(v)))).toBe(true);
+  });
+
+  it('the desktop SpotViewer layout keeps the same two subtractions', () => {
+    const rules = readCss('components', 'photos', 'SpotViewer.module.css').filter((r) =>
+      r.selectors.includes('.viewer'),
+    );
+    const heights = rules.flatMap((r) => [r.decls.get('height'), r.decls.get('min-height')]);
+    expect(heights.filter(Boolean)).toEqual(
+      Array(heights.filter(Boolean).length).fill(
+        'calc(100dvh - var(--topbar-height) - var(--shell-bottom-height))',
+      ),
+    );
+  });
+
+  it('Toast lifts above the bottom bar on desktop and phone placements', () => {
+    const css = stripComments(
+      fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
+    );
+    expect(css.match(/bottom:\s*calc\([^;]*var\(--shell-bottom-height\)\)/g)).toHaveLength(2);
+  });
+});
+
+describe('phone and tablet shell rule pins (#2207)', () => {
+  const bottomBar = readCss('components', 'BottomBar', 'BottomBar.module.css');
+  const indexCss = stripComments(fs.readFileSync(path.join(srcDir, 'styles', 'index.css'), 'utf8'));
+  const indexRules = parseRules(indexCss);
+
+  it('the bar content row is exactly 64px: a height, never a min-height', () => {
+    const decls = ruleFor(bottomBar, '.list');
+    expect(decls.get('height')).toBe('var(--spacing-16)');
+    expect(decls.has('min-height')).toBe(false);
+  });
+
+  it('the current slot is marked by a 3px top bar as well as colour (not colour alone)', () => {
+    const decls = ruleFor(bottomBar, '.slotActive');
+    expect(decls.get('box-shadow')).toBe('inset 0 3px 0 var(--color-primary)');
+    expect(decls.get('color')).toBe('var(--color-primary)');
+    expect(decls.get('font-weight')).toBe('var(--font-weight-semibold)');
+  });
+
+  it('keyboard focus on the current slot keeps the top bar and adds the focus ring', () => {
+    const decls = ruleFor(bottomBar, '.slotActive:focus-visible');
+    expect(decls.get('box-shadow')).toContain('inset 0 3px 0 var(--color-primary)');
+    expect(decls.get('box-shadow')).toContain('var(--color-border-focus)');
+  });
+
+  it('slot labels never truncate: nowrap, no ellipsis, no clipping (German labels must fit)', () => {
+    const decls = ruleFor(bottomBar, '.label');
+    expect(decls.get('white-space')).toBe('nowrap');
+    expect(decls.has('text-overflow')).toBe(false);
+    expect(decls.get('overflow')).toBe('visible');
+  });
+
+  it('the bar sits above page dropdowns, under the sheet, and respects the bottom inset', () => {
+    const decls = ruleFor(bottomBar, '.bar');
+    expect(decls.get('position')).toBe('fixed');
+    expect(decls.get('z-index')).toBe('calc(var(--z-dropdown) + 1)');
+    expect(decls.get('padding-bottom')).toBe('env(safe-area-inset-bottom)');
+  });
+
+  it('the bar hides itself while the on-screen keyboard is open', () => {
+    const decls = ruleFor(bottomBar, ".bar[data-keyboard-open='true']");
+    expect(decls.get('visibility')).toBe('hidden');
+  });
+
+  it('index.css reserves the bar height only while the bar is shown, and locks scroll under the sheet', () => {
+    expect(ruleFor(indexRules, ':root').get('--shell-bottom-height')).toBe('0rem');
+    expect(ruleFor(indexRules, ":root[data-shell-bar='shown']").get('--shell-bottom-height')).toBe(
+      'calc(var(--spacing-16) + env(safe-area-inset-bottom, 0rem))',
+    );
+    expect(ruleFor(indexRules, "html[data-scroll-locked='true']").get('overflow')).toBe('hidden');
+  });
+
+  // The plain pressed wash (--color-bg-tertiary) under the primary label is 4.07:1 in dark, so the
+  // current slot repaints its pressed state with --color-bg-hover (4.94 dark / 4.95 light).
+  it.each(['light', 'dark'] as const)(
+    '%s: the active slot label (primary) on its pressed wash (hover) is at least 4.5:1',
+    (theme) => {
+      expect(tokenRatio(theme, '--color-primary', '--color-bg-hover')).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it('pins the current slot pressed rule: .slotActive:active paints --color-bg-hover', () => {
+    expect(ruleFor(bottomBar, '.slotActive:active').get('background-color')).toBe(
+      'var(--color-bg-hover)',
+    );
+  });
+
+  it('the sheet shows at once when opening: visibility transitions over 0s on the open panel and backdrop', () => {
+    const sheet = readCss('components', 'Modal', 'Sheet.module.css');
+    for (const selector of ['.panelOpen', '.backdropOpen']) {
+      const decls = ruleFor(sheet, selector);
+      expect(decls.get('visibility')).toBe('visible');
+      expect(decls.get('transition')).toMatch(/visibility\s+0s/);
+    }
+    // Closing keeps the delayed hide so the slide-out stays visible
+    expect(ruleFor(sheet, '.panel').get('transition')).toMatch(
+      /visibility\s+var\(--transition-slow\)/,
+    );
+  });
+
+  // Mutation: restoring `.item` `min-width: 0` fails this test (a long German label such as
+  // "Bautagebuch" then overflows its slot at 390px instead of widening it).
+  it('a bar slot never shrinks below its label: .item min-width is min-content, still flex 1 1 0', () => {
+    const item = ruleFor(bottomBar, '.item');
+    expect(item.get('min-width')).toBe('min-content');
+    expect(item.get('min-width')).not.toBe('0');
+    expect(item.get('flex')).toBe('1 1 0');
+    expect(item.get('max-width')).toBe('calc(var(--spacing-16) * 2)');
+  });
+
+  it('every slot keeps at least the 44px touch target width', () => {
+    expect(ruleFor(bottomBar, '.slot').get('min-width')).toBe('var(--touch-target-min)');
+  });
+
+  it('the bar border sits on the 64px list, not on the bar (it must not add height under the row)', () => {
+    expect(ruleFor(bottomBar, '.list').get('border-top')).toBe('1px solid var(--color-border)');
+    expect(ruleFor(bottomBar, '.bar').has('border-top')).toBe(false);
+    expect(ruleFor(bottomBar, '.list').get('height')).toBe('var(--spacing-16)');
+  });
+
+  it('the current More row keeps its fill on hover and press (no wash that lowers the contrast)', () => {
+    const moreSheet = readCss('components', 'MoreSheet', 'MoreSheet.module.css');
+    for (const selector of ['.rowCurrent', '.rowCurrent:hover', '.rowCurrent:active']) {
+      expect(ruleFor(moreSheet, selector).get('background-color')).toBe('var(--color-primary-bg)');
+    }
+    expect(ruleFor(moreSheet, '.rowCurrent').get('color')).toBe('var(--color-primary-badge-text)');
+  });
+
+  it('the current More row text on its fill is at least 4.5:1 in light and over the composited dark fill', () => {
+    expect(
+      tokenRatio('light', '--color-primary-badge-text', '--color-primary-bg'),
+    ).toBeGreaterThanOrEqual(4.5);
+    const dark = compositeOver('dark', '--color-primary-bg', '--color-bg-primary');
+    expect(ratio(resolve('dark', '--color-primary-badge-text'), dark)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('tokens.css defines the 44px minimum touch target', () => {
+    expect(tokens.light.get('--touch-target-min')).toBe('2.75rem');
+    expect(tokens.dark.get('--touch-target-min')).toBe('2.75rem');
+  });
+
+  it('the shell controls use the touch target token, never a literal 44px', () => {
+    for (const file of [
+      'components/Breadcrumbs/Breadcrumbs.module.css',
+      'components/OverflowMenu/OverflowMenu.module.css',
+      'components/PageLayout/PageLayout.module.css',
+      'components/calendar/CalendarView.module.css',
+      'components/calendar/CalendarMilestone.module.css',
+      'components/calendar/CalendarHouseholdItem.module.css',
+      'components/reports/ReportInvoiceList.module.css',
+    ]) {
+      const full = path.join(srcDir, file);
+      if (!fs.existsSync(full)) continue;
+      expect(stripComments(fs.readFileSync(full, 'utf8'))).not.toMatch(/\b44px\b/);
+    }
+  });
+
+  it('the shell and sheet transitions turn off for reduced motion', () => {
+    for (const file of [
+      'components/BottomBar/BottomBar.module.css',
+      'components/Modal/Sheet.module.css',
+    ]) {
+      const css = fs.readFileSync(path.join(srcDir, file), 'utf8');
+      const block = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{[^@]*?\}\s*\}/.exec(css);
+      expect(block).not.toBeNull();
+      expect(parseRules(block?.[0] ?? '').every((r) => r.decls.get('transition') === 'none')).toBe(
+        true,
+      );
+    }
   });
 });
 

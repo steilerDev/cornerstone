@@ -4,18 +4,20 @@
 // The quiet group (Areas, History, Documents) has no served page yet, so NavConfig is patched to
 // serve one secondary section and the separator and quiet link styling can be proven.
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
+import { useMemo } from 'react';
 import { screen } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { renderWithRouter } from '../../test/testUtils.js';
-import type * as SidebarTypes from './Sidebar.js';
 
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({ user: { id: '1', role: 'admin' }, logout: jest.fn() }),
 }));
+
 jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
   useTheme: () => ({ theme: 'system', resolvedTheme: 'light', setTheme: jest.fn() }),
 }));
 
-let Sidebar: typeof SidebarTypes.Sidebar;
+let Host: () => React.JSX.Element;
 
 beforeAll(async () => {
   const actual = await import('../../navigation/navConfig.js');
@@ -38,12 +40,21 @@ beforeAll(async () => {
       ];
     },
   }));
-  ({ Sidebar } = await import('./Sidebar.js'));
+  const { Sidebar } = await import('./Sidebar.js');
+  const { navSections } = await import('../../navigation/navConfig.js');
+  const { resolveNavActive } = await import('../../navigation/navActive.js');
+  // The shell computes the sections and the active entry and hands them down; mirror that here.
+  Host = function Host() {
+    const { pathname } = useLocation();
+    const sections = useMemo(() => navSections({ role: 'admin', paperlessConfigured: false }), []);
+    const active = useMemo(() => resolveNavActive(pathname, sections), [pathname, sections]);
+    return <Sidebar sections={sections} active={active} />;
+  };
 });
 
 describe('Sidebar quiet group', () => {
   it('renders a separator and a quiet-styled link for a secondary section', () => {
-    const { container } = renderWithRouter(<Sidebar isOpen={false} onClose={jest.fn()} />, {
+    const { container } = renderWithRouter(<Host />, {
       initialEntries: ['/project/work-items'],
     });
 
@@ -57,7 +68,7 @@ describe('Sidebar quiet group', () => {
   });
 
   it('keeps primary links without the quiet class', () => {
-    renderWithRouter(<Sidebar isOpen={false} onClose={jest.fn()} />);
+    renderWithRouter(<Host />);
 
     expect(screen.getByRole('link', { name: 'Home' })).not.toHaveClass('navLinkQuiet');
   });

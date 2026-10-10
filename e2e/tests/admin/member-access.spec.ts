@@ -135,6 +135,24 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
       await page.goto(route);
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
+      if (shell.isCompact()) {
+        // Below 1024px the views are the title menu's items (#2207). Companies has no Settings
+        // views, so it offers no menu; the other two list Project setup and Account only.
+        if (name !== 'Companies') {
+          await shell.revealViews();
+          await expect(shell.viewMenu.getByRole('menuitem')).toHaveCount(2);
+          await expect(shell.viewMenu.getByRole('menuitem')).toContainText([
+            'Project setup',
+            'Account',
+          ]);
+        }
+        await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
+        await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
+        await expect(shell.viewMenu.getByRole('menuitem', { name: 'Users' })).toHaveCount(0);
+        await expect(shell.viewMenu.getByRole('menuitem', { name: 'Backups' })).toHaveCount(0);
+        return;
+      }
+
       await expect(shell.settingsNav.getByRole('link')).toHaveText([...expected]);
       await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
       await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
@@ -173,7 +191,9 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     await profile.goto();
 
     // The active sidebar entry on the Account page is its nested view link
-    const activeSettings = new AppShellPage(page).viewLink('settingsProfile');
+    const shell = new AppShellPage(page);
+    await shell.revealViews();
+    const activeSettings = shell.viewLink('settingsProfile');
     await expect(activeSettings).toHaveAttribute('aria-current', 'page');
 
     // Light theme

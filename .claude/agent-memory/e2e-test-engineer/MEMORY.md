@@ -44,4 +44,5 @@
 - Containerized E2E verification capability varies by sandbox instance — **do not assume the old "no dhi.io creds" note still applies**; re-attempt `docker build -t cornerstone:e2e .` each session before falling back to static-only verification. See `sandbox-live-verification.md` for the current state and the remaining browser-binary blocker.
 - [issue-2101-paperless-infinite-scroll.md](issue-2101-paperless-infinite-scroll.md) — Paperless picker infinite-scroll E2E: page-aware mock fixture, POM scroll/footer helpers, scroller quirks, diary regression review.
 - [story-2205-sidebar-navconfig.md](story-2205-sidebar-navconfig.md) — #2205 sidebar test ids/POM API, sidebar clicks push, 'Go to Home' strict-mode collision, every-page sweep, defect-id tagging.
+- [story-2207-phone-tablet-shell.md](story-2207-phone-tablet-shell.md) — #2207 bottom bar/More sheet/title menu: AppShellPage shims, check-mark text trap, compact single-link breadcrumb, sign-out mocking.
 - [story-2206-top-bar.md](story-2206-top-bar.md) — #2206 top bar/user menu: 1024 breakpoint, viewport-aware logout(), shared isolated user, Gantt-origin Back.

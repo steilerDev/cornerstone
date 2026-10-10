@@ -23,6 +23,9 @@
     "integrations": "Integrations",
     "youAreHere": "You are here",
     "backTo": "Back to {{origin}}",
+    "more": "More",
+    "homeAttention_one": "Home, {{count}} needs attention",
+    "homeAttention_other": "Home, {{count}} need attention",
     "task": "Task",
     "purchase": "Purchase",
     "milestone": "Milestone",
@@ -69,8 +72,6 @@
   },
   "optional": "(optional)",
   "aria": {
-    "closeMenu": "Close menu",
-    "openMenu": "Open menu",
     "goToHome": "Go to Home",
     "closeDialog": "Close dialog",
     "clearSelection": "Clear selection",
@@ -105,9 +106,7 @@
   "theme": {
     "light": "Light",
     "dark": "Dark",
-    "system": "System",
-    "switchTo": "Switch to {{mode}} mode",
-    "current": "Current: {{current}} — click to switch to {{next}}"
+    "system": "System"
   },
   "topBar": {
     "search": "Search",

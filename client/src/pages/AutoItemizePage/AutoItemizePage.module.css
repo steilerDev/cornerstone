@@ -1,13 +1,7 @@
 .pageContainer {
-  height: 100vh;
+  height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
   display: flex;
   flex-direction: column;
-}
-
-@media (min-width: 1024px) {
-  .pageContainer {
-    height: calc(100dvh - var(--topbar-height));
-  }
 }
 
 .pageHeader {

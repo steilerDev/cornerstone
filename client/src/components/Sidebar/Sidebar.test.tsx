@@ -8,6 +8,10 @@ import userEvent from '@testing-library/user-event';
 import { render } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { useMemo } from 'react';
+import { useLocation } from 'react-router-dom';
+import { resolveNavActive } from '../../navigation/navActive.js';
+import { navSections } from '../../navigation/navConfig.js';
 import type * as SidebarTypes from './Sidebar.js';
 
 // Mock the AuthContext BEFORE importing Sidebar
@@ -34,15 +38,9 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   }),
 }));
 
-// Mock ThemeContext so Sidebar tests don't need a ThemeProvider
-const mockSetTheme = jest.fn<(theme: string) => void>();
-
+// The logo reads the theme
 jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
-  useTheme: () => ({
-    theme: 'system',
-    resolvedTheme: 'light',
-    setTheme: mockSetTheme,
-  }),
+  useTheme: () => ({ theme: 'system', resolvedTheme: 'light', setTheme: jest.fn() }),
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -54,13 +52,11 @@ jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
 
 describe('Sidebar', () => {
   let SidebarModule: typeof SidebarTypes;
-  let mockOnClose: jest.MockedFunction<() => void>;
 
   beforeEach(async () => {
     if (!SidebarModule) {
       SidebarModule = await import('./Sidebar.js');
     }
-    mockOnClose = jest.fn<() => void>();
     mockLogout.mockReset().mockResolvedValue(undefined);
     mockGetPaperlessStatus.mockReset();
     mockRole = 'admin';
@@ -70,13 +66,16 @@ describe('Sidebar', () => {
     jest.clearAllMocks();
   });
 
-  const getDefaultProps = () => ({
-    isOpen: false,
-    onClose: mockOnClose,
-  });
+  // The shell computes the sections and the active entry and hands them down; mirror that here.
+  function Host() {
+    const { pathname } = useLocation();
+    const sections = useMemo(() => navSections({ role: mockRole, paperlessConfigured: false }), []);
+    const active = useMemo(() => resolveNavActive(pathname, sections), [pathname, sections]);
+    return <SidebarModule.Sidebar sections={sections} active={active} />;
+  }
 
   const renderAt = (path: string) =>
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+    renderWithRouter(<Host />, {
       initialEntries: [path],
     });
 
@@ -128,19 +127,17 @@ describe('Sidebar', () => {
       expect(within(settingsNav()).getAllByRole('list')).toHaveLength(1);
     });
 
-    it('has two landmarks, Main navigation and Settings, with theme toggle and log out outside both', () => {
+    it('has two landmarks, Main navigation and Settings, and no control outside them but the logo', () => {
       renderAt('/project/work-items');
 
       const main = mainNav();
       const settings = settingsNav();
-      const logout = screen.getByRole('button', { name: /^log out$/i });
-      const theme = screen.getByRole('button', { name: /switch to .+ mode/i });
-      for (const outside of [logout, theme]) {
-        expect(main.contains(outside)).toBe(false);
-        expect(settings.contains(outside)).toBe(false);
-      }
       expect(main.contains(settings)).toBe(false);
       expect(within(settings).getByRole('link', { name: /^settings$/i })).toBeInTheDocument();
+      const outside = within(screen.getByRole('complementary'))
+        .getAllByRole('link')
+        .filter((l) => !main.contains(l) && !settings.contains(l));
+      expect(outside.map((l) => l.getAttribute('aria-label'))).toEqual(['Go to Home']);
     });
 
     it('opens Home with a labelled logo link to the root path', () => {
@@ -163,16 +160,12 @@ describe('Sidebar', () => {
       expect(mockGetPaperlessStatus).not.toHaveBeenCalled();
     });
 
-    it('sidebar has .open class when isOpen is true', () => {
-      renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
+    it('has no drawer state: no data-open attribute and no open class (desktop only)', () => {
+      renderAt('/project/work-items');
 
-      expect(screen.getByRole('complementary').className).toMatch(/open/);
-    });
-
-    it('sidebar does not have .open class when isOpen is false', () => {
-      renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={false} />);
-
-      expect(screen.getByRole('complementary').className).not.toMatch(/open/);
+      const sidebar = screen.getByRole('complementary');
+      expect(sidebar).not.toHaveAttribute('data-open');
+      expect(sidebar.className).not.toMatch(/open/);
     });
   });
 
@@ -328,43 +321,7 @@ describe('Sidebar', () => {
     });
   });
 
-  describe('closing the drawer', () => {
-    it('clicking a section link calls onClose', async () => {
-      const user = userEvent.setup();
-      renderAt('/project/work-items');
-
-      await user.click(section('photos'));
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-
-    it('clicking a nested view link calls onClose', async () => {
-      const user = userEvent.setup();
-      renderAt('/project/work-items');
-
-      await user.click(view('scheduleCalendar'));
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-
-    it('clicking the Settings link calls onClose', async () => {
-      const user = userEvent.setup();
-      renderAt('/project/work-items');
-
-      await user.click(section('settings'));
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-
-    it('clicking the logo calls onClose', async () => {
-      const user = userEvent.setup();
-      renderAt('/photos');
-
-      await user.click(screen.getByRole('link', { name: 'Go to Home' }));
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
-    });
-
+  describe('navigating', () => {
     it('navigates when a view is clicked and moves the highlight', async () => {
       const user = userEvent.setup();
       renderAt('/project/work-items');
@@ -383,7 +340,7 @@ describe('Sidebar', () => {
       const log = createRouterLog();
       render(
         <RecordingRouter entries={[path]} log={log}>
-          <SidebarModule.Sidebar {...getDefaultProps()} />
+          <Host />
         </RecordingRouter>,
       );
       await user.click(screen.getByTestId(testId));
@@ -415,109 +372,34 @@ describe('Sidebar', () => {
     });
   });
 
-  describe('footer', () => {
-    it('renders a logout button', () => {
+  describe('no account controls (they live in the user menu and the More sheet, #2207)', () => {
+    it('renders no button at all', () => {
       renderAt('/photos');
 
-      expect(screen.getByRole('button', { name: /^log out$/i })).toBeInTheDocument();
+      expect(within(screen.getByRole('complementary')).queryAllByRole('button')).toHaveLength(0);
     });
 
-    it('clicking logout calls logout, then onClose', async () => {
-      const user = userEvent.setup();
-      let resolveLogout: () => void = () => undefined;
-      mockLogout.mockReturnValue(
-        new Promise<void>((resolve) => {
-          resolveLogout = resolve;
-        }),
-      );
+    it('has no Log out, theme toggle, GitHub link or version text', () => {
       renderAt('/photos');
 
-      await user.click(screen.getByRole('button', { name: /^log out$/i }));
-
-      expect(mockLogout).toHaveBeenCalledTimes(1);
-      expect(mockOnClose).not.toHaveBeenCalled();
-
-      resolveLogout();
-      await new Promise((resolve) => setTimeout(resolve, 50));
-
-      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(screen.queryByText(/log ?out/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /switch to .+ mode/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'GitHub' })).not.toBeInTheDocument();
+      expect(screen.queryByText(/Cornerstone v/)).not.toBeInTheDocument();
     });
 
-    it('lists the theme toggle and logout as the only buttons, and no Settings button', () => {
-      renderAt('/photos');
+    it('has no legacy footer container', () => {
+      const { container } = renderAt('/photos');
 
-      const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2);
-      expect(buttons[0]!).toHaveAttribute(
-        'aria-label',
-        expect.stringMatching(/switch to .+ mode/i),
-      );
-      expect(buttons[1]!).toHaveTextContent(/^Log out$/);
+      expect(screen.queryByTestId('sidebar-footer-legacy')).not.toBeInTheDocument();
+      expect(container.querySelector('[class*="footerLegacy"]')).toBeNull();
     });
 
-    it('shows the app version and the GitHub link', () => {
-      renderAt('/photos');
-
-      expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
-        'href',
-        'https://github.com/steilerDev/cornerstone',
-      );
-      expect(screen.getByText(/Cornerstone v0\.0\.0-test/)).toBeInTheDocument();
-    });
-
-    it('labels the button "Log out", the same word as the user menu, never "Logout"', () => {
-      renderAt('/photos');
-
-      expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /^logout$/i })).not.toBeInTheDocument();
-    });
-  });
-
-  describe('interim footer (until the user menu replaces it below 1024 px, #2207)', () => {
     it('keeps exactly one link in the Settings landmark', () => {
       renderAt('/photos');
 
       expect(within(settingsNav()).getAllByRole('link')).toHaveLength(1);
       expect(within(settingsNav()).queryByRole('button')).not.toBeInTheDocument();
-    });
-
-    it('holds the theme toggle, Log out and the project info inside one legacy container', () => {
-      renderAt('/photos');
-
-      const legacy = screen.getByTestId('sidebar-footer-legacy');
-      expect(legacy).toHaveClass('footerLegacy');
-      expect(
-        within(legacy).getByRole('button', { name: /switch to .+ mode/i }),
-      ).toBeInTheDocument();
-      expect(within(legacy).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
-      expect(within(legacy).getByRole('link', { name: 'GitHub' })).toBeInTheDocument();
-      expect(within(legacy).getByText(/Cornerstone v/)).toBeInTheDocument();
-    });
-
-    it('renders no footer control outside the legacy container or inside either nav', () => {
-      renderAt('/photos');
-
-      const legacy = screen.getByTestId('sidebar-footer-legacy');
-      const controls = [
-        screen.getByRole('button', { name: /switch to .+ mode/i }),
-        screen.getByRole('button', { name: 'Log out' }),
-        screen.getByRole('link', { name: 'GitHub' }),
-        screen.getByText(/Cornerstone v/),
-      ];
-      for (const control of controls) {
-        expect(legacy.contains(control)).toBe(true);
-        expect(mainNav().contains(control)).toBe(false);
-        expect(settingsNav().contains(control)).toBe(false);
-      }
-      // Every button in the sidebar is one of the two legacy buttons
-      const sidebarButtons = within(screen.getByRole('complementary')).getAllByRole('button');
-      expect(sidebarButtons.every((b) => legacy.contains(b))).toBe(true);
-    });
-
-    it('keeps the legacy container out of the Settings landmark', () => {
-      renderAt('/photos');
-
-      expect(settingsNav().contains(screen.getByTestId('sidebar-footer-legacy'))).toBe(false);
     });
   });
 });

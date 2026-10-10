@@ -2,6 +2,7 @@ import { createPortal } from 'react-dom';
 import { useEffect, useRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import sharedStyles from '../../styles/shared.module.css';
+import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
 import styles from './Modal.module.css';
 
 export interface ModalProps {
@@ -12,14 +13,6 @@ export interface ModalProps {
   className?: string;
   /** Element to focus on mount instead of the first focusable element. */
   initialFocusRef?: React.RefObject<HTMLElement | null>;
-}
-
-function getFocusableElements(container: HTMLElement): HTMLElement[] {
-  return Array.from(
-    container.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-    ),
-  ).filter((el) => !el.hasAttribute('disabled'));
 }
 
 export function Modal({
@@ -34,17 +27,8 @@ export function Modal({
   const titleId = useId();
   const { t } = useTranslation('common');
 
-  // Handle escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  // Escape closes; Tab cycles within the modal content
+  useFocusTrap(contentRef, { active: true, onEscape: onClose });
 
   // Focus management: focus first focusable element on mount
   useEffect(() => {
@@ -57,30 +41,6 @@ export function Modal({
       firstFocusable?.focus();
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only: initial focus must not re-run when the ref prop identity changes
-  }, []);
-
-  // Focus trap: cycle Tab/Shift+Tab within the modal content
-  useEffect(() => {
-    const handleTabKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Tab' || !contentRef.current) return;
-
-      const focusable = getFocusableElements(contentRef.current);
-      if (focusable.length === 0) return;
-
-      const first = focusable[0]!;
-      const last = focusable[focusable.length - 1]!;
-
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-
-    document.addEventListener('keydown', handleTabKey);
-    return () => document.removeEventListener('keydown', handleTabKey);
   }, []);
 
   return createPortal(

@@ -152,17 +152,17 @@
 
 @media (max-width: 1279px) {
   .navButton {
-    width: 44px;
-    height: 44px;
+    width: var(--touch-target-min);
+    height: var(--touch-target-min);
   }
 
   .todayButton {
-    height: 44px;
-    min-height: 44px;
+    height: var(--touch-target-min);
+    min-height: var(--touch-target-min);
   }
 
   .modeButton {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 }
 

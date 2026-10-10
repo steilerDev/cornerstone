@@ -41,7 +41,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 110,
+      "count": 111,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -50,6 +50,7 @@
         "AuthGuard/AuthGuard",
         "AutosaveIndicator/AutosaveIndicator",
         "Badge/Badge",
+        "BottomBar/BottomBar",
         "Breadcrumbs/Breadcrumbs",
         "BudgetBar/BudgetBar",
         "BudgetHealthIndicator/BudgetHealthIndicator",
@@ -76,6 +77,7 @@
         "MassMoveModal/MassMoveModal",
         "MiniGanttCard/MiniGanttCard",
         "Modal/Modal",
+        "MoreSheet/MoreSheet",
         "OrientationPicker/OrientationPicker",
         "OverflowMenu/OverflowMenu",
         "PageLayout/PageLayout",
@@ -93,7 +95,6 @@
         "SubNav/SubNav",
         "SubsidyPipelineCard/SubsidyPipelineCard",
         "SuggestionBadge/SuggestionBadge",
-        "ThemeToggle/ThemeToggle",
         "Toast/Toast",
         "Tooltip/Tooltip",
         "TopBar/TopBar",
@@ -350,8 +351,6 @@
   },
   "allowedAdditions": {
     "sharedComponents": [
-      "BottomBar",
-      "MoreSheet",
       "CommandSearch",
       "CreateMenu",
       "ObjectForm",

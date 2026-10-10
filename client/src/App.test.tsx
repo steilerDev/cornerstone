@@ -399,7 +399,7 @@ describe('App', () => {
     });
   });
 
-  it('renders the AppShell layout with sidebar and floating menu button', async () => {
+  it('renders the compact AppShell below 1024 px: top bar, bottom bar and no sidebar or floating button', async () => {
     render(<App />);
 
     // Wait for auth loading to complete
@@ -407,13 +407,15 @@ describe('App', () => {
       timeout: 5000,
     });
 
-    // Sidebar should be present
-    const sidebar = screen.getByRole('complementary');
-    expect(sidebar).toBeInTheDocument();
-
-    // Floating menu button (FAB) should be present
-    const fab = screen.getByTestId('menu-fab');
-    expect(fab).toBeInTheDocument();
+    // jsdom's default matchMedia never matches, so the shell is the phone and tablet one
+    expect(screen.getByTestId('bottom-bar')).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Main navigation' })).toBe(
+      screen.getByTestId('bottom-bar'),
+    );
+    expect(screen.queryByRole('complementary')).toBeNull();
+    expect(screen.queryByTestId('menu-fab')).toBeNull();
+    expect(screen.queryByTestId('sidebar-overlay')).toBeNull();
+    expect(screen.getByRole('banner')).toBe(screen.getByTestId('top-bar'));
 
     // Main content area should be present
     const main = screen.getByRole('main');
@@ -530,11 +532,11 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-    // The sidebar logo carries the same name; the page's own link is the one inside <main>.
+    // The compact shell has no sidebar logo, so the page's own link is the only one.
     expect(
       within(screen.getByRole('main')).getByRole('link', { name: 'Go to Home' }),
     ).toHaveAttribute('href', '/');
-    expect(screen.getAllByRole('link', { name: 'Go to Home' })).toHaveLength(2);
+    expect(screen.getAllByRole('link', { name: 'Go to Home' })).toHaveLength(1);
   });
 
   it('navigates to VendorsPage at /settings/vendors', async () => {
@@ -615,7 +617,7 @@ describe('App', () => {
       expect(mockGetSchedulerStatus).not.toHaveBeenCalled();
     });
 
-    it('keeps the sidebar and offers Back to Home on the No access page', async () => {
+    it('keeps Settings highlighted and offers Back to Home on the No access page', async () => {
       window.history.pushState({}, 'Users', '/settings/users');
       render(<App />);
 

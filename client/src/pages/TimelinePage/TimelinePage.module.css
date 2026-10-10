@@ -11,17 +11,10 @@
   margin: -2rem;
   display: flex;
   flex-direction: column;
-  /* Full viewport height below 1024 px (no top bar there); the desktop top bar is
-     subtracted from 1024 px, see below */
-  height: 100dvh;
+  /* Viewport height minus the top bar and (phone/tablet) the bottom bar */
+  height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
   overflow: hidden;
   background: var(--color-bg-secondary);
-}
-
-@media (min-width: 1024px) {
-  .page {
-    height: calc(100dvh - var(--topbar-height));
-  }
 }
 
 /* ---- Page header: title + zoom toggle ---- */

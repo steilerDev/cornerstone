@@ -103,7 +103,9 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await subsidyPage.heading.waitFor({ state: 'visible' });
 
     // #2205: interim sidebar view under Money (until Financing exists), no in-page tab row
-    await expect(appShell.viewLink('budgetSubsidies')).toHaveText('Grants');
+    // Below 1024px the views live in the title menu (open it; the current row carries a check mark)
+    await appShell.revealViews();
+    await expect(appShell.viewLink('budgetSubsidies')).toContainText('Grants');
     await expect(appShell.viewLink('budgetSubsidies')).toHaveAttribute('aria-current', 'page');
     await expect(appShell.activeEntries).toHaveCount(1);
   });

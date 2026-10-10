@@ -444,7 +444,7 @@
     "to": "Global > keyboard shortcuts (/, n, ?, g+section) on every page; Global > User menu > Keyboard shortcuts",
     "change": "promoted",
     "gate": "none",
-    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell)."
+    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell). #2207: below 1024 px Global > More sheet > user block > Keyboard shortcuts, shown only with a hardware keyboard; it closes the sheet before the dialog opens; ? works everywhere."
   },
   "WRK-070": {
     "name": "Use keyboard shortcuts on the work-item detail page",
@@ -2546,7 +2546,7 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
@@ -3210,7 +3210,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q1",
-    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600. #2205: rendered from navSections(); quiet group shows each entry when its page is served; one active entry resolved from the route map."
+    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600. #2205: rendered from navSections(); quiet group shows each entry when its page is served; one active entry resolved from the route map. #2207: below 1024 px the bottom bar and the More sheet render from the same NavConfig; the sidebar is not mounted there, and More is highlighted when the active entry lives in the sheet."
   },
   "PLT-002": {
     "name": "Return to the project overview by clicking the logo / app name",
@@ -3226,7 +3226,7 @@
     "to": "Global > Sidebar > Settings (opens Settings > Project setup; real link with aria-current); Global > User menu > Account",
     "change": "same",
     "gate": "none",
-    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\". #2205: Settings is a link to /settings/manage with aria-current; /settings redirects there. #2206: also Global > User menu > Account (Settings > Account)."
+    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\". #2205: Settings is a link to /settings/manage with aria-current; /settings redirects there. #2206: also Global > User menu > Account (Settings > Account). #2207: below 1024 px Global > More sheet > Settings; Account in the sheet's user block."
   },
   "PLT-004": {
     "name": "Switch between the pages of a section via the second-level tab bar (sub-nav)",
@@ -3234,7 +3234,7 @@
     "to": "Global > Sidebar views from NavConfig: while inside Tasks, Money or Settings their views show under the section entry, the current one highlighted (no tab rows); phones and tablets switch views from the title menu ('Tasks ▾', 'Money ▾', 'Settings ▾')",
     "change": "moved",
     "gate": "none",
-    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2). #2200: members see no User Management or Backups tab (verified on all five Settings pages). #2205: tab rows removed (10 copied arrays + ScheduleSubNav); views nest under their section while inside; guard test client/src/navigation/noTabRows.test.ts."
+    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2). #2200: members see no User Management or Backups tab (verified on all five Settings pages). #2205: tab rows removed (10 copied arrays + ScheduleSubNav); views nest under their section while inside; guard test client/src/navigation/noTabRows.test.ts. #2207: phones and tablets switch views from the title menu (the h1 is the menu button, 'Tasks ▾'); view changes replace."
   },
   "PLT-005": {
     "name": "Cycle the colour theme Light -> Dark -> System from the sidebar",
@@ -3243,7 +3243,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Out of the sidebar footer (GLB-13). #2206: Theme is a Light / Dark / System choice in the user menu (top bar, 1024 px and wider); below 1024 px the sidebar footer toggle stays until #2207."
+    "note": "Out of the sidebar footer (GLB-13). #2206: Theme is a Light / Dark / System choice in the user menu (top bar, 1024 px and wider). #2207: below 1024 px in the More sheet's user block; the sidebar footer toggle is gone."
   },
   "PLT-006": {
     "name": "Follow the operating-system light/dark setting automatically",
@@ -3268,7 +3268,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Moves to Global, the one home of its object (principle 2); the old URL keeps working (rare use). #2206: version shown on the About line of the user menu; below 1024 px still in the sidebar footer until #2207."
+    "note": "Moves to Global, the one home of its object (principle 2); the old URL keeps working (rare use). #2206: version shown on the About line of the user menu. #2207: below 1024 px in the More sheet's user block (About)."
   },
   "PLT-009": {
     "name": "Open the project's GitHub repository",
@@ -3277,18 +3277,18 @@
     "change": "demoted",
     "gate": "none",
     "clicks": 2,
-    "clickPath": "Avatar menu (1) > About: GitHub link (2)",
-    "note": "Developer link off primary chrome; 2 clicks. #2206: About › GitHub link in the user menu (new tab); below 1024 px still in the sidebar footer until #2207."
+    "clickPath": "Avatar menu (1) > About: GitHub link (2); phone and tablet: More (1) > GitHub (2)",
+    "note": "Developer link off primary chrome; 2 clicks. #2206: About › GitHub link in the user menu (new tab). #2207: below 1024 px in the More sheet's user block; phone path More (1) > GitHub (2)."
   },
   "PLT-010": {
     "name": "Open and close the navigation drawer on phones and tablets",
     "from": "Any page at <=1024px > floating round button bottom-right \"☰\" (aria \"Open menu\") / \"✕\" (aria \"Close menu\") | Drawer open > tap the dimmed overlay, press Escape, or choose a nav item / Settings / Logout",
-    "to": "Global > phone and tablet bottom bar (Home with attention badge · Site diary · ＋ capture · Photos · More) + More sheet (Tasks, Schedule, Purchases, Companies, Money; Areas, History, Documents [Paperless only]; Settings; user block last)",
+    "to": "Global > phone and tablet bottom bar (Home with attention badge · Site diary · ＋ New · Photos · More) + More sheet (Tasks · Purchases · Money · Companies; Areas · History · Documents [Paperless only]; Settings; user block last)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Bottom bar (5 slots) and More sheet list every destination of the sidebar; More opens and closes; closed sheet is inert.",
     "decision": "Q1d",
-    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom."
+    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert."
   },
   "PLT-011": {
     "name": "Follow old bookmarks and legacy URLs to their new locations",
@@ -3425,7 +3425,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Away from Settings (GLB-13). #2206: Log out is the last user-menu row from 1024 px; below 1024 px the sidebar footer button (now \"Log out\") stays until #2207. One control per viewport."
+    "note": "Away from Settings (GLB-13). #2206: Log out is the last user-menu row from 1024 px; #2207: below 1024 px in the More sheet's user block, last row; one Log out per viewport."
   },
   "PLT-028": {
     "name": "Stay signed in for a fixed period without re-entering credentials",
@@ -3489,7 +3489,7 @@
     "to": "Settings > Account > Preferences > Language; Global > User menu > Language (toggled in place)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch). #2207: below 1024 px toggled in place in the More sheet's user block."
   },
   "PLT-036": {
     "name": "See dates, numbers and money formatted for the chosen language",

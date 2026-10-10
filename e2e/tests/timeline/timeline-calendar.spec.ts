@@ -16,6 +16,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
 import {
   buildTimeline,
@@ -66,12 +67,14 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
     await timelinePage.goto();
 
     // Start in Gantt view (default) — the Schedule sidebar view is the current one (#2205)
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-current', 'page');
 
     // Switch to calendar
     await timelinePage.switchToCalendar();
 
     await expect(timelinePage.calendarView).toBeVisible();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-current', 'page');
   });
 
@@ -84,6 +87,7 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
     await timelinePage.switchToGantt();
 
     await expect(timelinePage.calendarView).not.toBeVisible();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-current', 'page');
   });
 
@@ -443,6 +447,7 @@ test.describe('URL route persistence (Scenario 11)', () => {
     await timelinePage.gotoCalendar();
 
     await expect(timelinePage.calendarView).toBeVisible();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.calendarViewButton).toHaveAttribute('aria-current', 'page');
   });
 
