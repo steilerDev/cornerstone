@@ -11,6 +11,7 @@
 import { describe, it, expect } from '@jest/globals';
 import type {
   Vendor,
+  VendorListItem,
   VendorDetail,
   CreateVendorRequest,
   UpdateVendorRequest,
@@ -19,6 +20,40 @@ import type {
   VendorDetailResponse,
 } from './vendor.js';
 import type { TradeSummary } from './trade.js';
+
+// ---------------------------------------------------------------------------
+// VendorListItem interface (#2197)
+// ---------------------------------------------------------------------------
+
+describe('VendorListItem interface', () => {
+  const base: Vendor = {
+    id: 'v-010',
+    name: 'Sample Drywall Ltd',
+    trade: null,
+    phone: null,
+    email: null,
+    address: null,
+    notes: null,
+    createdBy: null,
+    createdAt: '2026-01-01T00:00:00Z',
+    updatedAt: '2026-01-01T00:00:00Z',
+  };
+
+  it('carries the first contact phone as a string', () => {
+    const item: VendorListItem = { ...base, firstContactPhone: '555-0101' };
+    expect(item.firstContactPhone).toBe('555-0101');
+  });
+
+  it('allows a null first contact phone', () => {
+    const item: VendorListItem = { ...base, firstContactPhone: null };
+    expect(item.firstContactPhone).toBeNull();
+  });
+
+  it('keeps a plain Vendor assignable (firstContactPhone is optional)', () => {
+    const item: VendorListItem = base;
+    expect(item.firstContactPhone).toBeUndefined();
+  });
+});
 
 // ---------------------------------------------------------------------------
 // Vendor interface

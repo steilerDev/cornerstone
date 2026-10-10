@@ -13,7 +13,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > search box; also Global > Top bar > Search",
     "change": "same",
     "gate": "none",
-    "note": "Server q search; search box no longer unmounts on 0 results (D-21)."
+    "note": "Server q search; search box no longer unmounts on 0 results (D-21). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
   },
   "WRK-003": {
     "name": "Filter work items by status",
@@ -71,7 +71,7 @@
     "to": "All lists > filter bar > Clear filters",
     "change": "same",
     "gate": "none",
-    "note": "Same control on Tasks, Milestones, Purchases, Invoices, Companies."
+    "note": "Same control on Tasks, Milestones, Purchases, Invoices, Companies. #2197: Clear filters also clears text still being typed in the search box."
   },
   "WRK-010": {
     "name": "Sort work items by title, status, start date or end date",
@@ -468,7 +468,7 @@
     "to": "Tasks > Milestones > search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
   },
   "WRK-073": {
     "name": "Filter milestones by status (pending / completed)",
@@ -1219,7 +1219,7 @@
     "to": "Money > Invoices > list search (number, company, description) that searches every status chip, offers included; Global > Search",
     "change": "promoted",
     "gate": "none",
-    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8)."
+    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8). #2197: search also matches the company name and description (D-21)."
   },
   "MNY-049": {
     "name": "Filter invoices by vendor, status, invoice date range, due-date range and amount range",
@@ -1315,7 +1315,7 @@
     "to": "Money > New from document page (Paperless + AI only) (document id kept in the URL)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Survives reload (D-12)."
+    "note": "Survives reload (D-12). #2197: the document id is read from ?documentId=, so reload and direct links restore the page; without an id the page explains how to start again (D-12)."
   },
   "MNY-063": {
     "name": "Confirm or change the AI-suggested vendor",
@@ -1876,7 +1876,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9)."
+    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34)."
   },
   "MNY-135": {
     "name": "Search, filter, sort and paginate vendors",
@@ -1885,7 +1885,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use)."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
   },
   "MNY-136": {
     "name": "Call or e-mail a vendor or vendor contact",
@@ -1893,7 +1893,7 @@
     "to": "Companies > Companies list > row Call button; Companies > Company page > primary 'Call', contact persons first; Global > Search results > Call",
     "change": "promoted",
     "gate": "none",
-    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß)."
+    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34)."
   },
   "MNY-137": {
     "name": "Create a vendor",
@@ -2002,7 +2002,7 @@
     "to": "Purchases > Purchases list > search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
   },
   "HHI-014": {
     "name": "Filter the list by category",
@@ -3812,7 +3812,7 @@
     "to": "Settings > Users (admin only) > search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
   },
   "PLT-074": {
     "name": "Filter users by role and by status",

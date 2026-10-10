@@ -387,7 +387,7 @@ test.describe('Scenario 12 — Abandon review creates no invoice', () => {
       await invoicesPage.clickNewInvoice();
       const pickerModal = await invoicesPage.waitForPickerModal();
       await pickerModal.selectDocument(MOCK_DOC_1.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();
@@ -445,7 +445,7 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await invoicesPage.clickNewInvoice();
       const pickerModal = await invoicesPage.waitForPickerModal();
       await pickerModal.selectDocument(MOCK_DOC_1.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();
@@ -491,7 +491,7 @@ test.describe('Scenario 13 — Vendor required validation on review page', () =>
       await invoicesPage.clickNewInvoice();
       const pickerModal = await invoicesPage.waitForPickerModal();
       await pickerModal.selectDocument(MOCK_DOC_1.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
       await reviewPage.waitForExtractionComplete();
@@ -546,7 +546,7 @@ test.describe('Scenario 14 — Extraction failure error state', () => {
       await invoicesPage.clickNewInvoice();
       const pickerModal = await invoicesPage.waitForPickerModal();
       await pickerModal.selectDocument(MOCK_DOC_1.title);
-      await page.waitForURL('**/budget/invoices/new/paperless');
+      await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
 
       const reviewPage = new PaperlessInvoiceReviewPage(page);
 

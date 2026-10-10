@@ -12,6 +12,7 @@ import {
 } from '../db/schema.js';
 import type {
   Vendor,
+  VendorListItem,
   VendorDetail,
   CreateVendorRequest,
   UpdateVendorRequest,
@@ -21,6 +22,7 @@ import type {
   TradeSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 import * as vendorContactService from './vendorContactService.js';
 import { computeOpenAmounts } from './shared/depositAggregateUtils.js';
 import type { InvoiceDepositRow } from './shared/depositAggregateUtils.js';
@@ -135,7 +137,7 @@ function toVendorDetail(db: DbType, row: typeof vendors.$inferSelect): VendorDet
 export function listVendors(
   db: DbType,
   query: VendorListQuery,
-): { vendors: Vendor[]; pagination: PaginationMeta } {
+): { vendors: VendorListItem[]; pagination: PaginationMeta } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
   const sortBy = query.sortBy ?? 'name';
@@ -145,9 +147,7 @@ export function listVendors(
   const conditions = [];
 
   if (query.q) {
-    // Escape SQL LIKE wildcards (% and _) in user input
-    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const pattern = `%${escapedQ}%`;
+    const pattern = toLikeContainsPattern(query.q);
     conditions.push(
       sql`(LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\' OR EXISTS (SELECT 1 FROM trades WHERE trades.id = ${vendors.tradeId} AND LOWER(trades.name) LIKE LOWER(${pattern}) ESCAPE '\\'))`!,
     );
@@ -185,8 +185,15 @@ export function listVendors(
 
   // Fetch paginated items
   const offset = (page - 1) * pageSize;
+  // Qualified by hand: drizzle renders ${vendors.id} unqualified inside a select-field subquery, where "id" would bind to vc.id.
+  const firstContactPhone = sql<string | null>`(
+    SELECT vc.phone FROM vendor_contacts vc
+    WHERE vc.vendor_id = "vendors"."id" AND TRIM(COALESCE(vc.phone, '')) <> ''
+    ORDER BY vc.created_at ASC, vc.id ASC
+    LIMIT 1
+  )`;
   const rows = db
-    .select()
+    .select({ vendor: vendors, firstContactPhone })
     .from(vendors)
     .where(whereClause)
     .orderBy(orderByClause)
@@ -194,7 +201,10 @@ export function listVendors(
     .offset(offset)
     .all();
 
-  const vendorList = rows.map((row) => toVendor(db, row));
+  const vendorList: VendorListItem[] = rows.map((r) => ({
+    ...toVendor(db, r.vendor),
+    firstContactPhone: r.firstContactPhone ?? null,
+  }));
 
   return {
     vendors: vendorList,

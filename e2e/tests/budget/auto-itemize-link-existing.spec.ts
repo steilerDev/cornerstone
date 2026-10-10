@@ -701,7 +701,7 @@ test('Scenario 4: Paperless review page links an existing household item budget 
     await invoicesPage.clickNewInvoice();
     const pickerModal = await invoicesPage.waitForPickerModal();
     await pickerModal.selectDocument(doc.title);
-    await page.waitForURL('**/budget/invoices/new/paperless');
+    await page.waitForURL(/\/budget\/invoices\/new\/paperless\?documentId=\d+$/);
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.waitForExtractionComplete();
 

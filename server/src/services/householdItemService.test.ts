@@ -1194,6 +1194,18 @@ describe('Household Item Service', () => {
       expect(result.items[0]!.name).toBe('Living Room Sofa');
     });
 
+    it('treats % and backslash in q as literal characters (#2197)', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      householdItemService.createHouseholdItem(db, userId, { name: 'Plain Sofa' }, 0.19);
+      householdItemService.createHouseholdItem(db, userId, { name: '50% Sale Lamp' }, 0.19);
+      householdItemService.createHouseholdItem(db, userId, { name: 'Shelf a\\b' }, 0.19);
+
+      const pct = householdItemService.listHouseholdItems(db, { q: '%' }, 0.19);
+      expect(pct.items.map((i) => i.name)).toEqual(['50% Sale Lamp']);
+      const bs = householdItemService.listHouseholdItems(db, { q: '\\' }, 0.19);
+      expect(bs.items.map((i) => i.name)).toEqual(['Shelf a\\b']);
+    });
+
     it('search q matches description (case-insensitive)', () => {
       // Given: Items with different descriptions
       const userId = createTestUser('user@example.com', 'Test User');

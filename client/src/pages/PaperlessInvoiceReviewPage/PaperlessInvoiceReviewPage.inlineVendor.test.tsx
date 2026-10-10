@@ -291,14 +291,7 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
 
 function renderPage() {
   return render(
-    <MemoryRouter
-      initialEntries={[
-        {
-          pathname: '/budget/invoices/new/paperless',
-          state: { documentId: 42, documentTitle: 'Test Invoice' },
-        },
-      ]}
-    >
+    <MemoryRouter initialEntries={['/budget/invoices/new/paperless?documentId=42']}>
       <Routes>
         <Route path="/budget/invoices/new/paperless" element={<PaperlessInvoiceReviewPage />} />
         <Route path="/budget/invoices/:id" element={<div data-testid="invoice-detail-page" />} />

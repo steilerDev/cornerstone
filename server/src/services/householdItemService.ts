@@ -24,6 +24,7 @@ import {
   invoices,
   invoiceBudgetLines,
 } from '../db/schema.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { listDeps } from './householdItemDepService.js';
 import { autoReschedule } from './schedulingEngine.js';
@@ -571,9 +572,7 @@ export function listHouseholdItems(
   }
 
   if (query.q) {
-    // Escape SQL LIKE wildcards (% and _) in user input
-    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const pattern = `%${escapedQ}%`;
+    const pattern = toLikeContainsPattern(query.q);
     baseConditions.push(
       or(
         sql`LOWER(${householdItems.name}) LIKE LOWER(${pattern}) ESCAPE '\\'`,

@@ -1,6 +1,7 @@
 import { get, post, patch, del } from './apiClient.js';
 import type {
   Vendor,
+  VendorListItem,
   VendorDetail,
   VendorListQuery,
   CreateVendorRequest,
@@ -8,7 +9,7 @@ import type {
 } from '@cornerstone/shared';
 
 export interface VendorListResponse {
-  vendors: Vendor[];
+  vendors: VendorListItem[];
   pagination: {
     page: number;
     pageSize: number;

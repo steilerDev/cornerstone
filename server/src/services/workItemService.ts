@@ -12,6 +12,7 @@ import {
   workItemBudgets,
   vendors,
 } from '../db/schema.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
 import { autoReschedule } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
@@ -670,9 +671,7 @@ export function listWorkItems(
   }
 
   if (query.q) {
-    // Escape SQL LIKE wildcards (% and _) in user input
-    const escapedQ = query.q.replace(/%/g, '\\%').replace(/_/g, '\\_');
-    const pattern = `%${escapedQ}%`;
+    const pattern = toLikeContainsPattern(query.q);
     baseConditions.push(
       or(
         sql`LOWER(${workItems.title}) LIKE LOWER(${pattern}) ESCAPE '\\'`,

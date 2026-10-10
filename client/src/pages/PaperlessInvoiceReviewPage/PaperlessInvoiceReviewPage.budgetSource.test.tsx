@@ -413,12 +413,7 @@ function makeWorkItemBudgetLine(overrides: { id: string; plannedAmount: number }
 
 // ─── Render helper ─────────────────────────────────────────────────────────────
 
-function renderPage(
-  state: { documentId: number; documentTitle: string } = {
-    documentId: 42,
-    documentTitle: 'Test Invoice',
-  },
-) {
+function renderPage(documentId: number = 42) {
   return render(
     React.createElement(
       LocaleProvider,
@@ -426,12 +421,7 @@ function renderPage(
       React.createElement(
         MemoryRouter,
         {
-          initialEntries: [
-            {
-              pathname: '/budget/invoices/new/paperless',
-              state,
-            },
-          ],
+          initialEntries: [`/budget/invoices/new/paperless?documentId=${documentId}`],
         },
         React.createElement(
           Routes,

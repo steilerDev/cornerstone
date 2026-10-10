@@ -130,7 +130,7 @@ jest.unstable_mockModule('../../components/invoices/InvoicePaperlessPickerModal.
       { 'data-testid': 'paperless-picker-modal' },
       React.createElement(
         'button',
-        { onClick: () => onDocumentSelected({ id: 1, title: 'Doc' }) },
+        { onClick: () => onDocumentSelected({ id: 7, title: 'Doc' }) },
         'Select Document',
       ),
       React.createElement('button', { onClick: onManualEntry }, 'Manual Entry'),
@@ -145,7 +145,13 @@ import React from 'react';
 
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-full">{location.pathname + location.search}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 // ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -308,6 +314,7 @@ describe('InvoicesPage', () => {
           <Routes>
             <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
             <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
+            <Route path="/budget/invoices/new/paperless" element={<div>Paperless Review</div>} />
             <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
           </Routes>
           <LocationDisplay />
@@ -1040,6 +1047,38 @@ describe('InvoicesPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('paperless-picker-modal')).toBeInTheDocument();
       });
+    });
+
+    it('navigates to the review page with ?documentId= (no history state) when a Paperless document is picked (#2197)', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
+      });
+      fireEvent.click(screen.getByTestId('new-invoice-button'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Select Document' }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location-full')).toHaveTextContent(
+          '/budget/invoices/new/paperless?documentId=7',
+        );
+      });
+      expect(screen.getByTestId('location-state')).toHaveTextContent('null');
+      expect(screen.queryByTestId('paperless-picker-modal')).not.toBeInTheDocument();
     });
 
     it('opens manual modal when paperless configured=false even if autoItemizeEnabled=true', async () => {

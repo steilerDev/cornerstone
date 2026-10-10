@@ -14,7 +14,7 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
-import type { Vendor } from '@cornerstone/shared';
+import type { Vendor, VendorListItem } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
@@ -147,7 +147,7 @@ const makePagination = (overrides = {}) => ({
   ...overrides,
 });
 
-const defaultFetchResponse = (vendors: Vendor[] = []) => ({
+const defaultFetchResponse = (vendors: VendorListItem[] = []) => ({
   vendors,
   pagination: makePagination({ totalItems: vendors.length, totalPages: 1 }),
 });
@@ -302,6 +302,80 @@ describe('VendorsPage', () => {
       // DataTable renders both table rows and mobile cards — use getAllByText.
       await waitFor(() => {
         expect(screen.getAllByText('+1-555-0100').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('acme@example.com').length).toBeGreaterThan(0);
+      });
+    });
+
+    describe('contact phone fallback (#2197)', () => {
+      const makeListItem = (overrides: Partial<VendorListItem> = {}): VendorListItem => ({
+        ...makeVendor(),
+        email: null,
+        firstContactPhone: null,
+        ...overrides,
+      });
+
+      async function renderWith(vendor: VendorListItem) {
+        mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getAllByText('Acme Construction').length).toBeGreaterThan(0);
+        });
+      }
+
+      function telHrefs(): (string | null)[] {
+        return screen
+          .queryAllByRole('link')
+          .filter((a) => a.getAttribute('href')?.startsWith('tel:'))
+          .map((a) => a.getAttribute('href'));
+      }
+
+      it('shows the first contact phone as a tel link when the vendor has no phone', async () => {
+        await renderWith(makeListItem({ phone: null, firstContactPhone: '555-0101' }));
+
+        expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
+        expect(telHrefs().length).toBeGreaterThan(0);
+        expect(new Set(telHrefs())).toEqual(new Set(['tel:555-0101']));
+      });
+
+      it("prefers the vendor's own phone over the contact phone", async () => {
+        await renderWith(makeListItem({ phone: '555-0102', firstContactPhone: '555-0103' }));
+
+        expect(screen.getAllByText('555-0102').length).toBeGreaterThan(0);
+        expect(screen.queryByText('555-0103')).not.toBeInTheDocument();
+        expect(new Set(telHrefs())).toEqual(new Set(['tel:555-0102']));
+      });
+
+      it('falls back to the contact phone when the vendor phone is blank', async () => {
+        await renderWith(makeListItem({ phone: '  ', firstContactPhone: '555-0101' }));
+
+        expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
+        expect(new Set(telHrefs())).toEqual(new Set(['tel:555-0101']));
+      });
+
+      it('falls back when firstContactPhone is absent from a plain vendor row', async () => {
+        await renderWith(makeListItem({ phone: null, firstContactPhone: undefined }));
+
+        expect(telHrefs()).toHaveLength(0);
+        expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+      });
+
+      it('shows a dash when there is no phone, no contact phone and no email', async () => {
+        await renderWith(makeListItem({ phone: null, firstContactPhone: null, email: null }));
+
+        expect(telHrefs()).toHaveLength(0);
+        expect(screen.getAllByText('—').length).toBeGreaterThan(0);
+      });
+
+      it('shows the contact phone together with the email', async () => {
+        await renderWith(
+          makeListItem({
+            phone: null,
+            firstContactPhone: '555-0101',
+            email: 'acme@example.com',
+          }),
+        );
+
+        expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
         expect(screen.getAllByText('acme@example.com').length).toBeGreaterThan(0);
       });
     });

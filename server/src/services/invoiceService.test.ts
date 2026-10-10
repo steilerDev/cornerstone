@@ -1131,6 +1131,103 @@ describe('Invoice Service', () => {
     });
   });
 
+  // ─── listAllInvoices() q search (#2197) ─────────────────────────────────────
+
+  describe('listAllInvoices() q search (#2197)', () => {
+    it('finds an invoice by company name, case-insensitively, even when the number differs', () => {
+      const drywall = createTestVendor('Sample Drywall Ltd');
+      const roofing = createTestVendor('Test Roofing Co');
+      insertRawInvoice(drywall, { invoiceNumber: 'INV-TEST-0001' });
+      insertRawInvoice(roofing, { invoiceNumber: 'INV-TEST-0002' });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'drywall' });
+
+      expect(result.invoices.map((i) => i.invoiceNumber)).toEqual(['INV-TEST-0001']);
+    });
+
+    it('still finds an invoice by number', () => {
+      const drywall = createTestVendor('Sample Drywall Ltd');
+      const roofing = createTestVendor('Test Roofing Co');
+      insertRawInvoice(drywall, { invoiceNumber: 'INV-TEST-0001' });
+      insertRawInvoice(roofing, { invoiceNumber: 'INV-TEST-0002' });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'test-0001' });
+
+      expect(result.invoices.map((i) => i.invoiceNumber)).toEqual(['INV-TEST-0001']);
+    });
+
+    it('finds an invoice with a null number by company name', () => {
+      const drywall = createTestVendor('Sample Drywall Ltd');
+      const id = insertRawInvoice(drywall, { invoiceNumber: null });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'Drywall' });
+
+      expect(result.invoices.map((i) => i.id)).toEqual([id]);
+    });
+
+    it('finds an invoice by its description (notes)', () => {
+      const vendor = createTestVendor('Test Roofing Co');
+      const id = insertRawInvoice(vendor, {
+        invoiceNumber: 'INV-TEST-0003',
+        notes: 'Scaffolding rental',
+      });
+      insertRawInvoice(vendor, { invoiceNumber: 'INV-TEST-0004', notes: 'Tiles' });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'SCAFFOLD' });
+
+      expect(result.invoices.map((i) => i.id)).toEqual([id]);
+    });
+
+    it('returns no rows when the term matches neither number, company nor notes', () => {
+      const vendor = createTestVendor('Test Roofing Co');
+      insertRawInvoice(vendor, { invoiceNumber: 'INV-TEST-0001', notes: 'Tiles' });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'zzz-no-match' });
+
+      expect(result.invoices).toHaveLength(0);
+      expect(result.pagination.totalItems).toBe(0);
+    });
+
+    it('keeps totalItems and filterMeta in agreement with the filtered set while summary stays global', () => {
+      const drywall = createTestVendor('Sample Drywall Ltd');
+      const roofing = createTestVendor('Test Roofing Co');
+      insertRawInvoice(drywall, { invoiceNumber: 'INV-TEST-0001', amount: 100 });
+      insertRawInvoice(drywall, { invoiceNumber: 'INV-TEST-0005', amount: 300 });
+      insertRawInvoice(roofing, { invoiceNumber: 'INV-TEST-0002', amount: 9000 });
+
+      const result = invoiceService.listAllInvoices(db, { q: 'drywall' });
+
+      expect(result.invoices).toHaveLength(2);
+      expect(result.pagination.totalItems).toBe(2);
+      expect(result.filterMeta.amount).toEqual({ min: 100, max: 300 });
+      expect(result.summary.pending.count).toBe(3);
+      expect(result.summary.pending.totalAmount).toBe(9400);
+    });
+
+    it('treats % as a literal and matches only values containing it', () => {
+      const vendor = createTestVendor('Test Roofing Co');
+      const id = insertRawInvoice(vendor, {
+        invoiceNumber: 'INV-TEST-0001',
+        notes: '50% deposit',
+      });
+      insertRawInvoice(vendor, { invoiceNumber: 'INV-TEST-0002', notes: 'Final' });
+
+      const result = invoiceService.listAllInvoices(db, { q: '%' });
+
+      expect(result.invoices.map((i) => i.id)).toEqual([id]);
+    });
+
+    it('treats a backslash as a literal without throwing', () => {
+      const vendor = createTestVendor('Test Roofing Co');
+      const id = insertRawInvoice(vendor, { invoiceNumber: 'INV-TEST-0001', notes: 'path\\to' });
+      insertRawInvoice(vendor, { invoiceNumber: 'INV-TEST-0002', notes: 'Final' });
+
+      const result = invoiceService.listAllInvoices(db, { q: '\\' });
+
+      expect(result.invoices.map((i) => i.id)).toEqual([id]);
+    });
+  });
+
   // ─── listAllInvoices() overdue aggregation (#1421) ──────────────────────────
 
   describe('listAllInvoices() overdue aggregation (#1421)', () => {

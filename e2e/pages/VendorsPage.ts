@@ -194,6 +194,28 @@ export class VendorsPage {
   }
 
   /**
+   * The visible table row (desktop/tablet) or card (mobile) for the named vendor.
+   * DataTable mounts both surfaces at once; the visible filter keeps this strict-mode safe.
+   */
+  contactCell(vendorName: string): Locator {
+    const escaped = vendorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return this.tableBody
+      .locator('tr')
+      .or(this.cardsContainer.locator(':scope > *'))
+      .filter({
+        has: this.page.locator('[class*="vendorLink"]', {
+          hasText: new RegExp(`^\\s*${escaped}\\s*$`),
+        }),
+      })
+      .filter({ visible: true });
+  }
+
+  /** The `tel:` link in the named vendor's Contact column (row or card). */
+  phoneLink(vendorName: string): Locator {
+    return this.contactCell(vendorName).locator('a[href^="tel:"]');
+  }
+
+  /**
    * Get all card locators (mobile view).
    */
   async getCards(): Promise<Locator[]> {

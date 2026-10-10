@@ -1100,6 +1100,8 @@
     "analyzing": "Analysiere… ({{seconds}}s)",
     "spinnerLabel": "Rechnung wird analysiert",
     "error": "Fehler beim Laden der Aufschlüsselung",
+    "missingDocumentTitle": "Kein Dokument ausgewählt",
+    "missingDocument": "Kehren Sie zu den Rechnungen zurück und wählen Sie ein Dokument aus, um daraus eine neue Rechnung zu erstellen.",
     "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "unexpectedResponse": "Unerwartete Antwort vom Sprachmodell. Bitte versuchen Sie es erneut.",

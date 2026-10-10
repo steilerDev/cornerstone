@@ -14,6 +14,7 @@ import {
   workItems,
   workItemBudgets,
   trades,
+  vendorContacts,
 } from '../db/schema.js';
 
 describe('Vendor Routes', () => {
@@ -317,6 +318,40 @@ describe('Vendor Routes', () => {
       const body = response.json<{ vendors: Vendor[] }>();
       expect(body.vendors).toHaveLength(2);
       expect(body.vendors.every((v) => v.name.toLowerCase().includes('smith'))).toBe(true);
+    });
+
+    it('returns firstContactPhone on list rows only (#2197)', async () => {
+      const { cookie } = await createUserWithSession('user@phone.com', 'User', 'password');
+      const withContact = createTestVendor('Sample Drywall Ltd');
+      createTestVendor('Test Roofing Co');
+      const ts = new Date().toISOString();
+      app.db
+        .insert(vendorContacts)
+        .values({
+          id: 'contact-route-1',
+          vendorId: withContact.id,
+          name: 'Alex Example',
+          phone: '555-0101',
+          createdAt: ts,
+          updatedAt: ts,
+        })
+        .run();
+
+      const list = await app.inject({ method: 'GET', url: '/api/vendors', headers: { cookie } });
+      expect(list.statusCode).toBe(200);
+      const rows = list.json<{ vendors: Array<Vendor & { firstContactPhone: string | null }> }>()
+        .vendors;
+      expect(rows.find((v) => v.name === 'Sample Drywall Ltd')!.firstContactPhone).toBe('555-0101');
+      expect(rows.find((v) => v.name === 'Test Roofing Co')!.firstContactPhone).toBeNull();
+
+      const detail = await app.inject({
+        method: 'GET',
+        url: `/api/vendors/${withContact.id}`,
+        headers: { cookie },
+      });
+      expect(detail.json<{ vendor: Record<string, unknown> }>().vendor).not.toHaveProperty(
+        'firstContactPhone',
+      );
     });
 
     it('filters by tradeId query parameter', async () => {
