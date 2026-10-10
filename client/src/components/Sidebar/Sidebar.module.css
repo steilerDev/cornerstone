@@ -92,6 +92,10 @@
   box-shadow: inset 3px 0 0 var(--color-sidebar-focus-ring);
 }
 
+.navLink.active:hover {
+  background-color: var(--color-nav-active-bg);
+}
+
 .sectionCurrent {
   font-weight: var(--font-weight-semibold);
 }

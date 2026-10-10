@@ -140,6 +140,12 @@ describe('navHref', () => {
     for (const route of routes) expect(navHref(route)).toBe(routeUrl(route as never));
   });
 
+  it('returns the path of a served, param-free route', () => {
+    expect(navHref('workItems')).toBe('/project/work-items');
+    expect(navHref('scheduleCalendar')).toBe('/schedule/calendar');
+    expect(navHref('settingsManage')).toBe('/settings/manage');
+  });
+
   it('opens Home at the root path', () => {
     expect(navHref('home')).toBe('/');
   });

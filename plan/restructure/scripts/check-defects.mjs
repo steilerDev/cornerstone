@@ -66,6 +66,20 @@ export async function run({ root = REPO_ROOT } = {}) {
     seen.add(id);
   }
 
+  // The ids must be contiguous from D-01 to the highest one, so deleting an entry is noticed.
+  const numbers = [...seen].map((id) => Number(id.slice(2)));
+  const highest = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const missing = [];
+  for (let n = 1; n <= highest; n++) {
+    const id = `D-${String(n).padStart(2, '0')}`;
+    if (!seen.has(id)) missing.push(id);
+  }
+  if (missing.length > 0) {
+    errors.push(
+      `${REGISTRY}: ids must cover D-01 to D-${String(highest).padStart(2, '0')} without gaps; missing ${missing.join(', ')}`,
+    );
+  }
+
   for (const entry of defects) {
     const id = entry?.id;
     if (typeof id !== 'string' || !DEFECT_ID.test(id)) continue;

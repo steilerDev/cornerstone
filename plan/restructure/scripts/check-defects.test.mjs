@@ -29,6 +29,13 @@ function makeRoot(registry, files = {}) {
 
 const TEST = 'client/src/a.test.ts';
 
+/** Later-story entries D-<from>..D-<to>, to keep the id range contiguous. */
+const fillers = (from, to) =>
+  Array.from({ length: to - from + 1 }, (_, i) => ({
+    id: `D-${String(from + i).padStart(2, '0')}`,
+    story: '4.6',
+  }));
+
 describe('check-defects run()', () => {
   it('passes when every listed file exists and names its id, and reports the counts', async () => {
     const root = makeRoot(
@@ -37,7 +44,7 @@ describe('check-defects run()', () => {
           { id: 'D-01', story: 10, tests: [TEST, 'e2e/tests/a.spec.ts'] },
           { id: 'D-02', story: 11, tests: [TEST] },
         ],
-        later: [{ id: 'D-30', story: '4.6' }],
+        later: [{ id: 'D-03', story: '4.6' }],
       },
       {
         [TEST]: "it('D-01: x', () => {}); it('D-02 y', () => {});",
@@ -179,6 +186,7 @@ describe('check-defects run()', () => {
           { id: 'D-01', story: 1, tests: ['b.test.ts'] },
           { id: 'D-02', story: 1, tests: ['c.test.ts'] },
         ],
+        later: fillers(3, 9),
       },
       {
         'a.test.ts': "it('D-1 only', () => {}); it('xD-10', () => {});",
@@ -194,7 +202,10 @@ describe('check-defects run()', () => {
 
   it('matches an id at the very start of a file, but not one glued to a hyphen prefix', async () => {
     const root = makeRoot(
-      { defects: [{ id: 'D-03', story: 1, tests: ['a.test.ts', 'b.test.ts'] }] },
+      {
+        defects: [{ id: 'D-03', story: 1, tests: ['a.test.ts', 'b.test.ts'] }],
+        later: fillers(1, 2),
+      },
       { 'a.test.ts': 'D-03: starts the file\n', 'b.test.ts': "it('X-D-03', () => {});" },
     );
     assert.deepEqual((await run({ root })).errors, ['D-03: b.test.ts does not name D-03']);
@@ -211,6 +222,45 @@ describe('check-defects run()', () => {
       { [TEST]: 'D-01 D-02' },
     );
     assert.deepEqual((await run({ root })).notes, ['defects: 2 Phase-0 ids, 1 test files']);
+  });
+
+  it('fails when a middle id is missing and names it', async () => {
+    const root = makeRoot(
+      {
+        defects: [
+          { id: 'D-01', story: 1, tests: [TEST] },
+          { id: 'D-03', story: 1, tests: [TEST] },
+        ],
+      },
+      { [TEST]: 'D-01 D-03' },
+    );
+    assert.deepEqual((await run({ root })).errors, [
+      'plan/restructure/defects.json: ids must cover D-01 to D-03 without gaps; missing D-02',
+    ]);
+  });
+
+  it('passes when the gap is filled by a later-story id', async () => {
+    const root = makeRoot(
+      {
+        defects: [
+          { id: 'D-01', story: 1, tests: [TEST] },
+          { id: 'D-03', story: 1, tests: [TEST] },
+        ],
+        later: [{ id: 'D-02', story: '4.6' }],
+      },
+      { [TEST]: 'D-01 D-03' },
+    );
+    assert.deepEqual((await run({ root })).errors, []);
+  });
+
+  it('names every missing id', async () => {
+    const root = makeRoot(
+      { defects: [{ id: 'D-05', story: 1, tests: [TEST] }], later: [{ id: 'D-02', story: '4.6' }] },
+      { [TEST]: 'D-05' },
+    );
+    assert.deepEqual((await run({ root })).errors, [
+      'plan/restructure/defects.json: ids must cover D-01 to D-05 without gaps; missing D-01, D-03, D-04',
+    ]);
   });
 
   it('exports the id pattern', () => {

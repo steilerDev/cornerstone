@@ -1,4 +1,10 @@
-import { getRouteEntry, isRouteServed, matchLocation, routePattern } from '@cornerstone/shared';
+import {
+  getRouteEntry,
+  isRouteServed,
+  matchLocation,
+  routePattern,
+  routeUrl,
+} from '@cornerstone/shared';
 import type { RouteId, ServedRouteId } from '@cornerstone/shared';
 import type { NavSection, NavSectionId } from './navConfig.js';
 import { navSectionForRoute } from './pageIdentity.js';
@@ -51,12 +57,13 @@ export function resolveNavActive(
   return null;
 }
 
-/** href of a section/view route: its pattern; throws for unserved or parameterised routes. */
+/** href of a section/view route: built with routeUrl; throws for unserved or parameterised routes. */
 export function navHref(route: RouteId): string {
   if (!isRouteServed(route)) throw new Error(`Route ${route} is not served`);
-  const pattern = routePattern(route as ServedRouteId);
+  const pattern = routePattern(route);
   if (pattern.includes(':') || pattern === '*') {
     throw new Error(`Route ${route} has no static href`);
   }
-  return pattern;
+  // Dynamic id: the per-route param typing of routeUrl cannot be met statically (no params needed here).
+  return (routeUrl as (id: ServedRouteId) => string)(route as ServedRouteId);
 }
