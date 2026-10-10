@@ -175,8 +175,11 @@ test.describe('User menu', () => {
     await expect(github).toHaveAttribute('target', '_blank');
     await expect(github).toHaveAttribute('rel', /noopener/);
 
-    // Exact version string is unknown at test time; the About line carries v<semver>
-    await expect(appShell.userMenu.getByText(/^v\d+\.\d+\.\d+/)).toBeVisible();
+    // The stamped version differs per build (semver in releases, `pr-<n>` in PR CI, `0.0.0-dev`
+    // locally), so only the "v" prefix and a non-empty value are asserted on the About group
+    await expect(
+      appShell.userMenu.getByRole('group', { name: 'About' }).getByText(/^v\S+$/),
+    ).toBeVisible();
   });
 
   test('E3.6: Account opens Settings > Account, closes the menu, and replaces on that page', async ({

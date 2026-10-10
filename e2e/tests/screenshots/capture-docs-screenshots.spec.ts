@@ -635,8 +635,10 @@ test.describe('Documentation screenshots', () => {
   test('Timeline Gantt chart', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.timeline}`);
     await page.waitForLoadState('networkidle');
-    // Wait for SVG bars to render
-    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+    // Wait for the Gantt's own SVG bars (a page-wide `svg rect` also matches sidebar icons)
+    await expect(page.getByTestId('gantt-chart').locator('rect').first()).toBeVisible({
+      timeout: 10000,
+    });
     await page.waitForTimeout(500);
 
     for (const theme of ['light', 'dark'] as const) {
@@ -649,7 +651,9 @@ test.describe('Documentation screenshots', () => {
   test('Timeline Gantt dependencies', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.timeline}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('gantt-chart').locator('rect').first()).toBeVisible({
+      timeout: 10000,
+    });
 
     // Ensure dependency arrows are visible (toggle on if needed)
     const arrowPath = page.locator('svg path.dependency-arrow, svg path[marker-end]').first();
@@ -695,7 +699,9 @@ test.describe('Documentation screenshots', () => {
   test('Timeline milestones panel', async ({ page }) => {
     await page.goto(`${baseUrl}${ROUTES.timeline}`);
     await page.waitForLoadState('networkidle');
-    await expect(page.locator('svg rect').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByTestId('gantt-chart').locator('rect').first()).toBeVisible({
+      timeout: 10000,
+    });
 
     // Open milestones panel
     const milestonesBtn = page.locator('[data-testid="milestones-panel-button"]');

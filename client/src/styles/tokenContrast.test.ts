@@ -497,11 +497,26 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(decls.get('position')).toBe('sticky');
     expect(decls.get('top')).toBe('0');
     expect(decls.get('z-index')).toBe('calc(var(--z-dropdown) + 1)');
-    expect(decls.get('min-height')).toBe('var(--topbar-height)');
+    // Exactly the token height: a min-height plus padding made the bar ~61px instead of 56px.
+    // Mutation: restoring `min-height` (or the vertical padding) must fail here.
+    expect(decls.get('height')).toBe('var(--topbar-height)');
+    expect(decls.has('min-height')).toBe(false);
+    expect(decls.get('padding-block')).toBe('0');
+    expect(decls.get('box-sizing')).toBe('border-box');
     expect(ruleFor(appShell, '.appShell').get('--topbar-height')).toBe(
       'calc(var(--spacing-12) + var(--spacing-2))',
     );
   });
+
+  it.each(['.search', '.newButton'])(
+    '%s is a fixed 40px control with no vertical padding',
+    (sel) => {
+      const decls = ruleFor(topBar, sel);
+      expect(decls.get('height')).toBe('var(--spacing-10)');
+      expect(decls.get('padding-block')).toBe('0');
+      expect(decls.has('min-height')).toBe(false);
+    },
+  );
 
   it('the column that holds the bar does not scroll, so the bar can stick', () => {
     const column = ruleFor(appShell, '.shellColumn');

@@ -152,7 +152,8 @@ test.describe('Delete vendor contact (Scenario 3)', () => {
     // Given: A vendor with an existing contact
     await vendorPage.goto(vendorId);
 
-    // Verify the contact is present
+    // Verify the contact is present (the list loads after the title, so wait for the card)
+    await expect(vendorPage.contactsList.getByText('Delete Me')).toBeVisible();
     const contactsBefore = await vendorPage.getContactItems();
     expect(contactsBefore.some((c) => c.name === 'Delete Me')).toBe(true);
 

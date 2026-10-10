@@ -4,10 +4,11 @@
   top: 0;
   z-index: calc(var(--z-dropdown) + 1);
   box-sizing: border-box;
-  min-height: var(--topbar-height);
+  /* Exactly the shell's bar height: pages size themselves with 100dvh - var(--topbar-height) */
+  height: var(--topbar-height);
   align-items: center;
   gap: var(--spacing-4);
-  padding-block: var(--spacing-2);
+  padding-block: 0;
   padding-inline: var(--spacing-8);
   background-color: var(--color-bg-primary);
   border-bottom: 1px solid var(--color-border);
@@ -46,7 +47,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
-  min-height: var(--spacing-10);
+  height: var(--spacing-10);
+  padding-block: 0;
   min-width: calc(var(--spacing-16) * 3);
 }
 
@@ -60,7 +62,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
-  min-height: var(--spacing-10);
+  height: var(--spacing-10);
+  padding-block: 0;
 }
 
 .bell {

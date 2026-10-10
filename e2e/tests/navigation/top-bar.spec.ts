@@ -246,7 +246,13 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
         'header button, header a, aside button, aside a, [data-testid="menu-fab"]',
       );
       return Array.from(controls)
-        .filter((el) => el.checkVisibility() && getComputedStyle(el).backgroundColor === primary)
+        .filter(
+          (el) =>
+            // The current sidebar entry is a selected state, not a button; AC4 is about buttons
+            !el.hasAttribute('aria-current') &&
+            el.checkVisibility() &&
+            getComputedStyle(el).backgroundColor === primary,
+        )
         .map((el) => `${el.tagName} ${el.getAttribute('data-testid') ?? el.textContent ?? ''}`);
     });
     expect(primaryPainted).toEqual([]);
