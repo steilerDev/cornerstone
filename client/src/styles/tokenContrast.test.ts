@@ -316,17 +316,25 @@ function ruleFor(rules: CssRule[], selector: string): Map<string, string> {
 describe('colour rule pins', () => {
   const sidebar = readCss('components', 'Sidebar', 'Sidebar.module.css');
 
-  it.each(['.active', '.logoutButton.active'])(
-    'Sidebar %s uses the shared active-item tokens and weight 600',
-    (selector) => {
-      const decls = ruleFor(sidebar, selector);
-      expect(decls.get('background-color') ?? decls.get('background')).toBe(
-        'var(--color-nav-active-bg)',
-      );
-      expect(decls.get('color')).toBe('var(--color-nav-active-text)');
-      expect(decls.get('font-weight')).toBe('var(--font-weight-semibold)');
-    },
-  );
+  it('Sidebar .active uses the shared active-item tokens and weight 600', () => {
+    const decls = ruleFor(sidebar, '.active');
+    expect(decls.get('background-color') ?? decls.get('background')).toBe(
+      'var(--color-nav-active-bg)',
+    );
+    expect(decls.get('color')).toBe('var(--color-nav-active-text)');
+    expect(decls.get('font-weight')).toBe('var(--font-weight-semibold)');
+  });
+
+  it('Sidebar .navLink.active:hover keeps the active background (no hover wash on the current item)', () => {
+    const decls = ruleFor(sidebar, '.navLink.active:hover');
+    expect(decls.get('background-color') ?? decls.get('background')).toBe(
+      'var(--color-nav-active-bg)',
+    );
+  });
+
+  it('Sidebar no longer styles .logoutButton.active (Settings is an ordinary .navLink)', () => {
+    expect(() => ruleFor(sidebar, '.logoutButton.active')).toThrow(/No rule for/);
+  });
 
   it.each([
     ['components/AppShell/AppShell.module.css', '.pageContent'],
