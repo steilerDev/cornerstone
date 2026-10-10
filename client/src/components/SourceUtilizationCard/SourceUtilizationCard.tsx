@@ -2,6 +2,7 @@ import { useTranslation } from 'react-i18next';
 import type { BudgetSource, BudgetSourceType } from '@cornerstone/shared';
 import { BudgetBar } from '../BudgetBar/BudgetBar.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { overAllocatedAmount } from '../../lib/money.js';
 import styles from './SourceUtilizationCard.module.css';
 
 interface SourceUtilizationCardProps {
@@ -37,8 +38,7 @@ export function SourceUtilizationCard({ sources }: SourceUtilizationCardProps) {
     <div className={styles.list}>
       {sortedSources.map((source) => {
         const maxValue = source.totalAmount > 0 ? source.totalAmount : 1;
-        const overAllocated =
-          Math.round(Math.max(0, source.usedAmount - source.totalAmount) * 100) / 100;
+        const overAllocated = overAllocatedAmount(source.usedAmount, source.totalAmount);
 
         return (
           <div key={source.id} data-testid="source-row" className={styles.sourceRow}>

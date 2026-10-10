@@ -22,6 +22,7 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
 import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
+import { overAllocatedAmount } from '../../lib/money.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
 import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/SourceBudgetLinePanel.js';
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
@@ -107,7 +108,7 @@ function SourceBarChart({ source, formatCurrency, formatPercent }: SourceBarChar
   const uncertaintyVal = Math.max(0, source.projectedMaxAmount - source.projectedMinAmount);
 
   const maxValue = source.totalAmount > 0 ? source.totalAmount : 1;
-  const overflow = Math.round(Math.max(0, source.usedAmount - source.totalAmount) * 100) / 100;
+  const overflow = overAllocatedAmount(source.usedAmount, source.totalAmount);
 
   const projectedSecondaryNegative =
     source.totalAmount - source.projectedMinAmount < 0 ||

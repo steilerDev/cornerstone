@@ -6,12 +6,11 @@ import { createInvoiceBudgetLine } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { roundMoney } from '../../lib/money.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
 import { FormError } from '../FormError/index.js';
 import styles from './InvoiceLinkModal.module.css';
-
-const toCents = (n: number) => Math.round(n * 100) / 100;
 
 export interface InvoiceLinkModalProps {
   budgetLineId: string;
@@ -68,10 +67,11 @@ export function InvoiceLinkModal({
         if (response.invoices.length > 0) {
           // Prefer an invoice that still has room, so the modal never opens on a dead end
           const initial =
-            response.invoices.find((i) => toCents(i.remainingAmount) > 0) ?? response.invoices[0]!; // guarded by length check
+            response.invoices.find((i) => roundMoney(i.remainingAmount) > 0) ??
+            response.invoices[0]!; // guarded by length check
           setSelectedInvoiceId(initial.id);
           setSelectedInvoice(initial);
-          setRemainingAmount(toCents(initial.remainingAmount));
+          setRemainingAmount(roundMoney(initial.remainingAmount));
         }
       } catch {
         setError({
@@ -112,7 +112,7 @@ export function InvoiceLinkModal({
     if (error?.field === 'invoice') {
       setError(null);
     }
-    setRemainingAmount(toCents(invoice.remainingAmount));
+    setRemainingAmount(roundMoney(invoice.remainingAmount));
   };
 
   // Close dropdown when clicking outside
@@ -281,7 +281,7 @@ export function InvoiceLinkModal({
                       <button
                         key={inv.id}
                         type="button"
-                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''} ${toCents(inv.remainingAmount) <= 0 ? styles.dropdownItemDone : ''}`}
+                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''} ${roundMoney(inv.remainingAmount) <= 0 ? styles.dropdownItemDone : ''}`}
                         title={inv.notes ?? undefined}
                         data-testid={`invoice-link-option-${inv.id}`}
                         onClick={() => handleSelectInvoice(inv)}
@@ -299,8 +299,8 @@ export function InvoiceLinkModal({
                           )}
                         </span>
                         <span className={styles.dropdownItemAmount}>
-                          {toCents(inv.remainingAmount) > 0
-                            ? formatCurrency(toCents(inv.remainingAmount))
+                          {roundMoney(inv.remainingAmount) > 0
+                            ? formatCurrency(roundMoney(inv.remainingAmount))
                             : t('invoiceLinkModal.nothingLeftToLink')}
                         </span>
                       </button>

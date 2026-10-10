@@ -18,6 +18,7 @@ import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { roundMoney } from '../../lib/money.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { BudgetLineForm } from '../../components/budget/BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
@@ -308,7 +309,7 @@ export function InvoiceBudgetLinesSection({
       } else {
         const qty = parseFloat(budgetLineFullForm.quantity);
         const price = parseFloat(budgetLineFullForm.unitPrice);
-        plannedAmount = Math.round(qty * price * 100) / 100;
+        plannedAmount = roundMoney(qty * price);
       }
 
       const payload: EditAndMoveBudgetLineRequest = {
@@ -440,7 +441,7 @@ export function InvoiceBudgetLinesSection({
 
   // Picker: server remainder (invoice total minus already-linked lines) minus the ticked amounts
   const selectedTotal = Object.values(itemizedAmounts).reduce((sum, v) => sum + v, 0);
-  const remainingToAllocate = Math.round((remainingAmount - selectedTotal) * 100) / 100;
+  const remainingToAllocate = roundMoney(remainingAmount - selectedTotal);
 
   // Determine remaining color
   const getRemainingColor = () => {

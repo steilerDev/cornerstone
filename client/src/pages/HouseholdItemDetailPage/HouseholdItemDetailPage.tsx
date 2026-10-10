@@ -53,6 +53,7 @@ import { LocalizedError } from '../../lib/localizedError.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { roundMoney } from '../../lib/money.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
@@ -616,7 +617,7 @@ export function HouseholdItemDetailPage() {
     } else {
       const qty = parseFloat(form.quantity);
       const price = parseFloat(form.unitPrice);
-      plannedAmount = Math.round(qty * price * 100) / 100;
+      plannedAmount = roundMoney(qty * price);
     }
 
     const payload = {
