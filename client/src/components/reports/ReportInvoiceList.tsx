@@ -221,7 +221,7 @@ export function ReportInvoiceList({
                   <div>
                     <Badge
                       variants={{
-                        refund: { label: t('sourceReports.refund'), className: styles.refund },
+                        refund: { label: t('sourceReports.refund'), className: BadgeStyles.refund },
                       }}
                       value="refund"
                     />
@@ -519,7 +519,7 @@ export function ReportInvoiceList({
                                       className:
                                         deposit.entryType === 'deposit'
                                           ? BadgeStyles.info
-                                          : styles.refund,
+                                          : BadgeStyles.refund,
                                     },
                                   }}
                                   value={deposit.entryType}
@@ -534,7 +534,7 @@ export function ReportInvoiceList({
                                         className:
                                           BadgeStyles[
                                             getSourceBadgeStyleKey(deposit.budgetSourceId)
-                                          ] || BadgeStyles.default,
+                                          ],
                                       },
                                     }}
                                     value={deposit.budgetSourceId}
@@ -574,7 +574,7 @@ export function ReportInvoiceList({
                                   className:
                                     deposit.entryType === 'deposit'
                                       ? BadgeStyles.info
-                                      : styles.refund,
+                                      : BadgeStyles.refund,
                                 },
                               }}
                               value={deposit.entryType}
@@ -612,8 +612,7 @@ export function ReportInvoiceList({
                                   [deposit.budgetSourceId]: {
                                     label: report.source.name,
                                     className:
-                                      BadgeStyles[getSourceBadgeStyleKey(deposit.budgetSourceId)] ||
-                                      BadgeStyles.default,
+                                      BadgeStyles[getSourceBadgeStyleKey(deposit.budgetSourceId)],
                                   },
                                 }}
                                 value={deposit.budgetSourceId}

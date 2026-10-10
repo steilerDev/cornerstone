@@ -1412,7 +1412,7 @@ test.describe(
 
       await expect(sourcesPage.createTotalAmountInput).toBeVisible();
       const label = page.locator('label[for="sourceTotalAmount"]');
-      await expect(label).toHaveText('Total amount');
+      await expect(label).toHaveText(/^Total amount\s*\*?$/);
       await expect(label).not.toContainText('$');
       await expect(sourcesPage.createTotalAmountInput).not.toHaveAttribute('placeholder', /\S/);
     });

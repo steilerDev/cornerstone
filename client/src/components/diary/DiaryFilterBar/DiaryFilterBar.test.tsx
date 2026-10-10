@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, render, act } from '@testing-library/react';
+import { screen, render, act, fireEvent } from '@testing-library/react';
 import type { ComponentProps } from 'react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
@@ -367,6 +367,17 @@ describe('DiaryFilterBar', () => {
     );
     expect(screen.getByTestId('type-filter-issue')).toHaveTextContent(/^Defect$/);
     expect(screen.getByTestId('type-filter-daily_log')).toHaveTextContent(/^Daily log$/);
+  });
+
+  it('the mobile toggle gets mobileToggleOpen only while the filters are open', () => {
+    renderFilterBar();
+    const toggle = screen.getByRole('button', { name: 'Toggle filters' });
+    expect(toggle.className).toContain('mobileToggle');
+    expect(toggle.className).not.toContain('mobileToggleOpen');
+    fireEvent.click(toggle);
+    expect(toggle.className).toContain('mobileToggleOpen');
+    fireEvent.click(toggle);
+    expect(toggle.className).not.toContain('mobileToggleOpen');
   });
 
   it('shows the English filters toggle text', () => {

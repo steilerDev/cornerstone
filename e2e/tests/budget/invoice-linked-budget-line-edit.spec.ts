@@ -801,10 +801,10 @@ test.describe('WI detail page — quotation invoice edit (Scenario 7)', () => {
       await expect(wiPage.heading).toBeVisible();
       await expandInvoiceGroup(page, wiPage.budgetSection);
 
-      // InvoiceGroup shows "quotation" status badge
+      // InvoiceGroup shows the "Offer" status badge
       // (status badge text = "quotation" since getStatusLabel returns that for quotation)
       const invoiceGroupDiv = wiPage.budgetSection.locator('[class*="group"]').first();
-      await expect(invoiceGroupDiv).toContainText('quotation');
+      await expect(invoiceGroupDiv).toContainText('Offer');
 
       const editModal = await openEditModalForLine(page, `${testPrefix} ILE-Quot Line`);
 

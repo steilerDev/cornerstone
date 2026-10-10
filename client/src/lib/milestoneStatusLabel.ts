@@ -7,7 +7,7 @@ export type MilestoneLabelT = (key: string, options: Record<string, unknown>) =>
 interface MilestoneLabelInput {
   isCompleted: boolean;
   targetDate: string;
-  projectedDate: string | null;
+  projectedDate?: string | null;
 }
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
@@ -23,7 +23,7 @@ export function milestoneDisplayStatus(milestone: MilestoneLabelInput): {
   days: number;
 } {
   if (milestone.isCompleted) return { status: 'reached', days: 0 };
-  if (milestone.projectedDate !== null && milestone.projectedDate !== milestone.targetDate) {
+  if (milestone.projectedDate != null && milestone.projectedDate !== milestone.targetDate) {
     const diff = Math.round(
       (utcDay(milestone.projectedDate) - utcDay(milestone.targetDate)) / MS_PER_DAY,
     );

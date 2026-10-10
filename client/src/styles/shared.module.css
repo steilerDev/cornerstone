@@ -418,6 +418,16 @@
  * ============================================================ */
 
 /**
+ * Link inside a banner (e.g. "View invoices" after a success message) — inherits the banner
+ * text colour so it stays readable on tinted backgrounds.
+ */
+.bannerLink {
+  color: inherit;
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+}
+
+/**
  * Inline success banner — green-tinted, displayed after a successful
  * create / update operation. Auto-dismissed after a few seconds in most pages.
  */

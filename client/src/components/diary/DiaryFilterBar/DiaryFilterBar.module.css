@@ -26,6 +26,12 @@
   position: relative;
 }
 
+/* Open state: toggle is expanded, mark it with the primary accent */
+.mobileToggleOpen {
+  border-color: var(--color-primary);
+  background-color: var(--color-bg-hover);
+}
+
 .mobileToggle:hover {
   background-color: var(--color-bg-hover);
 }

@@ -48,8 +48,8 @@ const INVOICE_STATUS_CLASS: Record<InvoiceStatus, string> = {
 };
 
 const TASK_STATUS_CLASS: Record<WorkItemStatus, string> = {
-  not_started: badgeStyles.not_started!,
-  in_progress: badgeStyles.in_progress!,
+  not_started: badgeStyles.notStarted!,
+  in_progress: badgeStyles.inProgress!,
   completed: badgeStyles.completed!,
 };
 

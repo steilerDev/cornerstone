@@ -1099,6 +1099,9 @@ export class InvoiceDetailPage {
     // Click the option whose text exactly matches the vendor name
     await dropdown.getByRole('option', { name: vendorName, exact: true }).click();
 
+    // The portalled option list must detach before the picker can show its selected value
+    await dropdown.waitFor({ state: 'detached' });
+
     // After selection, picker should switch back to selectedDisplay mode
     await this.editVendorSelectedDisplay.waitFor({ state: 'visible' });
   }

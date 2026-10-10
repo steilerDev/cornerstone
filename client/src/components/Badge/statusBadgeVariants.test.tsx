@@ -130,9 +130,10 @@ describe('buildTaskStatusVariants', () => {
     expect(variants.not_started.label).toBe('Not started');
     expect(variants.in_progress.label).toBe('In progress');
     expect(variants.completed.label).toBe('Done');
-    for (const status of WORK_ITEM_STATUSES) {
-      expect(variants[status].className).toBe(status);
-    }
+    // real build exports camelCase CSS keys only
+    expect(variants.not_started.className).toBe('notStarted');
+    expect(variants.in_progress.className).toBe('inProgress');
+    expect(variants.completed.className).toBe('completed');
   });
 });
 

@@ -59,6 +59,16 @@ describe('milestoneDisplayStatus', () => {
     ).toEqual({ status: 'upcoming', days: 0 });
   });
 
+  it('is upcoming (and does not throw) when projectedDate is undefined', () => {
+    const milestone = {
+      isCompleted: false,
+      targetDate: '2026-03-01',
+      projectedDate: undefined,
+    } as unknown as Parameters<typeof milestoneDisplayStatus>[0];
+    expect(() => milestoneDisplayStatus(milestone)).not.toThrow();
+    expect(milestoneDisplayStatus(milestone)).toEqual({ status: 'upcoming', days: 0 });
+  });
+
   it('is upcoming when projected equals target', () => {
     expect(
       milestoneDisplayStatus({

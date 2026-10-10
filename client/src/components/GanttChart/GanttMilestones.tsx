@@ -165,7 +165,7 @@ const DiamondMarker = memo(function DiamondMarker({
     fill = colors.completeFill;
     stroke = colors.completeStroke;
     hoverGlow = colors.completeHoverGlow;
-    statusClass = styles.diamondComplete!;
+    statusClass = '';
   } else if (status === 'late') {
     fill = colors.lateFill;
     stroke = colors.lateStroke;

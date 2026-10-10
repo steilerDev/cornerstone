@@ -372,6 +372,7 @@ test.describe('Milestones in calendar view (Scenario 9)', () => {
                 targetDate: milestoneDate,
                 isCompleted: false,
                 completedAt: null,
+                projectedDate: null,
                 workItemIds: [],
               },
             ],

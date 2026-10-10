@@ -512,7 +512,7 @@ export function BudgetLineForm({
             {/* Collapsed view: current parent + "Change" button */}
             <div className={styles.currentParentRow} hidden={isPickerExpanded}>
               <span
-                className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}
+                className={`${styles.entityTypePill} ${currentParentType === 'household_item' ? styles.entityTypePillHouseholdItem : styles.entityTypePillWorkItem}`}
               >
                 {currentParentType === 'work_item'
                   ? t('budgetLineForm.parentPickerWorkItemTab')

@@ -444,6 +444,11 @@ export function InvoiceBudgetLinesSection({
   const remainingToAllocate = roundMoney(remainingAmount - selectedTotal);
 
   // Determine remaining color
+  const REMAINING_ROW_CLASS: Record<'warning' | 'danger' | 'neutral', string | undefined> = {
+    warning: styles.trRemainingWarning,
+    danger: styles.trRemainingDanger,
+    neutral: styles.trRemainingNeutral,
+  };
   const getRemainingColor = () => {
     if (remainingAmount > 0.01) return 'warning'; // > 0
     if (remainingAmount < -0.01) return 'danger'; // < 0
@@ -638,7 +643,7 @@ export function InvoiceBudgetLinesSection({
 
               {/* Remaining row */}
               <tr
-                className={`${styles.tr} ${styles.trRemaining} ${styles[`trRemaining_${getRemainingColor()}`]}`}
+                className={`${styles.tr} ${styles.trRemaining} ${REMAINING_ROW_CLASS[getRemainingColor()]}`}
               >
                 <td colSpan={4} className={styles.tdRemainingLabel}>
                   {t('invoiceDetail.budgetLines.columns.remaining')}

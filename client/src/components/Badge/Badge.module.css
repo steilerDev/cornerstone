@@ -20,12 +20,12 @@
 }
 
 /* WorkItemStatus variants */
-.not_started {
+.notStarted {
   background-color: var(--color-status-not-started-bg);
   color: var(--color-status-not-started-text);
 }
 
-.in_progress {
+.inProgress {
   background-color: var(--color-status-in-progress-bg);
   color: var(--color-status-in-progress-text);
 }

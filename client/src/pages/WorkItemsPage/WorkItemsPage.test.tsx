@@ -228,7 +228,12 @@ describe('WorkItemsPage', () => {
         // D-08: the badge carries the shared Badge status class, never a dead badge-<status> one
         const badge = screen.getAllByText(label).find((el) => el.className.includes('badge'));
         expect(badge).toBeDefined();
-        expect(badge!.className).toContain(status);
+        const cssKey = {
+          not_started: 'notStarted',
+          in_progress: 'inProgress',
+          completed: 'completed',
+        }[status];
+        expect(badge!.className).toContain(cssKey);
         expect(badge!.className).not.toContain('badge-');
       },
     );

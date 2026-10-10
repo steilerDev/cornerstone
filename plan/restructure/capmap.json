@@ -1602,7 +1602,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Add cost line' (pick task / purchase, then estimate line or new) and 'Add lines (grid)': grid dialog with keyboard rows, duplicate, paste from a spreadsheet and the document preview beside it (Paperless only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20)."
+    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
   },
   "MNY-098": {
     "name": "Create a new budget line on a work item or household item directly from the invoice",
@@ -1618,7 +1618,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "One cost-line form instead of 6 editors (P35)."
+    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
   },
   "MNY-100": {
     "name": "Move an invoice-linked budget line to a different work item or household item",

@@ -943,7 +943,7 @@ export function HouseholdItemDetailPage() {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>{t('detail.area.title')}</h2>
           </div>
-          <div className={styles.formGroup}>
+          <div>
             <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
             <AreaPicker
               areas={areas}
