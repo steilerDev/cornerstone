@@ -111,12 +111,15 @@
   margin-inline: var(--spacing-0-5);
 }
 
-/* ---- Phone week view: 44px hit area ---- */
+/* ---- Phone week view: 44px hit area ----
+   Transparent block borders add vertical hit area only; padding-box clipping keeps the
+   visible bar unchanged. */
 
 .touchSized {
-  min-height: 44px;
-  padding-block: var(--spacing-3);
-  background-clip: content-box;
+  min-height: calc(22px + 2 * var(--spacing-3));
+  border-block: var(--spacing-3) solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
 }
 
 @media (max-width: 767px) {
