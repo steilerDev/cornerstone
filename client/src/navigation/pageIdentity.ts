@@ -46,18 +46,17 @@ export function navLabelKeyForPath(pathname: string): NavLabelKey | null {
 }
 
 /** Fixed h1 keys of non-view pages, used as origin labels and chain-label fallback. Views stay in NavConfig. */
-export type PageLabelKey =
-  'navigation.bankReport' | 'navigation.fundingSources' | 'navigation.grants';
-
-export const PAGE_LABEL_KEYS: Readonly<Partial<Record<RouteId, PageLabelKey>>> = {
+export const PAGE_LABEL_KEYS = {
   bankReport: 'navigation.bankReport',
   budgetSources: 'navigation.fundingSources',
   budgetSubsidies: 'navigation.grants',
-};
+} as const satisfies Partial<Record<RouteId, string>>;
+
+export type PageLabelKey = (typeof PAGE_LABEL_KEYS)[keyof typeof PAGE_LABEL_KEYS];
 
 export function pageLabelKeyForRoute(id: string): PageLabelKey | null {
   if (!isKnownRouteId(id)) return null;
-  return PAGE_LABEL_KEYS[id] ?? null;
+  return (PAGE_LABEL_KEYS as Partial<Record<string, PageLabelKey>>)[id] ?? null;
 }
 
 /** NavConfig label first, then the fixed page labels. */

@@ -25,6 +25,7 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './SubsidyProgramsPage.module.css';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -100,7 +101,7 @@ export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
-  const pageTitle = tCommon('navigation.grants');
+  const pageTitle = tCommon(PAGE_LABEL_KEYS.budgetSubsidies);
   useDocumentTitle(pageTitle);
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();

@@ -249,21 +249,9 @@
       "claimed": "Submitted",
       "quotation": "Offer"
     },
-    "progressPayment": {
-      "pending": "To pay",
-      "paid": "Paid",
-      "claimed": "Submitted"
-    },
-    "task": {
-      "not_started": "Not started",
-      "in_progress": "In progress",
-      "completed": "Done"
-    },
-    "scheduleSignal": {
-      "late": "Late · {{days}} d",
-      "held_up": "Held up",
-      "critical": "Critical"
-    },
+    "progressPayment": { "pending": "To pay", "paid": "Paid", "claimed": "Submitted" },
+    "task": { "not_started": "Not started", "in_progress": "In progress", "completed": "Done" },
+    "scheduleSignal": { "late": "Late · {{days}} d", "held_up": "Held up", "critical": "Critical" },
     "purchase": {
       "planned": "Planned",
       "purchased": "Ordered",
@@ -283,20 +271,9 @@
       "received": "Received",
       "rejected": "Rejected"
     },
-    "fundingSource": {
-      "active": "Active",
-      "exhausted": "Used up",
-      "closed": "Closed"
-    },
-    "defect": {
-      "open": "Open",
-      "in_progress": "Being fixed",
-      "resolved": "Fixed"
-    },
-    "budgetVerdict": {
-      "on_budget": "On budget",
-      "over_budget": "Over budget"
-    },
+    "fundingSource": { "active": "Active", "exhausted": "Used up", "closed": "Closed" },
+    "defect": { "open": "Open", "in_progress": "Being fixed", "resolved": "Fixed" },
+    "budgetVerdict": { "on_budget": "On budget", "over_budget": "Over budget" },
     "diaryType": {
       "daily_log": "Daily log",
       "site_visit": "Site visit",

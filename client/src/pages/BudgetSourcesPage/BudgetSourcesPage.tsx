@@ -32,6 +32,7 @@ import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './BudgetSourcesPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -287,7 +288,7 @@ export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
-  const pageTitle = tCommon('navigation.fundingSources');
+  const pageTitle = tCommon(PAGE_LABEL_KEYS.budgetSources);
   useDocumentTitle(pageTitle);
   const navigate = useNavigate();
   const originState = useOriginState();
