@@ -1,6 +1,15 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   ATTACHMENT_TYPES,
+  DEFECT_STATUS_ACTIONS,
+  DELETE_IMPACT_KINDS,
+  FUNDING_SOURCE_STATUS_ACTIONS,
+  GRANT_STATUS_ACTIONS,
+  INVOICE_STATUS_ACTIONS,
+  MILESTONE_STATUS_ACTIONS,
+  PROGRESS_PAYMENT_STATUS_ACTIONS,
+  PURCHASE_STATUS_ACTIONS,
+  TASK_STATUS_ACTIONS,
   BUDGET_SOURCE_STATUSES,
   BUDGET_SOURCE_TYPES,
   BUDGET_VERDICTS,
@@ -67,8 +76,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 25 registered sets', () => {
-    expect(SETS).toHaveLength(25);
+  it('iterates all 34 registered sets', () => {
+    expect(SETS).toHaveLength(34);
   });
 });
 
@@ -169,8 +178,60 @@ describe('I18N_UNION_KEYS registry', () => {
       'statusVocabularyDefect',
       'statusVocabularyBudgetVerdict',
       'statusVocabularyDiaryType',
+      'statusActionTask',
+      'statusActionPurchase',
+      'statusActionMilestone',
+      'statusActionInvoice',
+      'statusActionProgressPayment',
+      'statusActionGrant',
+      'statusActionFundingSource',
+      'statusActionDefect',
+      'deleteImpactKind',
       'diaryAutomaticEntryType',
     ]);
+  });
+
+  it('builds the #2209 action and delete-impact keys from the shared tuples', () => {
+    expect(I18N_UNION_KEYS.statusActionTask.members).toBe(TASK_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionPurchase.members).toBe(PURCHASE_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionMilestone.members).toBe(MILESTONE_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionInvoice.members).toBe(INVOICE_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionProgressPayment.members).toBe(
+      PROGRESS_PAYMENT_STATUS_ACTIONS,
+    );
+    expect(I18N_UNION_KEYS.statusActionGrant.members).toBe(GRANT_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionFundingSource.members).toBe(FUNDING_SOURCE_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionDefect.members).toBe(DEFECT_STATUS_ACTIONS);
+    expect(I18N_UNION_KEYS.statusActionGrant.key('markApproved')).toBe(
+      'statusAction.grant.markApproved',
+    );
+    expect(I18N_UNION_KEYS.statusActionFundingSource.key('markUsedUp')).toBe(
+      'statusAction.fundingSource.markUsedUp',
+    );
+    expect(I18N_UNION_KEYS.statusActionDefect.key('markFixed')).toBe(
+      'statusAction.defect.markFixed',
+    );
+    expect(I18N_UNION_KEYS.deleteImpactKind.members).toBe(DELETE_IMPACT_KINDS);
+    expect(I18N_UNION_KEYS.statusActionTask.key('markDone')).toBe('statusAction.task.markDone');
+    expect(I18N_UNION_KEYS.statusActionProgressPayment.key('markSubmitted')).toBe(
+      'statusAction.progressPayment.markSubmitted',
+    );
+    expect(I18N_UNION_KEYS.deleteImpactKind.key('childAreas')).toBe(
+      'confirmDialog.impact.childAreas',
+    );
+    for (const set of [
+      I18N_UNION_KEYS.statusActionTask,
+      I18N_UNION_KEYS.statusActionPurchase,
+      I18N_UNION_KEYS.statusActionMilestone,
+      I18N_UNION_KEYS.statusActionInvoice,
+      I18N_UNION_KEYS.statusActionProgressPayment,
+      I18N_UNION_KEYS.statusActionGrant,
+      I18N_UNION_KEYS.statusActionFundingSource,
+      I18N_UNION_KEYS.statusActionDefect,
+      I18N_UNION_KEYS.deleteImpactKind,
+    ]) {
+      expect(set.ns).toBe('common');
+    }
   });
 
   it('no longer registers the legacy status duplicates removed by #2195', () => {

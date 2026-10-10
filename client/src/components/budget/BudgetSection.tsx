@@ -15,6 +15,8 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { CONFIDENCE_LABELS, effectivePlannedAmount } from '../../lib/budgetConstants.js';
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
 import { SubsidyLinkSection } from './SubsidyLinkSection.js';
@@ -35,7 +37,8 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   staticCategoryLabel?: string;
   onLinkSubsidy: () => void;
   onUnlinkSubsidy: (subsidyProgramId: string) => void;
-  onConfirmDeleteBudgetLine: () => void;
+  /** Deletes the line whose id is in the hook's `deletingBudgetId`; rejects on failure. */
+  onConfirmDeleteBudgetLine: () => Promise<void>;
   budgetLineType?: 'work_item' | 'household_item';
   onLinkInvoice?: (budgetLineId: string) => void;
   onUnlinkInvoice?: (budgetLineId: string, invoiceBudgetLineId: string) => void;
@@ -94,6 +97,11 @@ export function BudgetSection<T extends BaseBudgetLine>({
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
 
+  // Cost-line delete confirmation state
+  const [isDeletingLine, setIsDeletingLine] = useState(false);
+  const [deleteLineError, setDeleteLineError] = useState<string | null>(null);
+  const [deleteLineBlocked, setDeleteLineBlocked] = useState(false);
+
   // Invoice edit modal state
   const [invoiceEditLine, setInvoiceEditLine] = useState<T | null>(null);
   const [invoiceEditForm, setInvoiceEditForm] = useState<BudgetLineFormState | null>(null);
@@ -119,6 +127,44 @@ export function BudgetSection<T extends BaseBudgetLine>({
     setDeletingBudgetId,
     setSelectedSubsidyId,
   } = budgetSectionHook;
+
+  const deletingLine = deletingBudgetId
+    ? (budgetLines.find((line) => line.id === deletingBudgetId) ?? null)
+    : null;
+
+  const requestDeleteBudgetLine = (lineId: string) => {
+    setDeleteLineError(null);
+    setDeleteLineBlocked(false);
+    handleDeleteBudgetLine(lineId);
+  };
+
+  const cancelDeleteBudgetLine = () => {
+    if (isDeletingLine) return;
+    setDeleteLineError(null);
+    setDeleteLineBlocked(false);
+    setDeletingBudgetId(null);
+  };
+
+  const confirmDeleteBudgetLineClick = async () => {
+    setIsDeletingLine(true);
+    setDeleteLineError(null);
+    try {
+      await onConfirmDeleteBudgetLine();
+      focusPageHeading();
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        // 409: the line is in use (e.g. invoiced); there is nothing to retry.
+        setDeleteLineBlocked(err.statusCode === 409);
+        setDeleteLineError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteLineError(tCommon('requestErrors.network'));
+      } else {
+        setDeleteLineError(tBudget('budgetLineForm.errors.deleteFailed'));
+      }
+    } finally {
+      setIsDeletingLine(false);
+    }
+  };
 
   // Handle invoice line edit submission
   const handleInvoiceEditSubmit = async (e: FormEvent) => {
@@ -271,7 +317,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
         <div className={styles.emptyState}>
           {budgetLineType === 'household_item'
             ? t('detail.budget.emptyState')
-            : 'No budget lines yet. Add the first line to start tracking costs.'}
+            : tBudget('budgetSection.noBudgetLines')}
         </div>
       )}
       <div className={styles.budgetLinesList}>
@@ -299,12 +345,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
               plannedTotal={plannedTotal}
               lines={groupLines}
               onEdit={onInvoiceLineEdit ? handleInvoiceLineEditClick : openEditBudgetForm}
-              onDelete={handleDeleteBudgetLine}
-              isDeleting={Object.fromEntries(
-                groupLines.map((l) => [l.id, deletingBudgetId === l.id]),
-              )}
-              onConfirmDelete={onConfirmDeleteBudgetLine}
-              onCancelDelete={() => setDeletingBudgetId(null)}
+              onDelete={requestDeleteBudgetLine}
               onUnlink={onUnlinkInvoice || (() => {})}
               isUnlinking={isUnlinking || {}}
               confidenceLabels={CONFIDENCE_LABELS}
@@ -346,10 +387,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
                 line={line}
                 confidenceLabels={CONFIDENCE_LABELS}
                 onEdit={() => openEditBudgetForm(line)}
-                onDelete={() => handleDeleteBudgetLine(line.id)}
-                isDeleting={deletingBudgetId === line.id}
-                onConfirmDelete={onConfirmDeleteBudgetLine}
-                onCancelDelete={() => setDeletingBudgetId(null)}
+                onDelete={() => requestDeleteBudgetLine(line.id)}
               >
                 {/* Link to invoice button */}
                 {budgetLineType && onLinkInvoice && (
@@ -360,7 +398,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
                   >
                     {budgetLineType === 'household_item'
                       ? t('detail.budget.linkInvoiceButton')
-                      : 'Link to Invoice'}
+                      : tBudget('budgetSection.linkToInvoice')}
                   </button>
                 )}
               </BudgetLineCard>
@@ -426,6 +464,26 @@ export function BudgetSection<T extends BaseBudgetLine>({
         />
       )}
 
+      {/* Cost-line delete confirmation (one dialog for work items and purchases) */}
+      {deletingLine && (
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name:
+              deletingLine.description ||
+              tBudget('invoiceDetail.budgetLines.picker.budgetLineGeneric'),
+          })}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeletingLine}
+          error={deleteLineError}
+          blocked={deleteLineBlocked}
+          onConfirm={() => void confirmDeleteBudgetLineClick()}
+          onCancel={cancelDeleteBudgetLine}
+          testIdPrefix="cost-line-delete"
+        />
+      )}
+
       {/* Add line button */}
       {!showBudgetForm && (
         <button
@@ -440,7 +498,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
 
       {/* Subsidies subsection */}
       <div className={styles.budgetSubsection}>
-        <h3 className={styles.subsectionTitle}>Subsidies</h3>
+        <h3 className={styles.subsectionTitle}>{tBudget('budgetSection.subsidies')}</h3>
         <SubsidyLinkSection
           linkedSubsidies={linkedSubsidies}
           availableSubsidies={availableSubsidies}

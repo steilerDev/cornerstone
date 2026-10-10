@@ -17,7 +17,7 @@
  *   - Category checkboxes (class `.categoryCheckboxList` > `.categoryCheckboxItem`)
  *   - "Create Program" / Cancel buttons
  * - A programs list (class `.programsList`) with inline edit forms per row
- * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
+ * - A delete ConfirmDialog (role="alertdialog", testid prefix subsidy-delete)
  * - Success banners (role="status"), error banners (role="alert")
  */
 
@@ -141,18 +141,13 @@ export class SubsidyProgramsPage {
       .first();
     this.errorBanner = page.locator('[role="alert"]').first();
 
-    // Delete modal
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Subsidy Program' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
-    // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Program")
-    // See budget.json subsidies.buttons.delete = "Delete"
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /^Delete$|Deleting\.\.\./,
-    });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title "Delete <name>?"
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('subsidy-delete-cancel') });
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('subsidy-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('subsidy-delete-cancel');
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
   }
 
@@ -312,7 +307,7 @@ export class SubsidyProgramsPage {
   }
 
   /**
-   * Confirm deletion by clicking "Delete Program" in the modal.
+   * Confirm deletion by clicking "Delete" in the dialog.
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();

@@ -784,6 +784,11 @@ describe('phone and tablet shell rule pins (#2207)', () => {
       'components/calendar/CalendarMilestone.module.css',
       'components/calendar/CalendarHouseholdItem.module.css',
       'components/reports/ReportInvoiceList.module.css',
+      'components/StatusMenu/StatusMenu.module.css',
+      'components/ConfirmDialog/ConfirmDialog.module.css',
+      'components/Toast/Toast.module.css',
+      'components/Modal/Modal.module.css',
+      'components/Modal/AnchoredPanel.module.css',
     ]) {
       const full = path.join(srcDir, file);
       if (!fs.existsSync(full)) continue;
@@ -915,5 +920,293 @@ describe('rule scanner', () => {
     const { offenders, measured } = scanCss('y.css', css);
     expect(offenders).toEqual([]);
     expect(measured).toBe(2);
+  });
+});
+
+// ── Grammar foundations (#2209): StatusMenu, Toast, ConfirmDialog ─────────────
+
+describe('grammar foundations contrast (#2209)', () => {
+  it('light: success toast text on its background is at least 6.8:1', () => {
+    expect(
+      tokenRatio('light', '--color-success-text-on-light', '--color-toast-success-bg'),
+    ).toBeGreaterThanOrEqual(6.8);
+  });
+
+  it.each(['--color-bg-page', '--color-bg-primary'])(
+    'dark: success toast text on its translucent background composited over %s is at least 8.2:1',
+    (base) => {
+      const bg = compositeOver('dark', '--color-toast-success-bg', base);
+      expect(ratio(resolve('dark', '--color-success-text-on-light'), bg)).toBeGreaterThanOrEqual(
+        8.2,
+      );
+    },
+  );
+
+  it.each(['light', 'dark'] as const)(
+    '%s: muted text on the panel surface (--color-bg-primary) is at least 4.5:1',
+    (theme) => {
+      expect(tokenRatio(theme, '--color-text-muted', '--color-bg-primary')).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
+});
+
+describe('grant, funding-source and defect badge classes (#2209 round 2)', () => {
+  const badge = readCss('components', 'Badge', 'Badge.module.css');
+  const CLASSES = [
+    '.grantEligible',
+    '.grantApplied',
+    '.grantApproved',
+    '.grantReceived',
+    '.grantRejected',
+    '.fundingActive',
+    '.fundingExhausted',
+    '.fundingClosed',
+    '.defectOpen',
+    '.defectInProgress',
+    '.defectFixed',
+  ];
+  const TOKEN = /^var\((--[\w-]+)\)$/;
+
+  /** Opaque hex of a background token; translucent ones are composited over the card surface. */
+  function backgroundHex(theme: Theme, token: string): string {
+    const raw = tokens[theme].get(token) ?? '';
+    return raw.startsWith('rgba(')
+      ? compositeOver(theme, token, '--color-bg-primary')
+      : resolve(theme, token);
+  }
+
+  it('defines exactly the 11 classes the spec lists, each with a token-only colour pair', () => {
+    for (const selector of CLASSES) {
+      const decls = ruleFor(badge, selector);
+      expect(decls.get('background-color')).toMatch(TOKEN);
+      expect(decls.get('color')).toMatch(TOKEN);
+    }
+  });
+
+  it.each(CLASSES.flatMap((c) => (['light', 'dark'] as const).map((t) => [c, t] as const)))(
+    '%s text on its background is at least 4.5:1 in %s',
+    (selector, theme) => {
+      const decls = ruleFor(badge, selector);
+      const bg = TOKEN.exec(decls.get('background-color') ?? '')![1]!;
+      const fg = TOKEN.exec(decls.get('color') ?? '')![1]!;
+      expect(ratio(resolve(theme, fg), backgroundHex(theme, bg))).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it('keeps the moved pairs unchanged (no visual change)', () => {
+    const pair = (selector: string) => {
+      const d = ruleFor(badge, selector);
+      return [d.get('background-color'), d.get('color')];
+    };
+    expect(pair('.grantEligible')).toEqual([
+      'var(--color-status-in-progress-bg)',
+      'var(--color-status-in-progress-text)',
+    ]);
+    expect(pair('.grantRejected')).toEqual([
+      'var(--color-status-blocked-bg)',
+      'var(--color-status-blocked-text)',
+    ]);
+    expect(pair('.grantApproved')).toEqual([
+      'var(--color-success-badge-bg)',
+      'var(--color-success-badge-text)',
+    ]);
+    expect(pair('.fundingActive')).toEqual([
+      'var(--color-success-badge-bg-alt)',
+      'var(--color-success-badge-text)',
+    ]);
+  });
+
+  it('defect colours reuse the blocked / in-progress / completed pairs (R2-D4)', () => {
+    const pair = (selector: string) => {
+      const d = ruleFor(badge, selector);
+      return [d.get('background-color'), d.get('color')];
+    };
+    expect(pair('.defectOpen')).toEqual(pair('.grantRejected'));
+    expect(pair('.defectInProgress')).toEqual(pair('.grantEligible'));
+    expect(pair('.defectFixed')).toEqual([
+      'var(--color-status-completed-bg)',
+      'var(--color-status-completed-text)',
+    ]);
+  });
+});
+
+describe('grammar foundations rule pins (#2209)', () => {
+  const statusMenu = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+
+  it('StatusMenu .chip:focus-visible draws the two-ring form (page ring, then the focus colour)', () => {
+    const decls = ruleFor(statusMenu, '.chip:focus-visible');
+    expect(decls.get('outline')).toBe('none');
+    const shadow = decls.get('box-shadow') ?? '';
+    const rings = shadow.split(',').map((r) => r.trim().replace(/\s+/g, ' '));
+    expect(rings).toEqual([
+      '0 0 0 2px var(--color-bg-primary)',
+      '0 0 0 4px var(--color-border-focus)',
+    ]);
+  });
+
+  it('StatusMenu .chip::before grows the hit area with spacing tokens, never literals', () => {
+    const decls = ruleFor(statusMenu, '.chip::before');
+    expect(decls.get('position')).toBe('absolute');
+    expect(decls.get('inset')).toBe('calc(-1 * var(--spacing-3)) calc(-1 * var(--spacing-2))');
+    expect(decls.get('inset')).not.toMatch(/\d+(px|rem)/);
+  });
+
+  it('StatusMenu draws no hover ring on a busy (aria-disabled) chip', () => {
+    const css = stripComments(
+      fs.readFileSync(
+        path.join(srcDir, 'components', 'StatusMenu', 'StatusMenu.module.css'),
+        'utf8',
+      ),
+    );
+    expect(css).toMatch(/\.chip:hover:not\(\[aria-disabled='true'\]\)/);
+  });
+
+  it('Toast .dismiss and Modal .closeButton grow to --touch-target-min at <=1023px', () => {
+    for (const [file, selector] of [
+      ['Toast/Toast.module.css', '.dismiss'],
+      ['Modal/Modal.module.css', '.closeButton'],
+    ] as const) {
+      const css = stripComments(
+        fs.readFileSync(path.join(srcDir, 'components', ...file.split('/')), 'utf8'),
+      );
+      const media = /@media\s*\(max-width:\s*1023px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+      expect(media).not.toBeNull();
+      const decls = ruleFor(parseRules(media?.[1] ?? ''), selector);
+      expect(decls.get('min-width')).toBe('var(--touch-target-min)');
+      expect(decls.get('min-height')).toBe('var(--touch-target-min)');
+    }
+  });
+
+  it('Toast slides in with --transition-medium and turns the animation off for reduced motion', () => {
+    const css = stripComments(
+      fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
+    );
+    expect(ruleFor(parseRules(css), '.toast').get('animation')).toBe(
+      'slideIn var(--transition-medium) forwards',
+    );
+    const reduced = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(reduced).not.toBeNull();
+    expect(ruleFor(parseRules(reduced?.[1] ?? ''), '.toast').get('animation')).toBe('none');
+  });
+
+  it('Toast is hidden in print', () => {
+    const css = stripComments(
+      fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
+    );
+    const print = /@media\s+print\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(print).not.toBeNull();
+    expect(ruleFor(parseRules(print?.[1] ?? ''), '.container').get('display')).toBe('none');
+  });
+
+  it('ConfirmDialog footer stacks (column) and its buttons go full width at 639px', () => {
+    const css = stripComments(
+      fs.readFileSync(
+        path.join(srcDir, 'components', 'ConfirmDialog', 'ConfirmDialog.module.css'),
+        'utf8',
+      ),
+    );
+    const media = /@media\s*\(max-width:\s*639px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(media).not.toBeNull();
+    const rules = parseRules(media?.[1] ?? '');
+    expect(ruleFor(rules, '.footer').get('flex-direction')).toBe('column');
+    expect(ruleFor(rules, '.cancelButton').get('width')).toBe('100%');
+    expect(ruleFor(rules, '.cancelButton').get('min-height')).toBe('var(--touch-target-min)');
+  });
+
+  describe('busy (aria-disabled) controls keep their resting colour on hover', () => {
+    const confirm = readCss('components', 'ConfirmDialog', 'ConfirmDialog.module.css');
+    const status = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+    const bg = (decls: Map<string, string>) =>
+      decls.get('background-color') ?? decls.get('background');
+
+    it("ConfirmDialog button.confirmButton[aria-disabled='true']:hover stays on --color-danger-bg", () => {
+      expect(bg(ruleFor(confirm, "button.confirmButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-danger-bg)',
+      );
+    });
+
+    it("ConfirmDialog button.cancelButton[aria-disabled='true']:hover stays on --color-bg-tertiary", () => {
+      expect(bg(ruleFor(confirm, "button.cancelButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-bg-tertiary)',
+      );
+    });
+
+    it("StatusMenu button.plainButton[aria-disabled='true']:hover stays on --color-bg-tertiary", () => {
+      expect(bg(ruleFor(status, "button.plainButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-bg-tertiary)',
+      );
+    });
+
+    it('the pinned tokens exist in both themes', () => {
+      for (const theme of ['light', 'dark'] as const) {
+        expect(tokens[theme].has('--color-danger-bg')).toBe(true);
+        expect(tokens[theme].has('--color-bg-tertiary')).toBe(true);
+      }
+    });
+  });
+
+  describe('#2209 UX review pins', () => {
+    const cssText = (...segments: string[]) =>
+      stripComments(fs.readFileSync(path.join(srcDir, ...segments), 'utf8'));
+
+    it('StatusMenu .chip composes the plain badge class; button.chip composes nothing (build fix)', () => {
+      const rules = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+      expect(ruleFor(rules, '.chip').get('composes')).toBe(
+        "badge from '../Badge/Badge.module.css'",
+      );
+      const raised = ruleFor(rules, 'button.chip');
+      expect(raised.has('composes')).toBe(false);
+      expect(raised.get('cursor')).toBe('pointer');
+      expect(raised.get('font-family')).toBe('inherit');
+    });
+
+    it('ConfirmDialog buttons are at least --touch-target-min high at <=1023px', () => {
+      const css = cssText('components', 'ConfirmDialog', 'ConfirmDialog.module.css');
+      const media = /@media\s*\(max-width:\s*1023px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+      expect(media).not.toBeNull();
+      const rule = parseRules(media?.[1] ?? '').find((r) =>
+        ['.cancelButton', '.confirmButton', '.retryButton'].every((sel) =>
+          r.selectors.includes(sel),
+        ),
+      );
+      expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+    });
+
+    it('the date chip gets the focus border colour on :focus-visible', () => {
+      const decls = ruleFor(
+        readCss('components', 'StatusMenu', 'StatusMenu.module.css'),
+        'button.dateChip:focus-visible',
+      );
+      expect(decls.get('border-color')).toBe('var(--color-border-focus)');
+    });
+
+    it('the Toast container has no gap; the regions are spaced only when both have content', () => {
+      const rules = readCss('components', 'Toast', 'Toast.module.css');
+      expect(ruleFor(rules, '.container').has('gap')).toBe(false);
+      expect(ruleFor(rules, '.region:not(:empty) + .region:not(:empty)').get('margin-top')).toBe(
+        'var(--spacing-3)',
+      );
+      expect(ruleFor(rules, '.region').get('gap')).toBe('var(--spacing-3)');
+    });
+
+    it('a busy (aria-disabled) Modal close button is dimmed, not-allowed and has no hover wash', () => {
+      const rules = readCss('components', 'Modal', 'Modal.module.css');
+      const busy = ruleFor(rules, ".closeButton[aria-disabled='true']");
+      expect(busy.get('opacity')).toBe('0.5');
+      expect(busy.get('cursor')).toBe('not-allowed');
+      const hover = ruleFor(rules, ".closeButton[aria-disabled='true']:hover");
+      expect(hover.get('background')).toBe('transparent');
+      expect(hover.get('color')).toBe('var(--color-text-muted)');
+    });
+  });
+
+  it('ConfirmDialog footer is a right-aligned row above 639px', () => {
+    const decls = ruleFor(
+      readCss('components', 'ConfirmDialog', 'ConfirmDialog.module.css').slice(0, 20),
+      '.footer',
+    );
+    expect(decls.get('justify-content')).toBe('flex-end');
   });
 });

@@ -638,6 +638,41 @@ describe('DiaryEntryForm', () => {
       expect(optionValues).toContain('resolved');
     });
 
+    it('labels the options with the canonical defect vocabulary (Open / Being fixed / Fixed)', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'issue' })} />);
+      const select = screen.getByLabelText(/resolution status/i) as HTMLSelectElement;
+      expect(
+        Array.from(select.options)
+          .filter((o) => o.value)
+          .map((o) => [o.value, o.textContent]),
+      ).toEqual([
+        ['open', 'Open'],
+        ['in_progress', 'Being fixed'],
+        ['resolved', 'Fixed'],
+      ]);
+    });
+
+    it('showResolutionStatus=false hides the select entirely (saved entries use the status menu)', () => {
+      render(
+        <DiaryEntryForm
+          {...makeProps({
+            entryType: 'issue',
+            showResolutionStatus: false,
+            issueResolutionStatus: 'open',
+          })}
+        />,
+      );
+      expect(screen.queryByLabelText(/resolution status/i)).toBeNull();
+      expect(document.getElementById('resolution-status')).toBeNull();
+      // the severity control is still there
+      expect(screen.getByLabelText(/severity/i)).toBeInTheDocument();
+    });
+
+    it('showResolutionStatus defaults to true (capture and drafts keep the select)', () => {
+      render(<DiaryEntryForm {...makeProps({ entryType: 'issue' })} />);
+      expect(document.getElementById('resolution-status')).not.toBeNull();
+    });
+
     it('shows the current resolution status value', () => {
       render(
         <DiaryEntryForm

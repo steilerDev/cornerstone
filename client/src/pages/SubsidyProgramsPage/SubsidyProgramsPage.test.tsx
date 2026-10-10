@@ -1,19 +1,21 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import enErrors from '../../i18n/en/errors.json';
+import enBudget from '../../i18n/en/budget.json';
 import type {
   SubsidyProgram,
   SubsidyProgramListResponse,
@@ -27,8 +29,26 @@ const mockFetchSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.fetchSubs
 const mockCreateSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.createSubsidyProgram>();
 const mockUpdateSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.updateSubsidyProgram>();
 const mockDeleteSubsidyProgram = jest.fn<typeof SubsidyProgramsApiTypes.deleteSubsidyProgram>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+
+// The status hook toasts (#2209).
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
+}));
 
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockCreateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.createBudgetCategory>();
@@ -112,6 +132,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -257,12 +278,20 @@ describe('SubsidyProgramsPage', () => {
     mockCreateSubsidyProgram.mockReset();
     mockUpdateSubsidyProgram.mockReset();
     mockDeleteSubsidyProgram.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'subsidy_program',
+      id: 'prog-1',
+      effects: [],
+    });
 
     mockFetchBudgetCategories.mockReset();
     mockCreateBudgetCategory.mockReset();
     mockUpdateBudgetCategory.mockReset();
     mockDeleteBudgetCategory.mockReset();
     mockFetchBudgetOverview.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
 
     // Default: categories return empty list unless overridden
     mockFetchBudgetCategories.mockResolvedValue(emptyCategoriesResponse);
@@ -616,6 +645,127 @@ describe('SubsidyProgramsPage', () => {
     });
   });
 
+  // ─── Row StatusMenu (#2209 round 2) ────────────────────────────────────────
+
+  describe('grant status menu', () => {
+    const TOKEN = { token: `u_${'7'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockFetchSubsidyPrograms.mockResolvedValue(listResponse);
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    function respond(body: unknown) {
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    }
+
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+
+    it('each row renders a StatusMenu chip with its own test id and canonical label', async () => {
+      renderPage();
+      const chip = await screen.findByTestId(`grant-status-${sampleProgram1.id}`);
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Eligible');
+      expect(chip).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('lists only the allowed transitions for the current status', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [{ ...sampleProgram1, applicationStatus: 'applied' }],
+      });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      expect(rows()).toEqual(['Mark approved', 'Mark rejected', 'Back to “Eligible”']);
+    });
+
+    it('Mark applied PATCHes applicationStatus (no date step), reloads quietly and offers Undo', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1, applicationStatus: 'applied' }, undo: TOKEN });
+      renderPage();
+      const id = sampleProgram1.id;
+      fireEvent.click(await screen.findByTestId(`grant-status-${id}`));
+      const loadsBefore = mockFetchSubsidyPrograms.mock.calls.length;
+      fireEvent.click(screen.getByTestId(`grant-status-${id}-option-applied`));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(screen.queryByRole('dialog', { name: /when/i })).toBeNull();
+      expect(lastWrite()).toEqual({
+        url: `/api/subsidy-programs/${id}`,
+        method: 'PATCH',
+        body: { applicationStatus: 'applied' },
+      });
+      await waitFor(() =>
+        expect(mockFetchSubsidyPrograms.mock.calls.length).toBeGreaterThan(loadsBefore),
+      );
+      // quiet reload: no loading skeleton replaces the list
+      expect(screen.getByTestId(`grant-status-${id}`)).toBeInTheDocument();
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: `${sampleProgram1.name} is now “Applied”.`,
+        dedupeKey: `subsidy_program:${id}`,
+      });
+    });
+
+    it('Undo posts the token and reloads the list', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockFetchSubsidyPrograms.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockFetchSubsidyPrograms.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('a reload failure after a change keeps the last list', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      mockFetchSubsidyPrograms.mockRejectedValue(new Error('offline'));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      expect(screen.getByTestId(`grant-status-${sampleProgram1.id}`)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
   // ─── Create form ───────────────────────────────────────────────────────────
 
   describe('create form', () => {
@@ -650,22 +800,39 @@ describe('SubsidyProgramsPage', () => {
       );
     });
 
-    it('edit form status select lists SUBSIDY_APPLICATION_STATUSES in order with labels', async () => {
+    it('the edit form has no status select (status changes use the row menu)', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       const user = userEvent.setup();
       renderPage();
       await user.click(await screen.findByRole('button', { name: /edit energy rebate/i }));
 
-      const select = document.getElementById(
-        `edit-status-${sampleProgram1.id}`,
-      ) as HTMLSelectElement;
+      expect(document.getElementById(`edit-status-${sampleProgram1.id}`)).toBeNull();
+      expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+    });
 
-      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
-        SUBSIDY_APPLICATION_STATUSES.map((status) => [
-          status,
-          enCommon.statusVocabulary.grant[status],
-        ]),
-      );
+    it('saving an edit does not send applicationStatus', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      mockUpdateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgram1 });
+      mockFetchSubsidyPrograms.mockResolvedValue(listResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /edit energy rebate/i }));
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateSubsidyProgram).toHaveBeenCalledTimes(1));
+      const body = mockUpdateSubsidyProgram.mock.calls[0]![1] as Record<string, unknown>;
+      expect('applicationStatus' in body).toBe(false);
+    });
+
+    it('the create form keeps the initial status select and the translated Deadline label', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /add program/i }));
+
+      expect(document.getElementById('applicationStatus')).not.toBeNull();
+      const deadlineLabel = document.querySelector('label[for="applicationDeadline"]');
+      expect(deadlineLabel).toHaveTextContent(enBudget.subsidies.form.deadline);
     });
 
     it('disables "Add Program" button when create form is open', async () => {
@@ -1369,6 +1536,37 @@ describe('SubsidyProgramsPage', () => {
   // ─── Delete modal ──────────────────────────────────────────────────────────
 
   describe('delete modal', () => {
+    async function enabledConfirm() {
+      const btn = await screen.findByTestId('subsidy-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      return btn;
+    }
+
+    it('lists what the delete also changes and asks the impact endpoint for this program', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'subsidy_program',
+        id: 'prog-1',
+        effects: [
+          { kind: 'invoiceLinks', count: 4 },
+          { kind: 'grantLinks', count: 0 },
+        ],
+      });
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete energy rebate/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
+      await waitFor(() =>
+        expect(screen.getByTestId('subsidy-delete-consequences')).toHaveTextContent(
+          'Invoice links removed with it: 4',
+        ),
+      );
+      expect(screen.queryByText(/Grants no longer linked/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('subsidy_program', 'prog-1');
+    });
+
     it('shows delete confirmation modal when Delete button is clicked', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       const user = userEvent.setup();
@@ -1381,8 +1579,11 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /delete subsidy program/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('alertdialog', { name: 'Delete Energy Rebate?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('subsidy-delete-cancel')).toHaveFocus();
     });
 
     it('shows program name in delete modal', async () => {
@@ -1397,13 +1598,9 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      // The program name is now interpolated into a single translated sentence
-      // (t('subsidies.modal.deleteConfirm', { name })) rather than wrapped in its
-      // own <strong> text node, so assert on the full rendered sentence.
-      expect(
-        within(dialog).getByText('Are you sure you want to delete the program "Energy Rebate"?'),
-      ).toBeInTheDocument();
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toHaveAccessibleName('Delete Energy Rebate?');
+      expect(within(dialog).getByText("This can't be undone.")).toBeInTheDocument();
     });
 
     it('shows "Delete Program" confirm button in modal', async () => {
@@ -1418,8 +1615,8 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      expect(within(dialog).getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+      const dialog = screen.getByRole('alertdialog');
+      expect(within(dialog).getByTestId('subsidy-delete-confirm')).toBeInTheDocument();
     });
 
     it('closes delete modal when Cancel is clicked', async () => {
@@ -1433,12 +1630,12 @@ describe('SubsidyProgramsPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
 
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
     });
 
     it('calls deleteSubsidyProgram and removes program from list on success', async () => {
@@ -1454,8 +1651,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteSubsidyProgram).toHaveBeenCalledWith('prog-1');
@@ -1464,6 +1660,22 @@ describe('SubsidyProgramsPage', () => {
       await waitFor(() => {
         expect(screen.queryByText('Energy Rebate')).not.toBeInTheDocument();
       });
+    });
+
+    it('after deleting a program focus lands on the page heading (h1), never on <body>', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      mockDeleteSubsidyProgram.mockResolvedValueOnce(undefined);
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete energy rebate/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
+      await user.click(await enabledConfirm());
+      await waitFor(() => expect(mockDeleteSubsidyProgram).toHaveBeenCalledWith('prog-1'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      // no returnFocusRef any more: the chain skips the deleted row and ends on the page h1
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H1'));
     });
 
     it('shows success message after successful deletion', async () => {
@@ -1479,8 +1691,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(/energy rebate.*deleted successfully/i)).toBeInTheDocument();
@@ -1505,8 +1716,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1532,12 +1742,12 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await screen.findByRole('alertdialog');
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         // After in-use error, the Delete Program button is no longer shown
-        expect(within(dialog).queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
+        expect(screen.queryByTestId('subsidy-delete-confirm')).not.toBeInTheDocument();
       });
     });
 
@@ -1554,8 +1764,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1579,8 +1788,7 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
@@ -1602,12 +1810,15 @@ describe('SubsidyProgramsPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete energy rebate/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /^delete$/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm());
 
-      // Cancel button is disabled while deleting
+      // Cancel is aria-disabled while deleting
       await waitFor(() => {
-        expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeDisabled();
+        expect(within(dialog).getByTestId('subsidy-delete-cancel')).toHaveAttribute(
+          'aria-disabled',
+          'true',
+        );
       });
     });
   });

@@ -46,3 +46,4 @@
 - [story-2205-sidebar-navconfig.md](story-2205-sidebar-navconfig.md) — #2205 sidebar test ids/POM API, sidebar clicks push, 'Go to Home' strict-mode collision, every-page sweep, defect-id tagging.
 - [story-2207-phone-tablet-shell.md](story-2207-phone-tablet-shell.md) — #2207 bottom bar/More sheet/title menu: AppShellPage shims, check-mark text trap, compact single-link breadcrumb, sign-out mocking.
 - [story-2206-top-bar.md](story-2206-top-bar.md) — #2206 top bar/user menu: 1024 breakpoint, viewport-aware logout(), shared isolated user, Gantt-origin Back.
+- [story-2209-grammar-foundations.md](story-2209-grammar-foundations.md) — #2209 StatusMenu/UndoToast/ConfirmDialog: component POMs, test-id conventions, disabled-fallback focus hazard, sandbox python-heredoc quirk.

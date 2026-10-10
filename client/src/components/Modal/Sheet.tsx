@@ -2,6 +2,7 @@ import { useEffect, useId, useRef } from 'react';
 import type { ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
+import { lockScroll } from './scrollLock.js';
 import styles from './Sheet.module.css';
 
 export interface SheetProps {
@@ -62,10 +63,7 @@ export function Sheet({
   // Page scroll is locked while the sheet is open.
   useEffect(() => {
     if (!open) return;
-    document.documentElement.dataset.scrollLocked = 'true';
-    return () => {
-      delete document.documentElement.dataset.scrollLocked;
-    };
+    return lockScroll();
   }, [open]);
 
   return (

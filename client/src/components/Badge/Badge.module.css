@@ -362,6 +362,65 @@
   font-style: italic;
 }
 
+/* Grant (subsidy application) status chips — moved from SubsidyProgramsPage (#2209) */
+.grantEligible {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.grantApplied {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-text-secondary);
+}
+
+.grantApproved {
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+}
+
+.grantReceived {
+  background-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.grantRejected {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+/* Funding source status chips — moved from BudgetSourcesPage (#2209) */
+.fundingActive {
+  background-color: var(--color-success-badge-bg-alt);
+  color: var(--color-success-badge-text);
+}
+
+.fundingExhausted {
+  background-color: var(--color-status-not-started-bg);
+  color: var(--color-text-secondary);
+}
+
+.fundingClosed {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-secondary);
+}
+
+/* Defect (diary issue) resolution chips */
+.defectOpen {
+  background-color: var(--color-status-blocked-bg);
+  color: var(--color-status-blocked-text);
+}
+
+.defectInProgress {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.defectFixed {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
 /* Responsive */
 @media (max-width: 767px) {
   .badge {

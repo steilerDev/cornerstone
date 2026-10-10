@@ -12,13 +12,13 @@ import type {
   ErrorCode,
 } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
-import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enWorkItems from '../../i18n/en/workItems.json';
 import i18n from '../../i18n/index.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
 import type * as NotesApiTypes from '../../lib/notesApi.js';
 import type * as SubtasksApiTypes from '../../lib/subtasksApi.js';
@@ -118,11 +118,31 @@ jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
   deleteWorkItemBudget: mockDeleteWorkItemBudget,
 }));
 
-// InvoiceLinkModal calls useToast; the page itself has no ToastProvider in these tests (#2194).
+// InvoiceLinkModal and the status hook call useToast; the page has no ToastProvider in these tests.
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   ToastProvider: ({ children }: { children: unknown }) => children,
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
 }));
+
+// The delete dialog loads what else the delete affects (#2209).
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(prefix: string): Promise<HTMLElement> {
+  const btn = await screen.findByTestId(`${prefix}-confirm`);
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 // The Link to Invoice modal loads the invoice list (#2194); an empty list keeps its plain amount
 // input, which carries the page-provided defaultAmount.
@@ -275,6 +295,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -337,6 +358,10 @@ describe('WorkItemDetailPage', () => {
     mockGetWorkItem.mockReset();
     mockUpdateWorkItem.mockReset();
     mockDeleteWorkItem.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'work_item', id: 'work-1', effects: [] });
     mockListWorkItems.mockReset();
     mockFetchWorkItemSubsidies.mockReset();
     mockLinkWorkItemSubsidy.mockReset();
@@ -611,6 +636,130 @@ describe('WorkItemDetailPage', () => {
     });
   });
 
+  describe('status menu (#2209)', () => {
+    const TOKEN = { token: `u_${'d'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+    function respond(body: unknown) {
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    }
+
+    /** Requests that change data (the page also issues unrelated reads through fetch). */
+    function writes() {
+      return mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    }
+
+    function lastRequest() {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    }
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'not_started' });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    async function loaded() {
+      renderPage();
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+    }
+
+    it('starting a task asks when it started, sends the actual start date and offers Undo', async () => {
+      respond({ ...mockWorkItem, status: 'in_progress', undo: TOKEN });
+      await loaded();
+
+      fireEvent.click(screen.getByTestId('work-item-status'));
+      fireEvent.click(screen.getByTestId('work-item-status-option-in_progress'));
+      expect(screen.getByRole('dialog', { name: 'When did it start?' })).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('work-item-status-date-today'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      const req = lastRequest();
+      expect(req.url).toBe('/api/work-items/work-1');
+      expect(req.method).toBe('PATCH');
+      expect(req.body).toEqual({
+        status: 'in_progress',
+        actualStartDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Test Work Item is now “In progress”.',
+          dedupeKey: 'task:work-1',
+        }),
+      );
+    });
+
+    it('marking done sends the actual end date', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
+      respond({ ...mockWorkItem, status: 'completed' });
+      await loaded();
+
+      fireEvent.click(screen.getByTestId('work-item-status'));
+      fireEvent.click(screen.getByTestId('work-item-status-option-completed'));
+      fireEvent.click(screen.getByTestId('work-item-status-date-today'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastRequest().body).toEqual({
+        status: 'completed',
+        actualEndDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+    });
+
+    it('going back sends only the status (no date)', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
+      respond({ ...mockWorkItem, status: 'not_started', undo: TOKEN });
+      await loaded();
+
+      fireEvent.click(screen.getByTestId('work-item-status'));
+      fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastRequest().body).toEqual({ status: 'not_started' });
+    });
+
+    it('reloads the task after the change and after an Undo', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'in_progress' });
+      respond({ ...mockWorkItem, status: 'not_started', undo: TOKEN });
+      await loaded();
+      const loadsBefore = mockGetWorkItem.mock.calls.length;
+
+      fireEvent.click(screen.getByTestId('work-item-status'));
+      fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      expect(mockGetWorkItem.mock.calls.length).toBeGreaterThan(loadsBefore);
+
+      const loadsAfterChange = mockGetWorkItem.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastRequest().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(lastRequest().method).toBe('POST');
+      expect(mockGetWorkItem.mock.calls.length).toBeGreaterThan(loadsAfterChange);
+    });
+
+    it('a completed task offers only the way back', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'completed' });
+      await loaded();
+      fireEvent.click(screen.getByTestId('work-item-status'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
+        `Back to “${enCommon.statusVocabulary.task.in_progress}”`,
+      ]);
+    });
+  });
+
   describe('initial render', () => {
     it('shows loading state initially', async () => {
       renderPage();
@@ -622,22 +771,20 @@ describe('WorkItemDetailPage', () => {
       });
     });
 
-    it('status select lists WORK_ITEM_STATUSES in order with translated labels', async () => {
+    it('shows the status as a StatusMenu chip listing only the allowed transitions', async () => {
       renderPage();
       await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
 
-      const select = screen
-        .getAllByRole('combobox')
-        .find((el) =>
-          Array.from((el as HTMLSelectElement).options).some((o) => o.value === 'not_started'),
-        ) as HTMLSelectElement;
+      const chip = screen.getByTestId('work-item-status');
+      expect(chip).toHaveTextContent(enCommon.statusVocabulary.task.in_progress);
+      expect(screen.queryByRole('combobox', { name: /status/i })).toBeNull();
 
-      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual([
-        ['not_started', enCommon.statusVocabulary.task.not_started],
-        ['in_progress', enCommon.statusVocabulary.task.in_progress],
-        ['completed', enCommon.statusVocabulary.task.completed],
+      fireEvent.click(chip);
+      const rows = screen.getAllByRole('menuitem').map((r) => r.textContent);
+      expect(rows).toEqual([
+        `${enCommon.statusAction.task.markDone}›`,
+        `Back to “${enCommon.statusVocabulary.task.not_started}”`,
       ]);
-      expect(Array.from(select.options).map((o) => o.value)).toEqual([...WORK_ITEM_STATUSES]);
     });
 
     it('renders work item title after loading', async () => {
@@ -1357,20 +1504,17 @@ describe('WorkItemDetailPage', () => {
       expect(deleteButton).not.toBeNull();
       fireEvent.click(deleteButton!);
 
-      const dialogTitle = await screen.findByText('Delete Subtask?');
-      expect(dialogTitle).toBeInTheDocument();
       expect(
-        screen.getByText(
-          'Are you sure you want to delete this subtask? This action cannot be undone.',
-        ),
+        await screen.findByRole('alertdialog', { name: 'Delete First subtask?' }),
       ).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
+      expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
+      expect(screen.getByTestId('subtask-delete-cancel')).toHaveFocus();
+      expect(screen.getByTestId('subtask-delete-confirm')).toHaveTextContent('Delete');
 
       // Cancel closes the modal without calling the delete API
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      fireEvent.click(screen.getByTestId('subtask-delete-cancel'));
       await waitFor(() => {
-        expect(screen.queryByText('Delete Subtask?')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
       expect(mockDeleteSubtask).not.toHaveBeenCalled();
     });
@@ -1473,20 +1617,19 @@ describe('WorkItemDetailPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Foundation work' }));
 
-      expect(await screen.findByText('Remove Dependency?')).toBeInTheDocument();
       expect(
-        screen.getByText(
-          'This item will no longer depend on "Foundation work". This action cannot be undone.',
-        ),
+        await screen.findByRole('alertdialog', { name: 'Remove dependency?' }),
       ).toBeInTheDocument();
-      // Guard against the sentence being duplicated (the old code appended a static
-      // "This action cannot be undone." suffix on top of the already-inclusive key value).
-      expect(screen.getAllByText(/This action cannot be undone\./)).toHaveLength(1);
-      expect(screen.getByRole('button', { name: 'Remove' })).toBeInTheDocument();
+      expect(
+        screen.getByText('This item will no longer depend on "Foundation work".'),
+      ).toBeInTheDocument();
+      // A dependency is re-addable, so the dialog does not claim "can't be undone".
+      expect(screen.queryByText(/can't be undone/)).toBeNull();
+      expect(screen.getByTestId('dependency-remove-confirm')).toHaveTextContent('Remove');
 
-      fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+      fireEvent.click(screen.getByTestId('dependency-remove-cancel'));
       await waitFor(() => {
-        expect(screen.queryByText('Remove Dependency?')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
       expect(mockDeleteDependency).not.toHaveBeenCalled();
     });
@@ -1529,11 +1672,11 @@ describe('WorkItemDetailPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 'Remove dependency on Roofing' }));
 
-      expect(await screen.findByText('Remove Dependency?')).toBeInTheDocument();
       expect(
-        screen.getByText('This item will no longer block "Roofing". This action cannot be undone.'),
+        await screen.findByRole('alertdialog', { name: 'Remove dependency?' }),
       ).toBeInTheDocument();
-      expect(screen.getAllByText(/This action cannot be undone\./)).toHaveLength(1);
+      expect(screen.getByText('This item will no longer block "Roofing".')).toBeInTheDocument();
+      expect(screen.queryByText(/can.t be undone/)).toBeNull();
     });
   });
 
@@ -1848,13 +1991,24 @@ describe('WorkItemDetailPage', () => {
       await expectInlineError(ie.updateDescription);
     });
 
-    it('status change failure', async () => {
-      mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
-      await renderLoaded();
-      fireEvent.change(screen.getByDisplayValue(enCommon.statusVocabulary.task.in_progress), {
-        target: { value: 'completed' },
-      });
-      await expectInlineError(ie.updateStatus);
+    it('status change failure toasts the translated copy and shows no banner or raw text', async () => {
+      const realFetch = globalThis.fetch;
+      globalThis.fetch = jest
+        .fn<typeof globalThis.fetch>()
+        .mockRejectedValue(new Error('RAW-LOCAL'));
+      try {
+        await renderLoaded();
+        fireEvent.click(screen.getByTestId('work-item-status'));
+        fireEvent.click(screen.getByTestId('work-item-status-option-not_started'));
+        await waitFor(() =>
+          expect(mockShowToast).toHaveBeenCalledWith('error', enCommon.statusMenu.changeFailed),
+        );
+        expect(mockShowUndoToast).not.toHaveBeenCalled();
+        expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+        expect(screen.queryAllByRole('alert')).toHaveLength(0);
+      } finally {
+        globalThis.fetch = realFetch;
+      }
     });
 
     it('duration blur failure', async () => {
@@ -1940,11 +2094,29 @@ describe('WorkItemDetailPage', () => {
       mockDeleteNote.mockRejectedValue(new Error('RAW-LOCAL'));
       await renderLoaded();
       fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-      const buttons = await screen.findAllByRole('button', {
-        name: enWorkItems.detail.modals.deleteNote.delete,
-      });
-      fireEvent.click(buttons[buttons.length - 1]!);
-      await expectInlineError(ie.deleteNote);
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete this note?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('note-delete-cancel')).toHaveFocus();
+      fireEvent.click(await enabledConfirm('note-delete'));
+      // #2209: the failure is shown inside the open dialog, which stays open for a retry.
+      const dialog = await screen.findByRole('alertdialog');
+      await waitFor(() =>
+        expect(within(dialog).getByRole('alert')).toHaveTextContent(ie.deleteNote),
+      );
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+      expect(screen.getByTestId('note-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('delete note success deletes once, closes the dialog and returns focus to a control', async () => {
+      mockListNotes.mockResolvedValue({ notes: [sampleNote] });
+      mockDeleteNote.mockResolvedValue(undefined);
+      await renderLoaded();
+      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
+      fireEvent.click(await enabledConfirm('note-delete'));
+      await waitFor(() => expect(mockDeleteNote).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(document.body).not.toHaveFocus();
     });
 
     it('add subtask failure', async () => {
@@ -1980,8 +2152,12 @@ describe('WorkItemDetailPage', () => {
       const { container } = renderPage();
       await screen.findByText('Sub one');
       fireEvent.click(container.querySelector('.subtaskItem .deleteButton')!);
-      fireEvent.click(await screen.findByRole('button', { name: 'Delete' }));
-      await expectInlineError(ie.deleteSubtask);
+      fireEvent.click(await enabledConfirm('subtask-delete'));
+      const dialog = await screen.findByRole('alertdialog');
+      await waitFor(() =>
+        expect(within(dialog).getByRole('alert')).toHaveTextContent(ie.deleteSubtask),
+      );
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
     });
 
     it('reorder subtasks failure', async () => {
@@ -2038,11 +2214,7 @@ describe('WorkItemDetailPage', () => {
       fireEvent.click(
         screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
       );
-      fireEvent.click(
-        await screen.findByRole('button', {
-          name: enWorkItems.detail.modals.deleteWorkItem.delete,
-        }),
-      );
+      fireEvent.click(await enabledConfirm('work-item-delete'));
       await expectInlineError(ie.deleteWorkItem);
     });
 
@@ -2102,6 +2274,67 @@ describe('WorkItemDetailPage', () => {
     it('prefills the planned amount unchanged for a gross-entered line', async () => {
       const input = await openLinkModal(true);
       expect(input.value).toBe('100');
+    });
+  });
+
+  describe('cost-line delete (#2209: one dialog, hosted by BudgetSection)', () => {
+    const line = {
+      id: 'bl-1',
+      workItemId: 'work-1',
+      description: 'Tiles',
+      plannedAmount: 100,
+      confidence: 'own_estimate' as const,
+      confidenceMargin: 0.2,
+      budgetCategory: null,
+      budgetSource: null,
+      vendor: null,
+      actualCost: 0,
+      actualCostPaid: 0,
+      invoiceCount: 0,
+      invoiceLink: null,
+      createdBy: null,
+      createdAt: '2024-01-15T10:00:00Z',
+      updatedAt: '2024-01-15T10:00:00Z',
+      quantity: null,
+      unit: null,
+      unitPrice: null,
+      includesVat: true,
+    };
+
+    async function openDialog() {
+      mockFetchWorkItemBudgets.mockResolvedValue([line]);
+      renderPage();
+      fireEvent.click(await screen.findByRole('button', { name: /delete .*tiles/i }));
+      return screen.findByRole('alertdialog');
+    }
+
+    it('opens exactly one confirm dialog (no inline swap, no second confirmation)', async () => {
+      await openDialog();
+      expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+      expect(screen.getByRole('alertdialog')).toHaveAccessibleName('Delete Tiles?');
+      expect(screen.getByTestId('cost-line-delete-cancel')).toHaveFocus();
+      // The card keeps its Edit/Delete buttons: the old inline Confirm/Cancel swap is gone.
+      expect(screen.queryByRole('button', { name: /^confirm$/i })).toBeNull();
+    });
+
+    it('confirming deletes the line once and closes the dialog', async () => {
+      mockDeleteWorkItemBudget.mockResolvedValue(undefined);
+      await openDialog();
+      fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+      await waitFor(() => expect(mockDeleteWorkItemBudget).toHaveBeenCalledTimes(1));
+      expect(mockDeleteWorkItemBudget).toHaveBeenCalledWith('work-1', 'bl-1');
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    });
+
+    it('a 409 (line in use) hides the action and shows the translated reason', async () => {
+      mockDeleteWorkItemBudget.mockRejectedValue(
+        new ApiClientError(409, { code: 'BUDGET_LINE_IN_USE', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      await openDialog();
+      fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+      await waitFor(() => expect(screen.queryByTestId('cost-line-delete-confirm')).toBeNull());
+      expect(screen.getByRole('alertdialog')).toHaveTextContent(enErrors.BUDGET_LINE_IN_USE);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
   });
 
@@ -2285,11 +2518,7 @@ describe('WorkItemDetailPage', () => {
       await user.click(
         screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
       );
-      await user.click(
-        await screen.findByRole('button', {
-          name: enWorkItems.detail.modals.deleteWorkItem.delete,
-        }),
-      );
+      await user.click(await enabledConfirm('work-item-delete'));
 
       const probe = JSON.parse((await screen.findByTestId('probe')).textContent ?? '{}') as {
         path: string;

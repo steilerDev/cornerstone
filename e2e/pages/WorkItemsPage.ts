@@ -8,13 +8,13 @@
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state when no work items exist or no items match filters
- * - A delete confirmation modal (role="dialog") with confirmDeleteButton and cancelButton
+ * - A delete ConfirmDialog (role="alertdialog", testid prefix work-item-list-delete)
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
  * - "New Work Item" is a <button> (not a <Link>) that calls navigate('/project/work-items/new')
- * - The delete modal uses role="dialog" with aria-modal="true" (no aria-labelledby)
- * - The confirm delete button uses class `confirmDeleteButton` (not an accessible name)
+ * - The delete dialog is the ConfirmDialog: role="alertdialog", title "Delete <title>?"
+ * - The confirm button is testid work-item-list-delete-confirm
  * - Empty state rendered by DataTable EmptyState component
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions menu" (⋮)
@@ -128,12 +128,12 @@ export class WorkItemsPage {
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
 
-    // Delete confirmation modal — no aria-labelledby in the source; use role="dialog"
-    this.deleteModal = page.locator('[role="dialog"]');
-    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
-    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
-    this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('work-item-list-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('work-item-list-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('work-item-list-delete-cancel');
   }
 
   /**

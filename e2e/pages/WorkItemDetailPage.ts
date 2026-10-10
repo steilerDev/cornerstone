@@ -28,10 +28,12 @@
  *     - h3 "Required Milestones" — milestone dependency picker
  *     - h3 "Linked Milestones" — milestones this item is linked to
  * - Footer: timestamps, "Delete Work Item" button (class deleteWorkItemButton)
- * - Delete confirmation modal (role=none, [class*="modal"]):
- *   - h2 "Delete Work Item?"
- *   - Cancel button (class modalCancelButton)
- *   - Confirm button (class modalDeleteButton): text "Delete" / "Deleting..."
+ * - Header status chip: StatusMenu (data-testid="work-item-status") - Start / Mark done with
+ *   date chips; Back to "...". The old status <select> is gone (#2209).
+ * - Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209):
+ *   - h2 "Delete <title>?", Cancel (work-item-delete-cancel), Confirm (work-item-delete-confirm)
+ *   - Notes (note-delete), subtasks (subtask-delete), dependencies (dependency-remove) and cost
+ *     lines (cost-line-delete) use the same component with their own testid prefix
  * - Inline error banner (role="alert", class errorBanner) for inline failures
  *
  * Key DOM observations from source code:
@@ -45,6 +47,8 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 
 export class WorkItemDetailPage {
   readonly page: Page;
@@ -52,7 +56,8 @@ export class WorkItemDetailPage {
   // Header
   readonly breadcrumbs: BreadcrumbsBar;
   readonly heading: Locator; // h1 (work item title)
-  readonly statusSelect: Locator;
+  /** Header StatusMenu chip (data-testid="work-item-status"). */
+  readonly statusMenu: StatusMenuControl;
 
   // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
   // fix/1278: the breadcrumb has been REMOVED from the WorkItemDetailPage header entirely.
@@ -98,11 +103,16 @@ export class WorkItemDetailPage {
   // Footer
   readonly deleteButton: Locator; // "Delete Work Item" in footer
 
-  // Delete confirmation modal
-  // Note: the modal is a plain div (not role="dialog") in this component
+  // Delete confirmation (ConfirmDialog, role="alertdialog")
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
+
+  // Other ConfirmDialogs on the page (#2209)
+  readonly noteDeleteDialog: ConfirmDialogControl;
+  readonly subtaskDeleteDialog: ConfirmDialogControl;
+  readonly dependencyRemoveDialog: ConfirmDialogControl;
+  readonly costLineDeleteDialog: ConfirmDialogControl;
 
   // Error states
   readonly errorBanner: Locator; // inline error (role="alert")
@@ -114,7 +124,7 @@ export class WorkItemDetailPage {
     // Header
     this.breadcrumbs = new BreadcrumbsBar(page);
     this.heading = page.getByRole('heading', { level: 1 });
-    this.statusSelect = page.locator('[class*="statusSelect"]');
+    this.statusMenu = new StatusMenuControl(page, 'work-item-status');
 
     // fix/1278: breadcrumb removed from WorkItemDetailPage header.
     // areaBreadcrumbNav retained for negative assertions (must NOT be visible).
@@ -181,13 +191,16 @@ export class WorkItemDetailPage {
     // Footer delete button
     this.deleteButton = page.getByRole('button', { name: 'Delete Work Item', exact: true });
 
-    // Delete modal — plain div (not role="dialog") using [class*="modal"]
-    // Scoped to the outermost modal wrapper that contains the "Delete Work Item?" heading
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", testid prefix work-item-delete)
     this.deleteModal = page
-      .locator('[class*="modal"]')
-      .filter({ has: page.getByRole('heading', { name: /Delete Work Item\?/i }) });
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="modalDeleteButton"]');
-    this.deleteCancelButton = this.deleteModal.locator('[class*="modalCancelButton"]');
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('work-item-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('work-item-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('work-item-delete-cancel');
+    this.noteDeleteDialog = new ConfirmDialogControl(page, 'note-delete');
+    this.subtaskDeleteDialog = new ConfirmDialogControl(page, 'subtask-delete');
+    this.dependencyRemoveDialog = new ConfirmDialogControl(page, 'dependency-remove');
+    this.costLineDeleteDialog = new ConfirmDialogControl(page, 'cost-line-delete');
 
     // Error states
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');

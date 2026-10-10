@@ -1,105 +1,94 @@
 # QA & Integration Tester — Agent Memory (Index)
 
-> One line per topic file below — no detail here. Recent/active work is listed first; older
-> per-story notes are grouped chronologically into `archive-*.md` (each has its own dated index).
-> NOTE: two sessions compacted the original 1588-line MEMORY.md in parallel (2026-07-07), producing
-> two overlapping archive sets (`archive-2026-06/-04-to-05/-02-to-03.md` AND
-> `archive-2026-05/-04/-03-gaps/-02-03-features.md`) plus two reference docs each. All files exist;
-> content overlaps — dedupe on next compaction.
+> One line per topic file; detail lives in the files. Newest work first; older per-story notes are in
+> dated `archive-*.md` files. The archive sets `archive-2026-06/-04-to-05/-02-to-03.md` and
+> `archive-2026-05/-04/-03-gaps/-02-03-features.md` overlap (parallel compaction 2026-07-07) — dedupe when next touched.
 
-## Active reference docs (living — update in place)
+## Living reference docs (update in place)
 
-- [test-infra-reference.md](test-infra-reference.md) — quick-reference conventions, key file locations, renderHook/Drizzle/auth/circular-dep patterns, test count history
-- [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
-- [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes (older infra), `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks; **2026-09-07: current sandbox has real per-worktree node_modules — never `rm -rf node_modules` for a single stale package, virtiofs ENOTDIR race on full reinstall, rsync-from-base-repo recovery fallback**
+- [test-infra-reference.md](test-infra-reference.md) — conventions, key file locations, renderHook/Drizzle/auth/circular-dep patterns, test count history
+- [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle patterns: sqlite sync errors, ESM mock shape (overlaps test-infra-reference)
+- [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas, jest invocation, shared symlink/dist; current sandbox has real node_modules: never `rm -rf node_modules` for one package
 
-- [Story #2207 phone/tablet shell](story-2207-phone-tablet-shell.md) (2026-10-10) — controllable matchMedia for the 1024 px switch, resetModules vs RTL hooks, unserved routes can't render, PageTitle needs Router, history-back via history.state.idx, pressed active-slot contrast (4.07 on tertiary, fixed via hover wash and pinned), previousPath keyed by idx
-- [Story #2206 top bar / user menu](story-2206-top-bar-user-menu.md) (2026-10-10) — matchMedia not configurable, noTabRows flags href+label arrays, OverflowMenu panel vs list classes, bash-guard workarounds
+## Stories and bugs, newest first
 
-- [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
+- [Story #2209 client tests](story-2209-client-tests.md) (2026-10-10) — host-page mock plumbing (deleteImpact/toast/formatDayMonth), blocked-only-on-409 mutant, Escape-swallow + focus-to-body prod bugs, mutation script
+- [Story #2209 undo/delete-impact server tests](story-2209-undo-delete-impact.md) (2026-10-10) — undoStore captures Date.now, milestone-delay repro, mutation-script pattern, equivalent mutants
+- [Story #2207 phone/tablet shell](story-2207-phone-tablet-shell.md) (2026-10-10) — matchMedia control, resetModules vs RTL, previousPath by idx
+- [Story #2206 top bar / user menu](story-2206-top-bar-user-menu.md) (2026-10-10) — matchMedia not configurable, noTabRows, OverflowMenu classes
+- [Issue #2132 in-place restore](issue-2132-restore-in-place-tests.md) (2026-10) — renameSync spy, non-WAL fixtures, lock-leak cascade
+- [Story #2202 page identity](story-2202-page-identity.md) (2026-10) — OriginProbe helper, title/breadcrumb patterns
+- [Story #2204 deep links](story-2204-deep-links.md) (2026-10) — jsdom hash trick, title hook needs Router
+- [Story #2199 scheduler truth](story-2199-scheduler-truth.md) (2026-10) — planned vs forecast, fake timers for real-clock services
+- [PR #2168 error-message hardening](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, duplicate banners
+- [Wizard rAF focus-steal flake](gotcha-wizard-raf-focus-steal.md) (2026-10) — settle h2 focus before typing; mockReset once-queues
+- [Issue #2101 Paperless infinite scroll](issue-2101-infinite-scroll-tests.md) (2026-09-29) — ts-node-less jest, command-complexity guard, act warnings
+- [Picker slowness — RESOLVED](pr2070-searchpicker-dropdown-timeout.md) — nwsapi 2.2.27 `:modal` recursion; `--cpu-prof` first; `projects[].testTimeout` is a no-op
+- [Issue #2056 jest.fn<any>() never fix](issue-2056-jest-fn-any-never-bump.md) (2026-09-07) — typed-generic fix hierarchy, stale Vendor fixtures
+- [Issue #1950 derived ceiling guard](issue-1950-derived-ceiling-guard.md) (2026-08-06) — char/line/pt formula, stale AC flagged via it.todo
+- [Issue #1991 strict int parsing](issue-1991-strict-int-parsing.md) (2026-08-06) — coverage judged against the diff; grep the coverage table
+- [Issue #1953 independent pinning](story-1953-independent-pinning.md) (2026-08-06) — duplicate assertions, titles vs bodies
+- [Issue #1941 EditableField maxLength](story-1941-editable-field-maxlength.md) (2026-08-06) — jsdom does not clamp maxlength; a failing DOM-shape test can be right
+- [Issue #1940 continuation marker](story-1940-continuation-marker-runt-merge.md) (2026-08-06) — stripContinuationMarker, fontkit glyph-0, revert proof
+- [Issue #1912 ESM mock blast radius](issue-1912-esm-mock-blast-radius.md) (2026-08-06) — new shared export breaks other files' partial mock factories
+- [Issue #1911 splitKind](story-1911-splitkind.md) (2026-08-05) — UNION origin-column trap, queryChunks introspection, stash anti-vacuity proof
+- [Issue #2001 remove TFunction from reportPdf](story-2001-remove-tfunc-reportpdf.md) (2026-08-05) — keep t in renderOverviewPdfContent only
+- [Bug #1897 deposit-blind drill-down](bug-1897-deposit-blind-drilldown.md) (2026-08-04) — fix via getInvoiceAggregates
+- [PR #1959 inline meta content loss](pr-1959-inline-meta-content-loss.md) (2026-08-03) — it.failing tripwires, channel equivalence, NBSP as  , grep vs awk
+- [Bug #1955 echo-race harness](bug-1955-echo-race-harness.md) (2026-08-03) — echo on resolve, perl mutation probes, never repo-wide format
+- [Story #1930 attachment tier](story-1930-attachment-tier.md) (2026-08-02) — table+null pattern, discriminating proof-of-funds fixture
+- [Issue #1929 real-render pdfmake](story-1929-round2-real-render-technique.md) (2026-08-02) — _calcWidth/positions readable after getBlob
+- [Story #1923 report table cleanup](story-1923-report-table-cleanup.md) (2026-08-02) — shared markers, fixture ripple, stale shared symlink
+- [Bugs #1895/#1896/#1918 claim scope](bugs-1895-1896-1918-claim-deposit-scope.md) (2026-08-01) — markInvoicesClaimed sourceId/depositIds
+- [Story #1901 AI report content](story-1901-ai-report-content.md) (2026-07-31) — blocker #1915, unconditional useRealTimers
+- [Story #1900 editable report preview](story-1900-editable-report-preview.md) (2026-07-31) — re-read fixes, dual-tree query scoping
+- [CI fix timeline calendar drift](ci-fix-timeline-calendar-drift.md) (2026-07-31) — fake timers vs lastRescheduleDate gate
+- [Story #1898 report table refinements](story-1898-report-table-refinements.md) (2026-07-31) — pdfmake has no "N*" widths
+- [Story #1891 report wizard follow-up](story-1891-report-wizard-followup.md) (2026-07-30) — AJV coerceTypes, Rail-A/B regression proof
+- [Story #1879 report wizard frontend](story-1879-report-wizard-frontend.md) (2026-07-29) — pdfmake loader, i18next dot-vs-colon, lazy createPdf
+- [Story #1878 source report backend](story-1878-source-report-backend.md) (2026-07-29) — Map iteration bug #1884, branch-ceiling reasoning
+- [Story #1876 deposit refunds](story-1876-deposit-refunds.md) (2026-07-29) — wiki deviation, diff-vs-baseline coverage
+- [archive-2026-07-early.md](archive-2026-07-early.md) — Issues #1809-#1816, Bugs #1807/#1808/#1833, Stories #1804/#1805
+- [gotcha-esm-mock-static-import-order.md](gotcha-esm-mock-static-import-order.md) — lazy-import formatters/i18n in LocaleContext-mocked tests; big heredocs refused
 
-- [Story #2202 page identity](story-2202-page-identity.md) (2026-10) — OriginProbe test helper, live query maps consume keys, title/breadcrumb patterns, command-guard drops edits silently
-- [Story #2204 deep links/identity](story-2204-deep-links.md) (2026-10) — jsdom location hash trick for href capture, title hook needs Router + full authApi mock, refresh-order deferred-promise test
-- [Story #2199 scheduler truth](story-2199-scheduler-truth.md) (2026-10) — planned vs forecast projection tests, real-clock services need fake timers, formatters-mock link errors, fixture-codegen pitfalls
+## Ambient environment quirks (check before assuming a failure is real)
 
-## Recent bug/story notes (2026-08)
+- Server tests importing `migrate.ts`/`app.ts` may fail locally with `TS1343` (`import.meta.url`); CI (Node 24) is authoritative.
+- Build `@cornerstone/shared` (`cd shared && npx tsc`) before server Jest in a fresh worktree (server project has no moduleNameMapper fallback).
+- Client jsdom suites can fail entirely on local Node 20 (`clearMocksOnScope` missing); CI passes.
+- Full-directory jest runs can SIGKILL a worker (sandbox memory); rerun the killed file alone before treating it as a failure.
 
-- [PR #2168 error-message hardening tests](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, LocalizedError, duplicate-banner counts, no jsdom Response
+## Curated topic files (stable patterns)
 
-- [Wizard rAF focus-steal flake](gotcha-wizard-raf-focus-steal.md) (2026-10) — typing right after a step change loses keystrokes; settle h2 focus first; mockReset once-queues
-- [Issue #2101 — Paperless infinite-scroll tests](issue-2101-infinite-scroll-tests.md) (2026-09-29) — ts-node-less jest workaround, sandbox command-complexity guard, mutation-runner pattern, act-warning and mocked-i18n gotchas.
+- [budget-categories-story-142.md](budget-categories-story-142.md) — Budget Categories CRUD
+- [drag-drop-jsdom-patterns.md](drag-drop-jsdom-patterns.md) — drag-and-drop under jsdom
+- [e2e-parallel-isolation.md](e2e-parallel-isolation.md) — E2E parallel data isolation
+- [e2e-pom-patterns.md](e2e-pom-patterns.md) — E2E page-object conventions
+- [epic03-uat-review.md](epic03-uat-review.md) — EPIC-03 UAT review
+- [epic14-e2e-validation.md](epic14-e2e-validation.md) — EPIC-14 E2E validation
+- [sentence-builder-testing.md](sentence-builder-testing.md) — dependency sentence builder
+- [story-1030-areas-trades.md](story-1030-areas-trades.md) — EPIC-18 areas & trades migration 0028
+- [story-1143-translation-keys.md](story-1143-translation-keys.md) — `translationKey` patterns
+- [story-1271-area-enrichment.md](story-1271-area-enrichment.md) — area enrichment (diary/invoice/HI deps)
+- [story-358-document-linking.md](story-358-document-linking.md) — document linking
+- [story-360-document-a11y.md](story-360-document-a11y.md) — document responsive & a11y
+- [story-38-learnings.md](story-38-learnings.md) — Story #38 coverage summary
+- [story-415-household-item-timeline-deps.md](story-415-household-item-timeline-deps.md) — HI timeline deps
+- [story-470-preferences.md](story-470-preferences.md) — user preferences
+- [story-471-dashboard.md](story-471-dashboard.md) — dashboard
+- [story-493-cost-breakdown.md](story-493-cost-breakdown.md) — cost breakdown table
+- [story-509-category-schema-change.md](story-509-category-schema-change.md) — `category` to `categoryId` change
+- [story-509-manage-page.md](story-509-manage-page.md) — tags & categories manage page
+- [story-566-hi-budget-unified.md](story-566-hi-budget-unified.md) — HI unified budget view
+- [story-diary-uat-fixes.md](story-diary-uat-fixes.md) — diary UAT fixes
+- [story-epic08-e2e.md](story-epic08-e2e.md) — EPIC-08 E2E
 
-- [Picker-family test slowness — RESOLVED](pr2070-searchpicker-dropdown-timeout.md) — root cause was nwsapi 2.2.27 (transitive, jsdom's selector engine) recursing on `:modal`, ~281 ms per floating-ui positioning check; fixed by nwsapi 2.2.28. Lessons: `--cpu-prof` before theorising; bisect transitive deps too; slow-but-green jsdom tests are bugs, not timeout tuning. Also: `projects[].testTimeout` is a silent no-op; debounce/query-agnostic-mock `waitFor` race; run jest from the repo root, not `client/`.
-- [Issue #2056 — jest 30.5.0 jest.fn<any>() → never bump fix](issue-2056-jest-fn-any-never-bump.md) (2026-09-07) — 32 sites/13 files; fix hierarchy (real `typeof` generic > narrower inline generic > mirrored local type); bare `jest.fn()` alone does NOT fix it; surfaced a second, independent stale-Vendor-fixture bug in 3 files.
-- [Issue #1950 — derived Ѹ ceiling guard for MAX_SAFE_USAGE_CHUNK_CHARS](issue-1950-derived-ceiling-guard.md) (2026-08-06) — char/line/pt derivation formula (616/507); continuation-row marker overage (36/4/44.8, "+1 line" boundary-crossing argument, not naive re-division); AC1.5's MAX_SAFE_SMALL_CHUNK_CHARS is stale (deleted by #1959 3 days before issue filed) — flagged via it.todo, not fabricated; avoided a production export for the #1941 coupling by reading the rendered `maxlength` DOM attribute instead.
-- [Issue #1991 — strict integer parsing in loadConfig()](issue-1991-strict-int-parsing.md) (2026-08-06) — `parseStrictInteger` diff is additive-only across 8 call sites; judge coverage against the diff not the whole file (two unrelated `config.ts` rows in the coverage table — plugins vs routes); found+filled 3 pre-existing untested range-check branches (SESSION_DURATION/PHOTO_MAX_FILE_SIZE_MB/BACKUP_RETENTION ≤0) adjacent to scope; `tail -100` truncates the coverage table before reaching `plugins/`, grep instead.
-- [Issue #1953 — independent-pinning test hygiene](story-1953-independent-pinning.md) (2026-08-06, PR #2035) — a duplicate assertion inflated a mutation-failure count without adding discrimination; a test title claimed an independence guarantee ("X does not depend on Y") that no assertion in its body actually tested — dedupe against the _pre-existing_ suite, not just new tests, and re-check names against bodies only.
-- [Issue #1941 — EditableField maxLength](story-1941-editable-field-maxlength.md) (2026-08-06) — jsdom does NOT clamp controlled-input value/fireEvent.change against `maxlength` attr (verified empirically); a broken #1932 DOM-shape test was RIGHT — it caught a real additive flex-gap+margin spacing regression, don't reflexively "fix" a test a new wrapper breaks; ariaDescribedBy has exactly 4 reachable id-count combos (0/1/2/3, fixed order).
-- [Issue #1940 — continuation marker + runt-merge](story-1940-continuation-marker-runt-merge.md) (2026-08-06) — `packUsageCellRowsWithMinimum`/`… ` marker; centralized `stripContinuationMarker` pattern (both test files); ripple far wider than the 2 named tests (whole "cell-scope invariant" block's shared helper in realRender.test.ts); fontkit glyph-id-0 technique (added as pinned devDependency); blank pdfmake cells DO get `.positions`; mid-list-runt fixture recipe; git-revert genuine-regression proof (clean import-error + 2 real assertion failures).
-- [Issue #1912 — ESM mock blast radius](issue-1912-esm-mock-blast-radius.md) (2026-08-06) — new export on a shared module breaks a _different_ file's partial `jest.unstable_mockModule` factory, not the one I checked; mechanical sweep + batch-jest-run pattern
-- [Issue #1911 — splitKind field](story-1911-splitkind.md) (2026-08-05) — server UNION `origin`-column trap (AC1.5: "≠S per arm" not "≥2 distinct per arm"); UNION-dedup regression guard (AC1.9); `jest.spyOn(db,'all')` pass-through + drizzle `queryChunks` introspection for round-trip proof; client-side ripple broke 9 pre-existing tests in 2 files beyond the "add splitKind default" checklist item (found by just running the file); AC1.2 git-stash anti-vacuity proof (9/70 genuinely fail on reverted code).
-- [Issue #2001 — remove TFunction from reportPdf](story-2001-remove-tfunc-reportpdf.md) (2026-08-05, 2 rounds) — 7 test files total; realRender.test.ts has renderOverviewPdfContent (KEEP its t) vs buildOverviewContent/generateReportPdf (REMOVE); perl regex targets `{ attachDocuments: }` context to avoid removing renderOverviewPdfContent args; comment on same line blocks regex → explicit Edit; 218 tests pass round 2.
+## Archived chronological logs
 
-- [Bug #1897 — deposit-blind drill-down fix](bug-1897-deposit-blind-drilldown.md) (2026-08-04) — `getBudgetSourceBudgetLines` was deposit-blind; fix routes through `getInvoiceAggregates`; 7 tests in new `describe('deposit-aware drill-down')` block appended to `budgetSourceService.test.ts`; local WI/HI/deposit helpers; AC1 is the reproduction case.
-
-- [PR #1959 — inline meta content loss + `it.failing` tripwires](pr-1959-inline-meta-content-loss.md) (2026-08-03, RESOLVED) — prod defect found+fixed (unchunked meta in a `dontBreakRows` cell silently drops pages); **a tripwire is worthless if a shared helper bakes in the buggy assumption** — mine nearly stayed green through the fix; channel-equivalence is the threshold-free assertion; tree-level assertions cannot see this bug class; **write NBSP as `\u00A0` in test expectations, never a literal** (I smuggled one into the guard against it); keep literal+invariant at different levels; non-positive chunk budgets HANG not throw; `grep` silently returns nothing on these test files (use `awk`).
-- [Bug #1955 — echo-race harness + mutation probes](bug-1955-echo-race-harness.md) (2026-08-03) — echo must fire on the write's _resolve_ (not the call) or the queue fix masks the guard and the test passes pre-fix; `rerender()` stands in for the optimistic `setPreferences`; 4 perl mutation probes prove each test guards a distinct part of the fix; never run repo-wide `npm run format` (38 unrelated files drift).
-
-- [Story #1930 — attachment tier rules](story-1930-attachment-tier.md) (2026-08-02) — new `attachmentTierUtils.test.ts` (100% cov, table+explicit-null pattern); sourceReportService.test.ts 16a/b/c/e → AC1/AC2/AC3/AC5; cross-report-type test needs a fresh invoice per report type; round 2 added a genuinely discriminating proof-of-funds fixture (deposit-only invoice, tagged+claimed deposit) after PO flagged the original AC3/16 pof blocks weren't change-detecting — inline-swap isolation technique to prove it fails on old logic.
-- [Issue #1929 round 2 — real-render pdfmake technique](story-1929-round2-real-render-technique.md) (2026-08-02, PR #1935) — `_calcWidth`/`.positions[].pageNumber` are readable after a real `getBlob()` on a held content reference (round-1's "inaccessible" comment was wrong, verified against pdfmake@0.3.11 source); measured Usage column widths (138.28pt/186.78pt, both locales, both shapes); git-stash/backup technique to prove tests genuinely fail on unpatched code; tighter layouts break old page-count fixture assumptions (scale fixtures up, don't weaken assertions); `expect(async () => {}).not.toThrow()` is a no-op anti-pattern.
-- [Story #1923 — report table cleanup](story-1923-report-table-cleanup.md) (2026-08-02) — unnumbered shared †/‡ markers, isDeposit/isClaim/areaText fixture ripple across 8 report test files, overviewPdf allocated-cell-is-always-an-array-of-runs gotcha, worktree `node_modules/@cornerstone/shared` symlink pointing at a differently-branched base repo (false-positive `tsc` errors; trust jest).
-- [Bugs #1895/#1896/#1918 — claim/deposit scope fixes](bugs-1895-1896-1918-claim-deposit-scope.md) (2026-08-01) — `markInvoicesClaimed` gained `sourceId`+required `depositIds` params (cross-source claim guard, decoupled sweep, quotation+sweepable-deposit no longer 409s); `getSourceReport` drops zero-portion `budgetLines[]` on `claim` reports only; text-content query collision gotcha (banner text contains data also shown elsewhere on page).
-
-## Recent bug/story notes (2026-07)
-
-- [Story #1901 — AI-generated report content](story-1901-ai-report-content.md) (2026-07-31) — Blocker bug #1915 (reportContentGenerationService.ts imports non-existent `work_items`/`household_items` schema exports — crashes `buildApp()` app-wide via app.ts's static import chain); wrote both server test files correctly per spec, blocked but not weakened; fixed pre-existing ReportWizardPage.test.tsx breakage from concurrent prod changes; fake-timer-leak lesson (`jest.isMockFunction(setInterval)` unreliable — always unconditional `jest.useRealTimers()` in afterEach); llmEnabled ripple across 8 server files + LocaleContext.test.tsx.
-- [Story #1900 — editable report preview](story-1900-editable-report-preview.md) (2026-07-31, RESOLVED) — Retry button needed 2 fix rounds (don't trust "fix landed" without re-reading the ternary); dual-tree desktop/mobile query-scoping pattern; mock-queue-pollution and call-count-vs-continuation race gotchas.
-- [CI fix: timeline.test.ts calendar drift](ci-fix-timeline-calendar-drift.md) (2026-07-31, PR #1902) — fake-timers freeze desyncs schedulingEngine.ts's module-level `lastRescheduleDate` gate; fixed via relative-date fixtures.
-- [Story #1898 — report table refinements](story-1898-report-table-refinements.md) (2026-07-31, RESOLVED) — CRITICAL prod bug: pdfmake has no "N*" weighted-star width syntax, crashed real rendering (type-checker didn't catch it); fixture-audit gotcha when a marker rule adds a new required field.
-- [Story #1891 — bank report wizard follow-up](story-1891-report-wizard-followup.md) (2026-07-30) — 2 confirmed prod bugs (isSplit hardcoded false regression; runaway PDF-regen loop); AJV `coerceTypes:true` silently stringifies numbers; byte-identical Rail-A/B regression-proof pattern; `flushBudgetDataLoad()` extra-act() pattern.
-- [Story #1879 — report wizard frontend](story-1879-report-wizard-frontend.md) (2026-07-29 → 07-30, 7 rounds) — pdfmake loader/vfs/font blockers (resolved via real addVirtualFileSystem/addFonts API); i18next dot-vs-colon cross-namespace bug family (recurred 4 rounds); `createPdf()` is lazy, wrap rejects in `await expect(...).rejects.toThrow()` not sync `expect(()=>).toThrow()`; final: ReportWizardPage regen-effect infinite-loop bug still open at round 7.
-- [Story #1878 — source report backend](story-1878-source-report-backend.md) (2026-07-29) — 6 confirmed prod bugs incl. `for (const doc of docs)` iterating Map tuples instead of `.values()` (issue #1884); branch-coverage-ceiling reasoning for Record<Status,...>-guaranteed unreachable fallbacks.
-- [Story #1876 — deposit refunds](story-1876-deposit-refunds.md) (2026-07-29) — Wiki Accuracy bug confirmed (spec said 400, actual 200 silent strip); diff-vs-baseline coverage triage technique for large legacy files.
-- [archive-2026-07-early.md](archive-2026-07-early.md) — Issues #1816/#1815/#1814/#1813/#1812/#1811/#1809, Bugs #1807/#1833/#1808, Stories #1805/#1804 (all 2026-07-07)
-
-## Known ambient environment quirks (check before assuming a test failure is real)
-
-- Server tests transitively importing `migrate.ts`/`app.ts` may fail locally with `TS1343` (`import.meta.url` under NodeNext) depending on local Node/tsconfig version — CI (Node 24) is authoritative.
-- `@cornerstone/shared` must be built (`cd shared && npx tsc`) before running server-side Jest tests in a fresh worktree checkout (no moduleNameMapper fallback for the server project, unlike the client project).
-- Client jsdom test suites can fail entirely on local Node 20 (`clearMocksOnScope` missing) — CI (Node 24) passes.
-
-## Curated topic files (stable patterns, one story/feature per file)
-
-- [budget-categories-story-142.md](budget-categories-story-142.md) — Budget Categories CRUD test coverage
-- [drag-drop-jsdom-patterns.md](drag-drop-jsdom-patterns.md) — drag-and-drop testing patterns/anti-patterns under jsdom
-- [e2e-parallel-isolation.md](e2e-parallel-isolation.md) — E2E parallel test data isolation patterns
-- [e2e-pom-patterns.md](e2e-pom-patterns.md) — E2E page-object-model conventions
-- [epic03-uat-review.md](epic03-uat-review.md) — EPIC-03 UAT review learnings
-- [epic14-e2e-validation.md](epic14-e2e-validation.md) — EPIC-14 E2E validation notes
-- [sentence-builder-testing.md](sentence-builder-testing.md) — dependency sentence-builder test coverage
-- [story-1030-areas-trades.md](story-1030-areas-trades.md) — EPIC-18 areas & trades migration (0028) test updates
-- [story-1143-translation-keys.md](story-1143-translation-keys.md) — `translationKey` field testing patterns
-- [story-1271-area-enrichment.md](story-1271-area-enrichment.md) — area enrichment tests (diary/invoice/HI deps)
-- [story-358-document-linking.md](story-358-document-linking.md) — document linking tests
-- [story-360-document-a11y.md](story-360-document-a11y.md) — document responsive & a11y tests
-- [story-38-learnings.md](story-38-learnings.md) — Story #38 test coverage summary
-- [story-415-household-item-timeline-deps.md](story-415-household-item-timeline-deps.md) — HI timeline dependency tests
-- [story-470-preferences.md](story-470-preferences.md) — user preferences infrastructure tests
-- [story-471-dashboard.md](story-471-dashboard.md) — dashboard tests
-- [story-493-cost-breakdown.md](story-493-cost-breakdown.md) — cost breakdown table improvements
-- [story-509-category-schema-change.md](story-509-category-schema-change.md) — `category` → `categoryId` schema change fix notes
-- [story-509-manage-page.md](story-509-manage-page.md) — unified tags & categories management page tests
-- [story-566-hi-budget-unified.md](story-566-hi-budget-unified.md) — HI unified budget view tests
-- [story-diary-uat-fixes.md](story-diary-uat-fixes.md) — diary UAT fixes test patterns
-- [story-epic08-e2e.md](story-epic08-e2e.md) — EPIC-08 E2E tests
-
-## Archived chronological logs (per-story/bug notes, dated)
-
-- [archive-2026-06.md](archive-2026-06.md) — auto-itemize inline-draft/VAT/merge-lines, PhotoAnnotator touch, diary vendor fields (Stories #1551-#1786, #1672, #1677, #1679, #1693, #1705, #1723; Bug #1775; Issue #1568)
-- [archive-2026-04-to-05.md](archive-2026-04-to-05.md) — budget-extraction/auto-itemize services, CostBreakdownTable filters, PhotoAnnotator polish, diary drafts, Konva/locale/XHR mock patterns (Stories #1354-#1603; PR #1496)
-- [archive-2026-02-to-03.md](archive-2026-02-to-03.md) — Gantt/scheduling (Story 6.x), budget junction migration, EPIC-06 E2E, household items, areas/trades CRUD, vendor/subsidy/budget-source page behavior notes (Stories #358-#1201, #390-#498, #603-#933, #1010-#1146; Bugs #482/#484/#1201; EPIC-04/06)
-- [archive-2026-05.md](archive-2026-05.md) — React19 iframe onError, #1551 origin field, #1482/#1569 PhotoViewer/konva, #1603 EditBudgetLineModal, #1600 AutoItemize dialog, #1596 categoryMapping, #1557 new shared type in worktree, #1553 EditAndMove, #1547/#1546/#1545 auto-itemize/LLM services, Konva CJS mocking, LocaleProvider wrapper pattern, #1478 PhotoAnnotator polish, #1435 diary UX, XHR/ToastProvider patterns, #1426 diary drafts, #1401 InvoiceBudgetLinesSection (parallel compaction — overlaps archive-2026-04-to-05.md)
-- [archive-2026-04.md](archive-2026-04.md) — CostBreakdownTable source-filter refactor chain (#1354/#1356/#1358/#1360), BudgetBar mock anti-pattern, JSX unicode escapes, CSS module selectors, de/budget.json smart-quote bug, ESM `jest.spyOn` anti-pattern, Fastify AJV `removeAdditional` (parallel compaction — overlaps archive-2026-04-to-05.md)
-- [archive-2026-03-gaps.md](archive-2026-03-gaps.md) — coverage Gaps 2/3/4/5/6/7, backup/restore #1146+#1201, useSearchParams debounce anti-patterns, ManagePage #1035, work items/HI rework #1033/#1034, areas+trades #1031/#1032, #1010, CalDAV/CardDAV #933, i18n #916, Modal component, dashboard UAT #729-731, dashboard cards #476, invoice budget lines #606, junction-table migration #603/#611, budget service factories #497/#498, #509, #482, #390, worktree symlink fixes (parallel compaction — overlaps archive-2026-02-to-03.md)
-- [archive-2026-02-03-features.md](archive-2026-02-03-features.md) — vendors/invoices/budget-sources/subsidy-programs pages (#143-#148), scheduling engine CPM (Story 6.1-6.4), dashboard/calendar/gantt polish, budget overview refinement #480, milestone CPM #484, work item linking 4.7 (parallel compaction — overlaps archive-2026-02-to-03.md)
-- [ESM mock vs static import order](gotcha-esm-mock-static-import-order.md) — lazy-import formatters/i18n in LocaleContext-mocked tests; big heredocs refused; calendar segment counts
+- [archive-2026-06.md](archive-2026-06.md) — auto-itemize, PhotoAnnotator touch, diary vendor fields (#1551-#1786)
+- [archive-2026-04-to-05.md](archive-2026-04-to-05.md) — budget-extraction/auto-itemize, CostBreakdownTable filters, Konva/locale/XHR mocks (#1354-#1603)
+- [archive-2026-02-to-03.md](archive-2026-02-to-03.md) — Gantt/scheduling, budget junction migration, areas/trades, vendor/subsidy pages (#358-#1201)
+- [archive-2026-05.md](archive-2026-05.md) — React19 iframe, PhotoViewer/konva, EditBudgetLineModal, AutoItemize dialog, LLM services (overlaps 04-to-05)
+- [archive-2026-04.md](archive-2026-04.md) — CostBreakdownTable chain, BudgetBar mock anti-pattern, ESM spyOn anti-pattern, AJV removeAdditional (overlaps 04-to-05)
+- [archive-2026-03-gaps.md](archive-2026-03-gaps.md) — coverage gaps 2-7, backup/restore, ManagePage, CalDAV/CardDAV, i18n, Modal, dashboards (overlaps 02-to-03)
+- [archive-2026-02-03-features.md](archive-2026-02-03-features.md) — vendors/invoices/budget-sources/subsidies pages, CPM engine, calendar/gantt (overlaps 02-to-03)

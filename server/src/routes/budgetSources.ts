@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as budgetSourceService from '../services/budgetSourceService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import type {
   CreateBudgetSourceRequest,
   UpdateBudgetSourceRequest,
@@ -186,13 +187,23 @@ export default async function budgetSourceRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const budgetSource = budgetSourceService.updateBudgetSource(
+      const { result: budgetSource, undo } = runUndoable(
         fastify.db,
-        request.params.id,
-        request.body,
-        fastify.config.vatRate,
+        undoStore,
+        {
+          userId: request.user.id,
+          subject: { type: 'budget_source', id: request.params.id },
+          reschedules: false,
+        },
+        () =>
+          budgetSourceService.updateBudgetSource(
+            fastify.db,
+            request.params.id,
+            request.body,
+            fastify.config.vatRate,
+          ),
       );
-      return reply.status(200).send({ budgetSource });
+      return reply.status(200).send(undo ? { budgetSource, undo } : { budgetSource });
     },
   );
 

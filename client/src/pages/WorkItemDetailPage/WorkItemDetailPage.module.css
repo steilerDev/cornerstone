@@ -158,23 +158,6 @@
   color: var(--color-text-secondary);
 }
 
-.statusSelect {
-  padding: 0.625rem 1rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  background: var(--color-bg-primary);
-  cursor: pointer;
-  transition: border-color 0.15s;
-}
-
-.statusSelect:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
 /* Content Grid */
 .contentGrid {
   display: grid;
@@ -749,94 +732,6 @@
 
 .deleteWorkItemButton:hover {
   background: var(--color-danger-hover);
-}
-
-/* Modal */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-}
-
-.modalBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-overlay);
-}
-
-.modalContent {
-  position: relative;
-  background: var(--color-bg-primary);
-  border-radius: 0.5rem;
-  padding: 2rem;
-  max-width: 500px;
-  width: 100%;
-  box-shadow: var(--shadow-xl-strong);
-}
-
-.modalTitle {
-  font-size: 1.25rem;
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 1rem 0;
-}
-
-.modalText {
-  color: var(--color-text-muted);
-  line-height: 1.6;
-  margin: 0 0 1.5rem 0;
-}
-
-.modalActions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
-}
-
-.modalCancelButton,
-.modalDeleteButton {
-  padding: 0.625rem 1.5rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-  transition: var(--transition-button);
-  border: none;
-}
-
-.modalCancelButton {
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-strong);
-  color: var(--color-text-secondary);
-}
-
-.modalCancelButton:hover:not(:disabled) {
-  background: var(--color-bg-tertiary);
-}
-
-.modalDeleteButton {
-  background: var(--color-danger);
-  color: var(--color-danger-text);
-}
-
-.modalDeleteButton:hover:not(:disabled) {
-  background: var(--color-danger-hover);
-}
-
-.modalCancelButton:disabled,
-.modalDeleteButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
 }
 
 /* Section header with inline action */

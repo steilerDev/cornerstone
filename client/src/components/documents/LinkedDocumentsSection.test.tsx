@@ -517,8 +517,8 @@ describe('LinkedDocumentsSection', () => {
       // Click the Unlink button on the card
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
 
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
-      expect(screen.getByText(/Unlink Document\?/i)).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByText('Unlink Document link-1?')).toBeInTheDocument();
     });
 
     it('Cancel button dismisses the confirmation dialog', async () => {
@@ -529,12 +529,14 @@ describe('LinkedDocumentsSection', () => {
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       const cancelBtn = screen.getByRole('button', { name: 'Cancel' });
       expect(cancelBtn).toHaveTextContent(/^Cancel$/);
       fireEvent.click(cancelBtn);
-      expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('alertdialog', { name: /Unlink Document/i }),
+      ).not.toBeInTheDocument();
     });
 
     it('Cancel button receives focus when unlink confirmation dialog opens', async () => {
@@ -546,7 +548,7 @@ describe('LinkedDocumentsSection', () => {
 
       // Open the unlink confirmation dialog
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       // Focus is moved to Cancel button via setTimeout(..., 0) in useEffect
       await waitFor(() => {
@@ -567,7 +569,7 @@ describe('LinkedDocumentsSection', () => {
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
 
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Unlink$/i }));
@@ -591,7 +593,9 @@ describe('LinkedDocumentsSection', () => {
       });
 
       await waitFor(() =>
-        expect(screen.queryByRole('dialog', { name: /Unlink Document/i })).not.toBeInTheDocument(),
+        expect(
+          screen.queryByRole('alertdialog', { name: /Unlink Document/i }),
+        ).not.toBeInTheDocument(),
       );
     });
   });
@@ -632,8 +636,8 @@ describe('LinkedDocumentsSection', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-9/i }));
 
-      const dialog = screen.getByRole('dialog', { name: /Unlink Document/i });
-      expect(dialog).toHaveTextContent(`\u201C${enDocuments.linkedDocuments.thisDocument}\u201D`);
+      const dialog = screen.getByRole('alertdialog', { name: /Unlink This document/i });
+      expect(dialog).toHaveTextContent(`"${enDocuments.linkedDocuments.thisDocument}"`);
     });
 
     it('announces the translated "document" fallback after a confirmed unlink', async () => {
@@ -723,7 +727,7 @@ describe('LinkedDocumentsSection', () => {
       render(<LinkedDocumentsSection entityType="invoice" entityId="inv-xyz" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-inv-1')).toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-inv-1/i }));
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
       // The unlink modal body should mention "this invoice" for invoice entity
       expect(screen.getByText(/this invoice/i)).toBeInTheDocument();
     });
@@ -779,7 +783,7 @@ describe('LinkedDocumentsSection', () => {
       render(<LinkedDocumentsSection entityType="work_item" entityId="wi-abc" />);
       await waitFor(() => expect(screen.getByTestId('linked-card-link-1')).toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: /Unlink link-1/i }));
-      expect(screen.getByRole('dialog', { name: /Unlink Document/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /Unlink Document/i })).toBeInTheDocument();
       // The unlink modal body should mention "this work item" for work_item entity
       expect(screen.getByText(/this work item/i)).toBeInTheDocument();
     });

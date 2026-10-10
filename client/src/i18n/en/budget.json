@@ -119,9 +119,7 @@
       "saving": "Saving...",
       "cancel": "Cancel",
       "edit": "Edit",
-      "delete": "Delete",
-      "deleting": "Deleting...",
-      "deleteConfirm": "Delete Source"
+      "delete": "Delete"
     },
     "sourcesList": {
       "title": "Sources",
@@ -129,9 +127,6 @@
       "system": "System"
     },
     "deleteModal": {
-      "title": "Delete Budget Source",
-      "confirm": "Are you sure you want to delete the budget source \"{{name}}\"?",
-      "warning": "This action cannot be undone. The source will be permanently removed.",
       "conflictError": "This budget source cannot be deleted because it is currently referenced by one or more budget entries."
     },
     "messages": {
@@ -148,11 +143,6 @@
       "savings": "Savings",
       "other": "Other",
       "discretionary": "Discretionary"
-    },
-    "sourceStatus": {
-      "active": "Active",
-      "exhausted": "Exhausted",
-      "closed": "Closed"
     },
     "barChart": {
       "overAllocated": "Over-allocated by {{amount}}",
@@ -297,7 +287,6 @@
       "cancel": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
-      "deleting": "Deleting...",
       "view": "View",
       "viewDetails": "View Details",
       "retry": "Retry"
@@ -315,9 +304,6 @@
     "modal": {
       "title": "Add Vendor",
       "description": "Add a vendor or contractor involved in your construction project.",
-      "deleteTitle": "Delete Vendor",
-      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
-      "deleteWarning": "This action cannot be undone.",
       "deleteError": "This vendor cannot be deleted because they have associated invoices or work items. Remove those references first."
     },
     "messages": {
@@ -325,6 +311,20 @@
       "updateError": "Failed to update vendor. Please try again.",
       "deleteError": "Failed to delete vendor. Please try again."
     }
+  },
+  "budgetLine": {
+    "edit": "Edit",
+    "delete": "Delete",
+    "editAria": "Edit budget line",
+    "editAriaNamed": "Edit budget line: {{description}}",
+    "item": "budget line",
+    "deleteAria": "Delete {{item}}",
+    "deleteAriaNamed": "Delete {{item}}: {{description}}"
+  },
+  "budgetSection": {
+    "noBudgetLines": "No budget lines yet. Add the first line to start tracking costs.",
+    "linkToInvoice": "Link to Invoice",
+    "subsidies": "Subsidies"
   },
   "vendorDetail": {
     "loading": "Loading vendor...",
@@ -378,13 +378,6 @@
       "editRow": "Edit",
       "deleteRow": "Delete"
     },
-    "deleteModal": {
-      "title": "Delete Vendor",
-      "confirm": "Are you sure you want to delete \"{{name}}\"?",
-      "warning": "This action cannot be undone.",
-      "delete": "Delete Vendor",
-      "deleting": "Deleting..."
-    },
     "invoiceForm": {
       "title": "Add Invoice",
       "invoiceNumber": "Invoice #",
@@ -398,12 +391,7 @@
       "adding": "Adding..."
     },
     "deleteInvoiceModal": {
-      "title": "Delete Invoice",
-      "confirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
-      "noNumber": "this invoice",
-      "warning": "This action cannot be undone.",
-      "delete": "Delete Invoice",
-      "deleting": "Deleting..."
+      "noNumber": "this invoice"
     },
     "quotedLabel": "Quoted",
     "quotedAmount": "Quoted Amount",
@@ -433,8 +421,6 @@
       "invoiceUpdateError": "Failed to update invoice. Please try again.",
       "invoiceDeleteError": "Failed to delete invoice. Please try again."
     },
-    "confirmDelete": "Confirm delete",
-    "cancelDelete": "Cancel delete",
     "unlinkFromInvoice": "Unlink from invoice"
   },
   "invoices": {
@@ -622,14 +608,10 @@
       "save": "Save Changes",
       "saving": "Saving...",
       "cancel": "Cancel",
-      "deleting": "Deleting...",
       "convertToFinal": "Convert to final invoice"
     },
     "modal": {
       "editTitle": "Edit Invoice",
-      "deleteTitle": "Delete Invoice",
-      "deleteConfirm": "Are you sure you want to delete invoice {{number}} for {{amount}}?",
-      "deleteWarning": "This action cannot be undone.",
       "deleteConfirmShort": "Are you sure you want to delete this invoice?"
     },
     "messages": {
@@ -676,7 +658,7 @@
       "assignParentRequired": "Please select a work item or household item",
       "modal": {
         "editTitle": "Edit Budget Line",
-        "removeTitle": "Remove Budget Line",
+        "removeTitle": "Remove this cost line from the invoice?",
         "removeConfirm": "This budget line will be unlinked from the invoice. The budget line itself will remain in the work item or household item.",
         "removeConfirmButton": "Remove",
         "removing": "Removing…"
@@ -748,10 +730,6 @@
         "claimed": "Submitted"
       },
       "menu": {
-        "markPaid": "Mark paid…",
-        "markClaimed": "Mark submitted…",
-        "revertToPending": "Set status back to “To pay”",
-        "revertToPaid": "Revert to paid",
         "edit": "Edit",
         "delete": "Delete",
         "ariaLabel": "Deposit actions for {{description}}"
@@ -759,11 +737,7 @@
       "modal": {
         "addTitle": "Add deposit",
         "editTitle": "Edit deposit",
-        "deleteTitle": "Delete deposit",
-        "deleteConfirm": "Delete this deposit? This cannot be undone.",
-        "deleteWarningPaidClaimed": "This progress payment is marked paid or submitted. Deleting it removes its contribution from the budget totals.",
-        "markPaidTitle": "Mark as paid",
-        "markClaimedTitle": "Mark as submitted"
+        "deleteWarningPaidClaimed": "This progress payment is marked paid or submitted. Deleting it removes its contribution from the budget totals."
       },
       "form": {
         "amount": "Amount",
@@ -797,17 +771,10 @@
         "loadError": "Failed to load deposits. Please try again.",
         "saveError": "Failed to save deposit. Please try again.",
         "deleteError": "Failed to delete deposit. Please try again.",
-        "revertError": "Failed to revert deposit status. Please try again.",
-        "revertNetworkError": "Can't reach the server, so the deposit status was not reverted. Check your connection and try again.",
-        "stateConfirmNetworkError": "Can't reach the server, so the deposit status was not updated. Check your connection and try again.",
         "amountRequired": "Amount must be a positive number.",
         "dueDateRequired": "Due date is required.",
         "paidDateRequired": "Paid date is required.",
         "claimedDateRequired": "Submitted date is required."
-      },
-      "stateConfirm": {
-        "paidDateLabel": "Paid date",
-        "claimedDateLabel": "Submitted date"
       }
     },
     "convertModal": {
@@ -980,14 +947,12 @@
       "cancel": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
-      "deleting": "Deleting...",
+      "editAria": "Edit {{name}}",
+      "deleteAria": "Delete {{name}}",
       "selectAll": "Select All",
       "deselectAll": "Deselect All"
     },
     "modal": {
-      "deleteTitle": "Delete Subsidy Program",
-      "deleteConfirm": "Are you sure you want to delete the program \"{{name}}\"?",
-      "deleteWarning": "This action cannot be undone. The program will be permanently removed.",
       "deleteError": "This subsidy program cannot be deleted because it is currently referenced by one or more budget entries."
     },
     "messages": {
@@ -1164,10 +1129,7 @@
     "save": "Save",
     "saving": "Saving...",
     "cancel": "Cancel",
-    "cancelConfirmTitle": "Discard Changes?",
     "cancelConfirmBody": "You have unsaved changes. Are you sure you want to discard them?",
-    "discardChanges": "Discard Changes",
-    "keepEditing": "Keep Editing",
     "invalidDocumentId": "Invalid document ID",
     "vendor": "Vendor",
     "vendorPlaceholder": "Search vendors…",

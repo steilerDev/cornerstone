@@ -4,6 +4,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { ROUTES } from '../fixtures/testData.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 
 interface ProfileInfo {
   email: string;
@@ -41,6 +42,8 @@ export class ProfilePage {
   readonly generateTokenButton: Locator;
   readonly regenerateTokenButton: Locator;
   readonly revokeTokenButton: Locator;
+  /** Revoke confirmation (testid prefix dav-revoke, role alertdialog). */
+  readonly revokeDialog: ConfirmDialogControl;
   readonly tokenDisplay: Locator;
   readonly downloadProfileLink: Locator;
 
@@ -90,6 +93,7 @@ export class ProfilePage {
       exact: true,
     });
     this.revokeTokenButton = page.getByRole('button', { name: 'Revoke Token', exact: true });
+    this.revokeDialog = new ConfirmDialogControl(page, 'dav-revoke');
     // The token is shown in a <code> element inside the token display box
     this.tokenDisplay = page.locator('[class*="tokenValue"]');
     this.downloadProfileLink = page.getByRole('link', {
@@ -221,16 +225,18 @@ export class ProfilePage {
   }
 
   /**
-   * Revoke the DAV token by clicking "Revoke Token" and accepting the confirm dialog.
+   * Revoke the DAV token by clicking "Revoke Token" and confirming the ConfirmDialog
+   * ("Revoke calendar access?", #2209 - no native window.confirm any more).
    * Waits for the DELETE /api/users/me/dav/token response.
    */
   async revokeToken(): Promise<void> {
-    this.page.once('dialog', (dialog) => void dialog.accept());
     const responsePromise = this.page.waitForResponse(
       (r) => r.url().includes('/api/users/me/dav/token') && r.request().method() === 'DELETE',
     );
     await this.revokeTokenButton.click();
+    await this.revokeDialog.confirm();
     await responsePromise;
+    await this.revokeDialog.dialog.waitFor({ state: 'hidden' });
   }
 
   /**

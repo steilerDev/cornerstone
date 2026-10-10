@@ -69,7 +69,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Status select is visible and shows the work item status', async ({ page, testPrefix }) => {
+  test('Status chip is visible and shows the work item status', async ({ page, testPrefix }) => {
     const detailPage = new WorkItemDetailPage(page);
     let createdId: string | null = null;
 
@@ -81,9 +81,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 
       await detailPage.goto(createdId);
 
-      await expect(detailPage.statusSelect).toBeVisible();
-      // The select should show "In Progress"
-      await expect(detailPage.statusSelect).toHaveValue('in_progress');
+      await expect(detailPage.statusMenu.trigger).toBeVisible();
+      // The chip shows "In progress" (#2209: the old status select is gone)
+      await expect(detailPage.statusMenu.trigger).toHaveText('In progress');
+      await expect(page.locator('[class*="statusSelect"]')).toHaveCount(0);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -412,9 +413,11 @@ test.describe('Delete work item (Scenario 7)', { tag: '@responsive' }, () => {
     await expect(detailPage.deleteButton).toBeVisible();
     await detailPage.openDeleteModal();
 
-    // Modal shows the correct heading
+    // Dialog asks "Delete <title>?" (names the task)
     await expect(
-      detailPage.deleteModal.getByRole('heading', { name: /Delete Work Item\?/i }),
+      detailPage.deleteModal.getByRole('heading', {
+        name: `Delete ${testPrefix} Delete Redirect Test?`,
+      }),
     ).toBeVisible();
 
     // Confirm deletion — navigates to /project/work-items

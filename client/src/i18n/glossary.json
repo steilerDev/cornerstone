@@ -2172,6 +2172,71 @@
       "definition": "The phone and tablet sheet that holds every place not on the bottom bar and your personal settings.",
       "doNotUse": [],
       "formerly": []
+    },
+    "Undo": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Undo"
+      },
+      "de": {
+        "verb": "Rückgängig"
+      },
+      "deSource": "approved",
+      "definition": "Reverse the last change while its undo window is still open.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Today": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Today"
+      },
+      "de": {
+        "singular": "Heute"
+      },
+      "deSource": "approved",
+      "definition": "The current date, offered as a one-tap choice when setting a date.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Discard": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Discard"
+      },
+      "de": {
+        "verb": "Verwerfen"
+      },
+      "deSource": "approved",
+      "definition": "Throw away unsaved changes or a draft.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Keep editing": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Keep editing"
+      },
+      "de": {
+        "verb": "Weiter bearbeiten"
+      },
+      "deSource": "approved",
+      "definition": "Close a discard prompt and return to the open form.",
+      "doNotUse": [],
+      "formerly": []
+    },
+    "Pick a date": {
+      "groups": ["verb"],
+      "en": {
+        "verb": "Pick a date"
+      },
+      "de": {
+        "verb": "Datum wählen"
+      },
+      "deSource": "approved",
+      "definition": "Open a date control to choose when a status change happened.",
+      "doNotUse": [],
+      "formerly": []
     }
   }
 }

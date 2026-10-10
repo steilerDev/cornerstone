@@ -650,7 +650,7 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     page: Page,
     tab: 'areas' | 'trades',
     name: string,
-  ): Promise<Locator> {
+  ): Promise<{ dialog: Locator; confirm: Locator }> {
     await page.goto(`${ROUTES.manage}?tab=${tab}`);
     await page
       .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
@@ -660,9 +660,11 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     const button = row.getByRole('button', { name: 'Delete', exact: true });
     await button.waitFor({ state: 'visible' });
     await button.click();
-    const dialog = page.getByRole('dialog');
+    // #2209: the shared ConfirmDialog (alertdialog); test-id prefix is per host
+    const prefix = tab === 'areas' ? 'area-delete' : 'trade-delete';
+    const dialog = page.getByRole('alertdialog', { name: `Delete ${name}?` });
     await expect(dialog).toBeVisible();
-    return dialog;
+    return { dialog, confirm: dialog.getByTestId(`${prefix}-confirm`) };
   }
 
   test('Area delete dialog shows the rewritten warning; an area in use cannot be deleted', async ({
@@ -674,22 +676,23 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     cleanups.push(() => deleteAreaViaApi(page, areaId));
     await makeWorkItem(page, `${testPrefix} Test Task In Cellar`, { areaId });
 
-    const dialog = await openDeleteDialog(page, 'areas', areaName);
+    const { dialog, confirm } = await openDeleteDialog(page, 'areas', areaName);
     await expect(dialog).toContainText(i18nValue('en', 'settings', 'manage.areas.deleteWarning'));
 
     const deleteResponse = page.waitForResponse(
       (resp) =>
         resp.url().includes(`${API.areas}/${areaId}`) && resp.request().method() === 'DELETE',
     );
-    await dialog.locator('[class*="confirmDeleteButton"]').click();
+    await confirm.click();
     expect((await deleteResponse).status()).toBe(409);
 
-    // The conflict message is the page's error banner (the dialog stays open behind it)
+    // The conflict message is shown inside the dialog and the Delete action is hidden (409)
     await expect(
-      page.getByRole('alert').filter({
+      dialog.getByRole('alert').filter({
         hasText: i18nValue('en', 'settings', 'manage.areas.messages.deleteConflict'),
       }),
     ).toBeVisible();
+    await expect(confirm).toBeHidden();
 
     // The area still exists
     const stillThere = await page.request.get(`${API.areas}/${areaId}`);
@@ -714,22 +717,23 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     const { vendor } = (await vendorResp.json()) as { vendor: { id: string } };
     cleanups.push(() => deleteVendorViaApi(page, vendor.id));
 
-    const dialog = await openDeleteDialog(page, 'trades', tradeName);
+    const { dialog, confirm } = await openDeleteDialog(page, 'trades', tradeName);
     await expect(dialog).toContainText(i18nValue('en', 'settings', 'manage.trades.deleteWarning'));
 
     const deleteResponse = page.waitForResponse(
       (resp) =>
         resp.url().includes(`/api/trades/${trade.id}`) && resp.request().method() === 'DELETE',
     );
-    await dialog.locator('[class*="confirmDeleteButton"]').click();
+    await confirm.click();
     expect((await deleteResponse).status()).toBe(409);
 
-    // The conflict message is the page's error banner (the dialog stays open behind it)
+    // The conflict message is shown inside the dialog and the Delete action is hidden (409)
     await expect(
-      page.getByRole('alert').filter({
+      dialog.getByRole('alert').filter({
         hasText: i18nValue('en', 'settings', 'manage.trades.messages.deleteConflict'),
       }),
     ).toBeVisible();
+    await expect(confirm).toBeHidden();
     const stillThere = await page.request.get(`/api/trades/${trade.id}`);
     expect(stillThere.ok()).toBe(true);
   });

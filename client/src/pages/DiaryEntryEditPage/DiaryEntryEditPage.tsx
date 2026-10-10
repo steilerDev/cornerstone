@@ -38,8 +38,9 @@ import { DiaryEntryForm } from '../../components/diary/DiaryEntryForm/DiaryEntry
 import { PhotoUpload } from '../../components/photos/PhotoUpload.js';
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
-import { Modal } from '../../components/Modal/Modal.js';
-import { FormError } from '../../components/FormError/FormError.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useFormatters } from '../../lib/formatters.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import {
   forwardOriginState,
@@ -95,6 +96,7 @@ export default function DiaryEntryEditPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
 
   // Discard draft modal
   const [showDiscardModal, setShowDiscardModal] = useState(false);
@@ -330,7 +332,8 @@ export default function DiaryEntryEditPage() {
       if (!issueSeverity) {
         errors.issueSeverity = t('edit.issueSeverityRequired');
       }
-      if (!issueResolutionStatus) {
+      // The defect status is edited here only while the entry is a draft (R2-D1).
+      if (entry.status === 'draft' && !issueResolutionStatus) {
         errors.issueResolutionStatus = t('edit.issueResolutionStatusRequired');
       }
       if ((issueSignatures ?? []).some((sig) => !isSignatureComplete(sig))) {
@@ -497,6 +500,7 @@ export default function DiaryEntryEditPage() {
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const handleDelete = async () => {
@@ -509,7 +513,12 @@ export default function DiaryEntryEditPage() {
       showToast('success', t('editPage.deleteSuccess'));
       navigate(routeUrl('diary'), { replace: true });
     } catch (err) {
-      setDeleteError(t('editPage.deleteError'));
+      setDeleteBlocked(err instanceof ApiClientError && err.statusCode === 409);
+      setDeleteError(
+        err instanceof ApiClientError
+          ? translateApiError(err.error.code, tErrors)
+          : t('editPage.deleteError'),
+      );
       console.error('Failed to delete diary entry:', err);
       setIsDeleting(false);
     }
@@ -518,6 +527,7 @@ export default function DiaryEntryEditPage() {
   const handleDiscard = async () => {
     if (!entry || entry.status !== 'draft') return;
     setIsDeleting(true);
+    setDeleteError('');
 
     try {
       await deleteDiaryEntry(entry.id);
@@ -531,6 +541,11 @@ export default function DiaryEntryEditPage() {
   };
 
   const entryTitle = useDiaryEntryTitle(entry);
+  const { formatDate } = useFormatters();
+  const deleteConsequences = useDeleteImpact(
+    'diary_entry',
+    showDeleteModal ? (entry?.id ?? null) : null,
+  );
   const isDraft = entry?.status === 'draft';
   const backToDiary = tc('navigation.backTo', { origin: tc('navigation.siteDiary') });
   const h1Text = isLoading
@@ -674,6 +689,7 @@ export default function DiaryEntryEditPage() {
           onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
+          showResolutionStatus={isDraft}
           issueSignatures={issueSignatures}
           onIssueSignaturesChange={setIssueSignatures}
           // signature enhancements
@@ -795,85 +811,53 @@ export default function DiaryEntryEditPage() {
           onPhotoChanged={photosResult.updatePhotoInList}
           startInAnnotator={openAsAnnotator}
           editable={!isLocked}
-          onDelete={(photoId) => {
-            photosResult.deletePhoto(photoId);
+          onDelete={async (photoId) => {
+            await photosResult.deletePhoto(photoId);
             setSelectedPhotoIndex(null);
           }}
         />
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteModal && (
-        <Modal
-          title={t('editPage.deleteTitle')}
-          onClose={() => {
+        <ConfirmDialog
+          title={tc('confirmDialog.deleteTitle', {
+            name: entryTitle ?? formatDate(entry.entryDate),
+          })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tc('button.delete')}
+          busyLabel={tc('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          blocked={deleteBlocked}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => {
             if (!isDeleting) closeDeleteModal();
           }}
-          footer={
-            <>
-              <button
-                type="button"
-                className={shared.btnSecondary}
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-              >
-                {t('editPage.deleteCancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={shared.btnConfirmDelete}
-                  onClick={() => void handleDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('editPage.deleting') : t('editPage.deleteConfirm')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <FormError message={deleteError || null} />
-          <p>{t('editPage.deleteMessage')}</p>
-        </Modal>
+          testIdPrefix="diary-edit-delete"
+        />
       )}
 
-      {/* Discard draft confirmation modal */}
+      {/* Discard draft confirmation */}
       {showDiscardModal && entry.status === 'draft' && (
-        <Modal
-          title={t('editPage.discardDraftTitle')}
-          onClose={() => {
+        <ConfirmDialog
+          title={tc('confirmDialog.discardEntryTitle')}
+          lead={t('editPage.discardDraftMessage')}
+          confirmLabel={tc('confirmDialog.discard')}
+          busyLabel={tc('confirmDialog.discarding')}
+          cancelLabel={tc('confirmDialog.keepEntry')}
+          busy={isDeleting}
+          error={deleteError || null}
+          onConfirm={() => void handleDiscard()}
+          onCancel={() => {
             if (!isDeleting) {
               setDeleteError('');
               setShowDiscardModal(false);
             }
           }}
-          footer={
-            <>
-              <button
-                type="button"
-                className={shared.btnSecondary}
-                onClick={() => {
-                  setDeleteError('');
-                  setShowDiscardModal(false);
-                }}
-                disabled={isDeleting}
-              >
-                {t('editPage.discardDraftCancel')}
-              </button>
-              <button
-                type="button"
-                className={shared.btnConfirmDelete}
-                onClick={() => void handleDiscard()}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('editPage.discarding') : t('editPage.discardDraftConfirm')}
-              </button>
-            </>
-          }
-        >
-          <FormError message={deleteError || null} />
-          <p>{t('editPage.discardDraftMessage')}</p>
-        </Modal>
+          testIdPrefix="diary-discard"
+        />
       )}
     </div>
   );

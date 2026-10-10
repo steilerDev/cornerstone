@@ -40,6 +40,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import React from 'react';
 import type { Photo } from '@cornerstone/shared';
+import { ApiClientError } from '../../lib/apiClient.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyMock = jest.MockedFunction<(...args: any[]) => any>;
@@ -101,21 +102,38 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
 
 // ─── Mock Modal to avoid portal/focus issues ──────────────────────────────────
 
+let lastModalProps: {
+  skipOpenerRef?: { current: boolean };
+  returnFocusRef?: unknown;
+} = {};
+
 jest.unstable_mockModule('../Modal/Modal.js', () => ({
   Modal: ({
     title,
     children,
     footer,
     onClose,
+    skipOpenerRef,
+    returnFocusRef,
   }: {
     title: string;
     children: React.ReactNode;
     footer?: React.ReactNode;
     onClose: () => void;
+    skipOpenerRef?: { current: boolean };
+    returnFocusRef?: unknown;
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'mock-modal', role: 'dialog', 'aria-label': title },
+      {
+        'data-testid': 'mock-modal',
+        role: 'dialog',
+        'aria-label': title,
+        ref: () => {
+          // Capture what the dialog passes to Modal (committed on every render).
+          lastModalProps = { skipOpenerRef, returnFocusRef };
+        },
+      },
       React.createElement('button', { 'data-testid': 'modal-close', onClick: onClose }, 'Close'),
       children,
       footer,
@@ -716,6 +734,199 @@ describe('PhotoViewer', () => {
     await waitFor(() => {
       expect(mockOnDelete).toHaveBeenCalledWith('photo-to-delete');
       expect(mockOnClose).toHaveBeenCalled();
+    });
+  });
+
+  // ─── #2209: ConfirmDialog sites (delete photo, clear annotations) ──────────
+
+  describe('confirm dialogs (#2209)', () => {
+    function openDelete(photos = [makePhoto({ id: 'p1' }), makePhoto({ id: 'p2' })]) {
+      renderViewer(photos, 0, true, false, mockOnDelete);
+      fireEvent.click(screen.getByTestId('photo-viewer-delete'));
+    }
+
+    function openClear() {
+      renderViewer(
+        [makePhoto({ id: 'p1', annotatedAt: '2026-05-17T10:00:00.000Z' }), makePhoto({ id: 'p2' })],
+        0,
+      );
+      fireEvent.click(screen.getByTestId('photo-viewer-clear-annotations'));
+    }
+
+    it('delete dialog is titled and uses the photo-delete test ids', () => {
+      openDelete();
+      expect(screen.getByTestId('mock-modal')).toHaveAttribute('aria-label', 'Delete this photo?');
+      expect(screen.getByText('This photo will be permanently removed.')).toBeInTheDocument();
+      expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
+      expect(screen.getByTestId('photo-delete-confirm')).toHaveTextContent('Delete');
+      expect(screen.getByTestId('photo-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('delete: Cancel closes the dialog without deleting', () => {
+      openDelete();
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      expect(screen.queryByTestId('mock-modal')).not.toBeInTheDocument();
+      expect(mockOnDelete).not.toHaveBeenCalled();
+    });
+
+    it('delete: confirming deletes the photo through the confirm test id', async () => {
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(mockOnDelete).toHaveBeenCalledWith('only'));
+    });
+
+    it('delete: awaits onDelete, shows busy while pending, and closes the viewer only on success', async () => {
+      let resolve!: () => void;
+      mockOnDelete.mockImplementation(() => new Promise<void>((r) => (resolve = r)));
+      openDelete([makePhoto({ id: 'only' })]);
+      fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('photo-delete-confirm')).toHaveTextContent('Deleting…'),
+      );
+      expect(screen.getByTestId('photo-delete-confirm')).toHaveAttribute('aria-disabled', 'true');
+      expect(mockOnClose).not.toHaveBeenCalled();
+      // Cancel and Escape are ignored while busy
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
+
+      await act(async () => resolve());
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('delete: a plain failure keeps the dialog and viewer open with the generic message', async () => {
+      mockOnDelete.mockRejectedValue(new Error('RAW-LOCAL'));
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent('The photo could not be deleted.');
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
+      // not busy any more: the action is available for a retry
+      expect(screen.getByTestId('photo-delete-confirm')).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('delete: an API failure shows the translated message, never the server text', async () => {
+      mockOnDelete.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(
+        'The requested resource was not found.',
+      );
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+      expect(mockOnClose).not.toHaveBeenCalled();
+    });
+
+    it('delete: the error is cleared on cancel and when the dialog is reopened', async () => {
+      mockOnDelete.mockRejectedValue(new Error('x'));
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+      await screen.findByRole('alert');
+
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      expect(screen.queryByTestId('mock-modal')).not.toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('photo-viewer-delete'));
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('delete: a retry after a failure succeeds and closes the viewer', async () => {
+      mockOnDelete.mockRejectedValueOnce(new Error('x')).mockResolvedValueOnce(undefined);
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+      await screen.findByRole('alert');
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+      expect(mockOnDelete).toHaveBeenCalledTimes(2);
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('delete: no returnFocusRef (falls back to the h1) and confirm skips the deleted photo opener', () => {
+      openDelete([makePhoto({ id: 'only' })]);
+      expect(lastModalProps.returnFocusRef).toBeUndefined();
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+      fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      expect(lastModalProps.skipOpenerRef?.current).toBe(true);
+    });
+
+    it('delete: cancel after a failed confirm resets the skip flag', async () => {
+      mockOnDelete.mockRejectedValue(new Error('x'));
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+      await screen.findByRole('alert');
+      expect(lastModalProps.skipOpenerRef?.current).toBe(true);
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+    });
+
+    it('clear markup: keeps clearBtnRef and returns to the opener after a confirmed clear', () => {
+      openClear();
+      expect(lastModalProps.returnFocusRef).toBeDefined();
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+      fireEvent.click(screen.getByTestId('photo-markup-clear-confirm'));
+      // restoreToOpenerOnConfirm: the clear button is not deleted, so the opener is restored
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+    });
+
+    it('clear annotations: dialog is titled, lists the lead and uses the photo-markup-clear ids', () => {
+      openClear();
+      expect(screen.getByTestId('mock-modal')).toHaveAttribute('aria-label', 'Clear annotations?');
+      expect(
+        screen.getByText('This will remove all annotations from this photo.'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('photo-markup-clear-confirm')).toHaveTextContent(
+        'Clear annotations',
+      );
+      fireEvent.click(screen.getByTestId('photo-markup-clear-cancel'));
+      expect(screen.queryByTestId('mock-modal')).not.toBeInTheDocument();
+      expect(mockClearAnnotation).not.toHaveBeenCalled();
+    });
+
+    it('clear annotations: confirming calls clearAnnotation for the photo', async () => {
+      mockClearAnnotation.mockResolvedValue(makePhoto({ id: 'p1', annotatedAt: null }));
+      openClear();
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-markup-clear-confirm'));
+        await Promise.resolve();
+      });
+      await waitFor(() => expect(mockClearAnnotation).toHaveBeenCalledWith('p1'));
+    });
+
+    it.each([
+      ['delete', openDelete],
+      ['clear annotations', openClear],
+    ] as const)('%s dialog open: the viewer ignores Escape and the arrow keys', (_name, open) => {
+      open();
+      fireEvent.keyDown(window, { key: 'Escape' });
+      fireEvent.keyDown(window, { key: 'ArrowRight' });
+      fireEvent.keyDown(window, { key: 'ArrowLeft' });
+      expect(mockOnClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('mock-modal')).toBeInTheDocument();
+    });
+
+    it('with no dialog open the viewer still closes on Escape (guard is lifted)', () => {
+      openDelete();
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
     });
   });
 });

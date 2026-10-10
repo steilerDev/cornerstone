@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { jest, describe, it, expect, afterEach } from '@jest/globals';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { KeyboardShortcutsHelp } from './KeyboardShortcutsHelp.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
@@ -12,6 +12,11 @@ import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 // and focus trap are all inherited from Modal (covered generically by Modal.test.tsx).
 // These tests verify KeyboardShortcutsHelp's own rendering (table/rows) plus that
 // it correctly wires into Modal (onClose plumbing, dialog semantics).
+
+/** The page's own shortcut table (the first one); the "Everywhere" table follows it. */
+function pageTable(): HTMLElement {
+  return screen.getAllByRole('table')[0]!;
+}
 
 describe('KeyboardShortcutsHelp', () => {
   const mockShortcuts: KeyboardShortcut[] = [
@@ -52,7 +57,7 @@ describe('KeyboardShortcutsHelp', () => {
     const onClose = jest.fn<() => void>();
     render(<KeyboardShortcutsHelp shortcuts={mockShortcuts} onClose={onClose} />);
 
-    const rows = screen.getAllByRole('row');
+    const rows = within(pageTable()).getAllByRole('row');
     // Header row + 3 data rows
     expect(rows).toHaveLength(4);
 
@@ -112,7 +117,7 @@ describe('KeyboardShortcutsHelp', () => {
 
     // Modal portals into document.body, so query document instead of the
     // render() container.
-    const kbdElements = document.querySelectorAll('kbd');
+    const kbdElements = pageTable().querySelectorAll('kbd');
     expect(kbdElements).toHaveLength(3);
 
     expect(kbdElements[0]!).toHaveTextContent('n');
@@ -133,7 +138,7 @@ describe('KeyboardShortcutsHelp', () => {
     render(<KeyboardShortcutsHelp shortcuts={[]} onClose={onClose} />);
 
     expect(screen.getByText('Keyboard Shortcuts')).toBeInTheDocument();
-    const rows = screen.getAllByRole('row');
+    const rows = within(pageTable()).getAllByRole('row');
     // Only header row, no data rows
     expect(rows).toHaveLength(1);
   });
@@ -146,7 +151,7 @@ describe('KeyboardShortcutsHelp', () => {
     ];
     render(<KeyboardShortcutsHelp shortcuts={shortcutsWithBlank} onClose={onClose} />);
 
-    const rows = screen.getAllByRole('row');
+    const rows = within(pageTable()).getAllByRole('row');
     // Header row + 3 data rows (the blank-description shortcut is filtered out)
     expect(rows).toHaveLength(4);
     expect(screen.queryByText('x')).not.toBeInTheDocument();
@@ -162,7 +167,8 @@ describe('KeyboardShortcutsHelp', () => {
         />,
       );
       expect(screen.getByText('This page has no shortcuts of its own.')).toBeInTheDocument();
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('table')).toHaveLength(1);
+      expect(screen.queryByText('Key')).not.toBeInTheDocument();
     });
 
     it('treats shortcuts without a description as empty', () => {
@@ -174,7 +180,8 @@ describe('KeyboardShortcutsHelp', () => {
         />,
       );
       expect(screen.getByText('Nothing here')).toBeInTheDocument();
-      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+      expect(screen.getAllByRole('table')).toHaveLength(1);
+      expect(screen.queryByText('Key')).not.toBeInTheDocument();
     });
 
     it('keeps the table when shortcuts exist, ignoring emptyMessage', () => {
@@ -185,13 +192,44 @@ describe('KeyboardShortcutsHelp', () => {
           onClose={() => {}}
         />,
       );
-      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getAllByRole('table')).toHaveLength(2);
+      expect(screen.getByText('Show keyboard shortcuts')).toBeInTheDocument();
       expect(screen.queryByText('Nothing here')).not.toBeInTheDocument();
     });
 
     it('keeps the empty table when no emptyMessage is given (existing callers)', () => {
       render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
-      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getAllByRole('table')).toHaveLength(2);
+      expect(screen.getByText('Key')).toBeInTheDocument();
+    });
+  });
+
+  describe('Everywhere table', () => {
+    const platformSpy = () => jest.spyOn(navigator, 'platform', 'get');
+
+    afterEach(() => {
+      jest.restoreAllMocks();
+    });
+
+    it('lists the undo shortcut under an "Everywhere" heading, even with an empty page list', () => {
+      render(<KeyboardShortcutsHelp shortcuts={[]} emptyMessage="Nothing" onClose={() => {}} />);
+      expect(screen.getByRole('heading', { name: 'Everywhere' })).toBeInTheDocument();
+      const table = screen.getAllByRole('table').at(-1)!;
+      expect(within(table).getByText('Undo the last change')).toBeInTheDocument();
+    });
+
+    it('shows Ctrl Z on non-Apple platforms', () => {
+      platformSpy().mockReturnValue('Win32');
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      expect(screen.getByText('Ctrl Z')).toBeInTheDocument();
+      expect(screen.queryByText('⌘Z')).toBeNull();
+    });
+
+    it('shows ⌘Z on Apple platforms', () => {
+      platformSpy().mockReturnValue('MacIntel');
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      expect(screen.getByText('⌘Z')).toBeInTheDocument();
+      expect(screen.queryByText('Ctrl Z')).toBeNull();
     });
   });
 });

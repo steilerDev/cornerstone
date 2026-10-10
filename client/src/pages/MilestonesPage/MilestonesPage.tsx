@@ -9,7 +9,9 @@ import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -38,6 +40,9 @@ export function MilestonesPage() {
   // Delete confirmation state
   const [deletingMilestone, setDeletingMilestone] = useState<MilestoneSummary | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact('milestone', deletingMilestone?.id ?? null);
 
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
@@ -97,6 +102,8 @@ export function MilestonesPage() {
   };
 
   const handleDeleteClick = (milestone: MilestoneSummary) => {
+    setDeleteError(null);
+    setDeleteBlocked(false);
     setDeletingMilestone(milestone);
   };
 
@@ -104,17 +111,19 @@ export function MilestonesPage() {
     if (!deletingMilestone) return;
 
     setIsDeleting(true);
-    setError('');
+    setDeleteError(null);
 
     try {
       await deleteMilestone(deletingMilestone.id);
+      focusPageHeading();
       setDeletingMilestone(null);
       reloadMilestones();
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(translateApiError(err.error.code, tErrors));
+        setDeleteBlocked(err.statusCode === 409);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
-        setError(t('milestones.deleteError'));
+        setDeleteError(t('milestones.deleteError'));
       }
     } finally {
       setIsDeleting(false);
@@ -414,37 +423,21 @@ export function MilestonesPage() {
         }}
       />
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingMilestone && (
-        <Modal
-          title={t('milestones.delete.confirm')}
-          onClose={() => !isDeleting && setDeletingMilestone(null)}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => setDeletingMilestone(null)}
-                disabled={isDeleting}
-              >
-                {t('milestones.delete.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnConfirmDelete}
-                onClick={confirmDelete}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('milestones.delete.deleting') : t('milestones.delete.delete')}
-              </button>
-            </>
-          }
-        >
-          <p>
-            {t('milestones.delete.message')} &quot;<strong>{deletingMilestone.title}</strong>
-            &quot;?
-          </p>
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: deletingMilestone.title })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError}
+          blocked={deleteBlocked}
+          onConfirm={() => void confirmDelete()}
+          onCancel={() => setDeletingMilestone(null)}
+          testIdPrefix="milestone-list-delete"
+        />
       )}
 
       {/* Keyboard shortcuts help */}

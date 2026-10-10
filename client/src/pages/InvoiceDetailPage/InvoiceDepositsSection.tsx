@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -6,7 +7,7 @@ import type {
   InvoiceStatus,
   InvoiceBudgetLineDetailResponse,
 } from '@cornerstone/shared';
-import { updateDeposit, deleteDeposit } from '../../lib/invoiceDepositsApi.js';
+import { deleteDeposit } from '../../lib/invoiceDepositsApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchInvoiceBudgetLines } from '../../lib/invoiceBudgetLinesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -14,10 +15,13 @@ import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { OverflowMenu, type OverflowMenuItem } from '../../components/OverflowMenu/index.js';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { progressPaymentTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeDepositStatus, depositStatusBody } from '../../lib/statusChangeApi.js';
 import { InvoiceDepositFormModal, type DepositFormState } from './InvoiceDepositFormModal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
-import { FormError } from '../../components/FormError/FormError.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -33,12 +37,6 @@ interface InvoiceDepositsSectionProps {
 }
 
 type ModalMode = 'add' | 'edit' | 'delete' | null;
-type StateConfirmAction = 'mark-paid' | 'mark-claimed';
-
-interface StateConfirmState {
-  deposit: InvoiceDeposit;
-  action: StateConfirmAction;
-}
 
 export function InvoiceDepositsSection({
   invoiceId,
@@ -51,13 +49,14 @@ export function InvoiceDepositsSection({
   const { formatCurrency, formatDate } = useFormatters();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
+  const { run: runStatusChange } = useUndoableStatusChange();
 
   // Modal states
   const [modalMode, setModalMode] = useState<ModalMode>(null);
   const [selectedDeposit, setSelectedDeposit] = useState<InvoiceDeposit | null>(null);
   const [isMutating, setIsMutating] = useState(false);
-  const [mutatingDepositId, setMutatingDepositId] = useState<string | null>(null);
-  const [stateConfirmDeposit, setStateConfirmDeposit] = useState<StateConfirmState | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
 
   // Budget sources
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
@@ -68,13 +67,6 @@ export function InvoiceDepositsSection({
   // Form state
   const [addInitialValues, setAddInitialValues] = useState<Partial<DepositFormState>>({});
   const [formError, setFormError] = useState<string>('');
-
-  // Revert error handling (transient banner)
-  const [revertError, setRevertError] = useState<string>('');
-  const revertErrorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // State confirm modal error
-  const [stateConfirmModalError, setStateConfirmModalError] = useState<string>('');
 
   // Focus management
   const addButtonRef = useRef<HTMLButtonElement>(null);
@@ -97,18 +89,6 @@ export function InvoiceDepositsSection({
     };
     void loadData();
   }, [invoiceId]);
-
-  const showRevertError = (msg: string) => {
-    if (revertErrorTimerRef.current) clearTimeout(revertErrorTimerRef.current);
-    setRevertError(msg);
-    revertErrorTimerRef.current = setTimeout(() => setRevertError(''), 6000);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (revertErrorTimerRef.current) clearTimeout(revertErrorTimerRef.current);
-    };
-  }, []);
 
   const variants = useStatusBadgeVariants();
 
@@ -172,12 +152,8 @@ export function InvoiceDepositsSection({
   const openDeleteModal = (deposit: InvoiceDeposit) => {
     setSelectedDeposit(deposit);
     setFormError('');
+    setDeleteBlocked(false);
     setModalMode('delete');
-  };
-
-  const openStateConfirm = (deposit: InvoiceDeposit, action: StateConfirmAction) => {
-    setStateConfirmDeposit({ deposit, action });
-    setStateConfirmModalError('');
   };
 
   const closeModal = () => {
@@ -186,8 +162,7 @@ export function InvoiceDepositsSection({
       setSelectedDeposit(null);
       setAddInitialValues({});
       setFormError('');
-      setStateConfirmDeposit(null);
-      setStateConfirmModalError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -203,6 +178,7 @@ export function InvoiceDepositsSection({
       onDepositMutated();
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setFormError(translateApiError(err.error.code, tErrors));
       } else {
         setFormError(t('budget:invoiceDetail.deposits.errors.deleteError'));
@@ -212,71 +188,32 @@ export function InvoiceDepositsSection({
     }
   };
 
-  const handleRevertToPending = async (deposit: InvoiceDeposit) => {
-    setMutatingDepositId(deposit.id);
-    try {
-      await updateDeposit(invoiceId, deposit.id, { status: 'pending' });
-      onDepositMutated();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        showRevertError(translateApiError(err.error.code, tErrors));
-      } else {
-        showRevertError(t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
+  const depositName = (deposit: InvoiceDeposit): string =>
+    deposit.description ??
+    t(I18N_UNION_KEYS.depositEntryType.key(deposit.entryType), {
+      ns: I18N_UNION_KEYS.depositEntryType.ns,
+    });
+
+  const renderStatusControl = (deposit: InvoiceDeposit, testId: string): ReactNode => (
+    <StatusMenu
+      transitions={progressPaymentTransitions(tc, deposit)}
+      badge={{ variants: variants.progressPayment, value: deposit.status }}
+      currentLabel={variants.progressPayment[deposit.status].label}
+      focusFallbackRef={addButtonRef}
+      testId={testId}
+      onApply={(to, date) =>
+        runStatusChange({
+          request: () =>
+            changeDepositStatus(invoiceId, deposit.id, depositStatusBody(deposit.status, to, date)),
+          recordName: depositName(deposit),
+          statusLabel: variants.progressPayment[to].label,
+          dedupeKey: `deposit:${deposit.id}`,
+          onChanged: () => onDepositMutated(),
+          onUndone: () => onDepositMutated(),
+        })
       }
-    } finally {
-      setMutatingDepositId(null);
-    }
-  };
-
-  const handleRevertToPaid = async (deposit: InvoiceDeposit) => {
-    setMutatingDepositId(deposit.id);
-    try {
-      await updateDeposit(invoiceId, deposit.id, { status: 'paid' });
-      onDepositMutated();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        showRevertError(translateApiError(err.error.code, tErrors));
-      } else {
-        showRevertError(t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
-      }
-    } finally {
-      setMutatingDepositId(null);
-    }
-  };
-
-  const handleStateConfirm = async (date: string) => {
-    if (!stateConfirmDeposit) return;
-
-    const { deposit, action } = stateConfirmDeposit;
-    setMutatingDepositId(deposit.id);
-
-    try {
-      if (action === 'mark-paid') {
-        await updateDeposit(invoiceId, deposit.id, {
-          status: 'paid',
-          paidDate: date,
-        });
-      } else {
-        await updateDeposit(invoiceId, deposit.id, {
-          status: 'claimed',
-          claimedDate: date,
-        });
-      }
-
-      setStateConfirmDeposit(null);
-      onDepositMutated();
-    } catch (err) {
-      let msg: string;
-      if (err instanceof ApiClientError) {
-        msg = translateApiError(err.error.code, tErrors);
-      } else {
-        msg = t('budget:invoiceDetail.deposits.errors.stateConfirmNetworkError');
-      }
-      setStateConfirmModalError(msg);
-    } finally {
-      setMutatingDepositId(null);
-    }
-  };
+    />
+  );
 
   return (
     <section aria-labelledby="deposits-title" className={styles.depositsSection}>
@@ -320,8 +257,6 @@ export function InvoiceDepositsSection({
 
       {deposits.length > 0 && (
         <>
-          {revertError && <FormError message={revertError} />}
-
           {/* Desktop/tablet table (hidden on mobile) */}
           <div className={styles.tableWrapper}>
             <table className={styles.table}>
@@ -347,14 +282,9 @@ export function InvoiceDepositsSection({
                   <DepositRow
                     key={deposit.id}
                     deposit={deposit}
-                    mutatingDepositId={mutatingDepositId}
                     onEdit={openEditModal}
                     onDelete={openDeleteModal}
-                    onMarkPaid={() => openStateConfirm(deposit, 'mark-paid')}
-                    onMarkClaimed={() => openStateConfirm(deposit, 'mark-claimed')}
-                    onRevertToPending={handleRevertToPending}
-                    onRevertToPaid={handleRevertToPaid}
-                    statusVariants={variants.progressPayment}
+                    statusControl={renderStatusControl(deposit, `deposit-status-${deposit.id}`)}
                     refundVariants={variants.refund}
                     t={t}
                     formatCurrency={formatCurrency}
@@ -371,14 +301,9 @@ export function InvoiceDepositsSection({
               <DepositCard
                 key={deposit.id}
                 deposit={deposit}
-                mutatingDepositId={mutatingDepositId}
                 onEdit={openEditModal}
                 onDelete={openDeleteModal}
-                onMarkPaid={() => openStateConfirm(deposit, 'mark-paid')}
-                onMarkClaimed={() => openStateConfirm(deposit, 'mark-claimed')}
-                onRevertToPending={handleRevertToPending}
-                onRevertToPaid={handleRevertToPaid}
-                statusVariants={variants.progressPayment}
+                statusControl={renderStatusControl(deposit, `deposit-status-mobile-${deposit.id}`)}
                 refundVariants={variants.refund}
                 t={t}
                 formatCurrency={formatCurrency}
@@ -426,30 +351,16 @@ export function InvoiceDepositsSection({
         />
       )}
 
-      {/* Delete modal */}
+      {/* Delete confirmation */}
       {modalMode === 'delete' && selectedDeposit && (
-        <DeleteDepositModal
+        <DeleteDepositDialog
           deposit={selectedDeposit}
+          name={depositName(selectedDeposit)}
           onConfirm={handleDeleteConfirm}
           onClose={closeModal}
           error={formError}
+          blocked={deleteBlocked}
           isMutating={isMutating}
-          t={t}
-        />
-      )}
-
-      {/* State confirm modal */}
-      {stateConfirmDeposit && (
-        <StateConfirmModal
-          deposit={stateConfirmDeposit.deposit}
-          action={stateConfirmDeposit.action}
-          onConfirm={handleStateConfirm}
-          onClose={() => {
-            setStateConfirmDeposit(null);
-            setStateConfirmModalError('');
-          }}
-          isMutating={mutatingDepositId === stateConfirmDeposit.deposit.id}
-          error={stateConfirmModalError}
           t={t}
         />
       )}
@@ -463,106 +374,51 @@ export function InvoiceDepositsSection({
 
 interface DepositRowProps {
   deposit: InvoiceDeposit;
-  mutatingDepositId: string | null;
   onEdit: (deposit: InvoiceDeposit) => void;
   onDelete: (deposit: InvoiceDeposit) => void;
-  onMarkPaid: () => void;
-  onMarkClaimed: () => void;
-  onRevertToPending: (deposit: InvoiceDeposit) => void;
-  onRevertToPaid: (deposit: InvoiceDeposit) => void;
-  statusVariants: BadgeVariantMap;
+  /** The status chip / menu for this deposit. */
+  statusControl: ReactNode;
   refundVariants: BadgeVariantMap;
   t: (key: string, opts?: Record<string, unknown>) => string;
   formatCurrency: (amount: number) => string;
   formatDate: (date: string) => string;
 }
 
+function buildMenuItems(
+  deposit: InvoiceDeposit,
+  t: DepositRowProps['t'],
+  onEdit: (deposit: InvoiceDeposit) => void,
+  onDelete: (deposit: InvoiceDeposit) => void,
+): OverflowMenuItem[] {
+  return [
+    {
+      id: 'edit',
+      label: t('budget:invoiceDetail.deposits.menu.edit'),
+      onClick: () => onEdit(deposit),
+    },
+    {
+      id: 'delete',
+      label: t('budget:invoiceDetail.deposits.menu.delete'),
+      onClick: () => onDelete(deposit),
+      variant: 'destructive',
+    },
+  ];
+}
+
 function DepositRow({
   deposit,
-  mutatingDepositId,
   onEdit,
   onDelete,
-  onMarkPaid,
-  onMarkClaimed,
-  onRevertToPending,
-  onRevertToPaid,
-  statusVariants,
+  statusControl,
   refundVariants,
   t,
   formatCurrency,
   formatDate,
 }: DepositRowProps) {
-  // Build menu items based on deposit status
-  const menuItems: OverflowMenuItem[] = [];
-
-  if (deposit.status === 'pending') {
-    menuItems.push(
-      {
-        id: 'mark-paid',
-        label: t('budget:invoiceDetail.deposits.menu.markPaid'),
-        onClick: onMarkPaid,
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  } else if (deposit.status === 'paid') {
-    menuItems.push(
-      {
-        id: 'mark-claimed',
-        label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
-        onClick: onMarkClaimed,
-      },
-      {
-        id: 'revert-to-pending',
-        label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
-        onClick: () => onRevertToPending(deposit),
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  } else if (deposit.status === 'claimed') {
-    menuItems.push(
-      {
-        id: 'revert-to-paid',
-        label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
-        onClick: () => onRevertToPaid(deposit),
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  }
+  const menuItems = buildMenuItems(deposit, t, onEdit, onDelete);
 
   return (
-    <tr
-      className={`${styles.tableRow} ${mutatingDepositId === deposit.id ? styles.tableRowMutating : ''}`}
-    >
+    <tr className={styles.tableRow}>
       <td>{formatDate(deposit.dueDate)}</td>
       <td>
         <div className={styles.amountCell}>
@@ -572,9 +428,7 @@ function DepositRow({
           </span>
         </div>
       </td>
-      <td>
-        <Badge variants={statusVariants} value={deposit.status} />
-      </td>
+      <td>{statusControl}</td>
       <td className={styles.tdPaidDate}>{deposit.paidDate ? formatDate(deposit.paidDate) : '—'}</td>
       <td className={styles.tdClaimedDate}>
         {deposit.claimedDate ? formatDate(deposit.claimedDate) : '—'}
@@ -610,82 +464,13 @@ function DepositCard({
   deposit,
   onEdit,
   onDelete,
-  onMarkPaid,
-  onMarkClaimed,
-  onRevertToPending,
-  onRevertToPaid,
-  statusVariants,
+  statusControl,
   refundVariants,
   t,
   formatCurrency,
   formatDate,
 }: DepositCardProps) {
-  // Build menu items based on deposit status
-  const menuItems: OverflowMenuItem[] = [];
-
-  if (deposit.status === 'pending') {
-    menuItems.push(
-      {
-        id: 'mark-paid',
-        label: t('budget:invoiceDetail.deposits.menu.markPaid'),
-        onClick: onMarkPaid,
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  } else if (deposit.status === 'paid') {
-    menuItems.push(
-      {
-        id: 'mark-claimed',
-        label: t('budget:invoiceDetail.deposits.menu.markClaimed'),
-        onClick: onMarkClaimed,
-      },
-      {
-        id: 'revert-to-pending',
-        label: t('budget:invoiceDetail.deposits.menu.revertToPending'),
-        onClick: () => onRevertToPending(deposit),
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  } else if (deposit.status === 'claimed') {
-    menuItems.push(
-      {
-        id: 'revert-to-paid',
-        label: t('budget:invoiceDetail.deposits.menu.revertToPaid'),
-        onClick: () => onRevertToPaid(deposit),
-      },
-      {
-        id: 'edit',
-        label: t('budget:invoiceDetail.deposits.menu.edit'),
-        onClick: () => onEdit(deposit),
-      },
-      {
-        id: 'delete',
-        label: t('budget:invoiceDetail.deposits.menu.delete'),
-        onClick: () => onDelete(deposit),
-        variant: 'destructive',
-      },
-    );
-  }
+  const menuItems = buildMenuItems(deposit, t, onEdit, onDelete);
 
   return (
     <div className={styles.mobileCard}>
@@ -696,7 +481,7 @@ function DepositCard({
             {formatCurrency(deposit.entryType === 'refund' ? -deposit.amount : deposit.amount)}
           </span>
         </div>
-        <Badge variants={statusVariants} value={deposit.status} />
+        {statusControl}
       </div>
 
       <dl className={styles.cardFields}>
@@ -743,147 +528,51 @@ function DepositCard({
 }
 
 // ============================================================================
-// Sub-component: DeleteDepositModal
+// Sub-component: DeleteDepositDialog
 // ============================================================================
 
-interface DeleteDepositModalProps {
+interface DeleteDepositDialogProps {
   deposit: InvoiceDeposit;
+  name: string;
   onConfirm: () => void;
   onClose: () => void;
   error: string;
+  blocked: boolean;
   isMutating: boolean;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
-function DeleteDepositModal({
+function DeleteDepositDialog({
   deposit,
+  name,
   onConfirm,
   onClose,
   error,
+  blocked,
   isMutating,
   t,
-}: DeleteDepositModalProps) {
+}: DeleteDepositDialogProps) {
   const isPaidOrClaimed = deposit.status === 'paid' || deposit.status === 'claimed';
 
   return (
-    <Modal
-      title={t('budget:invoiceDetail.deposits.modal.deleteTitle')}
-      onClose={onClose}
-      className={styles.modal}
-      footer={
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onClose}
-            disabled={isMutating}
-            data-testid="deposit-delete-cancel"
-          >
-            {t('common:button.cancel')}
-          </button>
-          <button
-            type="button"
-            className={sharedStyles.btnConfirmDelete}
-            onClick={onConfirm}
-            disabled={isMutating}
-            data-testid="deposit-delete-confirm"
-          >
-            {t('budget:invoiceDetail.deposits.modal.deleteTitle')}
-          </button>
-        </div>
-      }
-    >
-      <div>
-        {error && <FormError message={error} />}
-
-        {isPaidOrClaimed && (
+    <ConfirmDialog
+      title={t('common:confirmDialog.deleteTitle', { name })}
+      lead={
+        isPaidOrClaimed ? (
           <div className={styles.warningBanner}>
             {t('budget:invoiceDetail.deposits.modal.deleteWarningPaidClaimed')}
           </div>
-        )}
-
-        <p className={styles.deleteConfirmText}>
-          {t('budget:invoiceDetail.deposits.modal.deleteConfirm')}
-        </p>
-      </div>
-    </Modal>
-  );
-}
-
-// ============================================================================
-// Sub-component: StateConfirmModal
-// ============================================================================
-
-interface StateConfirmModalProps {
-  deposit: InvoiceDeposit;
-  action: StateConfirmAction;
-  onConfirm: (date: string) => void;
-  onClose: () => void;
-  isMutating: boolean;
-  error?: string;
-  t: (key: string, opts?: Record<string, unknown>) => string;
-}
-
-function StateConfirmModal({
-  action,
-  onConfirm,
-  onClose,
-  isMutating,
-  error,
-  t,
-}: StateConfirmModalProps) {
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().slice(0, 10));
-
-  const isMarkPaid = action === 'mark-paid';
-  const title = isMarkPaid
-    ? t('budget:invoiceDetail.deposits.modal.markPaidTitle')
-    : t('budget:invoiceDetail.deposits.modal.markClaimedTitle');
-  const dateLabel = isMarkPaid
-    ? t('budget:invoiceDetail.deposits.stateConfirm.paidDateLabel')
-    : t('budget:invoiceDetail.deposits.stateConfirm.claimedDateLabel');
-
-  return (
-    <Modal
-      title={title}
-      onClose={onClose}
-      className={styles.modal}
-      footer={
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onClose}
-            disabled={isMutating}
-            data-testid="state-confirm-cancel"
-          >
-            {t('common:button.cancel')}
-          </button>
-          <button
-            type="button"
-            className={sharedStyles.btnPrimary}
-            onClick={() => onConfirm(selectedDate)}
-            disabled={isMutating}
-            data-testid="state-confirm-button"
-          >
-            {t('common:button.confirm')}
-          </button>
-        </div>
+        ) : undefined
       }
-    >
-      {error && <FormError message={error} />}
-      <div className={styles.formField}>
-        <label htmlFor="state-confirm-date" className={styles.label}>
-          {dateLabel}
-        </label>
-        <input
-          type="date"
-          id="state-confirm-date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          className={sharedStyles.input}
-          disabled={isMutating}
-        />
-      </div>
-    </Modal>
+      irreversible
+      confirmLabel={t('common:button.delete')}
+      busyLabel={t('common:confirmDialog.deleting')}
+      busy={isMutating}
+      blocked={blocked}
+      error={error || null}
+      onConfirm={onConfirm}
+      onCancel={onClose}
+      testIdPrefix="deposit-delete"
+    />
   );
 }

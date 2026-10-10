@@ -8,6 +8,7 @@
  * - Scenario 4: Regenerate token — new token displayed after regeneration
  * - Scenario 5: Download Profile link visible after token is generated
  * - Scenario 6: Revoke token — "Generate Token" shown again, no Download Profile link
+ * - Scenario 6b (#2209): Revoke asks in the ConfirmDialog (no native confirm); Cancel keeps the token
  * - Scenario 7: Legacy feeds return 404 — GET /feeds/cal.ics returns HTTP 404
  */
 
@@ -172,6 +173,37 @@ test.describe('DAV Access Card', () => {
 
     // And: The "Download iOS/macOS Profile" link is no longer shown
     await expect(profilePage.downloadProfileLink).not.toBeVisible();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Scenario 6b (#2209): Revoke asks in the shared dialog, not a native confirm
+  // ─────────────────────────────────────────────────────────────────────────
+
+  test('Revoke token asks in the ConfirmDialog; Cancel keeps the token', async ({ page }) => {
+    const profilePage = new ProfilePage(page);
+    const nativeDialogs: string[] = [];
+    page.on('dialog', (native) => {
+      nativeDialogs.push(native.message());
+      void native.dismiss();
+    });
+
+    // Given: A token is active
+    await profilePage.goto();
+    await profilePage.generateToken();
+    await expect(profilePage.regenerateTokenButton).toBeVisible();
+
+    // When: User clicks Revoke Token
+    await profilePage.revokeTokenButton.click();
+
+    // Then: The dialog explains the consequence, with Cancel focused
+    await expect(profilePage.revokeDialog.dialog).toHaveAccessibleName('Revoke calendar access?');
+    await expect(profilePage.revokeDialog.confirmButton).toHaveText('Revoke');
+    await expect(profilePage.revokeDialog.cancelButton).toBeFocused();
+
+    // And: Cancel keeps the token
+    await profilePage.revokeDialog.cancel();
+    await expect(profilePage.regenerateTokenButton).toBeVisible();
+    expect(nativeDialogs).toEqual([]);
   });
 });
 

@@ -10,6 +10,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as diaryService from '../services/diaryService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import type {
   CreateDiaryEntryRequest,
   UpdateDiaryEntryRequest,
@@ -210,8 +211,17 @@ export default async function diaryRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const entry = diaryService.updateDiaryEntry(fastify.db, request.params.id, request.body);
-      return reply.status(200).send(entry);
+      const { result: entry, undo } = runUndoable(
+        fastify.db,
+        undoStore,
+        {
+          userId: request.user.id,
+          subject: { type: 'diary_entry', id: request.params.id },
+          reschedules: false,
+        },
+        () => diaryService.updateDiaryEntry(fastify.db, request.params.id, request.body),
+      );
+      return reply.status(200).send(undo ? { ...entry, undo } : entry);
     },
   );
 

@@ -19,6 +19,12 @@ import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePa
 import styles from './InvoiceDetailPage.module.css';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { invoiceTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeInvoiceStatus, invoiceStatusBody } from '../../lib/statusChangeApi.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
@@ -48,6 +54,7 @@ export function InvoiceDetailPage() {
   const { t: tErrors } = useTranslation('errors');
   const { t: tc } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
 
@@ -86,6 +93,8 @@ export function InvoiceDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact('invoice', showDeleteModal && id ? id : null);
 
   // Story #2107: quotation-to-final-invoice conversion
   const [sectionsKey, setSectionsKey] = useState(0);
@@ -228,6 +237,7 @@ export function InvoiceDetailPage() {
 
   const openDeleteModal = () => {
     setDeleteError('');
+    setDeleteBlocked(false);
     setShowDeleteModal(true);
   };
 
@@ -235,6 +245,7 @@ export function InvoiceDetailPage() {
     if (!isDeleting) {
       setShowDeleteModal(false);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -247,6 +258,7 @@ export function InvoiceDetailPage() {
       navigate(routeUrl('invoices'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteError(t('invoiceDetail.messages.deleteError'));
@@ -306,11 +318,25 @@ export function InvoiceDetailPage() {
             <h1 className={styles.pageTitle} ref={headingRef} tabIndex={-1}>
               {h1Text}
             </h1>
-            <Badge
-              variants={statusVariants.invoice}
-              value={invoice.status}
-              className={styles.statusBadge}
+            <StatusMenu
+              transitions={invoiceTransitions(tc, invoice)}
+              badge={{ variants: statusVariants.invoice, value: invoice.status }}
+              currentLabel={statusVariants.invoice[invoice.status].label}
+              focusFallbackRef={headingRef}
               testId="invoice-status-badge"
+              onApply={(to) =>
+                runStatusChange({
+                  request: () =>
+                    changeInvoiceStatus(invoice.vendorId, invoice.id, invoiceStatusBody(to)),
+                  recordName: invoiceTitle ?? tc('navigation.invoice'),
+                  statusLabel: statusVariants.invoice[to].label,
+                  dedupeKey: `invoice:${invoice.id}`,
+                  onChanged: () => void refreshInvoice(),
+                  onUndone: async () => {
+                    await refreshInvoice();
+                  },
+                })
+              }
             />
           </div>
           <div className={styles.pageActions}>
@@ -604,58 +630,23 @@ export function InvoiceDetailPage() {
         </div>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('invoiceDetail.modal.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('invoiceDetail.modal.deleteConfirm', {
-                number: invoice.invoiceNumber
-                  ? `#${invoice.invoiceNumber}`
-                  : t('invoiceDetail.invoiceDetails')!,
-                amount: formatCurrency(invoice.amount),
-              })}
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('invoiceDetail.modal.deleteWarning')}</p>
-            )}
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-              >
-                {t('invoiceDetail.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting
-                    ? t('invoiceDetail.buttons.deleting')
-                    : t('invoiceDetail.modal.deleteTitle')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tc('confirmDialog.deleteTitle', {
+            name: invoiceTitle ?? tc('navigation.invoice'),
+          })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tc('button.delete')}
+          busyLabel={tc('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDelete()}
+          onCancel={closeDeleteModal}
+          testIdPrefix="invoice-delete"
+        />
       )}
     </div>
   );

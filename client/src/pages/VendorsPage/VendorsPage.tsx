@@ -6,10 +6,10 @@ import type { ColumnDef, TableState } from '../../components/DataTable/DataTable
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
-import { FormError } from '../../components/FormError/FormError.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -58,6 +58,8 @@ export function VendorsPage() {
   const [deletingVendor, setDeletingVendor] = useState<Vendor | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('vendor', deletingVendor?.id ?? null);
 
   // Action menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -133,12 +135,14 @@ export function VendorsPage() {
   const openDeleteConfirm = (vendor: Vendor) => {
     setDeletingVendor(vendor);
     setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const closeDeleteConfirm = () => {
     if (!isDeleting) {
       setDeletingVendor(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -154,6 +158,7 @@ export function VendorsPage() {
       await loadVendors();
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('vendors.modal.deleteError'));
         } else {
@@ -365,41 +370,21 @@ export function VendorsPage() {
         />
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingVendor && (
-        <Modal
-          title={t('vendors.modal.deleteTitle')}
-          onClose={closeDeleteConfirm}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('vendors.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={sharedStyles.btnConfirmDelete}
-                  onClick={() => void confirmDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('vendors.buttons.deleting') : t('vendors.buttons.delete')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <p>{t('vendors.modal.deleteConfirm', { name: deletingVendor.name })}</p>
-          {deleteError ? (
-            <FormError variant="banner" message={deleteError} />
-          ) : (
-            <p className={styles.modalWarning}>{t('vendors.modal.deleteWarning')}</p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: deletingVendor.name })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void confirmDelete()}
+          onCancel={closeDeleteConfirm}
+          testIdPrefix="vendor-list-delete"
+        />
       )}
     </PageLayout>
   );

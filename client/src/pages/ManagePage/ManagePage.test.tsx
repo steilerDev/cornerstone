@@ -10,6 +10,7 @@ import { OriginProbe } from '../../test/originProbe.js';
 import { ownNavigations } from '../../test/navLandmarks.js';
 import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as UseOrientationsTypes from '../../hooks/useOrientations.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
@@ -32,6 +33,19 @@ import type {
 
 // Mock AuthContext — ManagePage uses useAuth() to compute isAdmin for tab visibility
 const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(prefix: string): Promise<HTMLElement> {
+  const btn = await screen.findByTestId(`${prefix}-confirm`);
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
+
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: ReactNode }) => children,
@@ -298,6 +312,8 @@ describe('ManagePage', () => {
 
     // Reset all mocks
     mockUseAreas.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'area', id: 'x', effects: [] });
     mockUseTrades.mockReset();
     mockUseOrientations.mockReset();
     mockFetchBudgetCategories.mockReset();
@@ -921,9 +937,10 @@ describe('ManagePage', () => {
       await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
-      expect(screen.getByRole('heading', { name: 'Delete Area' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Kitchen?' })).toBeInTheDocument();
+      expect(screen.getByTestId('area-delete-cancel')).toHaveFocus();
       // #2196 AC6: the warning states what is really deleted / blocked
       expect(screen.getByText(enSettings.manage.areas.deleteWarning)).toBeInTheDocument();
     });
@@ -941,10 +958,10 @@ describe('ManagePage', () => {
       await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+      await user.click(await enabledConfirm('area-delete'));
 
       await waitFor(() => {
         expect(mockDeleteArea).toHaveBeenCalledWith('area-1');
@@ -952,6 +969,12 @@ describe('ManagePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Area "Kitchen" deleted successfully/)).toBeInTheDocument();
+      });
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
+      await waitFor(() => {
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 
@@ -1113,9 +1136,10 @@ describe('ManagePage', () => {
       await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
-      expect(screen.getByRole('heading', { name: 'Delete Trade' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Plumbing?' })).toBeInTheDocument();
+      expect(screen.getByTestId('trade-delete-cancel')).toHaveFocus();
       expect(screen.getByText(enSettings.manage.trades.deleteWarning)).toBeInTheDocument();
     });
 
@@ -1132,10 +1156,10 @@ describe('ManagePage', () => {
       await user.click(deleteButtons[0]!);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+      await user.click(await enabledConfirm('trade-delete'));
 
       await waitFor(() => {
         expect(mockDeleteTrade).toHaveBeenCalledWith('trade-1');
@@ -1143,6 +1167,12 @@ describe('ManagePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText(/Trade "Plumbing" deleted successfully/)).toBeInTheDocument();
+      });
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
+      await waitFor(() => {
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 
@@ -1217,9 +1247,10 @@ describe('ManagePage', () => {
       await user.click(deleteButton);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
-      expect(screen.getByRole('heading', { name: 'Delete Category' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Materials?' })).toBeInTheDocument();
+      expect(screen.getByTestId('budget-category-delete-cancel')).toHaveFocus();
     });
 
     it('calls fetchBudgetCategories when tab is active', async () => {
@@ -1352,10 +1383,10 @@ describe('ManagePage', () => {
       await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Delete Category' }));
+      await user.click(await enabledConfirm('budget-category-delete'));
 
       await waitFor(() => {
         expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1');
@@ -1364,6 +1395,19 @@ describe('ManagePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Category "Materials" deleted successfully/)).toBeInTheDocument();
       });
+    });
+
+    it('after deleting a budget category focus lands on the section heading, not on <body> or the deleted row button', async () => {
+      const user = userEvent.setup();
+      mockDeleteBudgetCategory.mockResolvedValue(undefined);
+      renderManagePage('/settings/manage?tab=budget-categories');
+      await screen.findByText('Materials');
+      await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
+      await user.click(await enabledConfirm('budget-category-delete'));
+      await waitFor(() => expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'));
+      expect(document.activeElement).toHaveAttribute('tabindex', '-1');
     });
 
     it('shows in-use error when deleting a budget category referenced by budget entries', async () => {
@@ -1384,10 +1428,10 @@ describe('ManagePage', () => {
       await user.click(screen.getByRole('button', { name: 'Delete Materials' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Delete Category' }));
+      await user.click(await enabledConfirm('budget-category-delete'));
 
       await waitFor(() => {
         expect(
@@ -1464,9 +1508,10 @@ describe('ManagePage', () => {
       await user.click(deleteButton);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
-      expect(screen.getByRole('heading', { name: 'Delete Category' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Furniture?' })).toBeInTheDocument();
+      expect(screen.getByTestId('hi-category-delete-cancel')).toHaveFocus();
     });
 
     it('calls fetchHouseholdItemCategories when tab is active', async () => {
@@ -1568,10 +1613,10 @@ describe('ManagePage', () => {
       await user.click(deleteButton);
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      const confirmButton = screen.getByRole('button', { name: 'Delete Category' });
+      const confirmButton = await enabledConfirm('hi-category-delete');
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -1826,9 +1871,10 @@ describe('ManagePage', () => {
       await user.click(screen.getByRole('button', { name: 'Delete North' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
-      expect(screen.getByRole('heading', { name: 'Delete orientation' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete North?' })).toBeInTheDocument();
+      expect(screen.getByTestId('orientation-delete-cancel')).toHaveFocus();
     });
 
     it('successfully deletes after confirming (deleteOrientation called)', async () => {
@@ -1845,10 +1891,10 @@ describe('ManagePage', () => {
       await user.click(screen.getByRole('button', { name: 'Delete North' }));
 
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: 'Delete' }));
+      await user.click(await enabledConfirm('orientation-delete'));
 
       await waitFor(() => {
         expect(mockDeleteOrientation).toHaveBeenCalledWith('orient-1');
@@ -1856,6 +1902,12 @@ describe('ManagePage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Orientation "North" deleted.')).toBeInTheDocument();
+      });
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
+      await waitFor(() => {
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 
@@ -2456,7 +2508,7 @@ describe('ManagePage', () => {
         );
         renderManagePage('/settings/manage?tab=hi-categories');
         await user.click(await screen.findByRole('button', { name: 'Delete Furniture' }));
-        await user.click(await screen.findByRole('button', { name: 'Delete Category' }));
+        await user.click(await enabledConfirm('hi-category-delete'));
         expect(await screen.findByText(enErrors.FORBIDDEN)).toBeInTheDocument();
         expectNoSentinel();
       });
@@ -2471,7 +2523,7 @@ describe('ManagePage', () => {
         renderManagePage(`/settings/manage?tab=${tab}`);
         const buttons = await screen.findAllByRole('button', { name: deleteButtonName });
         await user.click(buttons[0]!);
-        await screen.findByRole('dialog');
+        await screen.findByRole('alertdialog');
         return user;
       }
 
@@ -2481,7 +2533,8 @@ describe('ManagePage', () => {
           .map((el) => el.closest('[role="alert"]'))
           .find((el): el is Element => el !== null);
         expect(banner).toBeDefined();
-        expect(banner!.className).toContain('errorBanner');
+        // #2209: the delete failure is shown by the open confirm dialog, as an alert.
+        expect(banner!.closest('[role="alertdialog"]')).not.toBeNull();
         expect(banner!.className).not.toContain('successBanner');
       }
 
@@ -2494,7 +2547,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('areas', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        await user.click(await enabledConfirm('area-delete'));
         const text = enSettings.manage.areas.messages.deleteConflict;
         await screen.findAllByText(text);
         expectErrorBanner(text);
@@ -2510,7 +2563,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('areas', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        await user.click(await enabledConfirm('area-delete'));
         await screen.findAllByText(enErrors.INTERNAL_ERROR);
         expectErrorBanner(enErrors.INTERNAL_ERROR);
         expectNoSentinel();
@@ -2523,7 +2576,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('areas', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Area' }));
+        await user.click(await enabledConfirm('area-delete'));
         const text = enSettings.manage.areas.messages.deleteError;
         await screen.findAllByText(text);
         expectErrorBanner(text);
@@ -2539,7 +2592,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('trades', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        await user.click(await enabledConfirm('trade-delete'));
         const text = enSettings.manage.trades.messages.deleteConflict;
         await screen.findAllByText(text);
         expectErrorBanner(text);
@@ -2553,7 +2606,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('trades', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        await user.click(await enabledConfirm('trade-delete'));
         const text = enSettings.manage.trades.messages.deleteError;
         await screen.findAllByText(text);
         expectErrorBanner(text);
@@ -2568,7 +2621,7 @@ describe('ManagePage', () => {
           }),
         );
         const user = await openDelete('trades', 'Delete');
-        await user.click(screen.getByRole('button', { name: 'Delete Trade' }));
+        await user.click(await enabledConfirm('trade-delete'));
         await screen.findAllByText(enErrors.INTERNAL_ERROR);
         expectErrorBanner(enErrors.INTERNAL_ERROR);
         expectNoSentinel();
@@ -2585,8 +2638,8 @@ describe('ManagePage', () => {
         const user = userEvent.setup();
         renderManagePage('/settings/manage?tab=orientations');
         await user.click(screen.getByRole('button', { name: 'Delete North' }));
-        await screen.findByRole('dialog');
-        await user.click(screen.getByRole('button', { name: 'Delete' }));
+        await screen.findByRole('alertdialog');
+        await user.click(await enabledConfirm('orientation-delete'));
         await screen.findAllByText(enErrors.CONFLICT);
         expectErrorBanner(enErrors.CONFLICT);
         expectNoSentinel();
@@ -2601,8 +2654,8 @@ describe('ManagePage', () => {
         const user = userEvent.setup();
         renderManagePage('/settings/manage?tab=orientations');
         await user.click(screen.getByRole('button', { name: 'Delete North' }));
-        await screen.findByRole('dialog');
-        await user.click(screen.getByRole('button', { name: 'Delete' }));
+        await screen.findByRole('alertdialog');
+        await user.click(await enabledConfirm('orientation-delete'));
         const text = enSettings.manage.orientations.messages.deleteError;
         await screen.findAllByText(text);
         expectErrorBanner(text);
@@ -2615,8 +2668,7 @@ describe('ManagePage', () => {
           label: 'areas',
           tab: 'areas',
           open: 'Delete',
-          confirm: 'Delete Area',
-          cancel: 'Cancel',
+          prefix: 'area-delete',
           expected: () => enSettings.manage.areas.messages.deleteConflict,
           successPrefix: 'Area "',
           arrange: (err: unknown) =>
@@ -2627,8 +2679,7 @@ describe('ManagePage', () => {
           label: 'trades',
           tab: 'trades',
           open: 'Delete',
-          confirm: 'Delete Trade',
-          cancel: 'Cancel',
+          prefix: 'trade-delete',
           expected: () => enSettings.manage.trades.messages.deleteConflict,
           successPrefix: 'Trade "',
           arrange: (err: unknown) =>
@@ -2639,8 +2690,7 @@ describe('ManagePage', () => {
           label: 'orientations',
           tab: 'orientations',
           open: 'Delete North',
-          confirm: 'Delete',
-          cancel: 'Cancel',
+          prefix: 'orientation-delete',
           expected: () => enErrors.CONFLICT,
           successPrefix: 'Orientation "',
           arrange: (err: unknown) =>
@@ -2657,29 +2707,30 @@ describe('ManagePage', () => {
           const user = userEvent.setup();
           renderManagePage(`/settings/manage?tab=${c.tab}`);
           await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
-          const dialog = await screen.findByRole('dialog');
-          await user.click(within(dialog).getByRole('button', { name: c.confirm }));
+          await user.click(await enabledConfirm(c.prefix));
 
           // Error text is inside the still-open dialog, replacing the warning
           await waitFor(() => {
-            expect(within(screen.getByRole('dialog')).getByText(c.expected())).toBeInTheDocument();
+            expect(
+              within(screen.getByRole('alertdialog')).getByText(c.expected()),
+            ).toBeInTheDocument();
           });
-          const open = screen.getByRole('dialog');
-          expect(within(open).queryByRole('button', { name: c.confirm })).not.toBeInTheDocument();
+          const open = screen.getByRole('alertdialog');
+          expect(within(open).queryByTestId(`${c.prefix}-confirm`)).not.toBeInTheDocument();
           expect(screen.queryByText(new RegExp(`^${c.successPrefix}`))).not.toBeInTheDocument();
           expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
           // No page-level duplicate of the error outside the dialog
           expect(screen.getAllByText(c.expected())).toHaveLength(1);
 
           // Close and reopen: no stale error, confirm is back
-          await user.click(within(open).getByRole('button', { name: c.cancel }));
+          await user.click(within(open).getByTestId(`${c.prefix}-cancel`));
           await waitFor(() => {
-            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+            expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
           });
           await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
-          const reopened = await screen.findByRole('dialog');
+          const reopened = await screen.findByRole('alertdialog');
           expect(within(reopened).queryByText(c.expected())).not.toBeInTheDocument();
-          expect(within(reopened).getByRole('button', { name: c.confirm })).toBeInTheDocument();
+          expect(within(reopened).getByTestId(`${c.prefix}-confirm`)).toBeInTheDocument();
         });
       }
     });
@@ -2714,7 +2765,7 @@ describe('ManagePage', () => {
       mockDeleteBudgetCategory.mockRejectedValue(new Error('RAW-LOCAL'));
       renderManagePage('/settings/manage?tab=budget-categories');
       await user.click(await screen.findByRole('button', { name: 'Delete Materials' }));
-      await user.click(await screen.findByRole('button', { name: 'Delete Category' }));
+      await user.click(await enabledConfirm('budget-category-delete'));
       expect(
         await screen.findByText(enSettings.manage.budgetCategories.messages.deleteError),
       ).toBeInTheDocument();

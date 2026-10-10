@@ -187,13 +187,6 @@
       "edit": "Edit",
       "delete": "Delete"
     },
-    "delete": {
-      "confirm": "Delete Milestone",
-      "message": "Are you sure you want to delete",
-      "cancel": "Cancel",
-      "delete": "Delete Milestone",
-      "deleting": "Deleting..."
-    },
     "loading": "Loading milestones...",
     "error": "Failed to load milestones. Please try again.",
     "deleteError": "Failed to delete milestone. Please try again.",
@@ -260,13 +253,6 @@
         "saving": "Saving...",
         "cancel": "Cancel"
       },
-      "delete": {
-        "confirm": "Delete Milestone",
-        "message": "Are you sure you want to delete",
-        "cancel": "Cancel",
-        "delete": "Delete Milestone",
-        "deleting": "Deleting..."
-      },
       "delay": {
         "late": "late",
         "ahead": "ahead",
@@ -291,7 +277,6 @@
         "titleLabel": "Title",
         "targetDateLabel": "Target Date",
         "descriptionLabel": "Description",
-        "markCompleted": "Mark as completed",
         "placeholderTitle": "Milestone title",
         "placeholderDescription": "Optional description",
         "save": "Save Changes",
@@ -310,11 +295,7 @@
       "failedRemoveDependent": "Failed to remove dependent work item. Please try again.",
       "failedSave": "Failed to save milestone. Please try again.",
       "failedDelete": "Failed to delete milestone. Please try again.",
-      "deleteConfirm": "Delete Milestone",
-      "deleteMessage": "Are you sure you want to delete",
-      "deleteCancel": "Cancel",
-      "deleteButton": "Delete Milestone",
-      "deleting": "Deleting..."
+      "deleteButton": "Delete Milestone"
     }
   }
 }

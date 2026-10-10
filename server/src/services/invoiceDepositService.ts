@@ -18,6 +18,7 @@ import {
   InvalidDepositStatusTransitionError,
   InvalidDepositDateForStatusError,
 } from '../errors/AppError.js';
+import { PROGRESS_PAYMENT_TRANSITIONS, allowedTargets } from '@cornerstone/shared';
 import { onDepositStatusChanged } from './diaryAutoEventService.js';
 import { exceedsAmount, toCents } from './shared/money.js';
 import { isValidIsoDate } from './shared/validators.js';
@@ -118,9 +119,9 @@ function toUserSummary(user: typeof users.$inferSelect | null | undefined): User
  * Allowed status transitions for deposits.
  */
 export const ALLOWED_TRANSITIONS: Record<InvoiceDepositStatus, InvoiceDepositStatus[]> = {
-  pending: ['paid', 'claimed'],
-  paid: ['claimed', 'pending'],
-  claimed: ['paid'],
+  pending: allowedTargets(PROGRESS_PAYMENT_TRANSITIONS, 'pending'),
+  paid: allowedTargets(PROGRESS_PAYMENT_TRANSITIONS, 'paid'),
+  claimed: allowedTargets(PROGRESS_PAYMENT_TRANSITIONS, 'claimed'),
 };
 
 /**
@@ -348,6 +349,7 @@ export function updateDeposit(
   depositId: string,
   data: UpdateDepositRequest,
   diaryAutoEvents: boolean = true,
+  actorUserId: string | null = null,
 ): InvoiceDeposit {
   const invoice = assertInvoiceExists(db, invoiceId);
   const existing = assertDepositBelongsToInvoice(db, invoiceId, depositId);
@@ -397,11 +399,11 @@ export function updateDeposit(
 
     if (newStatus !== oldStatus) {
       // Validate transition
-      const allowedTargets = ALLOWED_TRANSITIONS[oldStatus]!;
-      if (!allowedTargets.includes(newStatus)) {
+      const permitted = ALLOWED_TRANSITIONS[oldStatus]!;
+      if (!permitted.includes(newStatus)) {
         throw new InvalidDepositStatusTransitionError(
           `Cannot transition from '${oldStatus}' to '${newStatus}'`,
-          { from: oldStatus, to: newStatus, allowedTargets },
+          { from: oldStatus, to: newStatus, allowedTargets: permitted },
         );
       }
 
@@ -485,11 +487,9 @@ export function updateDeposit(
     return tx.select().from(invoiceDeposits).where(eq(invoiceDeposits.id, depositId)).get()!;
   });
 
-  // Fire diary event if status transitioned to paid or claimed (only these targets per AC-17)
-  if (
-    data.status !== undefined &&
-    (effectiveNewStatus === 'paid' || effectiveNewStatus === 'claimed')
-  ) {
+  // Every status change passes through the writer so the A -> B -> A rule can retract the
+  // event it reverses; the writer itself only inserts a row for paid / claimed targets (AC-17).
+  if (data.status !== undefined) {
     const oldStatus = existing.status as InvoiceDepositStatus;
     onDepositStatusChanged(
       db,
@@ -498,6 +498,7 @@ export function updateDeposit(
       invoiceNumber,
       oldStatus,
       effectiveNewStatus,
+      actorUserId,
     );
   }
 

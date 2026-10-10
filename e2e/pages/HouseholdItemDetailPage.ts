@@ -7,7 +7,7 @@
  * - Breadcrumbs (Story #2202): trail "Purchases" + optional "Back to {origin}" (see `breadcrumbs`)
  * - h1 with the item name (inline-editable via autosave)
  * - An "Edit" button (navigates to /project/household-items/:id/edit)
- * - A status badge showing current status
+ * - A status chip (StatusMenu, testid purchase-status) showing and changing the current status
  * - Fields: category, area (EPIC-18, replaces room), vendor, URL, quantity, description, dates
  * - Budget section: budget lines, subsidies, planned/actual totals
  * - Work Item Dependencies section: link HI to work items or milestones for scheduling
@@ -17,7 +17,7 @@
  * Key DOM observations from source code:
  * - h1 is the item name (autosave inline editable via contentEditable)
  * - Edit button navigates to /project/household-items/:id/edit
- * - Delete confirmation modal uses role="dialog"
+ * - Delete confirmation is the ConfirmDialog (role="alertdialog", testid prefix purchase-delete)
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
  * - Documents section uses LinkedDocumentsSection (same as work items, invoices)
  *
@@ -28,6 +28,8 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 
 export class HouseholdItemDetailPage {
   readonly page: Page;
@@ -47,11 +49,15 @@ export class HouseholdItemDetailPage {
   readonly documentsSection: Locator;
   readonly documentsHeading: Locator;
 
-  // Delete (Story #2196: the dialog is the shared Modal — role="dialog", rendered in a portal)
+  // Delete (#2209: the dialog is the shared ConfirmDialog — role="alertdialog", rendered in a portal)
   readonly deleteButton: Locator;
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
+
+  // #2209: the header status chip (StatusMenu) and the dependency-removal ConfirmDialog
+  readonly statusMenu: StatusMenuControl;
+  readonly dependencyRemoveDialog: ConfirmDialogControl;
 
   constructor(page: Page) {
     this.page = page;
@@ -81,18 +87,15 @@ export class HouseholdItemDetailPage {
     this.documentsSection = page.getByRole('region', { name: 'Documents', exact: true });
 
     // Delete confirmation modal
-    this.deleteModal = page.getByRole('dialog');
-    // The page-level trigger and the dialog's confirm button share the label "Delete Item".
-    // The trigger comes first in DOM order (the Modal portals to the end of <body>).
-    this.deleteButton = page.getByRole('button', { name: 'Delete Item', exact: true }).first();
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: 'Delete Item',
-      exact: true,
-    });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // #2209: the shared ConfirmDialog (role="alertdialog", title "Delete <name>?", action "Delete")
+    this.deleteButton = page.getByRole('button', { name: 'Delete Item', exact: true });
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('purchase-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('purchase-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('purchase-delete-cancel');
+    this.statusMenu = new StatusMenuControl(page, 'purchase-status');
+    this.dependencyRemoveDialog = new ConfirmDialogControl(page, 'purchase-dependency-remove');
   }
 
   /**

@@ -28,6 +28,7 @@ function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
 interface DiaryMetadataSummaryProps {
   entryType: DiaryEntryType;
   metadata: unknown;
+  hideResolution?: boolean;
 }
 
 // DiaryMetadataSummary has no API deps — import it after declaring module scope
@@ -238,6 +239,52 @@ describe('DiaryMetadataSummary', () => {
         />,
       );
       expect(document.querySelector('[data-testid="issue-metadata"]')).toBeInTheDocument();
+    });
+
+    describe('defect resolution badge (#2209 round 2)', () => {
+      it.each([
+        ['open', 'Open', 'defectOpen'],
+        ['in_progress', 'Being fixed', 'defectInProgress'],
+        ['resolved', 'Fixed', 'defectFixed'],
+      ])('%s renders the canonical "%s" Badge with its class', (status, label, className) => {
+        render(
+          <DiaryMetadataSummary
+            entryType="issue"
+            metadata={{ severity: 'high', resolutionStatus: status }}
+          />,
+        );
+        const badge = screen.getByTestId('defect-status-badge');
+        expect(badge.tagName).toBe('SPAN');
+        expect(badge).toHaveTextContent(label);
+        expect(badge).toHaveClass(className);
+      });
+
+      it('does not use the removed emoji labels', () => {
+        render(
+          <DiaryMetadataSummary
+            entryType="issue"
+            metadata={{ severity: 'low', resolutionStatus: 'resolved' }}
+          />,
+        );
+        expect(screen.queryByText(/✅|🔴|🟡|Resolved/)).toBeNull();
+      });
+
+      it('hideResolution hides the badge but keeps the severity', () => {
+        render(
+          <DiaryMetadataSummary
+            entryType="issue"
+            metadata={{ severity: 'high', resolutionStatus: 'open' }}
+            hideResolution
+          />,
+        );
+        expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+        expect(screen.getByTestId('severity-high')).toBeInTheDocument();
+      });
+
+      it('shows no badge when the entry has no resolution status', () => {
+        render(<DiaryMetadataSummary entryType="issue" metadata={{ severity: 'high' }} />);
+        expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+      });
     });
 
     it('shows the translated severity label and aria-label', () => {

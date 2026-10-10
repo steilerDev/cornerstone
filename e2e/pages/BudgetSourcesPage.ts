@@ -7,7 +7,7 @@
  * - An "Add Source" button (no h2 "Sources" section heading — removed in visual cleanup #1185)
  * - An inline create form (h2 "New Budget Source") toggled by "Add Source"
  * - A sources list (class `.sourcesList`) with inline edit forms per row
- * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
+ * - A delete ConfirmDialog (role="alertdialog", testid prefix budget-source-delete)
  * - Success banners (role="status"), error banners (role="alert")
  */
 
@@ -123,16 +123,13 @@ export class BudgetSourcesPage {
       .first();
     this.errorBanner = page.locator('[role="alert"]').first();
 
-    // Delete modal
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Budget Source' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /Delete Source|Deleting\.\.\./,
-    });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title "Delete <name>?"
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('budget-source-delete-cancel') });
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('budget-source-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('budget-source-delete-cancel');
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
   }
 
@@ -283,7 +280,7 @@ export class BudgetSourcesPage {
   }
 
   /**
-   * Confirm deletion by clicking "Delete Source" in the modal.
+   * Confirm deletion by clicking "Delete" in the dialog.
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();

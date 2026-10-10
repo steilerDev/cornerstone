@@ -670,7 +670,7 @@ test.describe('Scenario 4 — LLM suggestion badge (TOTAL_MISMATCH)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Scenario 5 — Cancel with dirty state', () => {
-  test('Cancel with dirty state shows Discard Changes modal; Keep Editing keeps the page open', async ({
+  test('Cancel with dirty state shows the Discard changes dialog; Keep editing keeps the page open', async ({
     page,
     testPrefix,
   }) => {
@@ -706,8 +706,9 @@ test.describe('Scenario 5 — Cancel with dirty state', () => {
       await autoItemizePage.cancelButton.click();
       await expect(autoItemizePage.cancelModal).toBeVisible();
 
-      // ── Modal title is "Discard Changes?" ─────────────────────────────────
-      await expect(autoItemizePage.cancelModal).toContainText(/Discard Changes/i);
+      // ── Dialog title is "Discard changes?" ─────────────────────────────────
+      await expect(autoItemizePage.cancelModal).toHaveAccessibleName('Discard changes?');
+      await expect(autoItemizePage.keepEditingButton).toHaveText('Keep editing');
 
       // ── Click "Keep Editing" → modal closes, page still shown ────────────
       await autoItemizePage.keepEditingButton.click();
@@ -722,10 +723,7 @@ test.describe('Scenario 5 — Cancel with dirty state', () => {
     }
   });
 
-  test('Discard Changes in modal navigates back to invoice detail', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Discard in the dialog navigates back to invoice detail', async ({ page, testPrefix }) => {
     const vw = page.viewportSize()?.width ?? 1440;
     if (vw < 600) {
       test.skip(true, 'Functional test — skip on very narrow mobile');
@@ -757,7 +755,7 @@ test.describe('Scenario 5 — Cancel with dirty state', () => {
       await autoItemizePage.cancelButton.click();
       await expect(autoItemizePage.cancelModal).toBeVisible();
 
-      // ── Click "Discard Changes" → navigate back ───────────────────────────
+      // ── Click "Discard" → navigate back ───────────────────────────
       await autoItemizePage.discardButton.click();
       await expect(page).toHaveURL(/\/budget\/invoices\/[^/]+$/);
       expect(page.url()).not.toContain('auto-itemize');

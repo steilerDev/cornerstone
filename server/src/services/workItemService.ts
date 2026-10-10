@@ -426,6 +426,7 @@ export function updateWorkItem(
   id: string,
   data: UpdateWorkItemRequest,
   diaryAutoEvents: boolean = true,
+  actorUserId: string | null = null,
 ): WorkItemDetail {
   const workItem = findWorkItemById(db, id);
   if (!workItem) {
@@ -555,9 +556,12 @@ export function updateWorkItem(
         updateData.actualEndDate = today;
       }
     } else if (newStatus === 'completed' && previousStatus === 'not_started') {
-      // not_started → completed (direct skip): set both actual dates to today if not set
+      // not_started → completed (direct skip): set both actual dates if not set. A missing
+      // actual start defaults to the resolved actual end (explicit end, else today) so a
+      // past end date never ends up before its start (#2209 D7).
+      const resolvedActualEnd = currentActualEnd ?? today;
       if (!isExplicitActualStart && currentActualStart === null) {
-        updateData.actualStartDate = today;
+        updateData.actualStartDate = resolvedActualEnd;
       }
       if (!isExplicitActualEnd && currentActualEnd === null) {
         updateData.actualEndDate = today;
@@ -602,7 +606,15 @@ export function updateWorkItem(
 
   // Log status change to diary if enabled
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
-    onWorkItemStatusChanged(db, diaryAutoEvents, id, workItem.title, previousStatus, newStatus);
+    onWorkItemStatusChanged(
+      db,
+      diaryAutoEvents,
+      id,
+      workItem.title,
+      previousStatus,
+      newStatus,
+      actorUserId,
+    );
   }
 
   // Fetch and return the updated work item

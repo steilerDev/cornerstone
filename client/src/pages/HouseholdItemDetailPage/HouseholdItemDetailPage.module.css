@@ -501,48 +501,6 @@
   box-shadow: var(--shadow-focus-danger);
 }
 
-.cancelButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-}
-
-.cancelButton:hover:not(:disabled) {
-  background-color: var(--color-bg-hover);
-}
-
-.cancelButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.cancelButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-/* ============================================================
- * Modal
- * ============================================================ */
-
-.modalText {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--spacing-3) 0;
-}
-
-.modalWarning {
-  font-size: var(--font-size-sm);
-  color: var(--color-danger);
-  margin: 0 0 var(--spacing-6) 0;
-}
-
 /* ============================================================
  * RESPONSIVE — Mobile (max 767px)
  * ============================================================ */
@@ -1216,40 +1174,6 @@
   .depSearchOption {
     transition: none;
   }
-}
-
-/* ============================================================
- * Inline Status Selector (Dates & Delivery card)
- * ============================================================ */
-
-.statusSection {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  padding: var(--spacing-3) 0 var(--spacing-4);
-}
-
-.statusSelect {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  background: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: border-color var(--transition-normal);
-}
-
-.statusSelect:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.statusSelect:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
 }
 
 /* ============================================================

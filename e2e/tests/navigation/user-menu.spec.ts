@@ -145,6 +145,9 @@ test.describe('User menu', () => {
           .filter({ hasText: new RegExp(`^${key === '?' || key === '/' ? '\\' + key : key}$`) }),
       ).toBeVisible();
     }
+    // #2209: a fixed "Everywhere" section lists the global undo shortcut
+    await expect(dialog.getByRole('heading', { name: 'Everywhere' })).toBeVisible();
+    await expect(dialog).toContainText('Undo the last change');
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(appShell.userMenuTrigger).toBeFocused();

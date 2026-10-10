@@ -479,90 +479,6 @@
   color: var(--color-text-muted);
 }
 
-/* ---- Modal ---- */
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modalBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-overlay);
-}
-
-.modalContent {
-  position: relative;
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-2xl);
-  padding: var(--spacing-6);
-  max-width: 28rem;
-  width: calc(100% - var(--spacing-8));
-  margin: var(--spacing-4);
-}
-
-.modalTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
-}
-
-.modalText {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--spacing-3) 0;
-}
-
-.modalWarning {
-  font-size: var(--font-size-sm);
-  color: var(--color-danger);
-  margin: 0 0 var(--spacing-6) 0;
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-}
-
-.confirmDeleteButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.confirmDeleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-hover);
-}
-
-.confirmDeleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-.confirmDeleteButton:disabled {
-  background-color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
 /* ---- Responsive ---- */
 
 @media (max-width: 767px) {
@@ -627,15 +543,6 @@
   .editActions .cancelButton {
     width: 100%;
   }
-
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-
-  .confirmDeleteButton,
-  .modalActions .cancelButton {
-    width: 100%;
-  }
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {
@@ -647,8 +554,7 @@
   .saveButton,
   .cancelButton,
   .editButton,
-  .deleteButton,
-  .confirmDeleteButton {
+  .deleteButton {
     min-height: 44px;
   }
 }

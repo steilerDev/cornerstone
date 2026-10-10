@@ -144,3 +144,7 @@ General rule: when a glossary term overshoots a measured PDF column, prefer the 
 ## Issue #2046: Open Items Translation (2026-09-06)
 
 - [Issue #2046 translation](issue-2046-open-items-translation.md) — 23 new keys for invoices open-items feature (deposits/refunds list); critical distinctions: `overdueLabel`/"Überfällig" vs `depositOverdueLabel`/"Abschlag überfällig", and `childIncludedCaption`/"...enthalten" vs `childExcludedCaption`/"...separat aufgeführt"; all glossary-compliant, no new glossary terms needed
+
+## En-diff key sync (Issue #2209)
+
+- [En-diff key sync](en-diff-key-sync-2209.md) — script de edits from an en diff; keep de order (no full reorder); Budget line → Kostenposition

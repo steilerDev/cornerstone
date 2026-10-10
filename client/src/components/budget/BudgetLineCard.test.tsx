@@ -145,9 +145,6 @@ function buildProps(overrides?: Partial<BudgetLineCardProps>): BudgetLineCardPro
     confidenceLabels: CONFIDENCE_LABELS,
     onEdit: jest.fn(),
     onDelete: jest.fn(),
-    isDeleting: false,
-    onConfirmDelete: jest.fn(),
-    onCancelDelete: jest.fn(),
     ...overrides,
   };
 }
@@ -305,8 +302,8 @@ describe('BudgetLineCard', () => {
 
   // ─── Scenario 5: delete flow buttons ──────────────────────────────────────
 
-  it('isDeleting=false renders Edit and Delete buttons', () => {
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: false })} />);
+  it('renders Edit and Delete buttons and no inline confirm/cancel swap', () => {
+    renderCard(<BudgetLineCard {...buildProps()} />);
 
     expect(screen.getByRole('button', { name: /edit/i })).toBeTruthy();
     expect(screen.getByRole('button', { name: /delete/i })).toBeTruthy();
@@ -314,62 +311,31 @@ describe('BudgetLineCard', () => {
     expect(screen.queryByRole('button', { name: /cancel/i })).toBeNull();
   });
 
-  it('isDeleting=true renders Confirm and Cancel buttons', () => {
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: true })} />);
-
-    expect(screen.getByRole('button', { name: /confirm/i })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /cancel/i })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /^edit/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /^delete/i })).toBeNull();
-  });
-
   it('Edit button calls onEdit when clicked', () => {
     const onEdit = jest.fn();
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: false, onEdit })} />);
+    renderCard(<BudgetLineCard {...buildProps({ onEdit })} />);
 
     fireEvent.click(screen.getByRole('button', { name: /edit/i }));
     expect(onEdit).toHaveBeenCalledTimes(1);
   });
 
-  it('Delete button calls onDelete when clicked', () => {
+  it('Delete opens the host dialog: it calls onDelete and keeps the buttons in place', () => {
     const onDelete = jest.fn();
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: false, onDelete })} />);
+    renderCard(<BudgetLineCard {...buildProps({ onDelete })} />);
 
     fireEvent.click(screen.getByRole('button', { name: /delete/i }));
     expect(onDelete).toHaveBeenCalledTimes(1);
-  });
-
-  it('Confirm button calls onConfirmDelete when clicked', () => {
-    const onConfirmDelete = jest.fn();
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: true, onConfirmDelete })} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /confirm/i }));
-    expect(onConfirmDelete).toHaveBeenCalledTimes(1);
-  });
-
-  it('Cancel button calls onCancelDelete when clicked', () => {
-    const onCancelDelete = jest.fn();
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: true, onCancelDelete })} />);
-
-    fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
-    expect(onCancelDelete).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: /edit/i })).toBeTruthy();
+    expect(screen.queryByRole('alertdialog')).toBeNull();
   });
 
   // ─── Scenario 6: unlinkAction prop ────────────────────────────────────────
 
   it('unlinkAction prop renders its children in the actions area', () => {
     const unlinkAction = <button type="button">Unlink me</button>;
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: false, unlinkAction })} />);
+    renderCard(<BudgetLineCard {...buildProps({ unlinkAction })} />);
 
     expect(screen.getByRole('button', { name: 'Unlink me' })).toBeTruthy();
-  });
-
-  it('unlinkAction not rendered when isDeleting=true', () => {
-    const unlinkAction = <button type="button">Unlink me</button>;
-    renderCard(<BudgetLineCard {...buildProps({ isDeleting: true, unlinkAction })} />);
-
-    // When deleting, the Edit/Delete/unlinkAction group is not rendered
-    expect(screen.queryByRole('button', { name: 'Unlink me' })).toBeNull();
   });
 
   // ─── Scenario 7: quotedLabel i18n key ──────────────────────────────────────

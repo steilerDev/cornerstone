@@ -158,7 +158,8 @@
     "closeAriaLabel": "Close",
     "keyColumn": "Key",
     "actionColumn": "Action",
-    "noPageShortcuts": "This page has no shortcuts of its own."
+    "noPageShortcuts": "This page has no shortcuts of its own.",
+    "everywhere": "Everywhere"
   },
   "toast": {
     "dismissAriaLabel": "Dismiss notification"
@@ -270,6 +271,100 @@
       "delivery": "Delivery",
       "issue": "Defect",
       "general_note": "Note"
+    }
+  },
+  "statusAction": {
+    "task": { "start": "Start", "markDone": "Mark done" },
+    "purchase": {
+      "markOrdered": "Mark ordered",
+      "markDeliveryScheduled": "Mark delivery scheduled",
+      "markDelivered": "Mark delivered"
+    },
+    "milestone": { "markReached": "Mark reached" },
+    "invoice": { "markPaid": "Mark paid" },
+    "progressPayment": { "markPaid": "Mark paid", "markSubmitted": "Mark submitted" },
+    "grant": {
+      "markApplied": "Mark applied",
+      "markApproved": "Mark approved",
+      "markReceived": "Mark received",
+      "markRejected": "Mark rejected"
+    },
+    "fundingSource": { "markUsedUp": "Mark used up", "markClosed": "Mark closed" },
+    "defect": { "markBeingFixed": "Mark being fixed", "markFixed": "Mark fixed" }
+  },
+  "statusMenu": {
+    "nowLabel": "Now: {{status}}",
+    "changeStatus": "Change status",
+    "changeStatusTitle": "Change status",
+    "setStatus": "Set status",
+    "backTo": "Back to “{{status}}”",
+    "back": "Back",
+    "today": "Today",
+    "asPlanned": "As planned",
+    "onTarget": "On target",
+    "plannedChipAria": "{{label}}, {{date}}",
+    "pickDate": "Pick a date",
+    "dateLabel": "Date",
+    "setDate": "Set date",
+    "dateInFuture": "Pick a date on or before today.",
+    "dateBeforeStart": "Pick a date on or after the start date.",
+    "whenStarted": "When did it start?",
+    "whenFinished": "When was it finished?",
+    "whenArrived": "When did it arrive?",
+    "whenReached": "When was it reached?",
+    "whenPaid": "When was this payment made?",
+    "whenSubmitted": "When was it submitted?",
+    "changeFailed": "The status could not be changed."
+  },
+  "undoToast": {
+    "undo": "Undo",
+    "undoing": "Undoing…",
+    "undone": "Change undone.",
+    "tooLate": "It is too late to undo this.",
+    "changedSince": "This changed since, so it can't be undone.",
+    "failed": "The change could not be undone.",
+    "statusChanged": "{{name}} is now “{{status}}”.",
+    "shortcutHelp": "Undo the last change",
+    "shortcutKeyApple": "⌘Z",
+    "shortcutKeyOther": "Ctrl Z"
+  },
+  "confirmDialog": {
+    "alsoAffects": "This also affects:",
+    "cannotBeUndone": "This can't be undone.",
+    "countsFailed": "Couldn't load what else is affected.",
+    "deleteTitle": "Delete {{name}}?",
+    "deleting": "Deleting…",
+    "discardChangesTitle": "Discard changes?",
+    "discardEntryTitle": "Discard this entry?",
+    "discard": "Discard",
+    "discarding": "Discarding…",
+    "keepEditing": "Keep editing",
+    "keepEntry": "Keep entry",
+    "impact": {
+      "childAreas": "Sub-areas deleted with it:",
+      "photosLoseArea": "Photos that lose their area:",
+      "photosLoseOrientation": "Photos that lose their orientation:",
+      "contacts": "Contact persons deleted with it:",
+      "tasksUnassigned": "Tasks that lose this company:",
+      "purchasesUnassigned": "Purchases that lose this company:",
+      "costLinesUnassigned": "Cost lines that lose this company:",
+      "progressPayments": "Progress payments deleted with it:",
+      "costLinesUnlinked": "Cost lines removed from this invoice:",
+      "documentLinks": "Linked documents (they stay in Paperless):",
+      "purchasesUnlinked": "Purchases no longer linked to it:",
+      "progressPaymentsUnassigned": "Progress payments that lose this funding source:",
+      "tasksUnlinked": "Tasks no longer linked to it:",
+      "dependencies": "Tasks that no longer wait for it:",
+      "purchaseDependencies": "Purchases that no longer wait for it:",
+      "costLines": "Cost lines deleted with it:",
+      "invoiceLinks": "Invoice links removed with it:",
+      "subtasks": "Subtasks deleted with it:",
+      "notes": "Notes deleted with it:",
+      "taskDependencies": "Dependencies removed with it:",
+      "milestoneLinks": "Milestones it no longer counts toward:",
+      "milestoneWaits": "Milestones it no longer waits for:",
+      "grantLinks": "Grants no longer linked to it:",
+      "photos": "Photos deleted with it:"
     }
   },
   "statusHints": {

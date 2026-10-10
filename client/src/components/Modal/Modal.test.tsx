@@ -2,9 +2,10 @@
  * @jest-environment jsdom
  */
 import React from 'react';
-import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { Modal } from './Modal.js';
+import { Sheet } from './Sheet.js';
 
 // CSS modules are mocked via identity-obj-proxy (classNames returned as-is)
 
@@ -414,6 +415,441 @@ describe('Modal', () => {
       );
 
       expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Close dialog' }));
+    });
+  });
+
+  describe('focus restore chain on unmount', () => {
+    interface HostProps {
+      withReturnRef?: boolean;
+      withHeading?: boolean;
+    }
+
+    function Host({ withReturnRef = false, withHeading = true }: HostProps) {
+      const [open, setOpen] = React.useState(false);
+      const [openerMounted, setOpenerMounted] = React.useState(true);
+      const [openerDisabled, setOpenerDisabled] = React.useState(false);
+      const returnRef = React.useRef<HTMLButtonElement>(null);
+      return (
+        <main>
+          {withHeading && <h1>Page heading</h1>}
+          <button ref={returnRef} type="button">
+            return target
+          </button>
+          <button type="button" onClick={() => setOpenerDisabled(true)}>
+            disable opener
+          </button>
+          <button type="button" onClick={() => setOpenerMounted(false)}>
+            remove opener
+          </button>
+          <button type="button" onClick={() => setOpen(false)}>
+            close modal
+          </button>
+          {openerMounted && (
+            <button type="button" disabled={openerDisabled} onClick={() => setOpen(true)}>
+              opener
+            </button>
+          )}
+          {open && (
+            <Modal
+              title="Chain"
+              onClose={() => setOpen(false)}
+              returnFocusRef={withReturnRef ? returnRef : undefined}
+            >
+              <button type="button">inside</button>
+            </Modal>
+          )}
+        </main>
+      );
+    }
+
+    // The buttons that change the host live outside the modal, so they are driven by dispatching
+    // clicks (the modal is aria-modal but jsdom does not make the rest inert).
+    function openModal() {
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+    }
+
+    function closeViaHost() {
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+    }
+
+    it('1. restores focus to the opener', () => {
+      render(<Host withReturnRef />);
+      openModal();
+      closeViaHost();
+      expect(screen.getByRole('button', { name: 'opener' })).toHaveFocus();
+    });
+
+    it('2. falls through to returnFocusRef when the opener is disabled', () => {
+      render(<Host withReturnRef />);
+      openModal();
+      fireEvent.click(screen.getByRole('button', { name: 'disable opener' }));
+      closeViaHost();
+      expect(screen.getByRole('button', { name: 'return target' })).toHaveFocus();
+    });
+
+    it('2b. falls through to returnFocusRef when the opener is removed', () => {
+      render(<Host withReturnRef />);
+      openModal();
+      fireEvent.click(screen.getByRole('button', { name: 'remove opener' }));
+      closeViaHost();
+      expect(screen.getByRole('button', { name: 'return target' })).toHaveFocus();
+    });
+
+    it('3. falls through to the page heading when the opener is unusable and there is no returnFocusRef', () => {
+      render(<Host />);
+      openModal();
+      fireEvent.click(screen.getByRole('button', { name: 'remove opener' }));
+      closeViaHost();
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+      expect(document.body).not.toHaveFocus();
+    });
+
+    it('3b. falls through to the page heading when the returnFocusRef target is disabled too', () => {
+      function Disabled() {
+        const [open, setOpen] = React.useState(true);
+        const ref = React.useRef<HTMLButtonElement>(null);
+        return (
+          <main>
+            <h1>Page heading</h1>
+            <button ref={ref} type="button" disabled>
+              dead target
+            </button>
+            {open && (
+              <Modal title="Chain" onClose={() => setOpen(false)} returnFocusRef={ref}>
+                <p>body</p>
+              </Modal>
+            )}
+          </main>
+        );
+      }
+      render(<Disabled />);
+      fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('3c. opener removed in the same commit that closes the modal (delete from a list) ends on the heading', async () => {
+      function ListHost() {
+        const [rows, setRows] = React.useState(['a', 'b']);
+        const [pending, setPending] = React.useState<string | null>(null);
+        return (
+          <main>
+            <h1>Page heading</h1>
+            {rows.map((row) => (
+              <button key={row} type="button" onClick={() => setPending(row)}>
+                delete {row}
+              </button>
+            ))}
+            {pending && (
+              <Modal title="Confirm" onClose={() => setPending(null)}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    // One batched update: the row (the opener) goes away together with the dialog.
+                    setRows((r) => r.filter((x) => x !== pending));
+                    setPending(null);
+                  }}
+                >
+                  confirm
+                </button>
+              </Modal>
+            )}
+          </main>
+        );
+      }
+      render(<ListHost />);
+      const opener = screen.getByRole('button', { name: 'delete a' });
+      opener.focus();
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole('button', { name: 'confirm' }));
+      // The second restore runs in a microtask after the commit has settled.
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(screen.queryByRole('button', { name: 'delete a' })).toBeNull();
+      expect(document.body).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('4. leaves focus alone when the host moved it elsewhere', () => {
+      render(<Host withReturnRef />);
+      openModal();
+      const target = screen.getByRole('button', { name: 'return target' });
+      target.focus();
+      // Focus is outside the modal now; closing must not steal it back to the opener.
+      closeViaHost();
+      expect(target).toHaveFocus();
+    });
+
+    it('5. without any candidate (no heading) focus ends on body, nothing throws', () => {
+      render(<Host withHeading={false} />);
+      openModal();
+      fireEvent.click(screen.getByRole('button', { name: 'remove opener' }));
+      expect(() => closeViaHost()).not.toThrow();
+      expect(document.body).toHaveFocus();
+    });
+  });
+
+  describe('role, describedById and dismissible (#2209)', () => {
+    afterEach(() => {
+      delete document.documentElement.dataset.scrollLocked;
+    });
+
+    it('defaults to role "dialog"', () => {
+      render(<Modal {...defaultProps}>body</Modal>);
+      expect(screen.getByRole('dialog', { name: 'Test Modal Title' })).toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('role="alertdialog" is announced as an alertdialog', () => {
+      render(
+        <Modal {...defaultProps} role="alertdialog">
+          body
+        </Modal>,
+      );
+      expect(screen.getByRole('alertdialog', { name: 'Test Modal Title' })).toBeInTheDocument();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('describedById points the dialog at the describing element', () => {
+      render(
+        <Modal {...defaultProps} describedById="desc-x">
+          <p id="desc-x">Because reasons.</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('dialog')).toHaveAccessibleDescription('Because reasons.');
+    });
+
+    it('has no aria-describedby by default', () => {
+      render(<Modal {...defaultProps}>body</Modal>);
+      expect(screen.getByRole('dialog')).not.toHaveAttribute('aria-describedby');
+    });
+
+    it('dismissible=false: Escape, the backdrop and the close button do nothing', () => {
+      const onClose = jest.fn<() => void>();
+      const { baseElement } = render(
+        <Modal title="Busy" onClose={onClose} dismissible={false}>
+          body
+        </Modal>,
+      );
+      fireEvent.keyDown(document, { key: 'Escape' });
+      fireEvent.click(baseElement.querySelector('[class*="modalBackdrop"]')!);
+      const close = screen.getByRole('button', { name: 'Close dialog' });
+      fireEvent.click(close);
+      expect(onClose).not.toHaveBeenCalled();
+      // aria-disabled (not disabled) so keyboard focus is not lost
+      expect(close).toHaveAttribute('aria-disabled', 'true');
+      expect(close).not.toBeDisabled();
+    });
+
+    it('dismissible (default): the close button is not aria-disabled and closes', () => {
+      const onClose = jest.fn<() => void>();
+      render(
+        <Modal title="Open" onClose={onClose}>
+          body
+        </Modal>,
+      );
+      const close = screen.getByRole('button', { name: 'Close dialog' });
+      expect(close).not.toHaveAttribute('aria-disabled');
+      fireEvent.click(close);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('becoming dismissible again re-enables closing', () => {
+      const onClose = jest.fn<() => void>();
+      const { rerender } = render(
+        <Modal title="T" onClose={onClose} dismissible={false}>
+          body
+        </Modal>,
+      );
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).not.toHaveBeenCalled();
+      rerender(
+        <Modal title="T" onClose={onClose} dismissible>
+          body
+        </Modal>,
+      );
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('ref-counted scroll lock (nested Modal and Sheet)', () => {
+    afterEach(() => {
+      delete document.documentElement.dataset.scrollLocked;
+    });
+
+    const locked = () => document.documentElement.dataset.scrollLocked;
+
+    it('locks page scroll while a Modal is mounted and unlocks on unmount', () => {
+      const { unmount } = render(<Modal {...defaultProps}>body</Modal>);
+      expect(locked()).toBe('true');
+      unmount();
+      expect(locked()).toBeUndefined();
+    });
+
+    it('stays locked until the last of two nested Modals closes', () => {
+      function Nested({ inner }: { inner: boolean }) {
+        return (
+          <Modal title="Outer" onClose={() => {}}>
+            outer
+            {inner && (
+              <Modal title="Inner" onClose={() => {}}>
+                inner
+              </Modal>
+            )}
+          </Modal>
+        );
+      }
+      const { rerender, unmount } = render(<Nested inner />);
+      expect(locked()).toBe('true');
+      rerender(<Nested inner={false} />);
+      expect(locked()).toBe('true');
+      unmount();
+      expect(locked()).toBeUndefined();
+    });
+
+    it('a Modal opened over an open Sheet does not release the sheet lock when it closes', () => {
+      const returnRef = { current: null } as React.RefObject<HTMLElement | null>;
+      function Both({ modal }: { modal: boolean }) {
+        return (
+          <>
+            <Sheet id="s" open onClose={() => {}} title="Sheet" returnFocusRef={returnRef}>
+              body
+            </Sheet>
+            {modal && (
+              <Modal title="M" onClose={() => {}}>
+                over
+              </Modal>
+            )}
+          </>
+        );
+      }
+      const { rerender } = render(<Both modal />);
+      expect(locked()).toBe('true');
+      rerender(<Both modal={false} />);
+      expect(locked()).toBe('true');
+    });
+  });
+
+  describe('skipOpenerRef (#2209 focus after delete)', () => {
+    function SkipHost({
+      skip,
+      withReturnRef = true,
+      withHeading = true,
+    }: {
+      skip: { current: boolean };
+      withReturnRef?: boolean;
+      withHeading?: boolean;
+    }) {
+      const [open, setOpen] = React.useState(false);
+      const returnRef = React.useRef<HTMLHeadingElement>(null);
+      return (
+        <main>
+          {withHeading && <h1>Page heading</h1>}
+          <h2 ref={returnRef} tabIndex={-1}>
+            Section heading
+          </h2>
+          <button type="button" onClick={() => setOpen(true)}>
+            opener
+          </button>
+          <button type="button" onClick={() => setOpen(false)}>
+            close modal
+          </button>
+          <button type="button">elsewhere</button>
+          {open && (
+            <Modal
+              title="Skip"
+              onClose={() => setOpen(false)}
+              skipOpenerRef={skip}
+              returnFocusRef={withReturnRef ? returnRef : undefined}
+            >
+              <button type="button">inside</button>
+            </Modal>
+          )}
+        </main>
+      );
+    }
+
+    async function openAndClose() {
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      return opener;
+    }
+
+    it('skip=true: a live, enabled opener is skipped and returnFocusRef gets focus', async () => {
+      render(<SkipHost skip={{ current: true }} />);
+      const opener = await openAndClose();
+      expect(opener).toBeEnabled();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('skip=true without a returnFocusRef falls through to the page heading', async () => {
+      render(<SkipHost skip={{ current: true }} withReturnRef={false} />);
+      await openAndClose();
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('skip=false restores the opener as before', async () => {
+      render(<SkipHost skip={{ current: false }} />);
+      const opener = await openAndClose();
+      expect(opener).toHaveFocus();
+    });
+
+    it('omitting the prop restores the opener', async () => {
+      render(<SkipHost skip={undefined as never} />);
+      const opener = await openAndClose();
+      expect(opener).toHaveFocus();
+    });
+
+    it('the flag is read at unmount, not at mount', async () => {
+      const skip = { current: false };
+      render(<SkipHost skip={skip} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      skip.current = true; // set while the dialog is open (a confirm click)
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('the flag turned off again before unmount restores the opener (cancel after a failed confirm)', async () => {
+      const skip = { current: true };
+      render(<SkipHost skip={skip} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      skip.current = false;
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(opener).toHaveFocus();
+    });
+
+    it('skip=true does not override focus the host already moved elsewhere', async () => {
+      render(<SkipHost skip={{ current: true }} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      const elsewhere = screen.getByRole('button', { name: 'elsewhere' });
+      elsewhere.focus();
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(elsewhere).toHaveFocus();
     });
   });
 });
