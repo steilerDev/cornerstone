@@ -66,6 +66,26 @@ describe('orientationService', () => {
   // ─── listOrientations ──────────────────────────────────────────────────────
 
   describe('listOrientations()', () => {
+    it('treats %, _ and backslash in the search term as literal characters in name or description (#2197)', () => {
+      const now = new Date().toISOString();
+      const rows = [
+        { id: 'o1', name: 'Plain', description: 'Nothing special' },
+        { id: 'o2', name: 'Half% View', description: null },
+        { id: 'o3', name: 'Garden', description: 'Under_score note' },
+        { id: 'o4', name: 'Back\\slash', description: null },
+      ];
+      for (const r of rows) {
+        app.db
+          .insert(schema.orientations)
+          .values({ ...r, sortOrder: 0, createdAt: now, updatedAt: now })
+          .run();
+      }
+
+      expect(listOrientations(app.db, '%').map((o) => o.id)).toEqual(['o2']);
+      expect(listOrientations(app.db, '_').map((o) => o.id)).toEqual(['o3']);
+      expect(listOrientations(app.db, '\\').map((o) => o.id)).toEqual(['o4']);
+    });
+
     it('returns empty array when no orientations exist', () => {
       const result = listOrientations(app.db);
       expect(result).toEqual([]);

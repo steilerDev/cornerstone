@@ -13,6 +13,7 @@ import {
   OidcMissingEmailError,
   OidcNoMatchingAccountError,
 } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 
 // Re-export ConflictError for tests
 export { ConflictError };
@@ -648,12 +649,12 @@ export function listUsers(db: DbType, searchTerm?: string): (typeof users.$infer
   }
 
   // Case-insensitive search on email and displayName
-  const pattern = `%${searchTerm}%`;
+  const pattern = toLikeContainsPattern(searchTerm);
   return db
     .select()
     .from(users)
     .where(
-      sql`(LOWER(${users.email}) LIKE LOWER(${pattern}) OR LOWER(${users.displayName}) LIKE LOWER(${pattern}))`,
+      sql`(LOWER(${users.email}) LIKE LOWER(${pattern}) ESCAPE '\\' OR LOWER(${users.displayName}) LIKE LOWER(${pattern}) ESCAPE '\\')`,
     )
     .all();
 }

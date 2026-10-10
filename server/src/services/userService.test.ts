@@ -1862,6 +1862,17 @@ describe('User Service', () => {
   });
 
   describe('listUsers()', () => {
+    it('treats %, _ and backslash in the search term as literal characters (#2197)', async () => {
+      await userService.createLocalUser(db, 'plain@example.com', 'Plain Name', 'password123456');
+      await userService.createLocalUser(db, 'pct@example.com', 'Half% Name', 'password123456');
+      await userService.createLocalUser(db, 'under@example.com', 'Under_score', 'password123456');
+      await userService.createLocalUser(db, 'back@example.com', 'Back\\slash', 'password123456');
+
+      expect(userService.listUsers(db, '%').map((u) => u.email)).toEqual(['pct@example.com']);
+      expect(userService.listUsers(db, '_').map((u) => u.email)).toEqual(['under@example.com']);
+      expect(userService.listUsers(db, '\\').map((u) => u.email)).toEqual(['back@example.com']);
+    });
+
     it('returns all users when no search term provided', async () => {
       // Given: Multiple users in database
       await userService.createLocalUser(db, 'user1@example.com', 'User One', 'password123456');

@@ -10,6 +10,7 @@ import {
   ConflictError,
   TradeInUseError,
 } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -44,7 +45,11 @@ export function listTrades(db: DbType, search?: string): TradeResponse[] {
   const rows = db
     .select()
     .from(trades)
-    .where(search ? sql`LOWER(${trades.name}) LIKE LOWER(${`%${search}%`})` : undefined)
+    .where(
+      search
+        ? sql`LOWER(${trades.name}) LIKE LOWER(${toLikeContainsPattern(search)}) ESCAPE '\\'`
+        : undefined,
+    )
     .orderBy(asc(trades.sortOrder), asc(trades.name))
     .all();
 

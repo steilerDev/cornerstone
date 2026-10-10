@@ -15,6 +15,7 @@ import {
   ConflictError,
   AreaInUseError,
 } from '../errors/AppError.js';
+import { toLikeContainsPattern } from './shared/likePattern.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -219,7 +220,11 @@ export function listAreas(db: DbType, search?: string): AreaResponse[] {
   const rows = db
     .select()
     .from(areas)
-    .where(search ? sql`LOWER(${areas.name}) LIKE LOWER(${`%${search}%`})` : undefined)
+    .where(
+      search
+        ? sql`LOWER(${areas.name}) LIKE LOWER(${toLikeContainsPattern(search)}) ESCAPE '\\'`
+        : undefined,
+    )
     .orderBy(asc(areas.sortOrder), asc(areas.name))
     .all();
 
