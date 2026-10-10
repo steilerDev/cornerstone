@@ -375,36 +375,6 @@
   box-shadow: var(--shadow-focus-danger);
 }
 
-/* ---- Invoice status badges ---- */
-
-.invoiceStatusBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-0-5) var(--spacing-2);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  border-radius: var(--radius-full);
-  white-space: nowrap;
-}
-
-/* paid — green (success) */
-.status_paid {
-  background-color: var(--color-success-badge-bg);
-  color: var(--color-success-badge-text);
-}
-
-/* pending — amber/yellow (use palette tokens directly — no warning semantic token exists) */
-.status_pending {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
-}
-
-/* overdue — red (danger) */
-.status_overdue {
-  background-color: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
-}
-
 /* ---- Invoice loading / error / empty states ---- */
 
 .invoicesLoading {

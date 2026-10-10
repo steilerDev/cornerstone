@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PhotoSpotPhoto } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { diaryEntryTypeLabelKey } from '../../lib/diaryEntryTypeLabel.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
 import styles from './SpotHistoryList.module.css';
 
@@ -29,7 +29,8 @@ export function SpotHistoryList({ photos, currentIndex, onSelect }: SpotHistoryL
     <ul className={styles.list}>
       {photos.map((photo, i) => {
         const entry = photo.diaryEntry;
-        const type = t(I18N_UNION_KEYS.diaryEntryType.key(entry.entryType), { ns: 'diary' });
+        const typeKey = diaryEntryTypeLabelKey(entry.entryType);
+        const type = t(typeKey.key, { ns: typeKey.ns });
         const title = entry.title?.trim() || null;
         const secondary = title ? t('viewer.historyItemSecondary', { type, title }) : type;
         const isCurrent = i === currentIndex;

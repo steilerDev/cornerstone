@@ -569,7 +569,7 @@ test.describe('Claimed invoice warning gates confirm button', { tag: '@responsiv
 
       // Warning block must be visible
       await expect(sourcesPage.moveModalWarningBlock).toBeVisible();
-      await expect(sourcesPage.moveModalWarningBlock).toContainText('claimed invoice');
+      await expect(sourcesPage.moveModalWarningBlock).toContainText('submitted invoice');
 
       // Confirm button must be disabled (understood not checked)
       await expect(sourcesPage.moveModalConfirmButton).toBeDisabled();

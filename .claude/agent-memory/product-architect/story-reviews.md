@@ -1055,3 +1055,9 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
   - the wiki gitlink needs a bump.
 - I fixed API-Contract §8's planned `stillToPay` myself (wiki `a3b0486`): D-06 was fixed by #2194, and `outstandingBalance` is an alias of `stillToPay`. The PR gitlink must record `a3b0486`; verify that in round 2.
 - Lesson: before accepting a local money helper, grep for an existing helper with the SAME NAME. Identical names can hide a 100x unit mismatch.
+- **PR #2270 (#2195 P0.4 status words), r1 2026-10-10: REQUEST_CHANGES (verdict comment, own-token PR), 7 fix-in-session.**
+  The two Medium findings were the ReportContentEditor 9th colour map with undefined tokens, and milestone
+  "Completed" vs "Reached" across 4 surfaces. The Low findings were: forked `computeMilestoneStatus`/`milestoneDisplayStatus`,
+  `dueFlag` called 3x per cell, the dead negative at ReportContentEditor.test:917, stale comments plus
+  'No Invoice #', and the one-colour-map rule missing from CLAUDE.md. In r2, re-grep `statusPending|statusQuotation`
+  and `milestones.status`.

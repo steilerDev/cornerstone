@@ -15,7 +15,7 @@
  *   S4  (AC9)      — child rows are pending deposits only; no expand w/o deposits
  *   S5  (AC11)     — expanded by default; collapse is local, not URL state
  *   S6  (AC13-15)  — Still due vs Amount; per-invoice sum equals the open total
- *   S7  (AC16)     — Open (payable) tile is global/filter-independent
+ *   S7  (AC16)     — Still to pay tile is global/filter-independent
  *   S8  (AC18-20)  — refunds: signed, badged, excluded from Still due/payable
  *   S9  (AC21,25)  — overdue deposit flag; status unchanged; no "Overdue" filter option
  *   S10 (AC22-23)  — default order: earliest open due date asc, undated last
@@ -34,6 +34,7 @@
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page, Locator, Response as PwResponse } from '@playwright/test';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
+import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
 import { createVendorViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -309,7 +310,7 @@ test.describe('Open items — quotation invoice as a deposit container (Scenario
       await invoicesPage.setOpenItemsOnly(true);
 
       // Real status badge unchanged, plus the container flag
-      await expect(page.getByTestId(`invoice-status-${c.id}`)).toContainText('Quotation');
+      await expect(page.getByTestId(`invoice-status-${c.id}`)).toContainText('Offer');
       await expect(invoicesPage.containerChip(c.id)).toBeVisible();
 
       // The invoice's 5000 face value contributes nothing — only the 75 deposit does.
@@ -489,10 +490,10 @@ test.describe('Open items — Still due vs Amount, and the anti-double-counting 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// S7/AC16 — Open (payable) tile is global/filter-independent
+// S7/AC16 — Still to pay tile is global/filter-independent
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Open items — the "Open (payable)" tile is global (Scenario 7, AC16)', () => {
+test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC16)', () => {
   test('The tile value is identical with the toggle off, on, and with a vendor filter applied', async ({
     page,
     testPrefix,
@@ -681,7 +682,7 @@ test.describe('Open items — a refund-only open item has zero open payable amou
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Open items — overdue deposits are flagged without changing status; discoverable when collapsed (Scenario 9, AC21, AC25)', () => {
-  test('An overdue pending deposit shows the overdue chip and keeps its Pending status; the parent shows a flag chip even when collapsed', async ({
+  test('An overdue pending deposit shows the overdue chip and keeps its To pay status; the parent shows a flag chip even when collapsed', async ({
     page,
     testPrefix,
   }) => {
@@ -705,15 +706,15 @@ test.describe('Open items — overdue deposits are flagged without changing stat
       await invoicesPage.setOpenItemsOnly(true);
 
       await expect(invoicesPage.depositOverdueChip(dep.id)).toBeVisible();
-      await expect(invoicesPage.depositStatusBadge(dep.id)).toContainText('Pending');
+      await expect(invoicesPage.depositStatusBadge(dep.id)).toContainText('To pay');
 
       // Collapse the parent — the overdue flag remains discoverable on the parent row
       await invoicesPage.expandButton(h.id).click();
       await expect(invoicesPage.childRows(h.id)).toHaveCount(0);
       await expect(invoicesPage.overdueChip(h.id)).toBeVisible();
       // The invoice itself is not overdue (its own dueDate is in the future) — its own
-      // status badge stays "Pending", never replaced by a new status.
-      await expect(page.getByTestId(`invoice-status-${h.id}`)).toContainText('Pending');
+      // status badge stays "To pay", never replaced by a new status.
+      await expect(page.getByTestId(`invoice-status-${h.id}`)).toContainText('To pay');
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }
@@ -726,10 +727,10 @@ test.describe('Open items — overdue deposits are flagged without changing stat
 
     await statusFilterButton(page).click();
 
-    await expect(page.getByRole('checkbox', { name: 'Pending' })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'To pay' })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Paid' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Claimed' })).toBeVisible();
-    await expect(page.getByRole('checkbox', { name: 'Quotation' })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Submitted' })).toBeVisible();
+    await expect(page.getByRole('checkbox', { name: 'Offer' })).toBeVisible();
     await expect(page.getByRole('checkbox', { name: 'Overdue' })).toHaveCount(0);
   });
 });
@@ -1270,6 +1271,182 @@ test.describe('Open items — pagination counts invoices only, not deposit child
       await expect(invoicesPage.tableBody.locator('[class*="invoiceLink"]')).toHaveCount(25);
       const paginationText = await invoicesPage.getPaginationInfoText();
       expect(paginationText).toContain('26');
+    } finally {
+      if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 — canonical status chips (AC1 colours, detail header, due-soon flag)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** True when a computed colour string is fully transparent (or unset). */
+function isTransparent(color: string): boolean {
+  return color === 'transparent' || color === 'rgba(0, 0, 0, 0)';
+}
+
+/** Resolves a design token to a computed rgb() string via a throwaway probe element. */
+async function resolveTokenColor(page: Page, token: string): Promise<string> {
+  return page.evaluate((name) => {
+    const probe = document.createElement('span');
+    probe.style.color = `var(${name})`;
+    document.body.appendChild(probe);
+    const resolved = getComputedStyle(probe).color;
+    probe.remove();
+    return resolved;
+  }, token);
+}
+
+test.describe(
+  'Status chips — Offer / To pay / Paid / Submitted colours (Story #2195, AC1)',
+  { tag: '@responsive' },
+  () => {
+    test('Each invoice status chip has its canonical label and a non-transparent background; Submitted carries a check icon', async ({
+      page,
+      testPrefix,
+    }) => {
+      const invoicesPage = new InvoicesPage(page);
+      let vendorId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} Chip Vendor` });
+        const offer = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIP-OFFER`,
+          amount: 400,
+          date: daysAgo(10),
+          status: 'quotation',
+        });
+        const toPay = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIP-PAY`,
+          amount: 300,
+          date: daysAgo(10),
+          status: 'pending',
+        });
+        const paid = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIP-PAID`,
+          amount: 200,
+          date: daysAgo(10),
+          status: 'paid',
+        });
+        const submitted = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIP-SUB`,
+          amount: 100,
+          date: daysAgo(10),
+          status: 'claimed',
+        });
+
+        await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
+        await invoicesPage.heading.waitFor({ state: 'visible' });
+        await invoicesPage.waitForLoaded();
+
+        // Table (desktop) and card (mobile) testids differ; exactly one surface is visible.
+        const chip = (id: string): Locator =>
+          page
+            .locator(
+              `[data-testid="invoice-status-${id}"], [data-testid="invoice-status-mobile-${id}"]`,
+            )
+            .visible();
+        const background = (loc: Locator): Promise<string> =>
+          loc.evaluate((el) => getComputedStyle(el).backgroundColor);
+
+        await expect(chip(offer.id)).toHaveText('Offer');
+        await expect(chip(toPay.id)).toHaveText('To pay');
+        await expect(chip(paid.id)).toHaveText('Paid');
+        await expect(chip(submitted.id)).toHaveText('Submitted');
+
+        const offerBg = await background(chip(offer.id));
+        const toPayBg = await background(chip(toPay.id));
+        const paidBg = await background(chip(paid.id));
+        const submittedBg = await background(chip(submitted.id));
+        for (const bg of [offerBg, toPayBg, paidBg, submittedBg]) {
+          expect(isTransparent(bg), `chip background "${bg}" must not be transparent`).toBe(false);
+        }
+        // CSS-module class misses (the #2046 regression) collapse every chip to one style.
+        expect(offerBg).not.toBe(toPayBg);
+
+        // Submitted = success tone + decorative check icon; the others carry no icon.
+        await expect(chip(submitted.id).locator('svg[aria-hidden="true"]')).toHaveCount(1);
+        await expect(chip(toPay.id).locator('svg')).toHaveCount(0);
+
+        // Dark theme: the Offer chip is info blue, never the danger red.
+        await page.evaluate(() => document.documentElement.setAttribute('data-theme', 'dark'));
+        const darkOfferBg = await background(chip(offer.id));
+        expect(isTransparent(darkOfferBg)).toBe(false);
+        expect(darkOfferBg).not.toBe(await resolveTokenColor(page, '--color-danger'));
+      } finally {
+        if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+      }
+    });
+
+    test('The invoice detail header chip reads "Offer" with a non-transparent background', async ({
+      page,
+      testPrefix,
+    }) => {
+      const detailPage = new InvoiceDetailPage(page);
+      let vendorId = '';
+
+      try {
+        vendorId = await createVendorViaApi(page, { name: `${testPrefix} ChipDetail Vendor` });
+        const offer = await createInvoiceViaApi(page, vendorId, {
+          invoiceNumber: `${testPrefix}-CHIPD-001`,
+          amount: 400,
+          date: daysAgo(10),
+          status: 'quotation',
+        });
+
+        await detailPage.goto(offer.id);
+        await expect(detailPage.statusBadge).toHaveText('Offer');
+        const bg = await detailPage.statusBadge.evaluate(
+          (el) => getComputedStyle(el).backgroundColor,
+        );
+        expect(isTransparent(bg), `badge background "${bg}" must not be transparent`).toBe(false);
+      } finally {
+        if (vendorId) await deleteVendorWithInvoices(page, vendorId);
+      }
+    });
+  },
+);
+
+test.describe('Status chips — Due soon flag in open items (Story #2195)', () => {
+  test('An invoice and a progress payment due within 7 days show "Due soon"; one due later does not', async ({
+    page,
+    testPrefix,
+  }) => {
+    const invoicesPage = new InvoicesPage(page);
+    let vendorId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} DueSoon Vendor` });
+      const soon = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-SOON`,
+        amount: 500,
+        date: daysAgo(20),
+        dueDate: daysFromNow(3),
+        status: 'pending',
+      });
+      const soonDeposit = await createDepositViaApi(page, soon.id, {
+        amount: 100,
+        dueDate: daysFromNow(4),
+      });
+      const later = await createInvoiceViaApi(page, vendorId, {
+        invoiceNumber: `${testPrefix}-LATER`,
+        amount: 500,
+        date: daysAgo(20),
+        dueDate: daysFromNow(30),
+        status: 'pending',
+      });
+
+      await page.goto(`${INVOICES_ROUTE}?vendorId=${vendorId}`);
+      await invoicesPage.heading.waitFor({ state: 'visible' });
+      await invoicesPage.waitForLoaded();
+      await invoicesPage.setOpenItemsOnly(true);
+
+      await expect(invoicesPage.dueSoonChip(soon.id)).toHaveText('Due soon');
+      await expect(invoicesPage.depositDueSoonChip(soonDeposit.id)).toHaveText('Due soon');
+      await expect(invoicesPage.overdueChip(soon.id)).toHaveCount(0);
+      await expect(invoicesPage.invoiceStatusBadge(soon.id)).toHaveText('To pay');
+      await expect(invoicesPage.dueSoonChip(later.id)).toHaveCount(0);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);
     }

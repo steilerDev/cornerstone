@@ -131,22 +131,22 @@
 }
 
 /* State-specific styling */
-.state-queued {
+.stateQueued {
   border-color: var(--color-border);
   background: var(--color-bg-secondary);
 }
 
-.state-uploading {
+.stateUploading {
   border-color: var(--color-primary);
   background: var(--color-primary-bg);
 }
 
-.state-succeeded {
+.stateSucceeded {
   border-color: var(--color-success);
   background: var(--color-success-bg);
 }
 
-.state-failed {
+.stateFailed {
   border-color: var(--color-danger);
   background: var(--color-danger-bg);
 }

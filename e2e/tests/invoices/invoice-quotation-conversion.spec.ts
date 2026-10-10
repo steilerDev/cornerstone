@@ -398,7 +398,7 @@ test.describe('Quotation conversion - manual happy path (Scenario 2)', () => {
 
       // Modal closed, page reflects the converted invoice
       await expect(detail.convertForm).toBeHidden();
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
       await expect(detail.convertButton).toHaveCount(0);
       await expect(detail.infoList).toContainText('10,500.00');
       await expect(detail.infoList).toContainText('Converted from quotation of');
@@ -446,7 +446,7 @@ test.describe('Quotation conversion - stale due date (Scenario 2b)', () => {
       await expect(detail.convertConfirm).toBeEnabled();
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
     } finally {
       await cleanup(page, fixture);
     }
@@ -478,7 +478,7 @@ test.describe('Quotation conversion - keep existing itemization (Scenario 3)', (
       }
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(9500);
@@ -539,7 +539,7 @@ test.describe('Quotation conversion - no budget lines (Scenario 5)', () => {
 
       await expect(detail.convertLinesEmpty).toBeVisible();
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.status).toBe('pending');
@@ -609,7 +609,7 @@ test.describe('Quotation conversion - overpaid then refund (Scenario 6, 17)', ()
       await expect(detail.convertFinalAmount).toBeFocused();
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
 
       // Deposits untouched, refund added
       await expect(detail.depositsSection).toContainText('6,000.00');
@@ -653,7 +653,7 @@ test.describe('Quotation conversion - overpaid without refund (Scenario 6b)', ()
       await expect(detail.convertConfirm).toBeEnabled();
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
 
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(5000);
@@ -757,7 +757,7 @@ test.describe('Quotation conversion - Paperless not configured (Scenario 9)', ()
       await expect(detail.convertSelectDocument).toHaveCount(0);
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
     } finally {
       await cleanup(page, fixture);
     }
@@ -812,7 +812,7 @@ test.describe('Quotation conversion - Paperless document and AI prefill (Scenari
       await expect(detail.lineInput(fixture.lineIds[0]!, 'desktop')).toHaveValue('6120.00');
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
 
       const linksResp = await page.request.get(
         `/api/document-links?entityType=invoice&entityId=${fixture.invoiceId}`,
@@ -914,7 +914,7 @@ test.describe('Quotation conversion - AI failure (Scenario 12)', () => {
       await expect(detail.convertInvoiceNumber).toHaveValue('TYPED-1');
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(9800);
     } finally {
@@ -986,7 +986,7 @@ test.describe('Quotation conversion - mobile layout (Scenario 14)', { tag: '@res
       await expect(detail.lineInput(line1, 'mobile')).toHaveValue('6300.00');
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
       const invoice = await getInvoice(page, fixture.invoiceId);
       expect(invoice.amount).toBe(10500);
     } finally {
@@ -1015,7 +1015,7 @@ test.describe('Quotation conversion - tablet layout (Scenario 15)', { tag: '@res
       await expect(detail.lineCard(line1)).toBeHidden();
 
       expect(await detail.confirmConvert()).toBe(200);
-      await expect(detail.statusBadge).toContainText('Pending');
+      await expect(detail.statusBadge).toContainText('To pay');
     } finally {
       await cleanup(page, fixture);
     }

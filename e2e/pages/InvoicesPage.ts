@@ -4,11 +4,11 @@
  * The page renders:
  * - A SubNav with Budget tabs: Overview, Invoices, Vendors, Sources, Subsidies
  * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
- * - Summary cards: Pending, Claimable, Claimed, Quotation, Open (payable) — always rendered —
+ * - Summary cards: To pay, Ready to submit, Submitted, Offers, Still to pay — always rendered —
  *   plus two conditional cards: Refunds due to you (data-testid="summary-card-refunds-due",
  *   rendered only when summary.refundsDue.count > 0) and Overdue
  *   (data-testid="summary-card-overdue", rendered only when summary.overdue.count > 0).
- *   The "Open (payable)" and "Refunds due to you" cards (Story #2046) are GLOBAL/filter-
+ *   The "Still to pay" and "Refunds due to you" cards (Story #2046) are GLOBAL/filter-
  *   independent figures — they do not change when the open-items toggle or any column
  *   filter is applied.
  * - A DataTable with search and per-column filters:
@@ -174,18 +174,20 @@ export class InvoicesPage {
     // Summary cards grid
     this.summaryGrid = page.locator('[class*="summaryGrid"]');
     // Exclude the overdue card from the standard summary cards — its pluralized
-    // label text contains "pending invoices past due" which would otherwise match
+    // label text contains "invoices to pay are past due" which would otherwise match
     // the Pending locator and cause strict-mode violations.
     // Use the summaryLabel child to match only the card title, not hint text.
     this.pendingSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Pending$/i }) });
+      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^To pay$/i }) });
     this.claimableSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Claimable$/i }) });
+      .filter({
+        has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Ready to submit$/i }),
+      });
     this.quotationSummary = this.summaryGrid
       .locator('[class*="summaryCard"]:not([data-testid="summary-card-overdue"])')
-      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Quotation$/i }) });
+      .filter({ has: page.locator('[class*="summaryLabel"]').filter({ hasText: /^Offers$/i }) });
     // Overdue card (conditional) — rendered only when hasOverdue===true (Issue #1421)
     this.overdueCard = page.getByTestId('summary-card-overdue');
 
@@ -591,6 +593,21 @@ export class InvoicesPage {
     return this.page.getByTestId(`invoice-overdue-${invoiceId}`);
   }
 
+  /** Desktop table-row "Due soon" flag badge on an open-items invoice row (Story #2195). */
+  dueSoonChip(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoice-due-soon-${invoiceId}`);
+  }
+
+  /** Desktop child-row "Due soon" flag badge on a deposit's due-date cell (Story #2195). */
+  depositDueSoonChip(depositId: string): Locator {
+    return this.page.getByTestId(`deposit-due-soon-${depositId}`);
+  }
+
+  /** Invoice status chip (To pay / Paid / Submitted / Offer) in the list row, desktop surface. */
+  invoiceStatusBadge(invoiceId: string): Locator {
+    return this.page.getByTestId(`invoice-status-${invoiceId}`);
+  }
+
   /** "Deposits only" container badge — invoice listed only because of a pending deposit. */
   containerChip(invoiceId: string): Locator {
     return this.page.getByTestId(`invoice-container-${invoiceId}`);
@@ -601,7 +618,7 @@ export class InvoicesPage {
     return this.page.getByTestId(`deposit-overdue-${depositId}`);
   }
 
-  /** Desktop child-row status badge (Pending/Paid/Claimed) for a single deposit. */
+  /** Desktop child-row status badge (To pay/Paid/Submitted) for a single deposit. */
   depositStatusBadge(depositId: string): Locator {
     return this.page.getByTestId(`deposit-status-${depositId}`);
   }

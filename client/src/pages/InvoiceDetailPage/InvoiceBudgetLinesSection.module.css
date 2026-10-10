@@ -421,17 +421,17 @@
   border-top: 2px solid var(--color-border-strong);
 }
 
-.trRemaining_warning .tdRemaining {
+.trRemainingWarning .tdRemaining {
   color: var(--color-primary);
   font-weight: var(--font-weight-semibold);
 }
 
-.trRemaining_danger .tdRemaining {
+.trRemainingDanger .tdRemaining {
   color: var(--color-danger);
   font-weight: var(--font-weight-semibold);
 }
 
-.trRemaining_neutral .tdRemaining {
+.trRemainingNeutral .tdRemaining {
   color: var(--color-text-muted);
 }
 

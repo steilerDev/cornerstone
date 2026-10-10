@@ -451,13 +451,13 @@ describe('PaperlessInvoiceReviewPage — invoice Status select (Story #2154)', (
     expect(getStatusSelect().value).toBe('pending');
   });
 
-  it('AC3: offers pending, paid, claimed, quotation with English labels', async () => {
+  it('AC3: offers the four invoice statuses with the canonical English words', async () => {
     renderPage();
     await waitForReady();
 
     const options = Array.from(getStatusSelect().options);
     expect(options.map((o) => o.value)).toEqual(['pending', 'paid', 'claimed', 'quotation']);
-    expect(options.map((o) => o.textContent)).toEqual(['Pending', 'Paid', 'Claimed', 'Quotation']);
+    expect(options.map((o) => o.textContent)).toEqual(['To pay', 'Paid', 'Submitted', 'Offer']);
   });
 
   it.each(['paid', 'claimed', 'quotation'])(

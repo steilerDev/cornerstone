@@ -214,7 +214,7 @@ async function mockPaperlessNotConfigured(page: Page): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Report wizard — claim walk (Scenario 1)', () => {
-  test('Full claim flow: select, exclude, preview, download, mark claimed', async ({
+  test('Full claim flow: select, exclude, preview, download, mark submitted', async ({
     page,
     testPrefix,
   }) => {
@@ -336,7 +336,7 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       // Mark claimed: modal states pending count (1 pending2 + 1 paid = 2 included, 1 pending).
       await wizard.clickMarkClaimed();
       await expect(wizard.claimConfirmModalBody).toContainText(
-        'This will mark 2 invoice(s) as claimed (1 pending)',
+        'This will mark 2 invoices as submitted (1 still to pay)',
       );
       await wizard.confirmClaim();
 
@@ -347,7 +347,7 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       // no deposits at all, so the deposit count is 0.
       await expect(wizard.claimSuccessBanner).toBeVisible();
       await expect(wizard.claimSuccessBanner).toContainText(
-        '2 invoice(s) and 0 deposit(s) marked as claimed',
+        '2 invoices and 0 progress payments marked as submitted',
       );
       await expect(wizard.claimSuccessInvoicesLink).toBeVisible();
       await wizard.claimSuccessInvoicesLink.click();
@@ -358,9 +358,9 @@ test.describe('Report wizard — claim walk (Scenario 1)', () => {
       const invoicesPage = new InvoicesPage(page);
       await invoicesPage.goto();
       await invoicesPage.search(pending2.invoiceNumber!);
-      await expect(page.getByText(/claimed/i).first()).toBeVisible();
+      await expect(page.getByText(/^Submitted$/).first()).toBeVisible();
       await invoicesPage.search(pending1.invoiceNumber!);
-      await expect(page.getByText(/^pending$/i).first()).toBeVisible();
+      await expect(page.getByText(/^To pay$/).first()).toBeVisible();
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceAId) await deleteBudgetSourceViaApi(page, sourceAId);
@@ -1349,3 +1349,75 @@ test.describe(
     });
   },
 );
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 (AC6): the "mark as submitted" button counts the included invoices
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard — mark-as-submitted button wording (Story #2195, AC6)', () => {
+  test('The step-5 button reads "Mark 2 invoices as submitted", then "Mark 1 invoice as submitted" after excluding one', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+    const vendorName = `${testPrefix} Submit Vendor`;
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+
+    try {
+      vendorId = await createVendorViaApi(page, { name: vendorName });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Submit Source`,
+        totalAmount: 50000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Submit` });
+
+      const first = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SUB-001`,
+        amount: 500,
+        date: '2026-02-01',
+        status: 'pending',
+      });
+      await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-SUB-002`,
+        amount: 700,
+        date: '2026-02-02',
+        status: 'paid',
+      });
+
+      const reachStep5 = async (excludeFirst: boolean): Promise<void> => {
+        await wizard.goto();
+        await wizard.selectUseCase('claim');
+        await wizard.goNextFromStep1();
+        await wizard.selectSource(sourceId);
+        await wizard.goNextFromStep2();
+        await expect(wizard.regularInvoiceRow(vendorName, first.invoiceNumber!)).toBeVisible();
+        if (excludeFirst) {
+          await wizard.toggleInvoiceExclusion(vendorName, first.invoiceNumber!);
+          await expect(
+            wizard.invoiceRowCheckbox(vendorName, first.invoiceNumber!),
+          ).not.toBeChecked();
+        }
+        await wizard.goNextFromStep3();
+        await wizard.step4NextButton.click();
+      };
+
+      await reachStep5(false);
+      await expect(
+        page.getByRole('button', { name: 'Mark 2 invoices as submitted', exact: true }),
+      ).toBeEnabled();
+
+      await reachStep5(true);
+      await expect(
+        page.getByRole('button', { name: 'Mark 1 invoice as submitted', exact: true }),
+      ).toBeEnabled();
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});

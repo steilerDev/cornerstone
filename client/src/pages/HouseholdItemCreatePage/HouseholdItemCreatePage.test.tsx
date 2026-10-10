@@ -6,7 +6,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
-import enHouseholdItems from '../../i18n/en/householdItems.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
@@ -227,7 +227,10 @@ describe('HouseholdItemCreatePage', () => {
       const statusSelect = (await screen.findByLabelText(/purchase status/i)) as HTMLSelectElement;
 
       expect(Array.from(statusSelect.options).map((o) => [o.value, o.textContent])).toEqual(
-        HOUSEHOLD_ITEM_STATUSES.map((status) => [status, enHouseholdItems.status[status]]),
+        HOUSEHOLD_ITEM_STATUSES.map((status) => [
+          status,
+          enCommon.statusVocabulary.purchase[status],
+        ]),
       );
     });
 

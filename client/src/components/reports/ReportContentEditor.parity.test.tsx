@@ -256,7 +256,8 @@ const EXPECTED_EN: Expected = {
   lessDeposit: '(less\u00A0deposit)',
   refund: '(refund)',
   splitLegend: 'partial: Amount shown reflects only the portion allocated to this source.',
-  lessDepositLegend: 'less\u00A0deposit: This position reflects deposits claimed separately.',
+  lessDepositLegend:
+    'less\u00A0deposit: This position reflects progress payments submitted separately.',
 };
 
 const EXPECTED_DE: Expected = {

@@ -118,33 +118,6 @@
   color: var(--color-text-muted);
 }
 
-.refund {
-  background-color: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
-}
-
-/* ---- Invoice Status Badges ---- */
-
-.pending {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
-}
-
-.paid {
-  background-color: var(--color-status-completed-bg);
-  color: var(--color-status-completed-text);
-}
-
-.claimed {
-  background-color: var(--color-status-completed-bg);
-  color: var(--color-status-completed-text);
-}
-
-.quotation {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
-}
-
 /* ---- Unallocated Group ---- */
 
 .unallocatedSection {

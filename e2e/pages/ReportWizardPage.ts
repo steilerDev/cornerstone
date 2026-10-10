@@ -621,7 +621,9 @@ export class ReportWizardPage {
     // `{ count: selectedInvoiceCount }` to `t('sourceReports.markClaimed')`. The regex still
     // matches on the surrounding text rather than an exact digit so the locator doesn't need
     // to change if the count itself varies per scenario.
-    this.markClaimedButton = page.getByRole('button', { name: /Mark .+ invoices as claimed/i });
+    this.markClaimedButton = page.getByRole('button', {
+      name: /^Mark \d+ invoices? as submitted$/i,
+    });
     this.finishWithoutMarkingButton = page.getByRole('button', { name: 'Finish without marking' });
     this.uploadPaperlessButton = page.getByRole('button', { name: 'Upload to Paperless' });
     this.claimErrorBanner = page.locator('[class*="bannerError"]');
@@ -684,7 +686,7 @@ export class ReportWizardPage {
     this.columnToggleGroup = page.getByRole('group', { name: 'Show/hide columns' });
     this.usageHiddenAttachmentsWarning = page.locator('[class*="bannerWarning"]');
 
-    this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark Invoices as Claimed?' });
+    this.claimConfirmModal = page.getByRole('dialog', { name: 'Mark invoices as submitted?' });
     this.claimConfirmModalBody = this.claimConfirmModal.locator('p');
     this.claimConfirmConfirmButton = this.claimConfirmModal.locator('[class*="btnPrimary"]');
     this.claimConfirmCancelButton = this.claimConfirmModal.locator('[class*="btnSecondary"]');

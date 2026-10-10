@@ -475,13 +475,13 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
 
         // Status badge is visible
         await expect(detailPage.statusBadge).toBeVisible();
-        await expect(detailPage.statusBadge).toContainText('Pending');
+        await expect(detailPage.statusBadge).toContainText('To pay');
 
         // Detail fields are populated
         const fields = await detailPage.getDetailFields();
         expect(fields['Invoice #']).toBe(`${testPrefix}-DET-001`);
         expect(fields['Vendor']).toBe(vendorName);
-        expect(fields['Status']).toContain('Pending');
+        expect(fields['Status']).toContain('To pay');
 
         // Edit and Delete buttons visible in the page actions
         await expect(detailPage.editButton).toBeVisible();
@@ -619,7 +619,7 @@ test.describe('Edit invoice (Scenario 9)', { tag: '@responsive' }, () => {
 
       // Modal closes; status still pending
       await expect(detailPage.editModal).not.toBeVisible();
-      await expect(detailPage.statusBadge).toContainText('Pending');
+      await expect(detailPage.statusBadge).toContainText('To pay');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

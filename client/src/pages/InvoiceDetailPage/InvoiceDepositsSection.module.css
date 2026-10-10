@@ -231,55 +231,6 @@
   text-decoration: line-through;
 }
 
-/* ---- Status Badges (for deposits) ---- */
-
-.statusPending {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-}
-
-.statusPaid {
-  background-color: var(--color-success-badge-bg);
-  color: var(--color-success-badge-text);
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-}
-
-.statusClaimed {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-}
-
-.statusQuotation {
-  background-color: var(--color-gray-200);
-  color: var(--color-gray-800);
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  white-space: nowrap;
-}
-
-/* ---- Entry Type Badge ---- */
-
-.refund {
-  background-color: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
-}
-
 /* ---- Modal Styles ---- */
 
 .modal {

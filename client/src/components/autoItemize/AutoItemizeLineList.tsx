@@ -157,11 +157,7 @@ export function AutoItemizeLineList({
                 };
 
                 return (
-                  <li
-                    key={line.rowId}
-                    className={`${styles.lineCard} ${styles.lineCardMergeError}`}
-                    role="alert"
-                  >
+                  <li key={line.rowId} className={styles.lineCardMergeError} role="alert">
                     <Badge variants={mergeErrorVariants} value="error" testId="merge-error-badge" />
                     <p className={styles.mergeErrorMessage}>{t('autoItemize.mergeErrorMessage')}</p>
                     <div className={styles.mergeErrorActions}>

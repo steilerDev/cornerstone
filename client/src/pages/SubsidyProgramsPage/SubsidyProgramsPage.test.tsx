@@ -11,7 +11,7 @@ import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
-import enBudget from '../../i18n/en/budget.json';
+import enCommon from '../../i18n/en/common.json';
 import enErrors from '../../i18n/en/errors.json';
 import type {
   SubsidyProgram,
@@ -644,7 +644,7 @@ describe('SubsidyProgramsPage', () => {
       expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
         SUBSIDY_APPLICATION_STATUSES.map((status) => [
           status,
-          enBudget.subsidies.statusLabels[status],
+          enCommon.statusVocabulary.grant[status],
         ]),
       );
     });
@@ -662,7 +662,7 @@ describe('SubsidyProgramsPage', () => {
       expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
         SUBSIDY_APPLICATION_STATUSES.map((status) => [
           status,
-          enBudget.subsidies.statusLabels[status],
+          enCommon.statusVocabulary.grant[status],
         ]),
       );
     });

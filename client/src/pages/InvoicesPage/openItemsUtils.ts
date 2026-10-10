@@ -21,6 +21,26 @@ export function isOverdue(dueDate: string | null, today: string): boolean {
   return dueDate < today;
 }
 
+/** Days ahead of the due date at which a payable is flagged "due soon". */
+export const DUE_SOON_DAYS = 7;
+
+/** Local YYYY-MM-DD `days` after `today` (local-date arithmetic, no UTC shift). */
+function addDaysIso(today: string, days: number): string {
+  const [y, m, d] = today.split('-').map(Number);
+  const date = new Date(y!, m! - 1, d! + days);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Due-date flag for a payable: 'overdue' (strictly before today), 'dueSoon' (today up to
+ * DUE_SOON_DAYS ahead) or null. Null/empty dueDate has no flag.
+ */
+export function dueFlag(dueDate: string | null, today: string): 'overdue' | 'dueSoon' | null {
+  if (!dueDate) return null;
+  if (isOverdue(dueDate, today)) return 'overdue';
+  return dueDate <= addDaysIso(today, DUE_SOON_DAYS) ? 'dueSoon' : null;
+}
+
 /** Pending entries only, preserving server order (dueDate, createdAt). */
 export function getOpenDeposits(invoice: Invoice): InvoiceDeposit[] {
   return invoice.deposits.filter((d) => d.status === 'pending');

@@ -90,23 +90,23 @@ describe('DiaryEntryTypeBadge', () => {
   it('has title attribute matching the entry type label', () => {
     render(<DiaryEntryTypeBadge entryType="daily_log" />);
     const badge = screen.getByTestId('diary-type-badge-daily_log');
-    expect(badge).toHaveAttribute('title', 'Daily Log');
+    expect(badge).toHaveAttribute('title', 'Daily log');
   });
 
-  it('has title "Site Visit" for site_visit', () => {
+  it('has title "Site visit" for site_visit', () => {
     render(<DiaryEntryTypeBadge entryType="site_visit" />);
     expect(screen.getByTestId('diary-type-badge-site_visit')).toHaveAttribute(
       'title',
-      'Site Visit',
+      'Site visit',
     );
   });
 
   it.each([
-    ['daily_log', 'Daily Log'],
-    ['site_visit', 'Site Visit'],
+    ['daily_log', 'Daily log'],
+    ['site_visit', 'Site visit'],
     ['delivery', 'Delivery'],
-    ['issue', 'Issue'],
-    ['general_note', 'General Note'],
+    ['issue', 'Defect'],
+    ['general_note', 'Note'],
     ['work_item_status', 'Work Item Status'],
     ['invoice_status', 'Invoice Status'],
     ['invoice_created', 'Invoice Created'],
@@ -114,12 +114,15 @@ describe('DiaryEntryTypeBadge', () => {
     ['budget_breach', 'Budget Breach'],
     ['auto_reschedule', 'Auto Reschedule'],
     ['subsidy_status', 'Subsidy Status'],
-  ] as const)('title and aria-label come from diary:entryTypes for %s', (type, label) => {
-    render(<DiaryEntryTypeBadge entryType={type} />);
-    const badge = screen.getByTestId(`diary-type-badge-${type}`);
-    expect(badge).toHaveAttribute('title', label);
-    expect(badge).toHaveAttribute('aria-label', `Entry type: ${label}`);
-  });
+  ] as const)(
+    'title and aria-label come from the canonical diary type words for %s',
+    (type, label) => {
+      render(<DiaryEntryTypeBadge entryType={type} />);
+      const badge = screen.getByTestId(`diary-type-badge-${type}`);
+      expect(badge).toHaveAttribute('title', label);
+      expect(badge).toHaveAttribute('aria-label', `Entry type: ${label}`);
+    },
+  );
 
   it('shows the German label and aria-label when the language is German', async () => {
     await act(async () => {
@@ -128,8 +131,8 @@ describe('DiaryEntryTypeBadge', () => {
     try {
       render(<DiaryEntryTypeBadge entryType="general_note" />);
       const badge = screen.getByTestId('diary-type-badge-general_note');
-      expect(badge).toHaveAttribute('title', 'Allgemeine Notiz');
-      expect(badge).toHaveAttribute('aria-label', 'Eintragstyp: Allgemeine Notiz');
+      expect(badge).toHaveAttribute('title', 'Notiz');
+      expect(badge).toHaveAttribute('aria-label', 'Eintragstyp: Notiz');
     } finally {
       await act(async () => {
         await i18n.changeLanguage('en');

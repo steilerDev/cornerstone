@@ -254,5 +254,8 @@
       "issue": "Mangel",
       "general_note": "Notiz"
     }
+  },
+  "statusHints": {
+    "submitted": "Bezahlt oder fällig und in einem Mittelabruf an die Bank enthalten"
   }
 }

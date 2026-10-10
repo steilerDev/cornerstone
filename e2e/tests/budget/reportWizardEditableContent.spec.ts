@@ -1151,9 +1151,7 @@ test.describe('Report wizard editable content — mark-claimed warning regressio
 
       await wizard.clickMarkClaimed();
       await expect(wizard.markClaimedWarningBlock).toBeVisible();
-      await expect(wizard.markClaimedWarningBlock).toHaveText(
-        /^1 invoice\(s\) have excluded line items/,
-      );
+      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded line items/);
       await wizard.confirmClaim();
 
       // Fixture has no deposits and the only invoice has an excluded line, so both invoiceIds
@@ -1161,7 +1159,7 @@ test.describe('Report wizard editable content — mark-claimed warning regressio
       // claim-success banner never renders (see docstring above / handleMarkClaimed's "both
       // empty" branch).
       await expect(wizard.claimErrorBanner).toBeVisible();
-      await expect(wizard.claimErrorBanner).toHaveText(/^Nothing can be marked as claimed/);
+      await expect(wizard.claimErrorBanner).toHaveText(/^Nothing can be marked as submitted/);
       await expect(wizard.claimSuccessBanner).not.toBeVisible();
     } finally {
       if (workItemAId) await deleteWorkItemViaApi(page, workItemAId);
@@ -1856,7 +1854,7 @@ test.describe('Report wizard editable content — inline split and deposit-reduc
       // Second legend entry: deposit-reduced sentence — first real-browser assertion of the
       // `isDepositReduced` path (`sourceReports.table.depositReducedFootnote`, AC5 Issue #1980).
       await expect(wizard.footnoteItems.nth(1)).toContainText(
-        'This position reflects deposits claimed separately.',
+        'This position reflects progress payments submitted separately.',
       );
       // The inline labels from the table rows must also still be present.
       // `(partial)` uses a plain space — safe to compare via raw textContent().
@@ -2028,6 +2026,7 @@ test.describe('Report wizard editable content — total-only summary (Scenario 1
       expect(summaryText).not.toContain('Outstanding');
       expect(summaryText).not.toContain('Quotation');
       expect(summaryText).not.toContain('Claimed');
+      expect(summaryText).not.toContain('Submitted');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);

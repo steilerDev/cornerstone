@@ -20,7 +20,6 @@ import type {
   WorkItemSubsidyPaybackResponse,
   WorkItemLinkedHouseholdItemSummary,
   HouseholdItemCategory,
-  HouseholdItemStatus,
 } from '@cornerstone/shared';
 import {
   getWorkItem,
@@ -89,6 +88,8 @@ import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIn
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
+import { Badge } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import styles from './WorkItemDetailPage.module.css';
 
 const CONSTRAINT_ERROR_KEYS = {
@@ -138,24 +139,7 @@ export default function WorkItemDetailPage() {
     [t],
   );
 
-  const statusLabels: Record<WorkItemStatus, string> = useMemo(
-    () => ({
-      not_started: t('detail.statusOptions.notStarted')!,
-      in_progress: t('detail.statusOptions.inProgress')!,
-      completed: t('detail.statusOptions.completed')!,
-    }),
-    [t],
-  );
-
-  const HOUSEHOLD_ITEM_STATUS_LABELS: Record<HouseholdItemStatus, string> = useMemo(
-    () => ({
-      planned: t('detail.householdItems.statuses.planned')!,
-      purchased: t('detail.householdItems.statuses.purchased')!,
-      scheduled: t('detail.householdItems.statuses.scheduled')!,
-      arrived: t('detail.householdItems.statuses.arrived')!,
-    }),
-    [t],
-  );
+  const statusVariants = useStatusBadgeVariants();
 
   const [workItem, setWorkItem] = useState<WorkItemDetail | null>(null);
   const [notes, setNotes] = useState<NoteResponse[]>([]);
@@ -1462,7 +1446,7 @@ export default function WorkItemDetailPage() {
             >
               {WORK_ITEM_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {statusLabels[status]}
+                  {statusVariants.task[status].label}
                 </option>
               ))}
             </select>
@@ -2110,9 +2094,11 @@ export default function WorkItemDetailPage() {
                 <span className={styles.householdItemCategoryBadge}>
                   {HOUSEHOLD_ITEM_CATEGORY_LABELS[hi.category]}
                 </span>
-                <span className={styles.householdItemStatusBadge} data-status={hi.status}>
-                  {HOUSEHOLD_ITEM_STATUS_LABELS[hi.status]}
-                </span>
+                <Badge
+                  variants={statusVariants.purchase}
+                  value={hi.status}
+                  testId={`linked-household-item-status-${hi.id}`}
+                />
                 {hi.earliestDeliveryDate && hi.latestDeliveryDate ? (
                   <span className={styles.householdItemDeliveryDate}>
                     {formatDate(hi.earliestDeliveryDate)} – {formatDate(hi.latestDeliveryDate)}

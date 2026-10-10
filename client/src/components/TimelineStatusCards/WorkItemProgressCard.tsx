@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface WorkItemProgressCardProps {
@@ -8,7 +9,7 @@ interface WorkItemProgressCardProps {
 
 export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
   const { t } = useTranslation('dashboard');
-  const { t: tWorkItems } = useTranslation('workItems');
+  const statusVariants = useStatusBadgeVariants();
 
   if (workItems.length === 0) {
     return (
@@ -70,12 +71,6 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
     return circle;
   });
 
-  const statusLabels = {
-    not_started: tWorkItems('create.fields.statusOptions.notStarted'),
-    in_progress: tWorkItems('create.fields.statusOptions.inProgress'),
-    completed: tWorkItems('create.fields.statusOptions.completed'),
-  };
-
   const statusColors = {
     not_started: 'var(--color-text-muted)',
     in_progress: 'var(--color-primary)',
@@ -125,7 +120,7 @@ export function WorkItemProgressCard({ workItems }: WorkItemProgressCardProps) {
               className={styles.legendDot}
               style={{ backgroundColor: statusColors[segment.status] }}
             />
-            <span>{statusLabels[segment.status]}</span>
+            <span>{statusVariants.task[segment.status].label}</span>
             <span className={styles.legendCount}>{segment.count}</span>
           </div>
         ))}

@@ -1025,14 +1025,14 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders "Pending" status badge for pending invoice', async () => {
+    it('renders "To pay" status badge for pending invoice', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Pending').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('To pay').length).toBeGreaterThan(0);
       });
     });
 
@@ -1047,15 +1047,65 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders "Claimed" status badge for claimed invoice', async () => {
+    it('renders "Submitted" status badge for claimed invoice', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([claimedInvoice]);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getAllByText('Claimed').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Submitted').length).toBeGreaterThan(0);
       });
+    });
+
+    it('D-07: every invoice status renders through the shared Badge with its own variant class (table + mobile card)', async () => {
+      const quotationInvoice: Invoice = {
+        ...sampleInvoice,
+        id: 'invoice-4',
+        invoiceNumber: 'INV-OFFER',
+        status: 'quotation',
+      };
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([
+        sampleInvoice,
+        paidInvoice,
+        claimedInvoice,
+        quotationInvoice,
+      ]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-invoice-status-invoice-1')).toBeInTheDocument();
+      });
+      const expectations = [
+        ['invoice-1', 'To pay', 'pending'],
+        ['invoice-2', 'Paid', 'paid'],
+        ['invoice-3', 'Submitted', 'claimed'],
+        ['invoice-4', 'Offer', 'offer'],
+      ] as const;
+      for (const [id, word, cls] of expectations) {
+        for (const testId of [
+          `vendor-invoice-status-${id}`,
+          `vendor-invoice-status-mobile-${id}`,
+        ]) {
+          const chip = screen.getByTestId(testId);
+          expect(chip).toHaveTextContent(word);
+          expect(chip.className).toContain('badge');
+          expect(chip.className).toContain(cls);
+        }
+      }
+      // the offer chip is never the old red quotation class
+      expect(screen.getByTestId('vendor-invoice-status-invoice-4').className).not.toContain(
+        'quotation',
+      );
+      // Submitted carries the decorative check icon, others do not
+      expect(
+        screen
+          .getByTestId('vendor-invoice-status-invoice-3')
+          .querySelector('svg[aria-hidden="true"]'),
+      ).not.toBeNull();
+      expect(screen.getByTestId('vendor-invoice-status-invoice-1').querySelector('svg')).toBeNull();
     });
 
     it('renders the header outstanding figure from the server value, not the invoice list', async () => {
@@ -1257,7 +1307,7 @@ describe('VendorDetailPage', () => {
       expect(submitBtn).toBeDisabled();
     });
 
-    it('opens the create modal with the status preset to Pending (Quotation must be chosen)', async () => {
+    it('opens the create modal with the status preset to To pay (Offer must be chosen)', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([]);
 

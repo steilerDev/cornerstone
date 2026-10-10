@@ -983,7 +983,7 @@ test.describe('Discretionary Funding source', () => {
     const barSection = row.locator('[class*="sourceBarSection"]');
     await expect(barSection).toBeVisible();
 
-    // After bar chart rework (#1319): summary table has exactly 3 rows — Projected, Paid, Claimed
+    // After bar chart rework (#1319): summary table has exactly 3 rows — Projected, Paid, Submitted
     // (the old footer "Total / Available / Planned / Rate" row was removed)
     const summaryLabels = sourcesPage.getSummaryLabels(DISCRETIONARY_NAME);
     const labelCount = await summaryLabels.count();
@@ -993,7 +993,7 @@ test.describe('Discretionary Funding source', () => {
     const normalised = labelTexts.map((t) => t.trim().replace(/\s+/g, ' '));
     expect(normalised.some((t) => t.includes('Projected'))).toBe(true);
     expect(normalised.some((t) => t.includes('Paid'))).toBe(true);
-    expect(normalised.some((t) => t.includes('Claimed'))).toBe(true);
+    expect(normalised.some((t) => t.includes('Submitted'))).toBe(true);
 
     // "Allocated" must NOT appear anywhere in the row (removed in #1319)
     const rowText = await row.textContent();
@@ -1074,7 +1074,7 @@ test.describe('Bar chart rework #1319', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Summary table shows exactly 3 rows: Projected, Paid, Claimed', async ({
+  test('Summary table shows exactly 3 rows: Projected, Paid, Submitted', async ({
     page,
     testPrefix,
   }) => {
@@ -1097,10 +1097,10 @@ test.describe('Bar chart rework #1319', { tag: '@responsive' }, () => {
 
       const texts = await labels.allTextContents();
       const normalised = texts.map((t) => t.trim().replace(/\s+/g, ' '));
-      // Order must be: Projected, Paid, Claimed
+      // Order must be: Projected, Paid, Submitted
       expect(normalised[0]).toContain('Projected');
       expect(normalised[1]).toContain('Paid');
-      expect(normalised[2]).toContain('Claimed');
+      expect(normalised[2]).toContain('Submitted');
     } finally {
       if (createdId) await deleteSourceViaApi(page, createdId);
     }
@@ -1392,3 +1392,29 @@ test.describe('Documents toggle (Story #1744)', { tag: '@responsive' }, () => {
     }
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195 (AC4): amount fields carry no currency symbol or "0.00" placeholder
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe(
+  'Add source form — plain amount field (Story #2195, AC4)',
+  { tag: '@responsive' },
+  () => {
+    test('The amount label has no "$" and the amount input has no "0.00" placeholder', async ({
+      page,
+    }) => {
+      const sourcesPage = new BudgetSourcesPage(page);
+
+      await sourcesPage.goto();
+      await sourcesPage.waitForSourcesLoaded();
+      await sourcesPage.openCreateForm();
+
+      await expect(sourcesPage.createTotalAmountInput).toBeVisible();
+      const label = page.locator('label[for="sourceTotalAmount"]');
+      await expect(label).toHaveText(/^Total amount\s*\*?$/);
+      await expect(label).not.toContainText('$');
+      await expect(sourcesPage.createTotalAmountInput).not.toHaveAttribute('placeholder', /\S/);
+    });
+  },
+);

@@ -1580,7 +1580,9 @@ test.describe('Home trust (Scenario 14, #2193)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('D-02: invoices exist but none is open shows "No pending invoices"', async ({ page }) => {
+  test('D-02: invoices exist but none is open shows "Nothing to pay right now"', async ({
+    page,
+  }) => {
     const dashboardPage = new DashboardPage(page);
 
     await interceptDashboardApis(page, {
@@ -1600,7 +1602,7 @@ test.describe('Home trust (Scenario 14, #2193)', { tag: '@responsive' }, () => {
       await dashboardPage.waitForCardsLoaded();
 
       const card = dashboardPage.card('Invoice Pipeline').filter({ visible: true });
-      await expect(card.getByText('No pending invoices')).toBeVisible();
+      await expect(card.getByText('Nothing to pay right now')).toBeVisible();
       await expect(card.getByText('No invoices yet')).toHaveCount(0);
     } finally {
       await uninterceptDashboardApis(page);

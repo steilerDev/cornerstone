@@ -4,6 +4,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -129,28 +130,7 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
     },
   };
 
-  const statusVariants: BadgeVariantMap = {
-    pending: {
-      label: t('invoiceDetail.statusLabels.pending'),
-      className: styles.statusPending!,
-    },
-    paid: { label: t('invoiceDetail.statusLabels.paid'), className: styles.statusPaid! },
-    claimed: {
-      label: t('invoiceDetail.statusLabels.claimed'),
-      className: styles.statusClaimed!,
-    },
-    quotation: {
-      label: t('invoiceDetail.statusLabels.quotation'),
-      className: styles.statusQuotation!,
-    },
-  };
-
-  const refundVariants: BadgeVariantMap = {
-    refund: {
-      label: t('invoiceDetail.convertModal.deposits.refund'),
-      className: styles.refundBadge!,
-    },
-  };
+  const statusVariants = useStatusBadgeVariants();
 
   const aiHintText = !llmEnabled
     ? t('invoiceDetail.convertModal.source.aiUnavailable')
@@ -696,11 +676,11 @@ export function ConvertQuotationModal({ convert }: ConvertQuotationModalProps) {
                 >
                   <span>{formatDate(deposit.dueDate)}</span>
                   {deposit.entryType === 'refund' ? (
-                    <Badge variants={refundVariants} value="refund" />
+                    <Badge variants={statusVariants.refund} value="refund" />
                   ) : (
                     <span>{t('invoiceDetail.deposits.entryTypeLabels.deposit')}</span>
                   )}
-                  <Badge variants={statusVariants} value={deposit.status} />
+                  <Badge variants={statusVariants.progressPayment} value={deposit.status} />
                   <span className={styles.depositAmount}>
                     {formatCurrency(
                       deposit.entryType === 'refund' ? -deposit.amount : deposit.amount,

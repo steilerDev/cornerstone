@@ -13,7 +13,7 @@ export function MergingLineCard({ caption }: MergingLineCardProps) {
   const mergingLabel = t('autoItemize.mergingLabel');
 
   return (
-    <li className={`${styles.lineCard} ${styles.lineCardMerging}`} aria-busy="true">
+    <li className={styles.lineCardMerging} aria-busy="true">
       <Skeleton lines={2} widths={['70%', '40%']} loadingLabel={mergingLabel} />
       <div className={styles.mergingOverlay}>
         <Spinner size="md" label={mergingLabel} />

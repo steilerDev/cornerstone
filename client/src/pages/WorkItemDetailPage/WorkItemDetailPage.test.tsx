@@ -437,9 +437,9 @@ describe('WorkItemDetailPage', () => {
         ) as HTMLSelectElement;
 
       expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual([
-        ['not_started', enWorkItems.detail.statusOptions.notStarted],
-        ['in_progress', enWorkItems.detail.statusOptions.inProgress],
-        ['completed', enWorkItems.detail.statusOptions.completed],
+        ['not_started', enCommon.statusVocabulary.task.not_started],
+        ['in_progress', enCommon.statusVocabulary.task.in_progress],
+        ['completed', enCommon.statusVocabulary.task.completed],
       ]);
       expect(Array.from(select.options).map((o) => o.value)).toEqual([...WORK_ITEM_STATUSES]);
     });
@@ -1538,7 +1538,7 @@ describe('WorkItemDetailPage', () => {
     it('status change failure', async () => {
       mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
       await renderLoaded();
-      fireEvent.change(screen.getByDisplayValue(enWorkItems.detail.statusOptions.inProgress), {
+      fireEvent.change(screen.getByDisplayValue(enCommon.statusVocabulary.task.in_progress), {
         target: { value: 'completed' },
       });
       await expectInlineError(ie.updateStatus);

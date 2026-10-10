@@ -1,5 +1,8 @@
 import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useFormatters } from '../../lib/formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { TimelineHouseholdItem } from '@cornerstone/shared';
 import styles from './CalendarHouseholdItem.module.css';
 
@@ -38,6 +41,9 @@ export function CalendarHouseholdItem({
   activeTouchId = null,
   onTouchTap,
 }: CalendarHouseholdItemProps) {
+  const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
+  const { formatDate } = useFormatters();
   const navigate = useNavigate();
 
   function handleNavigate() {
@@ -60,7 +66,7 @@ export function CalendarHouseholdItem({
   }
 
   const isArrived = item.status === 'arrived';
-  const statusLabel = item.status.replace(/_/g, ' ');
+  const statusLabel = tCommon(I18N_UNION_KEYS.statusVocabularyPurchase.key(item.status));
 
   return (
     <div
@@ -74,7 +80,16 @@ export function CalendarHouseholdItem({
       }
       onMouseLeave={() => onMouseLeave?.()}
       onMouseMove={(e: ReactMouseEvent<HTMLDivElement>) => onMouseMove?.(e.clientX, e.clientY)}
-      aria-label={`Household item: ${item.name}, ${statusLabel}, delivery ${item.earliestDeliveryDate ?? 'unscheduled'}`}
+      aria-label={t(
+        item.earliestDeliveryDate
+          ? 'calendar.householdItem.ariaLabel'
+          : 'calendar.householdItem.ariaLabelUnscheduled',
+        {
+          name: item.name,
+          status: statusLabel,
+          date: item.earliestDeliveryDate ? formatDate(item.earliestDeliveryDate) : '',
+        },
+      )}
       aria-describedby="calendar-view-tooltip"
       data-testid="calendar-hi-item"
     >

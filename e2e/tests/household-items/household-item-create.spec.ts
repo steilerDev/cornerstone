@@ -218,7 +218,7 @@ test.describe('Status options (Scenario 8)', { tag: '@responsive' }, () => {
 
     await createPage.goto();
 
-    const expectedStatuses = ['Planned', 'Purchased', 'Scheduled', 'Arrived'];
+    const expectedStatuses = ['Planned', 'Ordered', 'Delivery scheduled', 'Delivered'];
 
     for (const status of expectedStatuses) {
       const option = createPage.statusSelect.locator('option', { hasText: status });

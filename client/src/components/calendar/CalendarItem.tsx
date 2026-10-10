@@ -21,6 +21,7 @@ import type {
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import styles from './CalendarItem.module.css';
 
 // ---------------------------------------------------------------------------
@@ -117,6 +118,7 @@ export function CalendarItem({
 }: CalendarItemProps) {
   const navigate = useNavigate();
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
 
   function doNavigate() {
     void navigate(`/project/work-items/${item.id}`, {
@@ -196,7 +198,7 @@ export function CalendarItem({
       onMouseMove={handleMouseMove}
       aria-label={t('calendar.item.ariaLabel', {
         title: item.title,
-        status: item.status.replace('_', ' '),
+        status: tCommon(I18N_UNION_KEYS.statusVocabularyTask.key(item.status)),
       })}
       aria-describedby="calendar-view-tooltip"
       data-testid="calendar-item"

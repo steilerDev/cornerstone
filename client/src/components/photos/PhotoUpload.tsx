@@ -26,6 +26,13 @@ interface PhotoEntry {
   metadata?: { caption: string | null; areaId: string | null; orientationId: string | null };
 }
 
+const QUEUE_STATE_CLASS: Record<PhotoUploadState, string | undefined> = {
+  queued: styles.stateQueued,
+  uploading: styles.stateUploading,
+  succeeded: styles.stateSucceeded,
+  failed: styles.stateFailed,
+};
+
 export function PhotoUpload({
   entityType,
   entityId,
@@ -345,7 +352,7 @@ export function PhotoUpload({
           {photoQueue.map((entry) => (
             <div
               key={`${entry.file.name}-${entry.file.size}-${entry.file.lastModified}`}
-              className={`${styles.queueItem} ${styles[`state-${entry.state}`]}`}
+              className={`${styles.queueItem} ${QUEUE_STATE_CLASS[entry.state]}`}
             >
               <div className={styles.queueItemHeader}>
                 <span className={styles.queueItemName}>{entry.file.name}</span>

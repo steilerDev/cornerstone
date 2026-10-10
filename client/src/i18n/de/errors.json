@@ -43,7 +43,7 @@
   "LLM_INVALID_RESPONSE": "Der KI-Dienst hat eine unbrauchbare Antwort zurückgegeben. Bitte versuchen Sie es erneut.",
   "LLM_UPSTREAM_ERROR": "Der KI-Dienst hat einen Fehler gemeldet. Bitte versuchen Sie es erneut.",
   "REFUND_EXCEEDS_INVOICE": "Der Rückerstattungsbetrag übersteigt den Rechnungsbetrag.",
-  "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie wurden möglicherweise bereits eingereicht oder befinden sich in einem ungültigen Status.",
+  "INVOICES_NOT_CLAIMABLE": "Eine oder mehrere Rechnungen konnten nicht als eingereicht markiert werden. Sie sind möglicherweise bereits eingereicht oder ihr Status lässt es nicht zu.",
   "EMPTY_SELECTION": "Wählen Sie mindestens eine Rechnung aus.",
   "INVOICE_NOT_QUOTATION": "Diese Rechnung ist kein Angebot und kann nicht umgewandelt werden.",
   "ALREADY_SAVED": "Dieser Tagebucheintrag wurde bereits gespeichert.",

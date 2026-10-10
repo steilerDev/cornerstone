@@ -83,9 +83,9 @@ describe('WorkItemProgressCard', () => {
     expect(legend).toBeInTheDocument();
   });
 
-  // ── Test 5: Legend shows "Not Started" with count ────────────────────────
+  // ── Test 5: Legend shows "Not started" with count ────────────────────────
 
-  it('shows "Not Started" label and count in the legend', () => {
+  it('shows "Not started" label and count in the legend', () => {
     const workItems: TimelineWorkItem[] = [
       { ...baseWorkItem, id: 'wi-1', status: 'not_started' },
       { ...baseWorkItem, id: 'wi-2', status: 'not_started' },
@@ -95,13 +95,13 @@ describe('WorkItemProgressCard', () => {
     renderWithRouter(<WorkItemProgressCard workItems={workItems} />);
 
     const legend = screen.getByTestId('progress-legend');
-    expect(legend).toHaveTextContent('Not Started');
+    expect(legend).toHaveTextContent('Not started');
     expect(legend).toHaveTextContent('2');
   });
 
-  // ── Test 6: Legend shows "In Progress" with count ────────────────────────
+  // ── Test 6: Legend shows "In progress" with count ────────────────────────
 
-  it('shows "In Progress" label and count in the legend', () => {
+  it('shows "In progress" label and count in the legend', () => {
     const workItems: TimelineWorkItem[] = [
       { ...baseWorkItem, id: 'wi-1', status: 'in_progress' },
       { ...baseWorkItem, id: 'wi-2', status: 'in_progress' },
@@ -111,13 +111,13 @@ describe('WorkItemProgressCard', () => {
     renderWithRouter(<WorkItemProgressCard workItems={workItems} />);
 
     const legend = screen.getByTestId('progress-legend');
-    expect(legend).toHaveTextContent('In Progress');
+    expect(legend).toHaveTextContent('In progress');
     expect(legend).toHaveTextContent('3');
   });
 
-  // ── Test 7: Legend shows "Completed" with count ───────────────────────────
+  // ── Test 7: Legend shows "Done" with count ───────────────────────────
 
-  it('shows "Completed" label and count in the legend', () => {
+  it('shows "Done" label and count in the legend', () => {
     const workItems: TimelineWorkItem[] = [
       { ...baseWorkItem, id: 'wi-1', status: 'completed' },
       { ...baseWorkItem, id: 'wi-2', status: 'completed' },
@@ -126,7 +126,7 @@ describe('WorkItemProgressCard', () => {
     renderWithRouter(<WorkItemProgressCard workItems={workItems} />);
 
     const legend = screen.getByTestId('progress-legend');
-    expect(legend).toHaveTextContent('Completed');
+    expect(legend).toHaveTextContent('Done');
     expect(legend).toHaveTextContent('2');
   });
 
@@ -153,9 +153,9 @@ describe('WorkItemProgressCard', () => {
 
     const legend = screen.getByTestId('progress-legend');
     // Verify all three status label + count pairs are visible in legend
-    expect(legend).toHaveTextContent('Not Started');
-    expect(legend).toHaveTextContent('In Progress');
-    expect(legend).toHaveTextContent('Completed');
+    expect(legend).toHaveTextContent('Not started');
+    expect(legend).toHaveTextContent('In progress');
+    expect(legend).toHaveTextContent('Done');
     // Verify the total display renders '10'
     expect(screen.getByTestId('progress-total')).toHaveTextContent('10');
   });

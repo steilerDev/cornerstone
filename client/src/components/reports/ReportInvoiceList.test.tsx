@@ -777,7 +777,7 @@ describe('ReportInvoiceList', () => {
           t={t}
         />,
       );
-      const statusEl = screen.getByText('sources.lines.invoiceStatus.paid');
+      const statusEl = screen.getByText('Paid');
       expect(statusEl.className).toContain('statusChip');
     });
   });
@@ -1204,7 +1204,7 @@ describe('ReportInvoiceList', () => {
         fireEvent.click(findExpandButton(container, 'inv-1'));
 
         expect(screen.getAllByText('€50.00').length).toBeGreaterThan(0);
-        expect(screen.getAllByText('sources.lines.invoiceStatus.paid').length).toBeGreaterThan(0);
+        expect(screen.getAllByText('Paid').length).toBeGreaterThan(0);
         expect(screen.getAllByText('sourceReports.expand.entryTypeDeposit').length).toBeGreaterThan(
           0,
         );

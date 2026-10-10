@@ -8,6 +8,8 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
+import { milestoneDisplayStatus } from '../../lib/milestoneStatusLabel.js';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import type {
   GanttMilestonesProps,
   MilestoneColors,
@@ -98,9 +100,11 @@ function renderMilestones(overrides: Partial<GanttMilestonesProps> = {}) {
     ...overrides,
   };
   return render(
-    <svg>
-      <GanttMilestones {...props} />
-    </svg>,
+    <LocaleProvider>
+      <svg>
+        <GanttMilestones {...props} />
+      </svg>
+    </LocaleProvider>,
   );
 }
 
@@ -214,25 +218,25 @@ describe('GanttMilestones', () => {
       expect(label).toContain('Foundation Complete');
     });
 
-    it('incomplete diamond aria-label includes "incomplete"', () => {
+    it('incomplete diamond aria-label is the full sentence with the canonical word Upcoming', () => {
       renderMilestones({ milestones: [MILESTONE_INCOMPLETE] });
       const diamond = screen.getByTestId('gantt-milestone-diamond');
       const label = diamond.getAttribute('aria-label') ?? '';
-      expect(label.toLowerCase()).toContain('incomplete');
+      expect(label).toBe('Milestone: Foundation Complete, Upcoming, target date Jul 1, 2024');
     });
 
-    it('completed diamond aria-label includes "completed"', () => {
+    it('completed diamond aria-label is the full sentence with the canonical word Reached', () => {
       renderMilestones({ milestones: [MILESTONE_COMPLETE] });
       const diamond = screen.getByTestId('gantt-milestone-diamond');
       const label = diamond.getAttribute('aria-label') ?? '';
-      expect(label.toLowerCase()).toContain('completed');
+      expect(label).toBe('Milestone: Framing Done, Reached, target date Sep 15, 2024');
     });
 
     it('diamond aria-label includes target date', () => {
       renderMilestones();
       const diamond = screen.getByTestId('gantt-milestone-diamond');
       const label = diamond.getAttribute('aria-label') ?? '';
-      expect(label).toContain('2024-07-01');
+      expect(label).toContain('Jul 1, 2024');
     });
 
     it('diamond is keyboard-focusable (tabIndex=0)', () => {
@@ -891,5 +895,127 @@ describe('critical path milestone styling', () => {
       expect(polygons[0]!.getAttribute('stroke-width')).toBe('3'); // critical
       expect(polygons[1]!.getAttribute('stroke-width')).toBe('2'); // non-critical
     });
+  });
+});
+
+describe('GanttMilestones — ahead status, focus handlers and connector colours (#2195 coverage)', () => {
+  const MILESTONE_AHEAD: TimelineMilestone = {
+    ...MILESTONE_INCOMPLETE,
+    id: 9,
+    title: 'Sample Early Shell',
+    targetDate: '2024-08-01',
+    projectedDate: '2024-07-15',
+  };
+
+  it('an ahead milestone uses the ahead fill/stroke on its real diamond and the ahead connector', () => {
+    renderMilestones({
+      milestones: [MILESTONE_AHEAD],
+      milestoneRowIndices: new Map([[9, 0]]),
+    });
+    const layer = screen.getByTestId('gantt-milestones-layer');
+    const real = screen.getByTestId('gantt-milestone-diamond').querySelector('polygon');
+    expect(real?.getAttribute('fill')).toBe(COLORS.aheadFill);
+    expect(real?.getAttribute('stroke')).toBe(COLORS.aheadStroke);
+    expect(layer.querySelector('line')?.getAttribute('stroke')).toBe(COLORS.aheadStroke);
+  });
+
+  it('an ahead milestone reads "Early · 17 d" in its screen-reader label', () => {
+    renderMilestones({
+      milestones: [MILESTONE_AHEAD],
+      milestoneRowIndices: new Map([[9, 0]]),
+    });
+    expect(screen.getByTestId('gantt-milestone-diamond').getAttribute('aria-label')).toContain(
+      'Early · 17 d',
+    );
+  });
+
+  it('a late milestone draws the late connector colour', () => {
+    renderMilestones({
+      milestones: [MILESTONE_LATE],
+      milestoneRowIndices: new Map([[3, 0]]),
+    });
+    const layer = screen.getByTestId('gantt-milestones-layer');
+    expect(layer.querySelector('line')?.getAttribute('stroke')).toBe(COLORS.lateStroke);
+  });
+
+  it('forwards focus and blur on the diamond with the milestone', () => {
+    const onMilestoneFocus = jest.fn();
+    const onMilestoneBlur = jest.fn();
+    renderMilestones({ onMilestoneFocus, onMilestoneBlur });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    fireEvent.focus(diamond);
+    expect(onMilestoneFocus).toHaveBeenCalledWith(MILESTONE_INCOMPLETE, expect.any(Object));
+    fireEvent.blur(diamond);
+    expect(onMilestoneBlur).toHaveBeenCalledWith(MILESTONE_INCOMPLETE);
+  });
+});
+
+describe('GanttMilestones — colour and label agree for every display state (#2195)', () => {
+  const STATES = [
+    {
+      name: 'upcoming',
+      ms: { ...MILESTONE_INCOMPLETE, id: 21 },
+      status: 'on_track',
+      fill: COLORS.incompleteFill,
+      word: 'Upcoming',
+    },
+    {
+      name: 'reached',
+      ms: { ...MILESTONE_COMPLETE, id: 22 },
+      status: 'completed',
+      fill: COLORS.completeFill,
+      word: 'Reached',
+    },
+    {
+      name: 'late',
+      ms: { ...MILESTONE_LATE, id: 23 },
+      status: 'late',
+      fill: COLORS.lateFill,
+      word: 'Late · 31 d',
+    },
+    {
+      name: 'early',
+      ms: {
+        ...MILESTONE_INCOMPLETE,
+        id: 24,
+        targetDate: '2024-08-01',
+        projectedDate: '2024-07-15',
+      },
+      status: 'ahead',
+      fill: COLORS.aheadFill,
+      word: 'Early · 17 d',
+    },
+  ] as const;
+
+  it.each(STATES)('$name: status, fill colour and label word are consistent', (state) => {
+    expect(computeMilestoneStatus(state.ms)).toBe(state.status);
+    renderMilestones({
+      milestones: [state.ms],
+      milestoneRowIndices: new Map([[state.ms.id, 0]]),
+    });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.querySelector('polygon')?.getAttribute('fill')).toBe(state.fill);
+    expect(diamond.getAttribute('aria-label')).toContain(state.word);
+  });
+
+  it('computeMilestoneStatus and milestoneDisplayStatus never disagree on a sample grid', () => {
+    for (const isCompleted of [true, false]) {
+      for (const projectedDate of [null, '2024-06-01', '2024-07-01', '2024-09-01']) {
+        const ms = {
+          ...MILESTONE_INCOMPLETE,
+          isCompleted,
+          projectedDate,
+          targetDate: '2024-07-01',
+        };
+        const display = milestoneDisplayStatus(ms).status;
+        const expected = {
+          reached: 'completed',
+          late: 'late',
+          early: 'ahead',
+          upcoming: 'on_track',
+        }[display];
+        expect(computeMilestoneStatus(ms)).toBe(expected);
+      }
+    }
   });
 });

@@ -1148,7 +1148,7 @@ describe('DashboardPage', () => {
       expect(screen.queryByTestId('invoice-empty')).toBeNull();
     });
 
-    it('shows "No pending invoices" instead of "No invoices yet" when only paid invoices exist', async () => {
+    it('shows "Nothing to pay right now" instead of "No invoices yet" when only paid invoices exist', async () => {
       mockFetchAllInvoices.mockResolvedValue(
         responseWith([], summaryWith({ paid: { count: 3, totalAmount: 3000 } })),
       );
@@ -1158,7 +1158,9 @@ describe('DashboardPage', () => {
       await waitFor(() => {
         expect(screen.getAllByTestId('invoice-empty')).toHaveLength(2);
       });
-      expect(screen.getAllByTestId('invoice-empty')[0]).toHaveTextContent('No pending invoices');
+      expect(screen.getAllByTestId('invoice-empty')[0]).toHaveTextContent(
+        'Nothing to pay right now',
+      );
       expect(screen.queryByText('No invoices yet')).toBeNull();
       expect(screen.queryByRole('link', { name: 'Create an invoice' })).toBeNull();
     });

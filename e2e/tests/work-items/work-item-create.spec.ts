@@ -173,9 +173,9 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
 
     // Verify status select has the 3 expected options (create form does not include "Blocked")
     const options = await createPage.statusSelect.locator('option').allTextContents();
-    expect(options).toContain('Not Started');
-    expect(options).toContain('In Progress');
-    expect(options).toContain('Completed');
+    expect(options).toContain('Not started');
+    expect(options).toContain('In progress');
+    expect(options).toContain('Done');
   });
 });
 

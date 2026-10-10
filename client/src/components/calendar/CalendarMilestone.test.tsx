@@ -7,9 +7,16 @@
  */
 
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, cleanup } from '@testing-library/react';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import type * as CalendarMilestoneTypes from './CalendarMilestone.js';
+
+import type { ReactElement } from 'react';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
+
+function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
+  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
+}
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -119,21 +126,21 @@ describe('CalendarMilestone', () => {
   // ── Aria label ─────────────────────────────────────────────────────────────
 
   describe('aria-label', () => {
-    it('includes title and "incomplete" for non-completed milestone', () => {
+    it('includes title and the word Upcoming for non-completed milestone', () => {
       const milestone = makeMilestone({ title: 'Frame Up', isCompleted: false });
       renderMilestone({ milestone });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        'Milestone: Frame Up, incomplete',
+        'Milestone: Frame Up, Upcoming',
       );
     });
 
-    it('includes title and "completed" for completed milestone', () => {
+    it('includes title and the word Reached for completed milestone', () => {
       const milestone = makeMilestone({ title: 'Foundation Done', isCompleted: true });
       renderMilestone({ milestone });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        'Milestone: Foundation Done, completed',
+        'Milestone: Foundation Done, Reached',
       );
     });
   });

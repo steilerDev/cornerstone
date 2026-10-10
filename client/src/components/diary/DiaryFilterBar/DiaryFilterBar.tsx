@@ -6,7 +6,7 @@ import {
   MANUAL_DIARY_ENTRY_TYPES,
 } from '@cornerstone/shared';
 import type { DiaryEntryType } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../../i18n/unionKeys.js';
+import { diaryEntryTypeLabelKey } from '../../../lib/diaryEntryTypeLabel.js';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
 
@@ -231,7 +231,7 @@ export function DiaryFilterBar({
                 aria-pressed={activeTypes.includes(type)}
                 data-testid={`type-filter-${type}`}
               >
-                {t(I18N_UNION_KEYS.diaryEntryTypeChip.key(type))}
+                {t(diaryEntryTypeLabelKey(type).key, { ns: diaryEntryTypeLabelKey(type).ns })}
               </button>
             ))}
           </div>

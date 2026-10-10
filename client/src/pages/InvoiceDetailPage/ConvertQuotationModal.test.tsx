@@ -675,12 +675,16 @@ describe('ConvertQuotationModal', () => {
 
       const dep = screen.getByTestId('convert-deposit-d1');
       expect(dep).toHaveTextContent('$2000.00');
-      expect(dep).toHaveTextContent(t('invoiceDetail.statusLabels.paid'));
+      expect(dep).toHaveTextContent(
+        i18n.t('statusVocabulary.progressPayment.paid', { ns: 'common' }),
+      );
       expect(dep).toHaveTextContent(t('invoiceDetail.deposits.entryTypeLabels.deposit'));
       const ref = screen.getByTestId('convert-deposit-d2');
       expect(ref).toHaveTextContent('$-500.00');
       expect(ref).toHaveTextContent(t('invoiceDetail.convertModal.deposits.refund'));
-      expect(ref).toHaveTextContent(t('invoiceDetail.statusLabels.pending'));
+      expect(ref).toHaveTextContent(
+        i18n.t('statusVocabulary.progressPayment.pending', { ns: 'common' }),
+      );
       expect(screen.getByTestId('convert-final-payment')).toHaveTextContent('$8500.00');
       const section = screen.getByTestId('convert-deposits-section');
       expect(within(section).getByText('$-1500.00')).toBeInTheDocument();

@@ -508,9 +508,7 @@ export function PaperlessInvoiceReviewPage() {
             <div className={styles.metadataCard}>
               <h2 className={styles.sectionTitle}>{t('autoItemize.invoiceMetadata')}</h2>
               <div className={styles.fieldRow}>
-                <label htmlFor="invoice-number" className={styles.label}>
-                  {t('autoItemize.invoiceNumber')}
-                </label>
+                <label htmlFor="invoice-number">{t('autoItemize.invoiceNumber')}</label>
                 <div className={styles.fieldControl}>
                   <input
                     id="invoice-number"
@@ -528,9 +526,7 @@ export function PaperlessInvoiceReviewPage() {
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="amount" className={styles.label}>
-                  {t('autoItemize.amount')}
-                </label>
+                <label htmlFor="amount">{t('autoItemize.amount')}</label>
                 <div className={styles.fieldControl}>
                   <input
                     id="amount"
@@ -541,15 +537,12 @@ export function PaperlessInvoiceReviewPage() {
                     onChange={(e) =>
                       setMetadataEdits((prev) => ({ ...prev, amount: e.target.value }))
                     }
-                    placeholder="0.00"
                     disabled={isSaving}
                   />
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="date" className={styles.label}>
-                  {t('autoItemize.date')}
-                </label>
+                <label htmlFor="date">{t('autoItemize.date')}</label>
                 <div className={styles.fieldControl}>
                   <input
                     id="date"
@@ -563,9 +556,7 @@ export function PaperlessInvoiceReviewPage() {
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="due-date" className={styles.label}>
-                  {t('autoItemize.dueDate')}
-                </label>
+                <label htmlFor="due-date">{t('autoItemize.dueDate')}</label>
                 <div className={styles.fieldControl}>
                   <input
                     id="due-date"
@@ -579,9 +570,7 @@ export function PaperlessInvoiceReviewPage() {
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="invoice-status" className={styles.label}>
-                  {t('autoItemize.status')}
-                </label>
+                <label htmlFor="invoice-status">{t('autoItemize.status')}</label>
                 <div className={styles.fieldControl}>
                   <select
                     id="invoice-status"
@@ -596,16 +585,16 @@ export function PaperlessInvoiceReviewPage() {
                   >
                     {INVOICE_STATUSES.map((s) => (
                       <option key={s} value={s}>
-                        {t(I18N_UNION_KEYS.invoiceStatus.key(s))}
+                        {t(I18N_UNION_KEYS.statusVocabularyInvoice.key(s), {
+                          ns: I18N_UNION_KEYS.statusVocabularyInvoice.ns,
+                        })}
                       </option>
                     ))}
                   </select>
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="invoice-budget-source" className={styles.label}>
-                  {t('autoItemize.budgetSource')}
-                </label>
+                <label htmlFor="invoice-budget-source">{t('autoItemize.budgetSource')}</label>
                 <div className={styles.fieldControl}>
                   <select
                     id="invoice-budget-source"
@@ -623,9 +612,7 @@ export function PaperlessInvoiceReviewPage() {
                 </div>
               </div>
               <div className={styles.fieldRow}>
-                <label htmlFor="notes" className={styles.label}>
-                  {t('autoItemize.notes')}
-                </label>
+                <label htmlFor="notes">{t('autoItemize.notes')}</label>
                 <div className={styles.fieldControl}>
                   <textarea
                     id="notes"

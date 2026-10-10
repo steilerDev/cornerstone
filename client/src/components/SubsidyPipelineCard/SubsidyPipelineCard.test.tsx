@@ -145,6 +145,39 @@ describe('SubsidyPipelineCard', () => {
     expect(countEl).toHaveTextContent('3');
   });
 
+  it('pluralises the program noun through i18next: 1 program, 2 programs', () => {
+    const { unmount } = renderWithRouter(
+      <SubsidyPipelineCard
+        subsidyPrograms={[{ ...baseProgram, id: 'sp-p1', applicationStatus: 'applied' }]}
+      />,
+    );
+    expect(screen.getByTestId('group-count')).toHaveTextContent(/^1 program$/);
+    unmount();
+
+    renderWithRouter(
+      <SubsidyPipelineCard
+        subsidyPrograms={[
+          { ...baseProgram, id: 'sp-p2', applicationStatus: 'applied' },
+          { ...baseProgram, id: 'sp-p3', applicationStatus: 'applied' },
+        ]}
+      />,
+    );
+    expect(screen.getByTestId('group-count')).toHaveTextContent(/^2 programs$/);
+  });
+
+  it.each([
+    ['eligible', 'Eligible'],
+    ['applied', 'Applied'],
+    ['approved', 'Approved'],
+    ['received', 'Received'],
+    ['rejected', 'Rejected'],
+  ] as const)('grant chip for %s reads the canonical word %s', (applicationStatus, word) => {
+    renderWithRouter(
+      <SubsidyPipelineCard subsidyPrograms={[{ ...baseProgram, id: 'sp-w', applicationStatus }]} />,
+    );
+    expect(screen.getByTestId('status-badge')).toHaveTextContent(word);
+  });
+
   // ── Test 6: Deadline within 14 days shows warning ────────────────────────────
 
   it('shows a deadline-warning when applicationDeadline is 7 days from today', () => {

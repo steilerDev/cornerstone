@@ -198,7 +198,9 @@ export function buildReportContent(
     const allocatedAmountValueText = reportFormatters.formatCurrency(invoice.allocatedAmount);
 
     const statusText = isOverview
-      ? reportT(I18N_UNION_KEYS.invoiceStatus.key(invoice.status))
+      ? reportT(I18N_UNION_KEYS.statusVocabularyInvoice.key(invoice.status), {
+          ns: I18N_UNION_KEYS.statusVocabularyInvoice.ns,
+        })
       : null;
 
     const isPartial = partialInvoiceIds.has(invoice.invoiceId);

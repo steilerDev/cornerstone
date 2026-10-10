@@ -58,7 +58,7 @@ import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { Badge } from '../../components/Badge/Badge.js';
-import badgeStyles from '../../components/Badge/Badge.module.css';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
@@ -82,13 +82,6 @@ function MilestoneIconSvg() {
   );
 }
 
-const HI_STATUS_VARIANTS = {
-  planned: { label: 'Planned', className: badgeStyles.planned! },
-  purchased: { label: 'Purchased', className: badgeStyles.purchased! },
-  scheduled: { label: 'Scheduled', className: badgeStyles.scheduled! },
-  arrived: { label: 'Arrived', className: badgeStyles.arrived! },
-};
-
 export function HouseholdItemDetailPage() {
   const { vatRate } = useLocale();
   const {
@@ -102,12 +95,7 @@ export function HouseholdItemDetailPage() {
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
-  const statusLabels: Record<HouseholdItemStatus, string> = {
-    planned: t('detail.status.planned'),
-    purchased: t('detail.status.purchased'),
-    scheduled: t('detail.status.scheduled'),
-    arrived: t('detail.status.arrived'),
-  };
+  const statusVariants = useStatusBadgeVariants();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -887,7 +875,7 @@ export function HouseholdItemDetailPage() {
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
               <span className={styles.categoryBadge}>{categoryDisplayName}</span>
-              <Badge variants={HI_STATUS_VARIANTS} value={item.status} />
+              <Badge variants={statusVariants.purchase} value={item.status} />
             </div>
           </div>
           <div className={styles.pageActions}>
@@ -955,7 +943,7 @@ export function HouseholdItemDetailPage() {
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>{t('detail.area.title')}</h2>
           </div>
-          <div className={styles.formGroup}>
+          <div>
             <label className={styles.propertyLabel}>{t('detail.area.label')}</label>
             <AreaPicker
               areas={areas}
@@ -999,7 +987,7 @@ export function HouseholdItemDetailPage() {
             >
               {HOUSEHOLD_ITEM_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {statusLabels[status]}
+                  {statusVariants.purchase[status].label}
                 </option>
               ))}
             </select>

@@ -84,8 +84,10 @@ export function Step5Actions({
             {finishedWithoutMarking
               ? t('sourceReports.finishedWithoutMarkingSuccess')
               : t('sourceReports.claimSuccess', {
-                  invoices: claimedInvoiceCount,
-                  deposits: claimedDepositCount,
+                  invoices: t('sourceReports.invoiceCount', { count: claimedInvoiceCount }),
+                  progressPayments: t('sourceReports.progressPaymentCount', {
+                    count: claimedDepositCount,
+                  }),
                 })}
           </div>
           <Link to="/budget/invoices" className={sharedStyles.bannerLink}>
@@ -128,9 +130,11 @@ export function Step5Actions({
                 type="button"
                 className={sharedStyles.btnPrimary}
                 onClick={onMarkClaimed}
-                disabled={isBusy || isMarkingClaimed}
+                disabled={isBusy || isMarkingClaimed || selectedInvoiceCount === 0}
               >
-                {t('sourceReports.markClaimed', { count: selectedInvoiceCount })}
+                {selectedInvoiceCount === 0
+                  ? t('sourceReports.markSubmittedNone')
+                  : t('sourceReports.markSubmitted', { count: selectedInvoiceCount })}
               </button>
 
               <button

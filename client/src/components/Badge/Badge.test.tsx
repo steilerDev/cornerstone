@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect } from '@jest/globals';
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { Badge } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 
@@ -171,6 +171,55 @@ describe('Badge', () => {
       const cls = span?.getAttribute('class') ?? '';
       expect(cls).toContain('badge');
       expect(cls).toContain('error');
+    });
+  });
+  // ─── Icon and title (#2195) ─────────────────────────────────────────────────
+
+  describe('icon and title', () => {
+    const ICON_VARIANTS = {
+      done: {
+        label: 'Submitted',
+        className: badgeStyles.claimed!,
+        icon: <svg data-testid="icon" aria-hidden="true" />,
+        title: 'Variant tooltip',
+      },
+      plain: { label: 'Plain', className: badgeStyles.paid! },
+    };
+
+    it('renders the icon before the label inside the same span', () => {
+      render(<Badge variants={ICON_VARIANTS} value="done" testId="chip" />);
+      const chip = screen.getByTestId('chip');
+      expect(chip.firstElementChild).toBe(screen.getByTestId('icon'));
+      expect(chip.textContent).toBe('Submitted');
+      expect(chip.childNodes[0]).toBe(screen.getByTestId('icon'));
+    });
+
+    it('renders no icon for a variant without one', () => {
+      render(<Badge variants={ICON_VARIANTS} value="plain" testId="chip" />);
+      expect(screen.getByTestId('chip').querySelector('svg')).toBeNull();
+    });
+
+    it('uses the variant title as the tooltip', () => {
+      render(<Badge variants={ICON_VARIANTS} value="done" testId="chip" />);
+      expect(screen.getByTestId('chip')).toHaveAttribute('title', 'Variant tooltip');
+    });
+
+    it('lets the title prop override the variant title', () => {
+      render(<Badge variants={ICON_VARIANTS} value="done" title="Prop tooltip" testId="chip" />);
+      expect(screen.getByTestId('chip')).toHaveAttribute('title', 'Prop tooltip');
+    });
+
+    it('sets no title attribute when neither the variant nor the prop has one', () => {
+      render(<Badge variants={ICON_VARIANTS} value="plain" testId="chip" />);
+      expect(screen.getByTestId('chip')).not.toHaveAttribute('title');
+    });
+
+    it('an unknown value renders the raw value, with no icon and no title', () => {
+      render(<Badge variants={ICON_VARIANTS} value="nope" testId="chip" />);
+      const chip = screen.getByTestId('chip');
+      expect(chip.textContent).toBe('nope');
+      expect(chip.querySelector('svg')).toBeNull();
+      expect(chip).not.toHaveAttribute('title');
     });
   });
 });

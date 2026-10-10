@@ -249,7 +249,6 @@ export function BudgetLineForm({
                 onChange={(e) => onFormChange({ plannedAmount: e.target.value })}
                 min="0"
                 step="0.01"
-                placeholder="0.00"
                 required
                 disabled={isSaving}
                 onWheel={(e) => e.currentTarget.blur()}
@@ -327,7 +326,6 @@ export function BudgetLineForm({
                   onChange={(e) => onFormChange({ unitPrice: e.target.value })}
                   min="0"
                   step="0.01"
-                  placeholder="0.00"
                   disabled={isSaving}
                   onWheel={(e) => e.currentTarget.blur()}
                 />
@@ -468,7 +466,6 @@ export function BudgetLineForm({
               onChange={(e) => onItemizedAmountChange(e.target.value)}
               min="0"
               step="0.01"
-              placeholder="0.00"
               required
               disabled={isSaving}
               onWheel={(e) => e.currentTarget.blur()}
@@ -515,7 +512,7 @@ export function BudgetLineForm({
             {/* Collapsed view: current parent + "Change" button */}
             <div className={styles.currentParentRow} hidden={isPickerExpanded}>
               <span
-                className={`${styles.entityTypePill} ${styles[`entityTypePill_${currentParentType ?? 'work_item'}`]}`}
+                className={`${styles.entityTypePill} ${currentParentType === 'household_item' ? styles.entityTypePillHouseholdItem : styles.entityTypePillWorkItem}`}
               >
                 {currentParentType === 'work_item'
                   ? t('budgetLineForm.parentPickerWorkItemTab')

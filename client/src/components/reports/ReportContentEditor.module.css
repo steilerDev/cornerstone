@@ -183,31 +183,6 @@
   color: var(--color-danger-text-on-light);
 }
 
-/* Status badge styles */
-.statusPending {
-  composes: badge from '../Badge/Badge.module.css';
-  background-color: var(--color-status-pending-bg);
-  color: var(--color-status-pending-text);
-}
-
-.statusPaid {
-  composes: badge from '../Badge/Badge.module.css';
-  background-color: var(--color-status-paid-bg);
-  color: var(--color-status-paid-text);
-}
-
-.statusClaimed {
-  composes: badge from '../Badge/Badge.module.css';
-  background-color: var(--color-status-claimed-bg);
-  color: var(--color-status-claimed-text);
-}
-
-.statusQuotation {
-  composes: badge from '../Badge/Badge.module.css';
-  background-color: var(--color-status-quotation-bg);
-  color: var(--color-status-quotation-text);
-}
-
 /* Deposit badge and area text */
 .depositBadge {
   composes: attachmentDeposit from '../Badge/Badge.module.css';

@@ -93,9 +93,9 @@
       "title": "Invoice Pipeline",
       "emptyMessage": "No invoices yet",
       "emptyAction": "Create an invoice",
-      "noPendingInvoices": "No pending invoices",
+      "noPendingInvoices": "Nothing to pay right now",
       "overdue": "Overdue",
-      "pendingTotal": "Pending Total:",
+      "pendingTotal": "To pay:",
       "quotesTitle": "Quotes",
       "quotesTotal": "Total Quoted:",
       "viewAllInvoices": "View all invoices"
@@ -108,14 +108,7 @@
       "deadlineSoon": "Deadline soon",
       "viewAllSubsidies": "View all subsidies",
       "program_one": "program",
-      "program_other": "programs",
-      "statuses": {
-        "eligible": "Eligible",
-        "applied": "Applied",
-        "approved": "Approved",
-        "received": "Received",
-        "rejected": "Rejected"
-      }
+      "program_other": "programs"
     },
     "recentDiary": {
       "title": "Recent Diary",

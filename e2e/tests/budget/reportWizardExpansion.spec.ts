@@ -390,11 +390,11 @@ test.describe('Report wizard expansion — status chip width (Scenario 2)', () =
       expect(paidBox, 'Paid chip must have a bounding box').not.toBeNull();
       expect(quotationBox, 'Quotation chip must have a bounding box').not.toBeNull();
 
-      // "Quotation" (9 chars) must render measurably wider than "Paid" (4 chars) — proves the
+      // "Offer" (5 chars) must render measurably wider than "Paid" (4 chars) — proves the
       // chip sizes to its own content (justify-self: start) instead of stretching to fill a
       // fixed grid-column width (which would make both chips identically wide regardless of
-      // label length — the pre-fix bug).
-      expect(quotationBox!.width - paidBox!.width).toBeGreaterThan(10);
+      // label length — the pre-fix bug). One extra character is only a few pixels wide.
+      expect(quotationBox!.width - paidBox!.width).toBeGreaterThan(2);
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
@@ -751,9 +751,7 @@ test.describe('Report wizard expansion — claim warning count (Scenario 6)', ()
       // `sourceReports.confirmClaimExcludedItemsWarning` in `client/src/i18n/en/budget.json`).
       // Matched on a resilient prefix so a further copy tweak downstream of "have excluded line
       // items" doesn't need this test to change again.
-      await expect(wizard.markClaimedWarningBlock).toHaveText(
-        /^1 invoice\(s\) have excluded line items/,
-      );
+      await expect(wizard.markClaimedWarningBlock).toHaveText(/^1 invoice has excluded line items/);
 
       await wizard.cancelClaimConfirm();
     } finally {
@@ -1120,7 +1118,7 @@ test.describe('Report wizard expansion — quotation invoice with a pending depo
       // tagged deposit sweeps (claimedDepositIds.length === 1).
       await expect(wizard.claimSuccessBanner).toBeVisible();
       await expect(wizard.claimSuccessBanner).toContainText(
-        '1 invoice(s) and 1 deposit(s) marked as claimed',
+        '1 invoice and 1 progress payment marked as submitted',
       );
       await expect(wizard.claimErrorBanner).not.toBeVisible();
 
@@ -1228,7 +1226,7 @@ test.describe('Report wizard expansion — deposit-only close-out via manual lin
       await expect(wizard.claimErrorBanner).not.toBeVisible();
       await expect(wizard.claimSuccessBanner).toBeVisible();
       await expect(wizard.claimSuccessBanner).toContainText(
-        '0 invoice(s) and 1 deposit(s) marked as claimed',
+        '0 invoices and 1 progress payment marked as submitted',
       );
 
       // Re-fetch via the API: the invoice was never in invoiceIds at all, so its status is
@@ -1245,6 +1243,69 @@ test.describe('Report wizard expansion — deposit-only close-out via manual lin
       };
       const refetchedDeposit = depositsBody.deposits.find((d) => d.id === deposit.id);
       expect(refetchedDeposit?.status).toBe('claimed');
+    } finally {
+      if (workItemId) await deleteWorkItemViaApi(page, workItemId);
+      if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);
+      if (vendorId) await deleteVendorViaApi(page, vendorId);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story #2195: canonical "Submitted" wording in the wizard (step-2 amount legend, step-3 chip)
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Report wizard expansion — Submitted wording (Story #2195)', () => {
+  test('Step 2 amount legends use the canonical words and a submitted invoice shows a "Submitted" chip', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const wizard = new ReportWizardPage(page);
+
+    let vendorId = '';
+    let sourceId = '';
+    let workItemId = '';
+    try {
+      vendorId = await createVendorViaApi(page, { name: `${testPrefix} Legend Vendor` });
+      sourceId = await createBudgetSourceViaApi(page, {
+        name: `${testPrefix} Legend Source`,
+        totalAmount: 10000,
+      });
+      workItemId = await createWorkItemViaApi(page, { title: `${testPrefix} WI Legend` });
+      const submitted = await seedAllocatedInvoice(page, workItemId, vendorId, sourceId, {
+        invoiceNumber: `${testPrefix}-LEG-001`,
+        amount: 250,
+        date: '2026-04-02',
+        status: 'claimed',
+      });
+
+      const legendFor = async (
+        useCase: 'budget-overview' | 'claim' | 'proof-of-funds',
+      ): Promise<void> => {
+        await wizard.goto();
+        await wizard.selectUseCase(useCase);
+        await wizard.goNextFromStep1();
+        await expect(wizard.sourceRadioGroup).toBeVisible();
+      };
+
+      await legendFor('proof-of-funds');
+      await expect(page.locator('[class*="amountLabel"]').first()).toHaveText('Submitted');
+
+      await legendFor('claim');
+      await expect(page.locator('[class*="amountLabel"]').first()).toHaveText(
+        'To pay or paid, not submitted',
+      );
+
+      await legendFor('budget-overview');
+      await expect(page.locator('[class*="amountLabel"]').first()).toHaveText('Total amount');
+      await wizard.selectSource(sourceId);
+      await wizard.goNextFromStep2();
+      await expect(
+        wizard
+          .regularInvoiceRow(`${testPrefix} Legend Vendor`, submitted.invoiceNumber!)
+          .locator('[class*="statusChip"]'),
+      ).toHaveText('Submitted');
     } finally {
       if (workItemId) await deleteWorkItemViaApi(page, workItemId);
       if (sourceId) await deleteBudgetSourceViaApi(page, sourceId);

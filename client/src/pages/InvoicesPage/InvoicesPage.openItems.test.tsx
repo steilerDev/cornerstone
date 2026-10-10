@@ -264,6 +264,50 @@ const invG: Invoice = makeInvoice({
   openAmount: 2000,
 });
 
+// Due-soon fixtures (#2195): a pending invoice due in 3 days, one due in 30 days, and a
+// 60-day invoice whose pending progress payment is due in 4 days.
+const invSoon: Invoice = makeInvoice({
+  id: 'inv-soon',
+  vendorId: 'v-1',
+  vendorName: 'ACME Construction',
+  invoiceNumber: 'INV-SOON',
+  amount: 1000,
+  status: 'pending',
+  dueDate: isoDaysFromToday(3),
+  deposits: [],
+  openAmount: 1000,
+});
+const invLater: Invoice = makeInvoice({
+  id: 'inv-later',
+  vendorId: 'v-1',
+  vendorName: 'ACME Construction',
+  invoiceNumber: 'INV-LATER',
+  amount: 1000,
+  status: 'pending',
+  dueDate: isoDaysFromToday(30),
+  deposits: [],
+  openAmount: 1000,
+});
+const invDepSoon: Invoice = makeInvoice({
+  id: 'inv-depsoon',
+  vendorId: 'v-1',
+  vendorName: 'ACME Construction',
+  invoiceNumber: 'INV-DEPSOON',
+  amount: 5000,
+  status: 'pending',
+  dueDate: isoDaysFromToday(60),
+  deposits: [
+    makeDeposit({
+      id: 'dep-soon1',
+      invoiceId: 'inv-depsoon',
+      amount: 500,
+      dueDate: isoDaysFromToday(4),
+      status: 'pending',
+    }),
+  ],
+  openAmount: 5000,
+});
+
 // Base summary: openPayable/refundsDue deliberately DIFFER from pending, so a tile
 // wired to the wrong bucket fails loudly. overdue is zeroed out to avoid the
 // pre-existing "Overdue" summary card colliding with this story's own "Overdue"/
@@ -517,8 +561,69 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       expect(screen.getByTestId('invoice-overdue-inv-g')).toHaveTextContent('Overdue');
 
       // Both invoices keep their real 'pending' status badge alongside the chip.
-      expect(screen.getByTestId('invoice-status-inv-a')).toHaveTextContent('Pending');
-      expect(screen.getByTestId('invoice-status-inv-g')).toHaveTextContent('Pending');
+      expect(screen.getByTestId('invoice-status-inv-a')).toHaveTextContent('To pay');
+      expect(screen.getByTestId('invoice-status-inv-g')).toHaveTextContent('To pay');
+    });
+  });
+
+  // ─── Due-soon flag (#2195) ──────────────────────────────────────────────────
+
+  describe('due-soon flag (#2195)', () => {
+    it('flags a pending invoice due within 7 days with "Due soon" and the dueSoon class', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invSoon, invLater]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-SOON').length).toBeGreaterThan(0));
+
+      const chip = screen.getByTestId('invoice-due-soon-inv-soon');
+      expect(chip).toHaveTextContent('Due soon');
+      expect(chip.className).toContain('dueSoon');
+      expect(chip.className).not.toContain('overduePast');
+      expect(screen.getByTestId('invoice-due-soon-mobile-inv-soon')).toBeInTheDocument();
+    });
+
+    it('does not flag an invoice due in 30 days', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invSoon, invLater]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-LATER').length).toBeGreaterThan(0));
+      expect(screen.queryByTestId('invoice-due-soon-inv-later')).not.toBeInTheDocument();
+    });
+
+    it('does not flag due-soon outside open-items mode', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invSoon]));
+      renderPageAt('/budget/invoices');
+      await waitFor(() => expect(screen.getAllByText('INV-SOON').length).toBeGreaterThan(0));
+      expect(screen.queryByTestId('invoice-due-soon-inv-soon')).not.toBeInTheDocument();
+    });
+
+    it('the overdue chip uses the overduePast class and is the only overdue indicator (no due-soon beside it)', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invG]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-G').length).toBeGreaterThan(0));
+      const chip = screen.getByTestId('invoice-overdue-inv-g');
+      expect(chip.className).toContain('overduePast');
+      expect(screen.queryByTestId('invoice-due-soon-inv-g')).not.toBeInTheDocument();
+    });
+
+    it('flags a progress payment due within 7 days on its own row', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invDepSoon]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-DEPSOON').length).toBeGreaterThan(0));
+      const chip = screen.getByTestId('deposit-due-soon-dep-soon1');
+      expect(chip).toHaveTextContent('Due soon');
+      expect(chip.className).toContain('dueSoon');
+      expect(screen.getByTestId('deposit-due-soon-mobile-dep-soon1')).toBeInTheDocument();
+    });
+
+    it('a progress payment that is overdue gets the deposit-overdue testid and overduePast class', async () => {
+      mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invA]));
+      renderPageAt('/budget/invoices?openOnly=true');
+      await waitFor(() => expect(screen.getAllByText('INV-A').length).toBeGreaterThan(0));
+      const chip = screen.getByTestId('deposit-overdue-dep-a1');
+      expect(chip.className).toContain('overduePast');
+      expect(chip).toHaveTextContent('Overdue');
+      const mobile = screen.getByTestId('deposit-overdue-mobile-dep-a1');
+      expect(mobile.className).toContain('overduePast');
+      expect(screen.queryByTestId('deposit-due-soon-dep-a1')).not.toBeInTheDocument();
     });
   });
 
@@ -546,12 +651,12 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
   // ─── Container parent (AC10) ────────────────────────────────────────────────
 
   describe('container-only parent', () => {
-    it('AC10: shows both its real status badge ("Quotation") and the "Deposits only" container chip', async () => {
+    it('AC10: shows both its real status badge ("Offer") and the "Deposits only" container chip', async () => {
       mockFetchAllInvoices.mockResolvedValueOnce(openResponse([invC]));
       renderPageAt('/budget/invoices?openOnly=true');
       await waitFor(() => expect(screen.getAllByText('INV-C').length).toBeGreaterThan(0));
 
-      expect(screen.getByTestId('invoice-status-inv-c')).toHaveTextContent('Quotation');
+      expect(screen.getByTestId('invoice-status-inv-c')).toHaveTextContent('Offer');
       expect(screen.getByTestId('invoice-container-inv-c')).toHaveTextContent('Deposits only');
     });
   });

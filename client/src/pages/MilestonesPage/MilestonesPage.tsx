@@ -17,6 +17,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './MilestonesPage.module.css';
 
@@ -129,15 +130,15 @@ export function MilestonesPage() {
   const milestoneStatusVariants = useMemo(
     (): BadgeVariantMap => ({
       completed: {
-        label: t('milestones.status.completed')!,
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('reached')),
         className: badgeStyles.milestoneCompleted!,
       },
       pending: {
-        label: t('milestones.status.pending')!,
+        label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('upcoming')),
         className: badgeStyles.milestonePending!,
       },
     }),
-    [t],
+    [tCommon],
   );
 
   // Client-side filtering and sorting
@@ -243,8 +244,14 @@ export function MilestonesPage() {
         filterType: 'enum',
         filterParamKey: 'status',
         enumOptions: [
-          { value: 'completed', label: t('milestones.status.completed') },
-          { value: 'pending', label: t('milestones.status.pending') },
+          {
+            value: 'completed',
+            label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('reached')),
+          },
+          {
+            value: 'pending',
+            label: tCommon(I18N_UNION_KEYS.statusVocabularyMilestone.key('upcoming')),
+          },
         ],
         defaultVisible: true,
         render: (m) => (
@@ -284,7 +291,7 @@ export function MilestonesPage() {
         render: (m) => (m.completedAt ? formatDate(m.completedAt) : '—'),
       },
     ],
-    [t, formatDate, milestoneStatusVariants],
+    [t, tCommon, formatDate, milestoneStatusVariants],
   );
 
   // Close action menu on outside click and Escape key

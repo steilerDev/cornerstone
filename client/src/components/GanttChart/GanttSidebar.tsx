@@ -174,7 +174,6 @@ export const GanttSidebar = function GanttSidebar({
               if (row.kind === 'workItem') {
                 const item = row.item;
                 const hasNoDates = !item.startDate && !item.endDate;
-                const statusSuffix = hasNoDates ? ', no dates set' : '';
                 return (
                   <div
                     key={item.id}
@@ -184,7 +183,14 @@ export const GanttSidebar = function GanttSidebar({
                     tabIndex={0}
                     onClick={() => onItemClick?.(item.id)}
                     onKeyDown={(e) => handleKeyDown(e, idx, item.id)}
-                    aria-label={`Work item: ${item.title}${statusSuffix}`}
+                    aria-label={t(
+                      hasNoDates
+                        ? 'gantt.aria.sidebarWorkItemNoDates'
+                        : 'gantt.aria.sidebarWorkItem',
+                      {
+                        title: item.title,
+                      },
+                    )}
                     data-testid={`gantt-sidebar-row-${item.id}`}
                     data-gantt-sidebar-row={idx}
                   >
@@ -210,7 +216,7 @@ export const GanttSidebar = function GanttSidebar({
                     tabIndex={0}
                     onClick={() => onMilestoneClick?.(milestone.id)}
                     onKeyDown={(e) => handleMilestoneKeyDown(e, idx, milestone.id)}
-                    aria-label={`Milestone: ${milestone.title}`}
+                    aria-label={t('gantt.aria.sidebarMilestone', { title: milestone.title })}
                     data-testid={`gantt-sidebar-milestone-${milestone.id}`}
                     data-gantt-sidebar-row={idx}
                   >
@@ -242,7 +248,7 @@ export const GanttSidebar = function GanttSidebar({
                     tabIndex={0}
                     onClick={() => onHouseholdItemClick?.(hi.id)}
                     onKeyDown={(e) => handleHiKeyDown(e, idx, hi.id)}
-                    aria-label={`Household item: ${hi.name}`}
+                    aria-label={t('gantt.aria.sidebarHouseholdItem', { name: hi.name })}
                     data-testid={`gantt-sidebar-hi-${hi.id}`}
                     data-gantt-sidebar-row={idx}
                   >
@@ -268,7 +274,6 @@ export const GanttSidebar = function GanttSidebar({
             items.map((item, idx) => {
               const hasNoDates = !item.startDate && !item.endDate;
               const isEven = idx % 2 === 0;
-              const statusSuffix = hasNoDates ? ', no dates set' : '';
               return (
                 <div
                   key={item.id}
@@ -278,7 +283,12 @@ export const GanttSidebar = function GanttSidebar({
                   tabIndex={0}
                   onClick={() => onItemClick?.(item.id)}
                   onKeyDown={(e) => handleKeyDown(e, idx, item.id)}
-                  aria-label={`Work item: ${item.title}${statusSuffix}`}
+                  aria-label={t(
+                    hasNoDates ? 'gantt.aria.sidebarWorkItemNoDates' : 'gantt.aria.sidebarWorkItem',
+                    {
+                      title: item.title,
+                    },
+                  )}
                   data-testid={`gantt-sidebar-row-${item.id}`}
                   data-gantt-sidebar-row={idx}
                 >

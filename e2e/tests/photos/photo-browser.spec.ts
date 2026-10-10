@@ -309,7 +309,7 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
     );
     await expect(viewer.historyItem(s.photoIds[0])).toHaveAttribute('aria-current', 'true');
     for (const [i, photoId] of s.photoIds.entries()) {
-      await expect(viewer.historyItem(photoId)).toContainText(`Daily Log – ${s.titles[i]}`);
+      await expect(viewer.historyItem(photoId)).toContainText(`Daily log – ${s.titles[i]}`);
     }
 
     await viewer.historyItem(s.photoIds[2]).click();

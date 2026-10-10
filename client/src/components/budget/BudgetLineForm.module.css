@@ -376,12 +376,12 @@
   flex-shrink: 0;
 }
 
-.entityTypePill_work_item {
+.entityTypePillWorkItem {
   background: var(--color-status-in-progress-bg);
   color: var(--color-status-in-progress-text);
 }
 
-.entityTypePill_household_item {
+.entityTypePillHouseholdItem {
   background: var(--color-hi-status-scheduled-bg);
   color: var(--color-hi-status-scheduled-text);
 }

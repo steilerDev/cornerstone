@@ -13,7 +13,7 @@ import type {
   Vendor,
 } from '@cornerstone/shared';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
-import enBudget from '../../i18n/en/budget.json';
+import enCommon from '../../i18n/en/common.json';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
@@ -455,7 +455,30 @@ describe('InvoiceDetailPage', () => {
       renderPage();
 
       // The page renders the status badge in two places: the page header and the info list
-      await waitFor(() => expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1));
+      await waitFor(() => expect(screen.getAllByText('To pay').length).toBeGreaterThanOrEqual(1));
+    });
+
+    it('D-07: renders the header and details status badges through the shared Badge (To pay)', async () => {
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
+      for (const testId of ['invoice-status-badge', 'invoice-detail-status-badge']) {
+        const chip = screen.getByTestId(testId);
+        expect(chip).toHaveTextContent('To pay');
+        expect(chip.className).toContain('badge');
+        expect(chip.className).toContain('pending');
+      }
+    });
+
+    it('D-07: a quotation shows "Offer" with the offer class (info pair), never a quotation class', async () => {
+      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, status: 'quotation' });
+      renderPage();
+
+      await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
+      const chip = screen.getByTestId('invoice-status-badge');
+      expect(chip).toHaveTextContent('Offer');
+      expect(chip.className).toContain('offer');
+      expect(chip.className).not.toContain('quotation');
     });
 
     it('renders the invoice number in the details list', async () => {
@@ -547,7 +570,7 @@ describe('InvoiceDetailPage', () => {
       const select = document.getElementById('edit-status') as HTMLSelectElement;
 
       expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
-        INVOICE_STATUSES.map((status) => [status, enBudget.invoiceDetail.statusLabels[status]]),
+        INVOICE_STATUSES.map((status) => [status, enCommon.statusVocabulary.invoice[status]]),
       );
     });
 
@@ -885,7 +908,7 @@ describe('InvoiceDetailPage', () => {
       expect(screen.getByTestId('convert-confirm')).toBeEnabled();
     });
 
-    it('scenario 45: after a successful conversion the status shows Pending, the button is gone and the amount is updated', async () => {
+    it('scenario 45: after a successful conversion the status shows To pay, the button is gone and the amount is updated', async () => {
       const converted: Invoice = {
         ...mockQuotation,
         status: 'pending',
@@ -896,7 +919,7 @@ describe('InvoiceDetailPage', () => {
       };
       mockConvertQuotation.mockResolvedValue(converted);
       await renderQuotation();
-      expect(screen.queryByText('Pending')).not.toBeInTheDocument();
+      expect(screen.queryByText('To pay')).not.toBeInTheDocument();
       await openConvertModal();
       fireEvent.change(screen.getByTestId('convert-final-amount'), { target: { value: '10500' } });
 
@@ -910,7 +933,7 @@ describe('InvoiceDetailPage', () => {
       expect(mockConvertQuotation).toHaveBeenCalledTimes(1);
       expect(mockConvertQuotation.mock.calls[0]![0]).toBe(MOCK_INVOICE_ID);
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      expect(screen.getAllByText('Pending').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('To pay').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('$10500.00').length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText(/Converted from quotation of/)).toBeInTheDocument();
     });

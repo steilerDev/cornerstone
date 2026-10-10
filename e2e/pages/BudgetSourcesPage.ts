@@ -594,7 +594,7 @@ export class BudgetSourcesPage {
    */
   get moveModalUnderstoodCheckbox(): Locator {
     return this.moveModal.getByRole('checkbox', {
-      name: 'I understand this will reassign lines with a claimed invoice',
+      name: 'I understand this will reassign lines with a submitted invoice',
     });
   }
 

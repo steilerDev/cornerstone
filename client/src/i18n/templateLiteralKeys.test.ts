@@ -41,10 +41,6 @@ const ALLOW_LIST: readonly { file: string; snippet: string }[] = [
     file: 'lib/reportContent/buildReportContent.ts',
     snippet: 't(`sourceReports.table.attachmentsNote_${',
   },
-  {
-    file: 'components/SubsidyPipelineCard/SubsidyPipelineCard.tsx',
-    snippet: 't(`cards.subsidyPipeline.program_${',
-  },
   // Local copy-key tables / title keys, not shared unions
   { file: 'components/documents/LinkedDocumentsSection.tsx', snippet: 't(`linkedDocuments.${' },
   { file: 'components/documents/LinkedDocumentsSection.tsx', snippet: 't(`linkedDocuments.${' },

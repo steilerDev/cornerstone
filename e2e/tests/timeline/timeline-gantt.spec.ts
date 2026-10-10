@@ -197,7 +197,7 @@ test.describe('Gantt sidebar (Scenario 3)', () => {
       await expect(timelinePage.ganttSidebarRowsList).toBeVisible();
 
       const labels = await timelinePage.getSidebarItemLabels();
-      // Labels include "Work item: {title}" prefix from aria-label
+      // Labels include "Task: {title}" prefix from aria-label
       expect(labels.some((l) => l.includes('Foundation Work'))).toBe(true);
       expect(labels.some((l) => l.includes('Framing'))).toBe(true);
     } finally {

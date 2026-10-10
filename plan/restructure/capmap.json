@@ -21,7 +21,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > filter chips > Status",
     "change": "same",
     "gate": "none",
-    "note": "Chips work at every width (today hidden <768 px, JRN-07)."
+    "note": "Chips work at every width (today hidden <768 px, JRN-07). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
   },
   "WRK-004": {
     "name": "Filter work items by assigned user",
@@ -136,7 +136,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New task dialog: Title, Description (More details) and Status (More details) fields; Save creates the task.",
-    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09)."
+    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
   },
   "WRK-019": {
     "name": "Choose the work item's area at creation with a live breadcrumb preview",
@@ -201,7 +201,7 @@
     "to": "Tasks > Task page > header StatusMenu + primary 'Start' / 'Mark done' (date prompt: Today · planned date · Pick); Tasks > Tasks list > row command; Home > Needs attention > inline 'Start' / 'Mark done'",
     "change": "promoted",
     "gate": "none",
-    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4)."
+    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
   },
   "WRK-027": {
     "name": "Edit a work item's description inline",
@@ -476,7 +476,7 @@
     "to": "Tasks > Milestones > filter chips > Status (Upcoming / Late / Reached)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2195: milestone status word 'Pending' is now 'Upcoming' (AC7); Gantt and calendar screen-reader sentences are translated with the canonical milestone and task words."
   },
   "WRK-074": {
     "name": "Filter milestones by number of linked work items",
@@ -664,7 +664,7 @@
     "to": "Tasks > Schedule > chart (bars by status, with legend)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
   },
   "WRK-097": {
     "name": "Read one chronological list mixing work items, milestones and household items",
@@ -1030,7 +1030,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Funding source page summary: Amount, Allocated, Paid, Submitted, Unallocated / Over-allocated (projected range shown per line state in the Cost tab).",
-    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab."
+    "note": "The projected range per source is dropped as a headline; the source's lines carry their estimate state in the Cost tab. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
   },
   "MNY-025": {
     "name": "Create a financing source (bank loan, credit line, savings, other)",
@@ -1125,7 +1125,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Financing); every old URL redirects there in one hop.",
-    "note": "Subsidies tab merged into Financing."
+    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3)."
   },
   "MNY-037": {
     "name": "Create a subsidy program",
@@ -1151,7 +1151,7 @@
     "to": "Money > Grant page > StatusMenu (Eligible / Applied / Approved / Received / Rejected)",
     "change": "promoted",
     "gate": "none",
-    "note": "Status change without opening the edit form."
+    "note": "Status change without opening the edit form. #2195: grant status words read the canonical grant key set (AC3)."
   },
   "MNY-040": {
     "name": "Delete a subsidy program",
@@ -1211,7 +1211,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Invoices > Status chip counts per status incl. To pay; 'Refunds due' chip when > 0; Overview headline Still to pay; Financing Ready to submit; Offers count on the Offers chip.",
-    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place."
+    "note": "The overlapping tiles go (D-30). The Open items strip is not built (SIM-07): each count lives in one place. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-048": {
     "name": "Search invoices by invoice number",
@@ -1227,7 +1227,7 @@
     "to": "Money > Invoices > filter chips Company, Status + Filters sheet (dates, due date, amount)",
     "change": "same",
     "gate": "none",
-    "note": "Company filter is searchable."
+    "note": "Company filter is searchable. #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-050": {
     "name": "Filter invoices by unallocated remaining amount",
@@ -1259,7 +1259,7 @@
     "to": "Money > Invoices > Status 'To pay' (preselected; oldest first, overdue first; includes progress payments to pay on offers; footer sum 'Still to pay')",
     "change": "promoted",
     "gate": "none",
-    "note": "Open items first; archive is a segment (VR-BM-07)."
+    "note": "Open items first; archive is a segment (VR-BM-07). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-056": {
     "name": "See pending deposits as nested rows under their invoice",
@@ -1275,7 +1275,7 @@
     "to": "Money > Invoices > Overdue badges; Home > Needs attention",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Money because it serves a frequent job (weekly use)."
+    "note": "Made more visible in Money because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-058": {
     "name": "Open an invoice from the list",
@@ -1339,7 +1339,7 @@
     "to": "Money > New from document page (Paperless + AI only) > Invoice details section",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-066": {
     "name": "Apply one default funding source to all new lines of the invoice",
@@ -1486,7 +1486,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q3",
-    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3)."
+    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-084": {
     "name": "Delete an invoice",
@@ -1536,7 +1536,7 @@
     "to": "Money > Invoice / Offer page > Payments tab (progress payments, refunds, final payment) + summary 'Paid / Still to pay'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-090": {
     "name": "Record a deposit (staged payment) on an invoice",
@@ -1570,7 +1570,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress-payment StatusMenu (To pay > Paid > Submitted) with date prompt (progress payments store paid and submitted dates)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-094": {
     "name": "Revert a deposit status (claimed to paid, paid to pending)",
@@ -1578,7 +1578,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress payment StatusMenu > back transitions",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-095": {
     "name": "Edit or delete a deposit",
@@ -1602,7 +1602,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Add cost line' (pick task / purchase, then estimate line or new) and 'Add lines (grid)': grid dialog with keyboard rows, duplicate, paste from a spreadsheet and the document preview beside it (Paperless only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20)."
+    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
   },
   "MNY-098": {
     "name": "Create a new budget line on a work item or household item directly from the invoice",
@@ -1618,7 +1618,7 @@
     "to": "Task / Purchase / Invoice / Offer page > Cost tab > Cost line dialog",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "One cost-line form instead of 6 editors (P35)."
+    "note": "One cost-line form instead of 6 editors (P35). #2195: D-07 fully fixed: every status chip class resolves at runtime (camelCase CSS-module keys, typed class maps)."
   },
   "MNY-100": {
     "name": "Move an invoice-linked budget line to a different work item or household item",
@@ -1731,7 +1731,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18)."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -1739,7 +1739,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 2 funding source",
     "change": "same",
     "gate": "none",
-    "note": "Preselected when started from a funding source or Home."
+    "note": "Preselected when started from a funding source or Home. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
   },
   "MNY-118": {
     "name": "Move back and forth through the five report wizard steps",
@@ -1763,7 +1763,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 > invoice expand",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-121": {
     "name": "Exclude individual budget lines from a report",
@@ -1867,7 +1867,7 @@
     "to": "Money > Bank report > step 5 > 'Mark N as submitted' (modal with count and sum, separate from Download); recovery: History page / funding source page > History tab > submission row > 'Revert submission' (modal)",
     "change": "same",
     "gate": "none",
-    "note": "One safety mechanism per action (SIM-13): no persistent 'Undo last submission' button in the Financing header."
+    "note": "One safety mechanism per action (SIM-13): no persistent 'Undo last submission' button in the Financing header. #2195: step 5 action uses plural 'submitted' keys and is disabled with a stated reason at zero invoices (D-36)."
   },
   "MNY-134": {
     "name": "Browse vendors with trade and contact details",
@@ -1919,7 +1919,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06)."
+    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
   },
   "MNY-140": {
     "name": "View and edit vendor master data",
@@ -2018,7 +2018,7 @@
     "to": "Purchases > Purchases list > filter chips > Status",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
   },
   "HHI-016": {
     "name": "Filter the list by area, including sub-areas or items without an area",
@@ -2149,7 +2149,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Status (Planned default).",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
   },
   "HHI-035": {
     "name": "Set the quantity of a household item",
@@ -2219,7 +2219,7 @@
     "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; category and area in the summary strip)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14)."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2277,7 +2277,7 @@
     "to": "Purchases > Purchase page > header StatusMenu + primary by state: 'Mark ordered' (Planned) / 'Mark delivered' (Ordered or Delivery scheduled; date prompt)",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Purchases because it serves a frequent job (weekly use)."
+    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
   },
   "HHI-050": {
     "name": "Automatically record today as the actual delivery date when an item is marked Arrived",
@@ -2489,7 +2489,7 @@
     "to": "Site diary > Site diary list > Filters > Type",
     "change": "same",
     "gate": "none",
-    "note": "Only types in use offered first (VRS-11)."
+    "note": "Only types in use offered first (VRS-11). #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3)."
   },
   "JRN-006": {
     "name": "Search diary entries by text in title and body",
@@ -2546,7 +2546,7 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3)."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
@@ -3718,7 +3718,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Pulse 'Progress' tile: n of N tasks done · k in progress, links to Tasks.",
-    "note": "Folded into one shared surface in Home (one pattern per task, principle 8; daily use)."
+    "note": "Folded into one shared surface in Home (one pattern per task, principle 8; daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
   },
   "PLT-063": {
     "name": "See the critical-path status: items on the path, next deadline, days remaining and a health badge",
@@ -3780,7 +3780,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Financing > Grants cards with status chips; Home N11 for deadlines within 14 days.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (weekly use). Owner 7 Oct: no fixed-amount grants; totals are the calculated expected grants. #2195: grant status words read the canonical grant key set (AC3)."
   },
   "PLT-070": {
     "name": "See and open the most recent diary entries from the dashboard",
@@ -4122,7 +4122,7 @@
     "to": "Global > money in the instance currency (no '$' labels)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2195: no '$' in labels (Total amount, Value); hard-coded 0.00 money placeholders removed (D-29)."
   },
   "PLT-114": {
     "name": "Get AI and Paperless features only when the instance has them configured",

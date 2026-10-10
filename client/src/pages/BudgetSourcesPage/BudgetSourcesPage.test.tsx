@@ -639,6 +639,18 @@ describe('BudgetSourcesPage', () => {
       expect(createButton).toBeDisabled();
     });
 
+    it('AC4: the Total amount label has no currency symbol and the input has no fake placeholder', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /add source/i }));
+
+      const input = screen.getByLabelText(/^total amount/i);
+      expect(screen.queryByText(/\(\$\)/)).not.toBeInTheDocument();
+      expect(input).not.toHaveAttribute('placeholder');
+    });
+
     it('"Create Source" submit button is disabled when totalAmount is empty', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
@@ -1790,7 +1802,7 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('bar legend shows Claimed segment when claimedAmount is non-zero', async () => {
+    it('bar legend shows Claimed segment (Submitted) when claimedAmount is non-zero', async () => {
       const sourceWithClaimed: BudgetSource = {
         ...sampleSource1,
         claimedAmount: 30000,
@@ -1802,7 +1814,7 @@ describe('BudgetSourcesPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByText('Claimed')).toBeInTheDocument();
+        expect(screen.getByText('Submitted')).toBeInTheDocument();
       });
     });
 
@@ -2074,7 +2086,7 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('summary table renders exactly 3 summaryLabel elements in Projected, Paid, Claimed order', async () => {
+    it('summary table renders exactly 3 summaryLabel elements in Projected, Paid, Submitted order', async () => {
       // Render with a single source so we get exactly 3 summary labels (one per row)
       mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
 
@@ -2098,7 +2110,7 @@ describe('BudgetSourcesPage', () => {
       });
       expect(labelTexts[0]).toMatch(/Projected/);
       expect(labelTexts[1]).toMatch(/Paid/);
-      expect(labelTexts[2]).toMatch(/Claimed/);
+      expect(labelTexts[2]).toMatch(/Submitted/);
     });
 
     it('no "Allocated" label is present in the rendered output', async () => {

@@ -217,12 +217,7 @@ describe('WorkItemsPage', () => {
     it.each(WORK_ITEM_STATUSES)(
       'renders the translated status badge label for %s',
       async (status) => {
-        const label =
-          enWorkItems.create.fields.statusOptions[
-            { not_started: 'notStarted', in_progress: 'inProgress', completed: 'completed' }[
-              status
-            ] as 'notStarted' | 'inProgress' | 'completed'
-          ];
+        const label = enCommon.statusVocabulary.task[status];
         mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary({ status })]));
 
         renderPage();
@@ -230,6 +225,16 @@ describe('WorkItemsPage', () => {
         await waitFor(() => {
           expect(screen.getAllByText(label).length).toBeGreaterThanOrEqual(1);
         });
+        // D-08: the badge carries the shared Badge status class, never a dead badge-<status> one
+        const badge = screen.getAllByText(label).find((el) => el.className.includes('badge'));
+        expect(badge).toBeDefined();
+        const cssKey = {
+          not_started: 'notStarted',
+          in_progress: 'inProgress',
+          completed: 'completed',
+        }[status];
+        expect(badge!.className).toContain(cssKey);
+        expect(badge!.className).not.toContain('badge-');
       },
     );
 
@@ -247,11 +252,7 @@ describe('WorkItemsPage', () => {
       expect(rows).toEqual(
         WORK_ITEM_STATUSES.map((status) => [
           `enum-${status}`,
-          {
-            not_started: enWorkItems.create.fields.statusOptions.notStarted,
-            in_progress: enWorkItems.create.fields.statusOptions.inProgress,
-            completed: enWorkItems.create.fields.statusOptions.completed,
-          }[status],
+          enCommon.statusVocabulary.task[status],
         ]),
       );
     });

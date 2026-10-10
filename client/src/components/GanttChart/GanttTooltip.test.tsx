@@ -142,7 +142,7 @@ describe('GanttTooltip', () => {
     const statuses: { status: WorkItemStatus; expectedLabel: string }[] = [
       { status: 'not_started', expectedLabel: 'Not started' },
       { status: 'in_progress', expectedLabel: 'In progress' },
-      { status: 'completed', expectedLabel: 'Completed' },
+      { status: 'completed', expectedLabel: 'Done' },
     ];
 
     statuses.forEach(({ status, expectedLabel }) => {
@@ -156,6 +156,31 @@ describe('GanttTooltip', () => {
   // ---------------------------------------------------------------------------
   // Date formatting
   // ---------------------------------------------------------------------------
+
+  describe('household item status uses the canonical purchase words (#2195)', () => {
+    const base: GanttTooltipHouseholdItemData = {
+      kind: 'household-item',
+      name: 'Sample Cabinets',
+      category: 'furniture',
+      status: 'planned',
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+      targetDeliveryDate: null,
+      actualDeliveryDate: null,
+      isLate: false,
+    };
+
+    it.each([
+      ['planned', 'Planned'],
+      ['purchased', 'Ordered'],
+      ['scheduled', 'Delivery scheduled'],
+      ['arrived', 'Delivered'],
+    ] as const)('%s reads %s, never the raw status value', (status, word) => {
+      render(<GanttTooltip data={{ ...base, status }} position={DEFAULT_POSITION} />);
+      expect(screen.getByText(word)).toBeInTheDocument();
+      if (status === 'scheduled') expect(screen.queryByText('scheduled')).not.toBeInTheDocument();
+    });
+  });
 
   describe('date formatting', () => {
     it('formats a start date from ISO string to readable form', () => {
@@ -775,6 +800,22 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     linkedWorkItems: [],
     dependentWorkItems: [],
   };
+
+  it.each([
+    ['upcoming', {}, 'Upcoming'],
+    ['reached', { isCompleted: true, completedAt: '2024-07-01T10:00:00.000Z' }, 'Reached'],
+    ['late', { projectedDate: '2024-07-06', isLate: true }, 'Late · 5 d'],
+    ['early', { projectedDate: '2024-06-28' }, 'Early · 3 d'],
+  ] as const)(
+    'milestone tooltip status badge reads the canonical word for %s (%s)',
+    (_state, overrides, word) => {
+      render(
+        <GanttTooltip data={{ ...MILESTONE_DATA, ...overrides }} position={{ x: 100, y: 200 }} />,
+      );
+      expect(screen.getByText(word)).toBeInTheDocument();
+      expect(screen.queryByText(/^(Completed|Pending|On Track|Ahead)$/)).not.toBeInTheDocument();
+    },
+  );
 
   it('does not render a "Dependencies" section label for milestone tooltips', () => {
     render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);

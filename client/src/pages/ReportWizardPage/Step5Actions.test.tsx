@@ -20,6 +20,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { PaperlessStatusResponse, SourceReportType } from '@cornerstone/shared';
 import { Step5Actions } from './Step5Actions.js';
+import i18n from '../../i18n/index.js';
 
 const t = ((key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}::${JSON.stringify(opts)}` : key) as unknown as TFunction;
@@ -53,7 +54,13 @@ function renderStep5(props: ReturnType<typeof baseProps> & Record<string, unknow
   );
 }
 
-const markClaimedName = (count: number) => `sourceReports.markClaimed::{"count":${count}}`;
+// The success banner nests two plural t() calls; the echo t() renders them as below.
+const claimSuccessEcho = `sourceReports.claimSuccess::${JSON.stringify({
+  invoices: 'sourceReports.invoiceCount::{"count":5}',
+  progressPayments: 'sourceReports.progressPaymentCount::{"count":2}',
+})}`;
+
+const markClaimedName = (count: number) => `sourceReports.markSubmitted::{"count":${count}}`;
 
 const paperlessConfigured: PaperlessStatusResponse = {
   configured: true,
@@ -339,9 +346,7 @@ describe('Step5Actions — claimSuccess', () => {
       claimedInvoiceCount: 5,
       claimedDepositCount: 2,
     });
-    expect(
-      screen.getByText('sourceReports.claimSuccess::{"invoices":5,"deposits":2}'),
-    ).toBeInTheDocument();
+    expect(screen.getByText(claimSuccessEcho)).toBeInTheDocument();
   });
 
   it('renders a link to /budget/invoices in the success banner', () => {
@@ -366,8 +371,60 @@ describe('Step5Actions — claimSuccess', () => {
       claimedDepositCount: 2,
     });
     expect(screen.getByText('sourceReports.finishedWithoutMarkingSuccess')).toBeInTheDocument();
+    expect(screen.queryByText(claimSuccessEcho)).not.toBeInTheDocument();
+  });
+});
+
+// AC6 (D-36): real en/de resources, so the plural forms and the zero-state are exercised end to end.
+describe('Step5Actions — Mark as submitted wording (AC6, real resources)', () => {
+  const realT = i18n.getFixedT('en', 'budget') as unknown as TFunction;
+
+  function renderReal(overrides: Record<string, unknown>, t_: TFunction = realT) {
+    return renderStep5({ ...baseProps(), useCase: 'claim', t: t_, ...overrides });
+  }
+
+  it('reads "Mark 1 invoice as submitted" for one invoice', () => {
+    renderReal({ selectedInvoiceCount: 1 });
+    expect(screen.getByRole('button', { name: 'Mark 1 invoice as submitted' })).toBeEnabled();
+  });
+
+  it('reads "Mark 3 invoices as submitted" for several invoices', () => {
+    renderReal({ selectedInvoiceCount: 3 });
+    expect(screen.getByRole('button', { name: 'Mark 3 invoices as submitted' })).toBeEnabled();
+  });
+
+  it('states its reason and is disabled when no invoice is selected (never "0 invoices")', () => {
+    renderReal({ selectedInvoiceCount: 0 });
+    const button = screen.getByRole('button', { name: 'No invoices to mark as submitted' });
+    expect(button).toBeDisabled();
+    expect(screen.queryByRole('button', { name: /Mark 0/ })).not.toBeInTheDocument();
+  });
+
+  it('does not call onMarkClaimed when the zero-state button is clicked', () => {
+    const onMarkClaimed = jest.fn();
+    renderReal({ selectedInvoiceCount: 0, onMarkClaimed });
+    fireEvent.click(screen.getByRole('button', { name: 'No invoices to mark as submitted' }));
+    expect(onMarkClaimed).not.toHaveBeenCalled();
+  });
+
+  it('success banner: "1 invoice and 2 progress payments marked as submitted"', () => {
+    renderReal({ claimSuccess: true, claimedInvoiceCount: 1, claimedDepositCount: 2 });
     expect(
-      screen.queryByText('sourceReports.claimSuccess::{"invoices":5,"deposits":2}'),
-    ).not.toBeInTheDocument();
+      screen.getByText('1 invoice and 2 progress payments marked as submitted'),
+    ).toBeInTheDocument();
+  });
+
+  it('success banner pluralises both counts: "2 invoices and 1 progress payment ..."', () => {
+    renderReal({ claimSuccess: true, claimedInvoiceCount: 2, claimedDepositCount: 1 });
+    expect(
+      screen.getByText('2 invoices and 1 progress payment marked as submitted'),
+    ).toBeInTheDocument();
+  });
+
+  it('German button says "eingereicht"', () => {
+    const deT = i18n.getFixedT('de', 'budget') as unknown as TFunction;
+    renderReal({ selectedInvoiceCount: 2 }, deT);
+    const button = screen.getByRole('button', { name: /eingereicht/ });
+    expect(button).toHaveTextContent('2 Rechnungen als eingereicht markieren');
   });
 });

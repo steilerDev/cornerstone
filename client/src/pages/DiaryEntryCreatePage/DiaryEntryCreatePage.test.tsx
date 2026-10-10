@@ -190,6 +190,17 @@ describe('DiaryEntryCreatePage', () => {
       expect(screen.getByText(/select entry type/i)).toBeInTheDocument();
     });
 
+    it.each([
+      ['daily_log', 'Daily log'],
+      ['site_visit', 'Site visit'],
+      ['delivery', 'Delivery'],
+      ['issue', 'Defect'],
+      ['general_note', 'Note'],
+    ] as const)('the %s card is labelled with the canonical word "%s"', (type, word) => {
+      renderPage();
+      expect(screen.getByTestId(`type-card-${type}`)).toHaveTextContent(word);
+    });
+
     it('renders the daily_log type card', () => {
       renderPage();
       expect(screen.getByTestId('type-card-daily_log')).toBeInTheDocument();
