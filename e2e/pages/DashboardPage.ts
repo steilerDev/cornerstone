@@ -299,7 +299,7 @@ export class DashboardPage {
       .filter({ hasText: 'Budget Details' })
       .filter({ visible: true });
     if ((await summary.count()) === 0) return;
-    const details = this.page.locator('details').filter({ has: summary });
+    const details = summary.locator('..');
     if ((await details.getAttribute('open')) === null) {
       await summary.click();
     }
