@@ -97,7 +97,7 @@ test.describe('Vendor selection happy path (Scenario 1)', () => {
 
         // Navigate to detail page
         await page.waitForURL(new RegExp(`/diary/${entryId}$`));
-        await detailPage.backButton.waitFor({ state: 'visible' });
+        await detailPage.loaded.waitFor({ state: 'visible' });
 
         // Verify the vendor name appears in the daily_log metadata summary
         await expect(detailPage.dailyLogMetadata).toBeVisible();
@@ -150,7 +150,7 @@ test.describe('Time entry and duration display (Scenario 2)', () => {
 
       // Navigate to detail page
       await page.waitForURL(new RegExp(`/diary/${entryId}$`));
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
 
       // Verify start time, end time, and duration in the metadata summary
       await expect(detailPage.dailyLogMetadata).toBeVisible();
@@ -265,7 +265,7 @@ test.describe('Clear vendor after selection (Scenario 4)', () => {
       // Save the entry (vendor should be null, times should be saved)
       await editPage.save();
       await page.waitForURL(new RegExp(`/diary/${entryId}$`));
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
 
       // Vendor name must NOT appear in summary (vendorId was cleared)
       await expect(detailPage.dailyLogMetadata).toBeVisible();

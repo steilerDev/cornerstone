@@ -14,10 +14,13 @@ import type * as SetupPageTypes from './SetupPage.js';
 
 const mockSetup = jest.fn<typeof AuthApiTypes.setup>();
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
+const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
 
+// `logout` is imported by AuthContext, which the title hook reaches through HouseNameContext
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
   setup: mockSetup,
   getAuthMe: mockGetAuthMe,
+  logout: mockLogout,
 }));
 
 describe('SetupPage', () => {
@@ -71,6 +74,36 @@ describe('SetupPage', () => {
     mockGetAuthMe.mockReturnValue(new Promise(() => {}));
     renderPage();
     expect(screen.getByText(enAuth.setup.loading)).toBeInTheDocument();
+  });
+
+  it('has exactly one level-1 heading while checking, so the page is never headingless', () => {
+    mockGetAuthMe.mockReturnValue(new Promise(() => {}));
+    renderPage();
+
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(enAuth.setup.title);
+  });
+
+  it('has exactly one level-1 heading once the form shows', async () => {
+    renderPage();
+
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(enAuth.setup.title);
+  });
+
+  it('sets the tab title from the setup title with the product name, in both states', async () => {
+    mockGetAuthMe.mockReturnValue(new Promise(() => {}));
+    const { unmount } = renderPage();
+    expect(document.title).toBe(`${enAuth.setup.title} · Cornerstone`);
+    unmount();
+
+    mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: true, oidcEnabled: false });
+    renderPage();
+    await screen.findByLabelText(enAuth.setup.emailLabel);
+    expect(document.title).toBe(`${enAuth.setup.title} · Cornerstone`);
   });
 
   it('redirects to login when setup is already complete', async () => {

@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import type { AreaSummary, OrientationSummary, PhotoSpotPhoto } from '@cornerstone/shared';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { SpotHistoryList } from './SpotHistoryList.js';
+import type { OriginState } from '../../navigation/origin.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { formatAreaPath } from '../../lib/photoSpots.js';
 import sharedStyles from '../../styles/shared.module.css';
@@ -20,6 +21,10 @@ export interface SpotViewerProps {
   onBack: () => void;
   backTo: To;
   backState: unknown;
+  /** Text of the top-bar back link: "Photos" or "Back to <origin>" */
+  backLabel: string;
+  /** Origin state for the "Open diary entry" link */
+  entryLinkState?: OriginState;
   area: AreaSummary | null;
   orientation: OrientationSummary | null;
   /** Visually hidden page heading rendered by the page (focus target) */
@@ -110,6 +115,8 @@ export function SpotViewer({
   onBack,
   backTo,
   backState,
+  backLabel,
+  entryLinkState,
   area,
   orientation,
   headingSlot,
@@ -192,7 +199,7 @@ export function SpotViewer({
             data-testid="spot-viewer-back"
           >
             <Chevron direction="left" />
-            {t('viewer.backToSpots')}
+            {backLabel}
           </Link>
           {headingSlot}
           <span className={styles.position} data-testid="spot-viewer-position">
@@ -291,6 +298,7 @@ export function SpotViewer({
           <span className={styles.entryMeta}>{longDate}</span>
           <Link
             to={routeUrl('diaryEntry', { id: entry.id })}
+            state={entryLinkState}
             className={styles.entryLink}
             data-testid="spot-viewer-diary-link"
           >

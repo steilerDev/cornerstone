@@ -91,6 +91,26 @@ export function formatDate(
 }
 
 /**
+ * Format a date as day + short month ("Sep 29" en-US, "29. Sept." de-DE); the year is added
+ * when it differs from the year of `today`.
+ */
+export function formatDayMonth(
+  dateStr: string | null | undefined,
+  locale = 'en-US',
+  fallback = '—',
+  today: Date = new Date(),
+): string {
+  if (!dateStr) return fallback;
+  const [year, month, day] = dateStr.slice(0, 10).split('-').map(Number);
+  if (!year || !month || !day) return fallback;
+  return new Date(year, month - 1, day).toLocaleDateString(locale, {
+    month: 'short',
+    day: 'numeric',
+    ...(year !== today.getFullYear() ? { year: 'numeric' } : {}),
+  });
+}
+
+/**
  * Format an ISO timestamp as a localized time string (HH:MM).
  *
  * @param timestamp - An ISO timestamp string or null/undefined.
@@ -311,7 +331,7 @@ export interface Formatters {
 
 /**
  * Full set of formatter closures returned by createFormatters()/useFormatters(): the
- * PDF-builder subset (Formatters) plus the remaining nine app-wide formatters. Declaring this
+ * PDF-builder subset (Formatters) plus the remaining ten app-wide formatters. Declaring this
  * explicitly (rather than letting createFormatters()'s return type be inferred) makes the
  * "Formatters is a subset of AppFormatters" relationship a compile-time contract instead of a
  * structural coincidence that could silently drift.
@@ -326,6 +346,7 @@ export interface AppFormatters extends Formatters {
   formatFileSize: (bytes: number) => string;
   formatHours: (hours: number) => string;
   formatDateTimeWithZone: (date: Date) => string;
+  formatDayMonth: (dateStr: string | null | undefined, fallback?: string) => string;
 }
 
 import type { ResolvedLocale } from '../contexts/LocaleContext.js';
@@ -371,6 +392,12 @@ export function createFormatters(locale: string, currency: string): AppFormatter
       fallback?: string,
       monthStyle?: 'short' | 'long',
     ) => formatDate(dateStr, locale, fallback, monthStyle),
+
+    /**
+     * Format a date as day + short month (year only when not the current year).
+     */
+    formatDayMonth: (dateStr: string | null | undefined, fallback?: string) =>
+      formatDayMonth(dateStr, locale, fallback),
 
     /**
      * Format a time string using the bound locale.

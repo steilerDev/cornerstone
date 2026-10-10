@@ -132,7 +132,9 @@ test.describe('i18n: Language Switching', () => {
     // is guaranteed to show 'en' regardless of prior test state in this worker.
     await setLanguage(page, 'en');
     await page.goto(ROUTES.profile);
-    await page.getByRole('heading', { level: 1, name: 'Profile' }).waitFor({ state: 'visible' });
+    await page
+      .getByRole('heading', { level: 1, name: 'Account', exact: true })
+      .waitFor({ state: 'visible' });
 
     // Verify the current language select shows English
     await expect(page.locator('#languageSelect')).toHaveValue('en');
@@ -145,8 +147,8 @@ test.describe('i18n: Language Switching', () => {
     await responsePromise;
 
     // Then: The UI immediately updates to German
-    // The page heading changes from "Profile" to "Profil" (German translation)
-    await expect(page.getByRole('heading', { level: 1, name: 'Profil' })).toBeVisible();
+    // The page heading changes from "Account" to "Konto" (German translation)
+    await expect(page.getByRole('heading', { level: 1, name: 'Konto', exact: true })).toBeVisible();
 
     // And: The language select now shows Deutsch as selected
     await expect(page.locator('#languageSelect')).toHaveValue('de');
@@ -194,7 +196,7 @@ test.describe('i18n: Language Switching', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Zeitplan' })).toBeVisible();
 
     // And: Diary page renders in German
-    // diary.json page.title = "Bautagebuch" (German for "Construction Diary")
+    // common.json navigation.siteDiary = "Bautagebuch" (German for "Site diary")
     await page.goto(ROUTES.diary);
     await expect(page.getByRole('heading', { level: 1, name: 'Bautagebuch' })).toBeVisible();
   });
@@ -272,6 +274,59 @@ test.describe('i18n: Language Switching', () => {
     await expect(page.getByTestId('breadcrumbs').getByRole('navigation')).toHaveText(/Finanzen/);
   });
 
+  test('Diary, Photos, Settings and system page identity renders in German (#2204)', async ({
+    page,
+  }) => {
+    // Given: Language is set to German
+    await setLanguage(page, 'de');
+
+    // Site diary: h1 "Bautagebuch", title "Bautagebuch · <house name or Cornerstone>"
+    await page.goto(ROUTES.diary);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: 'Bautagebuch' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page).toHaveTitle(/^Bautagebuch · [^·]+$/);
+
+    // New diary entry: h1 and a translated, locale-independent trail
+    await page.goto(routeUrl('diaryEntryNew'));
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Neuer Tagebucheintrag' }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Neuer Tagebucheintrag · Bautagebuch · [^·]+$/);
+    await expect(page.getByTestId('breadcrumbs').getByRole('navigation')).toHaveText(/Bautagebuch/);
+
+    // Photos
+    await page.goto(routeUrl('photos'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Fotos' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Fotos · [^·]+$/);
+
+    // Settings: Project setup / Account / Users / Backups (admin)
+    await page.goto(routeUrl('settingsManage'));
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Projekteinrichtung', exact: true }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Projekteinrichtung · Einstellungen · [^·]+$/);
+
+    await page.goto(ROUTES.userManagement);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Benutzer', exact: true }),
+    ).toBeVisible();
+
+    await page.goto(ROUTES.backups);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Sicherungen', exact: true }),
+    ).toBeVisible();
+
+    // Page not found
+    await page.goto('/pi-does-not-exist-de');
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Seite nicht gefunden' }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Seite nicht gefunden · [^·]+$/);
+  });
+
   test('Language can be switched back to English from German', async ({ page }) => {
     // Given: Language was set to German (via API + localStorage)
     await setLanguage(page, 'de');
@@ -281,7 +336,9 @@ test.describe('i18n: Language Switching', () => {
 
     // Then: Navigating to the Profile page shows the English heading
     await page.goto(ROUTES.profile);
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Account', exact: true }),
+    ).toBeVisible();
   });
 
   test('Profile preferences section shows language options in current language', async ({
@@ -289,7 +346,9 @@ test.describe('i18n: Language Switching', () => {
   }) => {
     // Given: User is on the Profile page in English
     await page.goto(ROUTES.profile);
-    await page.getByRole('heading', { level: 1, name: 'Profile' }).waitFor({ state: 'visible' });
+    await page
+      .getByRole('heading', { level: 1, name: 'Account', exact: true })
+      .waitFor({ state: 'visible' });
 
     // Then: The Preferences section heading is visible
     await expect(page.getByRole('heading', { level: 2, name: 'Preferences' })).toBeVisible();
@@ -437,7 +496,7 @@ test.describe('i18n: Language Persistence via API', () => {
     // wait needed, because those two happen in the same synchronous block, so a rendered
     // German heading cannot precede the removal.
     await page.goto(ROUTES.profile);
-    await expect(page.getByRole('heading', { level: 1, name: 'Profil' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Konto', exact: true })).toBeVisible();
 
     // Assert that precondition instead of inferring it. The heading only proves the
     // server branch ran if the German render was driven by that branch; were the auth
@@ -459,7 +518,9 @@ test.describe('i18n: Language Persistence via API', () => {
     // Then: A full reload re-initialises LocaleContext with no localStorage key and no
     // server preference → 'system' → the CI browser locale, English.
     await page.reload();
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Account', exact: true }),
+    ).toBeVisible();
   });
 });
 

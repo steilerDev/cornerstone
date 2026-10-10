@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { DiaryEntryTypeBadge } from '../diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
 import { EmptyState } from '../EmptyState/index.js';
 import shared from '../../styles/shared.module.css';
@@ -22,6 +23,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
     formatDateTime: _formatDateTime,
   } = useFormatters();
   const { t } = useTranslation('dashboard');
+  const originState = useOriginState();
 
   if (isLoading) {
     return <div className={shared.loading}>{t('cards.recentDiary.loadingEntries')}</div>;
@@ -51,6 +53,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
           <Link
             key={entry.id}
             to={routeUrl('diaryEntry', { id: entry.id })}
+            state={originState}
             className={styles.entryItem}
             data-testid={`recent-diary-${entry.id}`}
           >
@@ -73,7 +76,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
       </div>
 
       <div className={styles.footer}>
-        <Link to={routeUrl('diaryEntryNew')} className={styles.addLink}>
+        <Link to={routeUrl('diaryEntryNew')} state={originState} className={styles.addLink}>
           {t('cards.recentDiary.newEntry')}
         </Link>
         <Link to={routeUrl('diary')} className={styles.viewAllLink}>

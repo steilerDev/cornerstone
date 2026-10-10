@@ -15,6 +15,11 @@ describe('readOrigin', () => {
     });
   });
 
+  it('accepts a to of exactly 2048 characters', () => {
+    const to = `/${'a'.repeat(2047)}`;
+    expect(readOrigin({ origin: { to } })).toEqual({ to });
+  });
+
   it('accepts an origin without a name', () => {
     expect(readOrigin({ origin: { to: '/schedule/gantt' } })).toEqual({ to: '/schedule/gantt' });
   });
@@ -38,6 +43,10 @@ describe('readOrigin', () => {
     ['a newline in to', { origin: { to: '/\n/x' } }],
     ['a carriage return in to', { origin: { to: '/\r/x' } }],
     ['a DEL character in to', { origin: { to: '/a\u007Fb' } }],
+    ['a NUL character in to', { origin: { to: '/a\u0000b' } }],
+    // safeAppPath rules shared with the server (#2204)
+    ['a scheme inside the query', { origin: { to: '/x?u=http://evil.example' } }],
+    ['a to longer than 2048 characters', { origin: { to: `/${'a'.repeat(2048)}` } }],
   ])('rejects %s', (_label, state) => {
     expect(readOrigin(state)).toBeNull();
   });

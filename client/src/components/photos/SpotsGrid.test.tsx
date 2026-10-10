@@ -1,6 +1,8 @@
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { OriginState } from '../../navigation/origin.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { SpotsGrid as SpotsGridType } from './SpotsGrid.js';
 import { buildSpotGroups } from '../../lib/photoSpots.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
@@ -32,11 +34,12 @@ const spots = [
   makeSpot(null, 'o2', { photoCount: 2, latestPhotoId: 'pN' }),
 ];
 
-function renderGrid(linkState?: unknown) {
+function renderGrid(linkState?: OriginState) {
   const groups = buildSpotGroups(areas, orientations, spots);
   return render(
     <MemoryRouter>
       <SpotsGrid groups={groups} linkState={linkState} />
+      <OriginProbe />
     </MemoryRouter>,
   );
 }
@@ -156,5 +159,19 @@ describe('SpotsGrid', () => {
     );
     fireEvent.click(screen.getByTestId('spot-group-chip-solo'));
     expect(screen.getByRole('status')).toHaveTextContent('Showing Solo: 3 spots');
+  });
+
+  it('passes linkState to the viewer link as its origin', () => {
+    renderGrid({ origin: { to: '/photos?group=g1' } });
+    fireEvent.click(screen.getByTestId('spot-card-kitchen:o1'));
+    expect(probedPath()).toBe('/photos/spot/kitchen/o1');
+    // Mutation: dropping state={linkState} from the card link makes the origin null.
+    expect(probedOrigin()).toEqual({ to: '/photos?group=g1' });
+  });
+
+  it('carries no origin when no linkState is given', () => {
+    renderGrid();
+    fireEvent.click(screen.getByTestId('spot-card-kitchen:o1'));
+    expect(probedOrigin()).toBeNull();
   });
 });

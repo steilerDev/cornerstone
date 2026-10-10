@@ -50,7 +50,12 @@
     "splitWithAi": "Mit KI aufschlüsseln",
     "bankReport": "Bankbericht",
     "fundingSources": "Finanzierungsquellen",
-    "grants": "Förderprogramme"
+    "grants": "Förderprogramme",
+    "newDiaryEntry": "Neuer Tagebucheintrag",
+    "editDiaryEntry": "Tagebucheintrag bearbeiten",
+    "diaryEntry": "Tagebucheintrag",
+    "diaryEntryNotFound": "Tagebucheintrag nicht gefunden",
+    "diaryEntryUntitled": "{{type}} · {{date}}"
   },
   "name": "Name",
   "noArea": "Kein Bereich",
@@ -113,12 +118,12 @@
     "current": "Aktuell: {{current}} — klicken um zu {{next}} zu wechseln"
   },
   "notFound": {
-    "title": "404 - Seite nicht gefunden",
+    "title": "Seite nicht gefunden",
     "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
-    "backLink": "Zurück zur Projektübersicht"
+    "backLink": "Zum Start"
   },
   "noAccess": {
-    "title": "Sie haben keinen Zugriff auf diese Seite",
+    "title": "Kein Zugriff",
     "description": "Wenden Sie sich an einen Administrator, wenn Sie Zugriff benötigen.",
     "backLink": "Zurück zum Start"
   },

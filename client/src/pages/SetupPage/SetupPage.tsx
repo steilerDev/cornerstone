@@ -1,6 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { Logo } from '../../components/Logo/Logo.js';
 import { setup, getAuthMe } from '../../lib/authApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -20,6 +21,7 @@ export function SetupPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
+  useDocumentTitle(t('setup.title'), { section: false, house: false });
   const [email, setEmail] = useState('');
   const [displayName, setDisplayName] = useState('');
   const [password, setPassword] = useState('');
@@ -103,6 +105,7 @@ export function SetupPage() {
     return (
       <div className={sharedStyles.container}>
         <div className={sharedStyles.card}>
+          <h1 className={sharedStyles.title}>{t('setup.title')}</h1>
           <p>{t('setup.loading')}</p>
         </div>
       </div>

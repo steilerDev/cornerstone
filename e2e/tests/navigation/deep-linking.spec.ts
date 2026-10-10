@@ -39,12 +39,14 @@ test.describe('Deep Linking', () => {
 
     // Profile
     await page.goto(ROUTES.profile);
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Account', exact: true }),
+    ).toBeVisible();
     expect(page.url()).toContain(ROUTES.profile);
 
-    // User Management
+    // Users
     await page.goto(ROUTES.userManagement);
-    await expect(page.getByRole('heading', { level: 1, name: 'User Management' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Users', exact: true })).toBeVisible();
     expect(page.url()).toContain(ROUTES.userManagement);
   });
 

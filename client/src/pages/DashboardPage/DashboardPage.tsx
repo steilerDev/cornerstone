@@ -588,7 +588,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('diaryEntryNew'));
+                    void navigate(routeUrl('diaryEntryNew'), { state: originState });
                   }}
                   data-testid="dashboard-add-diary-entry"
                 >

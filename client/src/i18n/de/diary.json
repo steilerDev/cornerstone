@@ -1,10 +1,9 @@
 {
   "page": {
-    "title": "Bautagebuch",
     "newEntryButton": "Neuer Eintrag",
     "entryCountSingular": "Eintrag",
     "entryCountPlural": "Einträge",
-    "timelineAriaLabel": "Bautagebuch-Einträge"
+    "timelineAriaLabel": "Einträge im Bautagebuch"
   },
   "empty": {
     "title": "Noch keine Tagebucheinträge.",
@@ -80,11 +79,9 @@
     "photoUploadError": "Eintrag erstellt, aber einige Fotos konnten nicht hochgeladen werden"
   },
   "detail": {
-    "backLink": "← Zurück zum Tagebuch",
     "editButton": "Bearbeiten",
     "deleteButton": "Eintrag löschen",
     "loading": "Eintrag wird geladen...",
-    "notFound": "Eintrag nicht gefunden",
     "notFoundMessage": "Der gesuchte Tagebucheintrag existiert nicht.",
     "deletingButton": "Wird gelöscht...",
     "deleteConfirm": "Eintrag löschen",
@@ -95,7 +92,6 @@
     "deleteErrorMessage": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut."
   },
   "edit": {
-    "backLink": "← Zurück zum Tagebuch",
     "entryDate": "Einzugsdatum",
     "entryDateRequired": "Einzugsdatum ist erforderlich",
     "entryType": "Eintragstyp",
@@ -243,8 +239,6 @@
     "critical": "Kritisch"
   },
   "createPage": {
-    "backLink": "← Zurück zum Tagebuch",
-    "title": "Neuer Tagebucheintrag",
     "selectEntryType": "Eintragstyp wählen",
     "typeCardDailyDesc": "Tägliche Standortbedingungen und Arbeitskräfte dokumentieren",
     "typeCardSiteVisitDesc": "Inspektion mit Inspektoreninformation und Ergebnis dokumentieren",
@@ -254,8 +248,6 @@
     "draftCreateError": "Entwurf konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
   },
   "detailPage": {
-    "backLinkAriaLabel": "Zurück zum Tagebuch",
-    "backLink": "← Zurück zum Tagebuch",
     "edit": "Bearbeiten",
     "delete": "Löschen",
     "automatic": "Automatisch",
@@ -270,8 +262,6 @@
     "deleteCancel": "Abbrechen",
     "deleteConfirm": "Eintrag löschen",
     "deleting": "Wird gelöscht...",
-    "entryNotFound": "Tagebucheintrag nicht gefunden",
-    "invalidEntryId": "Ungültige Tagebucheintrag-ID",
     "deleteSuccess": "Tagebucheintrag erfolgreich gelöscht",
     "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
     "sourceType": {
@@ -283,13 +273,9 @@
     }
   },
   "editPage": {
-    "backLink": "← Zurück zum Eintrag",
-    "title": "Tagebucheintrag bearbeiten",
     "loadingError": "Eintrag wird geladen...",
-    "notFoundTitle": "Eintrag nicht gefunden",
     "notFoundMessage": "Der Tagebucheintrag, den Sie suchen, existiert nicht.",
     "errorTitle": "Fehler beim Laden des Eintrags",
-    "backButton": "Zurück zum Tagebuch",
     "deleteButton": "Eintrag löschen",
     "cancel": "Abbrechen",
     "saving": "Wird gespeichert...",

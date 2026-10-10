@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { routeUrl } from '@cornerstone/shared';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 
 /** Decorative lock (stroke icon, sized by EmptyState's .icon font-size). */
 function LockIcon() {
@@ -25,6 +26,7 @@ function LockIcon() {
 
 export function NoAccessPage() {
   const { t } = useTranslation('common');
+  useDocumentTitle(t('noAccess.title'), { section: false });
   return (
     <div data-testid="no-access-page">
       <EmptyState

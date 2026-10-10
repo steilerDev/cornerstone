@@ -24,6 +24,18 @@ describe('authApi', () => {
     mockPost.mockReset();
   });
 
+  describe('oidcLoginUrl', () => {
+    it('returns the plain start URL without a next', () => {
+      expect(authApi.oidcLoginUrl(null)).toBe('/api/auth/oidc/login');
+    });
+
+    it('passes next URL-encoded as the redirect parameter', () => {
+      expect(authApi.oidcLoginUrl('/diary?q=1')).toBe(
+        '/api/auth/oidc/login?redirect=%2Fdiary%3Fq%3D1',
+      );
+    });
+  });
+
   describe('getAuthMe', () => {
     it('calls get with /auth/me', async () => {
       const mockResponse = {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -27,6 +28,8 @@ export function BackupsPage() {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon('navigation.backups');
+  useDocumentTitle(pageTitle);
   const { formatDate, formatDateTime, formatFileSize } = useFormatters();
   const { user } = useAuth();
 
@@ -201,7 +204,7 @@ export function BackupsPage() {
     return (
       <PageLayout
         maxWidth="narrow"
-        title={t('backups.pageTitle')}
+        title={pageTitle}
         subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
@@ -216,7 +219,7 @@ export function BackupsPage() {
   return (
     <PageLayout
       maxWidth="narrow"
-      title={t('backups.pageTitle')}
+      title={pageTitle}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       {/* Loading state */}

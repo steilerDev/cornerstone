@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { PhotoSpotsResponse } from '@cornerstone/shared';
 import type PhotosPageType from './PhotosPage.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import {
   makeArea,
   makeOrientation,
@@ -47,6 +48,7 @@ function renderPage(entry: string | { pathname: string; state: unknown } = '/pho
       <LocationProbe />
       <Routes>
         <Route path="/photos" element={<PhotosPage />} />
+        <Route path="/photos/spot/:a/:o" element={<OriginProbe />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -149,11 +151,23 @@ describe('PhotosPage', () => {
     expect(screen.queryByText('Photos could not be loaded.')).not.toBeInTheDocument();
   });
 
-  it('passes the current search to the viewer links as router state', async () => {
+  it('passes the page URL with its filters as the origin of the viewer links', async () => {
     mockGetPhotoSpots.mockResolvedValue(DATA);
     renderPage('/photos?x=1');
-    expect(await screen.findByRole('table')).toBeInTheDocument();
-    expect(currentLocation?.search).toBe('?x=1');
+    fireEvent.click(await screen.findByTestId('spot-cell-a1:o1'));
+
+    expect(probedPath()).toBe('/photos/spot/a1/o1');
+    // Mutation: the old { fromSearch } state (or an origin without the query) fails here.
+    expect(probedOrigin()).toEqual({ to: '/photos?x=1' });
+  });
+
+  it('has exactly one h1 "Photos"', async () => {
+    mockGetPhotoSpots.mockResolvedValue(DATA);
+    renderPage();
+    await screen.findByRole('table');
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent('Photos');
   });
 
   it('restores focus to the spot returned from and clears the router state', async () => {
@@ -190,14 +204,15 @@ describe('PhotosPage', () => {
     expect(document.activeElement).toBe(screen.getByRole('heading', { level: 1 }));
   });
 
-  it('sets document.title and restores it on unmount', async () => {
+  it('sets the tab title once ready and leaves it alone on unmount (no cleanup)', async () => {
     mockGetPhotoSpots.mockResolvedValue(DATA);
     const { unmount } = renderPage();
     await screen.findByRole('table');
 
-    expect(document.title).toBe('Photos');
+    expect(document.title).toBe('Photos \u00B7 Cornerstone');
     unmount();
-    expect(document.title).toBe('Before');
+    // Mutation: restoring the previous title on unmount makes this 'Before'.
+    expect(document.title).toBe('Photos \u00B7 Cornerstone');
   });
 
   it('emits no duplicate data-testid values', async () => {

@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes, useLocation, useNavigationType } from 'rea
 import type { PhotoSpotPhotosResponse } from '@cornerstone/shared';
 import type PhotoSpotViewerPageType from './PhotoSpotViewerPage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
 import { makeSpotPhoto, makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -59,6 +60,7 @@ function renderPage(entry: string | { pathname: string; search?: string; state?:
       <LocationProbe />
       <Routes>
         <Route path="/photos" element={<div data-testid="photos-list-stub">list</div>} />
+        <Route path="/diary/:id" element={<OriginProbe />} />
         <Route path="/photos/spot/:areaKey/:orientationKey" element={<PhotoSpotViewerPage />} />
       </Routes>
     </MemoryRouter>,
@@ -112,7 +114,9 @@ describe('PhotoSpotViewerPage', () => {
     await screen.findByTestId('spot-viewer-position');
     expect(mockGetPhotoSpotPhotos.mock.calls[0]![0]).toBeNull();
     expect(mockGetPhotoSpotPhotos.mock.calls[0]![1]).toBeNull();
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('No area, No orientation');
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(
+      'No area \u00B7 No orientation',
+    );
   });
 
   it('Next/Prev rewrite ?photo= with replace so history does not grow', async () => {
@@ -134,19 +138,20 @@ describe('PhotoSpotViewerPage', () => {
     expect(currentLocation?.navType).toBe('REPLACE');
   });
 
-  it('keeps the incoming router state (fromSearch) when stepping through photos', async () => {
+  it('keeps the incoming router state (origin) when stepping through photos', async () => {
     mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
     renderPage({
       pathname: '/photos/spot/a1/o1',
       search: '?photo=p1',
-      state: { fromSearch: '?x=1' },
+      state: { origin: { to: '/photos?x=1' } },
     });
     await screen.findByTestId('spot-viewer-position');
 
     fireEvent.click(screen.getByTestId('spot-viewer-next'));
 
     await waitFor(() => expect(currentLocation?.search).toBe('?photo=p0'));
-    expect(currentLocation?.state).toEqual({ fromSearch: '?x=1' });
+    // Mutation: dropping state from setSearchParams loses the origin after one step.
+    expect(currentLocation?.state).toEqual({ origin: { to: '/photos?x=1' } });
   });
 
   it('focuses the visually hidden h1 once after the first load', async () => {
@@ -156,7 +161,7 @@ describe('PhotoSpotViewerPage', () => {
     const heading = screen.getByRole('heading', { level: 1 });
 
     await waitFor(() => expect(document.activeElement).toBe(heading));
-    expect(heading).toHaveTextContent('House › Kitchen, Ceiling');
+    expect(heading).toHaveTextContent('House \u203A Kitchen \u00B7 Ceiling');
   });
 
   it('does not re-focus the heading when stepping to another photo of the same spot', async () => {
@@ -174,14 +179,23 @@ describe('PhotoSpotViewerPage', () => {
     expect(document.activeElement).toBe(screen.getByTestId('spot-viewer-diary-link'));
   });
 
-  it('sets the document title while ready and restores it on unmount', async () => {
+  it('sets the tab title to "<spot> · Photos · Cornerstone" once ready and keeps it on unmount', async () => {
     mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
     const { unmount } = renderPage('/photos/spot/a1/o1');
     await screen.findByTestId('spot-viewer-position');
 
-    expect(document.title).toBe('House › Kitchen, Ceiling – Photos');
+    expect(document.title).toBe(
+      'House \u203A Kitchen \u00B7 Ceiling \u00B7 Photos \u00B7 Cornerstone',
+    );
     unmount();
-    expect(document.title).toBe('Before');
+    // Mutation: a restore-on-unmount cleanup would turn this back into 'Before'.
+    expect(document.title).not.toBe('Before');
+  });
+
+  it('titles the tab "Photos \u00B7 Cornerstone" while loading (no spot segment yet)', () => {
+    mockGetPhotoSpotPhotos.mockReturnValue(new Promise(() => {}));
+    renderPage('/photos/spot/a1/o1');
+    expect(document.title).toBe('Photos \u00B7 Cornerstone');
   });
 
   it('shows the not-found state for a 404 and navigates back to /photos from its action', async () => {
@@ -191,7 +205,7 @@ describe('PhotoSpotViewerPage', () => {
     renderPage('/photos/spot/gone/o1');
 
     expect(await screen.findByText('This spot no longer exists')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to spots' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to Photos' }));
 
     expect(await screen.findByTestId('photos-list-stub')).toBeInTheDocument();
     expect(currentLocation?.pathname).toBe('/photos');
@@ -249,7 +263,7 @@ describe('PhotoSpotViewerPage', () => {
     await screen.findByText('No photos at this spot');
 
     const h1 = screen.getByRole('heading', { level: 1 });
-    expect(h1).toHaveTextContent('House \u203A Kitchen, Ceiling');
+    expect(h1).toHaveTextContent('House \u203A Kitchen \u00B7 Ceiling');
     await waitFor(() => expect(document.activeElement).toBe(h1));
   });
 
@@ -277,27 +291,114 @@ describe('PhotoSpotViewerPage', () => {
     expect(screen.queryByText('This spot no longer exists')).not.toBeInTheDocument();
   });
 
-  it('points the back link at /photos plus the remembered search and passes focusSpotId', async () => {
+  it('labels the back link "Photos" and restores the Photos query from the origin, passing focusSpotId', async () => {
     mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
     renderPage({
       pathname: '/photos/spot/a1/o1',
       search: '?photo=p1',
-      state: { fromSearch: '?x=1' },
+      state: { origin: { to: '/photos?group=g1' } },
     });
     const back = await screen.findByTestId('spot-viewer-back');
-    expect(back).toHaveAttribute('href', '/photos?x=1');
+    // Mutation: ignoring origin.to (plain /photos) fails the href.
+    expect(back).toHaveTextContent('Photos');
+    expect(back).toHaveAttribute('href', '/photos?group=g1');
 
     fireEvent.click(back);
 
     expect(await screen.findByTestId('photos-list-stub')).toBeInTheDocument();
-    expect(currentLocation?.search).toBe('?x=1');
+    expect(currentLocation?.search).toBe('?group=g1');
     expect(currentLocation?.state).toEqual({ focusSpotId: 'spot-a1:o1' });
   });
 
-  it('defaults the back link to /photos without router state', async () => {
+  it('defaults the back link to "Photos" at /photos without router state', async () => {
     mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
     renderPage('/photos/spot/a1/o1');
+    const back = await screen.findByTestId('spot-viewer-back');
+    expect(back).toHaveAttribute('href', '/photos');
+    expect(back).toHaveTextContent('Photos');
+    expect(back).not.toHaveTextContent('Back to');
+  });
+
+  it('reads "Back to <name>" for an origin on another page, without focusSpotId', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage({
+      pathname: '/photos/spot/a1/o1',
+      state: { origin: { to: '/diary/d-1', name: 'Synthetic entry' } },
+    });
+    const back = await screen.findByTestId('spot-viewer-back');
+    expect(back).toHaveTextContent('Back to Synthetic entry');
+    expect(back).toHaveAttribute('href', '/diary/d-1');
+
+    fireEvent.click(back);
+
+    // Mutation: focusSpotId must not leak to a non-Photos page.
+    expect(currentLocation?.pathname).toBe('/diary/d-1');
+    expect(currentLocation?.state).toBeNull();
+  });
+
+  it('uses the NavConfig label of an unnamed origin on another page', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage({
+      pathname: '/photos/spot/a1/o1',
+      state: { origin: { to: '/project/overview' } },
+    });
+    const back = await screen.findByTestId('spot-viewer-back');
+    expect(back).toHaveTextContent('Back to Home');
+    expect(back).toHaveAttribute('href', '/project/overview');
+  });
+
+  it('falls back to "Photos" for an unlabelled origin without a name', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage({
+      pathname: '/photos/spot/a1/o1',
+      state: { origin: { to: '/diary/d-1' } },
+    });
+    const back = await screen.findByTestId('spot-viewer-back');
+    expect(back).toHaveTextContent(/^Photos$/);
+    expect(back).toHaveAttribute('href', '/photos');
+  });
+
+  it('ignores an unsafe origin (//evil) and links to /photos', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage({ pathname: '/photos/spot/a1/o1', state: { origin: { to: '//evil.example' } } });
     expect(await screen.findByTestId('spot-viewer-back')).toHaveAttribute('href', '/photos');
+  });
+
+  it('keeps the origin back label after stepping to another photo', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage({
+      pathname: '/photos/spot/a1/o1',
+      search: '?photo=p1',
+      state: { origin: { to: '/diary/d-1', name: 'Synthetic entry' } },
+    });
+    await screen.findByTestId('spot-viewer-position');
+    fireEvent.click(screen.getByTestId('spot-viewer-next'));
+    await waitFor(() => expect(currentLocation?.search).toBe('?photo=p0'));
+    expect(screen.getByTestId('spot-viewer-back')).toHaveTextContent('Back to Synthetic entry');
+  });
+
+  it('gives the Open diary entry link an origin named after the spot label', async () => {
+    mockGetPhotoSpotPhotos.mockResolvedValue(DATA);
+    renderPage('/photos/spot/a1/o1?photo=p1');
+    fireEvent.click(await screen.findByTestId('spot-viewer-diary-link'));
+
+    // Mutation: omitting entryLinkState, or passing no name, fails here.
+    expect(probedOrigin()).toEqual({
+      to: '/photos/spot/a1/o1?photo=p1',
+      name: 'House \u203A Kitchen \u00B7 Ceiling',
+    });
+  });
+
+  it('labels the not-found action "Back to <origin name>" when opened from elsewhere', async () => {
+    mockGetPhotoSpotPhotos.mockRejectedValue(
+      new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+    );
+    renderPage({
+      pathname: '/photos/spot/gone/o1',
+      state: { origin: { to: '/diary/d-1', name: 'Synthetic entry' } },
+    });
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Synthetic entry' }));
+    expect(currentLocation?.pathname).toBe('/diary/d-1');
   });
 
   it('Escape navigates back to the list with the focus state', async () => {

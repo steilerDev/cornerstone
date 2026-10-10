@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent, type KeyboardEvent } from 'react';
+import { useState, useEffect, useCallback, type FormEvent, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
   BudgetCategory,
@@ -34,6 +34,7 @@ import { useTrades } from '../../hooks/useTrades.js';
 import { useOrientations } from '../../hooks/useOrientations.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import {
   fetchBudgetCategories,
   createBudgetCategory,
@@ -2860,7 +2861,23 @@ export function ManagePage() {
   const { t: tCommon } = useTranslation('common');
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>(() => parseTab(searchParams.get('tab')));
+  // The URL is the single source of truth; nothing is written to it on load (D-10)
+  const activeTab = parseTab(searchParams.get('tab'));
+  const selectTab = useCallback(
+    (tab: Tab) => {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          next.set('tab', tab);
+          return next;
+        },
+        { replace: true },
+      );
+    },
+    [setSearchParams],
+  );
+  const pageTitle = tCommon('navigation.projectSetup');
+  useDocumentTitle(pageTitle);
 
   const isAdmin = user?.role === 'admin';
 
@@ -2885,7 +2902,7 @@ export function ManagePage() {
     else return;
     e.preventDefault();
     const nextTab = MANAGE_TABS[next]!;
-    setActiveTab(nextTab);
+    selectTab(nextTab);
     const el = document.getElementById(`manage-tab-${nextTab}`);
     el?.focus();
     el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
@@ -2909,22 +2926,10 @@ export function ManagePage() {
     },
   ];
 
-  useEffect(() => {
-    if (searchParams.get('tab') === activeTab) return;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.set('tab', activeTab);
-        return next;
-      },
-      { replace: true },
-    );
-  }, [activeTab, searchParams, setSearchParams]);
-
   return (
     <PageLayout
       maxWidth="narrow"
-      title={t('manage.pageTitle')}
+      title={pageTitle}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       <div className={styles.tabList} role="tablist" onKeyDown={handleTabKeyDown}>
@@ -2938,7 +2943,7 @@ export function ManagePage() {
             aria-controls={activeTab === tab ? `${tab}-panel` : undefined}
             tabIndex={activeTab === tab ? 0 : -1}
             className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
-            onClick={() => setActiveTab(tab)}
+            onClick={() => selectTab(tab)}
           >
             {tabLabels[tab]}
           </button>

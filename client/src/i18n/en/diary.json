@@ -1,10 +1,9 @@
 {
   "page": {
-    "title": "Construction Diary",
     "newEntryButton": "New Entry",
     "entryCountSingular": "entry",
     "entryCountPlural": "entries",
-    "timelineAriaLabel": "Construction diary entries"
+    "timelineAriaLabel": "Site diary entries"
   },
   "empty": {
     "title": "No diary entries yet.",
@@ -83,11 +82,9 @@
     "photoUploadError": "Entry created but some photos failed to upload"
   },
   "detail": {
-    "backLink": "← Back to Diary",
     "editButton": "Edit",
     "deleteButton": "Delete Entry",
     "loading": "Loading entry...",
-    "notFound": "Entry not found",
     "notFoundMessage": "The diary entry you're looking for doesn't exist.",
     "deletingButton": "Deleting...",
     "deleteConfirm": "Delete Entry",
@@ -99,7 +96,6 @@
   },
   "edit": {
     "signatureIncomplete": "Accept or remove the unfinished signature before saving.",
-    "backLink": "← Back to Diary",
     "entryDate": "Entry Date",
     "entryDateRequired": "Entry date is required",
     "entryType": "Entry Type",
@@ -243,8 +239,6 @@
     "critical": "Critical"
   },
   "createPage": {
-    "backLink": "← Back to Diary",
-    "title": "New Diary Entry",
     "selectEntryType": "Select Entry Type",
     "typeCardDailyDesc": "Record daily site conditions and worker presence",
     "typeCardSiteVisitDesc": "Document an inspection with inspector info and outcome",
@@ -254,7 +248,6 @@
     "draftCreateError": "Failed to create draft. Please try again."
   },
   "detailPage": {
-    "backLink": "← Back to Diary",
     "edit": "Edit",
     "delete": "Delete",
     "automatic": "Automatic",
@@ -269,11 +262,8 @@
     "deleteCancel": "Cancel",
     "deleteConfirm": "Delete Entry",
     "deleting": "Deleting...",
-    "entryNotFound": "Diary entry not found",
-    "invalidEntryId": "Invalid diary entry ID",
     "deleteSuccess": "Diary entry deleted successfully",
     "deleteError": "Failed to delete diary entry. Please try again.",
-    "backLinkAriaLabel": "Go back to diary",
     "sourceType": {
       "work_item": "Work Item",
       "invoice": "Invoice",
@@ -283,13 +273,9 @@
     }
   },
   "editPage": {
-    "backLink": "← Back to Entry",
-    "title": "Edit Diary Entry",
     "loadingError": "Loading entry...",
-    "notFoundTitle": "Entry Not Found",
     "notFoundMessage": "The diary entry you're looking for doesn't exist.",
     "errorTitle": "Error Loading Entry",
-    "backButton": "Back to Diary",
     "deleteButton": "Delete Entry",
     "cancel": "Cancel",
     "saving": "Saving...",

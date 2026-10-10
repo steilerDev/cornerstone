@@ -2,11 +2,11 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, afterEach } from '@jest/globals';
-import { act, cleanup, render, screen, within } from '@testing-library/react';
+import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n/index.js';
 import { PageBreadcrumbs } from './PageBreadcrumbs.js';
-import type { ObjectNames } from './usePageBreadcrumbs.js';
+import { usePageBreadcrumbs, type ObjectNames } from './usePageBreadcrumbs.js';
 import { originStateFor } from './origin.js';
 
 function renderAt(pathname: string, options: { state?: unknown; objectNames?: ObjectNames } = {}) {
@@ -266,6 +266,77 @@ describe('PageBreadcrumbs', () => {
         'href',
         '/settings/vendors',
       );
+    });
+  });
+
+  describe('Diary entry trail and null object names (#2204)', () => {
+    function hookAt(pathname: string, objectNames: ObjectNames, state?: unknown) {
+      return renderHook(() => usePageBreadcrumbs(objectNames), {
+        wrapper: ({ children }) => (
+          <MemoryRouter initialEntries={[{ pathname, state }]}>{children}</MemoryRouter>
+        ),
+      });
+    }
+
+    it('skips the entry ancestor for a null name: only Site diary, and not pending', () => {
+      const { result } = hookAt('/diary/d-1/edit', { diaryEntry: null });
+
+      expect(result.current.parents.map((p) => p.label)).toEqual(['Site diary']);
+      // Mutation: treating null like undefined would leave pending === true.
+      expect(result.current.pending).toBeFalsy();
+    });
+
+    it('keeps the entry ancestor pending while its name is undefined', () => {
+      const { result } = hookAt('/diary/d-1/edit', { diaryEntry: undefined });
+
+      expect(result.current.parents.map((p) => p.label)).toEqual(['Site diary']);
+      expect(result.current.pending).toBe(true);
+    });
+
+    it('shows the entry name once known', () => {
+      const { result } = hookAt('/diary/d-1/edit', { diaryEntry: 'Synthetic pour' });
+
+      expect(result.current.parents.map((p) => p.label)).toEqual(['Site diary', 'Synthetic pour']);
+      expect(result.current.pending).toBeFalsy();
+    });
+
+    it('suppresses Back for an origin of the diary list when the entry is skipped (Site diary is now nearest)', () => {
+      // Mutation: treating null like undefined keeps the entry as nearest and shows Back.
+      renderAt('/diary/d-1/edit', {
+        objectNames: { diaryEntry: null },
+        state: originStateFor({ pathname: '/diary', search: '', hash: '' }),
+      });
+
+      expect(trailLabels()).toEqual(['Site diary']);
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('offers Back to Home for an origin of the project overview when the entry is skipped', () => {
+      renderAt('/diary/d-1/edit', {
+        objectNames: { diaryEntry: null },
+        state: originStateFor({ pathname: '/project/overview', search: '', hash: '' }),
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Home');
+    });
+
+    it('suppresses Back for the entry itself while its name is undefined (pending)', () => {
+      renderAt('/diary/d-1/edit', {
+        objectNames: { diaryEntry: undefined },
+        state: originStateFor({ pathname: '/diary/d-1', search: '', hash: '' }),
+      });
+
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('contrast: the same diary-list origin is not suppressed while the entry ancestor is present', () => {
+      renderAt('/diary/d-1/edit', {
+        objectNames: { diaryEntry: 'Synthetic pour' },
+        state: originStateFor({ pathname: '/diary', search: '', hash: '' }),
+      });
+
+      expect(trailLabels()).toEqual(['Site diary', 'Synthetic pour']);
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Site diary');
     });
   });
 });

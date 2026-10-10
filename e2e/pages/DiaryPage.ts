@@ -1,8 +1,8 @@
 /**
- * Page Object Model for the Construction Diary list page (/diary)
+ * Page Object Model for the Site diary list page (/diary)
  *
  * The page renders:
- * - A page header with h1 "Construction Diary" and a subtitle with the total entry count
+ * - A page header with h1 "Site diary" and a subtitle with the total entry count
  * - A DiaryFilterBar with search input (data-testid="diary-search-input"), date range pickers,
  *   entry type chip filters, a "Drafts" toggle chip (data-testid="status-filter-drafts"),
  *   and a "Clear all" button
@@ -88,7 +88,7 @@ export class DiaryPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'Construction Diary' });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Site diary', exact: true });
     // The subtitle is a <p> sibling of the heading inside the header element
     this.subtitle = page.locator('[class*="subtitle"]');
 

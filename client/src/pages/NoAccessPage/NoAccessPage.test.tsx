@@ -4,12 +4,20 @@ import { NoAccessPage } from './NoAccessPage';
 import { renderWithRouter } from '../../test/testUtils';
 
 describe('NoAccessPage', () => {
-  it('renders the message as the level-1 heading', () => {
+  it('renders "No access" as the one and only level-1 heading', () => {
     renderWithRouter(<NoAccessPage />);
 
-    expect(
-      screen.getByRole('heading', { level: 1, name: "You don't have access to this page" }),
-    ).toBeInTheDocument();
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent(/^No access$/);
+    expect(screen.queryByText(/have access to this page/)).not.toBeInTheDocument();
+  });
+
+  it('sets the tab title without the section segment, even at an admin route', () => {
+    // Mutation: dropping { section: false } would give "No access · Settings · Cornerstone".
+    renderWithRouter(<NoAccessPage />, { initialEntries: ['/settings/users'] });
+
+    expect(document.title).toBe('No access · Cornerstone');
   });
 
   it('renders the description', () => {

@@ -6,6 +6,7 @@ import {
   getCurrencySymbol,
   formatPercent,
   formatDate,
+  formatDayMonth,
   formatTime,
   formatDateTime,
   computeActualDuration,
@@ -996,5 +997,54 @@ describe('formatFileSizeDecimal', () => {
 
   it('defaults to en-US when no locale is given', () => {
     expect(formatFileSizeDecimal(1_500_000)).toBe('1.5 MB');
+  });
+});
+
+// ─── formatDayMonth ───────────────────────────────────────────────────────────
+
+describe('formatDayMonth', () => {
+  const today = new Date(2026, 9, 10);
+
+  it('omits the year for a date in the current year', () => {
+    expect(formatDayMonth('2026-09-29', 'en-US', '—', today)).toBe('Sep 29');
+  });
+
+  it('adds the year when it differs from the current year', () => {
+    expect(formatDayMonth('2026-09-29', 'en-US', '—', new Date(2027, 0, 5))).toContain('2026');
+  });
+
+  it('formats German with a day-first order', () => {
+    expect(formatDayMonth('2026-09-29', 'de-DE', '—', today)).toContain('29.');
+  });
+
+  it('returns the fallback for null, undefined and empty input', () => {
+    expect(formatDayMonth(null, 'en-US', '—', today)).toBe('—');
+    expect(formatDayMonth(undefined, 'en-US', 'n/a', today)).toBe('n/a');
+    expect(formatDayMonth('', 'en-US', '—', today)).toBe('—');
+  });
+
+  it('returns the fallback for a malformed string', () => {
+    expect(formatDayMonth('not-a-date', 'en-US', '—', today)).toBe('—');
+  });
+
+  it('uses only the date part of an ISO timestamp', () => {
+    expect(formatDayMonth('2026-09-29T23:30:00Z', 'en-US', '—', today)).toBe('Sep 29');
+  });
+
+  it('defaults to en-US and the current year when only the date is passed', () => {
+    const thisYear = new Date().getFullYear();
+    expect(formatDayMonth(`${thisYear}-03-04`)).toBe('Mar 4');
+  });
+
+  it('createFormatters binds the locale', () => {
+    const en = createFormatters('en-US', 'EUR').formatDayMonth('2026-09-29');
+    const de = createFormatters('de-DE', 'EUR').formatDayMonth('2026-09-29');
+    expect(en).toContain('Sep');
+    expect(de).toContain('29.');
+    expect(en).not.toBe(de);
+  });
+
+  it('createFormatters passes the fallback through', () => {
+    expect(createFormatters('en-US', 'EUR').formatDayMonth(null, 'none')).toBe('none');
   });
 });

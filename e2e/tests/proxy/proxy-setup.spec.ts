@@ -138,7 +138,9 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     await page.goto(`${proxyBaseUrl}/settings/profile`);
 
     // Then: The session should persist and the page should load
-    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { name: 'Account', exact: true, level: 1 }),
+    ).toBeVisible();
 
     await context.close();
   });

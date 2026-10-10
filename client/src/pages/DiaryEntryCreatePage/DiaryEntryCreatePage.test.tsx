@@ -2,11 +2,12 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type React from 'react';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -155,11 +156,11 @@ describe('DiaryEntryCreatePage', () => {
     localStorage.clear();
   });
 
-  const renderPage = () =>
+  const renderPage = (state?: unknown) =>
     render(
       <ToastProvider>
         <AuthProvider>
-          <MemoryRouter initialEntries={['/diary/new']}>
+          <MemoryRouter initialEntries={[{ pathname: '/diary/new', state }]}>
             <Routes>
               <Route path="/diary/new" element={<DiaryEntryCreatePage />} />
               <Route
@@ -226,13 +227,77 @@ describe('DiaryEntryCreatePage', () => {
       expect(screen.getByTestId('type-card-general_note')).toBeInTheDocument();
     });
 
-    it('clicking the "Back to Diary" button navigates to /diary', async () => {
-      const user = userEvent.setup();
+    it('has exactly one h1, "New diary entry", and no in-page back button', () => {
       renderPage();
-      await user.click(screen.getByRole('button', { name: /back to diary/i }));
-      await waitFor(() => {
-        expect(screen.getByTestId('diary-list')).toBeInTheDocument();
-      });
+      // Mutation: restoring the old backButton or the "New Diary Entry" title key fails these.
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^New diary entry$/);
+      expect(screen.queryByRole('button', { name: /back to diary/i })).not.toBeInTheDocument();
+    });
+
+    it('shows the trail "Site diary" (parent only) and no Back without an origin', () => {
+      renderPage();
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(within(nav).getByRole('link', { name: /Site diary/ })).toHaveAttribute(
+        'href',
+        '/diary',
+      );
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('shows "Back to Home" from an origin state of Home', () => {
+      renderPage({ origin: { to: '/project/overview' } });
+      // Mutation: dropping <PageBreadcrumbs /> removes the Back link.
+      expect(screen.getByRole('link', { name: /Back to Home/ })).toHaveAttribute(
+        'href',
+        '/project/overview',
+      );
+    });
+
+    it('sets the tab title to "New diary entry · Site diary · ..."', async () => {
+      renderPage();
+      await waitFor(() => expect(document.title).toMatch(/^New diary entry · Site diary/));
+    });
+
+    it('forwards the origin state when the draft is created, replacing the entry', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <AuthProvider>
+            <RecordingRouter
+              entries={[{ url: '/diary/new', state: { origin: { to: '/project/overview' } } }]}
+              log={log}
+            >
+              <DiaryEntryCreatePage />
+            </RecordingRouter>
+          </AuthProvider>
+        </ToastProvider>,
+      );
+      await user.click(screen.getByTestId('type-card-general_note'));
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary/draft-new/edit']));
+      // Mutation: omitting state drops the origin; push instead of replace changes the action.
+      expect(log.states[0]).toEqual({ origin: { to: '/project/overview' } });
+    });
+
+    it('forwards no state when the page was opened without an origin', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <AuthProvider>
+            <RecordingRouter entries={['/diary/new']} log={log}>
+              <DiaryEntryCreatePage />
+            </RecordingRouter>
+          </AuthProvider>
+        </ToastProvider>,
+      );
+      await user.click(screen.getByTestId('type-card-general_note'));
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.states[0]).toBeUndefined();
     });
   });
 

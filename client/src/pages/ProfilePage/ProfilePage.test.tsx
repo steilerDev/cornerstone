@@ -1,6 +1,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
@@ -146,6 +147,72 @@ describe('ProfilePage', () => {
     cleanup();
   });
 
+  // The title hook reads the router location
+  function renderPage() {
+    return render(
+      <MemoryRouter initialEntries={['/settings/profile']}>
+        <ProfilePage />
+      </MemoryRouter>,
+    );
+  }
+
+  describe('page identity (#2204)', () => {
+    it('renders exactly one level-1 heading, "Account", once profile data shows', () => {
+      renderPage();
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Account$/);
+    });
+
+    it('sets the tab title to "Account · Settings · Cornerstone"', () => {
+      renderPage();
+
+      expect(document.title).toBe('Account · Settings · Cornerstone');
+    });
+
+    it('keeps the "Account" h1 while the profile is loading', () => {
+      mockUseAuth.mockReturnValue({
+        user: null,
+        oidcEnabled: false,
+        isLoading: true,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
+      });
+
+      renderPage();
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Account$/);
+    });
+
+    it('keeps the "Account" h1 in the load-error state', () => {
+      mockUseAuth.mockReturnValue({
+        user: null,
+        oidcEnabled: false,
+        isLoading: false,
+        error: 'Failed',
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
+      });
+
+      renderPage();
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Account$/);
+    });
+
+    it('shows no "You are here" trail and none of the retired titles', () => {
+      renderPage();
+
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /^Profile$/ })).not.toBeInTheDocument();
+    });
+  });
+
   describe('Loading and display', () => {
     it('shows loading state initially', () => {
       // Given: Auth is loading
@@ -159,7 +226,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Loading state is shown
       expect(screen.getByText(/loading profile/i)).toBeInTheDocument();
@@ -177,7 +244,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Profile information is displayed
       expect(screen.getByText('local@example.com')).toBeInTheDocument();
@@ -189,7 +256,7 @@ describe('ProfilePage', () => {
     it('displays email correctly', () => {
       // Given: User profile (default in beforeEach)
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Email is shown
       expect(screen.getByText('local@example.com')).toBeInTheDocument();
@@ -207,14 +274,14 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Role is "Administrator"
       expect(screen.getByText('Administrator')).toBeInTheDocument();
     });
 
     it('offers no User Management or Backups tab to members (D-23)', () => {
-      render(<ProfilePage />);
+      renderPage();
 
       const tabs = screen.getByTestId('settings-tabs');
       expect(within(tabs).getByText('subnav.settings.profile')).toBeInTheDocument();
@@ -232,7 +299,7 @@ describe('ProfilePage', () => {
         logout: jest.fn(async () => Promise.resolve()),
       });
 
-      render(<ProfilePage />);
+      renderPage();
 
       const tabs = screen.getByTestId('settings-tabs');
       expect(within(tabs).getByText('subnav.settings.userManagement')).toBeInTheDocument();
@@ -242,7 +309,7 @@ describe('ProfilePage', () => {
     it('displays role as "Member" for member users', () => {
       // Given: Member user (default in beforeEach)
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Role is "Member"
       expect(screen.getByText('Member')).toBeInTheDocument();
@@ -251,7 +318,7 @@ describe('ProfilePage', () => {
     it('displays auth provider as "Local Account" for local users', () => {
       // Given: Local user (default in beforeEach)
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Auth provider is "Local Account"
       expect(screen.getByText('Local Account')).toBeInTheDocument();
@@ -269,7 +336,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: The combined label is shown (not the plain local or OIDC label)
       expect(screen.getByText('Local Account + Single Sign-On (OIDC)')).toBeInTheDocument();
@@ -288,7 +355,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Auth provider is "Single Sign-On (OIDC)"
       expect(screen.getByText('Single Sign-On (OIDC)')).toBeInTheDocument();
@@ -309,7 +376,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Date is formatted (exact format depends on locale, check for presence)
       expect(screen.getByText(/2024/)).toBeInTheDocument();
@@ -327,7 +394,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Error message is shown
       expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
@@ -346,7 +413,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Generic error message is shown
       expect(screen.getByText('Network failure')).toBeInTheDocument();
@@ -359,7 +426,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Input is pre-filled
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
@@ -371,7 +438,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
 
@@ -393,7 +460,7 @@ describe('ProfilePage', () => {
       });
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
       const button = screen.getByRole('button', { name: /save changes/i });
@@ -420,7 +487,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
       const button = screen.getByRole('button', { name: /save changes/i });
@@ -443,7 +510,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
 
@@ -472,7 +539,7 @@ describe('ProfilePage', () => {
       );
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
       const button = screen.getByRole('button', { name: /save changes/i });
@@ -493,7 +560,7 @@ describe('ProfilePage', () => {
       mockUpdateProfile.mockRejectedValue(new Error('RAW-LOCAL'));
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
       await user.clear(input);
@@ -512,7 +579,7 @@ describe('ProfilePage', () => {
       mockUpdateProfile.mockImplementation(() => new Promise(() => {}));
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
       const button = screen.getByRole('button', { name: /save changes/i });
@@ -534,7 +601,7 @@ describe('ProfilePage', () => {
     it('shows password form for local users', () => {
       // Given: Local user (default in beforeEach)
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Password form is visible
       expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
@@ -555,7 +622,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: Password form is hidden
       expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument();
@@ -576,7 +643,7 @@ describe('ProfilePage', () => {
       });
 
       // When: Rendering ProfilePage
-      render(<ProfilePage />);
+      renderPage();
 
       // Then: OIDC message is shown
       expect(
@@ -589,7 +656,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       // When: Typing in password fields
       const currentPasswordInput = (await screen.findByLabelText(
@@ -615,7 +682,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       await screen.findByLabelText(/current password/i);
       const button = screen.getByRole('button', { name: /change password/i });
@@ -634,7 +701,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,
@@ -656,7 +723,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,
@@ -683,7 +750,7 @@ describe('ProfilePage', () => {
       // User already mocked in beforeEach
       const user = userEvent.setup();
 
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,
@@ -712,7 +779,7 @@ describe('ProfilePage', () => {
       mockChangePassword.mockResolvedValue(undefined);
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,
@@ -758,7 +825,7 @@ describe('ProfilePage', () => {
       );
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,
@@ -786,7 +853,7 @@ describe('ProfilePage', () => {
       mockChangePassword.mockRejectedValue(new Error('RAW-LOCAL'));
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       await user.type(await screen.findByLabelText(/current password/i), 'current123456');
       await user.type(screen.getByLabelText(/^new password$/i), 'newpassword123');
@@ -803,7 +870,7 @@ describe('ProfilePage', () => {
       mockChangePassword.mockImplementation(() => new Promise(() => {}));
 
       const user = userEvent.setup();
-      render(<ProfilePage />);
+      renderPage();
 
       const currentPasswordInput = (await screen.findByLabelText(
         /current password/i,

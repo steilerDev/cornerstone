@@ -35,3 +35,4 @@ export type { LiveQueryMap, LiveRedirectRoute, RouteGateContext } from './redire
 export { baseFrom } from './paths.js';
 export { matchLocation, matchPattern, resolveLocation } from './match.js';
 export type { RouteContext, RouteResolution } from './match.js';
+export { MAX_APP_PATH_LENGTH, safeAppPath } from './safePath.js';

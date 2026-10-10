@@ -22,7 +22,8 @@ import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { UserManagementPage } from '../../pages/UserManagementPage.js';
 import { createLocalUserViaApi } from '../../fixtures/apiHelpers.js';
-import { TEST_MEMBER, ROUTES, API } from '../../fixtures/testData.js';
+import { TEST_MEMBER, ROUTES, API, loginUrlFor } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 
 // Serial mode: beforeAll seeds the local account that gets linked on first SSO
 // login (test 3); tests 4 and 5 verify the linked account's state.
@@ -114,6 +115,32 @@ test.describe('OIDC SSO Flow', () => {
     const me = await meResponse.json();
     expect(me.user).not.toBeNull();
     expect(me.user.email).toBe(TEST_MEMBER.email);
+  });
+
+  test('E7: a signed-out deep link goes through SSO and lands on the requested page (#2204)', async ({
+    page,
+  }) => {
+    const loginPage = new LoginPage(page);
+    const target = `${routeUrl('diary')}?filterMode=all`;
+
+    // Given: a signed-out visit to a protected page remembers it on the sign-in page
+    await page.goto(target);
+    await expect(page).toHaveURL(loginUrlFor(target));
+    await expect(loginPage.ssoButton).toBeVisible();
+
+    // When: the user starts SSO, the app passes the deep link as the redirect
+    const loginRequest = page.waitForRequest((req) => {
+      const url = new URL(req.url());
+      return url.pathname === '/api/auth/oidc/login' && url.searchParams.get('redirect') === target;
+    });
+    await loginPage.clickSSO();
+    await loginRequest;
+
+    // Then: after the mock IdP completes, the user lands on the deep link, not Home
+    await expect(page).toHaveURL(new RegExp(`${routeUrl('diary')}\\?filterMode=all$`), {
+      timeout: 15000,
+    });
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
   });
 
   test('Local password login still works after SSO linking and resolves the same account', async ({

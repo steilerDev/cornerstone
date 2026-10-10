@@ -54,7 +54,7 @@ test.describe('Backups page — admin access', () => {
       // When: Admin navigates to /settings/backups
       await page.goto('/settings/backups');
 
-      // Then: "Backup & Restore" heading is visible
+      // Then: "Backups" heading is visible
       await expect(backupsPage.heading).toBeVisible();
     },
   );
@@ -110,7 +110,9 @@ test.describe('Backups tab — member access control', () => {
     // Wait for the profile page heading to confirm the page has rendered.
     // Use the page heading rather than the settings nav because the auth mock
     // triggers an AuthContext re-render that can delay nav rendering briefly.
-    await expect(page.getByRole('heading', { level: 1, name: 'Profile' })).toBeVisible();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Account', exact: true }),
+    ).toBeVisible();
 
     // Then: The "Backups" tab is NOT visible (admin-only).
     const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });

@@ -60,7 +60,7 @@ export class OrientationsPage {
   async goto(): Promise<void> {
     await this.page.goto(ORIENTATIONS_URL);
     await this.page
-      .getByRole('heading', { level: 1, name: 'Manage', exact: true })
+      .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
       .waitFor({ state: 'visible' });
     // Ensure the panel is rendered
     await this.panel.waitFor({ state: 'visible' });

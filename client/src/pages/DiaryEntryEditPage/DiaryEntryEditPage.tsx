@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
@@ -40,6 +40,15 @@ import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import {
+  forwardOriginState,
+  originHrefOr,
+  pathnameOf,
+  readOrigin,
+} from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useDiaryEntryTitle } from '../../hooks/useDiaryEntryTitle.js';
 import styles from './DiaryEntryEditPage.module.css';
 
 function isSignatureComplete(sig: DiarySignatureEntry): boolean {
@@ -55,9 +64,11 @@ type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
 
 export default function DiaryEntryEditPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { t } = useTranslation('diary');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
   const { showToast } = useToast();
   const { user } = useAuth();
   const currentUserName = user ? user.displayName.trim() || user.email : undefined;
@@ -133,6 +144,7 @@ export default function DiaryEntryEditPage() {
 
   // Load entry on mount
   const skipAutoSaveOnMountRef = useRef(true);
+  const locationState: unknown = location.state;
   useEffect(() => {
     if (!id) {
       /* eslint-disable @eslint-react/set-state-in-effect -- initializing notFound and loading state based on route params */
@@ -148,7 +160,10 @@ export default function DiaryEntryEditPage() {
         const data = await getDiaryEntry(id);
         if (!data.isAutomatic && isDiaryEntrySignatureLocked(data)) {
           showToast('info', t('editPage.signedEntriesError'));
-          navigate(routeUrl('diaryEntry', { id: data.id }));
+          navigate(routeUrl('diaryEntry', { id: data.id }), {
+            replace: true,
+            state: forwardOriginState(locationState),
+          });
           return;
         }
         setEntry(data);
@@ -166,7 +181,7 @@ export default function DiaryEntryEditPage() {
     };
 
     void loadEntry();
-  }, [id, navigate, showToast, t]);
+  }, [id, navigate, showToast, t, locationState]);
 
   // Hoisted auto-save functions to enable hook usage before use
   const doSaveImpl = async () => {
@@ -411,7 +426,10 @@ export default function DiaryEntryEditPage() {
 
       setEntry(promoted);
       showToast('success', t('editPage.updateSuccess'));
-      navigate(routeUrl('diaryEntry', { id: promoted.id }));
+      navigate(routeUrl('diaryEntry', { id: promoted.id }), {
+        replace: true,
+        state: forwardOriginState(location.state),
+      });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -452,7 +470,7 @@ export default function DiaryEntryEditPage() {
         });
 
         showToast('success', t('editPage.updateSuccess'));
-        navigate(routeUrl('diaryEntry', { id: entry.id }));
+        returnToEntry(entry.id);
       } catch (err) {
         setError(
           err instanceof ApiClientError
@@ -462,6 +480,17 @@ export default function DiaryEntryEditPage() {
         console.error('Failed to update diary entry:', err);
         setIsSubmitting(false);
       }
+    }
+  };
+
+  // Back to the entry in one step when the edit page was opened from it, else replace
+  const returnToEntry = (entryId: string) => {
+    const entryPath = routeUrl('diaryEntry', { id: entryId });
+    const origin = readOrigin(location.state);
+    if (origin && pathnameOf(origin.to) === entryPath) {
+      navigate(-1);
+    } else {
+      navigate(entryPath, { replace: true });
     }
   };
 
@@ -478,7 +507,7 @@ export default function DiaryEntryEditPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('editPage.deleteSuccess'));
-      navigate(routeUrl('diary'));
+      navigate(routeUrl('diary'), { replace: true });
     } catch (err) {
       setDeleteError(t('editPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
@@ -493,7 +522,7 @@ export default function DiaryEntryEditPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('editPage.deleteSuccess'));
-      navigate(routeUrl('diary'));
+      navigate(originHrefOr(location.state, routeUrl('diary')), { replace: true });
     } catch (err) {
       setDeleteError(t('editPage.deleteError'));
       console.error('Failed to discard draft:', err);
@@ -501,22 +530,47 @@ export default function DiaryEntryEditPage() {
     }
   };
 
+  const entryTitle = useDiaryEntryTitle(entry);
+  const isDraft = entry?.status === 'draft';
+  const backToDiary = tc('navigation.backTo', { origin: tc('navigation.siteDiary') });
+  const h1Text = isLoading
+    ? tc('navigation.diaryEntry')
+    : notFound
+      ? tc('navigation.diaryEntryNotFound')
+      : !entry
+        ? tc('navigation.diaryEntry')
+        : isDraft
+          ? tc('navigation.newDiaryEntry')
+          : tc('navigation.editDiaryEntry');
+  useDocumentTitle(h1Text);
+  // A draft continues the create flow and has no entry page yet, so its trail has no entry
+  const breadcrumbs = (
+    <PageBreadcrumbs objectNames={{ diaryEntry: isDraft ? null : (entryTitle ?? undefined) }} />
+  );
+
   if (isLoading) {
-    return <div className={styles.loading}>{t('editPage.loadingError')}</div>;
+    return (
+      <div className={styles.container}>
+        {breadcrumbs}
+        <h1 className={styles.title}>{h1Text}</h1>
+        <div className={styles.loading}>{t('editPage.loadingError')}</div>
+      </div>
+    );
   }
 
   if (notFound) {
     return (
       <div className={styles.container}>
+        {breadcrumbs}
         <div className={styles.errorCard}>
-          <h2 className={styles.errorTitle}>{t('editPage.notFoundTitle')}</h2>
+          <h1 className={styles.errorTitle}>{h1Text}</h1>
           <p className={styles.errorMessage}>{t('editPage.notFoundMessage')}</p>
           <button
             type="button"
             className={styles.backButton}
             onClick={() => navigate(routeUrl('diary'))}
           >
-            {t('editPage.backButton')}
+            {backToDiary}
           </button>
         </div>
       </div>
@@ -526,6 +580,8 @@ export default function DiaryEntryEditPage() {
   if (!entry) {
     return (
       <div className={styles.container}>
+        {breadcrumbs}
+        <h1 className={styles.title}>{h1Text}</h1>
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>{t('editPage.errorTitle')}</h2>
           <p className={styles.errorMessage}>{error || t('editPage.loadError')}</p>
@@ -534,7 +590,7 @@ export default function DiaryEntryEditPage() {
             className={styles.backButton}
             onClick={() => navigate(routeUrl('diary'))}
           >
-            {t('editPage.backButton')}
+            {backToDiary}
           </button>
         </div>
       </div>
@@ -545,21 +601,10 @@ export default function DiaryEntryEditPage() {
 
   return (
     <div className={styles.container}>
+      {breadcrumbs}
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() =>
-            entry.status === 'draft'
-              ? navigate(routeUrl('diary'))
-              : navigate(routeUrl('diaryEntry', { id: entry.id }))
-          }
-          disabled={isSubmitting}
-        >
-          {t('editPage.backLink')}
-        </button>
         <div className={styles.titleRow}>
-          <h1 className={styles.title}>{t('editPage.title')}</h1>
+          <h1 className={styles.title}>{h1Text}</h1>
           <DiaryEntryTypeBadge entryType={entry.entryType} size="sm" />
           {entry.status === 'draft' && (
             <Badge
@@ -654,7 +699,9 @@ export default function DiaryEntryEditPage() {
                 <button
                   type="button"
                   className={shared.btnSecondary}
-                  onClick={() => navigate(routeUrl('diary'))}
+                  onClick={() =>
+                    navigate(originHrefOr(location.state, routeUrl('diary')), { replace: true })
+                  }
                   disabled={isSubmitting}
                 >
                   {t('editPage.cancel')}
@@ -678,7 +725,7 @@ export default function DiaryEntryEditPage() {
                 <button
                   type="button"
                   className={shared.btnSecondary}
-                  onClick={() => navigate(routeUrl('diaryEntry', { id: entry.id }))}
+                  onClick={() => returnToEntry(entry.id)}
                   disabled={isSubmitting}
                 >
                   {t('editPage.cancel')}

@@ -153,8 +153,8 @@ test.describe('Create general_note — happy path (Scenario 2)', { tag: '@respon
         await page.waitForURL(new RegExp(`/diary/${createdId}$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
 
-        // Detail page back button should be visible (confirms we are on the detail page)
-        await expect(detailPage.backButton).toBeVisible();
+        // Detail page has loaded (confirms we are on the detail page)
+        await expect(detailPage.loaded).toBeVisible();
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
       }
@@ -239,7 +239,7 @@ test.describe('Create daily_log with metadata (Scenario 3)', () => {
       // DiaryMetadataSummary for daily_log renders: weather emoji + label, and workers count.
       // Temperature (temperatureCelsius) is stored in the database but NOT displayed in the
       // summary component — only weather and workersOnSite are rendered.
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.dailyLogMetadata).toBeVisible();
 
       const metadataText = await detailPage.dailyLogMetadata.textContent();
@@ -326,7 +326,7 @@ test.describe('Create site_visit with metadata (Scenario 4)', () => {
       await page.waitForURL(new RegExp(`/diary/${createdId}$`));
 
       // Verify metadata on the detail page
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.siteVisitMetadata).toBeVisible();
       await expect(detailPage.outcomeBadge('pass')).toBeVisible();
 
@@ -416,7 +416,7 @@ test.describe('Edit entry (Scenario 6)', { tag: '@responsive' }, () => {
       expect(page.url()).toContain(`/diary/${createdId}`);
 
       // Detail page should show the updated body text
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(detailPage.entryBody).toContainText(updatedBody);
     } finally {
       if (createdId) await deleteDiaryEntryViaApi(page, createdId);
@@ -586,7 +586,7 @@ test.describe('Delete from detail page (Scenario 8)', { tag: '@responsive' }, ()
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // The delete button should be visible for non-automatic entries
       await expect(detailPage.deleteButton).toBeVisible();
@@ -628,7 +628,7 @@ test.describe('Delete from detail page (Scenario 8)', { tag: '@responsive' }, ()
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       await detailPage.openDeleteModal();
       await expect(detailPage.deleteModal).toBeVisible();
@@ -666,7 +666,7 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Edit button (a <Link>) should be visible and navigate to edit page
       await expect(detailPage.editButton).toBeVisible();
@@ -717,7 +717,7 @@ test.describe('Edit button navigation (Scenario 9)', { tag: '@responsive' }, () 
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Edit and Delete buttons must NOT be visible for automatic entries
       await expect(detailPage.editButton).not.toBeVisible();

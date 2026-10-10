@@ -438,7 +438,7 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
   test('Unknown spot shows the not-found state', async ({ page }) => {
     await page.goto('/photos/spot/00000000-0000-4000-8000-000000000000/none');
     await expect(page.getByText('This spot no longer exists')).toBeVisible();
-    await page.getByRole('button', { name: 'Back to spots' }).click();
+    await page.getByRole('button', { name: 'Back to Photos' }).click();
     await expect(page).toHaveURL(/\/photos$/);
   });
 

@@ -2,7 +2,6 @@
   "profile": {
     "loading": "Loading profile...",
     "error": "Error",
-    "pageTitle": "Profile",
     "profileInformation": "Profile Information",
     "email": "Email",
     "role": "Role",
@@ -41,7 +40,6 @@
     "systemLanguage": "System (auto-detect)"
   },
   "userManagement": {
-    "pageTitle": "User Management",
     "loading": "Loading users...",
     "errorTitle": "Error",
     "loadError": "Failed to load users. Please try again.",
@@ -131,7 +129,6 @@
     }
   },
   "manage": {
-    "pageTitle": "Manage",
     "tabs": {
       "household": "Household",
       "areas": "Areas",
@@ -432,7 +429,6 @@
     "storage": "Storage"
   },
   "backups": {
-    "pageTitle": "Backup & Restore",
     "createButton": "Create Backup",
     "creating": "Creating backup...",
     "loading": "Loading backups...",

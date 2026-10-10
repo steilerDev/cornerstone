@@ -526,10 +526,11 @@ describe('App', () => {
     // Wait for lazy-loaded NotFound component to resolve
     const heading = await screen.findByRole(
       'heading',
-      { name: /404.*not found/i },
+      { level: 1, name: 'Page not found' },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute('href', '/project');
   });
 
   it('navigates to VendorsPage at /settings/vendors', async () => {
@@ -563,11 +564,11 @@ describe('App', () => {
     // VendorDetailPage is the active route — the loading vendor text appears
     // from the page itself (before the API call settles)
     // The page title is set dynamically; confirm the route rendered (no 404)
-    expect(screen.queryByRole('heading', { name: /404.*not found/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
   });
 
   describe('role guard on admin-only settings routes (D-23)', () => {
-    const noAccessHeading = "You don't have access to this page";
+    const noAccessHeading = 'No access';
 
     function signInAs(role: 'admin' | 'member') {
       mockGetAuthMe.mockResolvedValue({
@@ -595,7 +596,7 @@ describe('App', () => {
         await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 }),
       ).toBeInTheDocument();
       expect(window.location.pathname).toBe('/settings/users');
-      expect(screen.queryByRole('heading', { name: 'User Management' })).toBeNull();
+      expect(screen.queryByRole('heading', { level: 1, name: 'Users' })).toBeNull();
       expect(mockListUsers).not.toHaveBeenCalled();
     });
 
@@ -632,7 +633,7 @@ describe('App', () => {
       render(<App />);
 
       expect(
-        await screen.findByRole('heading', { name: 'User Management' }, { timeout: 5000 }),
+        await screen.findByRole('heading', { level: 1, name: 'Users' }, { timeout: 5000 }),
       ).toBeInTheDocument();
       expect(screen.queryByRole('heading', { name: noAccessHeading })).toBeNull();
       await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
@@ -687,6 +688,6 @@ describe('App', () => {
       },
       { timeout: 5000 },
     );
-    expect(screen.queryByRole('heading', { name: /404.*not found/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
   });
 });

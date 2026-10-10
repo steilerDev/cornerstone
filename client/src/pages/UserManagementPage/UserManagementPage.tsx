@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { UserResponse } from '@cornerstone/shared';
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -72,6 +73,8 @@ export function UserManagementPage() {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon('navigation.users');
+  useDocumentTitle(pageTitle);
   const { user: currentUser, oidcEnabled } = useAuth();
 
   const isAdmin = currentUser?.role === 'admin';
@@ -663,7 +666,7 @@ export function UserManagementPage() {
   return (
     <PageLayout
       maxWidth="narrow"
-      title={t('userManagement.pageTitle')}
+      title={pageTitle}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       action={
         isAdmin ? (

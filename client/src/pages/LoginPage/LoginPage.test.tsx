@@ -3,6 +3,9 @@ import { render, screen, waitFor, cleanup, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import type { RouterLog } from '../../test/recordingRouter.js';
+import { OriginProbe } from '../../test/originProbe.js';
 import { OIDC_LOGIN_ERROR_CODES } from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
 import deAuth from '../../i18n/de/auth.json';
@@ -17,12 +20,19 @@ import type * as LoginPageTypes from './LoginPage.js';
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
 const mockLogin = jest.fn<typeof AuthApiTypes.login>();
 const mockLogout = jest.fn<typeof AuthApiTypes.logout>();
+// The real URL format is covered by authApi.test.ts. Here the mock returns a hash-only URL:
+// jsdom cannot navigate away, but it does apply hash changes, so `window.location.hash` shows
+// exactly what the page assigned to `window.location.href`.
+const mockOidcLoginUrl = jest.fn<typeof AuthApiTypes.oidcLoginUrl>(
+  (next) => `#sso-start:${next ?? 'none'}`,
+);
 
 // Must mock BEFORE importing the component
 jest.unstable_mockModule('../../lib/authApi.js', () => ({
   getAuthMe: mockGetAuthMe,
   login: mockLogin,
   logout: mockLogout,
+  oidcLoginUrl: mockOidcLoginUrl,
 }));
 
 describe('LoginPage', () => {
@@ -464,6 +474,196 @@ describe('LoginPage', () => {
 
       expect(screen.queryByRole('alert')).not.toBeInTheDocument();
       expect(document.activeElement).toBe(document.body);
+    });
+  });
+
+  describe('deep links (#2204)', () => {
+    const SIGNED_OUT = { user: null, setupRequired: false, oidcEnabled: false };
+    function renderRecorded(url: string): RouterLog {
+      const { AuthProvider } = AuthContext;
+      const { ThemeProvider } = ThemeContext;
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[url]} log={log}>
+          <ThemeProvider>
+            <AuthProvider>
+              <LoginPage />
+              <OriginProbe />
+            </AuthProvider>
+          </ThemeProvider>
+        </RecordingRouter>,
+      );
+      return log;
+    }
+
+    async function submitCredentials() {
+      const user = userEvent.setup();
+      await user.type(screen.getByLabelText(/email/i), 'user@example.com');
+      await user.type(screen.getByLabelText(/password/i), 'password123');
+      await user.click(screen.getByRole('button', { name: /sign in/i }));
+    }
+
+    beforeEach(() => {
+      mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+    });
+
+    it('sets the tab title to "Sign In · Cornerstone" (product name, no section)', async () => {
+      renderRecorded('/login');
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalled());
+
+      expect(document.title).toBe('Sign In · Cornerstone');
+    });
+
+    it('has exactly one level-1 heading, "Sign In"', async () => {
+      renderRecorded('/login');
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalled());
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent('Sign In');
+    });
+
+    it('refreshes the session before navigating, then replaces history with next', async () => {
+      let calls = 0;
+      let finishRefresh: (() => void) | undefined;
+      mockGetAuthMe.mockImplementation(() => {
+        calls += 1;
+        // Calls 1 and 2 are the provider mount and the page's own check; call 3 is refreshAuth.
+        if (calls < 3) return Promise.resolve(SIGNED_OUT);
+        return new Promise((resolve) => {
+          finishRefresh = () => resolve(SIGNED_OUT);
+        });
+      });
+      mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+      const log = renderRecorded('/login?next=%2Fdiary');
+      await waitFor(() => expect(calls).toBe(2));
+
+      await submitCredentials();
+      await waitFor(() => expect(finishRefresh).toBeDefined());
+
+      // Mutation: not awaiting refreshAuth would already have navigated here.
+      expect(log.actions).toEqual([]);
+
+      await act(async () => {
+        finishRefresh?.();
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
+      expect(screen.getByTestId('probe-path')).toHaveTextContent('/diary');
+    });
+
+    it('lands on Home when there is no next', async () => {
+      mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+      const log = renderRecorded('/login');
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalled());
+
+      await submitCredentials();
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /']));
+    });
+
+    it('keeps query and hash of a deep link on local sign-in', async () => {
+      mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+      const log = renderRecorded('/login?next=%2Fsettings%2Fusers%3Fq%3Dpi%23top');
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalled());
+
+      await submitCredentials();
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /settings/users?q=pi#top']));
+    });
+
+    it('sends an already signed-in visitor to next with replace', async () => {
+      mockGetAuthMe.mockResolvedValue({
+        ...SIGNED_OUT,
+        user: { id: 'u1' } as never,
+      });
+
+      const log = renderRecorded('/login?next=%2Fdiary');
+
+      await waitFor(() => expect(log.actions).toContain('REPLACE /diary'));
+      expect(log.actions.every((a) => a.startsWith('REPLACE'))).toBe(true);
+    });
+
+    it('sends an already signed-in visitor to Home without next', async () => {
+      mockGetAuthMe.mockResolvedValue({
+        ...SIGNED_OUT,
+        user: { id: 'u1' } as never,
+      });
+
+      const log = renderRecorded('/login');
+
+      await waitFor(() => expect(log.actions).toContain('REPLACE /'));
+    });
+
+    it('starts SSO with the deep link as the redirect parameter', async () => {
+      mockGetAuthMe.mockResolvedValue({ ...SIGNED_OUT, oidcEnabled: true });
+      renderRecorded('/login?next=%2Fdiary');
+
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+
+      expect(mockOidcLoginUrl).toHaveBeenLastCalledWith('/diary');
+      expect(window.location.hash).toBe('#sso-start:/diary');
+    });
+
+    it('starts SSO with the plain URL when there is no next', async () => {
+      mockGetAuthMe.mockResolvedValue({ ...SIGNED_OUT, oidcEnabled: true });
+      renderRecorded('/login');
+
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+
+      expect(mockOidcLoginUrl).toHaveBeenLastCalledWith(null);
+      expect(window.location.hash).toBe('#sso-start:none');
+    });
+
+    it('ignores an invalid next: SSO uses the plain URL and local sign-in goes Home', async () => {
+      mockGetAuthMe.mockResolvedValue({ ...SIGNED_OUT, oidcEnabled: true });
+      mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+      const log = renderRecorded('/login?next=%2F%2Fevil');
+
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /login with sso/i }));
+      expect(mockOidcLoginUrl).toHaveBeenLastCalledWith(null);
+      expect(window.location.hash).toBe('#sso-start:none');
+
+      await submitCredentials();
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /']));
+    });
+
+    it('ignores a next that points at the login page itself (no loop)', async () => {
+      mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+      const log = renderRecorded('/login?next=%2Flogin%3Fnext%3D%2Fx');
+      await waitFor(() => expect(mockGetAuthMe).toHaveBeenCalled());
+
+      await submitCredentials();
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /']));
+    });
+
+    describe('SSO error that kept the deep link (AC5)', () => {
+      beforeEach(() => {
+        window.history.pushState({}, '', '/login?error=oidc_error&next=%2Fdiary');
+      });
+
+      it('shows the banner for the code, keeps the heading and the title', async () => {
+        renderRecorded('/login?error=oidc_error&next=%2Fdiary');
+
+        const alert = await screen.findByRole('alert');
+        expect(alert).toHaveTextContent(enAuth.login.oidcErrors.oidc_error);
+        expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sign In');
+        expect(document.title).toBe('Sign In · Cornerstone');
+      });
+
+      it('lands on the deep link after a local sign-in from there', async () => {
+        mockLogin.mockResolvedValue({ user: { id: 'u1' } } as never);
+        const log = renderRecorded('/login?error=oidc_error&next=%2Fdiary');
+        await screen.findByRole('alert');
+
+        await submitCredentials();
+
+        await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
+      });
     });
   });
 });

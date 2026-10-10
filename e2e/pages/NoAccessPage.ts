@@ -14,7 +14,7 @@ export class NoAccessPage {
   constructor(page: Page) {
     this.page = page;
     this.root = page.getByTestId('no-access-page');
-    this.heading = page.getByRole('heading', { level: 1, name: /don't have access/i });
+    this.heading = page.getByRole('heading', { level: 1, name: 'No access', exact: true });
     this.backLink = this.root.getByRole('link', { name: 'Back to Home' });
   }
 }

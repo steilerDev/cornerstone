@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "Fotos",
     "subtitle": "Alle Blickpunkte nach Bereich und Ausrichtung. Öffnen Sie einen, um seine Fotos nach Tagebuchdatum durchzusehen.",
     "loading": "Fotos werden geladen",
     "loadError": "Fotos konnten nicht geladen werden.",
@@ -23,9 +22,7 @@
     "groupAnnouncement_other": "Zeige {{group}}: {{count}} Blickpunkte"
   },
   "viewer": {
-    "documentTitle": "{{spot}} – Fotos",
-    "spotHeading": "{{area}}, {{orientation}}",
-    "backToSpots": "Zurück zu Blickpunkten",
+    "spotHeading": "{{area}} · {{orientation}}",
     "position": "{{current}} von {{total}}",
     "previous": "Früheres Foto",
     "next": "Späteres Foto",

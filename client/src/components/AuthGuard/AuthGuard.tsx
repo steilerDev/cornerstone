@@ -1,10 +1,14 @@
 import { routeUrl } from '@cornerstone/shared';
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { loginUrlFor } from '../../navigation/nextParam.js';
 import { getAuthMe } from '../../lib/authApi.js';
 import { useState, useEffect } from 'react';
 import styles from './AuthGuard.module.css';
 
 export function AuthGuard() {
+  const { t } = useTranslation('common');
+  const location = useLocation();
   const [authState, setAuthState] = useState<{
     isLoading: boolean;
     setupRequired: boolean;
@@ -51,7 +55,7 @@ export function AuthGuard() {
     return (
       <div className={styles.loading}>
         <div className={styles.spinner}></div>
-        <p>Loading...</p>
+        <p>{t('loading')}</p>
       </div>
     );
   }
@@ -61,7 +65,7 @@ export function AuthGuard() {
   }
 
   if (!authState.isAuthenticated) {
-    return <Navigate to={routeUrl('login')} replace />;
+    return <Navigate to={loginUrlFor(location)} replace />;
   }
 
   return <Outlet />;

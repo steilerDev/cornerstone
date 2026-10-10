@@ -3,12 +3,11 @@
  *
  * The page renders a type selector only (one-step flow as of #1435):
  *
- * - h1 "New Diary Entry"
+ * - h1 "New diary entry" (#2204), breadcrumb trail "Site diary", no Back button
  * - A grid of 5 type cards: data-testid="type-card-{type}"
  *   types: daily_log | site_visit | delivery | issue | general_note
  * - Each card is a <button>; clicking it fires POST /api/diary-entries
  *   (status: 'draft') and navigates to /diary/:id/edit (replace history)
- * - A "← Back to Diary" button (navigates to /diary)
  *
  * Note: The two-step form flow (type selector → body textarea → blur → draft)
  * was removed in #1435. Type-card click is now the sole draft-creation trigger.
@@ -23,6 +22,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const DIARY_CREATE_ROUTE = routeUrl('diaryEntryNew');
 
@@ -35,8 +35,8 @@ export class DiaryEntryCreatePage {
   // Header
   readonly heading: Locator;
 
-  // Type selector step
-  readonly backToDiaryButton: Locator;
+  // Breadcrumb row (trail "Site diary", optional "Back to <origin>")
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Error display (shown if POST fails)
   readonly errorBanner: Locator;
@@ -45,10 +45,9 @@ export class DiaryEntryCreatePage {
     this.page = page;
 
     // Heading
-    this.heading = page.getByRole('heading', { level: 1, name: 'New Diary Entry', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'New diary entry', exact: true });
 
-    // Type selector — "← Back to Diary" button
-    this.backToDiaryButton = page.getByRole('button', { name: /← Back to Diary/i });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Error banner for server-side errors
     this.errorBanner = page.locator('[class*="errorBanner"]');

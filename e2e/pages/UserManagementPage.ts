@@ -66,7 +66,7 @@ export class UserManagementPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { level: 1, name: 'User Management' });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Users', exact: true });
     // DataTable renders a search input with aria-label="Search items" and placeholder="Search..."
     this.searchInput = page.getByLabel('Search items');
     this.table = page.locator('table');

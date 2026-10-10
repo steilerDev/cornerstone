@@ -5,8 +5,8 @@
  * - A loading state while fetching the entry
  * - A not-found / error card when the entry cannot be loaded
  * - The edit form when the entry is successfully loaded:
- *   - "← Back to Entry" button (navigates to /diary/:id or /diary for drafts)
- *   - h1 "Edit Diary Entry"
+ *   - (#2204) no Back button: breadcrumb row — saved: trail "Site diary › <entry h1>", draft: trail "Site diary"
+ *   - h1 "Edit diary entry" (saved) / "New diary entry" (draft)
  *   - DiaryEntryTypeBadge (md size)
  *   - For draft entries: Badge with data-testid="draft-status-badge", label "Draft"
  *   - Auto-save indicator: data-testid="autosave-status" (visible when saveStatus !== 'idle')
@@ -35,7 +35,6 @@
  *     - "Keep Draft" / "Discard Draft" buttons
  *
  * Key DOM observations from source code:
- * - "← Back to Entry" is a <button> with onClick; for drafts navigates to /diary
  * - Draft badge: data-testid="draft-status-badge"
  * - Auto-save indicator: data-testid="autosave-status" — only visible when saveStatus !== 'idle'
  * - "Discard Draft" button is type="button" with text from t('editPage.discardDraftButton')
@@ -51,6 +50,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const DIARY_EDIT_ROUTE = routeUrl('diary');
 
@@ -59,7 +59,7 @@ export class DiaryEntryEditPage {
 
   // Header
   readonly heading: Locator;
-  readonly backToEntryButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Draft-specific UI elements
   readonly draftBadge: Locator;
@@ -133,10 +133,10 @@ export class DiaryEntryEditPage {
     this.page = page;
 
     // Heading
-    this.heading = page.getByRole('heading', { level: 1, name: 'Edit Diary Entry', exact: true });
-
-    // "← Back to Entry" button — a <button> with onClick navigate(`/diary/:id` or `/diary`)
-    this.backToEntryButton = page.getByRole('button', { name: /← Back to Entry/i });
+    // "Edit diary entry" for saved entries, "New diary entry" for drafts (a draft continues the
+    // create flow). Both are the ready gate, so the heading matches either.
+    this.heading = page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Draft badge: data-testid="draft-status-badge"
     this.draftBadge = page.getByTestId('draft-status-badge');
@@ -232,9 +232,9 @@ export class DiaryEntryEditPage {
     await this.page.goto(`${DIARY_EDIT_ROUTE}/${id}/edit`);
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),
-      // Error card shown for not-found — heading is "Entry Not Found"
+      // Error card shown for not-found — h1 is "Diary entry not found"
       this.page
-        .getByRole('heading', { level: 2, name: /Entry Not Found|Error Loading Entry/i })
+        .getByRole('heading', { name: /Diary entry not found|Error Loading Entry/i })
         .waitFor({ state: 'visible' }),
     ]);
   }

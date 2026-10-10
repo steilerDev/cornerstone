@@ -58,6 +58,9 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     await expect(noAccess.heading).toBeVisible();
     await expect(noAccess.backLink).toBeVisible();
     await expect(page).toHaveURL(/\/settings\/users$/);
+    // #2204: one h1, and the tab title has no "Settings" segment
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+    await expect(page).toHaveTitle(/^No access · [^·]+$/);
     if (testInfo.project.name === 'desktop') {
       await expect(shell.nav).toBeVisible();
     } else {

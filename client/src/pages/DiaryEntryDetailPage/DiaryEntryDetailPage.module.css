@@ -10,29 +10,8 @@
 .topBar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: var(--spacing-4);
-}
-
-.backButton {
-  padding: var(--spacing-2) var(--spacing-3);
-  background-color: transparent;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: var(--transition-normal);
-}
-
-.backButton:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.backButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
 }
 
 .actionButtons {
@@ -116,6 +95,7 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-2) 0;
+  overflow-wrap: anywhere;
 }
 
 .meta {
@@ -298,7 +278,6 @@
     gap: var(--spacing-2);
   }
 
-  .backButton,
   .editButton,
   .deleteButton {
     width: 100%;
@@ -319,7 +298,6 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .backButton,
   .editButton,
   .deleteButton,
   .addPhotoLink {

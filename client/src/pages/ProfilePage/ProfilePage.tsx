@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { updateProfile, changePassword } from '../../lib/usersApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -22,6 +23,8 @@ export function ProfilePage() {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon('navigation.account');
+  useDocumentTitle(pageTitle);
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -167,7 +170,7 @@ export function ProfilePage() {
     return (
       <PageLayout
         maxWidth="narrow"
-        title={t('profile.pageTitle')}
+        title={pageTitle}
         subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <div className={styles.loading}>{t('profile.loading')}</div>
@@ -179,7 +182,7 @@ export function ProfilePage() {
     return (
       <PageLayout
         maxWidth="narrow"
-        title={t('profile.pageTitle')}
+        title={pageTitle}
         subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       >
         <div className={styles.errorCard} role="alert">
@@ -199,7 +202,7 @@ export function ProfilePage() {
   return (
     <PageLayout
       maxWidth="narrow"
-      title={t('profile.pageTitle')}
+      title={pageTitle}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       {/* Profile Information Card */}

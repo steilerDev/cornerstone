@@ -8,6 +8,7 @@ import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
 import type React from 'react';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 
 /** Renders the current URL's search string into the DOM so tests can assert on
  * which query params are present/absent without reaching into router internals. */
@@ -148,12 +149,60 @@ describe('DiaryPage', () => {
 
   // ─── Heading ────────────────────────────────────────────────────────────────
 
-  it('renders the "Construction Diary" h1 heading', async () => {
+  it('renders exactly one "Site diary" h1 and never the retired "Construction Diary"', async () => {
     mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
     renderPage();
-    expect(
-      screen.getByRole('heading', { name: 'Construction Diary', level: 1 }),
-    ).toBeInTheDocument();
+    // Mutation: reverting to page.title ("Construction Diary") fails both assertions.
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { name: 'Site diary', level: 1 })).toBeInTheDocument();
+    expect(screen.queryByText(/Construction Diary/)).not.toBeInTheDocument();
+  });
+
+  it('sets the tab title to "Site diary" with the section and house segments', async () => {
+    mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+    renderPage();
+    // Mutation: dropping useDocumentTitle leaves the previous title in place.
+    await waitFor(() => expect(document.title).toMatch(/^Site diary/));
+  });
+
+  describe('history hygiene (replace, nothing written on mount)', () => {
+    const renderRecorded = (url: string) => {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[url]} log={log}>
+          <DiaryPage />
+        </RecordingRouter>,
+      );
+      return log;
+    };
+
+    it('does not navigate on mount', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const log = renderRecorded('/diary?filterMode=all');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      expect(log.actions).toEqual([]);
+    });
+
+    it('filter mode, date, drafts, clear-all and search changes all use REPLACE', async () => {
+      mockListDiaryEntries.mockResolvedValue(emptyResponse);
+      const log = renderRecorded('/diary?filterMode=all&q=x');
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+
+      // Mutation: any handler dropping { replace: true } logs PUSH and fails the final check.
+      fireEvent.click(screen.getByTestId('mode-filter-manual'));
+      fireEvent.change(screen.getByTestId('diary-date-from'), { target: { value: '2026-01-01' } });
+      fireEvent.change(screen.getByTestId('diary-date-to'), { target: { value: '2026-02-01' } });
+      fireEvent.click(screen.getByTestId('type-filter-daily_log'));
+      fireEvent.click(screen.getByTestId('status-filter-drafts'));
+      fireEvent.change(screen.getByTestId('diary-search-input'), { target: { value: 'abc' } });
+      await waitFor(() => expect(log.actions.length).toBeGreaterThanOrEqual(6));
+      fireEvent.click(screen.getByTestId('clear-filters-button'));
+
+      await waitFor(() => expect(log.entries[log.index]).toBe('/diary?filterMode=manual'));
+      expect(log.actions.length).toBeGreaterThanOrEqual(7);
+      expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
+      expect(log.entries).toHaveLength(1);
+    });
   });
 
   it('shows the total entry count in the subtitle', async () => {

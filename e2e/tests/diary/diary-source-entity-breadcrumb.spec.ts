@@ -92,7 +92,7 @@ test.describe('Diary source entity — work_item with area (Scenario 1)', () => 
       const diaryEntryId = await findAutoDiaryEntryId(page, workItemId);
 
       await detailPage.goto(diaryEntryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Source section must be visible (sourceEntityType = 'work_item')
       await expect(detailPage.sourceSection).toBeVisible();
@@ -142,7 +142,7 @@ test.describe('Diary source entity — work_item without area (Scenario 2)', () 
       const diaryEntryId = await findAutoDiaryEntryId(page, workItemId);
 
       await detailPage.goto(diaryEntryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Source section must be visible
       await expect(detailPage.sourceSection).toBeVisible();
@@ -222,7 +222,7 @@ test.describe('Diary source entity — non-work_item source (Scenario 3)', () =>
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Source section must be visible (there IS a source entity)
       await expect(detailPage.sourceSection).toBeVisible();

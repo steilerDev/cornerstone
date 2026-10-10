@@ -3,7 +3,8 @@
  *
  * The page renders:
  * - A top bar with:
- *   - "← Back" button (aria-label="Go back to diary") that navigates to /diary
+ *   - (#2204) no Back button: the shared breadcrumb row above (trail "Site diary", optional "Back to <origin>")
+ *   - The top bar is only rendered for non-automatic or signed entries
  *   - For non-automatic and non-signed entries: action buttons —
  *     - "Edit" link (<Link to="/diary/:id/edit">, class styles.editButton)
  *     - "Delete" button (type="button", class styles.deleteButton) — opens delete modal
@@ -18,8 +19,7 @@
  *   - Optional photo count paragraph (class styles.photoLabel) when photoCount > 0
  *   - Optional source entity section with a link (class styles.sourceSection)
  *   - Timestamps footer (Created / Updated)
- * - A "Back to Diary" link (shared.btnSecondary) navigating to /diary
- * - Error state: bannerError div + "Back to Diary" link — shown when 404 or other API error
+ * - Not found: h1 "Diary entry not found" + "Back to Site diary" link; other API errors: bannerError + the same link
  * - Delete confirmation modal (shared Modal, role="dialog", name "Delete Diary Entry"):
  *   - "Delete Diary Entry" heading
  *   - Confirmation text
@@ -28,12 +28,12 @@
  *   - "Delete Entry" / "Deleting..." confirm button (hidden when deleteError is set)
  *
  * Key DOM observations from source code:
- * - Back button: aria-label="Go back to diary" — use getByLabel('Go back to diary')
+ * - Loaded marker: the type badge container (only rendered once the entry has loaded)
  * - Edit button: <Link> (anchor), use getByRole('link', { name: 'Edit' })
  * - Delete button (page): <button>, use getByRole('button', { name: 'Delete' })
  * - Action buttons visibility depends on entry.isAutomatic and entry.isSigned
  * - Entry title: only rendered if entry.title is non-null/non-empty
- * - "Back to Diary" is a <Link> (anchor), not a <button>
+ * - "Back to Site diary" is a <Link> (anchor), not a <button>
  * - Error div uses shared.bannerError CSS class
  * - Metadata section: data-testid on inner components (daily-log-metadata, site-visit-metadata,
  *   issue-metadata) set by DiaryMetadataSummary component
@@ -45,6 +45,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const DIARY_ENTRY_DETAIL_ROUTE = routeUrl('diary');
 
@@ -52,8 +53,12 @@ export class DiaryEntryDetailPage {
   readonly page: Page;
 
   // Navigation
-  readonly backButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
   readonly backToDiaryLink: Locator;
+  /** The entry's single h1 (also present, with a placeholder text, while loading / not found). */
+  readonly heading: Locator;
+  /** Present only once the entry has loaded (replaces the old top-bar Back button as the gate). */
+  readonly loaded: Locator;
 
   // Edit / delete action buttons (only visible for non-automatic entries)
   readonly editButton: Locator;
@@ -100,11 +105,12 @@ export class DiaryEntryDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Back button: <button type="button" aria-label="Go back">← Back</button>
-    this.backButton = page.getByLabel('Go back');
+    this.breadcrumbs = new BreadcrumbsBar(page);
+    this.heading = page.getByRole('heading', { level: 1 });
+    this.loaded = page.locator('[class*="typeBadgeContainer"]').first();
 
-    // "Back to Diary" link at bottom of page — a <Link> element
-    this.backToDiaryLink = page.getByRole('link', { name: 'Back to Diary' });
+    // "Back to Site diary" link in the not-found / error states — a <Link> element
+    this.backToDiaryLink = page.getByRole('link', { name: 'Back to Site diary', exact: true });
 
     // "Edit" is a <Link> rendered as an anchor — only visible for non-automatic entries
     this.editButton = page.getByRole('link', { name: 'Edit', exact: true });
@@ -167,15 +173,15 @@ export class DiaryEntryDetailPage {
 
   /**
    * Navigate to the detail page for the given diary entry ID.
-   * Waits for either the back button (success) or the error banner (error state).
+   * Waits for either the loaded entry, the not-found h1 or the error banner.
    * No explicit timeout — uses project-level actionTimeout.
    */
   async goto(id: string): Promise<void> {
     await this.page.goto(`${DIARY_ENTRY_DETAIL_ROUTE}/${id}`);
     await Promise.race([
-      // Locale-independent: the top bar's back button (its aria-label is translated)
-      this.page.locator('[class*="topBar"] button').first().waitFor({ state: 'visible' }),
+      this.loaded.waitFor({ state: 'visible' }),
       this.errorBanner.waitFor({ state: 'visible' }),
+      this.backToDiaryLink.waitFor({ state: 'visible' }),
     ]);
   }
 

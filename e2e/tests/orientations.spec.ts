@@ -58,7 +58,7 @@ test.describe('Orientations tab — visibility (Scenario 1)', { tag: '@responsiv
     { tag: '@smoke' },
     async ({ page }) => {
       await page.goto(ORIENTATIONS_TAB_URL);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -189,7 +189,7 @@ test.describe(
   () => {
     test('Create button is disabled when name is empty', async ({ page }) => {
       await page.goto(ORIENTATIONS_TAB_URL);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -200,7 +200,7 @@ test.describe(
 
     test('Create button stays disabled when name contains only whitespace', async ({ page }) => {
       await page.goto(ORIENTATIONS_TAB_URL);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -362,7 +362,7 @@ test.describe('ManagePage — Orientations tab navigation', { tag: '@responsive'
     page,
   }) => {
     await page.goto(MANAGE_ROUTE); // default: Areas tab
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -380,7 +380,7 @@ test.describe('ManagePage — Orientations tab navigation', { tag: '@responsive'
     page,
   }) => {
     await page.goto(MANAGE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -406,7 +406,7 @@ test.describe('Orientations tab — dark mode', () => {
 
     try {
       await page.goto(ORIENTATIONS_TAB_URL);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 

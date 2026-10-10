@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { OrientationResponse } from '@cornerstone/shared';
 import { SpotThumbnail } from '../SpotThumbnail/index.js';
+import type { OriginState } from '../../navigation/origin.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { buildSpotViewerPath, spotKey } from '../../lib/photoSpots.js';
 import type { SpotCell, SpotGroup, SpotRow } from '../../lib/photoSpots.js';
@@ -11,7 +12,7 @@ import styles from './SpotsTable.module.css';
 export interface SpotsTableProps {
   groups: SpotGroup[];
   orientations: OrientationResponse[];
-  linkState?: unknown;
+  linkState?: OriginState;
 }
 
 export function SpotsTable({ groups, orientations, linkState }: SpotsTableProps) {

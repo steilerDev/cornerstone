@@ -1309,6 +1309,8 @@ describe('DashboardPage', () => {
       ['dashboard-add-work-item', routeUrl('workItemNew')],
       ['dashboard-add-household-item', routeUrl('householdItemNew')],
       ['dashboard-add-milestone', routeUrl('milestoneNew')],
+      // Mutation: dropping { state: originState } on the diary item leaves origin null.
+      ['dashboard-add-diary-entry', routeUrl('diaryEntryNew')],
     ])('%s navigates with the Home URL as origin, no name', async (testId, path) => {
       renderProbed();
 
@@ -1317,6 +1319,60 @@ describe('DashboardPage', () => {
 
       expect(probedPath()).toBe(path);
       expect(probedOrigin()).toEqual({ to: '/project/overview' });
+    });
+  });
+
+  describe('Recent diary links carry Home as origin (#2204)', () => {
+    const entry = {
+      id: 'de-home',
+      entryType: 'daily_log' as const,
+      entryDate: '2026-03-14',
+      title: 'Synthetic pour',
+      body: 'Body',
+      metadata: null,
+      isAutomatic: false,
+      isSigned: false,
+      status: 'saved' as const,
+      sourceEntityType: null,
+      sourceEntityId: null,
+      sourceEntityArea: null,
+      sourceEntityTitle: null,
+      photoCount: 0,
+      createdBy: null,
+      createdAt: '2026-03-14T09:00:00.000Z',
+      updatedAt: '2026-03-14T09:00:00.000Z',
+    };
+
+    it('an entry link passes state.origin.to === /project/overview', async () => {
+      mockListDiaryEntries.mockResolvedValue({
+        items: [entry],
+        pagination: { page: 1, pageSize: 5, totalPages: 1, totalItems: 1 },
+      });
+      render(
+        <MemoryRouter initialEntries={['/project/overview']}>
+          <DashboardPage />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+      const item = (await screen.findAllByTestId('recent-diary-de-home'))[0]!;
+      await userEvent.click(item);
+      expect(probedPath()).toBe('/diary/de-home');
+      expect(probedOrigin()).toEqual({ to: '/project/overview' });
+    });
+
+    it('the empty-state action is the exempt opener: it carries no origin', async () => {
+      render(
+        <MemoryRouter initialEntries={['/project/overview']}>
+          <DashboardPage />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+      const links = await screen.findAllByRole('link', {
+        name: enDashboard.cards.recentDiary.emptyAction,
+      });
+      await userEvent.click(links[0]!);
+      expect(probedPath()).toBe('/diary/new');
+      expect(probedOrigin()).toBeNull();
     });
   });
 });

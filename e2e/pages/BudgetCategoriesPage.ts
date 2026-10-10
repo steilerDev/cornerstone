@@ -80,7 +80,7 @@ export class BudgetCategoriesPage {
     // to avoid matching identical CSS classes used in the other tab panels (tags, hi-categories)
     const tabPanel = page.locator('#budget-categories-panel');
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
 
     // Visual cleanup #1185: "Add Category" toggle button was removed — this locator will not match.
     this.addCategoryButton = tabPanel.getByRole('button', { name: 'Add Category', exact: true });

@@ -5,7 +5,11 @@ import type { BreadcrumbLink, BreadcrumbsProps } from '../components/Breadcrumbs
 import { pathnameOf, readOrigin } from './origin.js';
 import { breadcrumbChain, isNavView, originLabelKeyForPath } from './pageIdentity.js';
 
-/** Object display names by route id, e.g. `{ householdItem: item?.name }`. */
+/**
+ * Object display names by route id, e.g. `{ householdItem: item?.name }`.
+ * `undefined` = not loaded yet (omitted, trail pending). `null` = this ancestor does not apply
+ * and is skipped entirely (not pending, not the nearest parent).
+ */
 export type ObjectNames = Readonly<Partial<Record<string, string | null | undefined>>>;
 
 /** Breadcrumb props for the current location: parents-only trail plus the origin Back link. */
@@ -19,7 +23,7 @@ export function usePageBreadcrumbs(objectNames?: ObjectNames): BreadcrumbsProps 
 
   const parents: BreadcrumbLink[] = [];
   let pending = false;
-  const chain = breadcrumbChain(id, match.params);
+  const chain = breadcrumbChain(id, match.params).filter((item) => objectNames?.[item.id] !== null);
   for (const item of chain) {
     if (item.labelKey) {
       parents.push({ label: t(item.labelKey), href: item.href });

@@ -133,6 +133,41 @@ describe('UserManagementPage', () => {
     mockDeactivateUser.mockResolvedValue(undefined);
   });
 
+  describe('page identity (#2204)', () => {
+    it('renders exactly one level-1 heading, "Users", while loading', () => {
+      mockListUsers.mockImplementationOnce(() => new Promise(() => {}));
+
+      renderPage();
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Users$/);
+    });
+
+    it('keeps exactly one "Users" level-1 heading once loaded', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Users$/);
+    });
+
+    it('sets the tab title to "Users · Settings · Cornerstone"', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      expect(document.title).toBe('Users · Settings · Cornerstone');
+    });
+
+    it('shows no "You are here" trail (it is a view-level page)', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('loading state', () => {
     it('shows loading skeleton while users are being fetched', () => {
       mockListUsers.mockImplementationOnce(

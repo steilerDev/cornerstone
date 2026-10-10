@@ -5,8 +5,8 @@
  *
  * Scenarios covered:
  * 1.  Detail page loads for a created entry — shows body text (@smoke @responsive)
- * 2.  "← Back" button returns to the previous page (/diary)
- * 3.  "Back to Diary" link at bottom navigates to /diary
+ * 2.  The "Site diary" breadcrumb returns to the list (/diary)
+ * 3.  (same, from the list) - there is no Back button or bottom link any more (#2204)
  * 4.  daily_log metadata section renders weather and workers on-site
  * 5.  site_visit outcome badge renders (pass/fail/conditional)
  * 6.  issue severity badge renders (low/medium/high/critical)
@@ -44,8 +44,8 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 
         await detailPage.goto(createdId);
 
-        // The back button is our primary "page is loaded" signal
-        await expect(detailPage.backButton).toBeVisible();
+        // The loaded marker is our primary "page is loaded" signal
+        await expect(detailPage.loaded).toBeVisible();
 
         // Body text is rendered
         await expect(detailPage.entryBody).toContainText(body);
@@ -79,10 +79,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "← Back" button returns to the previous page
+// Scenario 2: the "Site diary" breadcrumb returns to the list
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back" button returns to the diary list page', async ({ page, testPrefix }) => {
+test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Site diary" breadcrumb returns to the diary list page', async ({ page, testPrefix }) => {
     const diaryPage = new DiaryPage(page);
     const detailPage = new DiaryEntryDetailPage(page);
     let createdId: string | null = null;
@@ -101,9 +101,9 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
       // Navigate to the detail page by URL
       await page.goto(`/diary/${createdId}`);
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
 
-      await detailPage.backButton.click();
+      await detailPage.breadcrumbs.trailLink('Site diary').click();
 
       // Should return to /diary — wait for the diary list heading to confirm navigation
       // Using waitForURL with an explicit 15s timeout to handle slower WebKit tablet navigation
@@ -118,10 +118,10 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: "← Back" button navigates to /diary (bottom link removed in UAT)
+// Scenario 3: the breadcrumb navigates to /diary
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('"← Back" button navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"← Back" button navigates back to /diary when navigated from the list', async ({
+test.describe('Breadcrumb navigation from the list (Scenario 3)', { tag: '@responsive' }, () => {
+  test('"Site diary" breadcrumb navigates to /diary when navigated from the list', async ({
     page,
     testPrefix,
   }) => {
@@ -142,10 +142,10 @@ test.describe('"← Back" button navigation (Scenario 3)', { tag: '@responsive' 
 
       // Then navigate to the detail page
       await page.goto(`/diary/${createdId}`);
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
 
       // Click the back button
-      await detailPage.backButton.click();
+      await detailPage.breadcrumbs.trailLink('Site diary').click();
 
       // Should return to /diary — explicit 15s to handle slower WebKit tablet navigation
       await page.waitForURL('**/diary', { timeout: 15_000 });
@@ -318,12 +318,11 @@ test.describe('404 error state (Scenario 7)', { tag: '@responsive' }, () => {
 
     await detailPage.goto('00000000-0000-0000-0000-000000000000');
 
-    // Error banner shown
-    await expect(detailPage.errorBanner).toBeVisible();
-    const errorText = await detailPage.errorBanner.textContent();
-    expect(errorText?.toLowerCase()).toMatch(/not found|diary entry not found/);
+    // Not-found state (#2204): the single h1 says so, in place of the old error banner
+    await expect(detailPage.heading).toHaveText('Diary entry not found');
+    await expect(detailPage.heading).toHaveCount(1);
 
-    // "Back to Diary" link rendered in the error state
+    // "Back to Site diary" link rendered in the not-found state
     await expect(detailPage.backToDiaryLink).toBeVisible();
   });
 });
@@ -436,9 +435,9 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
         document.documentElement.setAttribute('data-theme', 'dark');
       });
 
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
 
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;

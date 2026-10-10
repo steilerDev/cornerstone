@@ -5,7 +5,7 @@
 import { test, expect } from '@playwright/test';
 import { LoginPage } from '../../pages/LoginPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { TEST_ADMIN, ROUTES } from '../../fixtures/testData.js';
+import { TEST_ADMIN, ROUTES, loginUrlFor } from '../../fixtures/testData.js';
 
 test.describe('Login and Logout', { tag: '@responsive' }, () => {
   // Clear auth state for these tests
@@ -97,7 +97,7 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     // When: User tries to access protected route
     await page.goto(ROUTES.home);
 
-    // Then: Should be redirected back to login
-    await expect(page).toHaveURL(ROUTES.login);
+    // Then: Should be redirected back to login, remembering the page (#2204)
+    await expect(page).toHaveURL(loginUrlFor(ROUTES.home));
   });
 });
