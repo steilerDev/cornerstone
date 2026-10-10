@@ -4,9 +4,9 @@
  * EPIC-04 Story 4.4: Create & Edit Form
  *
  * Scenarios covered:
- * 1.  Edit page loads with h1 "Edit Household Item"
+ * 1.  Edit page loads with h1 "Edit purchase"
  * 2.  Form is pre-populated with the existing item data
- * 3.  Back button navigates to the detail page
+ * 3.  Breadcrumb (purchase name) navigates to the detail page
  * 4.  Save changes successfully updates the item
  * 5.  Clear the name field — validation error shown
  * 6.  404 state for non-existent item ID
@@ -15,12 +15,13 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { createHouseholdItemViaApi, deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
+import { HouseholdItemEditPage } from '../../pages/HouseholdItemEditPage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 1: Edit page loads with correct heading
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Edit Household Item page loads with correct heading', async ({ page, testPrefix }) => {
+  test('Edit purchase page loads with correct heading', async ({ page, testPrefix }) => {
     let createdId: string | null = null;
 
     try {
@@ -30,7 +31,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 
       await page.goto(`/project/household-items/${createdId}/edit`);
 
-      const heading = page.getByRole('heading', { level: 1, name: 'Edit Household Item' });
+      const heading = page.getByRole('heading', { level: 1, name: 'Edit purchase' });
       await expect(heading).toBeVisible({ timeout: 10000 });
     } finally {
       if (createdId) await deleteHouseholdItemViaApi(page, createdId);
@@ -46,7 +47,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
       });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });
@@ -74,7 +75,7 @@ test.describe('Form pre-population (Scenario 2)', { tag: '@responsive' }, () => 
       createdId = await createHouseholdItemViaApi(page, { name, category: 'hic-furniture' });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });
@@ -93,10 +94,13 @@ test.describe('Form pre-population (Scenario 2)', { tag: '@responsive' }, () => 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Back button navigates to detail page
+// Scenario 3: Breadcrumb (purchase name) navigates to the detail page
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"← Back to Item" navigates to the item detail page', async ({ page, testPrefix }) => {
+test.describe('Breadcrumb navigation (Scenario 3)', { tag: '@responsive' }, () => {
+  test('The purchase-name breadcrumb navigates to the item detail page', async ({
+    page,
+    testPrefix,
+  }) => {
     let createdId: string | null = null;
 
     try {
@@ -105,14 +109,15 @@ test.describe('Back button navigation (Scenario 3)', { tag: '@responsive' }, () 
       });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });
 
-      // Back button text is "← Back to Item" (from HouseholdItemEditPage source)
-      const backButton = page.getByRole('button', { name: /← Back to Item/i });
-      await backButton.click();
+      // #2202: trail is "Purchases > {purchase name}"; no header back buttons any more.
+      const editPage = new HouseholdItemEditPage(page);
+      await editPage.breadcrumbs.expectTrail(['Purchases', `${testPrefix} HI Edit Back Test`]);
+      await editPage.breadcrumbs.trailLink(`${testPrefix} HI Edit Back Test`).click();
 
       // Should navigate to the detail page
       await page.waitForURL(`**/project/household-items/${createdId}`);
@@ -140,7 +145,7 @@ test.describe('Save changes — happy path (Scenario 4)', { tag: '@responsive' }
       createdId = await createHouseholdItemViaApi(page, { name: originalName });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });
@@ -183,7 +188,7 @@ test.describe('Validation — empty name (Scenario 5)', { tag: '@responsive' }, 
       });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });
@@ -236,7 +241,7 @@ test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
       });
 
       await page.goto(`/project/household-items/${createdId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Household Item' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Edit purchase' }).waitFor({
         state: 'visible',
         timeout: 10000,
       });

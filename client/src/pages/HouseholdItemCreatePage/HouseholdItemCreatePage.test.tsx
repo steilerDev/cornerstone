@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -56,7 +56,14 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 describe('HouseholdItemCreatePage', () => {
@@ -152,9 +159,11 @@ describe('HouseholdItemCreatePage', () => {
     });
   });
 
-  function renderPage() {
+  function renderPage(
+    entry: string | { pathname: string; state?: unknown } = '/project/household-items/new',
+  ) {
     return render(
-      <MemoryRouter initialEntries={['/project/household-items/new']}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route
             path="/project/household-items/new"
@@ -179,11 +188,11 @@ describe('HouseholdItemCreatePage', () => {
       });
     });
 
-    it('renders form with "New Household Item" heading after loading', async () => {
+    it('renders form with the "New purchase" h1 after loading', async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'New Household Item' })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: 'New purchase', level: 1 })).toBeInTheDocument();
       });
     });
 
@@ -245,14 +254,14 @@ describe('HouseholdItemCreatePage', () => {
       expect(quantityInput.value).toBe('1');
     });
 
-    it('renders back button', async () => {
+    it('has no header back button (the breadcrumb replaces it)', async () => {
       renderPage();
 
-      await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /back to household items/i }),
-        ).toBeInTheDocument();
-      });
+      await screen.findByLabelText(/^name/i);
+      expect(
+        screen.queryByRole('button', { name: /back to household items/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to purchases/i })).not.toBeInTheDocument();
     });
 
     it('renders vendor options from fetched data', async () => {
@@ -289,21 +298,36 @@ describe('HouseholdItemCreatePage', () => {
       expect(screen.getByTestId('location').textContent).not.toBe('/project/household-items/new');
     });
 
-    it('navigates to household items list on back button click', async () => {
+    it('navigates to the purchases list from the Purchases breadcrumb', async () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(
-          screen.getByRole('button', { name: /back to household items/i }),
-        ).toBeInTheDocument();
+      await user.click(await screen.findByRole('link', { name: /Purchases/ }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
+    });
+
+    it('Cancel replaces the entry with the origin URL when opened from the Calendar', async () => {
+      const user = userEvent.setup();
+      renderPage({
+        pathname: '/project/household-items/new',
+        state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
       });
 
-      await user.click(screen.getByRole('button', { name: /back to household items/i }));
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
 
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
-      });
+      expect(screen.getByTestId('location')).toHaveTextContent('/schedule/calendar');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+    });
+
+    it('Cancel replaces the entry with the list when there is no origin', async () => {
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
   });
 
@@ -374,6 +398,26 @@ describe('HouseholdItemCreatePage', () => {
       });
 
       expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1);
+    });
+
+    it('replaces the create form in history and forwards the origin to the new purchase', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(mockCreatedItem);
+      renderPage({
+        pathname: '/project/household-items/new',
+        state: { origin: { to: '/schedule/gantt' }, unrelated: true },
+      });
+
+      await user.type(await screen.findByLabelText(/^name/i), 'From the schedule');
+      await user.click(screen.getByRole('button', { name: /create item/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-new');
+      });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/schedule/gantt' },
+      });
     });
 
     it('calls createHouseholdItem with correct data on submission', async () => {
@@ -623,6 +667,43 @@ describe('HouseholdItemCreatePage', () => {
       await waitFor(() => {
         expect(mockCreateHouseholdItem).toHaveBeenCalled();
       });
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    it('shows exactly one h1 and sets the tab title', async () => {
+      renderPage();
+
+      await screen.findByLabelText(/^name/i);
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() =>
+        expect(document.title).toBe('New purchase \u00B7 Purchases \u00B7 Cornerstone'),
+      );
+    });
+
+    it('shows the h1 and breadcrumb already while loading', () => {
+      renderPage();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { name: 'New purchase', level: 1 })).toBeVisible();
+      expect(screen.getByRole('link', { name: /Purchases/ })).toHaveAttribute(
+        'href',
+        '/project/household-items',
+      );
+    });
+
+    it('trails only Purchases and offers Back to Calendar from the calendar', async () => {
+      renderPage({
+        pathname: '/project/household-items/new',
+        state: { origin: { to: '/schedule/calendar' } },
+      });
+
+      await screen.findByLabelText(/^name/i);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Calendar');
     });
   });
 });

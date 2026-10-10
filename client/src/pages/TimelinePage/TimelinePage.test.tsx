@@ -8,7 +8,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import enCommon from '../../i18n/en/common.json';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
@@ -18,7 +18,14 @@ import { LocaleProvider } from '../../contexts/LocaleContext.js';
 /** Renders the current router location pathname into a data-testid for navigation assertions. */
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location-display">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location-display">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 const mockGetTimeline = jest.fn<typeof TimelineApiTypes.getTimeline>();
@@ -548,6 +555,150 @@ describe('TimelinePage', () => {
       renderWithRouter(['/schedule/calendar']);
       fireEvent.click(await screen.findByTestId('calendar-milestone'));
       expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/42');
+    });
+  });
+
+  // ── Page identity and origin (#2202) ───────────────────────────────────────
+
+  describe('page identity and origin (#2202)', () => {
+    function thisMonthDate(day: number): string {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    const MILESTONE: TimelineResponse['milestones'][number] = {
+      id: 42,
+      title: 'Origin Milestone',
+      targetDate: thisMonthDate(10),
+      isCompleted: false,
+      completedAt: null,
+      color: null,
+      workItemIds: [],
+      projectedDate: null,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
+      isCritical: false,
+    };
+
+    const TASK: TimelineResponse['workItems'][number] = {
+      id: 'wi-origin',
+      title: 'Origin Task',
+      status: 'not_started',
+      startDate: thisMonthDate(5),
+      endDate: thisMonthDate(6),
+      projectedStartDate: thisMonthDate(5),
+      projectedEndDate: thisMonthDate(6),
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+      durationDays: 2,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+    };
+
+    const PURCHASE: TimelineResponse['householdItems'][number] = {
+      id: 'hi-origin',
+      name: 'Origin Purchase',
+      category: 'furniture',
+      status: 'planned',
+      targetDeliveryDate: thisMonthDate(8),
+      earliestDeliveryDate: thisMonthDate(8),
+      latestDeliveryDate: thisMonthDate(9),
+      actualDeliveryDate: null,
+      isLate: false,
+      dependencyIds: [],
+    };
+
+    const stateOf = () =>
+      JSON.parse(screen.getByTestId('location-state').textContent ?? 'null') as {
+        origin: { to: string; name?: string };
+      } | null;
+
+    it('shows exactly one h1 "Schedule" on the Gantt view, with the tab title under Tasks', async () => {
+      renderWithRouter(['/schedule/gantt']);
+
+      expect(await screen.findByRole('heading', { name: 'Schedule', level: 1 })).toBeVisible();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Schedule · Tasks · Cornerstone'));
+    });
+
+    it('shows exactly one h1 "Calendar" on the Calendar view, with the tab title under Tasks', async () => {
+      renderWithRouter(['/schedule/calendar']);
+
+      expect(await screen.findByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Calendar · Tasks · Cornerstone'));
+    });
+
+    it('is a view: no trail and no Back link', async () => {
+      renderWithRouter(['/schedule/calendar']);
+
+      await screen.findByRole('heading', { name: 'Calendar', level: 1 });
+      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
+    });
+
+    it('opens a calendar milestone with the calendar URL (incl. query) as origin, no name', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, milestones: [MILESTONE] });
+      renderWithRouter(['/schedule/calendar?calendarMode=week']);
+
+      fireEvent.click(await screen.findByTestId('calendar-milestone'));
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/42');
+      expect(stateOf()).toEqual({ origin: { to: '/schedule/calendar?calendarMode=week' } });
+    });
+
+    it('opens a calendar task with the calendar URL as origin (replacing the old from/view state)', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, workItems: [TASK] });
+      renderWithRouter(['/schedule/calendar?calendarMode=week']);
+
+      fireEvent.click((await screen.findAllByTestId('calendar-item'))[0]!);
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/work-items/wi-origin',
+      );
+      const state = stateOf();
+      expect(state).toEqual({ origin: { to: '/schedule/calendar?calendarMode=week' } });
+      expect(JSON.stringify(state)).not.toContain('"from"');
+    });
+
+    it('opens a calendar purchase with the calendar URL as origin (it had none before)', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, householdItems: [PURCHASE] });
+      renderWithRouter(['/schedule/calendar?calendarMode=week']);
+
+      fireEvent.click((await screen.findAllByTestId('calendar-hi-item'))[0]!);
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent(
+        '/project/household-items/hi-origin',
+      );
+      expect(stateOf()).toEqual({ origin: { to: '/schedule/calendar?calendarMode=week' } });
+    });
+
+    it.each([
+      ['timeline-add-work-item', '/project/work-items/new'],
+      ['timeline-add-household-item', '/project/household-items/new'],
+      ['timeline-add-milestone', '/project/milestones/new'],
+    ])('the New menu item %s carries the Gantt URL as origin', (testId, path) => {
+      renderWithRouter(['/schedule/gantt?filter=tasks']);
+      fireEvent.click(screen.getByTestId('timeline-add-button'));
+
+      fireEvent.click(screen.getByTestId(testId));
+
+      expect(screen.getByTestId('location-display')).toHaveTextContent(path);
+      expect(stateOf()).toEqual({ origin: { to: '/schedule/gantt?filter=tasks' } });
+    });
+
+    it('does not push a history entry on mount', async () => {
+      renderWithRouter(['/schedule/gantt']);
+
+      await screen.findByRole('heading', { name: 'Schedule', level: 1 });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('POP');
     });
   });
 });

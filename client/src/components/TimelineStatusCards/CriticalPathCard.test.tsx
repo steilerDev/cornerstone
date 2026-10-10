@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 
@@ -385,5 +386,31 @@ describe('CriticalPathCard', () => {
     const link = deadlineEl.querySelector('a');
     expect(link).not.toBeNull();
     expect(link).toHaveAttribute('href', '/project/work-items/wi-link');
+  });
+
+  // ── Origin (#2202): Back to Home from the opened task ─────────────────────
+
+  it('opens the next critical task with the Home URL (incl. query) as origin, no name', () => {
+    const workItems: TimelineWorkItem[] = [
+      {
+        ...baseWorkItem,
+        id: 'wi-origin',
+        title: 'Origin task',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
+    ];
+    renderWithRouter(
+      <>
+        <CriticalPathCard criticalPath={['wi-origin']} workItems={workItems} />
+        <OriginProbe />
+      </>,
+      { initialEntries: ['/project/overview?x=1'] },
+    );
+
+    fireEvent.click(within(screen.getByTestId('critical-deadline')).getByRole('link'));
+
+    expect(probedPath()).toBe('/project/work-items/wi-origin');
+    expect(probedOrigin()).toEqual({ to: '/project/overview?x=1' });
   });
 });

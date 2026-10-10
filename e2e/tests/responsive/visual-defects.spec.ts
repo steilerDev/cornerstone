@@ -17,7 +17,8 @@
  *   7.  AC7  — diary "Created" time uses the locale's own time format (no " at ", 24 h in German).
  *   8.  AC8  — viewport meta allows pinch-zoom.
  *   9.  AC10 — Sources > Show lines rows and Report wizard step 3 rows never overlap their cells.
- *   10. AC11 — enabled "To Schedule" buttons are not dimmed at rest.
+ *   10. AC11 — the Back / trail navigation links on object pages are not dimmed at rest
+ *       (#2202 replaced the "To Schedule" / "To Work Items" buttons with the breadcrumb row).
  *   11. AC9  — creating a task with a user AND a company is rejected with HTTP 400.
  *
  * Visual ACs use geometry (boundingBox, elementFromPoint, scrollWidth, getComputedStyle), never
@@ -51,6 +52,7 @@ import {
   deleteWorkItemViaApi,
   uploadDiaryPhotoViaApi,
 } from '../../fixtures/apiHelpers.js';
+import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { DashboardPage } from '../../pages/DashboardPage.js';
 import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
@@ -889,30 +891,30 @@ test.describe(
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 10 (AC11): navigation buttons are not dimmed
+// Scenario 10 (AC11): navigation links are not dimmed
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Visual defects — "To Schedule" buttons are not dimmed (AC11)', () => {
+test.describe('Visual defects — Back and trail links are not dimmed (AC11)', () => {
   test.beforeEach(({ page }) => {
     const vp = page.viewportSize();
     test.skip(!vp || vp.width < 1024, 'Desktop-only');
   });
 
-  async function expectFullOpacity(button: Locator): Promise<void> {
-    await expect(button).toBeVisible();
-    await expect(button).toBeEnabled();
+  async function expectFullOpacity(link: Locator): Promise<void> {
+    await expect(link).toBeVisible();
     // Move the pointer away so :hover cannot be what makes it opaque
-    await button.page().mouse.move(0, 0);
-    await expect.poll(() => button.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
+    await link.page().mouse.move(0, 0);
+    await expect.poll(() => link.evaluate((el) => getComputedStyle(el).opacity)).toBe('1');
   }
 
   test('Task page', async ({ page, testPrefix }) => {
     const workItemId = await makeWorkItem(page, `${testPrefix} Test Task For Buttons`);
-    await new WorkItemDetailPage(page).goto(workItemId);
-    await expectFullOpacity(page.getByRole('button', { name: 'To Schedule', exact: true }));
+    const detailPage = new WorkItemDetailPage(page);
+    await detailPage.goto(workItemId);
+    await expectFullOpacity(detailPage.breadcrumbs.trailLink('Tasks'));
   });
 
-  test('Task page opened from the schedule calendar ("To Work Items")', async ({
+  test('Task page opened from the schedule calendar ("Back to Calendar")', async ({
     page,
     testPrefix,
   }) => {
@@ -921,18 +923,21 @@ test.describe('Visual defects — "To Schedule" buttons are not dimmed (AC11)', 
     await makeWorkItem(page, title, { startDate: today, endDate: today });
 
     await page.goto('/schedule/calendar');
-    // Router state { from: 'schedule' } is set by clicking the calendar item
+    // Router state { origin } is set by clicking the calendar item
     const item = page.getByTestId('calendar-item').filter({ hasText: title }).first();
     await expect(item).toBeVisible();
     await item.click();
     await page.waitForURL(/\/project\/work-items\/[^/]+$/);
-    await expectFullOpacity(page.getByRole('button', { name: 'To Work Items', exact: true }));
+    const breadcrumbs = new BreadcrumbsBar(page);
+    await expectFullOpacity(breadcrumbs.backLink);
+    await expect(breadcrumbs.backLink).toContainText('Back to Calendar');
   });
 
   test('Purchase page', async ({ page, testPrefix }) => {
     const itemId = await makePurchase(page, `${testPrefix} Test Dining Table`);
-    await new HouseholdItemDetailPage(page).goto(itemId);
-    await expectFullOpacity(page.getByRole('button', { name: 'To Schedule', exact: true }));
+    const detailPage = new HouseholdItemDetailPage(page);
+    await detailPage.goto(itemId);
+    await expectFullOpacity(detailPage.breadcrumbs.trailLink('Purchases'));
   });
 
   test('Milestone page', async ({ page, testPrefix }) => {
@@ -941,8 +946,9 @@ test.describe('Visual defects — "To Schedule" buttons are not dimmed (AC11)', 
       targetDate: '2026-12-31',
     });
     cleanups.push(() => deleteMilestoneViaApi(page, milestoneId));
-    await new MilestoneDetailPage(page).goto(milestoneId);
-    await expectFullOpacity(page.getByRole('button', { name: 'To Schedule', exact: true }));
+    const detailPage = new MilestoneDetailPage(page);
+    await detailPage.goto(milestoneId);
+    await expectFullOpacity(detailPage.breadcrumbs.trailLink('Milestones'));
   });
 });
 

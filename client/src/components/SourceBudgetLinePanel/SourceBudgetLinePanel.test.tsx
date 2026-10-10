@@ -5,6 +5,7 @@ import type React from 'react';
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
@@ -125,10 +126,11 @@ describe('SourceBudgetLinePanel', () => {
       onRetry: jest.fn(),
     };
     return render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={['/budget/financing/sources/src-1?view=lines']}>
         <LocaleProvider>
           <SourceBudgetLinePanel {...defaultProps} {...props} />
         </LocaleProvider>
+        <OriginProbe />
       </MemoryRouter>,
     );
   }
@@ -1577,6 +1579,57 @@ describe('SourceBudgetLinePanel', () => {
         );
         expect(plainNameLink).toBeUndefined();
       });
+    });
+  });
+
+  // ─── Origin (#2202): parent item links carry the current URL ────────────────
+
+  describe('parent item links carry origin state', () => {
+    it('non-selectable mode: opens the task with the current URL as origin, no name', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'work-item-42',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({ data: makeResponse([line], []) });
+
+      fireEvent.click(screen.getByRole('link', { name: /Kitchen Renovation/i }));
+
+      expect(probedPath()).toBe('/project/work-items/work-item-42');
+      expect(probedOrigin()).toEqual({ to: '/budget/financing/sources/src-1?view=lines' });
+    });
+
+    it('non-selectable mode: opens a purchase with the current URL as origin', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'household-item-99',
+        parentName: 'Sofa Purchase',
+      });
+      renderPanel({ data: makeResponse([], [line]) });
+
+      fireEvent.click(screen.getByRole('link', { name: /Sofa Purchase/i }));
+
+      expect(probedPath()).toBe('/project/household-items/household-item-99');
+      expect(probedOrigin()).toEqual({ to: '/budget/financing/sources/src-1?view=lines' });
+    });
+
+    it('selectable mode: the nav icon opens the item with the current URL as origin', () => {
+      const line = makeLine({
+        id: 'l1',
+        parentId: 'work-item-42',
+        parentName: 'Kitchen Renovation',
+      });
+      renderPanel({
+        data: makeResponse([line], []),
+        selectedLineIds: new Set<string>(),
+        onSelectionChange: jest.fn(),
+        onMoveLines: jest.fn(),
+      });
+
+      fireEvent.click(screen.getByRole('link', { name: /Open Kitchen Renovation/i }));
+
+      expect(probedPath()).toBe('/project/work-items/work-item-42');
+      expect(probedOrigin()).toEqual({ to: '/budget/financing/sources/src-1?view=lines' });
     });
   });
 });

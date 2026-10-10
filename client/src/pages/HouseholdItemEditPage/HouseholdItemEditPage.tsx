@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type { HouseholdItemCategory, HouseholdItemCategoryEntity } from '@cornerstone/shared';
@@ -9,6 +9,9 @@ import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesA
 import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { readOrigin, pathnameOf } from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './HouseholdItemEditPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -19,9 +22,11 @@ interface Vendor {
 
 export function HouseholdItemEditPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { t: tc } = useTranslation('common');
   const { areas, isLoading: areasLoading } = useAreas();
 
   const [name, setName] = useState('');
@@ -39,6 +44,24 @@ export function HouseholdItemEditPage() {
   const [error, setError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<Record<string, string>>({});
   const [notFound, setNotFound] = useState(false);
+  const [loadedName, setLoadedName] = useState<string | null>(null);
+
+  const h1Text = notFound ? tc('navigation.purchaseNotFound') : tc('navigation.editPurchase');
+  useDocumentTitle(h1Text);
+  const breadcrumbName = loadedName
+    ? loadedName.trim() || tc('navigation.untitledPurchase')
+    : undefined;
+
+  // Opened from the purchase itself: return with history; otherwise replace this page.
+  const returnToPurchase = () => {
+    const purchaseUrl = routeUrl('householdItem', { id: id! });
+    const origin = readOrigin(location.state);
+    if (origin && pathnameOf(origin.to) === purchaseUrl) {
+      navigate(-1);
+    } else {
+      navigate(purchaseUrl, { replace: true });
+    }
+  };
 
   // Load item data, vendors, and categories on mount
   useEffect(() => {
@@ -56,6 +79,7 @@ export function HouseholdItemEditPage() {
 
         // Populate form with item data
         setName(item.name);
+        setLoadedName(item.name);
         setDescription(item.description || '');
         setCategory(item.category);
         setQuantity(item.quantity);
@@ -120,7 +144,7 @@ export function HouseholdItemEditPage() {
       });
 
       showToast('success', t('edit.success'));
-      navigate(routeUrl('householdItem', { id: id! }));
+      returnToPurchase();
     } catch (err) {
       setError(t('edit.errorBanner'));
       console.error('Failed to update household item:', err);
@@ -131,6 +155,8 @@ export function HouseholdItemEditPage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs objectNames={{ householdItem: breadcrumbName }} />
+        <h1 className={styles.title}>{h1Text}</h1>
         <div className={styles.loading}>{t('edit.loading')}</div>
       </div>
     );
@@ -139,15 +165,9 @@ export function HouseholdItemEditPage() {
   if (notFound) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs objectNames={{ householdItem: breadcrumbName }} />
         <div className={styles.header}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate(routeUrl('householdItems'))}
-          >
-            {t('edit.backButton')}
-          </button>
-          <h1 className={styles.title}>{t('edit.notFound')}</h1>
+          <h1 className={styles.title}>{h1Text}</h1>
         </div>
         <div className={styles.errorBanner}>{t('edit.notFoundMessage')}</div>
       </div>
@@ -156,16 +176,9 @@ export function HouseholdItemEditPage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs objectNames={{ householdItem: breadcrumbName }} />
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigate(routeUrl('householdItem', { id: id! }))}
-          disabled={isSubmitting}
-        >
-          {t('edit.backButton')}
-        </button>
-        <h1 className={styles.title}>{t('edit.title')}</h1>
+        <h1 className={styles.title}>{h1Text}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -323,7 +336,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(routeUrl('householdItem', { id: id! }))}
+            onClick={returnToPurchase}
             disabled={isSubmitting}
           >
             {t('edit.cancel')}

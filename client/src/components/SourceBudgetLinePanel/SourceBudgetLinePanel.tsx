@@ -8,6 +8,7 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './SourceBudgetLinePanel.module.css';
 
 interface SourceBudgetLinePanelProps {
@@ -281,6 +282,7 @@ export function SourceBudgetLinePanel({
 }: SourceBudgetLinePanelProps) {
   const { t } = useTranslation('budget');
   const { formatCurrency } = useFormatters();
+  const originState = useOriginState();
   const isSelectable = selectedLineIds !== undefined && onSelectionChange !== undefined;
 
   // eslint-disable-next-line @eslint-react/exhaustive-deps -- workItemLines is a derived array; the area-tree memo intentionally recomputes when data changes
@@ -529,6 +531,7 @@ export function SourceBudgetLinePanel({
                         ? routeUrl('workItem', { id: parentGroup.parentId })
                         : routeUrl('householdItem', { id: parentGroup.parentId })
                     }
+                    state={originState}
                     className={styles.parentItemNavLink}
                     aria-label={t('sources.budgetLines.move.navigateToItem', {
                       name: parentGroup.parentName,
@@ -608,6 +611,7 @@ export function SourceBudgetLinePanel({
                       ? routeUrl('workItem', { id: parentGroup.parentId })
                       : routeUrl('householdItem', { id: parentGroup.parentId })
                   }
+                  state={originState}
                   className={`${styles.parentItemHeader} ${styles.parentItemHeaderLink}`}
                 >
                   {parentGroup.parentName}

@@ -2,11 +2,9 @@
  * Page Object Model for the Milestone Create page (/project/milestones/new)
  *
  * The page renders:
- * - A header with:
- *   - A <Link> back link ("← Milestones") to /project/milestones (NOT a <button>)
- *   - h1 "Project" (t('milestones.page.title') = "Project")
- * - A SubNav with project tabs
- * - A <form> card with h2 "Create Milestone" (t('milestones.create.title'))
+ * - Breadcrumbs (Story #2202): trail "Tasks" > "Milestones" + optional "Back to {origin}"
+ * - h1 "New milestone" (common navigation.newMilestone); no SubNav, no form h2
+ * - A <form> card
  * - Form fields:
  *   - #title (text, required) — data-testid="milestone-title-input"
  *   - #targetDate (date, required) — data-testid="milestone-target-date-input"
@@ -17,7 +15,6 @@
  * - Error banner (role="alert", class errorBanner) for validation/server errors
  *
  * Key DOM observations from source code:
- * - Back link ("← Milestones") is a <Link> (anchor element), not a <button>
  * - Cancel is also a <Link> (anchor), not a <button>
  * - Submit is a type="submit" <button> disabled during isSubmitting
  * - On success, navigates to /project/milestones/:id (the newly created milestone's detail page)
@@ -29,6 +26,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const MILESTONE_CREATE_ROUTE = routeUrl('milestoneNew');
 
@@ -42,9 +40,8 @@ export class MilestoneCreatePage {
   readonly page: Page;
 
   // Header
-  readonly heading: Locator; // h1 "Project"
-  readonly formHeading: Locator; // h2 "Create Milestone"
-  readonly backLink: Locator; // "← Milestones" anchor
+  readonly heading: Locator; // h1 "New milestone"
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Form fields
   readonly titleInput: Locator;
@@ -61,16 +58,8 @@ export class MilestoneCreatePage {
   constructor(page: Page) {
     this.page = page;
 
-    // PageLayout h1 = t('milestones.page.title') = "Project"
-    this.heading = page.getByRole('heading', { level: 1, name: 'Project', exact: true });
-    // Form h2 = t('milestones.create.title') = "Create Milestone"
-    this.formHeading = page.getByRole('heading', {
-      level: 2,
-      name: 'Create Milestone',
-      exact: true,
-    });
-    // Back link is a <Link> = <a> element with text "← Milestones"
-    this.backLink = page.getByRole('link', { name: '← Milestones', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'New milestone', exact: true });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Form fields (by id — matches label htmlFor)
     this.titleInput = page.locator('#title');
@@ -89,11 +78,11 @@ export class MilestoneCreatePage {
 
   /**
    * Navigate to the milestone create page.
-   * Waits for the form heading to be visible as the readiness signal.
+   * Waits for the heading to be visible as the readiness signal.
    */
   async goto(): Promise<void> {
     await this.page.goto(MILESTONE_CREATE_ROUTE);
-    await this.formHeading.waitFor({ state: 'visible' });
+    await this.heading.waitFor({ state: 'visible' });
   }
 
   /**

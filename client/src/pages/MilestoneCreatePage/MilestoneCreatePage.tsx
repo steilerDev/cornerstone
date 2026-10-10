@@ -1,26 +1,23 @@
 import type { FormEvent } from 'react';
 import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { createMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './MilestoneCreatePage.module.css';
 import { routeUrl } from '@cornerstone/shared';
-
-const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard'), ns: 'common' },
-  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems'), ns: 'common' },
-  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems'), ns: 'common' },
-  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones'), ns: 'common' },
-];
 
 export function MilestoneCreatePage() {
   const { t } = useTranslation('schedule');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
+  const location = useLocation();
+  useDocumentTitle(tCommon('navigation.newMilestone'));
 
   const [formData, setFormData] = useState({
     title: '',
@@ -59,7 +56,10 @@ export function MilestoneCreatePage() {
         description: formData.description || undefined,
       });
 
-      navigate(routeUrl('milestone', { id: milestone.id }));
+      navigate(routeUrl('milestone', { id: milestone.id }), {
+        replace: true,
+        state: forwardOriginState(location.state),
+      });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -73,19 +73,14 @@ export function MilestoneCreatePage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.header}>
         <div className={styles.headerTitle}>
-          <Link to={routeUrl('milestones')} className={styles.backLink}>
-            {t('milestones.create.backLink')}
-          </Link>
-          <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
+          <h1 className={styles.pageTitle}>{tCommon('navigation.newMilestone')}</h1>
         </div>
       </div>
-      <SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />
 
       <form onSubmit={handleSubmit} className={styles.formCard} noValidate>
-        <h2 className={styles.formTitle}>{t('milestones.create.title')}</h2>
-
         {error && (
           <div className={styles.errorBanner} role="alert">
             {error}
@@ -155,7 +150,11 @@ export function MilestoneCreatePage() {
           >
             {isSubmitting ? t('milestones.create.submitting') : t('milestones.create.submit')}
           </button>
-          <Link to={routeUrl('milestones')} className={styles.cancelLink}>
+          <Link
+            to={originHrefOr(location.state, routeUrl('milestones'))}
+            replace
+            className={styles.cancelLink}
+          >
             {t('milestones.create.cancel')}
           </Link>
         </div>

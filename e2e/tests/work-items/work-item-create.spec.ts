@@ -2,8 +2,8 @@
  * E2E tests for Work Item Create page (/project/work-items/new)
  *
  * Scenarios covered:
- * 1. Page loads with h1 "Create Work Item"
- * 2. Back button navigates to /project/work-items
+ * 1. Page loads with h1 "New task"
+ * 2. "Tasks" breadcrumb navigates to /project/work-items
  * 3. Create work item with title only — success, redirects to detail
  * 4. Create work item with all major fields
  * 5. Submit without title shows validation error
@@ -17,24 +17,27 @@ import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 import { deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "Create Work Item"
+// Scenario 1: Page loads with h1 "New task"
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Create Work Item page loads with correct heading', async ({ page }) => {
+  test('New task page loads with correct heading', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
     await expect(createPage.heading).toBeVisible();
-    await expect(createPage.heading).toHaveText('Create Work Item');
+    await expect(createPage.heading).toHaveText('New task');
   });
 
-  test('Back button and Cancel button are visible on page load', async ({ page }) => {
+  test('"Tasks" breadcrumb and Cancel button are visible on page load', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
-    await expect(createPage.backButton).toBeVisible();
+    // #2202: the header back button is gone; the trail holds the parent only, and a fresh
+    // navigation has no origin, so there is no "Back to" link.
+    await createPage.breadcrumbs.expectTrail(['Tasks']);
+    await createPage.breadcrumbs.expectNoBack();
     await expect(createPage.cancelButton).toBeVisible();
   });
 
@@ -51,15 +54,15 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /project/work-items
+// Scenario 2: "Tasks" breadcrumb navigates to /project/work-items
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Work Items" button navigates to /project/work-items', async ({ page }) => {
+test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Tasks" breadcrumb navigates to /project/work-items', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
-    await createPage.backButton.click();
+    await createPage.breadcrumbs.trailLink('Tasks').click();
 
     await page.waitForURL('**/project/work-items');
     expect(page.url()).toContain('/project/work-items');
@@ -260,7 +263,7 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
     // No API cleanup needed — nothing was created
   });
 
-  test('Back button navigates to /project/work-items without creating a work item', async ({
+  test('Tasks breadcrumb navigates to /project/work-items without creating a work item', async ({
     page,
     testPrefix,
   }) => {
@@ -268,9 +271,9 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
 
     await createPage.goto();
 
-    // Partially fill then use back button
-    await createPage.fillTitle(`${testPrefix} Back Button Cancelled`);
-    await createPage.backButton.click();
+    // Partially fill then use the breadcrumb
+    await createPage.fillTitle(`${testPrefix} Breadcrumb Cancelled`);
+    await createPage.breadcrumbs.trailLink('Tasks').click();
 
     await page.waitForURL('**/project/work-items');
     expect(page.url()).toContain('/project/work-items');
@@ -282,9 +285,7 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
 // Scenario 7: Responsive — no horizontal scroll
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
-  test('Create Work Item page renders without horizontal scroll on current viewport', async ({
-    page,
-  }) => {
+  test('New task page renders without horizontal scroll on current viewport', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
@@ -308,12 +309,12 @@ test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
     await expect(createPage.submitButton).toBeVisible();
     await expect(createPage.cancelButton).toBeVisible();
 
-    // Back button accessible
-    await createPage.backButton.scrollIntoViewIfNeeded();
-    await expect(createPage.backButton).toBeVisible();
+    // Breadcrumb accessible
+    await createPage.breadcrumbs.trailLink('Tasks').scrollIntoViewIfNeeded();
+    await expect(createPage.breadcrumbs.trailLink('Tasks')).toBeVisible();
   });
 
-  test('Create Work Item form renders in dark mode without horizontal scroll', async ({ page }) => {
+  test('New task form renders in dark mode without horizontal scroll', async ({ page }) => {
     await page.goto(WORK_ITEM_CREATE_ROUTE);
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');

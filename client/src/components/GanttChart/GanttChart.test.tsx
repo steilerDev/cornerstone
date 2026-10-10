@@ -20,6 +20,7 @@
  */
 import { jest, describe, it, expect, beforeAll, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import type { GanttChart as GanttChartType, GanttChartProps } from './GanttChart.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 
@@ -182,14 +183,17 @@ function makeTimelineWithMilestones(): TimelineResponse {
 
 function renderGanttChart(props: Partial<GanttChartProps> = {}) {
   const defaultData = makeTimeline();
+  // The tooltip's "View item" link carries origin state (useOriginState), so it needs a router.
   return render(
-    <GanttChart
-      data={defaultData}
-      zoom="month"
-      showArrows={true}
-      highlightCriticalPath={false}
-      {...props}
-    />,
+    <MemoryRouter>
+      <GanttChart
+        data={defaultData}
+        zoom="month"
+        showArrows={true}
+        highlightCriticalPath={false}
+        {...props}
+      />
+    </MemoryRouter>,
   );
 }
 

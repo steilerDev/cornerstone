@@ -9,6 +9,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render as rtlRender, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import type * as CalendarItemTypes from './CalendarItem.js';
 
@@ -648,6 +649,46 @@ describe('CalendarItem', () => {
         </MemoryRouter>,
       );
       expect(() => fireEvent.click(screen.getByTestId('calendar-item'))).not.toThrow();
+    });
+  });
+
+  // ── Origin (#2202): Back to the exact calendar URL ────────────────────────
+
+  describe('origin on click', () => {
+    function renderProbed() {
+      return render(
+        <MemoryRouter initialEntries={['/schedule/calendar?calendarMode=week']}>
+          <CalendarItem item={makeItem({ id: 'item-abc' })} isStart isEnd />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+    }
+
+    it('opens the task with the calendar URL (incl. query) as origin, no name', () => {
+      renderProbed();
+
+      fireEvent.click(screen.getByTestId('calendar-item'));
+
+      expect(probedPath()).toBe('/project/work-items/item-abc');
+      expect(probedOrigin()).toEqual({ to: '/schedule/calendar?calendarMode=week' });
+    });
+
+    it('carries the same origin when opened with Enter', () => {
+      renderProbed();
+
+      fireEvent.keyDown(screen.getByTestId('calendar-item'), { key: 'Enter' });
+
+      expect(probedPath()).toBe('/project/work-items/item-abc');
+      expect(probedOrigin()).toEqual({ to: '/schedule/calendar?calendarMode=week' });
+    });
+
+    it('no longer sends the old from/view state', () => {
+      renderProbed();
+
+      fireEvent.click(screen.getByTestId('calendar-item'));
+
+      expect(screen.getByTestId('probe-state').textContent).not.toContain('"from"');
+      expect(screen.getByTestId('probe-state').textContent).not.toContain('"view"');
     });
   });
 });

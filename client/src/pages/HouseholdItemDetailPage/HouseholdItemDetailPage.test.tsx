@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
 import type {
@@ -280,7 +280,14 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+      <div data-testid="location-state">{JSON.stringify(location.state)}</div>
+    </>
+  );
 }
 
 describe('HouseholdItemDetailPage', () => {
@@ -395,9 +402,12 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  function renderPage(itemId = 'item-1') {
+  function renderPage(
+    itemId = 'item-1',
+    entry: string | { pathname: string; state?: unknown } = `/project/household-items/${itemId}`,
+  ) {
     return render(
-      <MemoryRouter initialEntries={[`/project/household-items/${itemId}`]}>
+      <MemoryRouter initialEntries={[entry]}>
         <Routes>
           <Route
             path="/project/household-items/:id"
@@ -448,30 +458,29 @@ describe('HouseholdItemDetailPage', () => {
   });
 
   describe('404 error state', () => {
-    it('shows "Item Not Found" heading when item returns 404', async () => {
+    it('shows the "Purchase not found" h1 when item returns 404', async () => {
       mockGetHouseholdItem.mockRejectedValue(
         new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
       );
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByText('Item Not Found')).toBeInTheDocument();
-      });
+      expect(
+        await screen.findByRole('heading', { name: 'Purchase not found', level: 1 }),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     });
 
-    it('shows "Back to Household Items" button in 404 state', async () => {
+    it('shows "Back to Purchases" button in 404 state', async () => {
       mockGetHouseholdItem.mockRejectedValue(
         new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
       );
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByText('Item Not Found')).toBeInTheDocument();
-      });
+      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
 
-      const backLink = screen.getByRole('button', { name: /back to household items/i });
+      const backLink = screen.getByRole('button', { name: 'Back to Purchases' });
       expect(backLink).toBeInTheDocument();
     });
   });
@@ -632,15 +641,18 @@ describe('HouseholdItemDetailPage', () => {
       expect(dateMatches.length).toBeGreaterThan(0);
     });
 
-    it('renders back button to household items list', async () => {
+    it('has no back or To Schedule buttons; the breadcrumb replaces them', async () => {
       mockGetHouseholdItem.mockResolvedValue(makeItem());
 
       renderPage();
 
-      await waitFor(() => {
-        const backButton = screen.getByRole('button', { name: /back to household items/i });
-        expect(backButton).toBeInTheDocument();
-      });
+      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
+      expect(
+        screen.queryByRole('button', { name: /back to household items/i }),
+      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to household items/i })).not.toBeInTheDocument();
     });
   });
 
@@ -873,6 +885,7 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
       });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
 
     it('calls deleteHouseholdItem with correct item id', async () => {
@@ -1504,9 +1517,7 @@ describe('HouseholdItemDetailPage', () => {
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByText('Item Not Found')).toBeInTheDocument();
-      });
+      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
 
       expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument();
     });
@@ -2255,6 +2266,149 @@ describe('HouseholdItemDetailPage', () => {
         await screen.findByText(enHouseholdItems.detail.errors.deleteFailed),
       ).toBeInTheDocument();
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
+
+    it('shows one h1 with the purchase name and sets the tab title', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      expect(await screen.findByRole('heading', { name: 'Standing Desk', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      await waitFor(() =>
+        expect(document.title).toBe('Standing Desk \u00B7 Purchases \u00B7 Cornerstone'),
+      );
+    });
+
+    it('falls back to "Untitled purchase" for a whitespace-only name', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ name: '   ' }));
+
+      renderPage();
+
+      expect(
+        await screen.findByRole('heading', { name: 'Untitled purchase', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+    });
+
+    it('shows the typed h1 "Purchase" with the breadcrumb while loading', async () => {
+      mockGetHouseholdItem.mockReturnValue(new Promise(() => {}));
+
+      renderPage();
+
+      expect(screen.getByRole('heading', { name: 'Purchase', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('link', { name: /Purchases/ })).toHaveAttribute(
+        'href',
+        '/project/household-items',
+      );
+      await waitFor(() =>
+        expect(document.title).toBe('Purchase \u00B7 Purchases \u00B7 Cornerstone'),
+      );
+    });
+
+    it('shows h1 "Purchase" above the error card (which keeps its h2) with Back and Retry', async () => {
+      mockGetHouseholdItem.mockRejectedValue(new Error('Network error'));
+
+      renderPage();
+
+      expect(await screen.findByRole('heading', { name: 'Error', level: 2 })).toBeVisible();
+      expect(screen.getByRole('heading', { name: 'Purchase', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Back to Purchases' })).toBeVisible();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+    });
+
+    it('keeps the breadcrumb in the 404 state', async () => {
+      mockGetHouseholdItem.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Item not found' }),
+      );
+
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Purchase not found', level: 1 });
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+    });
+
+    it('trails only Purchases (never the purchase name) and shows no Back without origin', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(nav).not.toHaveTextContent('Standing Desk');
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('offers Back to the exact Calendar URL the user came from', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage('item-1', {
+        pathname: '/project/household-items/item-1',
+        state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
+      });
+
+      await screen.findByRole('heading', { name: 'Standing Desk', level: 1 });
+      expect(screen.getByRole('link', { name: /Back to Calendar/ })).toHaveAttribute(
+        'href',
+        '/schedule/calendar?calendarMode=week',
+      );
+    });
+
+    it('passes origin (with the purchase name) to the Edit page', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: /edit/i }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          '/project/household-items/item-1/edit',
+        ),
+      );
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+      });
+    });
+
+    it('passes origin (with the purchase name) to a dependency predecessor task link', async () => {
+      const user = userEvent.setup();
+      const dep: HouseholdItemDepDetail = {
+        householdItemId: 'item-1',
+        predecessorType: 'work_item',
+        predecessorId: 'wi-abc-123',
+        predecessor: {
+          id: 'wi-abc-123',
+          title: 'Install desk',
+          status: 'in_progress',
+          endDate: '2026-04-15',
+          area: null,
+        },
+      };
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([dep]);
+
+      renderPage();
+
+      await user.click(await screen.findByRole('link', { name: 'Install desk' }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/work-items/wi-abc-123'),
+      );
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+      });
     });
   });
 });

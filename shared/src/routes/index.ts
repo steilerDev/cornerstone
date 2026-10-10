@@ -22,11 +22,16 @@ export type {
 } from './routeUrl.js';
 export {
   LIVE_REDIRECT_ROUTES,
+  applyQueryMap,
   conditionHolds,
   effectiveTarget,
   liveConditionalRules,
+  liveQueryMaps,
+  queryMatches,
   resolveRedirect,
+  resolveRedirectRule,
 } from './redirects.js';
-export type { LiveRedirectRoute, RouteGateContext } from './redirects.js';
-export { baseFrom, matchLocation, matchPattern, resolveLocation } from './match.js';
+export type { LiveQueryMap, LiveRedirectRoute, RouteGateContext } from './redirects.js';
+export { baseFrom } from './paths.js';
+export { matchLocation, matchPattern, resolveLocation } from './match.js';
 export type { RouteContext, RouteResolution } from './match.js';

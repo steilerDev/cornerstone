@@ -22,6 +22,7 @@
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .action {

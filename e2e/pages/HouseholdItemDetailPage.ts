@@ -4,7 +4,7 @@
  * EPIC-04 Story 4.5: Detail Page
  *
  * The page renders:
- * - A back link "← Household Items" navigating to /project/household-items
+ * - Breadcrumbs (Story #2202): trail "Purchases" + optional "Back to {origin}" (see `breadcrumbs`)
  * - h1 with the item name (inline-editable via autosave)
  * - An "Edit" button (navigates to /project/household-items/:id/edit)
  * - A status badge showing current status
@@ -16,7 +16,6 @@
  *
  * Key DOM observations from source code:
  * - h1 is the item name (autosave inline editable via contentEditable)
- * - Back link is a <Link> (not a button) with text "← Household Items"
  * - Edit button navigates to /project/household-items/:id/edit
  * - Delete confirmation modal uses role="dialog"
  * - Budget section h2: "Budget" (rendered conditionally based on budget lines)
@@ -28,13 +27,14 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export class HouseholdItemDetailPage {
   readonly page: Page;
 
   // Page header
   readonly heading: Locator;
-  readonly backLink: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
   readonly editButton: Locator;
 
   // Area breadcrumb nav locator (kept for negative assertions after fix/1278)
@@ -59,13 +59,9 @@ export class HouseholdItemDetailPage {
     // h1 heading — the item name (editable)
     this.heading = page.getByRole('heading', { level: 1 });
 
-    // Back button navigates to the household items list.
-    // NOTE: The AppShell sidebar also has a "Household Items" nav link.
-    // The back button is in a navButtons container above the heading.
-    // Scope to the navButtons container to avoid matching sidebar links.
-    this.backLink = page.locator('[class*="navButtons"]').getByRole('button', {
-      name: /back to household items/i,
-    });
+    // Story #2202: the swapping back/"To Schedule" buttons are gone; the shared
+    // Breadcrumbs row (trail + origin-aware Back) replaces them.
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Edit button — located in the pageActions area; class="editButton"
     // Multiple "Edit" buttons may exist (budget line edit). Use first() to get the page-level one.

@@ -415,7 +415,7 @@ test.describe('Calendar dark mode (Scenario 10)', { tag: '@responsive' }, () => 
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
-      await timelinePage.heading.waitFor({ state: 'visible' });
+      await timelinePage.calendarHeading.waitFor({ state: 'visible' });
       await timelinePage.calendarView.waitFor({ state: 'visible' });
 
       await expect(timelinePage.calendarView).toBeVisible();
@@ -452,7 +452,7 @@ test.describe('URL route persistence (Scenario 11)', () => {
     const timelinePage = new TimelinePage(page);
 
     await page.goto('/schedule/calendar?calendarMode=week');
-    await timelinePage.heading.waitFor({ state: 'visible' });
+    await timelinePage.calendarHeading.waitFor({ state: 'visible' });
     await timelinePage.calendarView.waitFor({ state: 'visible' });
 
     await expect(timelinePage.calendarWeekButton).toHaveAttribute('aria-pressed', 'true');

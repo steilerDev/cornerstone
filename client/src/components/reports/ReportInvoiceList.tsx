@@ -14,6 +14,7 @@ import { IconLinkButton } from '../IconLinkButton/IconLinkButton.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getSourceBadgeStyleKey } from '../../lib/budgetSourceColors.js';
 import BadgeStyles from '../Badge/Badge.module.css';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './ReportInvoiceList.module.css';
 
 interface ReportInvoiceListProps {
@@ -36,6 +37,7 @@ export function ReportInvoiceList({
   t,
 }: ReportInvoiceListProps) {
   const { formatCurrency, formatDate } = useFormatters();
+  const originState = useOriginState();
   const [unallocatedExpanded, setUnallocatedExpanded] = useState(false);
   const [expandedInvoiceIds, setExpandedInvoiceIds] = useState<Set<string>>(() => new Set());
   const lastExpandedIdRef = useRef<string | null>(null);
@@ -346,6 +348,7 @@ export function ReportInvoiceList({
                                           ? routeUrl('workItem', { id: line.linkedItem.id })
                                           : routeUrl('householdItem', { id: line.linkedItem.id })
                                       }
+                                      state={originState}
                                       className={styles.linkedItemLink}
                                     >
                                       {line.linkedItem.name}
@@ -406,6 +409,7 @@ export function ReportInvoiceList({
                                       ? routeUrl('workItem', { id: line.linkedItem.id })
                                       : routeUrl('householdItem', { id: line.linkedItem.id })
                                   }
+                                  state={originState}
                                   className={styles.linkedItemLink}
                                 >
                                   {line.linkedItem.name}

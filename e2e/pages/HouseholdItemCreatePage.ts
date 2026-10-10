@@ -6,8 +6,8 @@
  *                     tags removed; categories updated (hic-outdoor + hic-storage removed, hic-equipment added)
  *
  * The page renders:
- * - A header with a back button ("← Back to Household Items", a <button>)
- *   and h1 "New Household Item"
+ * - Breadcrumbs (Story #2202): trail "Purchases" + optional "Back to {origin}" (no header back button)
+ *   and h1 "New purchase"
  * - A form with household item fields:
  *   - #name (text, required) — shows validation error when empty on submit
  *   - #description (textarea)
@@ -30,6 +30,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export const HOUSEHOLD_ITEM_CREATE_ROUTE = routeUrl('householdItemNew');
 
@@ -54,7 +55,7 @@ export class HouseholdItemCreatePage {
 
   // Header
   readonly heading: Locator;
-  readonly backButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Form fields
   readonly nameInput: Locator;
@@ -84,10 +85,10 @@ export class HouseholdItemCreatePage {
     // Header
     this.heading = page.getByRole('heading', {
       level: 1,
-      name: 'New Household Item',
+      name: 'New purchase',
       exact: true,
     });
-    this.backButton = page.getByRole('button', { name: /← Back to Household Items/i });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Form fields
     this.nameInput = page.locator('#name');

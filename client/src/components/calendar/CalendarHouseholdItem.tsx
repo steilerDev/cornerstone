@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useFormatters } from '../../lib/formatters.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import type { TimelineHouseholdItem } from '@cornerstone/shared';
 import styles from './CalendarHouseholdItem.module.css';
 
@@ -53,9 +54,10 @@ export function CalendarHouseholdItem({
   const { purchase } = useStatusBadgeVariants();
   const { formatDate } = useFormatters();
   const navigate = useNavigate();
+  const originState = useOriginState();
 
   function handleNavigate() {
-    navigate(routeUrl('householdItem', { id: item.id }));
+    navigate(routeUrl('householdItem', { id: item.id }), { state: originState });
   }
 
   function handleClick() {

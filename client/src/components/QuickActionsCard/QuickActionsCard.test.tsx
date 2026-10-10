@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type * as CardTypes from './QuickActionsCard.js';
 
@@ -98,5 +99,22 @@ describe('QuickActionsCard', () => {
     expect(screen.queryByText(/loading/i)).toBeNull();
     // No error indicator
     expect(screen.queryByText(/error/i)).toBeNull();
+  });
+
+  // ── Origin (#2202) ───────────────────────────────────────────────────────
+
+  it('opens the create page with the Home URL (incl. query) as origin, no name', () => {
+    renderWithRouter(
+      <>
+        <QuickActionsCard />
+        <OriginProbe />
+      </>,
+      { initialEntries: ['/project/overview?x=1'] },
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: /new work item/i }));
+
+    expect(probedPath()).toBe('/project/work-items/new');
+    expect(probedOrigin()).toEqual({ to: '/project/overview?x=1' });
   });
 });

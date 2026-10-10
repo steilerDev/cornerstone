@@ -36,6 +36,12 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
+// Mock HouseNameContext — a saved household name is pushed into the browser title (PLT-092)
+const mockSetHouseName = jest.fn<(name: string | null) => void>();
+jest.unstable_mockModule('../../contexts/HouseNameContext.js', () => ({
+  useHouseName: () => ({ houseName: null, setHouseName: mockSetHouseName }),
+}));
+
 const mockUseAreas = jest.fn<typeof UseAreasTypes.useAreas>();
 jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
   useAreas: mockUseAreas,
@@ -303,6 +309,7 @@ describe('ManagePage', () => {
     mockDeleteHICCategory.mockReset();
     mockFetchHouseholdSettings.mockReset();
     mockUpdateHouseholdSettings.mockReset();
+    mockSetHouseName.mockReset();
     mockUseAuth.mockReset();
 
     // Default: admin user so all settings tabs are visible
@@ -2135,6 +2142,49 @@ describe('ManagePage', () => {
       await waitFor(() => {
         expect(screen.getByText('Household information updated successfully')).toBeInTheDocument();
       });
+      expect(mockSetHouseName).toHaveBeenCalledTimes(1);
+      expect(mockSetHouseName).toHaveBeenCalledWith('New Household');
+    });
+
+    it('pushes a cleared household name into the browser title as null', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Old',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockResolvedValueOnce({
+        householdName: null,
+        householdAddress: null,
+      });
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+      const nameInput = await screen.findByLabelText('Household Name');
+      await waitFor(() => expect(nameInput).toHaveValue('Old'));
+
+      await user.clear(nameInput);
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(mockSetHouseName).toHaveBeenCalledWith(null));
+    });
+
+    it('does not touch the browser title when the save fails', async () => {
+      mockFetchHouseholdSettings.mockResolvedValueOnce({
+        householdName: 'Original',
+        householdAddress: null,
+      });
+      mockUpdateHouseholdSettings.mockRejectedValueOnce(new Error('Network failure'));
+
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+      const nameInput = await screen.findByLabelText('Household Name');
+      await waitFor(() => expect(nameInput).toHaveValue('Original'));
+
+      await user.type(nameInput, ' two');
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(mockUpdateHouseholdSettings).toHaveBeenCalled());
+      await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+      expect(mockSetHouseName).not.toHaveBeenCalled();
     });
 
     it('trims whitespace and converts an empty field to null on save', async () => {

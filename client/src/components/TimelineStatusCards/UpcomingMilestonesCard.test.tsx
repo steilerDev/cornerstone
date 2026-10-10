@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type { TimelineMilestone } from '@cornerstone/shared';
 
@@ -239,5 +240,24 @@ describe('UpcomingMilestonesCard', () => {
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', '/project/milestones/42');
     expect(link).not.toHaveAttribute('href', expect.stringContaining('/schedule/'));
+  });
+
+  // ── Origin (#2202): Back to Home from the opened milestone ────────────────
+
+  it('opens a milestone with the Home URL as origin, no name', () => {
+    renderWithRouter(
+      <>
+        <UpcomingMilestonesCard
+          milestones={[{ ...baseMilestone, id: 42, title: 'Roof Complete' }]}
+        />
+        <OriginProbe />
+      </>,
+      { initialEntries: ['/project/overview'] },
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: 'Roof Complete' }));
+
+    expect(probedPath()).toBe('/project/milestones/42');
+    expect(probedOrigin()).toEqual({ to: '/project/overview' });
   });
 });

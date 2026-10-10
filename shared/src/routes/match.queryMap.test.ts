@@ -64,10 +64,10 @@ beforeAll(async () => {
 });
 
 describe('resolveLocation with live query-map entries', () => {
-  it('redirects when a query key has the required value, keeping the other pairs and hash', () => {
+  it('redirects when a query key has the required value, consuming the matched key and keeping the other pairs and hash', () => {
     expect(resolveLocation('/diary?filterMode=all&q=x#h', CTX)).toMatchObject({
       kind: 'redirect',
-      to: '/history?filterMode=all&q=x&include=diary#h',
+      to: '/history?q=x&include=diary#h',
     });
   });
 
@@ -82,7 +82,7 @@ describe('resolveLocation with live query-map entries', () => {
   it('matches a key present with any value and substitutes path params', () => {
     expect(resolveLocation('/items/7?depError=boom', CTX)).toMatchObject({
       kind: 'redirect',
-      to: '/items/7?depError=boom&tab=timing',
+      to: '/items/7?tab=timing',
     });
   });
 

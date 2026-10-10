@@ -677,7 +677,7 @@ test.describe('Documentation screenshots', () => {
   });
 
   test('Timeline calendar view', async ({ page }) => {
-    await page.goto(`${baseUrl}${ROUTES.timeline}?view=calendar`);
+    await page.goto(`${baseUrl}/schedule/calendar`);
     await page.waitForLoadState('networkidle');
     await page.waitForTimeout(500);
 

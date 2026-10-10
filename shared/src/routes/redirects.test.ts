@@ -4,7 +4,11 @@ import {
   conditionHolds,
   effectiveTarget,
   liveConditionalRules,
+  liveQueryMaps,
+  applyQueryMap,
+  queryMatches,
   resolveRedirect,
+  resolveRedirectRule,
   type RouteGateContext,
 } from './redirects.js';
 import { ROUTE_MAP } from './routeMap.js';
@@ -62,10 +66,18 @@ describe('LIVE_REDIRECT_ROUTES', () => {
     expect(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
   });
 
-  it('carries only from and target', () => {
+  it('carries only from, target and queryMaps', () => {
     for (const route of LIVE_REDIRECT_ROUTES) {
-      expect(Object.keys(route).sort()).toEqual(['from', 'target']);
+      expect(Object.keys(route).sort()).toEqual(['from', 'queryMaps', 'target']);
     }
+  });
+
+  it('gives only /schedule a non-empty queryMaps list (the calendar map)', () => {
+    const withMaps = LIVE_REDIRECT_ROUTES.filter((r) => r.queryMaps.length > 0);
+    expect(withMaps.map((r) => r.from)).toEqual(['/schedule']);
+    expect(withMaps[0]?.queryMaps).toEqual([
+      { query: { view: 'calendar' }, target: '/schedule/calendar' },
+    ]);
   });
 });
 
@@ -152,7 +164,9 @@ describe('liveConditionalRules', () => {
   it('returns exactly the live Paperless-off rule for the review page', () => {
     const rules = liveConditionalRules('invoicePaperlessReview');
     expect(rules).toHaveLength(1);
-    expect(rules[0]).toBe(ROUTE_MAP[83]);
+    expect(rules[0]).toBe(
+      ROUTE_MAP.find((e) => e.from === '/budget/invoices/new/paperless (Paperless off)'),
+    );
     expect(rules[0]?.match?.condition).toBe('paperless-off');
   });
 
@@ -192,5 +206,100 @@ describe('conditionHolds', () => {
 
   it('throws for not-admin (RoleGuard owns it)', () => {
     expect(() => conditionHolds('not-admin', ctx(true, true))).toThrow('RoleGuard');
+  });
+});
+
+describe('queryMatches', () => {
+  it('matches an equal string value', () => {
+    expect(queryMatches({ view: 'calendar' }, '?view=calendar')).toBe(true);
+  });
+
+  it('rejects a different value', () => {
+    expect(queryMatches({ view: 'calendar' }, '?view=gantt')).toBe(false);
+  });
+
+  it('matches true for a present key, even with an empty value', () => {
+    expect(queryMatches({ depError: true }, '?depError=')).toBe(true);
+    expect(queryMatches({ depError: true }, '?depError=boom')).toBe(true);
+  });
+
+  it('rejects a missing key', () => {
+    expect(queryMatches({ depError: true }, '?other=1')).toBe(false);
+    expect(queryMatches({ view: 'calendar' }, '')).toBe(false);
+  });
+
+  it('requires every key to hold', () => {
+    expect(queryMatches({ a: '1', b: true }, '?a=1')).toBe(false);
+    expect(queryMatches({ a: '1', b: true }, '?a=1&b=x')).toBe(true);
+  });
+});
+
+describe('applyQueryMap', () => {
+  const calendar = { query: { view: 'calendar' }, target: '/schedule/calendar' } as const;
+
+  it('consumes only the matched keys', () => {
+    expect(applyQueryMap(calendar, {}, '?view=calendar&q=1', '')).toBe('/schedule/calendar?q=1');
+  });
+
+  it('keeps the hash', () => {
+    expect(applyQueryMap(calendar, {}, '?view=calendar&q=1', '#h')).toBe(
+      '/schedule/calendar?q=1#h',
+    );
+  });
+
+  it('adds no question mark when nothing remains', () => {
+    expect(applyQueryMap(calendar, {}, '?view=calendar', '')).toBe('/schedule/calendar');
+  });
+
+  it('substitutes path params', () => {
+    const map = { query: { depError: true }, target: '/items/:id?tab=timing' } as const;
+    expect(applyQueryMap(map, { id: '7' }, '?depError=x&z=1', '')).toBe('/items/7?z=1&tab=timing');
+  });
+});
+
+describe('liveQueryMaps', () => {
+  it('returns the calendar map for /schedule, in map order', () => {
+    expect(liveQueryMaps('/schedule')).toEqual([
+      { query: { view: 'calendar' }, target: '/schedule/calendar' },
+    ]);
+  });
+
+  it('ignores planned query maps and unrelated base paths', () => {
+    expect(liveQueryMaps('/diary')).toEqual([]);
+    expect(liveQueryMaps('/nowhere')).toEqual([]);
+  });
+});
+
+describe('resolveRedirectRule', () => {
+  const rule = LIVE_REDIRECT_ROUTES.find((r) => r.from === '/schedule');
+
+  it('lets the calendar map win', () => {
+    expect(rule).toBeDefined();
+    if (!rule) return;
+    expect(resolveRedirectRule(rule, {}, '?view=calendar&q=1', '#h')).toBe(
+      '/schedule/calendar?q=1#h',
+    );
+  });
+
+  it('falls back to the plain target for another view value, carrying the pair', () => {
+    if (!rule) throw new Error('missing /schedule rule');
+    expect(resolveRedirectRule(rule, {}, '?view=gantt', '')).toBe('/schedule/gantt?view=gantt');
+  });
+
+  it('keeps the incoming pair order on the plain target', () => {
+    if (!rule) throw new Error('missing /schedule rule');
+    expect(resolveRedirectRule(rule, {}, '?b=2&a=1', '')).toBe('/schedule/gantt?b=2&a=1');
+  });
+
+  it('uses the first matching map when several match', () => {
+    const synthetic = {
+      from: '/x',
+      target: '/plain',
+      queryMaps: [
+        { query: { a: true }, target: '/first' },
+        { query: { a: true }, target: '/second' },
+      ],
+    } as const;
+    expect(resolveRedirectRule(synthetic, {}, '?a=1', '')).toBe('/first');
   });
 });

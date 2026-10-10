@@ -4,8 +4,8 @@
  * EPIC-04 Story 4.4: Create & Edit Form
  *
  * Scenarios covered:
- * 1.  Page loads with h1 "New Household Item"
- * 2.  Back button navigates to /project/household-items
+ * 1.  Page loads with h1 "New purchase"
+ * 2.  "Purchases" breadcrumb navigates to /project/household-items
  * 3.  All primary form fields are visible
  * 4.  Create item with name only — success, redirects to detail page
  * 5.  Create item with all major fields — success
@@ -27,36 +27,37 @@ import { deleteHouseholdItemViaApi } from '../../fixtures/apiHelpers.js';
 // Scenario 1: Page loads with correct heading
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('New Household Item page loads with correct heading', async ({ page }) => {
+  test('New purchase page loads with correct heading', async ({ page }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();
 
     await expect(createPage.heading).toBeVisible();
-    await expect(createPage.heading).toHaveText('New Household Item');
+    await expect(createPage.heading).toHaveText('New purchase');
   });
 
-  test('Back button and Cancel button are visible on page load', async ({ page }) => {
+  test('"Purchases" breadcrumb and Cancel button are visible on page load', async ({ page }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();
 
-    await expect(createPage.backButton).toBeVisible();
+    // #2202: no header back button; the trail holds the parent only and a fresh
+    // navigation has no origin, so no "Back to" link.
+    await createPage.breadcrumbs.expectTrail(['Purchases']);
+    await createPage.breadcrumbs.expectNoBack();
     await expect(createPage.cancelButton).toBeVisible();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /project/household-items
+// Scenario 2: "Purchases" breadcrumb navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"← Back to Household Items" button navigates to /project/household-items', async ({
-    page,
-  }) => {
+test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Purchases" breadcrumb navigates to /project/household-items', async ({ page }) => {
     const createPage = new HouseholdItemCreatePage(page);
 
     await createPage.goto();
-    await createPage.backButton.click();
+    await createPage.breadcrumbs.trailLink('Purchases').click();
 
     await page.waitForURL('**/project/household-items');
     expect(page.url()).toContain('/project/household-items');
@@ -247,9 +248,9 @@ test.describe('Cancel navigation (Scenario 9)', { tag: '@responsive' }, () => {
 // Scenario 10: Responsive — no horizontal scroll
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
-  test('New Household Item page renders without horizontal scroll', async ({ page }) => {
+  test('New purchase page renders without horizontal scroll', async ({ page }) => {
     await page.goto(HOUSEHOLD_ITEM_CREATE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'New Household Item' }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'New purchase' }).waitFor({
       state: 'visible',
       timeout: 10000,
     });
@@ -266,7 +267,7 @@ test.describe('Responsive layout (Scenario 10)', { tag: '@responsive' }, () => {
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
-    await page.getByRole('heading', { level: 1, name: 'New Household Item' }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'New purchase' }).waitFor({
       state: 'visible',
       timeout: 10000,
     });

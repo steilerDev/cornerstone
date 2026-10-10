@@ -1,6 +1,7 @@
 // Redirect helpers (EPIC-21, ADR-038): everything the router needs to serve legacy URLs in one
 // hop, generated from the route map. Self-contained: imports only './*.js' siblings.
 
+import { baseFrom } from './paths.js';
 import { ROUTE_MAP } from './routeMap.js';
 import type { RouteId } from './routeUrl.js';
 import type { RouteCondition, RouteMapEntry } from './types.js';
@@ -19,16 +20,39 @@ export function effectiveTarget(entry: RouteMapEntry): string | null {
   return null;
 }
 
+/** A live query-map redirect on a base path (`/schedule?view=calendar` -> `/schedule/calendar`). */
+export interface LiveQueryMap {
+  /** Every key must hold; a string is an exact value, `true` means present with any value. */
+  readonly query: Readonly<Record<string, string | true>>;
+  readonly target: string;
+}
+
 export interface LiveRedirectRoute {
   readonly from: string;
   readonly target: string;
+  /** Live query maps on this base path, first match wins; empty for most routes. */
+  readonly queryMaps: readonly LiveQueryMap[];
+}
+
+/** Live (stage done) query maps with no condition whose base path is `basePath`, in map order. */
+export function liveQueryMaps(basePath: string): readonly LiveQueryMap[] {
+  return ENTRIES.flatMap((entry) =>
+    entry.stage === 'done' &&
+    entry.match?.query !== undefined &&
+    entry.match.condition === undefined &&
+    baseFrom(entry.from) === basePath
+      ? [{ query: entry.match.query, target: entry.to }]
+      : [],
+  );
 }
 
 /** Every plain redirect the router serves today, in route-map order. */
 export const LIVE_REDIRECT_ROUTES: readonly LiveRedirectRoute[] = ENTRIES.flatMap((entry) => {
   if (entry.stage === 'planned' || entry.match) return [];
   const target = effectiveTarget(entry);
-  return target === null ? [] : [{ from: entry.from, target }];
+  return target === null
+    ? []
+    : [{ from: entry.from, target, queryMaps: liveQueryMaps(entry.from) }];
 });
 
 /**
@@ -60,6 +84,40 @@ export function resolveRedirect(
   const queryText = query.toString();
 
   return path + (queryText ? `?${queryText}` : '') + (targetHash || hash);
+}
+
+/** Every key of `query` holds in `search` (string = equal value; true = present). */
+export function queryMatches(query: LiveQueryMap['query'], search: string): boolean {
+  const incoming = new URLSearchParams(search);
+  return Object.entries(query).every(([key, expected]) =>
+    expected === true ? incoming.has(key) : incoming.get(key) === expected,
+  );
+}
+
+/** Removes the matched keys from `search`, then resolves the map target (query maps consume keys). */
+export function applyQueryMap(
+  map: LiveQueryMap,
+  params: Readonly<Record<string, string | undefined>>,
+  search: string,
+  hash: string,
+): string {
+  const rest = new URLSearchParams(search);
+  for (const key of Object.keys(map.query)) rest.delete(key);
+  const restText = rest.toString();
+  return resolveRedirect(map.target, params, restText ? `?${restText}` : '', hash);
+}
+
+/** First matching query map wins; otherwise the plain redirect target. */
+export function resolveRedirectRule(
+  rule: LiveRedirectRoute,
+  params: Readonly<Record<string, string | undefined>>,
+  search: string,
+  hash: string,
+): string {
+  const map = rule.queryMaps.find((m) => queryMatches(m.query, search));
+  return map
+    ? applyQueryMap(map, params, search, hash)
+    : resolveRedirect(rule.target, params, search, hash);
 }
 
 /** Live (stage done) conditional rules, other than the role guard, that apply to a page id. */

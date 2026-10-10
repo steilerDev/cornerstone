@@ -180,11 +180,57 @@ describe('NAV_LABEL_KEYS', () => {
     }
   });
 
-  it('has no navigation key in either locale that the tuple does not declare', () => {
-    const declared = new Set<string>(NAV_LABEL_KEYS.map((k) => k.replace('navigation.', '')));
+  // Page-identity words (#2202): h1 fallbacks, trail/Back wording, not-found titles. They live in
+  // `navigation.*` but are not nav labels, so the tuple does not declare them.
+  const PAGE_IDENTITY_KEYS = [
+    'youAreHere',
+    'backTo',
+    'task',
+    'purchase',
+    'milestone',
+    'untitledTask',
+    'untitledPurchase',
+    'untitledMilestone',
+    'newTask',
+    'newPurchase',
+    'newMilestone',
+    'editPurchase',
+    'taskNotFound',
+    'purchaseNotFound',
+  ] as const;
+
+  it('has no navigation key in either locale that the tuple or the page-identity words do not declare', () => {
+    const declared = new Set<string>([
+      ...NAV_LABEL_KEYS.map((k) => k.replace('navigation.', '')),
+      ...PAGE_IDENTITY_KEYS,
+    ]);
     for (const tree of [enCommon, deCommon]) {
       const keys = Object.keys((tree as { navigation: Record<string, string> }).navigation);
       expect(keys.filter((k) => !declared.has(k))).toEqual([]);
+    }
+  });
+
+  it('has every page-identity word, non-empty, in both locales', () => {
+    for (const [locale, tree] of [
+      ['en', enCommon],
+      ['de', deCommon],
+    ] as const) {
+      const navigation = (tree as { navigation: Record<string, string> }).navigation;
+      for (const key of PAGE_IDENTITY_KEYS) {
+        expect({ locale, key, value: typeof navigation[key] }).toEqual({
+          locale,
+          key,
+          value: 'string',
+        });
+        expect((navigation[key] ?? '').trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it('keeps the {{origin}} placeholder verbatim in "Back to ..." in both locales', () => {
+    for (const tree of [enCommon, deCommon]) {
+      const navigation = (tree as { navigation: Record<string, string> }).navigation;
+      expect(navigation.backTo).toContain('{{origin}}');
     }
   });
 });

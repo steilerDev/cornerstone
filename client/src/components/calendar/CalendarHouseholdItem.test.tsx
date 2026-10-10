@@ -11,6 +11,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render as rtlRender, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { TimelineHouseholdItem } from '@cornerstone/shared';
 import type * as CalendarHouseholdItemTypes from './CalendarHouseholdItem.js';
 
@@ -439,6 +440,37 @@ describe('CalendarHouseholdItem', () => {
       unmount();
       renderHI();
       expect(screen.getByTestId('calendar-hi-item').className).not.toContain('touchSized');
+    });
+  });
+
+  // ── Origin (#2202): calendar purchases now pass their origin ──────────────
+
+  describe('origin on click', () => {
+    function renderProbed() {
+      return render(
+        <MemoryRouter initialEntries={['/schedule/calendar?calendarMode=week']}>
+          <CalendarHouseholdItem item={makeHouseholdItem({ id: 'hi-origin' })} />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+    }
+
+    it('opens the purchase with the calendar URL (incl. query) as origin, no name', () => {
+      renderProbed();
+
+      fireEvent.click(screen.getByTestId('calendar-hi-item'));
+
+      expect(probedPath()).toBe('/project/household-items/hi-origin');
+      expect(probedOrigin()).toEqual({ to: '/schedule/calendar?calendarMode=week' });
+    });
+
+    it('carries the same origin when opened with Enter', () => {
+      renderProbed();
+
+      fireEvent.keyDown(screen.getByTestId('calendar-hi-item'), { key: 'Enter' });
+
+      expect(probedPath()).toBe('/project/household-items/hi-origin');
+      expect(probedOrigin()).toEqual({ to: '/schedule/calendar?calendarMode=week' });
     });
   });
 });

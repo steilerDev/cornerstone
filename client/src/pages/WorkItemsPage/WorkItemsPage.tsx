@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -39,6 +40,7 @@ export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  useDocumentTitle(tCommon('navigation.tasks'));
   const navigate = useNavigate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
@@ -168,7 +170,7 @@ export function WorkItemsPage() {
       }
     }
 
-    setSearchParams(params);
+    setSearchParams(params, { replace: true });
   };
 
   const openDeleteConfirm = (item: WorkItemSummary) => {
@@ -434,7 +436,7 @@ export function WorkItemsPage() {
 
   return (
     <PageLayout
-      title={t('list.pageTitle')}
+      title={tCommon('navigation.tasks')}
       action={
         <button
           type="button"

@@ -7,7 +7,10 @@ import { test, expect } from '@playwright/test';
 test.describe('Infrastructure smoke tests', () => {
   test('should load the home page', async ({ page }) => {
     await page.goto('/');
-    await expect(page).toHaveTitle(/cornerstone/i);
+    // #2202: the tab title is "<page> · <house name or Cornerstone>". The shared E2E database
+    // may hold a house name (settings-manage.spec.ts sets one concurrently), so only the
+    // page segment is asserted.
+    await expect(page).toHaveTitle(/^Home · /);
   });
 
   test('should have a working health endpoint', async ({ request }) => {

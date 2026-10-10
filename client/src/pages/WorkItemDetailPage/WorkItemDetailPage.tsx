@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
@@ -99,6 +99,10 @@ import {
   showsPlannedRow,
 } from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import sharedStyles from '../../styles/shared.module.css';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './WorkItemDetailPage.module.css';
 
 const CONSTRAINT_ERROR_KEYS = {
@@ -122,10 +126,6 @@ export default function WorkItemDetailPage() {
   } = useFormatters();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
-  const locationState = location.state as { from?: string; view?: string } | null;
-  const fromTimeline = locationState?.from === 'schedule';
-  const fromView = locationState?.view;
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
   const { t: tBudget } = useTranslation('budget');
@@ -1132,7 +1132,7 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await deleteWorkItem(id);
-      navigate(routeUrl('workItems'));
+      navigate(routeUrl('workItems'), { replace: true });
     } catch (err) {
       setInlineError(t('detail.inlineErrors.deleteWorkItem'));
       console.error('Failed to delete work item:', err);
@@ -1220,9 +1220,22 @@ export default function WorkItemDetailPage() {
 
   useKeyboardShortcuts(shortcuts);
 
+  const displayTitle = workItem?.title.trim() || tCommon('navigation.untitledTask');
+  const h1Text = isLoading
+    ? tCommon('navigation.task')
+    : is404
+      ? tCommon('navigation.taskNotFound')
+      : error || !workItem
+        ? tCommon('navigation.task')
+        : displayTitle;
+  useDocumentTitle(h1Text);
+  const originState = useOriginState(workItem && !isLoading ? displayTitle : undefined);
+
   if (isLoading) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.stateTitle}>{h1Text}</h1>
         <div className={styles.loading} role="status">
           {t('detail.loading')}
         </div>
@@ -1233,15 +1246,16 @@ export default function WorkItemDetailPage() {
   if (is404) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('detail.notFound.title')}</h2>
+          <h1 className={styles.errorTitle}>{h1Text}</h1>
           <div className={styles.errorActions}>
             <button
               type="button"
               className={styles.backButton}
               onClick={() => navigate(routeUrl('workItems'))}
             >
-              {t('detail.notFound.back')}
+              {tCommon('navigation.backTo', { origin: tCommon('navigation.tasks') })}
             </button>
           </div>
         </div>
@@ -1252,6 +1266,8 @@ export default function WorkItemDetailPage() {
   if (error || !workItem) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.stateTitle}>{h1Text}</h1>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('detail.error.title')}</h2>
           <p>{error || t('detail.error.fallback')}</p>
@@ -1261,7 +1277,7 @@ export default function WorkItemDetailPage() {
               className={styles.backButton}
               onClick={() => navigate(routeUrl('workItems'))}
             >
-              {t('detail.error.back')}
+              {tCommon('navigation.backTo', { origin: tCommon('navigation.tasks') })}
             </button>
             <button type="button" className={styles.backButton} onClick={() => navigate(0)}>
               {t('detail.error.retry')}
@@ -1346,6 +1362,8 @@ export default function WorkItemDetailPage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
+
       {/* Inline error banner */}
       {inlineError && (
         <div className={styles.errorBanner} role="alert">
@@ -1363,54 +1381,11 @@ export default function WorkItemDetailPage() {
 
       {/* Header */}
       <div className={styles.header}>
-        <div className={styles.navButtons}>
-          {fromTimeline ? (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() =>
-                  navigate(
-                    fromView
-                      ? routeUrl('schedule', undefined, { view: fromView })
-                      : routeUrl('schedule'),
-                  )
-                }
-              >
-                {t('detail.nav.backToSchedule')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('workItems'))}
-              >
-                {t('detail.nav.toWorkItems')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() => navigate(routeUrl('workItems'))}
-              >
-                {t('detail.nav.backToWorkItems')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('schedule'))}
-              >
-                {t('detail.nav.toSchedule')}
-              </button>
-            </>
-          )}
-        </div>
-
         <div className={styles.headerRow}>
           <div className={styles.titleSection}>
             {isEditingTitle ? (
               <div className={styles.titleEdit}>
+                <h1 className={sharedStyles.srOnly}>{displayTitle}</h1>
                 <input
                   type="text"
                   className={styles.titleInput}
@@ -1433,7 +1408,7 @@ export default function WorkItemDetailPage() {
               </div>
             ) : (
               <h1 className={styles.title} onClick={startEditingTitle}>
-                {workItem.title}
+                {displayTitle}
               </h1>
             )}
           </div>
@@ -2001,6 +1976,7 @@ export default function WorkItemDetailPage() {
                 predecessors={dependencies.predecessors}
                 successors={dependencies.successors}
                 onDelete={handleDeleteDependency}
+                linkState={originState}
               />
 
               <div className={styles.addDependencySection}>
@@ -2106,6 +2082,7 @@ export default function WorkItemDetailPage() {
               <li key={hi.id} className={styles.householdItemLinkRow}>
                 <Link
                   to={routeUrl('householdItem', { id: hi.id })}
+                  state={originState}
                   className={styles.householdItemLinkName}
                 >
                   {hi.name}

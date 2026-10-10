@@ -7,6 +7,7 @@ import { barDates } from '../../lib/scheduleDates.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface CriticalPathCardProps {
@@ -17,6 +18,7 @@ interface CriticalPathCardProps {
 export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardProps) {
   const { t } = useTranslation('dashboard');
   const { formatDate } = useFormatters();
+  const originState = useOriginState();
 
   // Filter work items to those on the critical path
   const criticalItems = workItems.filter((item) => criticalPath.includes(item.id));
@@ -115,7 +117,11 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
           data-testid="critical-deadline"
           style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}
         >
-          <Link to={routeUrl('workItem', { id: nextItem.id })} className={styles.link}>
+          <Link
+            to={routeUrl('workItem', { id: nextItem.id })}
+            state={originState}
+            className={styles.link}
+          >
             {formatDate(deadline)}
           </Link>
         </div>

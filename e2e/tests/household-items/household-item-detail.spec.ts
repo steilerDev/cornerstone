@@ -10,7 +10,7 @@
  *
  * Scenarios covered:
  * 1.  Page loads with item name as heading
- * 2.  Back link navigates to /project/household-items
+ * 2.  "Purchases" breadcrumb navigates to /project/household-items
  * 3.  Edit button navigates to /project/household-items/:id/edit
  * 4.  Budget section is visible on the detail page
  * 5.  Documents section heading "Documents" is visible
@@ -54,10 +54,10 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back link navigates to /project/household-items
+// Scenario 2: "Purchases" breadcrumb navigates to /project/household-items
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"Back to Household Items" button navigates to /project/household-items', async ({
+test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('"Purchases" breadcrumb navigates to /project/household-items', async ({
     page,
     testPrefix,
   }) => {
@@ -71,7 +71,7 @@ test.describe('Back button navigation (Scenario 2)', { tag: '@responsive' }, () 
 
       await detailPage.goto(createdId);
 
-      await detailPage.backLink.click();
+      await detailPage.breadcrumbs.trailLink('Purchases').click();
 
       await page.waitForURL('**/project/household-items');
       expect(page.url()).toContain('/project/household-items');

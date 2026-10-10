@@ -15,6 +15,7 @@
 
 - [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
 
+- [Story #2202 page identity](story-2202-page-identity.md) (2026-10) — OriginProbe test helper, live query maps consume keys, title/breadcrumb patterns, command-guard drops edits silently
 - [Story #2199 scheduler truth](story-2199-scheduler-truth.md) (2026-10) — planned vs forecast projection tests, real-clock services need fake timers, formatters-mock link errors, fixture-codegen pitfalls
 
 ## Recent bug/story notes (2026-08)

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
@@ -68,6 +68,9 @@ import sharedStyles from '../../styles/shared.module.css';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './HouseholdItemDetailPage.module.css';
 
 function MilestoneIconSvg() {
@@ -100,13 +103,8 @@ export function HouseholdItemDetailPage() {
   const statusVariants = useStatusBadgeVariants();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const location = useLocation();
   const { showToast } = useToast();
   const { areas } = useAreas();
-
-  const locationState = location.state as { from?: string; view?: string } | null;
-  const fromSchedule = locationState?.from === 'schedule';
-  const fromView = locationState?.view;
 
   const [item, setItem] = useState<HouseholdItemDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -720,7 +718,7 @@ export function HouseholdItemDetailPage() {
     try {
       await deleteHouseholdItem(item.id);
       showToast('success', t('detail.delete.deleted'));
-      navigate(routeUrl('householdItems'));
+      navigate(routeUrl('householdItems'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(translateApiError(err.error.code, tErrors));
@@ -734,9 +732,25 @@ export function HouseholdItemDetailPage() {
     }
   };
 
+  const displayName = item?.name.trim() || tCommon('navigation.untitledPurchase');
+  const h1Text = isLoading
+    ? tCommon('navigation.purchase')
+    : is404
+      ? tCommon('navigation.purchaseNotFound')
+      : error || !item
+        ? tCommon('navigation.purchase')
+        : displayName;
+  useDocumentTitle(h1Text);
+  const originState = useOriginState(item && !isLoading ? displayName : undefined);
+  const backToPurchases = tCommon('navigation.backTo', {
+    origin: tCommon('navigation.purchases'),
+  });
+
   if (isLoading) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.pageTitle}>{h1Text}</h1>
         <div className={styles.loading} role="status">
           {t('detail.loading')}
         </div>
@@ -747,8 +761,9 @@ export function HouseholdItemDetailPage() {
   if (is404) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('detail.notFound')}</h2>
+          <h1 className={styles.errorTitle}>{h1Text}</h1>
           <p>{t('detail.notFoundMessage')}</p>
           <div className={styles.errorActions}>
             <button
@@ -756,7 +771,7 @@ export function HouseholdItemDetailPage() {
               className={styles.secondaryButton}
               onClick={() => navigate(routeUrl('householdItems'))}
             >
-              {t('detail.backToHouseholdItems')}
+              {backToPurchases}
             </button>
           </div>
         </div>
@@ -767,6 +782,8 @@ export function HouseholdItemDetailPage() {
   if (error || !item) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.pageTitle}>{h1Text}</h1>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('detail.error')}</h2>
           <p>{error ?? t('detail.notFoundMessage')}</p>
@@ -776,7 +793,7 @@ export function HouseholdItemDetailPage() {
               className={styles.secondaryButton}
               onClick={() => navigate(routeUrl('householdItems'))}
             >
-              {t('detail.backToHouseholdItems')}
+              {backToPurchases}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadItem()}>
               {t('detail.retry')}
@@ -798,56 +815,12 @@ export function HouseholdItemDetailPage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.content}>
-        {/* Navigation buttons */}
-        <div className={styles.navButtons}>
-          {fromSchedule ? (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() =>
-                  navigate(
-                    fromView
-                      ? routeUrl('schedule', undefined, { view: fromView })
-                      : routeUrl('schedule'),
-                  )
-                }
-              >
-                {t('detail.backToSchedule')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('householdItems'))}
-              >
-                {t('detail.toHouseholdItems')}
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                className={styles.backButton}
-                onClick={() => navigate(routeUrl('householdItems'))}
-              >
-                {t('detail.backButton')}
-              </button>
-              <button
-                type="button"
-                className={styles.secondaryNavButton}
-                onClick={() => navigate(routeUrl('schedule'))}
-              >
-                {t('detail.toSchedule')}
-              </button>
-            </>
-          )}
-        </div>
-
         {/* Page header */}
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
-            <h1 className={styles.pageTitle}>{item.name}</h1>
+            <h1 className={styles.pageTitle}>{displayName}</h1>
             <div className={styles.headerBadges}>
               {categoryDisplayName && (
                 <span className={styles.categoryBadge}>{categoryDisplayName}</span>
@@ -859,7 +832,9 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.editButton}
-              onClick={() => navigate(routeUrl('householdItemEdit', { id: item.id }))}
+              onClick={() =>
+                navigate(routeUrl('householdItemEdit', { id: item.id }), { state: originState })
+              }
             >
               {t('detail.edit')}
             </button>
@@ -1234,6 +1209,7 @@ export function HouseholdItemDetailPage() {
                       <>
                         <Link
                           to={routeUrl('workItem', { id: dep.predecessorId })}
+                          state={originState}
                           className={styles.depPredLink}
                         >
                           {dep.predecessor.title}

@@ -5,6 +5,8 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { routeUrl } from '@cornerstone/shared';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
@@ -1277,6 +1279,44 @@ describe('DashboardPage', () => {
       for (const el of screen.getAllByTestId('actual-spend')) {
         expect(el).toHaveTextContent('—');
       }
+    });
+  });
+
+  // ── Page identity (#2202): tab title only, the h1 is unchanged ──────────────
+
+  describe('tab title (#2202)', () => {
+    it('sets the tab title "Home · <house>" (the Home section word is not repeated)', async () => {
+      document.title = 'initial';
+      renderPage();
+
+      await waitFor(() => expect(document.title).toBe('Home · Cornerstone'));
+    });
+  });
+
+  // ── Origin (#2202): the "Add" menu opens the create pages with Home as origin ──
+
+  describe('"Add" menu origin', () => {
+    function renderProbed() {
+      return render(
+        <MemoryRouter initialEntries={['/project/overview']}>
+          <DashboardPage />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+    }
+
+    it.each([
+      ['dashboard-add-work-item', routeUrl('workItemNew')],
+      ['dashboard-add-household-item', routeUrl('householdItemNew')],
+      ['dashboard-add-milestone', routeUrl('milestoneNew')],
+    ])('%s navigates with the Home URL as origin, no name', async (testId, path) => {
+      renderProbed();
+
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId(testId));
+
+      expect(probedPath()).toBe(path);
+      expect(probedOrigin()).toEqual({ to: '/project/overview' });
     });
   });
 });

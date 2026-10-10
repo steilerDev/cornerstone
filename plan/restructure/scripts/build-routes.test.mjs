@@ -1071,6 +1071,43 @@ describe('validateRouteMap against the shared route module', () => {
     });
   });
 
+  describe('live query maps', () => {
+    const queryMap = (from) => ({
+      from: `${from}?view=calendar`,
+      to: '/tasks',
+      kind: 'redirect',
+      change: 'query-map',
+      section: 'Tasks',
+      guard: 'member',
+      gate: 'none',
+      permanent: false,
+      carries: ['*'],
+      stage: 'done',
+      match: { query: { view: 'calendar' } },
+    });
+
+    it('accepts a live query map whose base path is served as a page', async () => {
+      assert.deepEqual(await errorsOf({ map: [...BASE_MAP, queryMap('/tasks')] }), []);
+    });
+
+    it('accepts a live query map whose base path is served as a redirect', async () => {
+      assert.deepEqual(await errorsOf({ map: [...BASE_MAP, queryMap('/old/:id')] }), []);
+    });
+
+    it('reports a live query map whose base path is not served', async () => {
+      const errors = await errorsOf({ map: [...BASE_MAP, queryMap('/nowhere')] });
+      assert.ok(
+        errors.includes('live query map /nowhere?view=calendar has no served base path'),
+        errors.join('\n'),
+      );
+    });
+
+    it('ignores a planned query map with an unserved base path', async () => {
+      const planned = { ...queryMap('/nowhere'), stage: 'planned' };
+      assert.deepEqual(await errorsOf({ map: [...BASE_MAP, planned] }), []);
+    });
+  });
+
   describe('guards and gates', () => {
     it('reports an admin entry the router guards as member', async () => {
       const app = ROUTES_APP_SRC.replace(ADMIN_GUARD_BLOCK, '$1');

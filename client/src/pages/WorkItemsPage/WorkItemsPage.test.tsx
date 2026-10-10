@@ -3,7 +3,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 
@@ -553,6 +553,70 @@ describe('WorkItemsPage', () => {
       const alert = await deleteWith(new Error('RAW-LOCAL'));
       expect(alert).toHaveTextContent(enWorkItems.list.errors.deleteFailed);
       expect(alert).not.toHaveTextContent('RAW-LOCAL');
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    function Probe() {
+      const location = useLocation();
+      const type = useNavigationType();
+      return (
+        <>
+          <div data-testid="probe-type">{type}</div>
+          <div data-testid="probe-search">{location.search}</div>
+        </>
+      );
+    }
+
+    function renderWithProbe() {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/project/work-items']}>
+            <WorkItemsPageModule.WorkItemsPage />
+            <Probe />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('shows exactly one h1 "Tasks" and sets the tab title', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      expect(await screen.findByRole('heading', { name: 'Tasks', level: 1 })).toBeVisible();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Tasks · Cornerstone'));
+    });
+
+    it('is a view: it renders no "You are here" trail and no Back link', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Tasks', level: 1 });
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
+    });
+
+    it('does not push a history entry on mount', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderWithProbe();
+
+      await screen.findByRole('heading', { name: 'Tasks', level: 1 });
+      expect(screen.getByTestId('probe-type')).toHaveTextContent('POP');
+    });
+
+    it('replaces (not pushes) the history entry when a filter changes', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderWithProbe();
+
+      fireEvent.click((await screen.findAllByRole('button', { name: /filter by status/i }))[0]!);
+      const dialog = await screen.findByRole('dialog', { name: /filter by status/i });
+      fireEvent.click(dialog.querySelector('input') as HTMLInputElement);
+
+      await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
+      expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
     });
   });
 });

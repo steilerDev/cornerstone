@@ -38,7 +38,10 @@ export class TimelinePage {
   readonly page: Page;
 
   // ── Page header ────────────────────────────────────────────────────────────
+  /** Gantt view h1 "Schedule" (the Calendar view's h1 is `calendarHeading`). */
   readonly heading: Locator;
+  /** Calendar view h1 "Calendar" (#2202). */
+  readonly calendarHeading: Locator;
 
   // ── Toolbar controls ───────────────────────────────────────────────────────
   /** Arrows toggle button. */
@@ -120,6 +123,7 @@ export class TimelinePage {
 
     // Page header
     this.heading = page.getByRole('heading', { level: 1, name: 'Schedule', exact: true });
+    this.calendarHeading = page.getByRole('heading', { level: 1, name: 'Calendar', exact: true });
 
     // Toolbar controls
     this.arrowsToggleButton = page.getByLabel(/dependency arrows/i);
@@ -242,7 +246,7 @@ export class TimelinePage {
   /** Navigate to schedule in calendar view. */
   async gotoCalendar(): Promise<void> {
     await this.page.goto(routeUrl('scheduleCalendar'));
-    await this.heading.waitFor({ state: 'visible' });
+    await this.calendarHeading.waitFor({ state: 'visible' });
     await this.calendarView.waitFor({ state: 'visible' });
   }
 

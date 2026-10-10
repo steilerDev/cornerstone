@@ -24,6 +24,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { barDates } from '../../lib/scheduleDates.js';
 import styles from './CalendarItem.module.css';
@@ -113,13 +114,14 @@ export function CalendarItem({
   onTouchTap,
 }: CalendarItemProps) {
   const navigate = useNavigate();
+  const originState = useOriginState();
   const { t } = useTranslation('schedule');
   const { task } = useStatusBadgeVariants();
   const { formatDate } = useFormatters();
 
   function doNavigate() {
     void navigate(routeUrl('workItem', { id: item.id }), {
-      state: { from: 'schedule', view: 'calendar' },
+      state: originState,
     });
   }
 

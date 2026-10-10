@@ -8,41 +8,12 @@
   margin-bottom: var(--spacing-8);
 }
 
-.backButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-2) var(--spacing-4);
-  margin-bottom: var(--spacing-4);
-  background: transparent;
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-}
-
-.backButton:hover:not(:disabled) {
-  background: var(--color-bg-tertiary);
-  border-color: var(--color-text-disabled);
-}
-
-.backButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.backButton:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
 .title {
   font-size: var(--font-size-3xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .loading {
@@ -201,7 +172,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .backButton,
   .input,
   .select,
   .textarea,

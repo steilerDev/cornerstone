@@ -9,6 +9,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { render as rtlRender, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { ReactElement } from 'react';
 import { GanttTooltip } from './GanttTooltip.js';
 import type {
@@ -1755,5 +1756,40 @@ describe('GanttTooltip — schedule signal and planned row (#2199)', () => {
       'Verspätet · 3 T',
     );
     expect(screen.getByTestId('gantt-tooltip-planned')).toHaveTextContent('Geplant');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Origin (#2202): the touch "View item" link carries the schedule URL
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — origin on the "View item" link (#2202)', () => {
+  const DATA: GanttTooltipWorkItemData = {
+    kind: 'work-item',
+    title: 'Foundation Work',
+    status: 'in_progress',
+    startDate: '2024-06-01',
+    endDate: '2024-06-15',
+    plannedStartDate: null,
+    plannedEndDate: null,
+    scheduleSignal: null,
+    durationDays: 14,
+    assignedUserName: null,
+    workItemId: 'wi-origin',
+  };
+
+  it('opens the task with the Gantt URL (incl. query) as origin, no name', async () => {
+    const user = userEvent.setup();
+    render(
+      <MemoryRouter initialEntries={['/schedule/gantt?filter=tasks']}>
+        <GanttTooltip data={DATA} position={{ x: 100, y: 200 }} isTouchDevice={true} />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+
+    await user.click(screen.getByText('View item'));
+
+    expect(probedPath()).toBe('/project/work-items/wi-origin');
+    expect(probedOrigin()).toEqual({ to: '/schedule/gantt?filter=tasks' });
   });
 });

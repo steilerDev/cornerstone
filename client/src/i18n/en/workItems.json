@@ -1,6 +1,5 @@
 {
   "list": {
-    "pageTitle": "Project",
     "sectionTitle": "Work Items",
     "newWorkItem": "New Work Item",
     "loading": "Loading work items...",
@@ -96,8 +95,6 @@
     }
   },
   "create": {
-    "backToWorkItems": "← Back to Work Items",
-    "pageTitle": "Create Work Item",
     "loading": "Loading...",
     "thisItemLabel": "This item",
     "fields": {
@@ -144,21 +141,10 @@
   },
   "detail": {
     "loading": "Loading work item...",
-    "notFound": {
-      "title": "Work Item Not Found",
-      "back": "Back to Work Items"
-    },
     "error": {
       "title": "Error",
       "fallback": "An error occurred while loading the work item.",
-      "back": "Back to Work Items",
       "retry": "Retry"
-    },
-    "nav": {
-      "backToSchedule": "← Back to Schedule",
-      "toWorkItems": "To Work Items",
-      "backToWorkItems": "← Back to Work Items",
-      "toSchedule": "To Schedule"
     },
     "titleEdit": {
       "save": "Save",

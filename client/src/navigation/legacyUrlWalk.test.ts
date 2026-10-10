@@ -2,7 +2,7 @@ import { describe, it, expect } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROUTE_MAP, baseFrom, resolveLocation } from '@cornerstone/shared';
+import { ROUTE_MAP, baseFrom, queryMatches, resolveLocation } from '@cornerstone/shared';
 import type { RouteContext, RouteMapEntry } from '@cornerstone/shared';
 
 /**
@@ -153,9 +153,14 @@ function walk(url: string): { landing: string; hops: number } {
   return { landing: first.to, hops: 1 };
 }
 
-/** Concrete URLs of the query-map entries (their `from`, with a value for empty keys). */
+/** Query-map entries that are live (they redirect, consuming their matched keys; D-11). */
+const LIVE_QUERY_MAPS = ENTRIES.filter(
+  (e) => e.change === 'query-map' && e.match?.query !== undefined && e.stage === 'done',
+);
+
+/** Concrete URLs of the still-planned query-map entries (their `from`, with a value for empty keys). */
 const QUERY_MAP_URLS: readonly string[] = ENTRIES.filter(
-  (e) => e.change === 'query-map' && e.match?.query !== undefined,
+  (e) => e.change === 'query-map' && e.match?.query !== undefined && e.stage !== 'done',
 ).map((e) => concrete(e.from).replace(/=$/, '=walk'));
 
 interface RouterRoute {
@@ -214,7 +219,19 @@ describe('legacy URL walk (AC5/AC6)', () => {
 
           const wanted = new URLSearchParams(search);
           const got = new URLSearchParams(final.search);
-          for (const [key, value] of wanted) expect(got.getAll(key)).toContain(value);
+          // A live query map consumes the keys it matched; every other pair must survive.
+          const consumed = new Set(
+            LIVE_QUERY_MAPS.filter(
+              (e) =>
+                baseFrom(e.from) === legacy &&
+                e.match?.query !== undefined &&
+                queryMatches(e.match.query, search),
+            ).flatMap((e) => Object.keys(e.match?.query ?? {})),
+          );
+          for (const [key, value] of wanted) {
+            if (consumed.has(key)) continue;
+            expect(got.getAll(key)).toContain(value);
+          }
           if (hash) expect(final.hash).toBe(hash);
         });
       }
@@ -225,8 +242,28 @@ describe('legacy URL walk (AC5/AC6)', () => {
     });
   });
 
-  describe('query-map URLs keep rendering today pages with the query intact', () => {
-    it('finds the 10 query-map entries', () => {
+  describe('live query maps (D-11) land in one hop and consume their key', () => {
+    it('finds exactly one live query map, /schedule?view=calendar', () => {
+      expect(LIVE_QUERY_MAPS.map((e) => e.from)).toEqual(['/schedule?view=calendar']);
+    });
+
+    const CASES: readonly (readonly [string, string])[] = [
+      ['/schedule?view=calendar', '/schedule/calendar'],
+      ['/schedule?view=calendar&q=walk#walk', '/schedule/calendar?q=walk#walk'],
+      ['/schedule?q=walk&view=calendar', '/schedule/calendar?q=walk'],
+      ['/schedule?view=gantt', '/schedule/gantt?view=gantt'],
+    ];
+    for (const [url, expected] of CASES) {
+      it(`${url} -> ${expected}`, () => {
+        const { landing, hops } = walk(url);
+        expect(hops).toBe(1);
+        expect(landing).toBe(expected);
+      });
+    }
+  });
+
+  describe('planned query-map URLs keep rendering today pages with the query intact', () => {
+    it('finds the 10 planned query-map entries', () => {
       expect(QUERY_MAP_URLS).toHaveLength(10);
     });
 

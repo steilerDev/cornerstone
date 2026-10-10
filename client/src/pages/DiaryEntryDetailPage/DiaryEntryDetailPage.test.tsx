@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { screen, waitFor, render, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
@@ -929,5 +930,33 @@ describe('DiaryEntryDetailPage', () => {
         ).toBeInTheDocument();
       },
     );
+  });
+
+  // ─── Origin (#2202): the source entity link carries the entry URL ───────────
+
+  it('opens the source task with the entry URL as origin, no name', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce({
+      ...baseDetail,
+      id: 'de-origin',
+      entryType: 'work_item_status',
+      isAutomatic: true,
+      sourceEntityType: 'work_item',
+      sourceEntityId: 'wi-kitchen',
+      sourceEntityTitle: 'Kitchen Renovation',
+      createdBy: null,
+    });
+    render(
+      <MemoryRouter initialEntries={['/diary/de-origin']}>
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+        </Routes>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Kitchen Renovation' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-kitchen');
+    expect(probedOrigin()).toEqual({ to: '/diary/de-origin' });
   });
 });

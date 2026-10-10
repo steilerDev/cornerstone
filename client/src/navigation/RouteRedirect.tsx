@@ -1,5 +1,5 @@
 import { Navigate, useLocation, useParams } from 'react-router-dom';
-import { resolveRedirect } from '@cornerstone/shared';
+import { resolveRedirectRule } from '@cornerstone/shared';
 import type { LiveRedirectRoute } from '@cornerstone/shared';
 
 export interface RouteRedirectProps {
@@ -14,7 +14,7 @@ export interface RouteRedirectProps {
 export function RouteRedirect({ rule }: RouteRedirectProps) {
   const params = useParams();
   const { search, hash } = useLocation();
-  return <Navigate to={resolveRedirect(rule.target, params, search, hash)} replace />;
+  return <Navigate to={resolveRedirectRule(rule, params, search, hash)} replace />;
 }
 
 export default RouteRedirect;

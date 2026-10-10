@@ -14,6 +14,8 @@ import { ToastList } from './components/Toast/Toast';
 import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary/index.js';
 import { RouteRedirect } from './navigation/RouteRedirect.js';
 import { RouteGate } from './navigation/RouteGate.js';
+import { RouteTitleFallback } from './navigation/RouteTitleFallback.js';
+import { HouseNameProvider } from './contexts/HouseNameContext.js';
 
 /**
  * Bridge component that syncs theme with server when user authenticates.
@@ -109,154 +111,165 @@ export function App() {
           <LocaleProvider>
             <ToastProvider>
               <AuthProvider>
-                <ThemeServerSync />
-                <LocaleServerSync />
-                <Routes>
-                  {/* Auth routes (no AppShell wrapper) */}
-                  <Route
-                    path={routePattern('setup')}
-                    element={
-                      <Suspense fallback={<div>Loading...</div>}>
-                        <SetupPage />
-                      </Suspense>
-                    }
-                  />
-                  <Route
-                    path={routePattern('login')}
-                    element={
-                      <Suspense fallback={<div>Loading...</div>}>
-                        <LoginPage />
-                      </Suspense>
-                    }
-                  />
-                  {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
-                  <Route element={<AuthGuard />}>
-                    <Route element={<AppShell />}>
-                      <Route path={routePattern('dashboard')} element={<DashboardPage />} />
-                      <Route path={routePattern('workItems')} element={<WorkItemsPage />} />
-                      <Route path={routePattern('workItemNew')} element={<WorkItemCreatePage />} />
-                      <Route path={routePattern('workItem')} element={<WorkItemDetailPage />} />
-                      <Route
-                        path={routePattern('householdItems')}
-                        element={<HouseholdItemsPage />}
-                      />
-                      <Route
-                        path={routePattern('householdItemNew')}
-                        element={<HouseholdItemCreatePage />}
-                      />
-                      <Route
-                        path={routePattern('householdItem')}
-                        element={<HouseholdItemDetailPage />}
-                      />
-                      <Route
-                        path={routePattern('householdItemEdit')}
-                        element={<HouseholdItemEditPage />}
-                      />
-                      <Route path={routePattern('milestones')} element={<MilestonesPage />} />
-                      <Route
-                        path={routePattern('milestoneNew')}
-                        element={<MilestoneCreatePage />}
-                      />
-                      <Route path={routePattern('milestone')} element={<MilestoneDetailPage />} />
-                      <Route
-                        path={routePattern('budgetOverview')}
-                        element={<BudgetOverviewPage />}
-                      />
-                      <Route path={routePattern('budgetSources')} element={<BudgetSourcesPage />} />
-                      <Route
-                        path={routePattern('budgetSubsidies')}
-                        element={<SubsidyProgramsPage />}
-                      />
-                      <Route path={routePattern('invoices')} element={<InvoicesPage />} />
-                      <Route element={<RouteGate rules={PAPERLESS_REVIEW_RULES} />}>
+                <HouseNameProvider>
+                  <ThemeServerSync />
+                  <LocaleServerSync />
+                  <RouteTitleFallback />
+                  <Routes>
+                    {/* Auth routes (no AppShell wrapper) */}
+                    <Route
+                      path={routePattern('setup')}
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <SetupPage />
+                        </Suspense>
+                      }
+                    />
+                    <Route
+                      path={routePattern('login')}
+                      element={
+                        <Suspense fallback={<div>Loading...</div>}>
+                          <LoginPage />
+                        </Suspense>
+                      }
+                    />
+                    {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
+                    <Route element={<AuthGuard />}>
+                      <Route element={<AppShell />}>
+                        <Route path={routePattern('dashboard')} element={<DashboardPage />} />
+                        <Route path={routePattern('workItems')} element={<WorkItemsPage />} />
                         <Route
-                          path={routePattern('invoicePaperlessReview')}
+                          path={routePattern('workItemNew')}
+                          element={<WorkItemCreatePage />}
+                        />
+                        <Route path={routePattern('workItem')} element={<WorkItemDetailPage />} />
+                        <Route
+                          path={routePattern('householdItems')}
+                          element={<HouseholdItemsPage />}
+                        />
+                        <Route
+                          path={routePattern('householdItemNew')}
+                          element={<HouseholdItemCreatePage />}
+                        />
+                        <Route
+                          path={routePattern('householdItem')}
+                          element={<HouseholdItemDetailPage />}
+                        />
+                        <Route
+                          path={routePattern('householdItemEdit')}
+                          element={<HouseholdItemEditPage />}
+                        />
+                        <Route path={routePattern('milestones')} element={<MilestonesPage />} />
+                        <Route
+                          path={routePattern('milestoneNew')}
+                          element={<MilestoneCreatePage />}
+                        />
+                        <Route path={routePattern('milestone')} element={<MilestoneDetailPage />} />
+                        <Route
+                          path={routePattern('budgetOverview')}
+                          element={<BudgetOverviewPage />}
+                        />
+                        <Route
+                          path={routePattern('budgetSources')}
+                          element={<BudgetSourcesPage />}
+                        />
+                        <Route
+                          path={routePattern('budgetSubsidies')}
+                          element={<SubsidyProgramsPage />}
+                        />
+                        <Route path={routePattern('invoices')} element={<InvoicesPage />} />
+                        <Route element={<RouteGate rules={PAPERLESS_REVIEW_RULES} />}>
+                          <Route
+                            path={routePattern('invoicePaperlessReview')}
+                            element={
+                              <Suspense fallback={<div>Loading...</div>}>
+                                <PaperlessInvoiceReviewPage />
+                              </Suspense>
+                            }
+                          />
+                        </Route>
+                        <Route path={routePattern('invoice')} element={<InvoiceDetailPage />} />
+                        <Route
+                          path={routePattern('invoiceAutoItemize')}
                           element={
                             <Suspense fallback={<div>Loading...</div>}>
-                              <PaperlessInvoiceReviewPage />
+                              <AutoItemizePage />
                             </Suspense>
                           }
                         />
-                      </Route>
-                      <Route path={routePattern('invoice')} element={<InvoiceDetailPage />} />
-                      <Route
-                        path={routePattern('invoiceAutoItemize')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <AutoItemizePage />
-                          </Suspense>
-                        }
-                      />
-                      <Route path={routePattern('bankReport')} element={<ReportWizardPage />} />
-                      <Route path={routePattern('scheduleGantt')} element={<TimelinePage />} />
-                      <Route path={routePattern('scheduleCalendar')} element={<TimelinePage />} />
-                      <Route
-                        path={routePattern('diary')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <DiaryPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path={routePattern('diaryEntryNew')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <DiaryEntryCreatePage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path={routePattern('diaryEntry')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <DiaryEntryDetailPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path={routePattern('diaryEntryEdit')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <DiaryEntryEditPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path={routePattern('photos')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <PhotosPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route
-                        path={routePattern('photoSpot')}
-                        element={
-                          <Suspense fallback={<div>Loading...</div>}>
-                            <PhotoSpotViewerPage />
-                          </Suspense>
-                        }
-                      />
-                      <Route path={routePattern('settingsProfile')} element={<ProfilePage />} />
-                      <Route path={routePattern('settingsManage')} element={<ManagePage />} />
-                      <Route path={routePattern('vendors')} element={<VendorsPage />} />
-                      <Route path={routePattern('vendor')} element={<VendorDetailPage />} />
-                      <Route element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}>
+                        <Route path={routePattern('bankReport')} element={<ReportWizardPage />} />
+                        <Route path={routePattern('scheduleGantt')} element={<TimelinePage />} />
+                        <Route path={routePattern('scheduleCalendar')} element={<TimelinePage />} />
                         <Route
-                          path={routePattern('settingsUsers')}
-                          element={<UserManagementPage />}
+                          path={routePattern('diary')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <DiaryPage />
+                            </Suspense>
+                          }
                         />
-                        <Route path={routePattern('settingsBackups')} element={<BackupsPage />} />
+                        <Route
+                          path={routePattern('diaryEntryNew')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <DiaryEntryCreatePage />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path={routePattern('diaryEntry')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <DiaryEntryDetailPage />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path={routePattern('diaryEntryEdit')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <DiaryEntryEditPage />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path={routePattern('photos')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <PhotosPage />
+                            </Suspense>
+                          }
+                        />
+                        <Route
+                          path={routePattern('photoSpot')}
+                          element={
+                            <Suspense fallback={<div>Loading...</div>}>
+                              <PhotoSpotViewerPage />
+                            </Suspense>
+                          }
+                        />
+                        <Route path={routePattern('settingsProfile')} element={<ProfilePage />} />
+                        <Route path={routePattern('settingsManage')} element={<ManagePage />} />
+                        <Route path={routePattern('vendors')} element={<VendorsPage />} />
+                        <Route path={routePattern('vendor')} element={<VendorDetailPage />} />
+                        <Route
+                          element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}
+                        >
+                          <Route
+                            path={routePattern('settingsUsers')}
+                            element={<UserManagementPage />}
+                          />
+                          <Route path={routePattern('settingsBackups')} element={<BackupsPage />} />
+                        </Route>
+                        {/* Redirects generated from the shared route map (legacy URLs, section roots) */}
+                        {LIVE_REDIRECT_ROUTES.map((r) => (
+                          <Route key={r.from} path={r.from} element={<RouteRedirect rule={r} />} />
+                        ))}
+                        <Route path={routePattern('notFound')} element={<NotFoundPage />} />
                       </Route>
-                      {/* Redirects generated from the shared route map (legacy URLs, section roots) */}
-                      {LIVE_REDIRECT_ROUTES.map((r) => (
-                        <Route key={r.from} path={r.from} element={<RouteRedirect rule={r} />} />
-                      ))}
-                      <Route path={routePattern('notFound')} element={<NotFoundPage />} />
                     </Route>
-                  </Route>
-                </Routes>
+                  </Routes>
+                </HouseNameProvider>
                 {/* Toast notifications — rendered as a portal to document.body */}
                 <ToastList />
               </AuthProvider>

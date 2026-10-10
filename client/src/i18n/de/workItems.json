@@ -1,6 +1,5 @@
 {
   "list": {
-    "pageTitle": "Projekt",
     "sectionTitle": "Arbeitspakete",
     "newWorkItem": "Neues Arbeitspaket",
     "loading": "Arbeitspakete werden geladen...",
@@ -96,8 +95,6 @@
     }
   },
   "create": {
-    "backToWorkItems": "← Zurück zu Arbeitspaketen",
-    "pageTitle": "Arbeitspaket erstellen",
     "loading": "Wird geladen...",
     "thisItemLabel": "Dieses Element",
     "fields": {
@@ -144,21 +141,10 @@
   },
   "detail": {
     "loading": "Arbeitspaket wird geladen...",
-    "notFound": {
-      "title": "Arbeitspaket nicht gefunden",
-      "back": "Zurück zu Arbeitspaketen"
-    },
     "error": {
       "title": "Fehler",
       "fallback": "Beim Laden des Arbeitspakets ist ein Fehler aufgetreten.",
-      "back": "Zurück zu Arbeitspaketen",
       "retry": "Erneut versuchen"
-    },
-    "nav": {
-      "backToSchedule": "← Zurück zum Zeitplan",
-      "toWorkItems": "Zu Arbeitspaketen",
-      "backToWorkItems": "← Zurück zu Arbeitspaketen",
-      "toSchedule": "Zum Zeitplan"
     },
     "titleEdit": {
       "save": "Speichern",

@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import type {
   WorkItemDetail,
   WorkItemSummary,
@@ -686,10 +686,12 @@ describe('WorkItemDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /work item not found/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: 'Task not found', level: 1 }),
+        ).toBeInTheDocument();
       });
 
-      expect(screen.getByRole('button', { name: /back to work items/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeInTheDocument();
     });
 
     it('shows generic error message on other errors', async () => {
@@ -2100,6 +2102,201 @@ describe('WorkItemDetailPage', () => {
     it('prefills the planned amount unchanged for a gross-entered line', async () => {
       const input = await openLinkModal(true);
       expect(input.value).toBe('100');
+    });
+  });
+
+  // ── Page identity (#2202): h1 rule, tab title, breadcrumbs, origin Back ─────
+
+  describe('page identity (#2202)', () => {
+    function LocationProbe() {
+      const location = useLocation();
+      const type = useNavigationType();
+      return (
+        <div data-testid="probe">
+          {JSON.stringify({ path: location.pathname, state: location.state, type })}
+        </div>
+      );
+    }
+
+    function renderWith(entry: string | { pathname: string; state?: unknown }) {
+      return render(
+        <MemoryRouter initialEntries={[entry]}>
+          <Routes>
+            <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+            <Route path="*" element={<LocationProbe />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    }
+
+    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
+
+    beforeEach(() => {
+      document.title = 'initial';
+    });
+
+    it('shows exactly one h1 with the task title and sets the tab title', async () => {
+      renderWith('/project/work-items/work-1');
+
+      expect(
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Test Work Item · Tasks · Cornerstone'));
+    });
+
+    it('falls back to "Untitled task" for a whitespace-only title', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, title: '   ' });
+
+      renderWith('/project/work-items/work-1');
+
+      expect(await screen.findByRole('heading', { name: 'Untitled task', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      await waitFor(() => expect(document.title).toBe('Untitled task · Tasks · Cornerstone'));
+    });
+
+    it('shows the typed h1 "Task" with the breadcrumb while loading', async () => {
+      mockGetWorkItem.mockReturnValue(new Promise(() => {}));
+
+      renderWith('/project/work-items/work-1');
+
+      expect(screen.getByRole('heading', { name: 'Task', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('link', { name: /Tasks/ })).toHaveAttribute(
+        'href',
+        '/project/work-items',
+      );
+      await waitFor(() => expect(document.title).toBe('Task · Tasks · Cornerstone'));
+    });
+
+    it('shows one "Task not found" h1, the breadcrumb and Back to Tasks on 404', async () => {
+      mockGetWorkItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Work item not found' }),
+      );
+
+      renderWith('/project/work-items/missing');
+
+      expect(
+        await screen.findByRole('heading', { name: 'Task not found', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeVisible();
+      await waitFor(() => expect(document.title).toBe('Task not found · Tasks · Cornerstone'));
+    });
+
+    it('shows h1 "Task" above the error card (which keeps its h2) on a generic error', async () => {
+      mockGetWorkItem.mockRejectedValue(new Error('Network error'));
+
+      renderWith('/project/work-items/work-1');
+
+      expect(await screen.findByRole('heading', { name: 'Error', level: 2 })).toBeVisible();
+      expect(screen.getByRole('heading', { name: 'Task', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('button', { name: 'Back to Tasks' })).toBeVisible();
+      expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
+    });
+
+    it('trails only the Tasks parent and drops the old back and To Schedule buttons', async () => {
+      renderWith('/project/work-items/work-1');
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(within(nav).getByRole('link', { name: /Tasks/ })).toHaveAttribute(
+        'href',
+        '/project/work-items',
+      );
+      expect(nav).not.toHaveTextContent('Test Work Item');
+      expect(screen.queryByRole('button', { name: /to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to work items/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /back to schedule/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /to work items/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('offers Back to the exact Calendar URL the user came from', async () => {
+      renderWith({
+        pathname: '/project/work-items/work-1',
+        state: { origin: { to: '/schedule/calendar?calendarMode=week' } },
+      });
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+
+      expect(screen.getByRole('link', { name: /Back to Calendar/ })).toHaveAttribute(
+        'href',
+        '/schedule/calendar?calendarMode=week',
+      );
+    });
+
+    it('offers no Back when the origin is the Tasks list (the nearest parent)', async () => {
+      renderWith({
+        pathname: '/project/work-items/work-1',
+        state: { origin: { to: '/project/work-items?status=in_progress' } },
+      });
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('keeps exactly one (screen-reader) h1 while the title is being edited', async () => {
+      const user = userEvent.setup();
+      renderWith('/project/work-items/work-1');
+      await user.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
+
+      expect(await screen.findByDisplayValue('Test Work Item')).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(h1s()[0]).toHaveTextContent('Test Work Item');
+    });
+
+    it('passes origin (with the task title) to the linked purchase link', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([
+        {
+          id: 'hi-1',
+          name: 'Leather Sofa',
+          category: 'furniture' as const,
+          status: 'planned' as const,
+          targetDeliveryDate: null,
+          earliestDeliveryDate: null,
+          latestDeliveryDate: null,
+        },
+      ]);
+      const user = userEvent.setup();
+      renderWith('/project/work-items/work-1?tab=x');
+
+      await user.click(await screen.findByRole('link', { name: 'Leather Sofa' }));
+
+      const probe = JSON.parse((await screen.findByTestId('probe')).textContent ?? '{}') as {
+        path: string;
+        state: { origin: { to: string; name?: string } };
+      };
+      expect(probe.path).toBe('/project/household-items/hi-1');
+      expect(probe.state.origin).toEqual({
+        to: '/project/work-items/work-1?tab=x',
+        name: 'Test Work Item',
+      });
+    });
+
+    it('replaces the history entry after deleting the task', async () => {
+      mockDeleteWorkItem.mockResolvedValue(undefined);
+      const user = userEvent.setup();
+      renderWith('/project/work-items/work-1');
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+
+      await user.click(
+        screen.getByRole('button', { name: enWorkItems.detail.footer.deleteWorkItem }),
+      );
+      await user.click(
+        await screen.findByRole('button', {
+          name: enWorkItems.detail.modals.deleteWorkItem.delete,
+        }),
+      );
+
+      const probe = JSON.parse((await screen.findByTestId('probe')).textContent ?? '{}') as {
+        path: string;
+        type: string;
+      };
+      expect(probe.path).toBe('/project/work-items');
+      expect(probe.type).toBe('REPLACE');
     });
   });
 });

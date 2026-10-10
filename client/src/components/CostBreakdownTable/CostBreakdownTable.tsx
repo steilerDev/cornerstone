@@ -16,6 +16,7 @@ import type {
 import { CONFIDENCE_MARGINS, routeUrl } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { Badge } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 import { EmptyState } from '../EmptyState/EmptyState.js';
@@ -360,6 +361,7 @@ function WorkItemRow({
   depth: number;
   paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
+  const originState = useOriginState();
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
@@ -400,7 +402,11 @@ function WorkItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={routeUrl('workItem', { id: item.workItemId })} className={styles.nameLink}>
+            <Link
+              to={routeUrl('workItem', { id: item.workItemId })}
+              state={originState}
+              className={styles.nameLink}
+            >
               {item.title}
             </Link>
             {item.costDisplay === 'actual' && (
@@ -571,6 +577,7 @@ function HouseholdItemRow({
   depth: number;
   paymentStatus: 'all' | 'paid' | 'outstanding';
 }) {
+  const originState = useOriginState();
   const { t } = useTranslation('budget');
   const formatCurrencyFn = useFormatterContext();
   const key = expandKey;
@@ -613,6 +620,7 @@ function HouseholdItemRow({
             </button>
             <Link
               to={routeUrl('householdItem', { id: item.householdItemId })}
+              state={originState}
               className={styles.nameLink}
             >
               {item.name}

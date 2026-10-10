@@ -1,7 +1,4 @@
 {
-  "page": {
-    "title": "Projekt"
-  },
   "newButton": "Neuer Haushaltsartikel",
   "search": {
     "placeholder": "Haushaltsartikel durchsuchen...",
@@ -113,8 +110,6 @@
     "errors": {
       "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
-    "title": "Neuer Haushaltsartikel",
-    "backButton": "← Zurück zu Haushaltsartikeln",
     "loading": "Wird geladen...",
     "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
     "form": {
@@ -187,11 +182,8 @@
     "errors": {
       "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
-    "title": "Haushaltsartikel bearbeiten",
-    "backButton": "← Zurück zum Artikel",
     "loading": "Wird geladen...",
     "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
-    "notFound": "Haushaltsartikel nicht gefunden",
     "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht.",
     "form": {
       "name": {
@@ -248,14 +240,8 @@
   "detail": {
     "loading": "Haushaltsartikel wird geladen...",
     "error": "Fehler",
-    "notFound": "Artikel nicht gefunden",
     "notFoundMessage": "Der gesuchte Haushaltsartikel existiert nicht oder wurde entfernt.",
-    "backToHouseholdItems": "Zurück zu Haushaltsartikeln",
     "retry": "Erneut versuchen",
-    "backToSchedule": "← Zurück zum Zeitplan",
-    "toHouseholdItems": "Zu Haushaltsartikeln",
-    "backButton": "← Zurück zu Haushaltsartikeln",
-    "toSchedule": "Zum Zeitplan",
     "edit": "Bearbeiten",
     "details": {
       "title": "Details",

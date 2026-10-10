@@ -6,6 +6,7 @@ import type { TimelineMilestone } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './TimelineStatusCards.module.css';
 
 interface UpcomingMilestonesCardProps {
@@ -15,6 +16,7 @@ interface UpcomingMilestonesCardProps {
 export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardProps) {
   const { t } = useTranslation('dashboard');
   const { formatDate } = useFormatters();
+  const originState = useOriginState();
 
   // Filter out completed milestones, sort by targetDate ascending, take first 5
   const upcoming = milestones
@@ -56,6 +58,7 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>
               <Link
                 to={routeUrl('milestone', { id: milestone.id })}
+                state={originState}
                 className={styles.milestoneTitle}
                 title={milestone.title}
               >

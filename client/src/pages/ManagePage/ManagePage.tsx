@@ -33,6 +33,7 @@ import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useOrientations } from '../../hooks/useOrientations.js';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { useHouseName } from '../../contexts/HouseNameContext.js';
 import {
   fetchBudgetCategories,
   createBudgetCategory,
@@ -70,6 +71,7 @@ function parseTab(value: string | null): Tab {
 // ============================================================
 
 function HouseholdTab() {
+  const { setHouseName } = useHouseName();
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
   const [name, setName] = useState('');
@@ -130,6 +132,7 @@ function HouseholdTab() {
         householdAddress: address.trim() || null,
       });
       setSavedName(updated.householdName ?? '');
+      setHouseName(updated.householdName);
       setSavedAddress(updated.householdAddress ?? '');
       setSuccessMessage(t('manage.household.saveSuccess'));
     } catch (err) {

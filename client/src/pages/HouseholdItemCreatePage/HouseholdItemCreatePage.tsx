@@ -1,5 +1,5 @@
 import { useState, useEffect, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
@@ -14,6 +14,9 @@ import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesA
 import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './HouseholdItemCreatePage.module.css';
 
 interface Vendor {
@@ -23,8 +26,11 @@ interface Vendor {
 
 export function HouseholdItemCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showToast } = useToast();
   const { t } = useTranslation('householdItems');
+  const { t: tc } = useTranslation('common');
+  useDocumentTitle(tc('navigation.newPurchase'));
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
 
@@ -134,7 +140,10 @@ export function HouseholdItemCreatePage() {
       });
 
       showToast('success', t('create.success'));
-      navigate(routeUrl('householdItem', { id: item.id }));
+      navigate(routeUrl('householdItem', { id: item.id }), {
+        replace: true,
+        state: forwardOriginState(location.state),
+      });
     } catch (err) {
       setError(t('create.errorBanner'));
       console.error('Failed to create household item:', err);
@@ -145,6 +154,8 @@ export function HouseholdItemCreatePage() {
   if (isLoadingData) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={styles.title}>{tc('navigation.newPurchase')}</h1>
         <div className={styles.loading}>{t('create.loading')}</div>
       </div>
     );
@@ -152,16 +163,9 @@ export function HouseholdItemCreatePage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigate(routeUrl('householdItems'))}
-          disabled={isSubmitting}
-        >
-          {t('create.backButton')}
-        </button>
-        <h1 className={styles.title}>{t('create.title')}</h1>
+        <h1 className={styles.title}>{tc('navigation.newPurchase')}</h1>
       </div>
 
       {error && <div className={styles.errorBanner}>{error}</div>}
@@ -421,7 +425,9 @@ export function HouseholdItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(routeUrl('householdItems'))}
+            onClick={() =>
+              navigate(originHrefOr(location.state, routeUrl('householdItems')), { replace: true })
+            }
             disabled={isSubmitting}
           >
             {t('create.cancel')}

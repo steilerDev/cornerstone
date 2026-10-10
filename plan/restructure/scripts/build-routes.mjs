@@ -431,6 +431,14 @@ function validateAgainstModule(routemap, routerRoutes, routeModule) {
     }
   }
 
+  // 4. A live query map needs a served base path (page or redirect).
+  for (const entry of shared) {
+    if (entry.stage !== 'done' || !entry.match?.query) continue;
+    if (!byFrom.has(routeModule.baseFrom(entry.from))) {
+      errors.push(`live query map ${entry.from} has no served base path`);
+    }
+  }
+
   // 5. Guards of router pages.
   for (const route of routerRoutes) {
     if (route.kind !== 'page') continue;

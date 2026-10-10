@@ -21,6 +21,7 @@ import type * as SubsidyProgramsApiTypes from './lib/subsidyProgramsApi.js';
 import type * as PreferencesApiTypes from './lib/preferencesApi.js';
 import type * as DiaryApiTypes from './lib/diaryApi.js';
 import type * as BackupsApiTypes from './lib/backupsApi.js';
+import type * as SettingsApiTypes from './lib/settingsApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -220,6 +221,13 @@ jest.unstable_mockModule('./lib/backupsApi.js', () => ({
   getSchedulerStatus: mockGetSchedulerStatus,
 }));
 
+// HouseNameProvider fetches the household settings once per signed-in user (browser title).
+const mockFetchHouseholdSettings = jest.fn<typeof SettingsApiTypes.fetchHouseholdSettings>();
+jest.unstable_mockModule('./lib/settingsApi.js', () => ({
+  fetchHouseholdSettings: mockFetchHouseholdSettings,
+  updateHouseholdSettings: jest.fn<typeof SettingsApiTypes.updateHouseholdSettings>(),
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -264,6 +272,11 @@ describe('App', () => {
     mockFetchSubsidyPrograms.mockReset();
     mockListPreferences.mockReset();
     mockListDiaryEntries.mockReset();
+    mockFetchHouseholdSettings.mockReset();
+    mockFetchHouseholdSettings.mockResolvedValue({
+      householdName: 'Synthetic House',
+      householdAddress: null,
+    });
 
     // Default: DashboardPage data sources
     mockFetchBudgetOverview.mockResolvedValue({
@@ -422,14 +435,15 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded WorkItems component to resolve
-    // The WorkItemsPage h1 now reads "Project" (shared sub-nav heading)
+    // The WorkItemsPage h1 reads "Tasks" (page identity, #2202)
     const heading = await screen.findByRole(
       'heading',
-      { name: /^project$/i, level: 1 },
+      { name: /^tasks$/i, level: 1 },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-  });
+    await waitFor(() => expect(document.title).toBe('Tasks \u00B7 Synthetic House'));
+  }, 15000);
 
   it('navigates to Manage page when /budget/categories path is accessed (redirect)', async () => {
     window.history.pushState({}, 'Budget Categories', '/budget/categories');
@@ -458,15 +472,16 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded HouseholdItems component to resolve.
-    // The HouseholdItemsPage h1 now reads "Project" (shared sub-nav heading).
-    // Use level: 1 to match the page title h1 (not the h2 empty state "No household items yet").
+    // The HouseholdItemsPage h1 reads "Purchases" (page identity, #2202).
+    // Use level: 1 to match the page title h1 (not the h2 empty state).
     const heading = await screen.findByRole(
       'heading',
-      { name: /^project$/i, level: 1 },
+      { name: /^purchases$/i, level: 1 },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-  });
+    await waitFor(() => expect(document.title).toBe('Purchases \u00B7 Synthetic House'));
+  }, 15000);
 
   it('navigates to Invoices page when /budget/invoices path is accessed', async () => {
     window.history.pushState({}, 'Invoices', '/budget/invoices');

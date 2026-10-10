@@ -2,9 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
@@ -56,7 +56,13 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
 // Helper to capture current location
 function LocationDisplay() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  const type = useNavigationType();
+  return (
+    <>
+      <div data-testid="location">{location.pathname}</div>
+      <div data-testid="location-type">{type}</div>
+    </>
+  );
 }
 
 describe('HouseholdItemEditPage', () => {
@@ -161,9 +167,14 @@ describe('HouseholdItemEditPage', () => {
     });
   });
 
-  function renderPage(itemId = 'hi-001') {
+  function renderPage(
+    itemId = 'hi-001',
+    entries: (string | { pathname: string; state?: unknown })[] = [
+      `/project/household-items/${itemId}/edit`,
+    ],
+  ) {
     return render(
-      <MemoryRouter initialEntries={[`/project/household-items/${itemId}/edit`]}>
+      <MemoryRouter initialEntries={entries} initialIndex={entries.length - 1}>
         <Routes>
           <Route
             path="/project/household-items/:id/edit"
@@ -188,11 +199,13 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('renders "Edit Household Item" heading after loading', async () => {
+    it('renders the "Edit purchase" h1 after loading', async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Edit Household Item' })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: 'Edit purchase', level: 1 }),
+        ).toBeInTheDocument();
       });
     });
 
@@ -317,19 +330,57 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('navigates to household item detail page on back button click', async () => {
+    it('has no header back button (the breadcrumb replaces it)', async () => {
+      renderPage();
+
+      await screen.findByLabelText(/^name/i);
+      expect(screen.queryByRole('button', { name: /back to item/i })).not.toBeInTheDocument();
+    });
+
+    it('Cancel replaces this page with the purchase when it was not opened from it', async () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to item/i })).toBeInTheDocument();
-      });
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
 
-      await user.click(screen.getByRole('button', { name: /back to item/i }));
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+    });
 
-      await waitFor(() => {
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/hi-001');
-      });
+    it('Cancel goes back in history when the edit page was opened from the purchase', async () => {
+      const user = userEvent.setup();
+      renderPage('hi-001', [
+        '/project/household-items/hi-001',
+        {
+          pathname: '/project/household-items/hi-001/edit',
+          state: { origin: { to: '/project/household-items/hi-001', name: 'Kitchen Island' } },
+        },
+      ]);
+
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        /^\/project\/household-items\/hi-001$/,
+      );
+      expect(screen.getByTestId('location-type')).toHaveTextContent('POP');
+    });
+
+    it('Cancel replaces (not goes back) when the origin is some other page', async () => {
+      const user = userEvent.setup();
+      renderPage('hi-001', [
+        '/schedule/calendar',
+        {
+          pathname: '/project/household-items/hi-001/edit',
+          state: { origin: { to: '/schedule/calendar' } },
+        },
+      ]);
+
+      await user.click(await screen.findByRole('button', { name: /cancel/i }));
+
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        /^\/project\/household-items\/hi-001$/,
+      );
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
   });
 
@@ -381,6 +432,29 @@ describe('HouseholdItemEditPage', () => {
       });
 
       expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
+    });
+
+    it('Save goes back in history when the edit page was opened from the purchase', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      renderPage('hi-001', [
+        '/project/household-items/hi-001',
+        {
+          pathname: '/project/household-items/hi-001/edit',
+          state: { origin: { to: '/project/household-items/hi-001' } },
+        },
+      ]);
+
+      await screen.findByLabelText(/^name/i);
+      await user.click(screen.getByRole('button', { name: /save changes/i }));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('location')).toHaveTextContent(
+          /^\/project\/household-items\/hi-001$/,
+        );
+      });
+      expect(screen.getByTestId('location-type')).toHaveTextContent('POP');
     });
 
     it('calls updateHouseholdItem with correct id and data', async () => {
@@ -527,7 +601,7 @@ describe('HouseholdItemEditPage', () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole('heading', { name: 'Household Item Not Found' }),
+          screen.getByRole('heading', { name: 'Purchase not found', level: 1 }),
         ).toBeInTheDocument();
       });
     });
@@ -556,9 +630,7 @@ describe('HouseholdItemEditPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
-      expect(
-        screen.queryByRole('heading', { name: 'Household Item Not Found' }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Purchase not found' })).not.toBeInTheDocument();
     });
 
     it('does NOT show not-found for a 500 ApiClientError whose message contains "not found"', async () => {
@@ -571,9 +643,7 @@ describe('HouseholdItemEditPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Failed to load form data. Please try again.')).toBeInTheDocument();
       });
-      expect(
-        screen.queryByRole('heading', { name: 'Household Item Not Found' }),
-      ).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: 'Purchase not found' })).not.toBeInTheDocument();
       expect(screen.queryByText(/not found upstream/)).not.toBeInTheDocument();
     });
   });
@@ -683,6 +753,87 @@ describe('HouseholdItemEditPage', () => {
         const nameInputElement = screen.getByLabelText(/^name/i);
         expect(nameInputElement).toHaveAttribute('aria-describedby', 'hi-edit-name-error');
       });
+    });
+  });
+
+  // ── Page identity (#2202) ──────────────────────────────────────────────────
+
+  describe('page identity (#2202)', () => {
+    const h1s = () => screen.queryAllByRole('heading', { level: 1 });
+
+    it('shows one h1 and the tab title "Edit purchase \u00B7 Purchases"', async () => {
+      renderPage();
+
+      await screen.findByLabelText(/^name/i);
+      expect(h1s()).toHaveLength(1);
+      await waitFor(() =>
+        expect(document.title).toBe('Edit purchase \u00B7 Purchases \u00B7 Cornerstone'),
+      );
+    });
+
+    it('shows the h1 while loading, with only the Purchases parent in the trail', async () => {
+      mockGetHouseholdItem.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      expect(screen.getByRole('heading', { name: 'Edit purchase', level: 1 })).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(within(nav).getByRole('link', { name: /Purchases/ })).toBeVisible();
+    });
+
+    it('trails Purchases then the loaded purchase name', async () => {
+      renderPage();
+
+      await screen.findByLabelText(/^name/i);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      const links = within(nav).getAllByRole('link');
+      expect(links.map((a) => (a.textContent ?? '').replace('\u2039', ''))).toEqual([
+        'Purchases',
+        'Kitchen Island',
+      ]);
+      expect(links[1]).toHaveAttribute('href', '/project/household-items/hi-001');
+    });
+
+    it('uses "Untitled purchase" in the trail for a blank stored name', async () => {
+      mockGetHouseholdItem.mockResolvedValue({ ...mockItem, name: '  ' });
+      renderPage();
+
+      await screen.findByLabelText(/^name/i);
+      expect(
+        within(screen.getByRole('navigation', { name: 'You are here' })).getByRole('link', {
+          name: /Untitled purchase/,
+        }),
+      ).toBeVisible();
+    });
+
+    it('shows one "Purchase not found" h1, the tab title and the breadcrumb on 404', async () => {
+      mockGetHouseholdItem.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'Not found' }),
+      );
+
+      renderPage('hi-missing');
+
+      expect(
+        await screen.findByRole('heading', { name: 'Purchase not found', level: 1 }),
+      ).toBeVisible();
+      expect(h1s()).toHaveLength(1);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeVisible();
+      await waitFor(() =>
+        expect(document.title).toBe('Purchase not found \u00B7 Purchases \u00B7 Cornerstone'),
+      );
+    });
+
+    it('offers no Back when opened from the purchase itself (the nearest parent)', async () => {
+      renderPage('hi-001', [
+        {
+          pathname: '/project/household-items/hi-001/edit',
+          state: { origin: { to: '/project/household-items/hi-001', name: 'Kitchen Island' } },
+        },
+      ]);
+
+      await screen.findByLabelText(/^name/i);
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
   });
 });

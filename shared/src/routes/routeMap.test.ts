@@ -6,7 +6,7 @@ import type { RouteMapEntry } from './types.js';
 
 const ENTRIES: readonly RouteMapEntry[] = ROUTE_MAP;
 
-/** The 36 entries that carry no id: legacy redirects, query maps and conditional rules. */
+/** The 37 entries that carry no id: legacy redirects, query maps and conditional rules. */
 const ID_LESS_FROMS = [
   '/budget/categories',
   '/work-items',
@@ -39,6 +39,7 @@ const ID_LESS_FROMS = [
   '/settings/manage?tab=hi-categories',
   '/settings/manage?tab=budget-categories',
   '/project/work-items/:id?depError=',
+  '/schedule?view=calendar',
   '/budget/invoices/new/paperless (Paperless off)',
   '/budget/invoices/new/paperless (AI off)',
   '/budget/invoices/:id/auto-itemize/:documentId (Paperless or AI off)',
@@ -65,8 +66,8 @@ function instantiate(pattern: string): string {
 }
 
 describe('ROUTE_MAP invariants', () => {
-  it('has 88 entries', () => {
-    expect(ENTRIES).toHaveLength(88);
+  it('has 89 entries', () => {
+    expect(ENTRIES).toHaveLength(89);
   });
 
   it('has a unique from on every entry', () => {

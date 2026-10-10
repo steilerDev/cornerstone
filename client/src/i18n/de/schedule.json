@@ -3,9 +3,6 @@
     "errors": {
       "loadFailed": "Beim Laden des Zeitplans ist ein unerwarteter Fehler aufgetreten."
     },
-    "page": {
-      "title": "Zeitplan"
-    },
     "toolbar": {
       "entityFilter": "Entity-Filter",
       "workItems": "Arbeitspakete",
@@ -169,9 +166,6 @@
     "errors": {
       "loadFailed": "Beim Laden der Meilensteine ist ein unerwarteter Fehler aufgetreten."
     },
-    "page": {
-      "title": "Projekt"
-    },
     "newButton": "Neuer Meilenstein",
     "empty": {
       "noItems": "Noch keine Meilensteine",
@@ -221,8 +215,6 @@
       "errors": {
         "createFailed": "Meilenstein konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
       },
-      "title": "Meilenstein erstellen",
-      "backLink": "← Meilensteine",
       "form": {
         "title": {
           "label": "Titel",
@@ -245,16 +237,11 @@
       "submitting": "Wird erstellt..."
     },
     "detail": {
-      "backButton": "← Zurück zu Meilensteinen",
-      "toSchedule": "Zum Zeitplan",
-      "backToSchedule": "← Zurück zum Zeitplan",
-      "toMilestones": "Zu Meilensteinen",
       "loading": "Meilenstein wird geladen...",
       "error": "Fehler beim Laden des Meilensteins. Bitte versuchen Sie es erneut.",
       "editButton": "Bearbeiten",
       "notFound": "Meilenstein nicht gefunden",
       "notFoundMessage": "Der gesuchte Meilenstein existiert nicht.",
-      "backLink": "Zurück zu Meilensteinen",
       "edit": {
         "title": "Meilenstein bearbeiten",
         "form": {
