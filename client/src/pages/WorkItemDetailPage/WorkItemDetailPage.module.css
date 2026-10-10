@@ -82,6 +82,12 @@
   cursor: not-allowed;
 }
 
+@media (max-width: 767px) {
+  .backButton {
+    min-height: 44px;
+  }
+}
+
 .headerRow {
   display: flex;
   justify-content: space-between;

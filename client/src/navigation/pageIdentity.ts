@@ -1,5 +1,5 @@
-import { getRouteEntry, isRouteServed, matchLocation, resolveRedirect } from '@cornerstone/shared';
-import type { RouteId } from '@cornerstone/shared';
+import { getRouteEntry, isRouteServed, matchLocation, routeUrl } from '@cornerstone/shared';
+import type { RouteId, ServedRouteId } from '@cornerstone/shared';
 import { NAV_SECTIONS } from './navConfig.js';
 import type { NavLabelKey, NavSection } from './navConfig.js';
 
@@ -75,7 +75,11 @@ export function breadcrumbChain(
     seen.add(parentId);
     if (isRouteServed(parentId)) {
       try {
-        const href = resolveRedirect(getRouteEntry(parentId).from, params, '', '');
+        // Dynamic id and params: the per-route param typing of routeUrl cannot be met statically.
+        const href = (routeUrl as (id: ServedRouteId, params: Record<string, string>) => string)(
+          parentId as ServedRouteId,
+          params,
+        );
         chain.push({ id: parentId, href, labelKey: navLabelKeyForRoute(parentId) });
       } catch {
         // a required param is missing: skip this ancestor

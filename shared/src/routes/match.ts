@@ -2,19 +2,14 @@
 // does. Self-contained: imports only './*.js' siblings.
 
 import {
-  applyQueryMap,
   conditionHolds,
   effectiveTarget,
   liveConditionalRules,
   liveQueryMaps,
-  queryMatches,
   resolveRedirect,
   resolveRedirectRule,
   type RouteGateContext,
 } from './redirects.js';
-import { baseFrom } from './paths.js';
-
-export { baseFrom };
 import { ROUTE_MAP } from './routeMap.js';
 import type { RouteId } from './routeUrl.js';
 import type { RouteMapEntry } from './types.js';
@@ -103,15 +98,6 @@ export function resolveLocation(url: string, ctx: RouteContext): RouteResolution
   if (target !== null) {
     const rule = { from: entry.from, target, queryMaps: liveQueryMaps(entry.from) };
     return { kind: 'redirect', to: resolveRedirectRule(rule, params, search, hash), entry };
-  }
-
-  for (const mapEntry of ENTRIES) {
-    if (mapEntry.stage !== 'done' || !mapEntry.match?.query) continue;
-    if (baseFrom(mapEntry.from) !== entry.from || !queryMatches(mapEntry.match.query, search)) {
-      continue;
-    }
-    const map = { query: mapEntry.match.query, target: mapEntry.to };
-    return { kind: 'redirect', to: applyQueryMap(map, params, search, hash), entry };
   }
 
   if (entry.id !== undefined) {

@@ -1086,8 +1086,14 @@ describe('validateRouteMap against the shared route module', () => {
       match: { query: { view: 'calendar' } },
     });
 
-    it('accepts a live query map whose base path is served as a page', async () => {
-      assert.deepEqual(await errorsOf({ map: [...BASE_MAP, queryMap('/tasks')] }), []);
+    it('rejects a live query map whose base path is served as a page', async () => {
+      const errors = await errorsOf({ map: [...BASE_MAP, queryMap('/tasks')] });
+      assert.ok(
+        errors.includes(
+          'live query map /tasks?view=calendar needs a redirect base path, the router serves a page',
+        ),
+        errors.join('\n'),
+      );
     });
 
     it('accepts a live query map whose base path is served as a redirect', async () => {

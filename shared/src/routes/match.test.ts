@@ -1,12 +1,12 @@
 import { describe, expect, it } from '@jest/globals';
 import {
-  baseFrom,
   matchLocation,
   matchPattern,
   resolveLocation,
   type RouteContext,
   type RouteResolution,
 } from './match.js';
+import { baseFrom } from './paths.js';
 import { ROUTE_MAP } from './routeMap.js';
 
 const ADMIN: RouteContext = {

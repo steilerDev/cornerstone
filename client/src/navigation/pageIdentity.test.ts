@@ -122,6 +122,21 @@ describe('breadcrumbChain', () => {
     expect(breadcrumbChain('householdItemEdit', {}).map((c) => c.id)).toEqual(['householdItems']);
   });
 
+  it('skips an ancestor that routeUrl throws on (param explicitly undefined) and keeps the rest', () => {
+    const params = { id: undefined } as unknown as Record<string, string>;
+    expect(() => breadcrumbChain('householdItemEdit', params)).not.toThrow();
+    expect(breadcrumbChain('householdItemEdit', params).map((c) => c.id)).toEqual([
+      'householdItems',
+    ]);
+  });
+
+  it('builds ancestor hrefs with the params URI-encoded', () => {
+    const chain = breadcrumbChain('householdItemEdit', { id: 'a b' });
+    expect(chain.find((c) => c.id === 'householdItem')?.href).toBe(
+      '/project/household-items/a%20b',
+    );
+  });
+
   it('returns an empty chain for an unknown id', () => {
     expect(breadcrumbChain('doesNotExist', {})).toEqual([]);
   });

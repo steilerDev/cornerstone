@@ -14,6 +14,9 @@
   text-decoration: none;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
 }
 
 .link,
@@ -119,8 +122,6 @@
   .link,
   .linkDynamic,
   .back {
-    display: inline-flex;
-    align-items: center;
     min-height: 44px;
   }
 }

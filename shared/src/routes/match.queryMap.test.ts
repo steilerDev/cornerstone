@@ -1,5 +1,6 @@
-// Query-map entries are all `planned` in the real map today, so the live query-map branch of
-// resolveLocation is exercised against a synthetic map.
+// Query-map entries are all `planned` in the real map except one, so the live query-map branch of
+// resolveLocation is also exercised against a synthetic map. A live query map applies only on a
+// redirect base (RouteRedirect over LIVE_REDIRECT_ROUTES); on a page base it is not applied.
 import { beforeAll, describe, expect, it, jest } from '@jest/globals';
 import type { RouteContext, RouteResolution } from './match.js';
 import type { RouteMapEntry } from './types.js';
@@ -27,8 +28,25 @@ function entry(over: Partial<RouteMapEntry> & { from: string }): RouteMapEntry {
 }
 
 const SYNTHETIC_MAP: readonly RouteMapEntry[] = [
-  entry({ id: 'diary', from: '/diary' }),
+  entry({ id: 'history', from: '/history' }),
   entry({ id: 'item', from: '/items/:id' }),
+  entry({ id: 'plainPage', from: '/plain-page' }),
+  // Redirect bases
+  entry({
+    from: '/diary',
+    to: '/history',
+    kind: 'redirect',
+    change: 'redirect',
+    carries: ['*'],
+  }),
+  entry({
+    from: '/old-items/:id',
+    to: '/items/:id',
+    kind: 'redirect',
+    change: 'redirect',
+    carries: ['*'],
+  }),
+  // Live query maps on the redirect bases
   entry({
     from: '/diary?filterMode=all',
     to: '/history?include=diary',
@@ -38,12 +56,21 @@ const SYNTHETIC_MAP: readonly RouteMapEntry[] = [
     match: { query: { filterMode: 'all' } },
   }),
   entry({
-    from: '/items/:id?depError=',
+    from: '/old-items/:id?depError=',
     to: '/items/:id?tab=timing',
     kind: 'redirect',
     change: 'query-map',
     carries: ['*'],
     match: { query: { depError: true } },
+  }),
+  // Live query map on a PAGE base: never applied
+  entry({
+    from: '/plain-page?mode=x',
+    to: '/never',
+    kind: 'redirect',
+    change: 'query-map',
+    carries: ['*'],
+    match: { query: { mode: 'x' } },
   }),
   entry({
     from: '/diary?planned=1',
@@ -71,26 +98,39 @@ describe('resolveLocation with live query-map entries', () => {
     });
   });
 
-  it('serves the page when the query value differs', () => {
-    expect(resolveLocation('/diary?filterMode=automatic', CTX).kind).toBe('page');
+  it('falls back to the plain redirect when the query value differs', () => {
+    expect(resolveLocation('/diary?filterMode=automatic', CTX)).toMatchObject({
+      kind: 'redirect',
+      to: '/history?filterMode=automatic',
+    });
   });
 
-  it('serves the page when the query key is absent', () => {
-    expect(resolveLocation('/diary', CTX).kind).toBe('page');
+  it('falls back to the plain redirect when the query key is absent', () => {
+    expect(resolveLocation('/diary', CTX)).toMatchObject({ kind: 'redirect', to: '/history' });
   });
 
   it('matches a key present with any value and substitutes path params', () => {
-    expect(resolveLocation('/items/7?depError=boom', CTX)).toMatchObject({
+    expect(resolveLocation('/old-items/7?depError=boom', CTX)).toMatchObject({
       kind: 'redirect',
       to: '/items/7?tab=timing',
     });
   });
 
   it('does not match when a presence key is missing', () => {
-    expect(resolveLocation('/items/7', CTX).kind).toBe('page');
+    expect(resolveLocation('/old-items/7', CTX)).toMatchObject({
+      kind: 'redirect',
+      to: '/items/7',
+    });
   });
 
   it('ignores planned query-map entries', () => {
-    expect(resolveLocation('/diary?planned=1', CTX).kind).toBe('page');
+    expect(resolveLocation('/diary?planned=1', CTX)).toMatchObject({
+      kind: 'redirect',
+      to: '/history?planned=1',
+    });
+  });
+
+  it('does not apply a query map that sits on a page base', () => {
+    expect(resolveLocation('/plain-page?mode=x', CTX).kind).toBe('page');
   });
 });

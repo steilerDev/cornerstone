@@ -11,6 +11,7 @@
 - ["Every X" claims](recurring-patterns.md) — grep the old idiom repo-wide; the diff only shows converted sites (LIKE escaping, PR #2272)
 - [Column meaning change orphans readers](recurring-patterns.md) — grep all reads of a re-defined field (planned vs floored dates, PR #2274)
 - [Scanner-blind spots in source guards](recurring-patterns.md) — query appended to routeUrl() escapes the literal guard; generator extractors must check attr wiring (PR #2276)
+- [Plan checks vs the router](recurring-patterns.md) — a rule checked against resolveLocation can accept what the router never serves (page-base query maps, PR #2278)
 - [Re-runnable crash recovery](recurring-patterns.md) — flip the marker between a rollback's destructive and restoring loops; side effects before a fallible start step (ADR-037)
 - [Recovery steps on a full disk](recurring-patterns.md) — re-assert persisted state only when it differs; free regenerable space before any write (PR #2169)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION
