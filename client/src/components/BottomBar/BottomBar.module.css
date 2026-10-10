@@ -4,7 +4,6 @@
   bottom: 0;
   z-index: calc(var(--z-dropdown) + 1);
   background-color: var(--color-bg-primary);
-  border-top: 1px solid var(--color-border);
   padding-bottom: env(safe-area-inset-bottom);
   padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
   transition:
@@ -24,6 +23,7 @@
   justify-content: center;
   box-sizing: border-box;
   height: var(--spacing-16);
+  border-top: 1px solid var(--color-border);
   margin: 0;
   padding: 0;
   list-style: none;

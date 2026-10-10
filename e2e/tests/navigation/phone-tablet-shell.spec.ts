@@ -255,6 +255,33 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await expect(appShell.moreButton).toBeFocused();
     });
 
+    test('S3: tapping More moves focus into the sheet at phone and tablet widths', async ({
+      page,
+    }) => {
+      const appShell = new AppShellPage(page);
+      await page.goto(ROUTES.home);
+      await expect(appShell.bottomBar).toBeVisible();
+
+      for (const width of [390, 810]) {
+        await page.setViewportSize({ width, height: 900 });
+        // Tap More and look at focus straight away: no wait for the sheet to finish sliding in
+        await appShell.moreButton.click();
+        await expect
+          .poll(
+            () =>
+              page.evaluate(() => {
+                const sheet = document.querySelector('[data-testid="more-sheet"]');
+                return sheet !== null && sheet.contains(document.activeElement);
+              }),
+            { message: `focus is inside the sheet at ${width}px` },
+          )
+          .toBe(true);
+        await expect(appShell.moreSheetRow('tasks')).toBeFocused();
+        await appShell.closeMoreSheet();
+        await expect(appShell.moreButton).toBeFocused();
+      }
+    });
+
     test('S3: tapping a row navigates and leaves the sheet closed and inert', async ({ page }) => {
       const appShell = new AppShellPage(page);
       await page.goto(ROUTES.home);

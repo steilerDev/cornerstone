@@ -53,4 +53,33 @@ describe('NavAnchor', () => {
     fireEvent.click(anchor, { ctrlKey: true });
     expect(log.actions).toEqual([]);
   });
+
+  describe('onNavigate only for a plain in-app click', () => {
+    it('calls onNavigate exactly once for a plain left click', () => {
+      const onNavigate = jest.fn();
+      const { anchor } = setup({ onNavigate });
+      fireEvent.click(anchor);
+      expect(onNavigate).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      ['ctrl', { ctrlKey: true }],
+      ['meta', { metaKey: true }],
+      ['shift', { shiftKey: true }],
+      ['alt', { altKey: true }],
+      ['middle button', { button: 1 }],
+    ])('does not call onNavigate for a %s click (the browser opens it elsewhere)', (_l, init) => {
+      const onNavigate = jest.fn();
+      const { anchor } = setup({ onNavigate });
+      fireEvent.click(anchor, init);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+
+    it('does not call onNavigate for a link with a target (target="_blank")', () => {
+      const onNavigate = jest.fn();
+      const { anchor } = setup({ onNavigate, target: '_blank' });
+      fireEvent.click(anchor);
+      expect(onNavigate).not.toHaveBeenCalled();
+    });
+  });
 });

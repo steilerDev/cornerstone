@@ -32,6 +32,10 @@
   .row:hover {
     background-color: var(--color-bg-hover);
   }
+
+  .rowCurrent:hover {
+    background-color: var(--color-primary-bg);
+  }
 }
 
 .row:active {
@@ -52,6 +56,10 @@
   color: var(--color-primary-badge-text);
   font-weight: var(--font-weight-semibold);
   box-shadow: inset 3px 0 0 var(--color-primary);
+}
+
+.rowCurrent:active {
+  background-color: var(--color-primary-bg);
 }
 
 .rowCurrent:focus-visible {

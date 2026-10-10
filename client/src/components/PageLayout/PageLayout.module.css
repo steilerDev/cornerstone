@@ -38,7 +38,7 @@
 .titleTrigger {
   display: inline-block;
   min-height: var(--touch-target-min);
-  margin-inline: calc(-1 * var(--spacing-2));
+  margin-inline: calc(-1 * (var(--spacing-2) + var(--spacing-px)));
   padding-block: 0;
   padding-inline: var(--spacing-2);
   border: 1px solid transparent;

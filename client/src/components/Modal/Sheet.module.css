@@ -13,6 +13,10 @@
 .backdropOpen {
   opacity: 1;
   visibility: visible;
+  /* Visible at once on open so focus() lands; closing keeps the delayed hide */
+  transition:
+    opacity var(--transition-slow),
+    visibility 0s;
 }
 
 .panel {
@@ -40,6 +44,9 @@
 .panelOpen {
   transform: translateY(0);
   visibility: visible;
+  transition:
+    transform var(--transition-slow),
+    visibility 0s;
 }
 
 @media (min-width: 768px) {

@@ -721,6 +721,41 @@ describe('phone and tablet shell rule pins (#2207)', () => {
     );
   });
 
+  it('the sheet shows at once when opening: visibility transitions over 0s on the open panel and backdrop', () => {
+    const sheet = readCss('components', 'Modal', 'Sheet.module.css');
+    for (const selector of ['.panelOpen', '.backdropOpen']) {
+      const decls = ruleFor(sheet, selector);
+      expect(decls.get('visibility')).toBe('visible');
+      expect(decls.get('transition')).toMatch(/visibility\s+0s/);
+    }
+    // Closing keeps the delayed hide so the slide-out stays visible
+    expect(ruleFor(sheet, '.panel').get('transition')).toMatch(
+      /visibility\s+var\(--transition-slow\)/,
+    );
+  });
+
+  it('the bar border sits on the 64px list, not on the bar (it must not add height under the row)', () => {
+    expect(ruleFor(bottomBar, '.list').get('border-top')).toBe('1px solid var(--color-border)');
+    expect(ruleFor(bottomBar, '.bar').has('border-top')).toBe(false);
+    expect(ruleFor(bottomBar, '.list').get('height')).toBe('var(--spacing-16)');
+  });
+
+  it('the current More row keeps its fill on hover and press (no wash that lowers the contrast)', () => {
+    const moreSheet = readCss('components', 'MoreSheet', 'MoreSheet.module.css');
+    for (const selector of ['.rowCurrent', '.rowCurrent:hover', '.rowCurrent:active']) {
+      expect(ruleFor(moreSheet, selector).get('background-color')).toBe('var(--color-primary-bg)');
+    }
+    expect(ruleFor(moreSheet, '.rowCurrent').get('color')).toBe('var(--color-primary-badge-text)');
+  });
+
+  it('the current More row text on its fill is at least 4.5:1 in light and over the composited dark fill', () => {
+    expect(
+      tokenRatio('light', '--color-primary-badge-text', '--color-primary-bg'),
+    ).toBeGreaterThanOrEqual(4.5);
+    const dark = compositeOver('dark', '--color-primary-bg', '--color-bg-primary');
+    expect(ratio(resolve('dark', '--color-primary-badge-text'), dark)).toBeGreaterThanOrEqual(4.5);
+  });
+
   it('tokens.css defines the 44px minimum touch target', () => {
     expect(tokens.light.get('--touch-target-min')).toBe('2.75rem');
     expect(tokens.dark.get('--touch-target-min')).toBe('2.75rem');

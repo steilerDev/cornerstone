@@ -1,5 +1,6 @@
 import type { AnchorHTMLAttributes, ReactNode } from 'react';
 import { useHref, useLinkClickHandler } from 'react-router-dom';
+import { isPlainLeftClick } from '../lib/plainClick.js';
 
 export interface NavAnchorProps extends Omit<
   AnchorHTMLAttributes<HTMLAnchorElement>,
@@ -8,7 +9,10 @@ export interface NavAnchorProps extends Omit<
   /** In-app path from navHref()/routeUrl(); never a string literal. */
   readonly to: string;
   readonly replace?: boolean;
-  /** Runs before the in-app navigation (e.g. close the sheet). */
+  /**
+   * Runs before the in-app navigation (e.g. close the sheet), only for a plain left click on an
+   * anchor without a `target`. Modified and middle clicks open elsewhere and leave the page as is.
+   */
   readonly onNavigate?: () => void;
   readonly children: ReactNode;
 }
@@ -28,7 +32,7 @@ export function NavAnchor({ to, replace, onNavigate, children, ...rest }: NavAnc
       {...rest}
       href={href}
       onClick={(event) => {
-        onNavigate?.();
+        if (rest.target === undefined && isPlainLeftClick(event)) onNavigate?.();
         handleClick(event);
       }}
     >

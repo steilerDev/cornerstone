@@ -16,4 +16,5 @@ Story #2207 (EPIC-21 P1.2a). Patterns that were non-obvious:
 - **Mutation checks** by copying production files to the job tmp dir, editing one line with `sed`, running the suites, then `cp` back and `diff`ing to prove restoration.
 - `git status` fails in this worktree (`wiki/.git` not recognized); list changed tests by hand.
 - Heredocs, `xargs npx`, and python fed from a heredoc in the same command are refused by the worktree guard: write scripts to the job tmp dir with the Write tool and run them.
-- Dark `--color-primary` on `--color-bg-tertiary` is 4.07:1 (below 4.5). It is the pressed state of the active bottom-bar slot; kept as an `it.failing` tripwire in `tokenContrast.test.ts` until the design fixes it.
+- Dark `--color-primary` on `--color-bg-tertiary` is 4.07:1 (below 4.5), the pressed state of the active bottom-bar slot. Fixed by `.slotActive:active { background-color: var(--color-bg-hover) }` (4.94 dark / 4.95 light); `tokenContrast.test.ts` has a plain contrast test and a rule pin, so deleting the rule fails.
+- `previousPath` records pathname by `history.state.idx` (a Map), so a replace (view switch) overwrites its own index and never becomes the previous page. MemoryRouter does not write `history.state`, so tests bump `idx` by hand before each navigation.
