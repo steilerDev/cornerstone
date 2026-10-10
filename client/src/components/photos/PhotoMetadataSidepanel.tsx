@@ -21,12 +21,15 @@ export interface PhotoMetadataSidepanelProps {
   onPhotoUpdated?: (photo: Photo) => void;
   /** If true, hides the sidepanel and toggle button to avoid pointer event interference during annotation. */
   isAnnotating?: boolean;
+  /** Phone only: called with the new state whenever the bottom sheet opens or closes. */
+  onMobileOpenChange?: (open: boolean) => void;
 }
 
 export function PhotoMetadataSidepanel({
   photo,
   onPhotoUpdated,
   isAnnotating = false,
+  onMobileOpenChange,
 }: PhotoMetadataSidepanelProps) {
   const { t } = useTranslation('photoViewer');
   const { t: tErrors } = useTranslation('errors');
@@ -106,12 +109,18 @@ export function PhotoMetadataSidepanel({
     orientationId !== (photo.orientationId ?? '');
   const isDisabled = isSaving || isLoadingAreas;
 
+  const handleToggleMobile = () => {
+    const next = !isOpenMobile;
+    setIsOpenMobile(next);
+    onMobileOpenChange?.(next);
+  };
+
   // Toggle button JSX — reused in two locations (closed launcher or header)
   const toggleButton = (additionalClassName?: string) => (
     <button
       type="button"
       className={`${styles.toggleButton}${additionalClassName ? ` ${additionalClassName}` : ''}`}
-      onClick={() => setIsOpenMobile((v) => !v)}
+      onClick={handleToggleMobile}
       aria-expanded={isOpenMobile}
       aria-controls="photo-metadata-sidepanel"
       data-testid="photo-metadata-toggle"

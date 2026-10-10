@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
   BudgetCategory,
@@ -51,6 +51,15 @@ const DEFAULT_COLOR = '#3b82f6';
 
 type Tab =
   'household' | 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
+
+const MANAGE_TABS: readonly Tab[] = [
+  'household',
+  'areas',
+  'trades',
+  'orientations',
+  'budget-categories',
+  'hi-categories',
+];
 
 // ============================================================
 // HOUSEHOLD TAB
@@ -1968,7 +1977,6 @@ function BudgetCategoriesTab() {
                 placeholder={t('manage.budgetCategories.namePlaceholder')}
                 maxLength={100}
                 disabled={isCreating}
-                autoFocus
               />
             </div>
 
@@ -2539,7 +2547,6 @@ function HouseholdItemCategoriesTab() {
                 placeholder={t('manage.householdItemCategories.namePlaceholder')}
                 maxLength={100}
                 disabled={isCreating}
-                autoFocus
               />
             </div>
 
@@ -2823,6 +2830,33 @@ export function ManagePage() {
 
   const isAdmin = user?.role === 'admin';
 
+  const tabLabels: Record<Tab, string> = {
+    household: t('manage.tabs.household'),
+    areas: t('manage.tabs.areas'),
+    trades: t('manage.tabs.trades'),
+    orientations: t('manage.tabs.orientations'),
+    'budget-categories': t('manage.tabs.budgetCategories'),
+    'hi-categories': t('manage.tabs.householdItemCategories'),
+  };
+
+  // WAI-ARIA tabs: arrow keys / Home / End move between tabs (automatic activation).
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const last = MANAGE_TABS.length - 1;
+    const current = MANAGE_TABS.indexOf(activeTab);
+    let next: number;
+    if (e.key === 'ArrowRight') next = current >= last ? 0 : current + 1;
+    else if (e.key === 'ArrowLeft') next = current <= 0 ? last : current - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    else return;
+    e.preventDefault();
+    const nextTab = MANAGE_TABS[next]!;
+    setActiveTab(nextTab);
+    const el = document.getElementById(`manage-tab-${nextTab}`);
+    el?.focus();
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  };
+
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
     { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
@@ -2851,58 +2885,30 @@ export function ManagePage() {
       title={t('manage.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
-      <div className={styles.tabList} role="tablist">
-        <button
-          role="tab"
-          aria-selected={activeTab === 'household'}
-          className={`${styles.tab} ${activeTab === 'household' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('household')}
-        >
-          {t('manage.tabs.household')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'areas'}
-          className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('areas')}
-        >
-          {t('manage.tabs.areas')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'trades'}
-          className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('trades')}
-        >
-          {t('manage.tabs.trades')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'orientations'}
-          className={`${styles.tab} ${activeTab === 'orientations' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('orientations')}
-        >
-          {t('manage.tabs.orientations')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'budget-categories'}
-          className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('budget-categories')}
-        >
-          {t('manage.tabs.budgetCategories')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'hi-categories'}
-          className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('hi-categories')}
-        >
-          {t('manage.tabs.householdItemCategories')}
-        </button>
+      <div className={styles.tabList} role="tablist" onKeyDown={handleTabKeyDown}>
+        {MANAGE_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`manage-tab-${tab}`}
+            aria-selected={activeTab === tab}
+            aria-controls={`${tab}-panel`}
+            tabIndex={activeTab === tab ? 0 : -1}
+            className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tabLabels[tab]}
+          </button>
+        ))}
       </div>
 
-      <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+      <div
+        className={styles.tabPanel}
+        role="tabpanel"
+        id={`${activeTab}-panel`}
+        aria-labelledby={`manage-tab-${activeTab}`}
+      >
         {activeTab === 'household' && <HouseholdTab />}
         {activeTab === 'areas' && <AreasTab />}
         {activeTab === 'trades' && <TradesTab />}

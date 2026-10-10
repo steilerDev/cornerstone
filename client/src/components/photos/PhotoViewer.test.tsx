@@ -132,22 +132,44 @@ jest.unstable_mockModule('./PhotoMetadataSidepanel.js', () => ({
   PhotoMetadataSidepanel: ({
     photo,
     onPhotoUpdated,
+    onMobileOpenChange,
   }: {
     photo: Photo;
     onPhotoUpdated?: (p: Photo) => void;
     isAnnotating?: boolean;
+    onMobileOpenChange?: (open: boolean) => void;
   }) =>
-    React.createElement('div', {
-      'data-testid': 'mock-metadata-sidepanel',
-      'data-photo-id': photo.id,
-      onClick: () =>
-        onPhotoUpdated?.({ ...photo, caption: 'saved-caption', areaId: 'area-1' } as Photo),
-    }),
+    React.createElement(
+      'div',
+      {
+        'data-testid': 'mock-metadata-sidepanel',
+        'data-photo-id': photo.id,
+        onClick: () =>
+          onPhotoUpdated?.({ ...photo, caption: 'saved-caption', areaId: 'area-1' } as Photo),
+      },
+      React.createElement('button', {
+        type: 'button',
+        'data-testid': 'mock-sheet-open',
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation();
+          onMobileOpenChange?.(true);
+        },
+      }),
+      React.createElement('button', {
+        type: 'button',
+        'data-testid': 'mock-sheet-close',
+        onClick: (e: React.MouseEvent) => {
+          e.stopPropagation();
+          onMobileOpenChange?.(false);
+        },
+      }),
+    ),
 }));
 
 // ─── Dynamic imports ──────────────────────────────────────────────────────────
 
 import type * as PhotoViewerModule from './PhotoViewer.js';
+import enPhotoViewer from '../../i18n/en/photoViewer.json';
 
 let PhotoViewer: (typeof PhotoViewerModule)['PhotoViewer'];
 
@@ -605,6 +627,31 @@ describe('PhotoViewer', () => {
   it('metadata sidepanel is always rendered when the viewer is open', () => {
     renderViewer([makePhoto()]);
     expect(screen.getByTestId('mock-metadata-sidepanel')).toBeInTheDocument();
+  });
+
+  // jsdom applies no CSS-module rules: the arrow offset itself is asserted in the E2E
+  // visual-defects spec. Here we only verify the wiring (data-sheet-open) that CSS keys on.
+  it('marks the main viewer data-sheet-open while the phone details sheet is open', () => {
+    renderViewer([makePhoto(), makePhoto({ id: 'photo-2' })]);
+    // The close button is a direct child of the main viewer element
+    const mainViewer = screen.getByRole('button', { name: enPhotoViewer.closeViewer })
+      .parentElement as HTMLElement;
+    expect(mainViewer).not.toBeNull();
+    expect(mainViewer).not.toHaveAttribute('data-sheet-open');
+
+    fireEvent.click(screen.getByTestId('mock-sheet-open'));
+    expect(mainViewer).toHaveAttribute('data-sheet-open', 'true');
+
+    fireEvent.click(screen.getByTestId('mock-sheet-close'));
+    expect(mainViewer).not.toHaveAttribute('data-sheet-open');
+  });
+
+  it('keeps the navigation arrows labelled while the sheet is open', () => {
+    renderViewer([makePhoto(), makePhoto({ id: 'photo-2' })]);
+    fireEvent.click(screen.getByTestId('mock-sheet-open'));
+
+    expect(screen.getByRole('button', { name: enPhotoViewer.previousPhoto })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: enPhotoViewer.nextPhoto })).toBeInTheDocument();
   });
 
   // ─── Delete Photo button ──────────────────────────────────────────────────

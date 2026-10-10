@@ -116,7 +116,7 @@
 }
 
 .sourceRowDisc {
-  opacity: 0.75;
+  color: var(--color-text-secondary);
 }
 
 .sourceRadio {

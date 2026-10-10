@@ -124,6 +124,8 @@ export function DashboardPage() {
       title: t('cards.recentDiary.title')!,
       section: 'primary' as DashboardSection,
       dataSource: 'diaryEntries' as DataSourceKey,
+      emptyMessage: t('cards.recentDiary.emptyMessage')!,
+      emptyAction: { label: t('cards.recentDiary.emptyAction')!, href: '/diary/new' },
     },
     {
       id: 'quick-actions' as DashboardCardId,

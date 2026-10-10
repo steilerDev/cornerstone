@@ -152,7 +152,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Who (one picker: companies first, then household members; inline 'New company')",
     "change": "same",
     "gate": "none",
-    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation)."
+    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500."
   },
   "WRK-021": {
     "name": "Set duration and start-after / start-before constraints at creation",
@@ -176,7 +176,7 @@
     "to": "Tasks > Task page (/project/work-items/:id, URL kept)",
     "change": "same",
     "gate": "none",
-    "note": "One object template: header, summary strip, 5 tabs."
+    "note": "One object template: header, summary strip, 5 tabs. #2196: two-column grid can no longer overflow on phones (long titles wrap)."
   },
   "WRK-024": {
     "name": "Return to where you came from (work-item list or schedule) from the detail page",
@@ -184,7 +184,7 @@
     "to": "Global > breadcrumb + top-bar Back (returns to origin view, filters and scroll)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Two swapping back buttons become one origin-aware Back (NAV-09, D-11)."
+    "note": "Two swapping back buttons become one origin-aware Back (NAV-09, D-11). #2196: the secondary nav button is no longer dimmed."
   },
   "WRK-025": {
     "name": "Rename a work item inline",
@@ -244,7 +244,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Task page > Overview section Edit > Who picker (company or household member; clearing allowed); Save.",
-    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Tasks (one pattern per task, principle 8; monthly use). #2196: assigning both a user and a vendor answers 400 instead of 500."
   },
   "WRK-032": {
     "name": "Set or clear a work item's duration (days)",
@@ -402,7 +402,7 @@
     "to": "Tasks > Task page > Timing tab > 'Purchases waiting for this task'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (monthly use). #2196: linked-purchase category chip resolves the category name; no empty chip."
   },
   "WRK-053": {
     "name": "Read each budget line card on a work item or household item: planned amount, confidence margin, invoiced/quoted amount, description and category / source / vendor chips",
@@ -622,7 +622,7 @@
     "to": "Global > breadcrumb + top-bar Back (origin-aware)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use)."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed."
   },
   "WRK-092": {
     "name": "Open the project schedule",
@@ -1081,7 +1081,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Show lines rows no longer overlap on phones."
   },
   "MNY-031": {
     "name": "Open a work item or household item from a source's line list",
@@ -1099,7 +1099,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2196: selectable Show lines rows no longer collide with the checkbox on phones."
   },
   "MNY-033": {
     "name": "Mass-move selected budget lines to another financing source",
@@ -1722,7 +1722,7 @@
     "to": "Task / Purchase page > Cost tab > grouped by offer / invoice, estimates first",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19)."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones."
   },
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",
@@ -1739,7 +1739,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 2 funding source",
     "change": "same",
     "gate": "none",
-    "note": "Preselected when started from a funding source or Home. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
+    "note": "Preselected when started from a funding source or Home. #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2196: discretionary source rows keep full contrast."
   },
   "MNY-118": {
     "name": "Move back and forth through the five report wizard steps",
@@ -1755,7 +1755,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 select invoices (grouped by company)",
     "change": "same",
     "gate": "none",
-    "note": "Scales to 57 invoices (VR-BM-12)."
+    "note": "Scales to 57 invoices (VR-BM-12). #2196: invoice rows use a phone layout without overlaps."
   },
   "MNY-120": {
     "name": "Inspect an invoice's lines, deposits, split and attachment status inside the report",
@@ -1763,7 +1763,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 > invoice expand",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2196: expand button no longer uses negative margins."
   },
   "MNY-121": {
     "name": "Exclude individual budget lines from a report",
@@ -1779,7 +1779,7 @@
     "to": "Money > Financing > Bank report (wizard, /budget/reports, URL kept; breadcrumb Money > Financing > Bank report) > step 3 > 'Not split to this source' group",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2196: unallocated group keeps full contrast and wraps on phones."
   },
   "MNY-123": {
     "name": "Choose the report language independently of the UI language",
@@ -1928,7 +1928,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use)."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2196: Edit form shows the saved trade."
   },
   "MNY-141": {
     "name": "List all invoices of a vendor",
@@ -2219,7 +2219,7 @@
     "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; category and area in the summary strip)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2227,7 +2227,7 @@
     "to": "Global > breadcrumb + top-bar Back (origin-aware)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use)."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2196: the secondary nav button is no longer dimmed."
   },
   "HHI-044": {
     "name": "View item details (description, vendor, product URL, quantity)",
@@ -2439,7 +2439,7 @@
     "to": "Purchases > Purchase page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Dialog bug fixed (D-09)."
+    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop."
   },
   "HHI-094": {
     "name": "View the household item categories with colour and sort order",
@@ -2529,7 +2529,7 @@
     "to": "Site diary > Site diary list > entry card (photo strip, title, date, company, area, workers)",
     "change": "same",
     "gate": "none",
-    "note": "Plural fix (D-25)."
+    "note": "Plural fix (D-25). #2196: worker count is pluralised; outcome, severity and weather labels are translated."
   },
   "JRN-011": {
     "name": "Jump from an automatic diary event to the record that triggered it",
@@ -2856,7 +2856,7 @@
     "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > full screen, ‹ ›, keys",
     "change": "same",
     "gate": "none",
-    "note": "One viewer component everywhere."
+    "note": "One viewer component everywhere. #2196: photo arrows no longer overlap the details panel or the open phone sheet."
   },
   "JRN-050": {
     "name": "Compare an annotated photo with its original",
@@ -3288,7 +3288,7 @@
     "gate": "none",
     "acceptance": "Bottom bar (5 slots) and More sheet list every destination of the sidebar; More opens and closes; closed sheet is inert.",
     "decision": "Q1d",
-    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4)."
+    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom."
   },
   "PLT-011": {
     "name": "Follow old bookmarks and legacy URLs to their new locations",
@@ -3497,7 +3497,7 @@
     "to": "Global > locale formatting (dates without 'at h:mm PM' in German)",
     "change": "same",
     "gate": "none",
-    "note": "D-25 formatter fix."
+    "note": "D-25 formatter fix. #2196: date-time uses one locale-native format (24-hour in German, no joiner word)."
   },
   "PLT-037": {
     "name": "Read API error messages in the chosen language",
@@ -3637,7 +3637,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "First-run checklist steps open the form that creates the missing data; EmptyState actions are router links.",
-    "note": "GLB-05; D-25 EmptyState reload fixed. #2193: the Invoice Pipeline empty state (\"No invoices yet\") now appears only when no invoice exists at all."
+    "note": "GLB-05; D-25 EmptyState reload fixed. #2193: the Invoice Pipeline empty state (\"No invoices yet\") now appears only when no invoice exists at all. #2196: empty-state action links navigate in-app without a full reload."
   },
   "PLT-054": {
     "name": "See the remaining budget at a glance",
@@ -3788,7 +3788,7 @@
     "to": "Home > Latest from the site (people's entries, photo-first)",
     "change": "same",
     "gate": "none",
-    "note": "System events excluded (D2 DOM-06, GLB-10)."
+    "note": "System events excluded (D2 DOM-06, GLB-10). #2196: Recent Diary empty state now shows its own message and action."
   },
   "PLT-071": {
     "name": "Use the Quick Actions card as a launcher",
@@ -3949,7 +3949,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Project setup sections reachable by ?tab= anchors; areas via /areas.",
-    "note": "Manage's inner tab row and Back trap retired (D-10, P17)."
+    "note": "Manage's inner tab row and Back trap retired (D-10, P17). #2196: Manage tab row scrolls instead of overflowing, with arrow-key navigation."
   },
   "PLT-092": {
     "name": "Set the household name and address",
@@ -4002,7 +4002,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page ⋯ > Delete with consequences modal.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated."
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos)."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
@@ -4026,7 +4026,7 @@
     "to": "Companies > Trades sheet (list with company counts; New, Rename, Merge, Delete) — Settings > Project setup keeps a pointer row (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it)."
   },
   "PLT-101": {
     "name": "See predefined trades and categories in the interface language",

@@ -356,6 +356,26 @@ describe('Work Item Routes', () => {
       expect(error.error.message).toContain('User not found');
     });
 
+    it('fails with 400 VALIDATION_ERROR when both assignedUserId and assignedVendorId are set', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const vendorId = insertTestVendor('Both Vendor');
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/work-items',
+        headers: { cookie },
+        payload: { title: 'Both', assignedUserId: userId, assignedVendorId: vendorId },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
+    });
+
     it('fails with 400 when areaId does not exist (UAT-3.2-09)', async () => {
       // Given: Authenticated user
       const { cookie } = await createUserWithSession('user@example.com', 'User', 'password');
@@ -1179,6 +1199,30 @@ describe('Work Item Routes', () => {
       expect(response.statusCode).toBe(200);
       const updated = JSON.parse(response.body) as WorkItemDetail;
       expect(updated.assignedVendor).toBeNull();
+    });
+
+    it('fails with 400 (not 500) when PATCH would leave both a user and a vendor assigned', async () => {
+      const { userId, cookie } = await createUserWithSession(
+        'user@example.com',
+        'User',
+        'password',
+      );
+      const vendorId = insertTestVendor('Patch Vendor');
+      const workItem = workItemService.createWorkItem(app.db, userId, {
+        title: 'Test',
+        assignedUserId: userId,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${workItem.id}`,
+        headers: { cookie },
+        payload: { assignedVendorId: vendorId },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const error = JSON.parse(response.body) as ApiErrorResponse;
+      expect(error.error.code).toBe('VALIDATION_ERROR');
     });
 
     it('allows member users to update work items (UAT-3.2-38)', async () => {

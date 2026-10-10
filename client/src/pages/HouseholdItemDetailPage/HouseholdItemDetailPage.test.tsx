@@ -1083,6 +1083,123 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
+  // ─── #2196 AC1: delete dialog is the shared Modal (jsdom applies no CSS, so stacking
+  // above the backdrop is asserted in the E2E visual-defects spec) ─────────────────────────
+
+  describe('delete dialog via shared Modal (#2196 AC1)', () => {
+    async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete/i }));
+      return screen.findByRole('dialog');
+    }
+
+    it('opens a dialog named by detail.delete.confirm with Cancel focused initially', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      renderPage();
+
+      const dialog = await openDeleteDialog(user);
+
+      expect(dialog).toHaveAccessibleName(enHouseholdItems.detail.delete.confirm);
+      await waitFor(() => {
+        expect(
+          within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.cancel }),
+        ).toHaveFocus();
+      });
+    });
+
+    it('Escape closes the dialog without deleting', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      renderPage();
+      await openDeleteDialog(user);
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
+    });
+
+    it('confirm calls the delete API and navigates to the list', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockDeleteHouseholdItem.mockResolvedValue(undefined);
+      renderPage();
+      const dialog = await openDeleteDialog(user);
+
+      await user.click(
+        within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
+      );
+
+      await waitFor(() => {
+        expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-1');
+        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
+      });
+    });
+
+    it('on API failure shows the translated error, hides confirm, and reopening shows no stale error', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockDeleteHouseholdItem.mockRejectedValueOnce(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      renderPage();
+      const dialog = await openDeleteDialog(user);
+
+      await user.click(
+        within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
+      );
+
+      // Error text is visible (not just "dialog stays open") and the raw server text never leaks
+      expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(
+        enErrors.NOT_FOUND,
+      );
+      expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
+      expect(
+        within(screen.getByRole('dialog')).queryByRole('button', {
+          name: enHouseholdItems.detail.delete.delete,
+        }),
+      ).not.toBeInTheDocument();
+
+      // Close, reopen: no stale error, confirm is back
+      await user.click(
+        within(screen.getByRole('dialog')).getByRole('button', {
+          name: enHouseholdItems.detail.delete.cancel,
+        }),
+      );
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      });
+      const reopened = await openDeleteDialog(user);
+      expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument();
+      expect(
+        within(reopened).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
+      ).toBeInTheDocument();
+    });
+  });
+
+  // ─── #2196 AC3: category chip never shows a raw id ──────────────────────────
+
+  describe('category chip (#2196 AC3)', () => {
+    it('shows no category chip when the category id cannot be resolved', async () => {
+      mockGetHouseholdItem.mockResolvedValue(
+        makeItem({ category: 'cat-unknown-uuid-123' as HouseholdItemCategory }),
+      );
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      });
+
+      expect(screen.queryByText('cat-unknown-uuid-123')).not.toBeInTheDocument();
+      expect(screen.queryByText('Furniture')).not.toBeInTheDocument();
+    });
+  });
+
   describe('inline status selector', () => {
     it('renders the status select with correct current value', async () => {
       const _user = userEvent.setup();

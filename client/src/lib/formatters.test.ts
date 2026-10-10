@@ -213,7 +213,8 @@ describe('useFormatters — new formatter bindings', () => {
   it('formatDateTime is bound and callable with a single timestamp argument', () => {
     const { result } = renderFormatters();
     const output = result.current.formatDateTime('2026-03-15T14:30:00');
-    expect(output).toContain(' at ');
+    expect(output).toContain('2026');
+    expect(output).not.toContain(' at ');
   });
 });
 
@@ -407,6 +408,16 @@ describe('formatTime', () => {
     expect(result).toMatch(/PM|AM/i);
   });
 
+  it('follows the locale clock: 12-hour in en-US, 24-hour in de-DE', () => {
+    const iso = new Date(2026, 1, 27, 14, 45).toISOString();
+    expect(formatTime(iso, 'en-US')).toMatch(/^2:45\sPM$/);
+    expect(formatTime(iso, 'de-DE')).toBe('14:45');
+  });
+
+  it('returns the fallback for an unparseable timestamp string', () => {
+    expect(formatTime('not-a-date', 'en-US', 'Unavailable')).toBe('Unavailable');
+  });
+
   it('returns custom fallback when timestamp is null', () => {
     expect(formatTime(null, 'en-US', 'Unknown')).toBe('Unknown');
   });
@@ -438,9 +449,19 @@ describe('formatDateTime', () => {
     expect(result).toMatch(/AM|PM/i);
   });
 
-  it('contains " at " separator between date and time', () => {
-    const result = formatDateTime('2026-03-15T14:30:00', 'en-US');
-    expect(result).toContain(' at ');
+  it('uses a comma, never " at " or " um ", between date and time', () => {
+    const iso = new Date(2026, 1, 27, 14, 45).toISOString();
+    expect(formatDateTime(iso, 'en-US')).toMatch(/^Feb 27, 2026, 2:45\sPM$/);
+    expect(formatDateTime(iso, 'de-DE')).toBe('27. Feb. 2026, 14:45');
+    for (const locale of ['en-US', 'de-DE']) {
+      const out = formatDateTime(iso, locale);
+      expect(out).not.toContain(' at ');
+      expect(out).not.toContain(' um ');
+    }
+  });
+
+  it('returns the fallback for an unparseable timestamp string', () => {
+    expect(formatDateTime('not-a-date', 'en-US', 'Unavailable')).toBe('Unavailable');
   });
 
   it('returns custom fallback when timestamp is null', () => {

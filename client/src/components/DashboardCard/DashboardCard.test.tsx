@@ -4,7 +4,10 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { MemoryRouter } from 'react-router-dom';
 import { DashboardCard } from './DashboardCard.js';
+import enDashboard from '../../i18n/en/dashboard.json';
+import enCommon from '../../i18n/en/common.json';
 
 describe('DashboardCard', () => {
   const noop = jest.fn();
@@ -56,9 +59,7 @@ describe('DashboardCard', () => {
         <p>should not appear</p>
       </DashboardCard>,
     );
-    expect(
-      screen.getByRole('status', { name: 'Loading Timeline Status data' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: enCommon.loading })).toBeInTheDocument();
     expect(screen.queryByText('should not appear')).not.toBeInTheDocument();
   });
 
@@ -123,16 +124,18 @@ describe('DashboardCard', () => {
 
   it('shows empty action link when emptyAction provided', () => {
     render(
-      <DashboardCard
-        id="test-card"
-        title="Quick Actions"
-        onDismiss={noop}
-        isEmpty
-        emptyMessage="No items"
-        emptyAction={{ label: 'Add a budget source', href: '/budget/sources' }}
-      >
-        <p>content</p>
-      </DashboardCard>,
+      <MemoryRouter>
+        <DashboardCard
+          id="test-card"
+          title="Quick Actions"
+          onDismiss={noop}
+          isEmpty
+          emptyMessage="No items"
+          emptyAction={{ label: 'Add a budget source', href: '/budget/sources' }}
+        >
+          <p>content</p>
+        </DashboardCard>
+      </MemoryRouter>,
     );
     const link = screen.getByRole('link', { name: 'Add a budget source' });
     expect(link).toBeInTheDocument();
@@ -169,7 +172,7 @@ describe('DashboardCard', () => {
       </DashboardCard>,
     );
     // Skeleton should be visible
-    expect(screen.getByRole('status', { name: 'Loading Budget Summary data' })).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: enCommon.loading })).toBeInTheDocument();
     // Error and empty states must NOT be rendered (they are gated on !isLoading)
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
@@ -196,6 +199,6 @@ describe('DashboardCard', () => {
         <p>content</p>
       </DashboardCard>,
     );
-    expect(screen.getByText('No data available')).toBeInTheDocument();
+    expect(screen.getByText(enDashboard.cards.common.emptyDefault)).toBeInTheDocument();
   });
 });

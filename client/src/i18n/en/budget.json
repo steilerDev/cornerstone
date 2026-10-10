@@ -1512,5 +1512,8 @@
     "submit": "Submit",
     "required": "*",
     "budgetSectionTitle": "Budget"
+  },
+  "invoiceGroup": {
+    "planned": "Planned"
   }
 }

@@ -1,12 +1,16 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryType,
+  DiaryWeather,
+  DiaryInspectionOutcome,
+  DiaryIssueSeverity,
   DailyLogMetadata,
   SiteVisitMetadata,
   DeliveryMetadata,
   IssueMetadata,
 } from '@cornerstone/shared';
-import { Badge } from '../../Badge/Badge.js';
+import { Badge, type BadgeVariant } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import styles from './DiaryMetadataSummary.module.css';
@@ -25,22 +29,37 @@ const WEATHER_EMOJI: Record<string, string> = {
   other: '🌡️',
 };
 
-const DIARY_OUTCOME_VARIANTS = {
-  pass: { label: 'Pass', className: badgeStyles.pass! },
-  fail: { label: 'Fail', className: badgeStyles.fail! },
-  conditional: { label: 'Conditional', className: badgeStyles.conditional! },
-};
-
-const DIARY_SEVERITY_VARIANTS = {
-  low: { label: 'Low', className: badgeStyles.low! },
-  medium: { label: 'Medium', className: badgeStyles.medium! },
-  high: { label: 'High', className: badgeStyles.high! },
-  critical: { label: 'Critical', className: badgeStyles.critical! },
-};
-
 export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {
   const { t } = useTranslation('diary');
   const { formatHours } = useFormatters();
+  const outcomeVariants = useMemo<Record<DiaryInspectionOutcome, BadgeVariant>>(
+    () => ({
+      pass: { label: t('outcomeBadge.pass'), className: badgeStyles.pass! },
+      fail: { label: t('outcomeBadge.fail'), className: badgeStyles.fail! },
+      conditional: { label: t('outcomeBadge.conditional'), className: badgeStyles.conditional! },
+    }),
+    [t],
+  );
+  const severityVariants = useMemo<Record<DiaryIssueSeverity, BadgeVariant>>(
+    () => ({
+      low: { label: t('severityBadge.low'), className: badgeStyles.low! },
+      medium: { label: t('severityBadge.medium'), className: badgeStyles.medium! },
+      high: { label: t('severityBadge.high'), className: badgeStyles.high! },
+      critical: { label: t('severityBadge.critical'), className: badgeStyles.critical! },
+    }),
+    [t],
+  );
+  const weatherLabels = useMemo<Record<DiaryWeather, string>>(
+    () => ({
+      sunny: t('form.weatherOptions.sunny'),
+      cloudy: t('form.weatherOptions.cloudy'),
+      rainy: t('form.weatherOptions.rainy'),
+      snowy: t('form.weatherOptions.snowy'),
+      stormy: t('form.weatherOptions.stormy'),
+      other: t('form.weatherOptions.other'),
+    }),
+    [t],
+  );
   if (entryType === 'daily_log' && metadata) {
     const m = metadata as DailyLogMetadata;
     const workDuration = computeWorkDuration(m.workStart, m.workEnd);
@@ -48,7 +67,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       <div className={styles.metadata} data-testid="daily-log-metadata">
         {m.weather && (
           <span className={styles.item}>
-            {WEATHER_EMOJI[m.weather] || '🌡️'} {m.weather}
+            {WEATHER_EMOJI[m.weather] || '🌡️'} {weatherLabels[m.weather] ?? m.weather}
           </span>
         )}
         {m.temperatureCelsius !== undefined && m.temperatureCelsius !== null && (
@@ -58,7 +77,7 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
         )}
         {m.workersOnSite !== undefined && m.workersOnSite !== null && (
           <span className={styles.item}>
-            {m.workersOnSite} {t('metadata.workers')}
+            {t('metadata.workerCount', { count: m.workersOnSite })}
           </span>
         )}
         {m.vendorName && (
@@ -87,9 +106,11 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       <div className={styles.metadata} data-testid="site-visit-metadata">
         {m.outcome && (
           <Badge
-            variants={DIARY_OUTCOME_VARIANTS}
+            variants={outcomeVariants}
             value={m.outcome}
-            ariaLabel={`Outcome: ${DIARY_OUTCOME_VARIANTS[m.outcome]?.label}`}
+            ariaLabel={t('metadata.outcomeAriaLabel', {
+              label: outcomeVariants[m.outcome]?.label ?? m.outcome,
+            })}
             testId={`outcome-${m.outcome}`}
           />
         )}
@@ -131,9 +152,11 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
       <div className={styles.metadata} data-testid="issue-metadata">
         {m.severity && (
           <Badge
-            variants={DIARY_SEVERITY_VARIANTS}
+            variants={severityVariants}
             value={m.severity}
-            ariaLabel={`Severity: ${DIARY_SEVERITY_VARIANTS[m.severity]?.label}`}
+            ariaLabel={t('metadata.severityAriaLabel', {
+              label: severityVariants[m.severity]?.label ?? m.severity,
+            })}
             testId={`severity-${m.severity}`}
           />
         )}

@@ -30,6 +30,7 @@ import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as WorkItemMilestonesApiTypes from '../../lib/workItemMilestonesApi.js';
 import type * as HouseholdItemWorkItemsApiTypes from '../../lib/householdItemWorkItemsApi.js';
+import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as WorkItemDetailPageTypes from './WorkItemDetailPage.js';
 
 // Module-scope mocks
@@ -214,6 +215,13 @@ jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
   fetchLinkedHouseholdItems: mockFetchLinkedHouseholdItems,
 }));
 
+// Linked-purchase category chips resolve names via the categories API (#2196 AC3)
+const mockFetchHouseholdItemCategories =
+  jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
+jest.unstable_mockModule('../../lib/householdItemCategoriesApi.js', () => ({
+  fetchHouseholdItemCategories: mockFetchHouseholdItemCategories,
+}));
+
 // Mock useAreas hook — WorkItemDetailPage uses useAreas to render AreaPicker
 const mockUseAreas = jest.fn(() => ({
   areas: [],
@@ -353,6 +361,7 @@ describe('WorkItemDetailPage', () => {
     mockAddLinkedMilestone.mockReset();
     mockRemoveLinkedMilestone.mockReset();
     mockFetchLinkedHouseholdItems.mockReset();
+    mockFetchHouseholdItemCategories.mockReset();
 
     if (!WorkItemDetailPageModule) {
       WorkItemDetailPageModule = await import('./WorkItemDetailPage.js');
@@ -399,6 +408,7 @@ describe('WorkItemDetailPage', () => {
     mockGetWorkItemMilestones.mockResolvedValue({ required: [], linked: [] });
     // Household item work items defaults
     mockFetchLinkedHouseholdItems.mockResolvedValue([]);
+    mockFetchHouseholdItemCategories.mockResolvedValue({ categories: [] });
   });
 
   function renderPage(id = 'work-1') {
@@ -1029,6 +1039,90 @@ describe('WorkItemDetailPage', () => {
 
       // Count badge "1" should be visible in the heading area
       expect(screen.getByText('1')).toBeInTheDocument();
+    });
+  });
+
+  // ── #2196 AC3: linked-purchase category chip resolves the name from the id ──
+
+  describe('Linked purchase category chip (#2196 AC3)', () => {
+    const linkedPurchase = {
+      id: 'hi-chip',
+      name: 'Oak Table',
+      category: 'cat-furniture-id' as never,
+      status: 'planned' as const,
+      targetDeliveryDate: null,
+      earliestDeliveryDate: null,
+      latestDeliveryDate: null,
+    };
+
+    async function waitForPage() {
+      await waitFor(() => {
+        expect(screen.getByText('Oak Table')).toBeInTheDocument();
+      });
+    }
+
+    it('shows the category name when the id resolves', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
+      mockFetchHouseholdItemCategories.mockResolvedValue({
+        categories: [
+          {
+            id: 'cat-furniture-id',
+            name: 'Furniture',
+            translationKey: null,
+            color: null,
+            sortOrder: 0,
+            createdAt: '2024-01-01T00:00:00Z',
+            updatedAt: '2024-01-01T00:00:00Z',
+          },
+        ],
+      } as never);
+
+      renderPage();
+      await waitForPage();
+
+      expect(await screen.findByText('Furniture')).toBeInTheDocument();
+      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
+    });
+
+    it('renders no chip for an unknown category id', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
+
+      renderPage();
+      await waitForPage();
+      await waitFor(() => {
+        expect(mockFetchHouseholdItemCategories).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
+    });
+
+    it('renders no chip and no error banner when the categories fetch rejects', async () => {
+      const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+      mockFetchLinkedHouseholdItems.mockResolvedValue([linkedPurchase]);
+      mockFetchHouseholdItemCategories.mockRejectedValue(new Error('boom'));
+
+      renderPage();
+      await waitForPage();
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalled();
+      });
+
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.queryByText('cat-furniture-id')).not.toBeInTheDocument();
+      consoleError.mockRestore();
+    });
+
+    it('does not fetch categories when there are no linked purchases', async () => {
+      mockFetchLinkedHouseholdItems.mockResolvedValue([]);
+
+      renderPage();
+      await waitFor(() => {
+        expect(
+          screen.getByRole('heading', { name: 'Test Work Item', level: 1 }),
+        ).toBeInTheDocument();
+      });
+
+      expect(mockFetchHouseholdItemCategories).not.toHaveBeenCalled();
     });
   });
 

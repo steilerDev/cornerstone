@@ -463,6 +463,143 @@ describe('ManagePage', () => {
 
   // ─── Areas tab content ─────────────────────────────────────────────────────
 
+  // ── Tablist keyboard (#2196 AC2) ─────────────────────────────────────────
+  // Layout (single scrolling row on phones) is CSS and is covered by the E2E
+  // visual-defects spec: jsdom applies no CSS-module rules.
+
+  describe('Tablist keyboard navigation', () => {
+    const TAB_NAMES = [
+      'Household',
+      'Areas',
+      'Trades',
+      'Orientations',
+      'Budget Categories',
+      'Household Item Categories',
+    ];
+
+    beforeEach(() => {
+      // jsdom lacks scrollIntoView
+      Element.prototype.scrollIntoView = jest.fn();
+    });
+
+    it('ArrowRight from Areas activates and focuses Trades', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{ArrowRight}');
+
+      const trades = screen.getByRole('tab', { name: 'Trades' });
+      expect(trades).toHaveAttribute('aria-selected', 'true');
+      expect(trades).toHaveFocus();
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it('ArrowLeft from the first tab wraps to the last tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      screen.getByRole('tab', { name: 'Household' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      const last = screen.getByRole('tab', { name: 'Household Item Categories' });
+      expect(last).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('keeps focus on the tab after arrowing onto the last tab (no autoFocus in its panel)', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      screen.getByRole('tab', { name: 'Household' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveFocus();
+    });
+
+    it('ArrowLeft from Trades moves back to Areas', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=trades');
+
+      screen.getByRole('tab', { name: 'Trades' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('ArrowRight from the last tab wraps to the first tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=hi-categories');
+
+      screen.getByRole('tab', { name: 'Household Item Categories' }).focus();
+      await user.keyboard('{ArrowRight}');
+
+      const first = screen.getByRole('tab', { name: 'Household' });
+      expect(first).toHaveAttribute('aria-selected', 'true');
+      expect(first).toHaveFocus();
+    });
+
+    it('End jumps to the last tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{End}');
+      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    });
+
+    it('Home jumps from Areas to the first tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{Home}');
+
+      const first = screen.getByRole('tab', { name: 'Household' });
+      expect(first).toHaveAttribute('aria-selected', 'true');
+      expect(first).toHaveFocus();
+    });
+
+    it('ignores unrelated keys', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('a');
+
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('only the active tab is in the tab order (roving tabIndex)', () => {
+      renderManagePage('/settings/manage?tab=trades');
+
+      for (const name of TAB_NAMES) {
+        expect(screen.getByRole('tab', { name })).toHaveAttribute(
+          'tabindex',
+          name === 'Trades' ? '0' : '-1',
+        );
+      }
+    });
+
+    it('the tab panel is labelled by the active tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      const panel = screen.getByRole('tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'manage-tab-areas');
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('id', 'manage-tab-areas');
+
+      await user.click(screen.getByRole('tab', { name: 'Trades' }));
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'manage-tab-trades');
+      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute(
+        'aria-controls',
+        'trades-panel',
+      );
+    });
+  });
+
   describe('Areas tab', () => {
     it('shows loading state while fetching areas', () => {
       mockUseAreas.mockReturnValue(makeAreasHookResult({ isLoading: true, areas: [] }));
@@ -619,6 +756,8 @@ describe('ManagePage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.getByRole('heading', { name: 'Delete Area' })).toBeInTheDocument();
+      // #2196 AC6: the warning states what is really deleted / blocked
+      expect(screen.getByText(enSettings.manage.areas.deleteWarning)).toBeInTheDocument();
     });
 
     it('successfully deletes an area after confirming in modal', async () => {
@@ -809,6 +948,7 @@ describe('ManagePage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.getByRole('heading', { name: 'Delete Trade' })).toBeInTheDocument();
+      expect(screen.getByText(enSettings.manage.trades.deleteWarning)).toBeInTheDocument();
     });
 
     it('successfully deletes a trade after confirming in modal', async () => {

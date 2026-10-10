@@ -499,6 +499,36 @@ describe('VendorDetailPage', () => {
       expect(screen.getByRole('button', { name: /save changes/i })).toBeInTheDocument();
     });
 
+    it('shows the current trade name in the edit form (#2196 AC3)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+
+      const form = screen.getByRole('button', { name: /save changes/i }).closest('form')!;
+      expect(within(form).getByText('Plumbing')).toBeInTheDocument();
+    });
+
+    it('shows no trade name in the edit form when the vendor has no trade', async () => {
+      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, trade: null });
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /^edit$/i }));
+
+      const form = screen.getByRole('button', { name: /save changes/i }).closest('form')!;
+      expect(within(form).queryByText('Plumbing')).not.toBeInTheDocument();
+    });
+
     it('pre-fills edit form with current vendor values', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
@@ -512,7 +542,7 @@ describe('VendorDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /^edit$/i }));
 
       expect(screen.getByDisplayValue('Smith Plumbing')).toBeInTheDocument();
-      // specialty/trade field removed from edit form (trade display is Story 3 TODO)
+      // The trade is a picker, not a text input: its name is asserted in the next test
       expect(screen.queryByDisplayValue('Plumbing')).not.toBeInTheDocument();
       expect(screen.getByDisplayValue('+1 555-1234')).toBeInTheDocument();
       expect(screen.getByDisplayValue('smith@plumbing.com')).toBeInTheDocument();

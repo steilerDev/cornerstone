@@ -29,6 +29,7 @@ export function PhotoViewer({
 }: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAnnotating, setIsAnnotating] = useState(startInAnnotator && editable);
   const [showingOriginal, setShowingOriginal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -182,7 +183,7 @@ export function PhotoViewer({
       <div className={styles.backdrop} onClick={handleBackdropClick} />
 
       <div className={styles.container}>
-        <div className={styles.mainViewer}>
+        <div className={styles.mainViewer} data-sheet-open={isSheetOpen ? 'true' : undefined}>
           {/* Close button */}
           <button
             type="button"
@@ -395,6 +396,7 @@ export function PhotoViewer({
           photo={currentPhoto}
           onPhotoUpdated={handlePhotoUpdated}
           isAnnotating={isAnnotating}
+          onMobileOpenChange={setIsSheetOpen}
         />
       </div>
     </div>

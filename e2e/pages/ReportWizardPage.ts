@@ -372,10 +372,12 @@
  *   checkbox, so activating it can never toggle inclusion (AC 2.5). It renders a real
  *   `<a>` (react-router `Link`, `target="_blank" rel="noopener noreferrer"`), so
  *   `getByRole('link', ...)` resolves it — see `openInvoiceLink()` below. There is NO mobile
- *   card layout for this row at any viewport (the grid is unconditional — see the CSS file's
- *   lack of an `.invoiceRow`/`.listHeader` override inside its `@media (max-width: 767px)`
- *   block), so the affordance and its 44×44px touch target apply identically at desktop,
- *   tablet, and mobile.
+ *   card layout for this row, but since Story #2196 the same grid is re-flowed inside the
+ *   `@media (max-width: 767px)` block of `ReportInvoiceList.module.css` (a 3-track
+ *   `2.75rem minmax(0, 1fr) auto` grid: vendor info on the first line, status chip and amount
+ *   on the next, the open-invoice link on the right), so at phone width the vendor-info box no
+ *   longer overlaps the status chip or amount (see `responsive/visual-defects.spec.ts`).
+ *   The affordance and its 44×44px touch target apply identically at all viewports.
  * - Select-all alignment fix: the header's checkbox wrapper used to compose
  *   `${styles.headerCheckbox} ${styles.checkboxWithContent}` — `.headerCheckbox`'s own
  *   `justify-content: center` fought `.checkboxWithContent`'s row-checkbox alignment,

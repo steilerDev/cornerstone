@@ -46,8 +46,11 @@ export class HouseholdItemDetailPage {
   readonly documentsSection: Locator;
   readonly documentsHeading: Locator;
 
-  // Delete
+  // Delete (Story #2196: the dialog is the shared Modal — role="dialog", rendered in a portal)
+  readonly deleteButton: Locator;
   readonly deleteModal: Locator;
+  readonly deleteConfirmButton: Locator;
+  readonly deleteCancelButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -81,7 +84,18 @@ export class HouseholdItemDetailPage {
     this.documentsSection = page.getByRole('region', { name: 'Documents', exact: true });
 
     // Delete confirmation modal
-    this.deleteModal = page.locator('[role="dialog"]');
+    this.deleteModal = page.getByRole('dialog');
+    // The page-level trigger and the dialog's confirm button share the label "Delete Item".
+    // The trigger comes first in DOM order (the Modal portals to the end of <body>).
+    this.deleteButton = page.getByRole('button', { name: 'Delete Item', exact: true }).first();
+    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
+      name: 'Delete Item',
+      exact: true,
+    });
+    this.deleteCancelButton = this.deleteModal.getByRole('button', {
+      name: 'Cancel',
+      exact: true,
+    });
   }
 
   /**

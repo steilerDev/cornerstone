@@ -1,4 +1,5 @@
 .card {
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -168,6 +169,16 @@
   .deleteConfirmButton,
   .cancelDeleteButton {
     min-height: 44px;
+  }
+}
+
+@media (max-width: 767px) {
+  .card {
+    flex-wrap: wrap;
+  }
+
+  .actions {
+    margin-left: auto;
   }
 }
 

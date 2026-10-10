@@ -19,8 +19,10 @@ import type {
   MilestoneSummary,
   WorkItemSubsidyPaybackResponse,
   WorkItemLinkedHouseholdItemSummary,
-  HouseholdItemCategory,
+  HouseholdItemCategoryEntity,
 } from '@cornerstone/shared';
+import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import {
   getWorkItem,
   updateWorkItem,
@@ -122,22 +124,8 @@ export default function WorkItemDetailPage() {
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tSettings } = useTranslation('settings');
   const { areas } = useAreas();
-
-  // Household item labels (moved from module level to use i18n)
-  const HOUSEHOLD_ITEM_CATEGORY_LABELS: Record<HouseholdItemCategory, string> = useMemo(
-    () => ({
-      furniture: t('detail.householdItems.categories.furniture')!,
-      appliances: t('detail.householdItems.categories.appliances')!,
-      fixtures: t('detail.householdItems.categories.fixtures')!,
-      decor: t('detail.householdItems.categories.decor')!,
-      electronics: t('detail.householdItems.categories.electronics')!,
-      outdoor: t('detail.householdItems.categories.outdoor')!,
-      storage: t('detail.householdItems.categories.storage')!,
-      other: t('detail.householdItems.categories.other')!,
-    }),
-    [t],
-  );
 
   const statusVariants = useStatusBadgeVariants();
 
@@ -173,6 +161,24 @@ export default function WorkItemDetailPage() {
   const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<
     WorkItemLinkedHouseholdItemSummary[]
   >([]);
+  const [hiCategories, setHiCategories] = useState<HouseholdItemCategoryEntity[]>([]);
+
+  // Resolve linked-purchase category names (category is an id, not an enum)
+  const hasLinkedHouseholdItems = linkedHouseholdItems.length > 0;
+  useEffect(() => {
+    if (!hasLinkedHouseholdItems || hiCategories.length > 0) return;
+    let cancelled = false;
+    fetchHouseholdItemCategories()
+      .then((res) => {
+        if (!cancelled) setHiCategories(res.categories);
+      })
+      .catch((err: unknown) => {
+        console.error('Failed to load household item categories:', err);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLinkedHouseholdItems, hiCategories.length]);
 
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -2091,9 +2097,14 @@ export default function WorkItemDetailPage() {
                 >
                   {hi.name}
                 </Link>
-                <span className={styles.householdItemCategoryBadge}>
-                  {HOUSEHOLD_ITEM_CATEGORY_LABELS[hi.category]}
-                </span>
+                {(() => {
+                  const category = hiCategories.find((c) => c.id === hi.category);
+                  return category ? (
+                    <span className={styles.householdItemCategoryBadge}>
+                      {getCategoryDisplayName(tSettings, category.name, category.translationKey)}
+                    </span>
+                  ) : null;
+                })()}
                 <Badge
                   variants={statusVariants.purchase}
                   value={hi.status}

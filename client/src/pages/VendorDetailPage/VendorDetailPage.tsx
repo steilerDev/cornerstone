@@ -499,6 +499,16 @@ export function VendorDetailPage() {
                   {t('vendorDetail.form.trade')}
                 </label>
                 <TradePicker
+                  id="edit-tradeId"
+                  initialTitle={
+                    vendor.trade
+                      ? getCategoryDisplayName(
+                          tSettings,
+                          vendor.trade.name,
+                          vendor.trade.translationKey,
+                        )
+                      : undefined
+                  }
                   trades={trades}
                   value={(editForm.tradeId as string) ?? ''}
                   onChange={(tradeId) => setEditForm({ ...editForm, tradeId })}

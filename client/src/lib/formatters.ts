@@ -96,7 +96,7 @@ export function formatDate(
  * @param timestamp - An ISO timestamp string or null/undefined.
  * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
- * @returns A localized time string, e.g. "2:45 PM", or the fallback value.
+ * @returns A localized time string, e.g. "2:45 PM" (en-US) or "14:45" (de-DE), or the fallback value.
  */
 export function formatTime(
   timestamp: string | null | undefined,
@@ -106,11 +106,7 @@ export function formatTime(
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString(locale, {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    });
+    return new Intl.DateTimeFormat(locale, { hour: 'numeric', minute: '2-digit' }).format(date);
   } catch {
     return fallback;
   }
@@ -122,7 +118,7 @@ export function formatTime(
  * @param timestamp - An ISO timestamp string or null/undefined.
  * @param locale - The locale for formatting (default: 'en-US').
  * @param fallback - Value returned when timestamp is null/undefined. Defaults to '—'.
- * @returns A localized date and time string, e.g. "Feb 27, 2026 at 2:45 PM", or the fallback value.
+ * @returns A localized date and time string, e.g. "Feb 27, 2026, 2:45 PM" (en-US) or "27. Feb. 2026, 14:45" (de-DE), or the fallback value.
  */
 export function formatDateTime(
   timestamp: string | null | undefined,
@@ -132,19 +128,13 @@ export function formatDateTime(
   if (!timestamp) return fallback;
   try {
     const date = new Date(timestamp);
-    return (
-      date.toLocaleDateString(locale, {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      }) +
-      ' at ' +
-      date.toLocaleTimeString(locale, {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      })
-    );
+    return new Intl.DateTimeFormat(locale, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    }).format(date);
   } catch {
     return fallback;
   }

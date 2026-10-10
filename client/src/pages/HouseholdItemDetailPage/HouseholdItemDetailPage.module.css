@@ -84,31 +84,18 @@
   cursor: not-allowed;
 }
 
+/* Shared secondary button look (no dimming); layout only here. */
 .secondaryNavButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-  opacity: 0.7;
+  gap: var(--spacing-2);
 }
 
-.secondaryNavButton:hover {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-  opacity: 1;
-}
-
-.secondaryNavButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  opacity: 1;
+@media (max-width: 767px) {
+  .secondaryNavButton {
+    min-height: 44px;
+  }
 }
 
 /* ============================================================
@@ -588,56 +575,9 @@
   cursor: not-allowed;
 }
 
-.confirmDeleteButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.confirmDeleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-hover);
-}
-
-.confirmDeleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-.confirmDeleteButton:disabled {
-  background-color: var(--color-text-placeholder);
-  cursor: not-allowed;
-}
-
 /* ============================================================
  * Modal
  * ============================================================ */
-
-.modal {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  z-index: var(--z-modal);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.modalBackdrop {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: var(--color-overlay);
-}
 
 .modalText {
   font-size: var(--font-size-sm);
@@ -736,28 +676,6 @@
     flex-direction: column;
   }
 
-  /* Modal */
-  .modalContent {
-    margin: 0;
-    width: 100%;
-    max-width: 100%;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-  }
-
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-
-  .modalActions .cancelButton,
-  .confirmDeleteButton {
-    width: 100%;
-    text-align: center;
-  }
-
   .metaRow {
     flex-direction: column;
     gap: var(--spacing-3);
@@ -795,7 +713,6 @@
   .editButton,
   .deleteButton,
   .cancelButton,
-  .confirmDeleteButton,
   .deliveryStep,
   .deliveryLine,
   .backLink,
@@ -1298,43 +1215,6 @@
   color: var(--color-primary);
 }
 
-.modalOverlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: var(--color-overlay);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: var(--z-modal);
-}
-
-.modalContent {
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  padding: var(--spacing-6);
-  box-shadow: var(--shadow-lg);
-  max-width: 90vw;
-  max-height: 90vh;
-  overflow-y: auto;
-}
-
-.modalTitle {
-  margin: 0 0 var(--spacing-4) 0;
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-text-primary);
-}
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-  margin-top: var(--spacing-4);
-}
-
 /* ============================================================
  * RESPONSIVE — Tablet (768px – 1023px)
  * ============================================================ */
@@ -1349,8 +1229,7 @@
   .secondaryButton,
   .editButton,
   .deleteButton,
-  .cancelButton,
-  .confirmDeleteButton {
+  .cancelButton {
     min-height: 44px;
   }
 

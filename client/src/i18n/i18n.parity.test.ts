@@ -357,3 +357,40 @@ describe('#2188 deposits-exceed-invoice copy', () => {
     });
   }
 });
+
+describe('#2196 visual-defects keys', () => {
+  const bundles = {
+    en: { diary: enDiary, budget: enBudget, workItems: enWorkItems, dashboard: enDashboard },
+    de: { diary: deDiary, budget: deBudget, workItems: deWorkItems, dashboard: deDashboard },
+  } as unknown as Record<
+    string,
+    {
+      diary: { metadata: Record<string, string> };
+      budget: { invoiceGroup: Record<string, string> };
+      workItems: { detail: { householdItems: Record<string, unknown> } };
+      dashboard: { cards: { common: Record<string, string> } };
+    }
+  >;
+
+  for (const [locale, b] of Object.entries(bundles)) {
+    it(`${locale}: diary metadata has both plural forms and the aria-label templates`, () => {
+      expect(b.diary.metadata.workerCount_one).toContain('{{count}}');
+      expect(b.diary.metadata.workerCount_other).toContain('{{count}}');
+      expect(b.diary.metadata.outcomeAriaLabel).toContain('{{label}}');
+      expect(b.diary.metadata.severityAriaLabel).toContain('{{label}}');
+    });
+
+    it(`${locale}: the retired diary metadata.workers key is gone`, () => {
+      expect(b.diary.metadata).not.toHaveProperty('workers');
+    });
+
+    it(`${locale}: budget invoiceGroup.planned and dashboard cards.common.emptyDefault exist`, () => {
+      expect(b.budget.invoiceGroup.planned).toMatch(/\S/);
+      expect(b.dashboard.cards.common.emptyDefault).toMatch(/\S/);
+    });
+
+    it(`${locale}: the retired workItems detail.householdItems.categories map is gone`, () => {
+      expect(b.workItems.detail.householdItems).not.toHaveProperty('categories');
+    });
+  }
+});

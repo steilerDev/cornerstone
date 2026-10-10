@@ -15,6 +15,7 @@ import type * as UsePreferencesTypes from '../../hooks/usePreferences.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enDashboard from '../../i18n/en/dashboard.json';
+import enCommon from '../../i18n/en/common.json';
 import type {
   BudgetOverview,
   Invoice,
@@ -292,7 +293,7 @@ describe('DashboardPage', () => {
     //   diaryEntries   → Recent Diary (1)
     // Quick Actions has no dataSource — renders children immediately, no skeleton
     // Each card appears in both desktop grid and mobile section = 9 × 2 = 18
-    const loadingEls = screen.getAllByRole('status', { name: /^Loading .+ data$/ });
+    const loadingEls = screen.getAllByRole('status', { name: enCommon.loading });
     expect(loadingEls.length).toBe(18);
   });
 
@@ -1010,6 +1011,28 @@ describe('DashboardPage', () => {
     // All 10 cards still visible
     expect(screen.getAllByRole('heading', { name: 'Budget Summary' })[0]).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { name: 'Quick Actions' })[0]).toBeInTheDocument();
+  });
+
+  // ─── D-25 (#2196): Recent Diary empty state ─────────────────────────────────
+
+  describe('Recent Diary empty state (D-25)', () => {
+    it('shows the diary empty message and a "create first entry" link to /diary/new, never the generic fallback', async () => {
+      renderPage();
+
+      const message = enDashboard.cards.recentDiary.emptyMessage;
+      await waitFor(() => {
+        expect(screen.getAllByText(message).length).toBeGreaterThan(0);
+      });
+
+      const links = screen.getAllByRole('link', {
+        name: enDashboard.cards.recentDiary.emptyAction,
+      });
+      expect(links.length).toBeGreaterThan(0);
+      for (const link of links) {
+        expect(link).toHaveAttribute('href', '/diary/new');
+      }
+      expect(screen.queryByText('No data available')).not.toBeInTheDocument();
+    });
   });
 
   // ─── Story #1426: Dashboard only shows saved diary entries ───────────────────

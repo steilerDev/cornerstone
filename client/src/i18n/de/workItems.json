@@ -259,17 +259,7 @@
       "removeLinkedMilestoneAriaLabel": "Verknüpften Meilenstein entfernen: {{name}}"
     },
     "householdItems": {
-      "noItems": "Keine Haushaltsartikel sind von diesem Arbeitspaket abhängig.",
-      "categories": {
-        "furniture": "Möbel",
-        "appliances": "Geräte",
-        "fixtures": "Einbauten",
-        "decor": "Dekor",
-        "electronics": "Elektronik",
-        "outdoor": "Außenbereich",
-        "storage": "Aufbewahrung",
-        "other": "Sonstiges"
-      }
+      "noItems": "Keine Haushaltsartikel sind von diesem Arbeitspaket abhängig."
     },
     "footer": {
       "createdBy": "Erstellt von {{name}} am {{date}}",
