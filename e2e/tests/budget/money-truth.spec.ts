@@ -115,7 +115,8 @@ async function makeBudgetLine(
   },
 ): Promise<string> {
   const resp = await page.request.post(`${API.workItems}/${workItemId}/budgets`, {
-    data: { confidence: 'own_estimate', ...data },
+    // budgetSourceId is required by the API; default to the built-in discretionary source
+    data: { confidence: 'own_estimate', budgetSourceId: 'discretionary-system', ...data },
   });
   expect(resp.ok(), `POST budget line failed: ${resp.status()}`).toBeTruthy();
   const body = (await resp.json()) as { budget: { id: string } };
