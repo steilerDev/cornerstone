@@ -30,6 +30,11 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     assignedUser: null,
     assignedVendor: null,
     area: null,
+    projectedStartDate: overrides.startDate !== undefined ? overrides.startDate : '2024-06-01',
+    projectedEndDate: overrides.endDate !== undefined ? overrides.endDate : '2024-07-31',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     ...overrides,
   };
 }
@@ -650,6 +655,10 @@ describe('GanttSidebar — area breadcrumb on work item rows (Issue #1239)', () 
           color: null,
           workItemIds: [],
           projectedDate: null,
+          isLate: false,
+          lateDays: null,
+          isEarly: false,
+          earlyDays: null,
           isCritical: false,
         },
       },

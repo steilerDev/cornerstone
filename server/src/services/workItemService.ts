@@ -14,7 +14,12 @@ import {
 } from '../db/schema.js';
 import { toLikeContainsPattern } from './shared/likePattern.js';
 import { listWorkItemBudgets } from './workItemBudgetService.js';
-import { autoReschedule } from './schedulingEngine.js';
+import {
+  autoReschedule,
+  computeScheduleProjection,
+  workItemProjectionOf,
+} from './schedulingEngine.js';
+import type { ScheduleProjection } from './schedulingEngine.js';
 import { deleteLinksForEntity } from './documentLinkService.js';
 import { loadAreaMap, resolveAreaAncestors, resolveAreaFilter } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
@@ -119,6 +124,7 @@ export function toWorkItemSummary(
   db: DbType,
   workItem: typeof workItems.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
+  projection: ScheduleProjection,
 ): WorkItemSummary {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
@@ -134,6 +140,7 @@ export function toWorkItemSummary(
     actualStartDate: workItem.actualStartDate,
     actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
+    ...workItemProjectionOf(projection, workItem),
     assignedUser,
     assignedVendor,
     area,
@@ -164,6 +171,7 @@ function getWorkItemDependencies(
   db: DbType,
   workItemId: string,
   areaMap: Map<string, AreaMapEntry>,
+  projection: ScheduleProjection,
 ): { predecessors: DependencyResponse[]; successors: DependencyResponse[] } {
   // Predecessors: work items that this item depends on
   const predecessorRows = db
@@ -177,7 +185,7 @@ function getWorkItemDependencies(
     .all();
 
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem, areaMap),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap, projection),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -194,7 +202,7 @@ function getWorkItemDependencies(
     .all();
 
   const successors: DependencyResponse[] = successorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem, areaMap),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap, projection),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -209,6 +217,7 @@ export function toWorkItemDetail(
   db: DbType,
   workItem: typeof workItems.$inferSelect,
   areaMap: Map<string, AreaMapEntry>,
+  projection: ScheduleProjection,
 ): WorkItemDetail {
   const assignedUser = getAssignedUser(db, workItem.assignedUserId);
   const assignedVendor = getAssignedVendor(db, workItem.assignedVendorId);
@@ -217,7 +226,7 @@ export function toWorkItemDetail(
     ? db.select().from(users).where(eq(users.id, workItem.createdBy)).get()
     : null;
   const subtasks = getWorkItemSubtasks(db, workItem.id);
-  const dependencies = getWorkItemDependencies(db, workItem.id, areaMap);
+  const dependencies = getWorkItemDependencies(db, workItem.id, areaMap, projection);
 
   const budgets: WorkItemBudgetLine[] = listWorkItemBudgets(db, workItem.id);
 
@@ -231,6 +240,7 @@ export function toWorkItemDetail(
     actualStartDate: workItem.actualStartDate,
     actualEndDate: workItem.actualEndDate,
     durationDays: workItem.durationDays,
+    ...workItemProjectionOf(projection, workItem),
     startAfter: workItem.startAfter,
     startBefore: workItem.startBefore,
     assignedUser,
@@ -364,7 +374,7 @@ export function createWorkItem(
   // Fetch and return the created work item
   const workItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
   const areaMap = loadAreaMap(db);
-  return toWorkItemDetail(db, workItem!, areaMap);
+  return toWorkItemDetail(db, workItem!, areaMap, computeScheduleProjection(db));
 }
 
 /**
@@ -398,7 +408,7 @@ export function getWorkItemDetail(db: DbType, id: string): WorkItemDetail {
     throw new NotFoundError('Work item not found');
   }
   const areaMap = loadAreaMap(db);
-  return toWorkItemDetail(db, workItem, areaMap);
+  return toWorkItemDetail(db, workItem, areaMap, computeScheduleProjection(db));
 }
 
 /**
@@ -597,7 +607,7 @@ export function updateWorkItem(
   // Fetch and return the updated work item
   const updatedWorkItem = db.select().from(workItems).where(eq(workItems.id, id)).get();
   const areaMap = loadAreaMap(db);
-  return toWorkItemDetail(db, updatedWorkItem!, areaMap);
+  return toWorkItemDetail(db, updatedWorkItem!, areaMap, computeScheduleProjection(db));
 }
 
 /**
@@ -748,7 +758,8 @@ export function listWorkItems(
     .offset(offset)
     .all();
 
-  const items = workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap));
+  const projection = computeScheduleProjection(db);
+  const items = workItemRows.map((wi) => toWorkItemSummary(db, wi, areaMap, projection));
 
   const filterMeta: FilterMeta = {
     budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },

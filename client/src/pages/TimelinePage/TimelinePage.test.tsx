@@ -451,6 +451,10 @@ describe('TimelinePage', () => {
       color: null,
       workItemIds: [],
       projectedDate: null,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
       isCritical: false,
     };
 
@@ -460,6 +464,11 @@ describe('TimelinePage', () => {
       status: 'not_started',
       startDate: thisMonthDate(5),
       endDate: thisMonthDate(6),
+      projectedStartDate: thisMonthDate(5),
+      projectedEndDate: thisMonthDate(6),
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
       durationDays: 2,
       actualStartDate: null,
       actualEndDate: null,

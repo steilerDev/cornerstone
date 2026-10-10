@@ -45,6 +45,14 @@
   margin-bottom: var(--spacing-2);
 }
 
+.headerChips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-1);
+  flex-shrink: 0;
+}
+
 .title {
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-inverse);

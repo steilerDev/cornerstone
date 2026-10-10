@@ -17,6 +17,7 @@ describe('useStatusBadgeVariants', () => {
       'progressPayment',
       'purchase',
       'refund',
+      'scheduleSignal',
       'task',
     ]);
     expect(Object.keys(result.current.invoice).sort()).toEqual([
@@ -44,6 +45,7 @@ describe('useStatusBadgeVariants', () => {
   it('every variant has a non-empty label and a class', () => {
     const { result } = renderHook(() => useStatusBadgeVariants());
     for (const map of Object.values(result.current)) {
+      if (typeof map === 'function') continue;
       for (const variant of Object.values(map)) {
         expect(variant.label.length).toBeGreaterThan(0);
         expect(variant.className).toBeTruthy();
@@ -56,5 +58,14 @@ describe('useStatusBadgeVariants', () => {
     const first = result.current;
     rerender();
     expect(result.current).toBe(first);
+  });
+
+  it('exposes scheduleSignal as a builder taking the late day count', () => {
+    const { result } = renderHook(() => useStatusBadgeVariants());
+    const variants = result.current.scheduleSignal(3);
+    expect(Object.keys(variants).sort()).toEqual(['held_up', 'late']);
+    expect(variants.late.className).toBe('scheduleAtRisk');
+    expect(variants.held_up.className).toBe('scheduleWarning');
+    expect(typeof variants.late.label).toBe('string');
   });
 });

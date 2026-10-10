@@ -45,6 +45,11 @@ function makeWorkItem(
 ): TimelineWorkItem {
   return {
     id,
+    projectedStartDate: startDate,
+    projectedEndDate: endDate,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     title: `Item ${id}`,
     status,
     startDate,
@@ -70,6 +75,10 @@ function makeMilestone(id: number, targetDate: string, isCompleted = false): Tim
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     isCritical: false,
   };
 }
@@ -920,5 +929,62 @@ describe('getWeekSegments', () => {
       ).toBe(true);
     }
     expect(segments.length).toBe(4);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Placement from forecast dates (contract 4, #2199)
+// ---------------------------------------------------------------------------
+
+describe('week placement follows the forecast dates', () => {
+  const week1 = getWeekDates(new Date(Date.UTC(2024, 2, 3))); // 2024-03-03 .. 2024-03-09
+  const week2 = getWeekDates(new Date(Date.UTC(2024, 2, 10))); // 2024-03-10 .. 2024-03-16
+
+  it('places a late item in the forecast week, not the planned week', () => {
+    const late = {
+      ...makeWorkItem('late', '2024-03-04', '2024-03-06'),
+      projectedStartDate: '2024-03-12',
+      projectedEndDate: '2024-03-14',
+      isLate: true,
+      lateDays: 8,
+    };
+    expect(getWeekSegments(week1, [late])).toHaveLength(0);
+    const [segment] = getWeekSegments(week2, [late]);
+    expect(segment).toMatchObject({
+      startCol: 2,
+      span: 3,
+      continuesFromPrevious: false,
+      continuesToNext: false,
+    });
+  });
+
+  it('places an undated task (null planned dates) at its forecast', () => {
+    const undated = {
+      ...makeWorkItem('undated', null, null),
+      projectedStartDate: '2024-03-05',
+      projectedEndDate: '2024-03-06',
+    };
+    const [segment] = getWeekSegments(week1, [undated]);
+    expect(segment).toMatchObject({ startCol: 2, span: 2 });
+  });
+
+  it('prefers actual dates over the forecast', () => {
+    const started = {
+      ...makeWorkItem('started', '2024-03-04', '2024-03-06', 'in_progress'),
+      actualStartDate: '2024-03-04',
+      projectedStartDate: '2024-03-04',
+      projectedEndDate: '2024-03-12',
+    };
+    expect(getWeekSegments(week1, [started])).toHaveLength(1);
+    expect(getWeekSegments(week2, [started])).toHaveLength(1);
+  });
+
+  it('skips an item with neither actual nor forecast dates', () => {
+    const none = {
+      ...makeWorkItem('none', '2024-03-04', '2024-03-06'),
+      projectedStartDate: null,
+      projectedEndDate: null,
+    };
+    expect(getWeekSegments(week1, [none])).toHaveLength(0);
   });
 });

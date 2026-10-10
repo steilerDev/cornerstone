@@ -128,6 +128,11 @@ function makeWorkItemSummary(overrides: Partial<WorkItemSummary> = {}): WorkItem
     budgetLineCount: 0,
     createdAt: '2024-01-01T00:00:00Z',
     updatedAt: '2024-01-01T00:00:00Z',
+    projectedStartDate: overrides.startDate !== undefined ? overrides.startDate : null,
+    projectedEndDate: overrides.endDate !== undefined ? overrides.endDate : null,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     ...overrides,
   };
 }
@@ -329,6 +334,107 @@ describe('WorkItemsPage', () => {
       fireEvent.click(screen.getByTestId('wi-menu-button-wi-1'));
 
       expect(screen.getByTestId('wi-view-wi-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+  });
+
+  describe('schedule signal chip (contract 4, #2199)', () => {
+    const lateItem = makeWorkItemSummary({
+      id: 'wi-late',
+      title: 'Late task',
+      startDate: '2026-03-05',
+      endDate: '2026-03-08',
+      projectedStartDate: '2026-03-10',
+      projectedEndDate: '2026-03-13',
+      isLate: true,
+      lateDays: 5,
+    });
+    const heldItem = makeWorkItemSummary({
+      id: 'wi-held',
+      title: 'Held task',
+      startDate: '2026-03-08',
+      endDate: '2026-03-12',
+      projectedStartDate: '2026-03-13',
+      projectedEndDate: '2026-03-17',
+      isHeldUp: true,
+    });
+    const okItem = makeWorkItemSummary({
+      id: 'wi-ok',
+      title: 'On time task',
+      startDate: '2026-03-20',
+      endDate: '2026-03-23',
+    });
+
+    it('shows Late with the day count on the table row and the mobile card', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([lateItem]));
+      renderPage();
+
+      const chip = await screen.findByTestId('wi-schedule-signal-wi-late');
+      expect(chip).toHaveTextContent('Late · 5 d');
+      expect(screen.getByTestId('wi-schedule-signal-mobile-wi-late')).toHaveTextContent(
+        'Late · 5 d',
+      );
+    });
+
+    it('shows Held up for a held-up row', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([heldItem]));
+      renderPage();
+
+      expect(await screen.findByTestId('wi-schedule-signal-wi-held')).toHaveTextContent('Held up');
+      expect(screen.getByTestId('wi-schedule-signal-mobile-wi-held')).toHaveTextContent('Held up');
+    });
+
+    it('shows no chip for an on-time row', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([okItem]));
+      renderPage();
+
+      await screen.findAllByText('On time task');
+      expect(screen.queryByTestId('wi-schedule-signal-wi-ok')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('wi-schedule-signal-mobile-wi-ok')).not.toBeInTheDocument();
+    });
+
+    it('shows the chip only on late and held-up rows when mixed', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([lateItem, heldItem, okItem]));
+      renderPage();
+
+      await screen.findByTestId('wi-schedule-signal-wi-late');
+      expect(screen.getByTestId('wi-schedule-signal-wi-held')).toBeInTheDocument();
+      expect(screen.queryByTestId('wi-schedule-signal-wi-ok')).not.toBeInTheDocument();
+    });
+
+    it('shows the planned dates (not the forecast) in the date columns', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([lateItem]));
+      renderPage();
+
+      await screen.findByTestId('wi-schedule-signal-wi-late');
+      expect(screen.getAllByText('Mar 5, 2026').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Mar 8, 2026').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Mar 10, 2026')).not.toBeInTheDocument();
+      expect(screen.queryByText('Mar 13, 2026')).not.toBeInTheDocument();
+    });
+
+    it('renders an undated task with empty date cells and no chip', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({
+            id: 'wi-undated',
+            title: 'Undated task',
+            projectedStartDate: '2026-03-10',
+            projectedEndDate: '2026-03-12',
+          }),
+        ]),
+      );
+      renderPage();
+
+      await screen.findAllByText('Undated task');
+      expect(screen.queryByTestId('wi-schedule-signal-wi-undated')).not.toBeInTheDocument();
+    });
+
+    it('keeps every data-testid unique with all chip surfaces mounted', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([lateItem, heldItem, okItem]));
+      const { container } = renderPage();
+
+      await screen.findByTestId('wi-schedule-signal-wi-late');
       expect(findDuplicateTestIds(container)).toEqual([]);
     });
   });

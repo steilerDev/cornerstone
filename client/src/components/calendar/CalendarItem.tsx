@@ -24,6 +24,7 @@ import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { barDates } from '../../lib/scheduleDates.js';
 import styles from './CalendarItem.module.css';
 
 // ---------------------------------------------------------------------------
@@ -164,8 +165,9 @@ export function CalendarItem({
       : {};
 
   const status = task[item.status].label;
-  const start = formatDate(item.startDate);
-  const end = formatDate(item.endDate);
+  const drawn = barDates(item);
+  const start = formatDate(drawn.start);
+  const end = formatDate(drawn.end);
   const ariaLabel = item.area
     ? t('calendar.item.ariaLabelWithArea', {
         title: item.title,

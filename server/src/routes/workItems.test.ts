@@ -201,12 +201,13 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Pour foundation');
       expect(workItem.description).toBe('Pour concrete foundation for main structure');
       expect(workItem.status).toBe('in_progress');
-      // autoReschedule() runs after creation. The item has status 'in_progress', so Rule 3
-      // floors the end date to today when the computed EF (startDate + durationDays =
-      // 2026-03-05) is in the past. startDate is preserved as the user set it.
+      // autoReschedule() persists the PLANNED end (startDate + durationDays = 2026-03-05);
+      // the today floor is a read-time projection (contract 4, #2199).
       expect(workItem.startDate).toBe('2026-03-01');
+      expect(workItem.endDate).toBe('2026-03-05');
       const todayStr = new Date().toISOString().slice(0, 10);
-      expect(workItem.endDate).toBe(todayStr);
+      expect(workItem.projectedEndDate).toBe(todayStr);
+      expect(workItem.isLate).toBe(true);
       expect(workItem.durationDays).toBe(4);
       expect(workItem.startAfter).toBe('2026-02-28');
       expect(workItem.startBefore).toBe('2026-03-10');

@@ -54,6 +54,10 @@ const MILESTONE_INCOMPLETE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-1', 'wi-2'],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 
@@ -66,6 +70,10 @@ const MILESTONE_COMPLETE: TimelineMilestone = {
   color: '#EF4444',
   workItemIds: [],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 
@@ -79,6 +87,10 @@ const MILESTONE_LATE: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-3'],
   projectedDate: '2024-09-01', // projected > target → late
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 
@@ -622,6 +634,10 @@ const MILESTONE_CRITICAL: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-10'],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: true,
 };
 
@@ -634,6 +650,10 @@ const MILESTONE_NON_CRITICAL: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-11'],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 
@@ -646,6 +666,10 @@ const MILESTONE_LATE_CRITICAL: TimelineMilestone = {
   color: null,
   workItemIds: ['wi-12'],
   projectedDate: '2024-09-01', // late
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: true,
 };
 

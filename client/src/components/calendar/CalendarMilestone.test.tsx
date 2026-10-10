@@ -33,6 +33,10 @@ function makeMilestone(overrides: Partial<TimelineMilestone> = {}): TimelineMile
     workItemIds: [],
     projectedDate: null,
     isCritical: false,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     ...overrides,
   };
 }

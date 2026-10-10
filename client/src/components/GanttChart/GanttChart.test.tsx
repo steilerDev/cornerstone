@@ -53,6 +53,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
   formatPercent: (n: number) => `${n.toFixed(2)}%`,
   formatWeekdayMonthDay: (d: Date) => d.toISOString().slice(0, 10),
   toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
+  formatDayRange: (start: Date, end: Date) =>
+    `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
 }));
 
 // Dynamic import — must happen after jest.unstable_mockModule calls.
@@ -71,6 +73,11 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         status: 'in_progress',
         startDate: '2024-07-01',
         endDate: '2024-07-31',
+        projectedStartDate: '2024-07-01',
+        projectedEndDate: '2024-07-31',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 30,
         actualStartDate: null,
         actualEndDate: null,
@@ -86,6 +93,11 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         status: 'not_started',
         startDate: '2024-08-01',
         endDate: '2024-09-15',
+        projectedStartDate: '2024-08-01',
+        projectedEndDate: '2024-09-15',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 45,
         actualStartDate: null,
         actualEndDate: null,
@@ -101,6 +113,11 @@ function makeTimeline(overrides: Partial<TimelineResponse> = {}): TimelineRespon
         status: 'not_started',
         startDate: '2024-09-16',
         endDate: '2024-10-15',
+        projectedStartDate: '2024-09-16',
+        projectedEndDate: '2024-10-15',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 30,
         actualStartDate: null,
         actualEndDate: null,
@@ -149,6 +166,10 @@ function makeTimelineWithMilestones(): TimelineResponse {
         color: null,
         workItemIds: ['wi-1'],
         projectedDate: null,
+        isLate: false,
+        lateDays: null,
+        isEarly: false,
+        earlyDays: null,
         isCritical: false,
       },
     ],
@@ -603,6 +624,10 @@ describe('AC-7: Milestone hover — linked arrows highlighted', () => {
           color: null,
           workItemIds: ['wi-1'], // only wi-1 is linked
           projectedDate: null,
+          isLate: false,
+          lateDays: null,
+          isEarly: false,
+          earlyDays: null,
           isCritical: false,
         },
       ],
@@ -937,6 +962,11 @@ describe('GanttChart — areaName in work item tooltip data (Issue #1239)', () =
           status: 'in_progress',
           startDate: '2024-07-01',
           endDate: '2024-07-31',
+          projectedStartDate: '2024-07-01',
+          projectedEndDate: '2024-07-31',
+          isLate: false,
+          lateDays: null,
+          isHeldUp: false,
           durationDays: 30,
           actualStartDate: null,
           actualEndDate: null,
@@ -989,6 +1019,11 @@ describe('GanttChart — areaName in work item tooltip data (Issue #1239)', () =
           status: 'in_progress',
           startDate: '2024-07-01',
           endDate: '2024-07-31',
+          projectedStartDate: '2024-07-01',
+          projectedEndDate: '2024-07-31',
+          isLate: false,
+          lateDays: null,
+          isHeldUp: false,
           durationDays: 30,
           actualStartDate: null,
           actualEndDate: null,
@@ -1036,6 +1071,11 @@ describe('GanttChart — tooltip data from the shared builders (#2198)', () => {
       status: 'in_progress' as const,
       startDate: '2024-07-01',
       endDate: '2024-07-31',
+      projectedStartDate: '2024-07-01',
+      projectedEndDate: '2024-07-31',
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
       durationDays: 30,
       actualStartDate: null,
       actualEndDate: null,
@@ -1154,6 +1194,11 @@ describe('GanttChart — keyboard focus and touch use the same tooltip builders 
     status: 'in_progress' as const,
     startDate: '2024-07-01',
     endDate: '2024-07-31',
+    projectedStartDate: '2024-07-01',
+    projectedEndDate: '2024-07-31',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     durationDays: 30,
     actualStartDate: null,
     actualEndDate: null,
@@ -1213,6 +1258,144 @@ describe('GanttChart — keyboard focus and touch use the same tooltip builders 
       expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Kitchen');
     } finally {
       window.matchMedia = original;
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Story #2199 — bars, order and tooltip follow the forecast (contract 4)
+// ---------------------------------------------------------------------------
+
+describe('GanttChart — schedule truth (forecast geometry, #2199)', () => {
+  function task(id: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id,
+      title: `Test ${id}`,
+      status: 'not_started' as const,
+      startDate: '2024-07-10',
+      endDate: '2024-07-20',
+      projectedStartDate: '2024-07-10',
+      projectedEndDate: '2024-07-20',
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+      durationDays: 10,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+      ...overrides,
+    };
+  }
+
+  function barX(id: string): number {
+    const rect = screen.getByTestId(`gantt-bar-${id}`).querySelector('rect');
+    expect(rect).not.toBeNull();
+    return Number(rect!.getAttribute('x'));
+  }
+
+  const lateTask = (id: string) =>
+    task(id, {
+      startDate: '2024-07-01',
+      endDate: '2024-07-11',
+      projectedStartDate: '2024-07-15',
+      projectedEndDate: '2024-07-25',
+      isLate: true,
+      lateDays: 14,
+    });
+
+  it('draws a late task from its forecast start, not its planned start', () => {
+    renderGanttChart({
+      data: makeTimeline({
+        workItems: [
+          lateTask('wi-late'),
+          task('wi-forecast-ref', { projectedStartDate: '2024-07-15' }),
+          task('wi-planned-ref', { projectedStartDate: '2024-07-01' }),
+        ],
+        dependencies: [],
+      }),
+    });
+    // Same forecast start => same x; a planned-start bar would sit 14 days further left.
+    expect(barX('wi-late')).toBe(barX('wi-forecast-ref'));
+    expect(barX('wi-late')).toBeGreaterThan(barX('wi-planned-ref'));
+  });
+
+  it('keeps an on-time task at its planned (= forecast) start', () => {
+    renderGanttChart({
+      data: makeTimeline({
+        workItems: [task('wi-a'), task('wi-b', { startDate: '2024-07-10' })],
+        dependencies: [],
+      }),
+    });
+    expect(barX('wi-a')).toBe(barX('wi-b'));
+  });
+
+  it('prefers actual dates over the forecast for the bar start', () => {
+    renderGanttChart({
+      data: makeTimeline({
+        workItems: [
+          task('wi-act', {
+            status: 'in_progress',
+            actualStartDate: '2024-07-05',
+            projectedStartDate: '2024-07-05',
+          }),
+          task('wi-ref', { projectedStartDate: '2024-07-05' }),
+        ],
+        dependencies: [],
+      }),
+    });
+    expect(barX('wi-act')).toBe(barX('wi-ref'));
+  });
+
+  it('orders rows by forecast start', () => {
+    // Planned order would be [late, early]; the forecast order is [early, late].
+    renderGanttChart({
+      data: makeTimeline({
+        workItems: [lateTask('wi-late'), task('wi-early', { projectedStartDate: '2024-07-10' })],
+        dependencies: [],
+      }),
+    });
+    const rows = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-testid^="gantt-sidebar-row-"]'),
+    ).map((el) => el.getAttribute('data-testid'));
+    expect(rows).toEqual(['gantt-sidebar-row-wi-early', 'gantt-sidebar-row-wi-late']);
+  });
+
+  it('shows the chip, the planned row and the forecast Start in the tooltip of a late task', async () => {
+    const { act } = await import('react');
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({
+        data: makeTimeline({ workItems: [lateTask('wi-late')], dependencies: [] }),
+      });
+      fireEvent.mouseEnter(screen.getByTestId('gantt-bar-wi-late'), { clientX: 300, clientY: 100 });
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      expect(screen.getByTestId('gantt-tooltip-schedule-signal')).toBeInTheDocument();
+      expect(screen.getByTestId('gantt-tooltip-planned')).toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('shows no chip in the tooltip of an on-time task', async () => {
+    const { act } = await import('react');
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data: makeTimeline({ workItems: [task('wi-ok')], dependencies: [] }) });
+      fireEvent.mouseEnter(screen.getByTestId('gantt-bar-wi-ok'), { clientX: 300, clientY: 100 });
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+      expect(screen.queryByTestId('gantt-tooltip-schedule-signal')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('gantt-tooltip-planned')).not.toBeInTheDocument();
+    } finally {
+      jest.useRealTimers();
     }
   });
 });

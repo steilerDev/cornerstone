@@ -61,6 +61,8 @@ export class WorkItemDetailPage {
   // Sections (left column)
   readonly descriptionSection: Locator;
   readonly scheduleSection: Locator;
+  /** Late / Held up chip in the page header (#2199); absent when neither applies. */
+  readonly headerScheduleSignal: Locator;
   readonly assignmentSection: Locator;
   readonly tagsSection: Locator;
   readonly budgetSection: Locator;
@@ -122,6 +124,7 @@ export class WorkItemDetailPage {
     this.scheduleSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Schedule', exact: true }) });
+    this.headerScheduleSignal = page.getByTestId('work-item-schedule-signal');
     this.assignmentSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Assignment', exact: true }) });

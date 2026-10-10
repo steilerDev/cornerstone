@@ -6,6 +6,7 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { barDates } from '../../lib/scheduleDates.js';
 import { AreaBreadcrumb } from '../AreaBreadcrumb/index.js';
 import { ROW_HEIGHT, HEADER_HEIGHT } from './ganttUtils.js';
 import styles from './GanttSidebar.module.css';
@@ -173,7 +174,8 @@ export const GanttSidebar = function GanttSidebar({
               const isEven = idx % 2 === 0;
               if (row.kind === 'workItem') {
                 const item = row.item;
-                const hasNoDates = !item.startDate && !item.endDate;
+                const itemDates = barDates(item);
+                const hasNoDates = !itemDates.start && !itemDates.end;
                 return (
                   <div
                     key={item.id}
@@ -272,7 +274,8 @@ export const GanttSidebar = function GanttSidebar({
             })
           : /* Fallback: render items then milestones (legacy) */
             items.map((item, idx) => {
-              const hasNoDates = !item.startDate && !item.endDate;
+              const itemDates = barDates(item);
+              const hasNoDates = !itemDates.start && !itemDates.end;
               const isEven = idx % 2 === 0;
               return (
                 <div

@@ -49,6 +49,9 @@ const DEFAULT_DATA: GanttTooltipWorkItemData = {
   status: 'in_progress',
   startDate: '2024-06-01',
   endDate: '2024-06-15',
+  plannedStartDate: null,
+  plannedEndDate: null,
+  scheduleSignal: null,
   durationDays: 14,
   assignedUserName: 'Jane Doe',
 };
@@ -584,6 +587,9 @@ const BASE_WORK_ITEM_DATA: GanttTooltipWorkItemData = {
   status: 'in_progress',
   startDate: '2024-06-01',
   endDate: '2024-06-15',
+  plannedStartDate: null,
+  plannedEndDate: null,
+  scheduleSignal: null,
   durationDays: 14,
   assignedUserName: null,
 };
@@ -1102,6 +1108,9 @@ describe('GanttTooltip — double separator fix (#342)', () => {
       status: 'in_progress',
       startDate: '2024-06-01',
       endDate: '2024-06-15',
+      plannedStartDate: null,
+      plannedEndDate: null,
+      scheduleSignal: null,
       durationDays: 14,
       assignedUserName: null,
     };
@@ -1220,6 +1229,9 @@ describe('GanttTooltip — touch device navigation affordance (#342)', () => {
     status: 'in_progress',
     startDate: '2024-06-01',
     endDate: '2024-06-15',
+    plannedStartDate: null,
+    plannedEndDate: null,
+    scheduleSignal: null,
     durationDays: 14,
     assignedUserName: null,
     workItemId: 'wi-abc-123',
@@ -1654,5 +1666,94 @@ describe('GanttTooltip — de-DE group labels (#2198)', () => {
     expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Wartet auf (1)');
     expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Hält auf (1)');
     expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Firma');
+  });
+});
+
+describe('GanttTooltip — schedule signal and planned row (#2199)', () => {
+  it('shows the Late chip with the day count', () => {
+    renderTooltip({ scheduleSignal: { signal: 'late', days: 5 } });
+    expect(screen.getByTestId('gantt-tooltip-schedule-signal')).toHaveTextContent('Late · 5 d');
+  });
+
+  it('shows the Held up chip', () => {
+    renderTooltip({ scheduleSignal: { signal: 'held_up' } });
+    expect(screen.getByTestId('gantt-tooltip-schedule-signal')).toHaveTextContent('Held up');
+  });
+
+  it('shows no chip when the item is on time', () => {
+    renderTooltip({ scheduleSignal: null });
+    expect(screen.queryByTestId('gantt-tooltip-schedule-signal')).not.toBeInTheDocument();
+  });
+
+  it('shows the planned dates as a range when they differ from the shown dates', () => {
+    renderTooltip({
+      startDate: '2024-06-05',
+      endDate: '2024-06-19',
+      plannedStartDate: '2024-06-01',
+      plannedEndDate: '2024-06-15',
+    });
+    const row = screen.getByTestId('gantt-tooltip-planned');
+    expect(row).toHaveTextContent('Planned');
+    expect(row).toHaveTextContent(/1.*15/);
+  });
+
+  it('shows the row when only the end differs (in progress, late)', () => {
+    renderTooltip({
+      startDate: '2024-06-01',
+      endDate: '2024-06-19',
+      plannedStartDate: '2024-06-01',
+      plannedEndDate: '2024-06-15',
+    });
+    expect(screen.getByTestId('gantt-tooltip-planned')).toBeInTheDocument();
+  });
+
+  it('omits the row when the planned dates equal the shown dates (on time)', () => {
+    renderTooltip({
+      startDate: '2024-06-01',
+      endDate: '2024-06-15',
+      plannedStartDate: '2024-06-01',
+      plannedEndDate: '2024-06-15',
+    });
+    expect(screen.queryByTestId('gantt-tooltip-planned')).not.toBeInTheDocument();
+  });
+
+  it('shows a single planned date when only the end is set and the shown dates differ', () => {
+    renderTooltip({
+      startDate: '2024-06-05',
+      endDate: '2024-06-19',
+      plannedStartDate: null,
+      plannedEndDate: '2024-06-15',
+    });
+    expect(screen.getByTestId('gantt-tooltip-planned')).toBeInTheDocument();
+  });
+
+  it('shows a single planned date when only the start is set and the shown dates differ', () => {
+    renderTooltip({
+      startDate: '2024-06-05',
+      endDate: '2024-06-19',
+      plannedStartDate: '2024-06-01',
+      plannedEndDate: null,
+    });
+    expect(screen.getByTestId('gantt-tooltip-planned')).toBeInTheDocument();
+  });
+
+  it('omits the Planned row when both planned dates are null (undated task)', () => {
+    renderTooltip({ plannedStartDate: null, plannedEndDate: null });
+    expect(screen.queryByTestId('gantt-tooltip-planned')).not.toBeInTheDocument();
+  });
+
+  it('uses the German labels', () => {
+    localStorage.setItem('locale', 'de');
+    renderTooltip({
+      startDate: '2024-06-05',
+      endDate: '2024-06-19',
+      plannedStartDate: '2024-06-01',
+      plannedEndDate: '2024-06-15',
+      scheduleSignal: { signal: 'late', days: 3 },
+    });
+    expect(screen.getByTestId('gantt-tooltip-schedule-signal')).toHaveTextContent(
+      'Verspätet · 3 T',
+    );
+    expect(screen.getByTestId('gantt-tooltip-planned')).toHaveTextContent('Geplant');
   });
 });

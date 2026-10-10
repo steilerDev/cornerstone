@@ -8,6 +8,7 @@ import {
   buildWorkItemTooltipData,
   estimateWorkItemTooltipHeight,
   formatAreaPath,
+  showsPlannedRow,
 } from './tooltipData.js';
 import type { GanttTooltipDependencyEntry, GanttTooltipWorkItemData } from './GanttTooltip.js';
 
@@ -36,6 +37,11 @@ function makeWorkItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkIt
     assignedUser: null,
     assignedVendor: null,
     area: null,
+    projectedStartDate: overrides.startDate !== undefined ? overrides.startDate : '2026-03-02',
+    projectedEndDate: overrides.endDate !== undefined ? overrides.endDate : '2026-03-12',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     ...overrides,
   };
 }
@@ -166,6 +172,79 @@ describe('buildWorkItemTooltipData', () => {
   });
 });
 
+describe('buildWorkItemTooltipData — schedule truth (contract 4)', () => {
+  const late = () =>
+    makeWorkItem({
+      status: 'not_started',
+      startDate: '2026-03-05',
+      endDate: '2026-03-08',
+      projectedStartDate: '2026-03-10',
+      projectedEndDate: '2026-03-13',
+      isLate: true,
+      lateDays: 5,
+    });
+
+  it('shows the forecast as Start/End and keeps the planned dates separately', () => {
+    const data = buildWorkItemTooltipData(late(), undefined, TODAY);
+    expect(data.startDate).toBe('2026-03-10');
+    expect(data.endDate).toBe('2026-03-13');
+    expect(data.plannedStartDate).toBe('2026-03-05');
+    expect(data.plannedEndDate).toBe('2026-03-08');
+  });
+
+  it('prefers actual dates over the forecast for Start/End', () => {
+    const data = buildWorkItemTooltipData(
+      makeWorkItem({
+        status: 'in_progress',
+        actualStartDate: '2026-03-01',
+        projectedStartDate: '2026-03-01',
+        projectedEndDate: '2026-03-20',
+      }),
+      undefined,
+      TODAY,
+    );
+    expect(data.startDate).toBe('2026-03-01');
+    expect(data.endDate).toBe('2026-03-20');
+  });
+
+  it('builds a late signal with the day count', () => {
+    expect(buildWorkItemTooltipData(late(), undefined, TODAY).scheduleSignal).toEqual({
+      signal: 'late',
+      days: 5,
+    });
+  });
+
+  it('builds a held-up signal', () => {
+    const data = buildWorkItemTooltipData(
+      makeWorkItem({ isHeldUp: true, projectedStartDate: '2026-03-13' }),
+      undefined,
+      TODAY,
+    );
+    expect(data.scheduleSignal).toEqual({ signal: 'held_up' });
+  });
+
+  it('has no signal for an on-time item', () => {
+    expect(buildWorkItemTooltipData(makeWorkItem(), undefined, TODAY).scheduleSignal).toBeNull();
+  });
+
+  it('maps an undated task to null planned dates and forecast Start/End', () => {
+    const data = buildWorkItemTooltipData(
+      makeWorkItem({
+        startDate: null,
+        endDate: null,
+        projectedStartDate: '2026-03-20',
+        projectedEndDate: '2026-03-22',
+      }),
+      undefined,
+      TODAY,
+    );
+    expect(data.plannedStartDate).toBeNull();
+    expect(data.plannedEndDate).toBeNull();
+    expect(data.startDate).toBe('2026-03-20');
+    expect(data.scheduleSignal).toBeNull();
+  });
+});
+
 describe('buildHouseholdItemTooltipData', () => {
   it('maps name, status, delivery dates, late flag and id', () => {
     const data = buildHouseholdItemTooltipData(makeHouseholdItem({ isLate: true }), undefined);
@@ -202,10 +281,47 @@ describe('buildHouseholdItemTooltipData', () => {
 
 describe('estimateWorkItemTooltipHeight', () => {
   const max = 5;
-  const base = () => baseData({ assignedVendorName: null, areaName: null });
+  const base = () =>
+    baseData({
+      assignedVendorName: null,
+      areaName: null,
+      plannedStartDate: null,
+      plannedEndDate: null,
+    });
 
   it('returns the base height without optional rows or dependencies', () => {
     expect(estimateWorkItemTooltipHeight(base(), max)).toBe(TOOLTIP_HEIGHT_BASE);
+  });
+
+  it('adds one row for the Planned row when a planned date differs from the shown date', () => {
+    const shown = { startDate: '2026-03-05', endDate: '2026-03-15' };
+    expect(
+      estimateWorkItemTooltipHeight(
+        { ...base(), ...shown, plannedStartDate: '2026-03-02', plannedEndDate: '2026-03-15' },
+        max,
+      ),
+    ).toBe(TOOLTIP_HEIGHT_BASE + ROW_HEIGHT);
+    expect(
+      estimateWorkItemTooltipHeight(
+        { ...base(), ...shown, plannedStartDate: '2026-03-05', plannedEndDate: '2026-03-12' },
+        max,
+      ),
+    ).toBe(TOOLTIP_HEIGHT_BASE + ROW_HEIGHT);
+  });
+
+  it('adds no row when the planned dates equal the shown dates', () => {
+    expect(
+      estimateWorkItemTooltipHeight(
+        {
+          ...base(),
+          startDate: '2026-03-05',
+          endDate: '2026-03-15',
+          plannedStartDate: '2026-03-05',
+          plannedEndDate: '2026-03-15',
+        },
+        max,
+      ),
+    ).toBe(TOOLTIP_HEIGHT_BASE);
   });
 
   it('adds one row for a company', () => {
@@ -243,5 +359,48 @@ describe('estimateWorkItemTooltipHeight', () => {
     expect(estimateWorkItemTooltipHeight({ ...base(), dependencies: deps }, max)).toBe(
       TOOLTIP_HEIGHT_BASE + ROW_HEIGHT * 6,
     );
+  });
+});
+
+describe('showsPlannedRow', () => {
+  const shown = { startDate: '2026-03-05', endDate: '2026-03-15' };
+
+  it('is false when the planned dates equal the shown dates', () => {
+    expect(
+      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-05', plannedEndDate: '2026-03-15' }),
+    ).toBe(false);
+  });
+
+  it('is true when the start differs', () => {
+    expect(
+      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-01', plannedEndDate: '2026-03-15' }),
+    ).toBe(true);
+  });
+
+  it('is true when the end differs', () => {
+    expect(
+      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-05', plannedEndDate: '2026-03-12' }),
+    ).toBe(true);
+  });
+
+  it('is false when both planned dates are null (undated task)', () => {
+    expect(showsPlannedRow({ ...shown, plannedStartDate: null, plannedEndDate: null })).toBe(false);
+  });
+
+  it('is true when the planned start is null but the shown start is set and the end differs', () => {
+    expect(
+      showsPlannedRow({ ...shown, plannedStartDate: null, plannedEndDate: '2026-03-12' }),
+    ).toBe(true);
+  });
+
+  it('is false when the planned start is null, the shown start is null too, and the end equals', () => {
+    expect(
+      showsPlannedRow({
+        startDate: null,
+        endDate: '2026-03-15',
+        plannedStartDate: null,
+        plannedEndDate: '2026-03-15',
+      }),
+    ).toBe(false);
   });
 });

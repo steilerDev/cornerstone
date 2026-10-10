@@ -37,7 +37,7 @@ export function daysFromToday(offset: number): string {
 export function mockWorkItem(
   overrides: Partial<TimelineWorkItem> & Pick<TimelineWorkItem, 'id' | 'title'>,
 ): TimelineWorkItem {
-  return {
+  const base: TimelineWorkItem = {
     status: 'in_progress',
     startDate: null,
     endDate: null,
@@ -50,21 +50,57 @@ export function mockWorkItem(
     assignedVendor: null,
     area: null,
     requiredMilestoneIds: [],
+    projectedStartDate: null,
+    projectedEndDate: null,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     ...overrides,
+  };
+  // Bars read the projected fields: by default the forecast equals the plan (#2199).
+  return {
+    ...base,
+    projectedStartDate:
+      overrides.projectedStartDate !== undefined ? overrides.projectedStartDate : base.startDate,
+    projectedEndDate:
+      overrides.projectedEndDate !== undefined ? overrides.projectedEndDate : base.endDate,
   };
 }
 
 export function mockMilestone(
   overrides: Partial<TimelineMilestone> & Pick<TimelineMilestone, 'id' | 'title' | 'targetDate'>,
 ): TimelineMilestone {
-  return {
+  const base: TimelineMilestone = {
     isCompleted: false,
     completedAt: null,
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     isCritical: false,
     ...overrides,
+  };
+  // Derive late/early from projectedDate vs targetDate unless the caller set them (#2199).
+  if (
+    overrides.isLate !== undefined ||
+    overrides.isEarly !== undefined ||
+    base.isCompleted ||
+    !base.projectedDate
+  ) {
+    return base;
+  }
+  const diff = Math.round(
+    (Date.parse(base.projectedDate) - Date.parse(base.targetDate)) / 86_400_000,
+  );
+  return {
+    ...base,
+    isLate: diff > 0,
+    lateDays: diff > 0 ? diff : null,
+    isEarly: diff < 0,
+    earlyDays: diff < 0 ? -diff : null,
   };
 }
 
@@ -97,7 +133,9 @@ export function mockDependency(predecessorId: string, successorId: string): Time
 /** A complete timeline response; anything not given is empty. */
 export function buildTimeline(parts: Partial<TimelineResponse> = {}): TimelineResponse {
   const workItems = parts.workItems ?? [];
-  const dates = workItems.flatMap((w) => [w.startDate, w.endDate]).filter((d): d is string => !!d);
+  const dates = workItems
+    .flatMap((w) => [w.startDate, w.endDate, w.projectedStartDate, w.projectedEndDate])
+    .filter((d): d is string => !!d);
   const sorted = [...dates].sort();
   return {
     workItems,

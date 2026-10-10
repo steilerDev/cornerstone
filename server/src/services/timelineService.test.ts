@@ -10,18 +10,10 @@
  */
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import type * as SchedulingEngineTypes from './schedulingEngine.js';
 import type * as TimelineServiceTypes from './timelineService.js';
 
-// ─── Mock the scheduling engine BEFORE importing the service ──────────────────
-
-const mockSchedule = jest.fn<typeof SchedulingEngineTypes.schedule>();
-
-jest.unstable_mockModule('./schedulingEngine.js', () => ({
-  schedule: mockSchedule,
-}));
-
-// ─── Imports that depend on the mock (dynamic, after mock setup) ───────────────
+// The real scheduling engine runs (the projection lives in that module). Time is frozen
+// before any fixture date so the today floor never interferes unless a test opts in.
 
 let getTimeline: typeof TimelineServiceTypes.getTimeline;
 
@@ -142,12 +134,7 @@ function linkMilestoneWorkItem(
   db.insert(schema.milestoneWorkItems).values({ milestoneId, workItemId }).run();
 }
 
-// Default schedule mock return value — empty, no cycle
-const defaultScheduleResult = {
-  scheduledItems: [],
-  criticalPath: [] as string[],
-  warnings: [],
-};
+const FROZEN_NOW = '2025-12-31T12:00:00.000Z';
 
 // ─── describe: getTimeline ────────────────────────────────────────────────────
 
@@ -160,17 +147,15 @@ describe('getTimeline service', () => {
     sqlite = testDb.sqlite;
     db = testDb.db;
 
-    // Load the service dynamically so the mock is already set up
     const timelineServiceModule = await import('./timelineService.js');
     getTimeline = timelineServiceModule.getTimeline;
 
-    // Default: schedule returns empty result with no cycles
-    mockSchedule.mockReturnValue(defaultScheduleResult);
+    jest.useFakeTimers({ now: new Date(FROZEN_NOW) });
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     sqlite.close();
-    jest.clearAllMocks();
   });
 
   // ─── Empty project ──────────────────────────────────────────────────────────
@@ -184,11 +169,6 @@ describe('getTimeline service', () => {
       expect(result.milestones).toEqual([]);
       expect(result.criticalPath).toEqual([]);
       expect(result.dateRange).toBeNull();
-    });
-
-    it('calls the scheduling engine even when no work items exist', () => {
-      getTimeline(db);
-      expect(mockSchedule).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -229,24 +209,32 @@ describe('getTimeline service', () => {
       expect(result.workItems[0]!.id).toBe(wiId);
     });
 
-    it('excludes work items with neither startDate nor endDate', () => {
+    it('keeps an undated task on the timeline at its forecast dates (A5)', () => {
       const userId = insertUser(db);
-      insertWorkItem(db, userId, { title: 'No Dates' });
-
-      const result = getTimeline(db);
-
-      expect(result.workItems).toHaveLength(0);
-    });
-
-    it('returns only dated work items when mixed with undated ones', () => {
-      const userId = insertUser(db);
-      const dated = insertWorkItem(db, userId, { startDate: '2026-03-01', title: 'Dated' });
-      insertWorkItem(db, userId, { title: 'Undated' });
+      const id = insertWorkItem(db, userId, { title: 'No Dates', durationDays: 2 });
 
       const result = getTimeline(db);
 
       expect(result.workItems).toHaveLength(1);
-      expect(result.workItems[0]!.id).toBe(dated);
+      const item = result.workItems[0]!;
+      expect(item.id).toBe(id);
+      expect(item.startDate).toBeNull();
+      expect(item.endDate).toBeNull();
+      expect(item.projectedStartDate).toBe('2025-12-31');
+      expect(item.projectedEndDate).toBe('2026-01-02');
+      expect(item.isLate).toBe(false);
+      expect(item.lateDays).toBeNull();
+      expect(item.isHeldUp).toBe(false);
+    });
+
+    it('returns dated and undated work items together', () => {
+      const userId = insertUser(db);
+      const dated = insertWorkItem(db, userId, { startDate: '2026-03-01', title: 'Dated' });
+      const undated = insertWorkItem(db, userId, { title: 'Undated' });
+
+      const result = getTimeline(db);
+
+      expect(result.workItems.map((w) => w.id).sort()).toEqual([dated, undated].sort());
     });
   });
 
@@ -488,8 +476,8 @@ describe('getTimeline service', () => {
 
       const result = getTimeline(db);
 
-      // No work items in timeline (undated), but dependency still included
-      expect(result.workItems).toHaveLength(0);
+      // Undated tasks stay on the timeline through their forecast dates; the dependency is returned
+      expect(result.workItems).toHaveLength(2);
       expect(result.dependencies).toHaveLength(1);
     });
 
@@ -627,7 +615,7 @@ describe('getTimeline service', () => {
       expect(ms!.projectedDate).toBeNull();
     });
 
-    it('returns projectedDate: null when all linked work items have null endDate', () => {
+    it('projectedDate falls back to the forecast end (zero-duration start) when linked items have no endDate', () => {
       const userId = insertUser(db);
       // Work items with startDate but no endDate
       const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', title: 'No End A' });
@@ -639,7 +627,8 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
       const ms = result.milestones.find((m) => m.id === msId);
       expect(ms).toBeDefined();
-      expect(ms!.projectedDate).toBeNull();
+      // No duration: the forecast end equals the start, the latest of the two wins
+      expect(ms!.projectedDate).toBe('2026-04-01');
     });
 
     it('projectedDate uses the single endDate when only one linked work item has an endDate', () => {
@@ -683,14 +672,14 @@ describe('getTimeline service', () => {
 
     it('returns milestones linked to work items that have no dates (workItemIds still present)', () => {
       const userId = insertUser(db);
-      // Work item has no dates → not in timeline.workItems, but milestone link still appears
+      // The undated task stays on the timeline (forecast dates) and the milestone link appears
       const wiUndated = insertWorkItem(db, userId, { title: 'Undated WI' });
       const msId = insertMilestone(db, userId, { title: 'MS linked to undated' });
       linkMilestoneWorkItem(db, msId, wiUndated);
 
       const result = getTimeline(db);
 
-      expect(result.workItems).toHaveLength(0);
+      expect(result.workItems).toHaveLength(1);
       expect(result.milestones[0]!.workItemIds).toContain(wiUndated);
     });
   });
@@ -710,13 +699,13 @@ describe('getTimeline service', () => {
       expect(result.dateRange!.latest).toBe('2026-07-30');
     });
 
-    it('returns null dateRange when no work items have dates', () => {
+    it('spans the forecast dates of an undated task (it has no stored dates)', () => {
       const userId = insertUser(db);
-      insertWorkItem(db, userId, { title: 'Undated' });
+      insertWorkItem(db, userId, { title: 'Undated', durationDays: 3 });
 
       const result = getTimeline(db);
 
-      expect(result.dateRange).toBeNull();
+      expect(result.dateRange).toEqual({ earliest: '2025-12-31', latest: '2026-01-03' });
     });
 
     it('returns null dateRange when timeline has no work items', () => {
@@ -734,8 +723,8 @@ describe('getTimeline service', () => {
       expect(result.dateRange).not.toBeNull();
       // earliest = minimum startDate; latest falls back to earliest (no endDates present)
       expect(result.dateRange!.earliest).toBe('2026-03-01');
-      // latest defaults to earliest when no endDate is set on any item
-      expect(result.dateRange!.latest).toBe('2026-03-01');
+      // no durations: each forecast end equals its start, so latest is the latest start
+      expect(result.dateRange!.latest).toBe('2026-06-15');
     });
 
     it('returns non-null dateRange when only endDates are present', () => {
@@ -748,8 +737,8 @@ describe('getTimeline service', () => {
       expect(result.dateRange).not.toBeNull();
       // latest = maximum endDate; earliest falls back to latest (no startDates present)
       expect(result.dateRange!.latest).toBe('2026-08-01');
-      // earliest defaults to latest when no startDate is set on any item
-      expect(result.dateRange!.earliest).toBe('2026-08-01');
+      // undated tasks (no stored start) forecast from today, which becomes the earliest
+      expect(result.dateRange!.earliest).toBe('2025-12-31');
     });
 
     it('correctly handles a single work item with only startDate', () => {
@@ -771,321 +760,227 @@ describe('getTimeline service', () => {
       const result = getTimeline(db);
 
       expect(result.dateRange).not.toBeNull();
-      expect(result.dateRange!.earliest).toBe('2026-09-30');
+      expect(result.dateRange!.earliest).toBe('2025-12-31');
       expect(result.dateRange!.latest).toBe('2026-09-30');
     });
   });
 
   // ─── Critical path computation ──────────────────────────────────────────────
 
-  describe('critical path', () => {
-    it('returns criticalPath from the scheduling engine result', () => {
+  describe('critical path (real engine)', () => {
+    it('returns the chain with no float, in order, and not the short parallel task', () => {
       const userId = insertUser(db);
       const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 10 });
-      const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', durationDays: 5 });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [wiA, wiB],
-        warnings: [],
-      });
+      const wiB = insertWorkItem(db, userId, { durationDays: 5 });
+      const wiC = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 2 });
+      insertDependency(db, wiA, wiB);
 
       const result = getTimeline(db);
 
       expect(result.criticalPath).toEqual([wiA, wiB]);
+      expect(result.criticalPath).not.toContain(wiC);
     });
 
-    it('calls schedule() with mode=full and all work items (not just dated ones)', () => {
-      const userId = insertUser(db);
-      const wiDated = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
-      const wiUndated = insertWorkItem(db, userId, { title: 'Undated', durationDays: 3 });
-
-      getTimeline(db);
-
-      expect(mockSchedule).toHaveBeenCalledTimes(1);
-      const callArg = mockSchedule.mock.calls[0]![0]!;
-      expect(callArg.mode).toBe('full');
-      const scheduledIds = callArg.workItems.map((w) => w.id);
-      // Both dated and undated work items are passed to the engine
-      expect(scheduledIds).toContain(wiDated);
-      expect(scheduledIds).toContain(wiUndated);
-    });
-
-    it('calls schedule() with all dependencies passed to engine', () => {
-      const userId = insertUser(db);
-      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01' });
-      const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01' });
-      insertDependency(db, wiA, wiB, 'finish_to_start', 0);
-
-      getTimeline(db);
-
-      const callArg = mockSchedule.mock.calls[0]![0]!;
-      expect(callArg.dependencies).toHaveLength(1);
-      expect(callArg.dependencies[0]!.predecessorId).toBe(wiA);
-      expect(callArg.dependencies[0]!.successorId).toBe(wiB);
-    });
-
-    it('calls schedule() with a today string in YYYY-MM-DD format', () => {
-      getTimeline(db);
-      const callArg = mockSchedule.mock.calls[0]![0]!;
-      expect(callArg.today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    });
-
-    it('returns empty criticalPath when scheduling engine detects a circular dependency', () => {
+    it('returns an empty criticalPath and still renders on a circular dependency', () => {
       const userId = insertUser(db);
       const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
       const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', durationDays: 3 });
       insertDependency(db, wiA, wiB);
       insertDependency(db, wiB, wiA);
 
-      // Simulate engine returning a cycle
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [],
-        warnings: [],
-        cycleNodes: [wiA, wiB],
-      });
-
       const result = getTimeline(db);
 
-      // Timeline should NOT throw — it degrades gracefully
       expect(result.criticalPath).toEqual([]);
+      expect(result.workItems).toHaveLength(2);
+      // stored dates are the fallback projection, nothing is flagged
+      for (const item of result.workItems) {
+        expect(item.projectedStartDate).toBe(item.startDate);
+        expect(item.isLate).toBe(false);
+        expect(item.isHeldUp).toBe(false);
+      }
     });
 
-    it('returns the engine criticalPath when no cycle is detected', () => {
-      const userId = insertUser(db);
-      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [wiA],
-        warnings: [],
-        // No cycleNodes → not a cycle
-      });
-
-      const result = getTimeline(db);
-      expect(result.criticalPath).toEqual([wiA]);
-    });
-
-    it('treats empty cycleNodes array as no cycle (returns criticalPath as-is)', () => {
-      const userId = insertUser(db);
-      const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [wiA],
-        warnings: [],
-        cycleNodes: [], // empty array → no cycle
-      });
-
-      const result = getTimeline(db);
-      expect(result.criticalPath).toEqual([wiA]);
+    it('marks an empty project as having an empty critical path', () => {
+      expect(getTimeline(db).criticalPath).toEqual([]);
     });
   });
 
-  // ─── isCritical propagation to TimelineMilestone ────────────────────────────
-
-  describe('isCritical propagation to milestones', () => {
-    it('isCritical is true for a milestone whose CPM node appears in the critical path', () => {
+  describe('isCritical propagation to milestones (real engine)', () => {
+    it('is true for a milestone on the critical path and false for one with float', () => {
       const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, { title: 'Critical MS', targetDate: '2026-04-01' });
-
-      // Mock the schedule engine to return milestone:msId on the critical path
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [`milestone:${msId}`],
-        warnings: [],
-      });
+      const wiLong = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 10 });
+      const wiShort = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 2 });
+      const msCritical = insertMilestone(db, userId, { title: 'Critical MS' });
+      const msFloat = insertMilestone(db, userId, { title: 'Float MS' });
+      linkMilestoneWorkItem(db, msCritical, wiLong);
+      linkMilestoneWorkItem(db, msFloat, wiShort);
 
       const result = getTimeline(db);
 
-      const ms = result.milestones.find((m) => m.id === msId);
-      expect(ms).toBeDefined();
-      expect(ms!.isCritical).toBe(true);
+      expect(result.milestones.find((m) => m.id === msCritical)!.isCritical).toBe(true);
+      expect(result.milestones.find((m) => m.id === msFloat)!.isCritical).toBe(false);
+      // milestone nodes never leak into the work item critical path
+      expect(result.criticalPath).toEqual([wiLong]);
     });
 
-    it('isCritical is false for a milestone not in the critical path', () => {
-      const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, {
-        title: 'Non-Critical MS',
-        targetDate: '2026-04-01',
-      });
-
-      // Critical path does not include this milestone
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: ['some-other-work-item-id'],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      const ms = result.milestones.find((m) => m.id === msId);
-      expect(ms).toBeDefined();
-      expect(ms!.isCritical).toBe(false);
-    });
-
-    it('isCritical is false when the critical path is empty', () => {
-      const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, { title: 'MS Empty Path' });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      const ms = result.milestones.find((m) => m.id === msId);
-      expect(ms).toBeDefined();
-      expect(ms!.isCritical).toBe(false);
-    });
-
-    it('correctly marks multiple milestones as critical or non-critical independently', () => {
-      const userId = insertUser(db);
-      const msIdA = insertMilestone(db, userId, { title: 'Critical MS A' });
-      const msIdB = insertMilestone(db, userId, { title: 'Non-Critical MS B' });
-      const msIdC = insertMilestone(db, userId, { title: 'Critical MS C' });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [`milestone:${msIdA}`, `milestone:${msIdC}`],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      const msA = result.milestones.find((m) => m.id === msIdA);
-      const msB = result.milestones.find((m) => m.id === msIdB);
-      const msC = result.milestones.find((m) => m.id === msIdC);
-
-      expect(msA!.isCritical).toBe(true);
-      expect(msB!.isCritical).toBe(false);
-      expect(msC!.isCritical).toBe(true);
-    });
-
-    it('isCritical is false for all milestones when a cycle is detected', () => {
-      const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, { title: 'MS during cycle' });
-
-      // Simulate cycle detection — engine returns cycleNodes
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [`milestone:${msId}`], // would be critical if no cycle
-        warnings: [],
-        cycleNodes: ['wi-a', 'wi-b'],
-      });
-
-      const result = getTimeline(db);
-
-      const ms = result.milestones.find((m) => m.id === msId);
-      expect(ms).toBeDefined();
-      // When a cycle is detected, criticalMilestoneIds is not populated → isCritical false
-      expect(ms!.isCritical).toBe(false);
-    });
-
-    it('every milestone has the isCritical field present (not undefined)', () => {
+    it('is false for an unlinked milestone and always a boolean', () => {
       const userId = insertUser(db);
       insertMilestone(db, userId, { title: 'MS 1' });
       insertMilestone(db, userId, { title: 'MS 2' });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      for (const ms of result.milestones) {
-        expect(ms).toHaveProperty('isCritical');
-        expect(typeof ms.isCritical).toBe('boolean');
+      for (const ms of getTimeline(db).milestones) {
+        expect(ms.isCritical).toBe(false);
       }
     });
-  });
 
-  // ─── criticalPath array excludes milestone: entries ──────────────────────────
-
-  describe('criticalPath in response excludes milestone: entries', () => {
-    it('filters out milestone: prefixed IDs from the returned criticalPath', () => {
-      const userId = insertUser(db);
-      const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
-      const msId = insertMilestone(db, userId, { title: 'MS on path' });
-
-      // Engine returns both a work item and a milestone node on the critical path
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [wiId, `milestone:${msId}`],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      // criticalPath returned to caller must NOT contain milestone: entries
-      expect(result.criticalPath).toContain(wiId);
-      expect(result.criticalPath).not.toContain(`milestone:${msId}`);
-    });
-
-    it('returns empty criticalPath when engine only has milestone nodes on the path', () => {
-      const userId = insertUser(db);
-      const msId = insertMilestone(db, userId, { title: 'Only milestone on path' });
-
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [`milestone:${msId}`],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      expect(result.criticalPath).toEqual([]);
-    });
-
-    it('preserves work item IDs in criticalPath when mixed with milestone IDs', () => {
+    it('is false for all milestones when a cycle is detected', () => {
       const userId = insertUser(db);
       const wiA = insertWorkItem(db, userId, { startDate: '2026-03-01', durationDays: 5 });
       const wiB = insertWorkItem(db, userId, { startDate: '2026-04-01', durationDays: 3 });
-      const msId = insertMilestone(db, userId, { title: 'Intermediate MS' });
+      insertDependency(db, wiA, wiB);
+      insertDependency(db, wiB, wiA);
+      const msId = insertMilestone(db, userId, { title: 'MS during cycle' });
+      linkMilestoneWorkItem(db, msId, wiA);
 
-      mockSchedule.mockReturnValue({
-        scheduledItems: [],
-        criticalPath: [wiA, `milestone:${msId}`, wiB],
-        warnings: [],
-      });
-
-      const result = getTimeline(db);
-
-      expect(result.criticalPath).toEqual([wiA, wiB]);
+      const ms = getTimeline(db).milestones.find((m) => m.id === msId);
+      expect(ms!.isCritical).toBe(false);
     });
   });
 
-  // ─── SchedulingWorkItem fields passed to engine ─────────────────────────────
+  // ─── Schedule projection (contract 4, #2199) ────────────────────────────────
 
-  describe('engine input shapes', () => {
-    it('passes correct SchedulingWorkItem fields to the engine', () => {
+  describe('schedule projection fields', () => {
+    const TODAY_NOW = '2026-03-10T12:00:00.000Z';
+
+    it('reports a late task with planned dates, forecast dates and lateDays (scenario 16)', () => {
+      jest.setSystemTime(new Date(TODAY_NOW));
       const userId = insertUser(db);
-      insertWorkItem(db, userId, {
-        startDate: '2026-03-01',
-        endDate: '2026-04-15',
-        durationDays: 45,
-        startAfter: '2026-02-15',
-        startBefore: '2026-05-01',
-        status: 'in_progress',
+      const late = insertWorkItem(db, userId, {
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        durationDays: 3,
       });
 
-      getTimeline(db);
+      const item = getTimeline(db).workItems.find((w) => w.id === late)!;
 
-      const callArg = mockSchedule.mock.calls[0]![0]!;
-      const engineWi = callArg.workItems[0]!;
+      expect(item.startDate).toBe('2026-03-05');
+      expect(item.endDate).toBe('2026-03-08');
+      expect(item.projectedStartDate).toBe('2026-03-10');
+      expect(item.projectedEndDate).toBe('2026-03-13');
+      expect(item.isLate).toBe(true);
+      expect(item.lateDays).toBe(5);
+      expect(item.isHeldUp).toBe(false);
+    });
 
-      expect(engineWi).toHaveProperty('id');
-      expect(engineWi.startDate).toBe('2026-03-01');
-      expect(engineWi.endDate).toBe('2026-04-15');
-      expect(engineWi.durationDays).toBe(45);
-      expect(engineWi.startAfter).toBe('2026-02-15');
-      expect(engineWi.startBefore).toBe('2026-05-01');
-      expect(engineWi.status).toBe('in_progress');
+    it('reports a successor of a late task as held up, not late', () => {
+      jest.setSystemTime(new Date(TODAY_NOW));
+      const userId = insertUser(db);
+      const a = insertWorkItem(db, userId, {
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        durationDays: 3,
+      });
+      const b = insertWorkItem(db, userId, {
+        startDate: '2026-03-08',
+        endDate: '2026-03-12',
+        durationDays: 4,
+      });
+      insertDependency(db, a, b);
+
+      const item = getTimeline(db).workItems.find((w) => w.id === b)!;
+
+      expect(item.isHeldUp).toBe(true);
+      expect(item.isLate).toBe(false);
+      expect(item.lateDays).toBeNull();
+      expect(item.projectedStartDate).toBe('2026-03-13');
+      expect(item.projectedEndDate).toBe('2026-03-17');
+    });
+
+    it('equals the planned dates with all flags false for an on-time task', () => {
+      jest.setSystemTime(new Date(TODAY_NOW));
+      const userId = insertUser(db);
+      const id = insertWorkItem(db, userId, {
+        startDate: '2026-03-20',
+        endDate: '2026-03-23',
+        durationDays: 3,
+      });
+
+      const item = getTimeline(db).workItems.find((w) => w.id === id)!;
+
+      expect(item.projectedStartDate).toBe(item.startDate);
+      expect(item.projectedEndDate).toBe(item.endDate);
+      expect(item.isLate).toBe(false);
+      expect(item.isHeldUp).toBe(false);
+    });
+
+    it('widens dateRange to cover the forecast end of a late task', () => {
+      jest.setSystemTime(new Date(TODAY_NOW));
+      const userId = insertUser(db);
+      insertWorkItem(db, userId, {
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        durationDays: 3,
+      });
+
+      const result = getTimeline(db);
+      const maxProjected = Math.max(
+        ...result.workItems.map((w) => Date.parse(w.projectedEndDate ?? '')),
+      );
+
+      expect(result.dateRange).toEqual({ earliest: '2026-03-05', latest: '2026-03-13' });
+      expect(Date.parse(result.dateRange!.latest)).toBeGreaterThanOrEqual(maxProjected);
+    });
+
+    it('carries the four schedule fields on late milestones', () => {
+      jest.setSystemTime(new Date(TODAY_NOW));
+      const userId = insertUser(db);
+      const a = insertWorkItem(db, userId, {
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        durationDays: 3,
+      });
+      const lateMs = insertMilestone(db, userId, { title: 'Late', targetDate: '2026-03-12' });
+      const earlyMs = insertMilestone(db, userId, { title: 'Early', targetDate: '2026-03-20' });
+      const doneMs = insertMilestone(db, userId, {
+        title: 'Done',
+        targetDate: '2026-03-12',
+        isCompleted: true,
+        completedAt: '2026-03-09T10:00:00.000Z',
+      });
+      linkMilestoneWorkItem(db, lateMs, a);
+      linkMilestoneWorkItem(db, earlyMs, a);
+      linkMilestoneWorkItem(db, doneMs, a);
+
+      const { milestones: ms } = getTimeline(db);
+      const late = ms.find((m) => m.id === lateMs)!;
+      const early = ms.find((m) => m.id === earlyMs)!;
+      const done = ms.find((m) => m.id === doneMs)!;
+
+      expect(late.projectedDate).toBe('2026-03-13');
+      expect(late.isLate).toBe(true);
+      expect(late.lateDays).toBe(1);
+      expect(late.isEarly).toBe(false);
+      expect(late.earlyDays).toBeNull();
+
+      expect(early.isEarly).toBe(true);
+      expect(early.earlyDays).toBe(7);
+      expect(early.isLate).toBe(false);
+      expect(early.lateDays).toBeNull();
+
+      expect(done.isLate).toBe(false);
+      expect(done.isEarly).toBe(false);
+      expect(done.lateDays).toBeNull();
+      expect(done.earlyDays).toBeNull();
+    });
+
+    it('defaults the four fields on a milestone without contributors', () => {
+      const userId = insertUser(db);
+      const id = insertMilestone(db, userId, { title: 'Alone' });
+      const ms = getTimeline(db).milestones.find((m) => m.id === id)!;
+      expect(ms.projectedDate).toBeNull();
+      expect(ms.isLate).toBe(false);
+      expect(ms.lateDays).toBeNull();
+      expect(ms.isEarly).toBe(false);
+      expect(ms.earlyDays).toBeNull();
     });
   });
 
@@ -1481,10 +1376,7 @@ describe('getTimeline service', () => {
       expect(result.dateRange!.latest).toBe('2026-06-30');
     });
 
-    it('dateRange remains null when no work items OR household items have dates', () => {
-      const userId = insertUser(db);
-      // WI with no dates
-      insertWorkItem(db, userId, { title: 'Undated WI' });
+    it('dateRange remains null when there are no work items and no household item has dates', () => {
       // HI with no delivery dates
       insertHouseholdItem({
         name: 'No Date HI',

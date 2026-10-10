@@ -15,6 +15,8 @@
 
 - [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
 
+- [Story #2199 scheduler truth](story-2199-scheduler-truth.md) (2026-10) — planned vs forecast projection tests, real-clock services need fake timers, formatters-mock link errors, fixture-codegen pitfalls
+
 ## Recent bug/story notes (2026-08)
 
 - [PR #2168 error-message hardening tests](issue-2168-error-hardening-tests.md) (2026-10) — ApiClientError.message=code, LocalizedError, duplicate-banner counts, no jsdom Response

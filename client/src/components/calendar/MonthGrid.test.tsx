@@ -43,6 +43,11 @@ function makeWorkItem(
 ): TimelineWorkItem {
   return {
     id,
+    projectedStartDate: startDate,
+    projectedEndDate: endDate,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     title,
     status: 'not_started',
     startDate,
@@ -68,6 +73,10 @@ function makeMilestone(id: number, targetDate: string, title = `M${id}`): Timeli
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     isCritical: false,
   };
 }

@@ -1132,4 +1132,48 @@ describe('Milestone Service', () => {
       );
     });
   });
+
+  describe('getMilestoneById — linked work item schedule projection (contract 4, #2199)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date('2026-03-10T12:00:00.000Z') });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns linked work items with planned dates, forecast dates and flags', () => {
+      const userId = createTestUser('proj@example.com', 'Proj');
+      const now = '2026-03-01T00:00:00.000Z';
+      db.insert(schema.workItems)
+        .values({
+          id: 'late-wi',
+          title: 'Late',
+          status: 'not_started',
+          startDate: '2026-03-05',
+          endDate: '2026-03-08',
+          durationDays: 3,
+          createdBy: userId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      const milestone = milestoneService.createMilestone(
+        db,
+        { title: 'Roof', targetDate: '2026-03-30' },
+        userId,
+      );
+      milestoneService.linkWorkItem(db, milestone.id, 'late-wi');
+
+      const linked = milestoneService.getMilestoneById(db, milestone.id).workItems[0]!;
+
+      expect(linked.startDate).toBe('2026-03-05');
+      expect(linked.endDate).toBe('2026-03-08');
+      expect(linked.projectedStartDate).toBe('2026-03-10');
+      expect(linked.projectedEndDate).toBe('2026-03-13');
+      expect(linked.isLate).toBe(true);
+      expect(linked.lateDays).toBe(5);
+      expect(linked.isHeldUp).toBe(false);
+    });
+  });
 });

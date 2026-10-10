@@ -27,7 +27,8 @@ import {
   CircularDependencyError,
 } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
-import { autoReschedule } from './schedulingEngine.js';
+import { autoReschedule, computeScheduleProjection } from './schedulingEngine.js';
+import type { ScheduleProjection } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 
@@ -58,6 +59,7 @@ function getLinkedWorkItems(
   db: DbType,
   milestoneId: number,
   areaMap: Map<string, AreaMapEntry>,
+  projection: ScheduleProjection,
 ): WorkItemSummary[] {
   const rows = db
     .select({ workItem: workItems })
@@ -66,7 +68,7 @@ function getLinkedWorkItems(
     .where(eq(milestoneWorkItems.milestoneId, milestoneId))
     .all();
 
-  return rows.map((row) => toWorkItemSummary(db, row.workItem, areaMap));
+  return rows.map((row) => toWorkItemSummary(db, row.workItem, areaMap, projection));
 }
 
 /**
@@ -174,7 +176,7 @@ function toMilestoneDetail(
     isCompleted: milestone.isCompleted,
     completedAt: milestone.completedAt,
     color: milestone.color,
-    workItems: getLinkedWorkItems(db, milestone.id, areaMap),
+    workItems: getLinkedWorkItems(db, milestone.id, areaMap, computeScheduleProjection(db)),
     dependentWorkItems: getWorkItemsWithDep(db, milestone.id),
     createdBy: getCreatedByUser(db, milestone.createdBy),
     createdAt: milestone.createdAt,

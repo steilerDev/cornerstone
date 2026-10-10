@@ -7,6 +7,7 @@
 
 import type { AreaSummary, TimelineHouseholdItem, TimelineWorkItem } from '@cornerstone/shared';
 import { computeActualDuration } from '../../lib/formatters.js';
+import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import type {
   GanttTooltipDependencyEntry,
   GanttTooltipHouseholdItemData,
@@ -31,19 +32,19 @@ export function buildWorkItemTooltipData(
   dependencies: readonly GanttTooltipDependencyEntry[] | undefined,
   today: Date,
 ): GanttTooltipWorkItemData {
+  const { start, end } = barDates(item);
   return {
     kind: 'work-item',
     title: item.title,
     status: item.status,
-    startDate: item.startDate,
-    endDate: item.endDate,
+    startDate: start,
+    endDate: end,
+    plannedStartDate: item.startDate,
+    plannedEndDate: item.endDate,
+    scheduleSignal: scheduleSignalOf(item),
     durationDays: item.durationDays,
     plannedDurationDays: item.durationDays,
-    actualDurationDays: computeActualDuration(
-      item.actualStartDate ?? item.startDate,
-      item.actualEndDate ?? item.endDate,
-      today,
-    ),
+    actualDurationDays: computeActualDuration(start, end, today),
     assignedUserName: item.assignedUser?.displayName ?? null,
     assignedVendorName: item.assignedVendor?.name ?? null,
     areaName: formatAreaPath(item.area),
@@ -71,6 +72,19 @@ export function buildHouseholdItemTooltipData(
   };
 }
 
+/** True when the Planned row adds information: planned dates exist and differ from the shown ones. */
+export function showsPlannedRow(
+  data: Pick<
+    GanttTooltipWorkItemData,
+    'startDate' | 'endDate' | 'plannedStartDate' | 'plannedEndDate'
+  >,
+): boolean {
+  return (
+    (data.plannedStartDate !== null || data.plannedEndDate !== null) &&
+    (data.plannedStartDate !== data.startDate || data.plannedEndDate !== data.endDate)
+  );
+}
+
 /** Height used by the tooltip's flip logic (px). */
 export function estimateWorkItemTooltipHeight(
   data: GanttTooltipWorkItemData,
@@ -79,6 +93,7 @@ export function estimateWorkItemTooltipHeight(
   let height = TOOLTIP_HEIGHT_BASE;
   if (data.assignedVendorName) height += ROW_HEIGHT;
   if (data.areaName) height += ROW_HEIGHT;
+  if (showsPlannedRow(data)) height += ROW_HEIGHT;
   const deps = data.dependencies ?? [];
   for (const role of ['predecessor', 'successor'] as const) {
     const n = deps.filter((d) => d.role === role).length;

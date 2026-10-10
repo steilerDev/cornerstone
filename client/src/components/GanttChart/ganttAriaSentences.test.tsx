@@ -46,6 +46,11 @@ const WORK_ITEM: TimelineWorkItem = {
   status: 'completed',
   startDate: '2026-04-01',
   endDate: '2026-04-10',
+  projectedStartDate: '2026-04-01',
+  projectedEndDate: '2026-04-10',
+  isLate: false,
+  lateDays: null,
+  isHeldUp: false,
   durationDays: 9,
   actualStartDate: null,
   actualEndDate: null,
@@ -67,6 +72,10 @@ const MILESTONE: TimelineMilestone = {
   color: null,
   workItemIds: [],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 

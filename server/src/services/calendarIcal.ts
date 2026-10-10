@@ -27,7 +27,7 @@ export function computeETag(parts: (string | null | undefined)[]): string {
 }
 
 /**
- * Compute the ETag for the calendar (based on max updated_at across work_items, milestones, household_items).
+ * Compute the ETag for the calendar (max updated_at across work_items, milestones, household_items, plus today's UTC date because the forecast changes daily).
  */
 export function computeCalendarETag(db: DbType): string {
   const maxUpdatedRow = db.$client
@@ -44,7 +44,7 @@ export function computeCalendarETag(db: DbType): string {
     )
     .get() as { m: string | null };
 
-  return computeETag([maxUpdatedRow.m]);
+  return computeETag([maxUpdatedRow.m, new Date().toISOString().slice(0, 10)]);
 }
 
 /**
@@ -70,8 +70,8 @@ export function buildCalendar(
 
   // Add work items as events
   for (const wi of timeline.workItems) {
-    const startDate = wi.actualStartDate ?? wi.startDate;
-    const endDate = wi.actualEndDate ?? wi.endDate;
+    const startDate = wi.actualStartDate ?? wi.projectedStartDate;
+    const endDate = wi.actualEndDate ?? wi.projectedEndDate;
 
     // Skip if neither resolved date is available
     if (!startDate || !endDate) continue;

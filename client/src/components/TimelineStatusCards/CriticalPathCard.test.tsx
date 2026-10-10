@@ -57,6 +57,11 @@ const baseWorkItem: TimelineWorkItem = {
   status: 'not_started',
   startDate: null,
   endDate: null,
+  projectedStartDate: null,
+  projectedEndDate: null,
+  isLate: false,
+  lateDays: null,
+  isHeldUp: false,
   actualStartDate: null,
   actualEndDate: null,
   durationDays: null,
@@ -105,9 +110,27 @@ describe('CriticalPathCard', () => {
 
   it('shows the count of critical path items with data-testid="critical-count"', () => {
     const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical 1', endDate: '2026-04-30' },
-      { ...baseWorkItem, id: 'wi-2', title: 'Critical 2', endDate: '2026-04-30' },
-      { ...baseWorkItem, id: 'wi-off', title: 'Not Critical', endDate: '2026-04-30' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical 1',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-2',
+        title: 'Critical 2',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-off',
+        title: 'Not Critical',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1', 'wi-2']} workItems={workItems} />);
@@ -120,7 +143,13 @@ describe('CriticalPathCard', () => {
 
   it('shows the next critical deadline date with data-testid="critical-deadline"', () => {
     const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-04-30' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -131,12 +160,64 @@ describe('CriticalPathCard', () => {
     expect(deadlineEl).toHaveTextContent('Apr 30, 2026');
   });
 
+  it('uses the forecast end of a late critical item as its deadline (#2199)', () => {
+    const workItems: TimelineWorkItem[] = [
+      {
+        ...baseWorkItem,
+        id: 'wi-late',
+        title: 'Late Critical Item',
+        endDate: '2026-03-12',
+        projectedEndDate: '2026-04-30',
+        isLate: true,
+        lateDays: 5,
+      },
+    ];
+
+    renderWithRouter(<CriticalPathCard criticalPath={['wi-late']} workItems={workItems} />);
+
+    expect(screen.getByTestId('critical-deadline')).toHaveTextContent('Apr 30, 2026');
+  });
+
+  it('uses the forecast end to pick the next critical deadline among several items (#2199)', () => {
+    const workItems: TimelineWorkItem[] = [
+      // Planned earliest, but late: forecast is the later one
+      {
+        ...baseWorkItem,
+        id: 'wi-late',
+        title: 'Late One',
+        endDate: '2026-03-12',
+        projectedEndDate: '2026-04-30',
+        isLate: true,
+        lateDays: 5,
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-ok',
+        title: 'On Time',
+        endDate: '2026-03-19',
+        projectedEndDate: '2026-03-19',
+      },
+    ];
+
+    renderWithRouter(
+      <CriticalPathCard criticalPath={['wi-late', 'wi-ok']} workItems={workItems} />,
+    );
+
+    expect(screen.getByTestId('critical-deadline')).toHaveTextContent('Mar 19, 2026');
+  });
+
   // ── Test 4: Shows days remaining ─────────────────────────────────────────
 
   it('shows the days remaining until the next critical deadline with data-testid="critical-days"', () => {
     const workItems: TimelineWorkItem[] = [
       // '2026-03-19' → March 19, 10 days from March 9
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-19' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2026-03-19',
+        projectedEndDate: '2026-03-19',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -151,7 +232,13 @@ describe('CriticalPathCard', () => {
   it('shows "On Track" health badge when more than 14 days remain until the deadline', () => {
     const workItems: TimelineWorkItem[] = [
       // '2026-04-30' → April 30 → 52 days → green
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-04-30' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -165,7 +252,13 @@ describe('CriticalPathCard', () => {
   it('shows "Warning" health badge when 7 to 14 days remain until the deadline', () => {
     const workItems: TimelineWorkItem[] = [
       // '2026-03-19' → March 19 → 10 days → yellow
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-19' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2026-03-19',
+        projectedEndDate: '2026-03-19',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -179,7 +272,13 @@ describe('CriticalPathCard', () => {
   it('shows "Critical" health badge when fewer than 7 days remain until the deadline', () => {
     const workItems: TimelineWorkItem[] = [
       // '2026-03-12' → March 12 → 3 days → red
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2026-03-12' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2026-03-12',
+        projectedEndDate: '2026-03-12',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -193,7 +292,13 @@ describe('CriticalPathCard', () => {
   it('shows "Overdue" health badge when the next critical deadline is in the past', () => {
     const workItems: TimelineWorkItem[] = [
       // '2020-01-01' → well in the past → overdue → red
-      { ...baseWorkItem, id: 'wi-1', title: 'Critical Item', endDate: '2020-01-01' },
+      {
+        ...baseWorkItem,
+        id: 'wi-1',
+        title: 'Critical Item',
+        endDate: '2020-01-01',
+        projectedEndDate: '2020-01-01',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-1']} workItems={workItems} />);
@@ -212,6 +317,7 @@ describe('CriticalPathCard', () => {
         title: 'Critical Done',
         status: 'completed',
         endDate: '2020-01-01',
+        projectedEndDate: '2020-01-01',
       },
     ];
 
@@ -226,9 +332,27 @@ describe('CriticalPathCard', () => {
 
   it('counts only work items whose IDs appear in the criticalPath array', () => {
     const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-critical-1', title: 'Critical A', endDate: '2026-04-30' },
-      { ...baseWorkItem, id: 'wi-critical-2', title: 'Critical B', endDate: '2026-04-30' },
-      { ...baseWorkItem, id: 'wi-not-critical', title: 'Not Critical', endDate: '2026-04-30' },
+      {
+        ...baseWorkItem,
+        id: 'wi-critical-1',
+        title: 'Critical A',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-critical-2',
+        title: 'Critical B',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
+      {
+        ...baseWorkItem,
+        id: 'wi-not-critical',
+        title: 'Not Critical',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
     ];
 
     renderWithRouter(
@@ -244,7 +368,13 @@ describe('CriticalPathCard', () => {
 
   it('renders the next critical deadline as a link to /work-items/:id', () => {
     const workItems: TimelineWorkItem[] = [
-      { ...baseWorkItem, id: 'wi-link', title: 'Critical Task', endDate: '2026-04-30' },
+      {
+        ...baseWorkItem,
+        id: 'wi-link',
+        title: 'Critical Task',
+        endDate: '2026-04-30',
+        projectedEndDate: '2026-04-30',
+      },
     ];
 
     renderWithRouter(<CriticalPathCard criticalPath={['wi-link']} workItems={workItems} />);

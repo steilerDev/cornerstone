@@ -1856,4 +1856,120 @@ describe('Work Item Service', () => {
       expect(updated.actualStartDate).toBeNull();
     });
   });
+
+  describe('schedule projection fields (contract 4, #2199)', () => {
+    function insertScheduled(id: string, o: Partial<typeof schema.workItems.$inferInsert> = {}) {
+      const now = '2026-03-01T00:00:00.000Z';
+      db.insert(schema.workItems)
+        .values({
+          id,
+          title: `Item ${id}`,
+          status: 'not_started',
+          createdAt: now,
+          updatedAt: now,
+          ...o,
+        })
+        .run();
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date('2026-03-10T12:00:00.000Z') });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('reports a late task consistently in the list and the detail', () => {
+      insertScheduled('late', { startDate: '2026-03-05', endDate: '2026-03-08', durationDays: 3 });
+
+      const summary = workItemService.listWorkItems(db, {}).items.find((i) => i.id === 'late')!;
+      const detail = workItemService.getWorkItemDetail(db, 'late');
+
+      for (const view of [summary, detail]) {
+        expect(view.startDate).toBe('2026-03-05');
+        expect(view.endDate).toBe('2026-03-08');
+        expect(view.projectedStartDate).toBe('2026-03-10');
+        expect(view.projectedEndDate).toBe('2026-03-13');
+        expect(view.isLate).toBe(true);
+        expect(view.lateDays).toBe(5);
+        expect(view.isHeldUp).toBe(false);
+      }
+    });
+
+    it('reports an on-time task with projected dates equal to the planned dates', () => {
+      insertScheduled('ontime', {
+        startDate: '2026-03-20',
+        endDate: '2026-03-23',
+        durationDays: 3,
+      });
+      const detail = workItemService.getWorkItemDetail(db, 'ontime');
+      expect(detail.projectedStartDate).toBe(detail.startDate);
+      expect(detail.projectedEndDate).toBe(detail.endDate);
+      expect(detail.isLate).toBe(false);
+      expect(detail.lateDays).toBeNull();
+      expect(detail.isHeldUp).toBe(false);
+    });
+
+    it('reports an undated task with null planned dates, a forecast, and no flags', () => {
+      insertScheduled('undated', { durationDays: 2 });
+      const detail = workItemService.getWorkItemDetail(db, 'undated');
+      expect(detail.startDate).toBeNull();
+      expect(detail.endDate).toBeNull();
+      expect(detail.projectedStartDate).toBe('2026-03-10');
+      expect(detail.projectedEndDate).toBe('2026-03-12');
+      expect(detail.isLate).toBe(false);
+      expect(detail.isHeldUp).toBe(false);
+    });
+
+    it('carries the projection on predecessor and successor summaries inside the detail', () => {
+      insertScheduled('a', { startDate: '2026-03-05', endDate: '2026-03-08', durationDays: 3 });
+      insertScheduled('b', { startDate: '2026-03-08', endDate: '2026-03-12', durationDays: 4 });
+      db.insert(schema.workItemDependencies)
+        .values({
+          predecessorId: 'a',
+          successorId: 'b',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
+        .run();
+
+      const detailOfB = workItemService.getWorkItemDetail(db, 'b');
+      expect(detailOfB.isHeldUp).toBe(true);
+      expect(detailOfB.isLate).toBe(false);
+      const pred = detailOfB.dependencies.predecessors[0]!.workItem;
+      expect(pred.id).toBe('a');
+      expect(pred.isLate).toBe(true);
+      expect(pred.lateDays).toBe(5);
+
+      const succ = workItemService.getWorkItemDetail(db, 'a').dependencies.successors[0]!.workItem;
+      expect(succ.id).toBe('b');
+      expect(succ.isHeldUp).toBe(true);
+      expect(succ.projectedStartDate).toBe('2026-03-13');
+    });
+
+    it('returns the detail computed after the reschedule when the duration changes', () => {
+      insertScheduled('late', { startDate: '2026-03-05', endDate: '2026-03-08', durationDays: 3 });
+
+      const updated = workItemService.updateWorkItem(db, 'late', { durationDays: 6 });
+
+      expect(updated.startDate).toBe('2026-03-05');
+      expect(updated.endDate).toBe('2026-03-11');
+      expect(updated.projectedStartDate).toBe('2026-03-10');
+      expect(updated.projectedEndDate).toBe('2026-03-16');
+      expect(updated.isLate).toBe(true);
+    });
+
+    it('returns the projection on a freshly created work item', () => {
+      const userId = createTestUser('proj@example.com', 'Proj');
+      const created = workItemService.createWorkItem(db, userId, {
+        title: 'Created late',
+        startDate: '2026-03-07',
+        durationDays: 2,
+      });
+      expect(created.isLate).toBe(true);
+      expect(created.lateDays).toBe(3);
+      expect(created.projectedStartDate).toBe('2026-03-10');
+    });
+  });
 });

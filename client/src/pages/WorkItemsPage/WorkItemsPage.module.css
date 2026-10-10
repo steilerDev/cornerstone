@@ -167,3 +167,10 @@
     transition: none;
   }
 }
+
+.statusCell {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-1);
+}

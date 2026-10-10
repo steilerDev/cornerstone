@@ -22,8 +22,11 @@ import {
   householdItemDeps,
   milestones,
 } from '../db/schema.js';
-import type { ScheduleResponse, ScheduleWarning } from '@cornerstone/shared';
-import { onMilestoneDelayed as _onMilestoneDelayed } from './diaryAutoEventService.js';
+import type {
+  ScheduleResponse,
+  ScheduleWarning,
+  WorkItemScheduleFields,
+} from '@cornerstone/shared';
 
 // ─── Input types for the pure scheduling engine ───────────────────────────────
 
@@ -64,6 +67,11 @@ export interface ScheduleParams {
   dependencies: SchedulingDependency[];
   /** Today's date in YYYY-MM-DD format (injectable for testability). */
   today: string;
+  /**
+   * Apply Rules 2/3 (the today floor). Default true. false = the planned schedule:
+   * dates are never clamped to today and `isLate` stays false everywhere.
+   */
+  applyTodayFloor?: boolean;
 }
 
 /**
@@ -84,7 +92,7 @@ interface NodeData {
   ef: string; // Earliest finish (ISO date)
   ls: string; // Latest start (ISO date)
   lf: string; // Latest finish (ISO date)
-  /** true when Rule 2 or Rule 3 clamped dates to today; false otherwise. */
+  /** true when Rule 2 or Rule 3 clamped dates to today (only when the floor is applied). */
   isLate: boolean;
 }
 
@@ -335,6 +343,8 @@ export interface AutoRescheduleOptions {
   ) => void;
   /** Callback when auto-reschedule completes with updated count. */
   onRescheduleCompleted?: (updatedCount: number) => void;
+  /** YYYY-MM-DD; defaults to today (UTC). For tests. */
+  today?: string;
 }
 
 // ─── Main scheduling engine ────────────────────────────────────────────────────
@@ -350,7 +360,7 @@ export interface AutoRescheduleOptions {
  *   and optionally cycleNodes if a circular dependency was detected
  */
 export function schedule(params: ScheduleParams): ScheduleResult {
-  const { mode, anchorWorkItemId, workItems, dependencies, today } = params;
+  const { mode, anchorWorkItemId, workItems, dependencies, today, applyTodayFloor = true } = params;
 
   const warnings: ScheduleWarning[] = [];
 
@@ -458,7 +468,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
         // item started weeks ago and the duration estimate was short), we must
         // still clamp EF to today — the work is still ongoing.
         // When actualEndDate IS set it is authoritative and no clamping applies.
-        if (item.status === 'in_progress' && !item.actualEndDate) {
+        if (applyTodayFloor && item.status === 'in_progress' && !item.actualEndDate) {
           const efBeforeClamp = ef;
           ef = maxDate(ef, today);
           if (ef !== efBeforeClamp) {
@@ -531,7 +541,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
     // A not_started work item cannot start in the past — floor ES to today.
     // Track whether clamping occurred to set isLate.
     let isLate = false;
-    if (item.status === 'not_started') {
+    if (applyTodayFloor && item.status === 'not_started') {
       const esBeforeClamp = es;
       es = maxDate(es, today);
       if (es !== esBeforeClamp) {
@@ -569,7 +579,7 @@ export function schedule(params: ScheduleParams): ScheduleResult {
     // ── Rule 3: Today floor for in_progress items ─────────────────────────────
     // An in_progress work item's end date must not be in the past.
     // Only applies when actualEndDate is not set (Rule 1 takes precedence).
-    if (item.status === 'in_progress' && !item.actualEndDate) {
+    if (applyTodayFloor && item.status === 'in_progress' && !item.actualEndDate) {
       const efBeforeClamp = ef;
       ef = maxDate(ef, today);
       if (ef !== efBeforeClamp) {
@@ -677,65 +687,80 @@ export function schedule(params: ScheduleParams): ScheduleResult {
   return { scheduledItems, criticalPath, warnings };
 }
 
-// ─── Auto-reschedule (database-aware) ─────────────────────────────────────────
+// ─── Schedule graph + projection (database-aware) ────────────────────────────
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
+const MILESTONE_NODE_PREFIX = 'milestone:';
+
+export interface ScheduleGraph {
+  /** Real work items (stored dates) followed by the `milestone:<id>` virtual nodes. */
+  workItems: SchedulingWorkItem[];
+  /** Real dependencies plus synthetic contributor→milestone and milestone→dependent FS edges. */
+  dependencies: SchedulingDependency[];
+  /** Every milestone row, including those without links. */
+  milestones: Array<typeof milestones.$inferSelect>;
+  /** milestoneId → contributing work item ids (milestone_work_items). */
+  milestoneContributors: Map<number, string[]>;
+}
+
+export interface MilestoneScheduleFields {
+  projectedDate: string | null;
+  isLate: boolean;
+  lateDays: number | null;
+  isEarly: boolean;
+  earlyDays: number | null;
+}
+
+export interface ScheduleProjection {
+  hasCycle: boolean;
+  /** Engine result without the floor (what autoReschedule persists). */
+  planned: ScheduleResult;
+  /** Engine result with the floor (the forecast). */
+  projected: ScheduleResult;
+  /** Keyed by real work item id (no milestone nodes). */
+  workItems: Map<string, WorkItemScheduleFields>;
+  /** Keyed by milestone id, for every milestone. */
+  milestones: Map<number, MilestoneScheduleFields>;
+  /** Real work item ids on the forecast critical path ([] on a cycle). */
+  criticalPath: string[];
+  criticalMilestoneIds: Set<number>;
+}
+
+function todayUtc(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
 /**
- * Fetch all work items from the database, run the CPM scheduler, and apply any
- * changed dates back to the database.
+ * Load work items, dependencies and milestones and build the scheduling graph
+ * (milestones become zero-duration virtual CPM nodes with synthetic FS edges).
  *
- * Milestone dependency expansion:
- *   For each required milestone dependency (WI depends on milestone M), we find all
- *   work items that are linked/contributing to M via milestone_work_items. We then
- *   create synthetic finish-to-start dependencies from each contributing WI to the
- *   dependent WI and feed them into the CPM engine alongside the real dependencies.
- *
- * @param db - Drizzle database handle
- * @param options - Optional callbacks for milestone delays and completion
- * @returns The count of work items whose dates were updated
+ * Milestone dependency expansion: for each required milestone dependency
+ * (WI depends on milestone M), contributing work items of M (milestone_work_items)
+ * get synthetic finish-to-start edges into the milestone node, and the milestone
+ * node gets one into each dependent work item.
  */
-export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): number {
-  // ── 1. Fetch all work items ──────────────────────────────────────────────────
-
+export function loadScheduleGraph(db: Pick<DbType, 'select'>): ScheduleGraph {
   const allWorkItems = db.select().from(workItems).all();
-
-  // ── 2. Fetch real dependencies ───────────────────────────────────────────────
-
   const allDependencies =
     allWorkItems.length > 0 ? db.select().from(workItemDependencies).all() : [];
-
-  // ── 3. Load milestones and their links ──────────────────────────────────────
-  //
-  // Load milestone data and contributor/dependent links so we can model milestones
-  // as zero-duration CPM nodes.
-
   const allMilestones = db.select().from(milestones).all();
 
-  // Map milestone IDs to milestones for quick lookup
   const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
   for (const milestone of allMilestones) {
     milestoneMap.set(milestone.id, milestone);
   }
 
-  // ── 4. Milestone modeled as CPM nodes ───────────────────────────────────────
-  //
-  // For each milestone that has contributors (in milestone_work_items) or
-  // dependents (in work_item_milestone_deps), create a zero-duration CPM node
-  // with ID `milestone:<id>`.
-
   const allMilestoneDeps = db.select().from(workItemMilestoneDeps).all();
   const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
 
-  // Build milestoneId → contributing workItemIds map
-  const milestoneContributorsMap = new Map<number, string[]>();
+  const milestoneContributors = new Map<number, string[]>();
   for (const link of allMilestoneLinks) {
-    const existing = milestoneContributorsMap.get(link.milestoneId) ?? [];
+    const existing = milestoneContributors.get(link.milestoneId) ?? [];
     existing.push(link.workItemId);
-    milestoneContributorsMap.set(link.milestoneId, existing);
+    milestoneContributors.set(link.milestoneId, existing);
   }
 
-  // Build milestoneId → dependent workItemIds map
   const milestoneDependentsMap = new Map<number, string[]>();
   for (const dep of allMilestoneDeps) {
     const existing = milestoneDependentsMap.get(dep.milestoneId) ?? [];
@@ -743,14 +768,9 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
     milestoneDependentsMap.set(dep.milestoneId, existing);
   }
 
-  // Identify milestones that should become CPM nodes (have contributors or dependents)
   const milestoneIdsWithLinks = new Set<number>();
-  for (const milestoneId of milestoneContributorsMap.keys()) {
-    milestoneIdsWithLinks.add(milestoneId);
-  }
-  for (const milestoneId of milestoneDependentsMap.keys()) {
-    milestoneIdsWithLinks.add(milestoneId);
-  }
+  for (const milestoneId of milestoneContributors.keys()) milestoneIdsWithLinks.add(milestoneId);
+  for (const milestoneId of milestoneDependentsMap.keys()) milestoneIdsWithLinks.add(milestoneId);
 
   const syntheticDeps: SchedulingDependency[] = [];
   const milestoneVirtualWIs: SchedulingWorkItem[] = [];
@@ -759,8 +779,7 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
     const milestone = milestoneMap.get(milestoneId);
     if (!milestone) continue;
 
-    // Create a zero-duration CPM node for this milestone
-    const milestoneNodeId = `milestone:${milestoneId}`;
+    const milestoneNodeId = `${MILESTONE_NODE_PREFIX}${milestoneId}`;
     const completedDate = milestone.completedAt ? milestone.completedAt.slice(0, 10) : null;
 
     milestoneVirtualWIs.push({
@@ -775,9 +794,7 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
       startBefore: null,
     });
 
-    // Create FS deps from each contributor to the milestone
-    const contributors = milestoneContributorsMap.get(milestoneId) ?? [];
-    for (const contributorId of contributors) {
+    for (const contributorId of milestoneContributors.get(milestoneId) ?? []) {
       syntheticDeps.push({
         predecessorId: contributorId,
         successorId: milestoneNodeId,
@@ -786,9 +803,7 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
       });
     }
 
-    // Create FS deps from the milestone to each dependent
-    const dependents = milestoneDependentsMap.get(milestoneId) ?? [];
-    for (const dependentId of dependents) {
+    for (const dependentId of milestoneDependentsMap.get(milestoneId) ?? []) {
       syntheticDeps.push({
         predecessorId: milestoneNodeId,
         successorId: dependentId,
@@ -797,8 +812,6 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
       });
     }
   }
-
-  // ── 5. Build combined dependency list for the engine ────────────────────────
 
   const engineWorkItems: SchedulingWorkItem[] = [
     ...allWorkItems.map((wi) => ({
@@ -822,67 +835,244 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
     leadLagDays: dep.leadLagDays,
   }));
 
-  const engineDependencies: SchedulingDependency[] = [...realDeps, ...syntheticDeps];
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  // ── 6. Run the CPM scheduler ─────────────────────────────────────────────────
-
-  const result = schedule({
-    mode: 'full',
+  return {
     workItems: engineWorkItems,
-    dependencies: engineDependencies,
+    dependencies: [...realDeps, ...syntheticDeps],
+    milestones: allMilestones,
+    milestoneContributors,
+  };
+}
+
+/**
+ * Pure projection (contract 4, #2199): runs the engine twice on identical inputs, once
+ * without the today floor (planned) and once with it (forecast). Any difference between
+ * the runs comes from the floor.
+ */
+export function projectSchedule(graph: ScheduleGraph, today: string): ScheduleProjection {
+  const base = {
+    mode: 'full' as const,
+    workItems: graph.workItems,
+    dependencies: graph.dependencies,
     today,
+  };
+  const planned = schedule({ ...base, applyTodayFloor: false });
+  const projected = schedule({ ...base, applyTodayFloor: true });
+  const hasCycle = (planned.cycleNodes?.length ?? 0) > 0 || (projected.cycleNodes?.length ?? 0) > 0;
+
+  const storedById = new Map(graph.workItems.map((wi) => [wi.id, wi]));
+  const workItemFields = new Map<string, WorkItemScheduleFields>();
+
+  const storedFallback = (wi: SchedulingWorkItem): WorkItemScheduleFields => ({
+    projectedStartDate: wi.startDate,
+    projectedEndDate: wi.endDate,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
+  });
+
+  if (hasCycle) {
+    for (const wi of graph.workItems) {
+      if (!wi.id.startsWith(MILESTONE_NODE_PREFIX)) workItemFields.set(wi.id, storedFallback(wi));
+    }
+  } else {
+    const plannedById = new Map(planned.scheduledItems.map((i) => [i.workItemId, i]));
+    const projectedById = new Map(projected.scheduledItems.map((i) => [i.workItemId, i]));
+    const hasPredecessor = new Set(graph.dependencies.map((d) => d.successorId));
+
+    for (const wi of graph.workItems) {
+      if (wi.id.startsWith(MILESTONE_NODE_PREFIX)) continue;
+      const p = plannedById.get(wi.id);
+      const f = projectedById.get(wi.id);
+      if (wi.status === 'completed' || !p || !f) {
+        workItemFields.set(wi.id, storedFallback(wi));
+        continue;
+      }
+
+      // Undated task (contract 4 point 4): forecast dates, never late or held up.
+      if (wi.startDate === null && !hasPredecessor.has(wi.id)) {
+        workItemFields.set(wi.id, {
+          projectedStartDate: f.scheduledStartDate,
+          projectedEndDate: f.scheduledEndDate,
+          isLate: false,
+          lateDays: null,
+          isHeldUp: false,
+        });
+        continue;
+      }
+
+      const moved =
+        f.scheduledStartDate !== p.scheduledStartDate || f.scheduledEndDate !== p.scheduledEndDate;
+      const isLate = f.isLate;
+      const isHeldUp = moved && !isLate;
+      let lateDays: number | null = null;
+      if (isLate) {
+        const raw =
+          wi.status === 'not_started'
+            ? diffDays(p.scheduledStartDate, f.scheduledStartDate)
+            : diffDays(p.scheduledEndDate, f.scheduledEndDate);
+        lateDays = Math.max(1, raw);
+      }
+      // A non-root item with a NULL stored start (before its first reschedule) still needs
+      // forecast dates, so fall back to the forecast run whenever the stored value is null.
+      workItemFields.set(wi.id, {
+        projectedStartDate: moved || wi.startDate === null ? f.scheduledStartDate : wi.startDate,
+        projectedEndDate: moved || wi.endDate === null ? f.scheduledEndDate : wi.endDate,
+        isLate,
+        lateDays,
+        isHeldUp,
+      });
+    }
+  }
+
+  const milestoneFields = new Map<number, MilestoneScheduleFields>();
+  for (const m of graph.milestones) {
+    const completed = m.isCompleted || m.completedAt !== null;
+    let projectedDate: string | null = null;
+    for (const contributorId of graph.milestoneContributors.get(m.id) ?? []) {
+      const end =
+        workItemFields.get(contributorId)?.projectedEndDate ??
+        storedById.get(contributorId)?.endDate ??
+        null;
+      if (end !== null) projectedDate = projectedDate === null ? end : maxDate(projectedDate, end);
+    }
+    const fields: MilestoneScheduleFields = {
+      projectedDate,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
+    };
+    if (!completed && projectedDate !== null) {
+      if (projectedDate > m.targetDate) {
+        fields.isLate = true;
+        fields.lateDays = diffDays(m.targetDate, projectedDate);
+      } else if (projectedDate < m.targetDate) {
+        fields.isEarly = true;
+        fields.earlyDays = diffDays(projectedDate, m.targetDate);
+      }
+    }
+    milestoneFields.set(m.id, fields);
+  }
+
+  const criticalPath: string[] = [];
+  const criticalMilestoneIds = new Set<number>();
+  if (!hasCycle) {
+    for (const id of projected.criticalPath) {
+      if (id.startsWith(MILESTONE_NODE_PREFIX)) {
+        criticalMilestoneIds.add(parseInt(id.substring(MILESTONE_NODE_PREFIX.length), 10));
+      } else {
+        criticalPath.push(id);
+      }
+    }
+  }
+
+  return {
+    hasCycle,
+    planned,
+    projected,
+    workItems: workItemFields,
+    milestones: milestoneFields,
+    criticalPath,
+    criticalMilestoneIds,
+  };
+}
+
+/** Load the graph and project it. `today` defaults to the current UTC date. */
+export function computeScheduleProjection(
+  db: Pick<DbType, 'select'>,
+  today?: string,
+): ScheduleProjection {
+  return projectSchedule(loadScheduleGraph(db), today ?? todayUtc());
+}
+
+/** Fields for a row; falls back to stored dates / all-false when the id is not in the projection. */
+export function workItemProjectionOf(
+  projection: ScheduleProjection,
+  row: { id: string; startDate: string | null; endDate: string | null },
+): WorkItemScheduleFields {
+  return (
+    projection.workItems.get(row.id) ?? {
+      projectedStartDate: row.startDate,
+      projectedEndDate: row.endDate,
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+    }
+  );
+}
+
+// ─── Auto-reschedule ──────────────────────────────────────────────────────────
+
+/**
+ * Run the CPM scheduler and persist the PLANNED dates (engine result without the today
+ * floor) back to the database; the floor is a read-time projection (contract 4, #2199).
+ * Never writes dates into undated tasks (not completed, no predecessor, NULL start_date;
+ * contract 4 point 4). Household-item delivery dates are still computed with the floor from
+ * the forecast run.
+ *
+ * @param db - Drizzle database handle
+ * @param options - Optional callbacks for milestone delays and completion, and `today`
+ * @returns The count of rows (work items and household items) whose values were updated
+ */
+export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): number {
+  const today = options?.today ?? todayUtc();
+
+  const graph = loadScheduleGraph(db);
+
+  const plannedResult = schedule({
+    mode: 'full',
+    workItems: graph.workItems,
+    dependencies: graph.dependencies,
+    today,
+    applyTodayFloor: false,
   });
 
   // If a cycle is detected, skip rescheduling silently — the dependency creation
   // endpoint surfaces cycle errors before reaching here, but guard defensively.
-  if (result.cycleNodes && result.cycleNodes.length > 0) {
+  if (plannedResult.cycleNodes && plannedResult.cycleNodes.length > 0) {
     return 0;
   }
 
-  // ── 7. Apply changed dates back to the database ──────────────────────────────
-  //
-  // Skip milestone nodes (IDs starting with "milestone:") — they are virtual CPM
-  // nodes only and should never be written to the database.
+  const hasPredecessor = new Set(graph.dependencies.map((d) => d.successorId));
+  const statusById = new Map(graph.workItems.map((wi) => [wi.id, wi.status]));
 
-  // Build a map of current startDate/endDate by workItemId for comparison
   const currentDatesMap = new Map<string, { startDate: string | null; endDate: string | null }>();
-  for (const wi of allWorkItems) {
+  for (const wi of graph.workItems) {
+    if (wi.id.startsWith(MILESTONE_NODE_PREFIX)) continue;
     currentDatesMap.set(wi.id, { startDate: wi.startDate, endDate: wi.endDate });
   }
 
+  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
+  for (const milestone of graph.milestones) {
+    milestoneMap.set(milestone.id, milestone);
+  }
+  const milestoneContributorsMap = graph.milestoneContributors;
+
   let updatedCount = 0;
   const now = new Date().toISOString();
+  let finalProjection: ScheduleProjection | null = null;
 
   db.transaction(() => {
-    for (const scheduled of result.scheduledItems) {
-      // Process milestone nodes to detect delays
-      if (scheduled.workItemId.startsWith('milestone:')) {
-        const milestoneIdStr = scheduled.workItemId.substring('milestone:'.length);
-        const milestoneId = parseInt(milestoneIdStr, 10);
-        const milestone = milestoneMap.get(milestoneId);
-
-        if (milestone && options?.onMilestoneDelayed) {
-          const scheduledEnd = scheduled.scheduledEndDate;
-          const targetDate = milestone.targetDate;
-          if (scheduledEnd > targetDate) {
-            options.onMilestoneDelayed(milestoneId, milestone.title, targetDate, scheduledEnd);
-          }
-        }
-        continue;
-      }
+    for (const scheduled of plannedResult.scheduledItems) {
+      // Milestone nodes are virtual CPM nodes and are never written.
+      if (scheduled.workItemId.startsWith(MILESTONE_NODE_PREFIX)) continue;
 
       const current = currentDatesMap.get(scheduled.workItemId);
       if (!current) continue;
 
+      // Undated task: no plan, never written.
+      if (
+        current.startDate === null &&
+        !hasPredecessor.has(scheduled.workItemId) &&
+        statusById.get(scheduled.workItemId) !== 'completed'
+      ) {
+        continue;
+      }
+
       const newStart = scheduled.scheduledStartDate;
       const newEnd = scheduled.scheduledEndDate;
 
-      const startChanged = newStart !== current.startDate;
-      const endChanged = newEnd !== current.endDate;
-
-      if (startChanged || endChanged) {
+      if (newStart !== current.startDate || newEnd !== current.endDate) {
         db.update(workItems)
           .set({
             startDate: newStart,
@@ -894,6 +1084,10 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
         updatedCount++;
       }
     }
+
+    // The reads below see the rows just written (one synchronous connection).
+    finalProjection = computeScheduleProjection(db, today);
+    const result = finalProjection.projected;
 
     // ── 8. Compute household item delivery dates ──────────────────────────────────
     //
@@ -1041,6 +1235,23 @@ export function autoReschedule(db: DbType, options?: AutoRescheduleOptions): num
       }
     }
   });
+
+  // Milestone-delay events come from the forecast milestone projection.
+  const projection = finalProjection as ScheduleProjection | null;
+  if (options?.onMilestoneDelayed && projection) {
+    for (const milestone of graph.milestones) {
+      if (milestone.isCompleted || milestone.completedAt) continue;
+      const projectedDate = projection.milestones.get(milestone.id)?.projectedDate ?? null;
+      if (projectedDate !== null && projectedDate > milestone.targetDate) {
+        options.onMilestoneDelayed(
+          milestone.id,
+          milestone.title,
+          milestone.targetDate,
+          projectedDate,
+        );
+      }
+    }
+  }
 
   // Invoke completion callback if provided
   if (options?.onRescheduleCompleted) {

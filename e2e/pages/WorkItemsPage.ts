@@ -417,6 +417,29 @@ export class WorkItemsPage {
   }
 
   /**
+   * The row (desktop/tablet table) or card (phone) for a task title, whichever surface is
+   * visible. DataTable mounts both, so the hidden one is filtered out (#2199).
+   */
+  workItemRow(title: string): Locator {
+    return this.tableBody
+      .locator('tr')
+      .filter({ hasText: title })
+      .or(this.cardsContainer.locator('[class*="card"]').filter({ hasText: title }))
+      .locator('visible=true');
+  }
+
+  /**
+   * Late / Held up chip for a task id on the visible surface (#2199). Table testid is
+   * `wi-schedule-signal-<id>`, card testid is `wi-schedule-signal-mobile-<id>`.
+   */
+  scheduleSignal(id: string): Locator {
+    return this.page
+      .getByTestId(`wi-schedule-signal-${id}`)
+      .or(this.page.getByTestId(`wi-schedule-signal-mobile-${id}`))
+      .locator('visible=true');
+  }
+
+  /**
    * Enable the Area column via the column settings gear icon so the filter button appears.
    * Opens the column settings popover, checks the "Area" checkbox, and closes the popover.
    */
