@@ -20,6 +20,7 @@ import type * as BudgetSourcesApiTypes from './lib/budgetSourcesApi.js';
 import type * as SubsidyProgramsApiTypes from './lib/subsidyProgramsApi.js';
 import type * as PreferencesApiTypes from './lib/preferencesApi.js';
 import type * as DiaryApiTypes from './lib/diaryApi.js';
+import type * as BackupsApiTypes from './lib/backupsApi.js';
 import type * as AppTypes from './App.js';
 
 const mockGetAuthMe = jest.fn<typeof AuthApiTypes.getAuthMe>();
@@ -115,6 +116,7 @@ jest.unstable_mockModule('./lib/usersApi.js', () => ({
   changePassword: jest.fn<typeof UsersApiTypes.changePassword>(),
   adminUpdateUser: jest.fn<typeof UsersApiTypes.adminUpdateUser>(),
   deactivateUser: jest.fn<typeof UsersApiTypes.deactivateUser>(),
+  createUser: jest.fn<typeof UsersApiTypes.createUser>(),
 }));
 
 // InvoicesPage calls fetchAllInvoices and createInvoice on mount.
@@ -207,6 +209,17 @@ jest.unstable_mockModule('./lib/diaryApi.js', () => ({
   getDiaryEntry: jest.fn<typeof DiaryApiTypes.getDiaryEntry>(),
 }));
 
+// BackupsPage (admin only) loads these on mount; a member must never trigger them (D-23).
+const mockListBackups = jest.fn<typeof BackupsApiTypes.listBackups>();
+const mockGetSchedulerStatus = jest.fn<typeof BackupsApiTypes.getSchedulerStatus>();
+jest.unstable_mockModule('./lib/backupsApi.js', () => ({
+  listBackups: mockListBackups,
+  createBackup: jest.fn<typeof BackupsApiTypes.createBackup>(),
+  deleteBackup: jest.fn<typeof BackupsApiTypes.deleteBackup>(),
+  restoreBackup: jest.fn<typeof BackupsApiTypes.restoreBackup>(),
+  getSchedulerStatus: mockGetSchedulerStatus,
+}));
+
 describe('App', () => {
   // Dynamic imports
   let App: typeof AppTypes.App;
@@ -240,6 +253,8 @@ describe('App', () => {
     mockFetchVendors.mockReset();
     mockFetchVendor.mockReset();
     mockListUsers.mockReset();
+    mockListBackups.mockReset();
+    mockGetSchedulerStatus.mockReset();
     mockFetchAllInvoices.mockReset();
     mockFetchWorkItemBudgets.mockReset();
     mockFetchHouseholdItemBudgets.mockReset();
@@ -531,6 +546,102 @@ describe('App', () => {
     // from the page itself (before the API call settles)
     // The page title is set dynamically; confirm the route rendered (no 404)
     expect(screen.queryByRole('heading', { name: /404.*not found/i })).not.toBeInTheDocument();
+  });
+
+  describe('role guard on admin-only settings routes (D-23)', () => {
+    const noAccessHeading = "You don't have access to this page";
+
+    function signInAs(role: 'admin' | 'member') {
+      mockGetAuthMe.mockResolvedValue({
+        user: {
+          id: 'test-user-123',
+          email: 'test@example.com',
+          displayName: 'Test User',
+          role,
+          authProvider: 'local',
+          oidcLinked: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        setupRequired: false,
+        oidcEnabled: false,
+      });
+    }
+
+    it('shows No access in place for a member at /settings/users without loading users', async () => {
+      window.history.pushState({}, 'Users', '/settings/users');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/settings/users');
+      expect(screen.queryByRole('heading', { name: 'User Management' })).toBeNull();
+      expect(mockListUsers).not.toHaveBeenCalled();
+    });
+
+    it('shows No access in place for a member at /settings/backups without loading backups', async () => {
+      window.history.pushState({}, 'Backups', '/settings/backups');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/settings/backups');
+      expect(mockListBackups).not.toHaveBeenCalled();
+      expect(mockGetSchedulerStatus).not.toHaveBeenCalled();
+    });
+
+    it('keeps the sidebar and offers Back to Home on the No access page', async () => {
+      window.history.pushState({}, 'Users', '/settings/users');
+      render(<App />);
+
+      await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 });
+      expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute(
+        'href',
+        '/project',
+      );
+      expect(screen.getByRole('button', { name: /^settings$/i })).toHaveAttribute(
+        'aria-current',
+        'page',
+      );
+    });
+
+    it('lets an admin through to the User Management page', async () => {
+      signInAs('admin');
+      window.history.pushState({}, 'Users', '/settings/users');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { name: 'User Management' }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: noAccessHeading })).toBeNull();
+      await waitFor(() => expect(mockListUsers).toHaveBeenCalled());
+    });
+
+    it('lets an admin through to the Backups page', async () => {
+      signInAs('admin');
+      mockListBackups.mockResolvedValue({ backups: [] });
+      mockGetSchedulerStatus.mockResolvedValue({
+        scheduler: { enabled: false, lastRun: null, nextRuns: [] },
+      });
+      window.history.pushState({}, 'Backups', '/settings/backups');
+      render(<App />);
+
+      await waitFor(() => expect(mockListBackups).toHaveBeenCalled(), { timeout: 5000 });
+      expect(screen.queryByRole('heading', { name: noAccessHeading })).toBeNull();
+    });
+
+    it('ends a member following the legacy /admin/users link on the No access page', async () => {
+      window.history.pushState({}, 'Admin users', '/admin/users');
+      render(<App />);
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/settings/users');
+    });
   });
 
   it('redirects /budget/vendors to /settings/vendors', async () => {

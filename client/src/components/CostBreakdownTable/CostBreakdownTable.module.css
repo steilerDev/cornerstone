@@ -232,7 +232,7 @@
   background: var(--color-bg-tertiary);
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-normal);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   padding: var(--spacing-2) var(--spacing-3);
   border-bottom: 1px solid var(--color-border);
 }

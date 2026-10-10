@@ -333,7 +333,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "Settings › Users (admin; the route itself is role-guarded, D-23)."
+    "note": "Settings › Users (admin; members get the \"No access\" page in place, D-23, #2200)."
   },
   {
     "from": "/settings/backups",
@@ -345,7 +345,7 @@
     "gate": "none",
     "permanent": false,
     "carries": [],
-    "note": "Settings › Backups (admin, role-guarded)."
+    "note": "Settings › Backups (admin; members get the \"No access\" page in place, D-23, #2200)."
   },
   {
     "from": "*",
@@ -1053,6 +1053,6 @@
     "gate": "none",
     "permanent": false,
     "carries": ["*"],
-    "note": "Role guard: members get the \"No access\" page with \"Go to Home\" (D-23)."
+    "note": "Role guard: members get the \"No access\" page in place (URL kept, no redirect) with \"Back to Home\" (D-23; built in #2200 for users/backups)."
   }
 ]

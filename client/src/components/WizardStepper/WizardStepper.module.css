@@ -99,7 +99,7 @@
 
 .stepUpcoming .circle {
   background-color: var(--color-bg-tertiary);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .stepUpcoming .label {

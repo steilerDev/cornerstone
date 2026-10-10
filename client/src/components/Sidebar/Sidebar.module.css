@@ -67,7 +67,9 @@
 }
 
 .active {
-  background-color: var(--color-sidebar-active);
+  background-color: var(--color-nav-active-bg);
+  color: var(--color-nav-active-text);
+  font-weight: var(--font-weight-semibold);
 }
 
 .navSeparator {
@@ -125,7 +127,9 @@
 }
 
 .logoutButton.active {
-  background-color: var(--color-sidebar-active);
+  background-color: var(--color-nav-active-bg);
+  color: var(--color-nav-active-text);
+  font-weight: var(--font-weight-semibold);
 }
 
 /* Mobile and tablet: fixed position, hidden by default */

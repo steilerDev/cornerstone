@@ -289,7 +289,7 @@
 
 .parentPickerTabActive {
   border-color: var(--color-primary);
-  color: var(--color-primary);
+  color: var(--color-primary-badge-text);
   background-color: var(--color-primary-bg);
 }
 

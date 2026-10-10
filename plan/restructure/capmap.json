@@ -87,7 +87,7 @@
     "to": "All lists (Tasks, Purchases, Invoices, Companies) > pagination bar + page size",
     "change": "same",
     "gate": "none",
-    "note": "Grouped Tasks list shows all 47 real rows without paging; paging kicks in above 100."
+    "note": "Grouped Tasks list shows all 47 real rows without paging; paging kicks in above 100. #2200: hover shows a primary border, not only a fill."
   },
   "WRK-013": {
     "name": "Bookmark or share a filtered/sorted list (work items, household items) via its URL",
@@ -664,7 +664,7 @@
     "to": "Tasks > Schedule > chart (bars by status, with legend)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (daily use). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2200: dark not-started bars and default arrows reach >=4.89:1 against the rows."
   },
   "WRK-097": {
     "name": "Read one chronological list mixing work items, milestones and household items",
@@ -1021,7 +1021,7 @@
     "to": "Money > Financing > card bar (overflow segment visible) and Money > Funding source page > bar",
     "change": "same",
     "gate": "none",
-    "note": "Over-allocation made visible (D-05). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05)."
+    "note": "Over-allocation made visible (D-05). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05). #2200: dark projected segment is opaque blue-300 (5.74:1 against the track)."
   },
   "MNY-024": {
     "name": "See each source's projected range, paid and claimed totals with remaining amounts",
@@ -3210,7 +3210,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q1",
-    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12)."
+    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600."
   },
   "PLT-002": {
     "name": "Return to the project overview by clicking the logo / app name",
@@ -3226,7 +3226,7 @@
     "to": "Global > Sidebar > Settings (opens Settings > Project setup; real link with aria-current); Global > User menu > Account",
     "change": "same",
     "gate": "none",
-    "note": "No longer a Logout-styled button (NAV-17)."
+    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\"."
   },
   "PLT-004": {
     "name": "Switch between the pages of a section via the second-level tab bar (sub-nav)",
@@ -3234,7 +3234,7 @@
     "to": "Global > Sidebar views from NavConfig: while inside Tasks, Money or Settings their views show under the section entry, the current one highlighted (no tab rows); phones and tablets switch views from the title menu ('Tasks ▾', 'Money ▾', 'Settings ▾')",
     "change": "moved",
     "gate": "none",
-    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2)."
+    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2). #2200: members see no User Management or Backups tab (verified on all five Settings pages)."
   },
   "PLT-005": {
     "name": "Cycle the colour theme Light -> Dark -> System from the sidebar",
@@ -3251,7 +3251,7 @@
     "to": "Global > theme 'System' follows OS",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2200: dark cards reach 1.26:1 against the page; borders, muted text and focusable outlines re-tuned to AA. Light primary buttons are blue-600 (white text 5.17:1). Success, danger and placeholder colours re-tuned so every text pair reaches 4.5:1."
   },
   "PLT-007": {
     "name": "Keep theme and language choices per user across browsers and devices",
@@ -3804,7 +3804,7 @@
     "to": "Settings > Users (admin only)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays)."
   },
   "PLT-073": {
     "name": "Search users by name or email",
@@ -3908,7 +3908,7 @@
     "to": "Settings > Backups (admin only) > list",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (monthly use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays)."
   },
   "PLT-087": {
     "name": "Restore the whole instance from a backup",

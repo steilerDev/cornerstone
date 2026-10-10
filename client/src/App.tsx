@@ -7,6 +7,7 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import { LocaleProvider, useLocale } from './contexts/LocaleContext';
 import { useAuth } from './contexts/AuthContext';
 import { AuthGuard } from './components/AuthGuard/AuthGuard';
+import { RoleGuard } from './components/AuthGuard/RoleGuard';
 import { ToastProvider } from './components/Toast/ToastContext';
 import { ToastList } from './components/Toast/Toast';
 import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary/index.js';
@@ -102,6 +103,7 @@ const DiaryEntryEditPage = lazy(() => import('./pages/DiaryEntryEditPage/DiaryEn
 const PhotosPage = lazy(() => import('./pages/PhotosPage/PhotosPage'));
 const PhotoSpotViewerPage = lazy(() => import('./pages/PhotoSpotViewerPage/PhotoSpotViewerPage'));
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
+const NoAccessPage = lazy(() => import('./pages/NoAccessPage/NoAccessPage'));
 
 export function App() {
   return (
@@ -258,8 +260,12 @@ export function App() {
                         <Route path="manage" element={<ManagePage />} />
                         <Route path="vendors" element={<VendorsPage />} />
                         <Route path="vendors/:id" element={<VendorDetailPage />} />
-                        <Route path="users" element={<UserManagementPage />} />
-                        <Route path="backups" element={<BackupsPage />} />
+                        <Route
+                          element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}
+                        >
+                          <Route path="users" element={<UserManagementPage />} />
+                          <Route path="backups" element={<BackupsPage />} />
+                        </Route>
                       </Route>
 
                       {/* Legacy redirects — preserve old bookmarks */}

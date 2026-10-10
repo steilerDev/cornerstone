@@ -25,7 +25,7 @@
 
 .backButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .backButton:focus-visible {

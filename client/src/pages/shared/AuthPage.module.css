@@ -5,8 +5,8 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: var(--color-bg-secondary);
-  padding: 1rem;
+  background-color: var(--color-bg-page);
+  padding: var(--spacing-4);
 }
 
 .card {
@@ -139,7 +139,7 @@
 }
 
 .button:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

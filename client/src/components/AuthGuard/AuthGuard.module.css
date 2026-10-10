@@ -4,13 +4,13 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background-color: var(--color-bg-secondary);
-  gap: 1rem;
+  background-color: var(--color-bg-page);
+  gap: var(--spacing-4);
 }
 
 .loading p {
   color: var(--color-text-muted);
-  font-size: 1rem;
+  font-size: var(--font-size-base);
 }
 
 .spinner {

@@ -20,7 +20,7 @@ body {
     -apple-system,
     sans-serif;
   overflow-x: hidden;
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-bg-page);
   color: var(--color-text-primary);
 }
 

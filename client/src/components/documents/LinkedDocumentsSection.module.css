@@ -27,7 +27,7 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   background: var(--color-bg-tertiary);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
   padding: var(--spacing-1) var(--spacing-2-5);
   border-radius: var(--radius-full);
   min-width: 2rem;
@@ -336,7 +336,7 @@
 
 .modalCancelButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .modalCancelButton:focus-visible {
@@ -346,7 +346,7 @@
 
 .modalDeleteButton {
   background: var(--color-danger);
-  color: var(--color-danger-text-on-light);
+  color: var(--color-danger-text);
   border-color: var(--color-danger);
 }
 

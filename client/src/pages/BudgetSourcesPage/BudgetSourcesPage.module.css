@@ -256,7 +256,7 @@
 }
 
 .button:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -282,7 +282,7 @@
 }
 
 .saveButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -517,7 +517,7 @@
 
 .docsToggleActive {
   background-color: var(--color-primary-bg);
-  color: var(--color-primary);
+  color: var(--color-primary-badge-text);
   border-color: var(--color-primary);
 }
 
@@ -609,7 +609,7 @@
 /* Closed — gray */
 .statusClosed {
   background-color: var(--color-bg-tertiary);
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 /* ---- System badge (for discretionary sources) ---- */
@@ -884,7 +884,7 @@
 }
 
 .confirmDeleteButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

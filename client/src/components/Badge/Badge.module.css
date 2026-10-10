@@ -245,7 +245,7 @@
 /* IBL unassigned parent — neutral gray, italic */
 .iblUnassigned {
   background-color: var(--color-status-not-started-bg);
-  color: var(--color-text-muted);
+  color: var(--color-status-not-started-text);
   font-style: italic;
 }
 

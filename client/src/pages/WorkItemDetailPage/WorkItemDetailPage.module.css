@@ -81,7 +81,7 @@
 
 .backButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .backButton:disabled {
@@ -373,12 +373,12 @@
 }
 
 [data-theme='dark'] .autosaveSuccess {
-  color: var(--color-emerald-300);
+  color: var(--color-success-text-on-light);
   background: var(--color-success-badge-bg);
 }
 
 [data-theme='dark'] .autosaveError {
-  color: var(--color-red-400);
+  color: var(--color-danger);
   background: var(--color-danger-bg);
 }
 
@@ -554,7 +554,7 @@
 
 .moveButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .moveButton:disabled {
