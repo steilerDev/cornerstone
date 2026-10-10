@@ -3,7 +3,7 @@
  *
  * The page renders:
  * - An h1 "Money" page title (#2203)
- * - No in-page tab row (#2205): the Money views live in the sidebar (AppShellPage.viewLink)
+ * - No in-page tab row (#2205): the Money view is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
  * - Empty state when no budget data has been entered (all-zero response)

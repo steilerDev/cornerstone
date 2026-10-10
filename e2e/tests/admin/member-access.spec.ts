@@ -65,7 +65,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     if (testInfo.project.name === 'desktop') {
       await expect(shell.nav).toBeVisible();
     } else {
-      await expect(shell.menuButton).toBeVisible();
+      await expect(shell.moreButton).toBeVisible();
     }
 
     const usersListCalls = requests.filter(
@@ -88,7 +88,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     if (testInfo.project.name === 'desktop') {
       await expect(shell.nav).toBeVisible();
     } else {
-      await expect(shell.menuButton).toBeVisible();
+      await expect(shell.moreButton).toBeVisible();
     }
 
     expect(requests.filter((r) => r.url.pathname.startsWith('/api/backups'))).toHaveLength(0);

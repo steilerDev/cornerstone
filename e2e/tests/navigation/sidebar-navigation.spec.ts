@@ -13,7 +13,8 @@
  *                    Account only; /settings lands on Project setup
  *
  * The sidebar exists from 1024px only (#2207): below it the shell is the bottom bar, the More
- * sheet and the title menu, covered by phone-tablet-shell.spec.ts. These scenarios skip there.
+ * sheet and the title menu, covered by phone-tablet-shell.spec.ts and shell-reach.spec.ts. These
+ * scenarios therefore run on the desktop project only.
  *
  * E2 (the German labels and landmark names) lives in i18n/i18n.spec.ts, which owns the dedicated
  * user whose locale it may change. E5 (no tab rows) is in no-tab-rows.spec.ts and E6 (the
@@ -75,14 +76,9 @@ async function mockMember(page: Page): Promise<void> {
   });
 }
 
-test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
-  test.beforeEach(({ page }) => {
-    test.skip(
-      (page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER) < 1024,
-      'the sidebar is desktop-only; phone and tablet coverage is in phone-tablet-shell.spec.ts',
-    );
-  });
-
+// Desktop project only: the sidebar exists from 1024px. Phone and tablet coverage is in
+// phone-tablet-shell.spec.ts and shell-reach.spec.ts.
+test.describe('Sidebar Navigation', () => {
   test(
     'E1: the primary entries read in order and each opens its main view',
     { tag: '@smoke' },
@@ -111,7 +107,7 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
 
       // Each entry opens its main view; wait for the final URL (Home and Companies redirect)
       for (const { id, path } of SECTION_LANDINGS) {
-        await appShell.openSection(id);
+        await appShell.sectionLink(id).click();
         await expect(page).toHaveURL((url) => url.pathname === path());
         await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
         await expect(appShell.activeEntries).toHaveCount(1);
@@ -128,7 +124,6 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await page.goto(ROUTES.photos);
     await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
-    await appShell.openSidebarIfDrawer();
     const logo = appShell.sidebar.getByRole('link', { name: 'Go to Home', exact: true });
     await expect(logo).toHaveAttribute('href', '/');
     await logo.click();
@@ -159,7 +154,7 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await expect(appShell.sectionLink('tasks')).not.toHaveAttribute('aria-current', 'page');
 
     // "Tasks" always opens the list
-    await appShell.openSection('tasks');
+    await appShell.sectionLink('tasks').click();
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('workItems'));
     await expect(appShell.sectionLink('tasks')).toHaveAttribute('aria-current', 'page');
   });
@@ -217,12 +212,12 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       expect(await log()).toContainEqual(['replaceState', routeUrl('scheduleCalendar')]);
 
       // Back to the section entry: still no push
-      await appShell.openSection('tasks');
+      await appShell.sectionLink('tasks').click();
       await expect(h1('Tasks')).toBeVisible();
       expect(await pushes()).toEqual([]);
 
       // Changing section pushes exactly one entry
-      await appShell.openSection('money');
+      await appShell.sectionLink('money').click();
       await expect(h1('Money')).toBeVisible();
       expect(await pushes()).toEqual([['pushState', routeUrl('budgetOverview')]]);
 

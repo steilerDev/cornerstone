@@ -5,7 +5,7 @@
  * Legacy route /budget/vendors redirects to /settings/vendors via React Router.
  *
  * The page renders:
- * - No in-page tab row (#2205): the Companies sidebar entry is the active one
+ * - No in-page tab row (#2205): the Companies entry is the active one (sidebar ≥ 1024 px, More sheet below)
  * - A page header with an "Add Vendor" button
  * - A search input and sort controls
  * - A data table (desktop) / card list (mobile) of vendors

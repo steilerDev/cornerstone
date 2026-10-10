@@ -5,7 +5,7 @@
  *
  * Scenarios covered:
  * 1.  Page loads with h1 "Site diary" (@smoke @responsive)
- * 2.  Sidebar navigation to /diary works (@responsive)
+ * 2.  Main navigation to /diary works (@responsive)
  * 3.  Empty state when no entries exist (mock API)
  * 4.  Entry created via API appears in the timeline
  * 5.  Date grouping — entries on different dates render separate date headers
@@ -24,6 +24,8 @@ import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { DiaryPage, DIARY_ROUTE } from '../../pages/DiaryPage.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import { ROUTES } from '../../fixtures/testData.js';
 import { createDiaryEntryViaApi, deleteDiaryEntryViaApi } from '../../fixtures/apiHelpers.js';
 import { defined } from '../../fixtures/assertions.js';
 
@@ -115,30 +117,24 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Sidebar navigation to /diary
+// Scenario 2: Main navigation to /diary
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Sidebar navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Navigating to /diary from sidebar lands on Site diary page', async ({ page }) => {
+test.describe('Main navigation (Scenario 2)', { tag: '@responsive' }, () => {
+  test('Navigating to the Site diary from the main navigation lands on the Site diary page', async ({
+    page,
+  }) => {
     const diaryPage = new DiaryPage(page);
     const appShell = new AppShellPage(page);
 
-    // Start from the home page and navigate via the sidebar "Diary" link
-    await page.goto('/project/overview');
+    // Start from the home page and navigate through the shell (sidebar or bottom bar)
+    await page.goto(ROUTES.home);
+    await expect(page.locator('main h1').first()).toBeVisible();
 
-    // On mobile/tablet the sidebar is hidden behind a hamburger menu — open it first
-    const viewport = page.viewportSize();
-    const isMobile = viewport !== null && viewport.width < 1024;
-    if (isMobile) {
-      await appShell.openSidebar();
-    }
+    await appShell.navigateTo('diary');
 
-    // Click the "Site diary" link inside the sidebar navigation
-    const diaryNavLink = appShell.sidebar.getByRole('link', { name: 'Site diary', exact: true });
-    await diaryNavLink.waitFor({ state: 'visible' });
-    await diaryNavLink.click();
-
-    await page.waitForURL('**/diary');
+    await expect(page).toHaveURL((u) => u.pathname === routeUrl('diary'));
     await expect(diaryPage.heading).toBeVisible();
+    await expect(appShell.sectionLink('diary')).toHaveAttribute('aria-current', 'page');
   });
 });
 

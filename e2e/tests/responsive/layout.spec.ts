@@ -2,7 +2,7 @@
  * E2E tests for responsive layout behavior (Story #29, shell rewritten in #2207)
  *
  * - >= 1024px: sidebar, no bottom bar, no More sheet.
- * - < 1024px (phones and tablets): no sidebar, no floating menu button; a bottom bar with a
+ * - < 1024px (phones and tablets): no sidebar; a bottom bar with a
  *   More button that opens a sheet over a backdrop.
  *
  * The phone and tablet shell itself (slots, sheet content, title menu) is covered in
@@ -34,12 +34,9 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
     // And: neither the bottom bar nor the More sheet exist
     await expect(appShell.bottomBar).toHaveCount(0);
     await expect(appShell.moreSheet).toHaveCount(0);
-    await expect(page.getByTestId('menu-fab')).toHaveCount(0);
   });
 
-  test('Mobile/tablet: no sidebar, bottom bar visible, no floating menu button', async ({
-    page,
-  }) => {
+  test('Mobile/tablet: no sidebar, the bottom bar is the main navigation', async ({ page }) => {
     const viewport = page.viewportSize();
 
     // Skip this test on desktop viewports
@@ -58,12 +55,8 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
     await expect(page.locator('aside')).toHaveCount(0);
     await expect(appShell.nav).toHaveCount(1);
 
-    // And: the old floating menu button and overlay are gone
-    await expect(page.getByTestId('menu-fab')).toHaveCount(0);
-    await expect(page.getByTestId('sidebar-overlay')).toHaveCount(0);
-
     // And: the More sheet is closed
-    expect(await appShell.isSidebarOpen()).toBe(false);
+    await expect(appShell.moreSheet).toHaveAttribute('data-open', 'false');
   });
 
   test('More opens and closes the sheet', async ({ page }) => {
@@ -86,14 +79,14 @@ test.describe('Responsive Layout', { tag: '@responsive' }, () => {
     await appShell.openMoreSheet();
 
     // Then: the sheet is open and is a dialog while open
-    expect(await appShell.isSidebarOpen()).toBe(true);
+    await expect(appShell.moreSheet).toHaveAttribute('data-open', 'true');
     await expect(appShell.moreSheet).toHaveAttribute('role', 'dialog');
 
     // When: User closes the sheet
     await appShell.closeMoreSheet();
 
     // Then: the sheet is closed again and loses its dialog role
-    expect(await appShell.isSidebarOpen()).toBe(false);
+    await expect(appShell.moreSheet).toHaveAttribute('data-open', 'false');
     await expect(appShell.moreSheet).not.toHaveAttribute('role', 'dialog');
   });
 

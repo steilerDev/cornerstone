@@ -36,7 +36,7 @@ Found while speccing #2207 (P1.2a, phone and tablet shell):
     - PascalCase same-basename dirs are new shared components; helpers inside an existing component dir are not.
 17. **A compact "Back to X" link in the top bar collides with page-wide `getByRole('link', { name: 'Back to X' })`** in page objects, e.g. a not-found state's own back link. Grep `e2e/pages` for page-wide "Back to" links.
 18. **Locator shims cannot reach elements that exist only while a menu is open.** Sidebar view links became title-menu items, so tests that assert `viewLink`/`viewLinks` without opening need a one-line `revealViews()`. Say so up front when the orchestrator asks for "shims only".
-19. **Inventory E2E by project, not by grep alone.** `npx playwright test --list --project=mobile` (no browser needed) lists which `file:line` tests run below 1024. Map each grep hit to its enclosing `test(` line and keep only the hits that are in that list. That turned 40 grep hits into the exact edit list.
+19. **Inventory E2E by project, not by grep alone.** `npx playwright test --list --project=mobile` (no browser needed) lists which `file:line` tests run below 1024. Map each grep hit to its enclosing `test(` line and keep only the hits that are in that list. That turned 40 grep hits into the exact edit list. When predicting `--list` deltas, use Playwright's own `Total:` line (a grep of the lines can drop one). Count per project: a file leaving the responsive projects removes its tests once from each project's total. In #2208 I subtracted the mobile+tablet sum (18) instead of 9.
 
 Found while reviewing #2207:
 

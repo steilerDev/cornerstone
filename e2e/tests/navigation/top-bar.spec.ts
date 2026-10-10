@@ -289,10 +289,9 @@ test.describe('Top bar across viewports', { tag: '@responsive' }, () => {
       await expect(appShell.userMenu.getByRole('menuitem', { name: LOG_OUT })).toBeVisible();
     } else {
       await expect(appShell.bottomBar).toBeVisible();
-      // No avatar, no sidebar, no drawer remnants
-      await expect(appShell.desktopUserMenuTrigger).toHaveCount(0);
+      // No avatar and no sidebar
+      await expect(appShell.userMenuTrigger).toHaveCount(0);
       await expect(page.locator('aside')).toHaveCount(0);
-      await expect(page.getByTestId('menu-fab')).toHaveCount(0);
       await expect(page.getByTestId('sidebar-footer-legacy')).toHaveCount(0);
       await expect(page.getByRole('button', { name: /switch to .* mode/i })).toHaveCount(0);
       // Closed sheet: nothing to reach; open sheet: exactly one Log out

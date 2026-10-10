@@ -39,12 +39,11 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     expect(page.url()).toContain('/schedule/gantt');
   });
 
-  test('Sidebar lists the Schedule and Calendar views', async ({ page }) => {
+  test('The Tasks views list Schedule and Calendar', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    // #2205: the view switch lives in the sidebar; on <= 1024px it sits in the drawer
-    await new AppShellPage(page).openSidebarIfDrawer();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
@@ -501,7 +500,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     await timelinePage.heading.waitFor({ state: 'visible' });
 
     await expect(timelinePage.heading).toBeVisible();
-    await new AppShellPage(page).openSidebarIfDrawer();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
 

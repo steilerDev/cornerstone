@@ -3,7 +3,7 @@
  * (/photos/spot/:areaKey/:orientationKey).
  *
  * Scenarios:
- *  1.  [smoke] Navigation — sidebar "Photos" link -> /photos, heading, aria-current
+ *  1.  [smoke] Navigation — main navigation "Photos" entry -> /photos, heading, aria-current
  *  2.  Table structure — rowgroup, rows, columns, count (drafts excluded), latest date, empty cell
  *  3.  Cell -> viewer — position, long date, area path, orientation, caption, diary link
  *  4.  Prev/next + arrow keys, focus hand-off at the ends
@@ -35,6 +35,8 @@ import {
   uploadDiaryPhotoViaApi,
 } from '../../fixtures/apiHelpers.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
+import { ROUTES } from '../../fixtures/testData.js';
 import { PhotosPage } from '../../pages/PhotosPage.js';
 import { PhotoSpotViewerPage } from '../../pages/PhotoSpotViewerPage.js';
 
@@ -165,24 +167,23 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
   // ───────────────────────────────────────────────────────────────────────────
   // 1. Navigation
   // ───────────────────────────────────────────────────────────────────────────
-  test('Sidebar Photos link opens the Photos page', { tag: '@smoke' }, async ({ page }) => {
-    const appShell = new AppShellPage(page);
-    const photos = new PhotosPage(page);
+  test(
+    'Main navigation Photos entry opens the Photos page',
+    { tag: '@smoke' },
+    async ({ page }) => {
+      const appShell = new AppShellPage(page);
+      const photos = new PhotosPage(page);
 
-    await page.goto('/project/overview');
-    const vp = page.viewportSize();
-    if (vp && vp.width < 1024) await appShell.openSidebar();
+      await page.goto(ROUTES.home);
+      await expect(page.locator('main h1').first()).toBeVisible();
 
-    const link = appShell.sidebar.getByRole('link', { name: 'Photos', exact: true });
-    await expect(link).toBeVisible();
-    await link.click();
+      await appShell.navigateTo('photos');
 
-    await expect(page).toHaveURL(/\/photos$/);
-    await expect(photos.heading).toBeVisible();
-
-    if (vp && vp.width < 1024) await appShell.openSidebar();
-    await expect(link).toHaveAttribute('aria-current', 'page');
-  });
+      await expect(page).toHaveURL((u) => u.pathname === routeUrl('photos'));
+      await expect(photos.heading).toBeVisible();
+      await expect(appShell.sectionLink('photos')).toHaveAttribute('aria-current', 'page');
+    },
+  );
 
   // ───────────────────────────────────────────────────────────────────────────
   // 2. Table structure
@@ -490,16 +491,12 @@ test.describe('Photo browser', { tag: '@responsive' }, () => {
     });
     const page = await context.newPage();
     try {
-      await page.goto('/photos');
+      await page.goto(routeUrl('photos'));
       const appShell = new AppShellPage(page);
-      const vp = page.viewportSize();
-      if (vp && vp.width < 1024) await appShell.openSidebar();
       await expect(
         page.getByRole('heading', { level: 1, name: 'Fotos', exact: true }),
       ).toBeVisible();
-      await expect(
-        appShell.sidebar.getByRole('link', { name: 'Fotos', exact: true }),
-      ).toBeVisible();
+      await expect(appShell.sectionLink('photos')).toHaveAccessibleName('Fotos');
     } finally {
       await context.close();
     }
