@@ -72,14 +72,6 @@
       "previousAriaLabel": "Previous page",
       "nextAriaLabel": "Next page"
     },
-    "deleteModal": {
-      "title": "Delete Work Item",
-      "confirmation": "Are you sure you want to delete \"{{title}}\"?",
-      "warning": "This will also delete all associated subtasks, dependencies, and comments. This action cannot be undone.",
-      "cancel": "Cancel",
-      "deletingLabel": "Deleting...",
-      "deleteLabel": "Delete Work Item"
-    },
     "errors": {
       "loadFailed": "Failed to load work items. Please try again.",
       "deleteFailed": "Failed to delete work item. Please try again."
@@ -251,43 +243,20 @@
       "deleteWorkItem": "Delete Work Item"
     },
     "modals": {
-      "deleteWorkItem": {
-        "title": "Delete Work Item?",
-        "text": "Are you sure you want to delete \"{{title}}\"? This action cannot be undone.",
-        "cancel": "Cancel",
-        "deleting": "Deleting...",
-        "delete": "Delete"
-      },
       "deleteNote": {
-        "title": "Delete Note?",
-        "text": "Are you sure you want to delete this note? This action cannot be undone.",
-        "cancel": "Cancel",
-        "delete": "Delete"
-      },
-      "deleteSubtask": {
-        "title": "Delete Subtask?",
-        "text": "Are you sure you want to delete this subtask? This action cannot be undone.",
-        "cancel": "Cancel",
-        "delete": "Delete"
+        "title": "Delete this note?"
       },
       "removeDependency": {
-        "title": "Remove Dependency?",
-        "textPredecessor": "This item will no longer depend on \"{{title}}\". This action cannot be undone.",
-        "textSuccessor": "This item will no longer block \"{{title}}\". This action cannot be undone.",
-        "cancel": "Cancel",
-        "remove": "Remove"
-      },
-      "deleteBudgetLine": {
-        "title": "Delete Budget Line?",
-        "text": "Are you sure you want to delete this budget line? This action cannot be undone.",
-        "cancel": "Cancel",
-        "delete": "Delete"
+        "title": "Remove dependency?",
+        "textPredecessor": "This item will no longer depend on \"{{title}}\".",
+        "textSuccessor": "This item will no longer block \"{{title}}\".",
+        "remove": "Remove",
+        "removing": "Removing…"
       }
     },
     "inlineErrors": {
       "updateTitle": "Failed to update title",
       "updateDescription": "Failed to update description",
-      "updateStatus": "Failed to update status",
       "updateAssignment": "Failed to update assignment",
       "updateArea": "Failed to update area",
       "updateDuration": "Failed to update duration",

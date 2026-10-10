@@ -494,6 +494,9 @@ Before creating a new UI component, check if an existing shared component can be
 - `SpotThumbnail` — photo-spot thumbnail link with count overlay and date (`cell`/`card` variants), or a dashed empty placeholder; all text via props, parameterized by `testId`
 - `FilterChipGroup` — pick-one chip group (`aria-pressed` toggle buttons, horizontally scrollable); parameterized by `options`/`ariaLabel`/`testIdPrefix`
 - `FileList` — list of generated files with a per-file action, status badges and a detail line; all strings come from props, `testIdPrefix` parameterized (used by the report wizard's multi-PDF step)
+- `StatusMenu` — the one status control for every status vocabulary (`chip`/`button`/`action` appearances; date chips Today · As planned · Pick a date). Allowed transitions come only from the shared maps in `shared/src/lib/statusTransitions.ts` via `StatusMenu/statusVocabularies.ts` — no status `<select>`, checkbox or local transition list. Pair it with the `useUndoableStatusChange` hook.
+- `ConfirmDialog` — every delete, remove, revoke, deactivate, restore and discard confirmation (built on `Modal` with `role="alertdialog"`; counts from `GET /api/delete-impact/:entityType/:id` via the `useDeleteImpact` hook). No `window.confirm`, inline Confirm/Cancel swaps or hand-written overlays.
+- `Toast` `undo` variant (UndoToast) — shown via `useToast().showUndoToast` (normally through `useUndoableStatusChange`); Undo posts the server's token to `POST /api/undo/:token`. Dialog and popover primitives (`Modal`, `Sheet`, `AnchoredPanel`) live in `client/src/components/Modal/` (wiki Architecture › Grammar foundations).
 
 **Rules:**
 

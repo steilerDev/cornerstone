@@ -22,8 +22,8 @@ import { SignatureDisplay } from '../../components/diary/SignatureDisplay/Signat
 import { PhotoGrid } from '../../components/photos/PhotoGrid.js';
 import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { Modal } from '../../components/Modal/Modal.js';
-import { FormError } from '../../components/FormError/FormError.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
@@ -66,6 +66,11 @@ export default function DiaryEntryDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact(
+    'diary_entry',
+    showDeleteModal ? (entry?.id ?? null) : null,
+  );
 
   // Photo state
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
@@ -119,6 +124,7 @@ export default function DiaryEntryDetailPage() {
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const handleDelete = async () => {
@@ -131,7 +137,12 @@ export default function DiaryEntryDetailPage() {
       showToast('success', t('detailPage.deleteSuccess'));
       navigate(routeUrl('diary'), { replace: true });
     } catch (err) {
-      setDeleteError(t('detailPage.deleteError'));
+      setDeleteBlocked(err instanceof ApiClientError && err.statusCode === 409);
+      setDeleteError(
+        err instanceof ApiClientError
+          ? translateApiError(err.error.code, tErrors)
+          : t('detailPage.deleteError'),
+      );
       console.error('Failed to delete diary entry:', err);
       setIsDeleting(false);
     }
@@ -315,8 +326,8 @@ export default function DiaryEntryDetailPage() {
             onPhotoChanged={photosResult.updatePhotoInList}
             editable={!isLocked}
             startInAnnotator={openAsAnnotator}
-            onDelete={(photoId) => {
-              photosResult.deletePhoto(photoId);
+            onDelete={async (photoId) => {
+              await photosResult.deletePhoto(photoId);
               setSelectedPhotoIndex(null);
             }}
           />
@@ -351,39 +362,25 @@ export default function DiaryEntryDetailPage() {
         </div>
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteModal && (
-        <Modal
-          title={t('detailPage.deleteTitle')}
-          onClose={() => {
+        <ConfirmDialog
+          title={tc('confirmDialog.deleteTitle', {
+            name: displayTitle ?? formatDate(entry.entryDate),
+          })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tc('button.delete')}
+          busyLabel={tc('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          blocked={deleteBlocked}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => {
             if (!isDeleting) closeDeleteModal();
           }}
-          footer={
-            <>
-              <button
-                type="button"
-                className={shared.btnSecondary}
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-              >
-                {t('detailPage.deleteCancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={shared.btnConfirmDelete}
-                  onClick={() => void handleDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('detailPage.deleting') : t('detailPage.deleteConfirm')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <FormError message={deleteError || null} />
-          <p>{t('detailPage.deleteMessage')}</p>
-        </Modal>
+          testIdPrefix="diary-delete"
+        />
       )}
     </div>
   );

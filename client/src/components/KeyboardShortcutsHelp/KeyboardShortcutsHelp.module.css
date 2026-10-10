@@ -72,3 +72,10 @@
     padding: var(--spacing-3) var(--spacing-4);
   }
 }
+
+.sectionHeading {
+  margin: var(--spacing-6) 0 var(--spacing-2);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}

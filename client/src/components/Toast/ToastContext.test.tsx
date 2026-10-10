@@ -417,7 +417,7 @@ describe('ToastVariant coverage', () => {
     jest.useRealTimers();
   });
 
-  const variants: ToastVariant[] = ['success', 'info', 'error'];
+  const variants: Exclude<ToastVariant, 'undo'>[] = ['success', 'info', 'error'];
 
   variants.forEach((variant) => {
     it(`accepts variant "${variant}" without error`, () => {

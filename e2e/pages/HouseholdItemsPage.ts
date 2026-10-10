@@ -15,12 +15,12 @@
  * - A data table (desktop, class tableContainer) and card list (mobile, class cardsContainer)
  * - Pagination controls when totalPages > 1
  * - An empty state (EmptyState component) when no items exist or no items match filters
- * - A delete confirmation modal (role="dialog") with confirmDeleteButton and cancelButton
+ * - A delete ConfirmDialog (role="alertdialog", testid prefix purchase-list-delete)
  * - An error banner (role="alert", class errorBanner) for API errors
  *
  * Key DOM observations from source code:
  * - "New Household Item" is a <button> that calls navigate('/project/household-items/new')
- * - Delete modal: role="dialog", confirm button: class confirmDeleteButton
+ * - Delete dialog: role="alertdialog", confirm button testid purchase-list-delete-confirm
  * - Empty state rendered by DataTable EmptyState component
  * - Table rows are clickable and navigate to detail page
  * - Actions menu button: aria-label="Actions for {item.name}" (⋮)
@@ -136,16 +136,12 @@ export class HouseholdItemsPage {
     // Error banner (outside modal)
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
 
-    // Delete confirmation modal — Modal component uses useId() for the title, so aria-labelledby
-    // has a dynamic ID. Match by accessible name (title) using getByRole.
-    this.deleteModal = page.getByRole('dialog', { name: /delete/i });
-    // Confirm button uses sharedStyles.btnConfirmDelete (shared.module.css), CSS Modules hashes it
-    // to "btnConfirmDelete_XXXX". The class selector [class*="btnConfirmDelete"] matches it.
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('purchase-list-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('purchase-list-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('purchase-list-delete-cancel');
   }
 
   /**

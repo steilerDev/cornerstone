@@ -674,6 +674,31 @@ describe('Subsidy Program Routes', () => {
       expect(body.error.code).toBe('VALIDATION_ERROR');
     });
 
+    it('returns 400 VALIDATION_ERROR in the standard error shape for duplicate categoryIds', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const cat = createTestCategory();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/subsidy-programs',
+        headers: { cookie },
+        payload: {
+          name: 'Dup Category',
+          reductionType: 'percentage',
+          reductionValue: 10,
+          categoryIds: [cat, cat],
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(typeof body.error.message).toBe('string');
+      expect(body.error.message.length).toBeGreaterThan(0);
+      expect(Object.keys(body)).toEqual(['error']);
+      expect(app.db.select().from(subsidyPrograms).all()).toHaveLength(0);
+    });
+
     it('returns 400 VALIDATION_ERROR for unknown categoryIds', async () => {
       const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
 
@@ -1157,6 +1182,176 @@ describe('Subsidy Program Routes', () => {
       expect(response.statusCode).toBe(400);
       const body = response.json<ApiErrorResponse>();
       expect(body.error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 VALIDATION_ERROR in the standard error shape for duplicate categoryIds in PATCH', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({ name: 'Dup' });
+      const cat = createTestCategory();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { categoryIds: [cat, cat] },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(typeof body.error.message).toBe('string');
+      expect(body.error.message.length).toBeGreaterThan(0);
+      expect(Object.keys(body)).toEqual(['error']);
+      // nothing was written
+      const links = app.db.select().from(subsidyProgramCategories).all();
+      expect(links).toHaveLength(0);
+    });
+
+    it('rejects a PATCH that switches reductionType to percentage while the stored value is over 100', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({
+        name: 'Fixed 500',
+        reductionType: 'fixed',
+        reductionValue: 500,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { reductionType: 'percentage' },
+      });
+
+      expect(response.statusCode).toBe(400);
+      const body = response.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.message).toMatch(/100/);
+      const row = app.db
+        .select()
+        .from(subsidyPrograms)
+        .all()
+        .find((p) => p.id === prog.id)!;
+      expect(row.reductionType).toBe('fixed');
+      expect(row.reductionValue).toBe(500);
+    });
+
+    it('accepts switching to percentage when the stored value is exactly 100', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({
+        name: 'Fixed 100',
+        reductionType: 'fixed',
+        reductionValue: 100,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { reductionType: 'percentage' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.json<SubsidyProgramResponse>().subsidyProgram.reductionType).toBe(
+        'percentage',
+      );
+    });
+
+    it('accepts switching to percentage together with a value of 100 or less', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({
+        name: 'Fixed 500b',
+        reductionType: 'fixed',
+        reductionValue: 500,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { reductionType: 'percentage', reductionValue: 20 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<SubsidyProgramResponse>();
+      expect(body.subsidyProgram.reductionType).toBe('percentage');
+      expect(body.subsidyProgram.reductionValue).toBe(20);
+    });
+
+    it('still rejects a percentage value over 100 on an existing percentage program', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({
+        name: 'Pct',
+        reductionType: 'percentage',
+        reductionValue: 10,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { reductionValue: 150 },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('accepts a fixed value over 100 on a fixed program', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({ name: 'Fx', reductionType: 'fixed', reductionValue: 10 });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { reductionValue: 5000 },
+      });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('includes a top-level undo token only when the application status changed', async () => {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      const prog = createTestProgram({ name: 'Undoable', applicationStatus: 'eligible' });
+
+      const quiet = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { name: 'Undoable 2' },
+      });
+      expect(quiet.statusCode).toBe(200);
+      expect(Object.keys(quiet.json<Record<string, unknown>>())).toEqual(['subsidyProgram']);
+
+      const loud = await app.inject({
+        method: 'PATCH',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+        payload: { applicationStatus: 'approved' },
+      });
+      expect(loud.statusCode).toBe(200);
+      const body = loud.json<{
+        subsidyProgram: { applicationStatus: string };
+        undo: { token: string; expiresAt: string };
+      }>();
+      expect(Object.keys(body).sort()).toEqual(['subsidyProgram', 'undo']);
+      expect(body.undo.token).toMatch(/^u_[0-9a-f]{32}$/);
+      expect(Number.isNaN(Date.parse(body.undo.expiresAt))).toBe(false);
+
+      const undone = await app.inject({
+        method: 'POST',
+        url: `/api/undo/${body.undo.token}`,
+        headers: { cookie },
+      });
+      expect(undone.statusCode).toBe(200);
+      const after = await app.inject({
+        method: 'GET',
+        url: `/api/subsidy-programs/${prog.id}`,
+        headers: { cookie },
+      });
+      expect(after.json<SubsidyProgramResponse>().subsidyProgram.applicationStatus).toBe(
+        'eligible',
+      );
     });
 
     it('returns 400 VALIDATION_ERROR for unknown categoryIds in PATCH', async () => {

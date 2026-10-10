@@ -365,11 +365,13 @@ describe('useVendorContacts', () => {
       await waitFor(() => expect(result.current.contacts.some((c) => c.id === 'c1')).toBe(false));
     });
 
-    it('sets error and re-throws on ApiClientError', async () => {
+    it('re-throws the very same ApiClientError and leaves the page error alone', async () => {
       mockListVendorContacts.mockResolvedValue({ contacts: [] });
-      mockDeleteVendorContact.mockRejectedValueOnce(
-        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
-      );
+      const apiError = new MockApiClientError(404, {
+        code: 'NOT_FOUND',
+        message: 'RAW-SERVER-SENTINEL',
+      });
+      mockDeleteVendorContact.mockRejectedValueOnce(apiError);
 
       const { result } = renderHook(() => useVendorContacts('vendor-1'));
       await waitFor(() => expect(mockListVendorContacts).toHaveBeenCalledTimes(1));
@@ -383,16 +385,21 @@ describe('useVendorContacts', () => {
         }
       });
 
-      expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe(enErrors.NOT_FOUND);
+      // The confirm dialog shows the failure; the page banner must not duplicate it.
+      expect(thrownError).toBe(apiError);
+      expect(result.current.error).toBeNull();
     });
 
-    it('sets generic error and re-throws on unknown error', async () => {
-      mockListVendorContacts.mockResolvedValue({ contacts: [] });
-      mockDeleteVendorContact.mockRejectedValueOnce(new Error('Network failure'));
+    it('re-throws an unknown error unchanged, with no page error and the contact kept', async () => {
+      const contact = makeContact('c1', 'John Smith');
+      mockListVendorContacts.mockResolvedValue({ contacts: [contact] });
+      const failure = new Error('Network failure');
+      mockDeleteVendorContact.mockRejectedValueOnce(failure);
 
       const { result } = renderHook(() => useVendorContacts('vendor-1'));
       await waitFor(() => expect(mockListVendorContacts).toHaveBeenCalledTimes(1));
+
+      await waitFor(() => expect(result.current.contacts).toHaveLength(1));
 
       let thrownError: unknown;
       await act(async () => {
@@ -403,8 +410,9 @@ describe('useVendorContacts', () => {
         }
       });
 
-      expect(thrownError).toBeInstanceOf(Error);
-      expect(result.current.error).toBe('Failed to delete contact. Please try again.');
+      expect(thrownError).toBe(failure);
+      expect(result.current.error).toBeNull();
+      expect(result.current.contacts).toHaveLength(1);
     });
   });
 });

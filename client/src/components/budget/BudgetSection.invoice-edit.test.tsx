@@ -341,7 +341,7 @@ function buildProps(
     vendors: [makeVendor()],
     onLinkSubsidy: jest.fn(),
     onUnlinkSubsidy: jest.fn(),
-    onConfirmDeleteBudgetLine: jest.fn(),
+    onConfirmDeleteBudgetLine: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     ...overrides,
   };
 }

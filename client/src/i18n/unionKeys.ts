@@ -19,18 +19,24 @@ import {
   BUDGET_SOURCE_TYPES,
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
+  DELETE_IMPACT_KINDS,
   DIARY_ISSUE_RESOLUTIONS,
   DIARY_SOURCE_ENTITY_TYPES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
   INVOICE_DEPOSIT_STATUSES,
+  INVOICE_STATUS_ACTIONS,
   INVOICE_STATUSES,
   MANUAL_DIARY_ENTRY_TYPES,
   MILESTONE_DISPLAY_STATUSES,
+  MILESTONE_STATUS_ACTIONS,
   OIDC_LOGIN_ERROR_CODES,
+  PROGRESS_PAYMENT_STATUS_ACTIONS,
+  PURCHASE_STATUS_ACTIONS,
   SCHEDULE_SIGNALS,
   SOURCE_REPORT_TYPES,
   SUBSIDY_APPLICATION_STATUSES,
+  TASK_STATUS_ACTIONS,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
@@ -160,6 +166,23 @@ export const I18N_UNION_KEYS = {
     'statusVocabulary.diaryType',
     MANUAL_DIARY_ENTRY_TYPES,
   ),
+  // ── Grammar foundations (#2209): StatusMenu row labels and delete-impact counts ──────────
+  /** common — StatusMenu forward-row label per task transition. */
+  statusActionTask: unionKeySet('common', 'statusAction.task', TASK_STATUS_ACTIONS),
+  /** common — StatusMenu forward-row label per purchase transition. */
+  statusActionPurchase: unionKeySet('common', 'statusAction.purchase', PURCHASE_STATUS_ACTIONS),
+  /** common — StatusMenu forward-row label per milestone transition. */
+  statusActionMilestone: unionKeySet('common', 'statusAction.milestone', MILESTONE_STATUS_ACTIONS),
+  /** common — StatusMenu forward-row label per invoice transition. */
+  statusActionInvoice: unionKeySet('common', 'statusAction.invoice', INVOICE_STATUS_ACTIONS),
+  /** common — StatusMenu forward-row label per progress-payment transition. */
+  statusActionProgressPayment: unionKeySet(
+    'common',
+    'statusAction.progressPayment',
+    PROGRESS_PAYMENT_STATUS_ACTIONS,
+  ),
+  /** common — ConfirmDialog consequence label per delete-impact kind. */
+  deleteImpactKind: unionKeySet('common', 'confirmDialog.impact', DELETE_IMPACT_KINDS),
   /** diary — automatic (system) entry type label. Manual types use statusVocabularyDiaryType. */
   diaryAutomaticEntryType: unionKeySet('diary', 'entryTypes', AUTOMATIC_DIARY_ENTRY_TYPES),
 } as const;

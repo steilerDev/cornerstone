@@ -8,9 +8,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
 import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
+import { ApiClientError } from '../../lib/apiClient.js';
 import enDiary from '../../i18n/en/diary.json';
 import enErrors from '../../i18n/en/errors.json';
 
@@ -18,6 +20,19 @@ import enErrors from '../../i18n/en/errors.json';
 
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 const mockDeleteDiaryEntry = jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>();
+
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(): Promise<HTMLElement> {
+  const btn = await screen.findByTestId('diary-delete-confirm');
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   getDiaryEntry: mockGetDiaryEntry,
@@ -71,6 +86,8 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 }));
 
 // Mock usePhotos to avoid real API calls
+let viewerDeleteResult: Promise<unknown> | undefined;
+
 const photosState = {
   photos: [] as Photo[],
   deletePhoto: jest.fn(),
@@ -138,7 +155,13 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
       <button type="button" onClick={onClose}>
         close-viewer
       </button>
-      <button type="button" onClick={() => onDelete('p1')}>
+      <button
+        type="button"
+        onClick={() => {
+          viewerDeleteResult = Promise.resolve(onDelete('p1'));
+          viewerDeleteResult.catch(() => undefined);
+        }}
+      >
         delete-in-viewer
       </button>
       <button type="button" onClick={() => onPhotoChanged({ id: 'p1' } as Photo)}>
@@ -232,6 +255,8 @@ describe('DiaryEntryDetailPage', () => {
     }
     mockGetDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'diary_entry', id: 'de-1', effects: [] });
     photosState.photos = [];
     photosState.deletePhoto = jest.fn();
     photosState.updatePhotoInList = jest.fn();
@@ -780,7 +805,7 @@ describe('DiaryEntryDetailPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
       renderDetailPage();
       await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
-      expect(await screen.findByRole('dialog', { name: 'Delete Diary Entry' })).toBeInTheDocument();
+      expect(await screen.findByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
     });
 
     it('signed saved with no photos: the photo section is hidden', async () => {
@@ -820,20 +845,20 @@ describe('DiaryEntryDetailPage', () => {
   // ─── Delete dialog uses the shared Modal (F13) ──────────────────────────────
 
   describe('delete dialog (shared Modal)', () => {
-    const DELETE = { name: 'Delete Diary Entry' };
+    const DELETE = { name: /^Delete / };
 
     const openDelete = async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
       renderDetailPage();
       await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
-      return screen.findByRole('dialog', DELETE);
+      return screen.findByRole('alertdialog', DELETE);
     };
 
     it('portals to document.body and has no fixed #delete-modal-title', async () => {
       const dialog = await openDelete();
       expect(dialog.parentElement).toBe(document.body);
       expect(document.getElementById('delete-modal-title')).toBeNull();
-      expect(within(dialog).getByText(/this action cannot be undone/i)).toBeInTheDocument();
+      expect(within(dialog).getByText(/this can't be undone/i)).toBeInTheDocument();
     });
 
     it.each([
@@ -845,7 +870,7 @@ describe('DiaryEntryDetailPage', () => {
       [
         'the backdrop',
         async () =>
-          fireEvent.click(screen.getByRole('dialog', DELETE).firstElementChild as HTMLElement),
+          fireEvent.click(screen.getByRole('alertdialog', DELETE).firstElementChild as HTMLElement),
       ],
       [
         'Cancel',
@@ -854,7 +879,9 @@ describe('DiaryEntryDetailPage', () => {
     ])('closes via %s', async (_label, close) => {
       await openDelete();
       await close();
-      await waitFor(() => expect(screen.queryByRole('dialog', DELETE)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog', DELETE)).not.toBeInTheDocument(),
+      );
     });
 
     it('Escape does not close the dialog while the delete is in flight', async () => {
@@ -865,11 +892,11 @@ describe('DiaryEntryDetailPage', () => {
         }),
       );
       const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
-      await within(dialog).findByRole('button', { name: 'Deleting...' });
+      await userEvent.setup().click(await enabledConfirm());
+      await within(dialog).findByRole('button', { name: 'Deleting…' });
 
       fireEvent.keyDown(document, { key: 'Escape' });
-      expect(screen.getByRole('dialog', DELETE)).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', DELETE)).toBeInTheDocument();
 
       await act(async () => {
         resolveDelete();
@@ -878,20 +905,45 @@ describe('DiaryEntryDetailPage', () => {
 
     it('confirming deletes the entry and navigates to /diary', async () => {
       mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
-      const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      await openDelete();
+      await userEvent.setup().click(await enabledConfirm());
       expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('de-1');
       expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
     });
 
-    it('a delete failure shows the error inside the dialog and hides the confirm button', async () => {
+    it('a 409 hides the confirm button and keeps Cancel', async () => {
+      mockDeleteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      const dialog = await openDelete();
+      await userEvent.setup().click(await enabledConfirm());
+      await waitFor(() => expect(within(dialog).queryByTestId('diary-delete-confirm')).toBeNull());
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('lists what the delete also removes', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'diary_entry',
+        id: 'de-1',
+        effects: [{ kind: 'photos', count: 4 }],
+      });
+      await openDelete();
+      await waitFor(() =>
+        expect(screen.getByTestId('diary-delete-consequences')).toHaveTextContent(
+          'Photos deleted with it: 4',
+        ),
+      );
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('diary_entry', 'de-1');
+    });
+
+    it('a non-409 delete failure shows the error inside the dialog and keeps the confirm button for a retry', async () => {
       mockDeleteDiaryEntry.mockRejectedValueOnce(new Error('boom'));
       const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      await userEvent.setup().click(await enabledConfirm());
 
       const alert = await within(dialog).findByText(/failed to delete diary entry/i);
       expect(dialog).toContainElement(alert);
-      expect(within(dialog).queryByRole('button', { name: 'Delete Entry' })).toBeNull();
+      expect(within(dialog).getByTestId('diary-delete-confirm')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     });
   });
@@ -974,6 +1026,36 @@ describe('DiaryEntryDetailPage', () => {
       await user.click(await screen.findByText('delete-in-viewer'));
       expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
       expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('awaits the photo delete: the viewer stays open while it is pending and closes on success', async () => {
+      await withPhotos();
+      let resolveDelete!: () => void;
+      photosState.deletePhoto = jest.fn(() => new Promise<void>((r) => (resolveDelete = r)));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDelete();
+        await viewerDeleteResult;
+      });
+      expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('a failed photo delete rejects to the viewer and keeps it open', async () => {
+      await withPhotos();
+      const failure = new Error('boom');
+      photosState.deletePhoto = jest.fn(() => Promise.reject(failure));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      await expect(viewerDeleteResult).rejects.toBe(failure);
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
     });
 
     it('photo changes made in the viewer are forwarded to the photo list', async () => {
@@ -1122,8 +1204,7 @@ describe('DiaryEntryDetailPage', () => {
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /delete/i });
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+    await user.click(await enabledConfirm());
     // Mutation: navigate(...) without replace logs PUSH and keeps the deleted entry in history.
     await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
     expect(log.entries).toEqual(['/diary', '/diary']);

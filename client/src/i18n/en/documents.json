@@ -59,7 +59,7 @@
     "closeDocumentPicker": "Close document picker",
     "thisDocument": "This document",
     "unnamedDocument": "document",
-    "unlinkDocument": "Unlink Document?",
+    "unlinkTitle": "Unlink {{name}}?",
     "unlinkConfirmation": "\"{{title}}\" will be removed from {{entity}}. The document will remain in Paperless-ngx.",
     "unlinkButton": "Unlink",
     "unlinking": "Unlinking…",

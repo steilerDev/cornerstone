@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,8 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
 import { overAllocatedAmount } from '../../lib/money.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -320,6 +322,9 @@ export function BudgetSourcesPage() {
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('budget_source', deletingSourceId);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
 
   // Budget lines expansion state
   const [expandedSources, setExpandedSources] = useState<Set<string>>(() => new Set());
@@ -516,6 +521,7 @@ export function BudgetSourcesPage() {
   const openDeleteConfirm = (sourceId: string) => {
     setDeletingSourceId(sourceId);
     setDeleteError('');
+    setDeleteBlocked(false);
     setSuccessMessage('');
   };
 
@@ -523,6 +529,7 @@ export function BudgetSourcesPage() {
     if (!isDeleting) {
       setDeletingSourceId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -538,6 +545,7 @@ export function BudgetSourcesPage() {
       setSuccessMessage(t('sources.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('sources.deleteModal.conflictError'));
         } else {
@@ -757,6 +765,7 @@ export function BudgetSourcesPage() {
       breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
+          ref={createButtonRef}
           type="button"
           className={styles.button}
           onClick={() => {
@@ -1392,55 +1401,24 @@ export function BudgetSourcesPage() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingSourceId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('sources.deleteModal.title')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('sources.deleteModal.confirm', {
-                name: sources.find((s) => s.id === deletingSourceId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('sources.deleteModal.warning')}</p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('sources.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteSource(deletingSourceId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('sources.buttons.deleting') : t('sources.buttons.deleteConfirm')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: sources.find((s) => s.id === deletingSourceId)?.name ?? '',
+          })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteSource(deletingSourceId)}
+          onCancel={closeDeleteConfirm}
+          returnFocusRef={createButtonRef}
+          testIdPrefix="budget-source-delete"
+        />
       )}
 
       {/* Mass-move modal */}

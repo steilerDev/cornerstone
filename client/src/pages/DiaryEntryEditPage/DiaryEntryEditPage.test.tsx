@@ -6,6 +6,7 @@ import { render, screen, waitFor, fireEvent, within, act } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
@@ -16,6 +17,19 @@ const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 const mockUpdateDiaryEntry = jest.fn<typeof DiaryApiTypes.updateDiaryEntry>();
 const mockDeleteDiaryEntry = jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>();
 const mockPromoteDiaryEntry = jest.fn<typeof DiaryApiTypes.promoteDiaryEntry>();
+
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(prefix: string): Promise<HTMLElement> {
+  const btn = await screen.findByTestId(`${prefix}-confirm`);
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   getDiaryEntry: mockGetDiaryEntry,
@@ -31,6 +45,8 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
 // The factory closes over `photosState` (an object), so reassigning
 // `photosState.refresh` in beforeEach updates what usePhotos() returns at
 // render time without re-running the factory.
+let viewerDeleteResult: Promise<unknown> | undefined;
+
 const photosState = {
   refresh: jest.fn(),
   photos: [] as Photo[],
@@ -127,7 +143,13 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
       <button type="button" onClick={onClose}>
         close-viewer
       </button>
-      <button type="button" onClick={() => onDelete('p1')}>
+      <button
+        type="button"
+        onClick={() => {
+          viewerDeleteResult = Promise.resolve(onDelete('p1'));
+          viewerDeleteResult.catch(() => undefined);
+        }}
+      >
         delete-in-viewer
       </button>
       <button type="button" onClick={() => onPhotoChanged({ id: 'p1' } as Photo)}>
@@ -335,6 +357,8 @@ describe('DiaryEntryEditPage', () => {
     mockGetDiaryEntry.mockReset();
     mockUpdateDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'diary_entry', id: 'de-1', effects: [] });
     mockPromoteDiaryEntry.mockReset();
     mockUser = { ...defaultMockUser };
     photosState.refresh = jest.fn();
@@ -693,40 +717,36 @@ describe('DiaryEntryEditPage', () => {
       });
       await user.click(screen.getByRole('button', { name: /delete entry/i }));
       await waitFor(() => {
-        expect(screen.getByRole('dialog', { name: 'Delete Diary Entry' })).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
       });
       return user;
     }
 
     it('opens delete modal when "Delete Entry" button is clicked', async () => {
       await openDeleteModal();
-      expect(screen.getByRole('dialog', { name: 'Delete Diary Entry' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
     });
 
     it('modal has the "Delete Diary Entry" heading', async () => {
       await openDeleteModal();
-      expect(screen.getByRole('heading', { name: /delete diary entry/i })).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: /^Delete / })).toBeInTheDocument();
     });
 
     it('modal contains confirmation text', async () => {
       await openDeleteModal();
-      expect(screen.getByText(/this action cannot be undone/i)).toBeInTheDocument();
+      expect(screen.getByText(/this can't be undone/i)).toBeInTheDocument();
     });
 
     it('modal has a "Delete Entry" confirm button', async () => {
       await openDeleteModal();
-      // The modal confirm button is inside the dialog element
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
-      const confirmButton = Array.from(dialog.querySelectorAll('button')).find((b) =>
-        /delete entry/i.test(b.textContent ?? ''),
-      );
-      expect(confirmButton).toBeTruthy();
+      const dialog = screen.getByRole('alertdialog', { name: /^Delete / });
+      expect(within(dialog).getByTestId('diary-edit-delete-confirm')).toBeInTheDocument();
     });
 
     it('modal has a "Cancel" button', async () => {
       await openDeleteModal();
       // Get the cancel button inside the modal dialog
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
+      const dialog = screen.getByRole('alertdialog', { name: /^Delete / });
       const cancelButton = Array.from(dialog.querySelectorAll('button')).find((b) =>
         /cancel/i.test(b.textContent ?? ''),
       );
@@ -736,16 +756,14 @@ describe('DiaryEntryEditPage', () => {
     it('closes modal when Cancel button in modal is clicked', async () => {
       const user = await openDeleteModal();
       // Click Cancel inside the dialog
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
+      const dialog = screen.getByRole('alertdialog', { name: /^Delete / });
       const cancelBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
         /cancel/i.test(b.textContent ?? ''),
       );
       expect(cancelBtn).toBeTruthy();
       await user.click(cancelBtn!);
       await waitFor(() => {
-        expect(
-          screen.queryByRole('dialog', { name: 'Delete Diary Entry' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: /^Delete / })).not.toBeInTheDocument();
       });
     });
 
@@ -753,23 +771,19 @@ describe('DiaryEntryEditPage', () => {
       await openDeleteModal();
       fireEvent.keyDown(document, { key: 'Escape' });
       await waitFor(() => {
-        expect(
-          screen.queryByRole('dialog', { name: 'Delete Diary Entry' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: /^Delete / })).not.toBeInTheDocument();
       });
     });
 
     it('clicking the backdrop closes the modal', async () => {
       await openDeleteModal();
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
+      const dialog = screen.getByRole('alertdialog', { name: /^Delete / });
       // Shared Modal: the backdrop is the first (role-less) child of the portalled dialog wrapper
       const backdrop = dialog.firstElementChild as HTMLElement;
       expect(backdrop).toBeTruthy();
       fireEvent.click(backdrop);
       await waitFor(() => {
-        expect(
-          screen.queryByRole('dialog', { name: 'Delete Diary Entry' }),
-        ).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: /^Delete / })).not.toBeInTheDocument();
       });
     });
 
@@ -777,11 +791,7 @@ describe('DiaryEntryEditPage', () => {
       mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
       const user = await openDeleteModal();
 
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
-      const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
-        /delete entry/i.test(b.textContent ?? ''),
-      );
-      await user.click(confirmBtn!);
+      await user.click(await enabledConfirm('diary-edit-delete'));
 
       await waitFor(() => {
         expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('de-1');
@@ -792,11 +802,7 @@ describe('DiaryEntryEditPage', () => {
       mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
       const user = await openDeleteModal();
 
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
-      const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
-        /delete entry/i.test(b.textContent ?? ''),
-      );
-      await user.click(confirmBtn!);
+      await user.click(await enabledConfirm('diary-edit-delete'));
 
       await waitFor(() => {
         expect(screen.getByTestId('diary-list')).toBeInTheDocument();
@@ -808,11 +814,7 @@ describe('DiaryEntryEditPage', () => {
       mockDeleteDiaryEntry.mockRejectedValueOnce(new Error('Delete failed'));
       const user = await openDeleteModal();
 
-      const dialog = screen.getByRole('dialog', { name: 'Delete Diary Entry' });
-      const confirmBtn = Array.from(dialog.querySelectorAll('button')).find((b) =>
-        /delete entry/i.test(b.textContent ?? ''),
-      );
-      await user.click(confirmBtn!);
+      await user.click(await enabledConfirm('diary-edit-delete'));
 
       await waitFor(() => {
         expect(screen.getByText(/failed to delete diary entry/i)).toBeInTheDocument();
@@ -1124,15 +1126,16 @@ describe('DiaryEntryEditPage', () => {
 
       // Modal should appear — use the dialog role to scope to the modal
       await waitFor(() => {
-        expect(screen.getByRole('dialog', { name: 'Discard Draft' })).toBeInTheDocument();
+        expect(
+          screen.getByRole('alertdialog', { name: 'Discard this entry?' }),
+        ).toBeInTheDocument();
       });
 
       // Confirm button inside the modal is also labelled "Discard Draft" — use within(dialog) to
       // avoid matching the trigger button that remains rendered outside the modal.
-      const discardDialog = screen.getByRole('dialog', { name: 'Discard Draft' });
-      await userEvent
-        .setup()
-        .click(within(discardDialog).getByRole('button', { name: /^discard draft$/i }));
+      const discardDialog = screen.getByRole('alertdialog', { name: 'Discard this entry?' });
+      expect(within(discardDialog).getByTestId('diary-discard-confirm')).toBeInTheDocument();
+      await userEvent.setup().click(await enabledConfirm('diary-discard'));
 
       await waitFor(() => {
         expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('draft-1');
@@ -1816,14 +1819,14 @@ describe('DiaryEntryEditPage', () => {
   // ─── Shared Modal dialogs (D2) ──────────────────────────────────────────────
 
   describe('delete and discard dialogs use the shared Modal', () => {
-    const DELETE = { name: 'Delete Diary Entry' };
-    const DISCARD = { name: 'Discard Draft' };
+    const DELETE = { name: /^Delete / };
+    const DISCARD = { name: 'Discard this entry?' };
 
     const openDelete = async (entry = baseDailyLogEntry) => {
       mockGetDiaryEntry.mockResolvedValueOnce(entry);
       renderEditPage(entry.id);
       await userEvent.setup().click(await screen.findByRole('button', { name: /^delete entry$/i }));
-      return screen.findByRole('dialog', DELETE);
+      return screen.findByRole('alertdialog', DELETE);
     };
 
     const openDiscard = async () => {
@@ -1832,7 +1835,7 @@ describe('DiaryEntryEditPage', () => {
       await userEvent
         .setup()
         .click(await screen.findByRole('button', { name: /^discard draft$/i }));
-      return screen.findByRole('dialog', DISCARD);
+      return screen.findByRole('alertdialog', DISCARD);
     };
 
     it('portals the delete dialog to document.body and drops the fixed title id', async () => {
@@ -1856,7 +1859,9 @@ describe('DiaryEntryEditPage', () => {
     ])('delete dialog closes via %s', async (_label, close) => {
       await openDelete();
       await close();
-      await waitFor(() => expect(screen.queryByRole('dialog', DELETE)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog', DELETE)).not.toBeInTheDocument(),
+      );
     });
 
     it.each([
@@ -1868,12 +1873,16 @@ describe('DiaryEntryEditPage', () => {
       [
         'the backdrop',
         async () =>
-          fireEvent.click(screen.getByRole('dialog', DISCARD).firstElementChild as HTMLElement),
+          fireEvent.click(
+            screen.getByRole('alertdialog', DISCARD).firstElementChild as HTMLElement,
+          ),
       ],
     ])('discard dialog closes via %s', async (_label, close) => {
       await openDiscard();
       await close();
-      await waitFor(() => expect(screen.queryByRole('dialog', DISCARD)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog', DISCARD)).not.toBeInTheDocument(),
+      );
     });
 
     it('Escape does not close the delete dialog while the delete is in flight', async () => {
@@ -1884,13 +1893,11 @@ describe('DiaryEntryEditPage', () => {
         }),
       );
       const dialog = await openDelete();
-      await userEvent
-        .setup()
-        .click(within(dialog).getByRole('button', { name: /^delete entry$/i }));
+      await userEvent.setup().click(await enabledConfirm('diary-edit-delete'));
       await within(dialog).findByRole('button', { name: /deleting/i });
 
       fireEvent.keyDown(document, { key: 'Escape' });
-      expect(screen.getByRole('dialog', DELETE)).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', DELETE)).toBeInTheDocument();
 
       await act(async () => {
         resolveDelete();
@@ -1905,29 +1912,38 @@ describe('DiaryEntryEditPage', () => {
         }),
       );
       const dialog = await openDiscard();
-      await userEvent
-        .setup()
-        .click(within(dialog).getByRole('button', { name: /^discard draft$/i }));
+      await userEvent.setup().click(await enabledConfirm('diary-discard'));
       await within(dialog).findByRole('button', { name: /discarding/i });
 
       fireEvent.keyDown(document, { key: 'Escape' });
-      expect(screen.getByRole('dialog', DISCARD)).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', DISCARD)).toBeInTheDocument();
 
       await act(async () => {
         resolveDelete();
       });
     });
 
-    it('a delete failure shows the FormError inside the dialog and hides the confirm button', async () => {
+    it('a 409 delete failure hides the confirm button', async () => {
+      const { ApiClientError } = await import('../../lib/apiClient.js');
+      mockDeleteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      const dialog = await openDelete();
+      await userEvent.setup().click(await enabledConfirm('diary-edit-delete'));
+      await waitFor(() =>
+        expect(within(dialog).queryByTestId('diary-edit-delete-confirm')).toBeNull(),
+      );
+      expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeInTheDocument();
+    });
+
+    it('a non-409 delete failure shows the FormError inside the dialog and keeps the confirm button for a retry', async () => {
       mockDeleteDiaryEntry.mockRejectedValueOnce(new Error('boom'));
       const dialog = await openDelete();
-      await userEvent
-        .setup()
-        .click(within(dialog).getByRole('button', { name: /^delete entry$/i }));
+      await userEvent.setup().click(await enabledConfirm('diary-edit-delete'));
 
       const alert = await within(dialog).findByText(/failed to delete diary entry/i);
       expect(dialog).toContainElement(alert);
-      expect(within(dialog).queryByRole('button', { name: /^delete entry$/i })).toBeNull();
+      expect(within(dialog).getByTestId('diary-edit-delete-confirm')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeInTheDocument();
     });
   });
@@ -2213,8 +2229,8 @@ describe('DiaryEntryEditPage', () => {
       const { log } = renderRecorded('de-1');
       const user = userEvent.setup();
       await user.click(await screen.findByRole('button', { name: /delete entry/i }));
-      const dialog = await screen.findByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete entry/i }));
+      await screen.findByRole('alertdialog');
+      await user.click(await enabledConfirm('diary-edit-delete'));
       await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
     });
 
@@ -2224,8 +2240,7 @@ describe('DiaryEntryEditPage', () => {
       const { log } = renderRecorded('draft-1', { origin: { to: '/project/overview' } });
       const user = userEvent.setup();
       await user.click(await screen.findByRole('button', { name: /discard draft/i }));
-      const dialog = await screen.findByRole('dialog', { name: 'Discard Draft' });
-      await user.click(within(dialog).getByRole('button', { name: /^discard draft$/i }));
+      await user.click(await enabledConfirm('diary-discard'));
       await waitFor(() => expect(log.actions).toEqual(['REPLACE /project/overview']));
     });
 
@@ -2260,14 +2275,16 @@ describe('DiaryEntryEditPage', () => {
       renderEditPage('draft-1');
       const user = userEvent.setup();
       await user.click(await screen.findByRole('button', { name: /^discard draft$/i }));
-      const dialog = await screen.findByRole('dialog', { name: 'Discard Draft' });
-      await user.click(within(dialog).getByRole('button', { name: /^discard draft$/i }));
+      const dialog = await screen.findByRole('alertdialog', { name: 'Discard this entry?' });
+      await user.click(await enabledConfirm('diary-discard'));
 
       await waitFor(() => expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('draft-1'));
       await waitFor(() =>
-        expect(within(dialog).getByRole('button', { name: /^discard draft$/i })).toBeEnabled(),
+        expect(within(dialog).getByTestId('diary-discard-confirm')).not.toHaveAttribute(
+          'aria-disabled',
+        ),
       );
-      expect(screen.getByRole('dialog', { name: 'Discard Draft' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Discard this entry?' })).toBeInTheDocument();
       expect(screen.queryByTestId('diary-list')).not.toBeInTheDocument();
 
       // The failure is shown inside the dialog itself
@@ -2276,12 +2293,14 @@ describe('DiaryEntryEditPage', () => {
       );
 
       // Keep Draft closes it; reopening starts clean (stale error cleared)
-      await user.click(within(dialog).getByRole('button', { name: /^keep draft$/i }));
+      await user.click(within(dialog).getByRole('button', { name: /^keep entry$/i }));
       await waitFor(() =>
-        expect(screen.queryByRole('dialog', { name: 'Discard Draft' })).not.toBeInTheDocument(),
+        expect(
+          screen.queryByRole('alertdialog', { name: 'Discard this entry?' }),
+        ).not.toBeInTheDocument(),
       );
       await user.click(screen.getByRole('button', { name: /^discard draft$/i }));
-      const reopened = await screen.findByRole('dialog', { name: 'Discard Draft' });
+      const reopened = await screen.findByRole('alertdialog', { name: 'Discard this entry?' });
       expect(within(reopened).queryByRole('alert')).toBeNull();
     });
   });
@@ -2323,6 +2342,36 @@ describe('DiaryEntryEditPage', () => {
       await user.click(await screen.findByText('delete-in-viewer'));
       expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
       expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('awaits the photo delete: the viewer stays open while it is pending and closes on success', async () => {
+      await load();
+      let resolveDelete!: () => void;
+      photosState.deletePhoto = jest.fn(() => new Promise<void>((r) => (resolveDelete = r)));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDelete();
+        await viewerDeleteResult;
+      });
+      expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('a failed photo delete rejects to the viewer and keeps it open', async () => {
+      await load();
+      const failure = new Error('boom');
+      photosState.deletePhoto = jest.fn(() => Promise.reject(failure));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      await expect(viewerDeleteResult).rejects.toBe(failure);
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
     });
 
     it('photo changes from the viewer are forwarded to the photo list', async () => {

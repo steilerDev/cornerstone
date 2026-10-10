@@ -556,7 +556,7 @@ test.describe('Edit milestone (Scenario 12)', { tag: '@responsive' }, () => {
 // Scenario 13: Mark milestone as completed
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, () => {
-  test('Checking "Mark as completed" and saving changes status badge to Reached', async ({
+  test('Mark reached (Today) via the status menu changes the badge to Reached; Back to Upcoming reverts', async ({
     page,
     testPrefix,
   }) => {
@@ -574,17 +574,20 @@ test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, 
       // Verify initial status is Upcoming
       await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
 
-      // Enter edit mode
+      // #2209: the Edit form no longer has a completion checkbox; the status chip does it
       await detailPage.startEditing();
+      await expect(page.getByTestId('milestone-completed-checkbox')).toHaveCount(0);
+      await detailPage.cancelEditing();
 
-      // Check the "Mark as completed" checkbox
-      await detailPage.isCompletedCheckbox.check();
-
-      // Save changes
-      await detailPage.saveChanges();
+      // Mark reached › Today
+      await detailPage.statusMenu.chooseToday('reached');
 
       // Status badge should now say "Reached"
       await expect(detailPage.statusBadge).toHaveText(/reached/i);
+
+      // Back to "Upcoming" (no date step)
+      await detailPage.statusMenu.pickRow('not_reached');
+      await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
     } finally {
       if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
     }

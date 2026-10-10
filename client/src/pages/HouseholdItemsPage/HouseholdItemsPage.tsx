@@ -7,7 +7,9 @@ import type { ColumnDef, TableState } from '../../components/DataTable/DataTable
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
@@ -57,6 +59,8 @@ export function HouseholdItemsPage() {
   const [deletingItem, setDeletingItem] = useState<HouseholdItemSummary | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact('household_item', deletingItem?.id ?? null);
 
   // Actions menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -166,6 +170,7 @@ export function HouseholdItemsPage() {
   const openDeleteConfirm = (item: HouseholdItemSummary) => {
     setDeletingItem(item);
     setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const closeDeleteConfirm = () => {
@@ -183,10 +188,12 @@ export function HouseholdItemsPage() {
 
     try {
       await deleteHouseholdItem(deletingItem.id);
+      focusPageHeading();
       setDeletingItem(null);
       await loadHouseholdItems();
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setDeleteError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
         setDeleteError(tCommon('requestErrors.network'));
@@ -475,45 +482,21 @@ export function HouseholdItemsPage() {
         }}
       />
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingItem && (
-        <Modal
-          title={t('delete.confirm')}
-          onClose={closeDeleteConfirm}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('delete.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={sharedStyles.btnConfirmDelete}
-                  onClick={() => void confirmDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('delete.deleting') : t('delete.delete')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <p>
-            {t('delete.message')} &quot;<strong>{deletingItem.name}</strong>&quot;?
-          </p>
-          {deleteError ? (
-            <div className={styles.errorBanner} role="alert">
-              {deleteError}
-            </div>
-          ) : (
-            <p className={styles.modalWarning}>{t('delete.warning')}</p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: deletingItem.name })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          blocked={deleteBlocked}
+          onConfirm={() => void confirmDelete()}
+          onCancel={closeDeleteConfirm}
+          testIdPrefix="purchase-list-delete"
+        />
       )}
     </PageLayout>
   );

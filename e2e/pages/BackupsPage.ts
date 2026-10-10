@@ -55,21 +55,22 @@ export class BackupsPage {
       { exact: false },
     );
 
-    // Delete modal — scoped to dialog to avoid button name collisions
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Backup' });
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', { name: /^Delete$|Deleting/i });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel' });
-    this.deleteFilenameText = this.deleteModal.locator('strong');
-    this.deleteWarningText = this.deleteModal.getByText('This action cannot be undone', {
-      exact: false,
-    });
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title "Delete <file>?"
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('backup-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('backup-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('backup-delete-cancel');
+    // The file name is part of the dialog title
+    this.deleteFilenameText = this.deleteModal.getByRole('heading', { level: 2 });
+    this.deleteWarningText = this.deleteModal.getByText("This can't be undone.");
 
-    // Restore modal — scoped to dialog
-    this.restoreModal = page.getByRole('dialog', { name: 'Restore Backup' });
-    this.restoreConfirmButton = this.restoreModal.getByRole('button', {
-      name: /Restore & Restart|Restoring/i,
-    });
-    this.restoreCancelButton = this.restoreModal.getByRole('button', { name: 'Cancel' });
+    // Restore dialog: ConfirmDialog, title "Restore <file>?", confirm "Restore"
+    this.restoreModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('backup-restore-cancel') });
+    this.restoreConfirmButton = this.restoreModal.getByTestId('backup-restore-confirm');
+    this.restoreCancelButton = this.restoreModal.getByTestId('backup-restore-cancel');
     this.restoreWarningText = this.restoreModal.getByText(
       'permanently replace all current application data',
       { exact: false },

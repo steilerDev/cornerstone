@@ -3,8 +3,11 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import i18n from '../../i18n/index.js';
 import type * as InvoiceDepositsApiTypes from '../../lib/invoiceDepositsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
 import type * as InvoiceDepositsSectionTypes from './InvoiceDepositsSection.js';
@@ -20,6 +23,26 @@ const mockCreateDeposit = jest.fn<typeof InvoiceDepositsApiTypes.createDeposit>(
 const mockUpdateDeposit = jest.fn<typeof InvoiceDepositsApiTypes.updateDeposit>();
 const mockDeleteDeposit = jest.fn<typeof InvoiceDepositsApiTypes.deleteDeposit>();
 const mockFetchDeposits = jest.fn<typeof InvoiceDepositsApiTypes.fetchDeposits>();
+
+// ─── Mock: Toast + delete impact (#2209) ──────────────────────────────────────
+
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: unknown }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
+}));
+const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 
 // ─── Mock: invoiceDepositsApi ──────────────────────────────────────────────────
 
@@ -60,8 +83,8 @@ class MockApiClientError extends Error {
 
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   get: jest.fn(),
-  post: jest.fn(),
-  patch: jest.fn(),
+  post: mockPost,
+  patch: mockPatch,
   del: jest.fn(),
   put: jest.fn(),
   setBaseUrl: jest.fn(),
@@ -86,6 +109,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
     formatTime: (d: string | null | undefined) => d ?? '—',
     formatDateTime: (d: string | null | undefined) => d ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatDayMonth: (d: string | null | undefined) => d ?? '',
   }),
 }));
 
@@ -243,14 +267,16 @@ function renderSection(
     Math.max(0, (opts.invoiceTotal ?? INVOICE_TOTAL) - deposits.reduce((s, d) => s + d.amount, 0));
 
   return render(
-    <InvoiceDepositsSection
-      invoiceId={INVOICE_ID}
-      invoiceStatus={opts.invoiceStatus ?? 'pending'}
-      invoiceAmount={opts.invoiceTotal ?? INVOICE_TOTAL}
-      deposits={deposits}
-      finalPaymentAmount={finalPaymentAmount}
-      onDepositMutated={onDepositMutated}
-    />,
+    <MemoryRouter>
+      <InvoiceDepositsSection
+        invoiceId={INVOICE_ID}
+        invoiceStatus={opts.invoiceStatus ?? 'pending'}
+        invoiceAmount={opts.invoiceTotal ?? INVOICE_TOTAL}
+        deposits={deposits}
+        finalPaymentAmount={finalPaymentAmount}
+        onDepositMutated={onDepositMutated}
+      />
+    </MemoryRouter>,
   );
 }
 
@@ -296,6 +322,7 @@ beforeEach(async () => {
   // Default: no budget sources / budget lines configured. Individual picker tests override this.
   mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
   mockFetchInvoiceBudgetLines.mockResolvedValue({ budgetLines: [], remainingAmount: 0 });
+  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'invoice', id: 'x', effects: [] });
 });
 
 afterEach(() => {
@@ -346,13 +373,13 @@ describe('InvoiceDepositsSection', () => {
     it('renders the pending status badge for a pending deposit', () => {
       const deposits = [makeDeposit('dep-1', { status: 'pending' })];
       renderSection(deposits);
-      expect(screen.getAllByTestId('badge-pending').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveTextContent('To pay');
     });
 
     it('renders paid status badge for a paid deposit', () => {
       const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })];
       renderSection(deposits);
-      expect(screen.getAllByTestId('badge-paid').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveTextContent('Paid');
     });
 
     it('renders claimed status badge for a claimed deposit', () => {
@@ -364,7 +391,7 @@ describe('InvoiceDepositsSection', () => {
         }),
       ];
       renderSection(deposits);
-      expect(screen.getAllByTestId('badge-claimed').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveTextContent('Submitted');
     });
 
     it('renders em-dash for null paidDate', () => {
@@ -409,86 +436,28 @@ describe('InvoiceDepositsSection', () => {
 
   // ─── Scenario 4: action menu — pending deposit ─────────────────────────────
 
-  describe('Scenario 4: action menu items per deposit status', () => {
-    it('pending deposit: shows "Mark paid" and "Edit" and "Delete" menu items', () => {
-      const deposits = [makeDeposit('dep-1', { status: 'pending' })];
-      renderSection(deposits);
+  describe('Scenario 4: row action menu holds only Edit and Delete (#2209)', () => {
+    it.each(['pending', 'paid', 'claimed'] as const)(
+      '%s deposit: the ⋮ menu lists Edit and Delete and no status items',
+      (status) => {
+        const deposits = [
+          makeDeposit('dep-1', {
+            status,
+            paidDate: status === 'pending' ? null : '2026-03-10',
+            claimedDate: status === 'claimed' ? '2026-03-20' : null,
+          }),
+        ];
+        renderSection(deposits);
 
-      // Open the first overflow menu button (⋮)
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
+        const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+        fireEvent.click(menuBtn);
 
-      // markPaid, edit, delete items should appear
-      const menuItems = screen.getAllByRole('menuitem');
-      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('paid'))).toBe(true);
-      expect(labels.some((l) => l.includes('edit'))).toBe(true);
-      expect(labels.some((l) => l.includes('delete'))).toBe(true);
-    });
-
-    it('pending deposit: does NOT show "Mark claimed" or revert items', () => {
-      const deposits = [makeDeposit('dep-1', { status: 'pending' })];
-      renderSection(deposits);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const menuItems = screen.getAllByRole('menuitem');
-      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('submitted'))).toBe(false);
-      expect(labels.some((l) => l.includes('revert'))).toBe(false);
-    });
-
-    it('paid deposit: shows "Mark claimed", "Revert to pending", "Edit", "Delete"', () => {
-      const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })];
-      renderSection(deposits);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const menuItems = screen.getAllByRole('menuitem');
-      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('submitted'))).toBe(true);
-      expect(labels.some((l) => l.includes('to pay'))).toBe(true);
-      expect(labels.some((l) => l.includes('edit'))).toBe(true);
-      expect(labels.some((l) => l.includes('delete'))).toBe(true);
-    });
-
-    it('paid deposit: does NOT show "Mark paid"', () => {
-      const deposits = [makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })];
-      renderSection(deposits);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const menuItems = screen.getAllByRole('menuitem');
-      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      // Should not have a "mark paid" item (only claimed and revert-to-pending)
-      const paidItems = labels.filter((l) => l.includes('paid') && !l.includes('revert'));
-      expect(paidItems).toHaveLength(0);
-    });
-
-    it('claimed deposit: shows "Revert to paid", "Edit", "Delete"; no "Mark paid" or "Mark claimed"', () => {
-      const deposits = [
-        makeDeposit('dep-1', {
-          status: 'claimed',
-          paidDate: '2026-03-10',
-          claimedDate: '2026-03-20',
-        }),
-      ];
-      renderSection(deposits);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const menuItems = screen.getAllByRole('menuitem');
-      const labels = menuItems.map((m) => m.textContent?.toLowerCase() ?? '');
-      expect(labels.some((l) => l.includes('revert') && l.includes('paid'))).toBe(true);
-      expect(labels.some((l) => l.includes('edit'))).toBe(true);
-      expect(labels.some((l) => l.includes('delete'))).toBe(true);
-      // No mark paid or mark claimed
-      expect(labels.some((l) => l.includes('mark'))).toBe(false);
-    });
+        const labels = screen.getAllByRole('menuitem').map((m) => m.textContent?.toLowerCase());
+        expect(labels.some((l) => l?.includes('edit'))).toBe(true);
+        expect(labels.some((l) => l?.includes('delete'))).toBe(true);
+        expect(labels.some((l) => l?.includes('mark') || l?.includes('revert'))).toBe(false);
+      },
+    );
   });
 
   // ─── Scenario 5: Add deposit modal ────────────────────────────────────────
@@ -784,180 +753,6 @@ describe('InvoiceDepositsSection', () => {
     });
   });
 
-  // ─── Scenario 10: Mark paid / Mark claimed (StateConfirmModal) ────────────
-
-  describe('Scenario 10: "Mark paid" opens state confirm dialog', () => {
-    it('opens StateConfirmModal when "Mark paid" is clicked', () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending' });
-      renderSection([deposit]);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const markPaidBtn = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
-      fireEvent.click(markPaidBtn);
-
-      // A dialog should appear
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      // Date input should appear for selecting paid date
-      expect(screen.getByLabelText(/date/i)).toBeInTheDocument();
-    });
-
-    it('confirming Mark paid calls updateDeposit with status=paid and paidDate', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending' });
-      mockUpdateDeposit.mockResolvedValueOnce({
-        deposit: { ...deposit, status: 'paid', paidDate: '2026-03-10' },
-      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
-
-      const onMutated = jest.fn();
-      renderSection([deposit], { onDepositMutated: onMutated });
-
-      // Open menu, click Mark paid
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-      const markPaidBtn = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
-      fireEvent.click(markPaidBtn);
-
-      // Click the Confirm button in the state confirm modal
-      await waitFor(() => screen.getByRole('dialog'));
-      const confirmBtn = screen.getByTestId('modal-footer').querySelector('button:last-child')!;
-      await act(async () => {
-        fireEvent.click(confirmBtn);
-      });
-
-      await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(
-          INVOICE_ID,
-          'dep-1',
-          expect.objectContaining({ status: 'paid' }),
-        );
-      });
-      expect(onMutated).toHaveBeenCalled();
-    });
-  });
-
-  // ─── Scenario 11: "Mark claimed" ──────────────────────────────────────────
-
-  describe('Scenario 11: "Mark claimed" opens state confirm dialog', () => {
-    it('opens StateConfirmModal when "Mark claimed" is clicked from paid deposit', () => {
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      renderSection([deposit]);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const markClaimedBtn = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('submitted'))!;
-      fireEvent.click(markClaimedBtn);
-
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-    });
-
-    it('confirming Mark claimed calls updateDeposit with status=claimed', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      mockUpdateDeposit.mockResolvedValueOnce({
-        deposit: { ...deposit, status: 'claimed', claimedDate: '2026-03-20' },
-      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
-
-      const onMutated = jest.fn();
-      renderSection([deposit], { onDepositMutated: onMutated });
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-      const markClaimedBtn = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('submitted'))!;
-      fireEvent.click(markClaimedBtn);
-
-      await waitFor(() => screen.getByRole('dialog'));
-      const confirmBtn = screen.getByTestId('modal-footer').querySelector('button:last-child')!;
-      await act(async () => {
-        fireEvent.click(confirmBtn);
-      });
-
-      await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(
-          INVOICE_ID,
-          'dep-1',
-          expect.objectContaining({ status: 'claimed' }),
-        );
-      });
-      expect(onMutated).toHaveBeenCalled();
-    });
-  });
-
-  // ─── Scenario 12: "Revert to pending" (immediate) ─────────────────────────
-
-  describe('Scenario 12: "Revert to pending" fires immediately', () => {
-    it('calls updateDeposit with status=pending immediately (no dialog)', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      mockUpdateDeposit.mockResolvedValueOnce({
-        deposit: { ...deposit, status: 'pending', paidDate: null },
-      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
-
-      const onMutated = jest.fn();
-      renderSection([deposit], { onDepositMutated: onMutated });
-
-      // Open menu, click Revert to pending
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const revertBtn = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'pending' });
-      });
-      expect(onMutated).toHaveBeenCalled();
-    });
-  });
-
-  // ─── Scenario 13: "Revert to paid" (immediate, claimed→paid) ─────────────
-
-  describe('Scenario 13: "Revert to paid" fires immediately', () => {
-    it('calls updateDeposit with status=paid immediately when revert from claimed', async () => {
-      const deposit = makeDeposit('dep-1', {
-        status: 'claimed',
-        paidDate: '2026-03-10',
-        claimedDate: '2026-03-20',
-      });
-      mockUpdateDeposit.mockResolvedValueOnce({
-        deposit: { ...deposit, status: 'paid', claimedDate: null },
-      } as Awaited<ReturnType<typeof mockUpdateDeposit>>);
-
-      const onMutated = jest.fn();
-      renderSection([deposit], { onDepositMutated: onMutated });
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-
-      const revertBtn = screen
-        .getAllByRole('menuitem')
-        .find(
-          (m) =>
-            m.textContent?.toLowerCase().includes('revert') &&
-            m.textContent?.toLowerCase().includes('paid'),
-        )!;
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      await waitFor(() => {
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'paid' });
-      });
-      expect(onMutated).toHaveBeenCalled();
-    });
-  });
-
   // ─── Scenario 14: Delete modal for pending deposit ─────────────────────────
 
   describe('Scenario 14: Delete modal', () => {
@@ -1093,6 +888,22 @@ describe('InvoiceDepositsSection', () => {
       });
     });
 
+    it('a 409 hides the confirm button and keeps Cancel', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openAndConfirmDelete(makeDeposit('dep-1'));
+      await waitFor(() => expect(screen.queryByTestId('deposit-delete-confirm')).toBeNull());
+      expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('a non-409 failure keeps the confirm button for a retry', async () => {
+      mockDeleteDeposit.mockRejectedValueOnce(new Error('network'));
+      await openAndConfirmDelete(makeDeposit('dep-1'));
+      await waitFor(() => expect(screen.getByTestId('form-error')).toBeInTheDocument());
+      expect(screen.getByTestId('deposit-delete-confirm')).toBeInTheDocument();
+    });
+
     it('other ApiClientError codes still go through translateApiError', async () => {
       mockDeleteDeposit.mockRejectedValueOnce(new MockApiClientError(404, { code: 'NOT_FOUND' }));
       await openAndConfirmDelete(makeDeposit('dep-1', { entryType: 'refund', amount: 300 }));
@@ -1100,230 +911,6 @@ describe('InvoiceDepositsSection', () => {
       await waitFor(() => {
         expect(screen.getByTestId('form-error').textContent).toBe('translated:NOT_FOUND');
       });
-    });
-  });
-
-  describe('row action menus: desktop table (kebab 0) and mobile card (kebab 1)', () => {
-    // The table and the mobile card list both render; each has its own menu built per status.
-    const kebabIndexes = [0, 1] as const;
-
-    function openMenu(index: number): HTMLElement[] {
-      const kebabs = screen.getAllByRole('button').filter((b) => b.textContent?.includes('⋮'));
-      expect(kebabs).toHaveLength(2);
-      fireEvent.click(kebabs[index]!);
-      return screen.getAllByRole('menuitem');
-    }
-
-    function clickItem(index: number, label: RegExp) {
-      const item = openMenu(index).find((m) => label.test(m.textContent ?? ''));
-      expect(item).toBeDefined();
-      return act(async () => {
-        fireEvent.click(item!);
-      });
-    }
-
-    describe.each(kebabIndexes)('kebab %i', (idx) => {
-      it('pending: Mark paid opens the state-confirm modal', async () => {
-        renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-        await clickItem(idx, /mark paid/i);
-        expect(screen.getByTestId('state-confirm-button')).toBeInTheDocument();
-      });
-
-      it('pending: Edit opens the edit modal and Delete opens the delete modal', async () => {
-        renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-        await clickItem(idx, /^edit/i);
-        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
-        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
-        await clickItem(idx, /delete/i);
-        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
-      });
-
-      it('paid: Mark claimed opens the state-confirm modal', async () => {
-        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-        await clickItem(idx, /mark submitted/i);
-        expect(screen.getByTestId('state-confirm-button')).toBeInTheDocument();
-      });
-
-      it('paid: Revert to pending updates the deposit to pending', async () => {
-        mockUpdateDeposit.mockResolvedValue({} as never);
-        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-        await clickItem(idx, /set status back to “to pay”/i);
-        expect(mockUpdateDeposit).toHaveBeenCalledTimes(1);
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'pending' });
-      });
-
-      it('paid: Edit and Delete open their modals', async () => {
-        renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-        await clickItem(idx, /^edit/i);
-        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
-        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
-        await clickItem(idx, /delete/i);
-        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
-      });
-
-      it('claimed: Revert to paid updates the deposit to paid', async () => {
-        mockUpdateDeposit.mockResolvedValue({} as never);
-        renderSection([
-          makeDeposit('dep-1', {
-            status: 'claimed',
-            paidDate: '2026-03-10',
-            claimedDate: '2026-03-20',
-          }),
-        ]);
-        await clickItem(idx, /revert to paid/i);
-        expect(mockUpdateDeposit).toHaveBeenCalledTimes(1);
-        expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', { status: 'paid' });
-      });
-
-      it('claimed: Edit and Delete open their modals', async () => {
-        renderSection([
-          makeDeposit('dep-1', {
-            status: 'claimed',
-            paidDate: '2026-03-10',
-            claimedDate: '2026-03-20',
-          }),
-        ]);
-        await clickItem(idx, /^edit/i);
-        expect(screen.getByTestId('deposit-modal-save')).toBeInTheDocument();
-        fireEvent.click(screen.getByTestId('deposit-modal-cancel'));
-        await clickItem(idx, /delete/i);
-        expect(screen.getByTestId('deposit-delete-cancel')).toBeInTheDocument();
-      });
-
-      it('claimed: Revert to paid with a network failure shows the network error banner', async () => {
-        mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
-        renderSection([
-          makeDeposit('dep-1', {
-            status: 'claimed',
-            paidDate: '2026-03-10',
-            claimedDate: '2026-03-20',
-          }),
-        ]);
-        await clickItem(idx, /revert to paid/i);
-        await waitFor(() => {
-          const text = screen
-            .getAllByRole('alert')
-            .map((a) => a.textContent ?? '')
-            .join(' ');
-          expect(text).toContain(i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'));
-        });
-      });
-    });
-  });
-
-  describe('revert banner and in-flight modal guards', () => {
-    it('a second revert failure replaces the first banner message', async () => {
-      mockUpdateDeposit
-        .mockRejectedValueOnce(new Error('network'))
-        .mockRejectedValueOnce(new MockApiClientError(400, { code: 'SOME_CODE' }));
-      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
-
-      for (let i = 0; i < 2; i++) {
-        const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-        fireEvent.click(kebab);
-        const item = screen
-          .getAllByRole('menuitem')
-          .find((m) => /set status back to “to pay”/i.test(m.textContent ?? ''))!;
-        await act(async () => {
-          fireEvent.click(item);
-        });
-      }
-
-      await waitFor(() => {
-        const text = screen
-          .getAllByRole('alert')
-          .map((a) => a.textContent ?? '')
-          .join(' ');
-        expect(text).toContain('translated:SOME_CODE');
-        expect(text).not.toContain(
-          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
-        );
-      });
-    });
-
-    it('closing the delete modal while the delete is in flight is ignored', async () => {
-      let resolveDelete: () => void = () => {};
-      mockDeleteDeposit.mockReturnValueOnce(
-        new Promise<void>((resolve) => {
-          resolveDelete = resolve;
-        }),
-      );
-      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(kebab);
-      fireEvent.click(
-        screen.getAllByRole('menuitem').find((m) => /delete/i.test(m.textContent ?? ''))!,
-      );
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('modal-footer').querySelector('button:last-child')!);
-      });
-
-      fireEvent.click(screen.getByTestId('modal-close'));
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-
-      await act(async () => {
-        resolveDelete();
-      });
-    });
-  });
-
-  describe('state-confirm modal behavior', () => {
-    function openMarkPaid() {
-      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(kebab);
-      fireEvent.click(
-        screen.getAllByRole('menuitem').find((m) => /mark paid/i.test(m.textContent ?? ''))!,
-      );
-    }
-
-    it('confirming with a changed date sends that date', async () => {
-      mockUpdateDeposit.mockResolvedValue({} as never);
-      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-      openMarkPaid();
-
-      fireEvent.change(document.getElementById('state-confirm-date')!, {
-        target: { value: '2026-04-05' },
-      });
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('state-confirm-button'));
-      });
-
-      expect(mockUpdateDeposit).toHaveBeenCalledWith(INVOICE_ID, 'dep-1', {
-        status: 'paid',
-        paidDate: '2026-04-05',
-      });
-    });
-
-    it('a non-API failure shows the state-confirm network error inside the modal', async () => {
-      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
-      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-      openMarkPaid();
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('state-confirm-button'));
-      });
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog').querySelector('[role="alert"]')!.textContent).toBe(
-          i18n.t('budget:invoiceDetail.deposits.errors.stateConfirmNetworkError'),
-        );
-      });
-    });
-
-    it('closing the modal after an error dismisses it and clears the error on reopen', async () => {
-      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
-      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
-      openMarkPaid();
-      await act(async () => {
-        fireEvent.click(screen.getByTestId('state-confirm-button'));
-      });
-      await waitFor(() => expect(screen.getByTestId('form-error')).toBeInTheDocument());
-
-      fireEvent.click(screen.getByTestId('modal-close'));
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-
-      openMarkPaid();
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.queryByTestId('form-error')).not.toBeInTheDocument();
     });
   });
 
@@ -1398,41 +985,6 @@ describe('InvoiceDepositsSection', () => {
       expect(cancelBtn.textContent).not.toContain('buttons.cancel');
     });
 
-    it('State confirm modal cancel button shows "Cancel"', () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending' });
-      renderSection([deposit]);
-
-      // Open state-confirm modal (Mark paid)
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-      const markPaidItem = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
-      fireEvent.click(markPaidItem);
-
-      const cancelBtn = screen.getByTestId('state-confirm-cancel');
-      expect(cancelBtn.textContent).toBe('Cancel');
-      expect(cancelBtn.textContent).not.toContain('button.cancel');
-      expect(cancelBtn.textContent).not.toContain('buttons.cancel');
-    });
-
-    it('State confirm modal confirm button shows "Confirm"', () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending' });
-      renderSection([deposit]);
-
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-      const markPaidItem = screen
-        .getAllByRole('menuitem')
-        .find((m) => m.textContent?.toLowerCase().includes('paid'))!;
-      fireEvent.click(markPaidItem);
-
-      const confirmBtn = screen.getByTestId('state-confirm-button');
-      expect(confirmBtn.textContent).toBe('Confirm');
-      expect(confirmBtn.textContent).not.toContain('button.confirm');
-      expect(confirmBtn.textContent).not.toContain('buttons.confirm');
-    });
-
     it('OverflowMenu trigger buttons use usePortal (menu appears in document.body)', () => {
       const deposit = makeDeposit('dep-1', { status: 'pending' });
       renderSection([deposit]);
@@ -1474,177 +1026,6 @@ describe('InvoiceDepositsSection', () => {
       // No aria-label containing a count should exist for the heading
       const chips = document.querySelectorAll('[class*="countChip"]');
       expect(chips).toHaveLength(0);
-    });
-  });
-
-  // ─── Scenario 17–21: Revert error surfacing (#1413) ───────────────────────
-
-  describe('revert error surfacing (#1413)', () => {
-    // Helper: open the first overflow menu and return its menu items
-    function openMenuForFirstDeposit() {
-      const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
-      fireEvent.click(menuBtn);
-      return screen.getAllByRole('menuitem');
-    }
-
-    // ─── Scenario 17: handleRevertToPending — API error ─────────────────────
-
-    it('Scenario 17: handleRevertToPending — ApiClientError shows section-level alert', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      mockUpdateDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
-      );
-
-      renderSection([deposit]);
-
-      const menuItems = openMenuForFirstDeposit();
-      // For a paid deposit, "Revert to pending" is a menu item
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      // The section-level FormError (role="alert") should appear
-      await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        expect(alerts.length).toBeGreaterThan(0);
-        // The error should contain the translated code from translateApiError mock
-        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
-      });
-    });
-
-    // ─── Scenario 18: handleRevertToPending — network error ──────────────────
-
-    it('Scenario 18: handleRevertToPending — plain Error shows revertNetworkError banner', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
-
-      renderSection([deposit]);
-
-      const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      // revertNetworkError translation key is used; i18next returns the English string in tests
-      await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        expect(alerts.length).toBeGreaterThan(0);
-        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain(
-          i18n.t('budget:invoiceDetail.deposits.errors.revertNetworkError'),
-        );
-      });
-    });
-
-    // ─── Scenario 19: handleRevertToPaid — API error ─────────────────────────
-
-    it('Scenario 19: handleRevertToPaid — ApiClientError shows section-level alert', async () => {
-      const deposit = makeDeposit('dep-1', {
-        status: 'claimed',
-        paidDate: '2026-03-10',
-        claimedDate: '2026-03-20',
-      });
-      mockUpdateDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
-      );
-
-      renderSection([deposit]);
-
-      const menuItems = openMenuForFirstDeposit();
-      // For a claimed deposit, "Revert to paid" is the revert action
-      const revertBtn = menuItems.find(
-        (m) =>
-          m.textContent?.toLowerCase().includes('revert') &&
-          m.textContent?.toLowerCase().includes('paid'),
-      )!;
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      await waitFor(() => {
-        const alerts = screen.getAllByRole('alert');
-        expect(alerts.length).toBeGreaterThan(0);
-        const alertText = alerts.map((a) => a.textContent ?? '').join(' ');
-        expect(alertText).toContain('translated:INVALID_DEPOSIT_STATUS_TRANSITION');
-      });
-    });
-
-    // ─── Scenario 20: Banner auto-dismiss after 6000ms ────────────────────────
-
-    it('Scenario 20: revert error banner auto-dismisses after 6000ms', async () => {
-      jest.useFakeTimers();
-
-      const deposit = makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' });
-      mockUpdateDeposit.mockRejectedValueOnce(new Error('network'));
-
-      renderSection([deposit]);
-
-      const menuItems = openMenuForFirstDeposit();
-      const revertBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('to pay'))!;
-
-      await act(async () => {
-        fireEvent.click(revertBtn);
-      });
-
-      // Banner should be present
-      await waitFor(() => {
-        expect(screen.getAllByRole('alert').length).toBeGreaterThan(0);
-      });
-
-      // Advance past the 6000ms auto-dismiss timer
-      await act(async () => {
-        jest.advanceTimersByTime(6001);
-        await Promise.resolve();
-      });
-
-      await waitFor(() => {
-        // After dismissal, the revert error alert should be gone
-        // (The section-level FormError is only rendered when revertError !== '')
-        const remainingAlerts = screen.queryAllByRole('alert');
-        expect(remainingAlerts.length).toBe(0);
-      });
-
-      jest.useRealTimers();
-    });
-
-    // ─── Scenario 21: handleStateConfirm — modal error ───────────────────────
-
-    it('Scenario 21: handleStateConfirm — PATCH rejects with API error, FormError inside dialog', async () => {
-      const deposit = makeDeposit('dep-1', { status: 'pending' });
-      // First call is for the state-confirm (mark-paid); it should reject
-      mockUpdateDeposit.mockRejectedValueOnce(
-        new MockApiClientError(400, { code: 'INVALID_DEPOSIT_STATUS_TRANSITION' }),
-      );
-
-      renderSection([deposit]);
-
-      // Open menu and click "Mark paid"
-      const menuItems = openMenuForFirstDeposit();
-      const markPaidBtn = menuItems.find((m) => m.textContent?.toLowerCase().includes('paid'))!;
-      fireEvent.click(markPaidBtn);
-
-      // The state confirm dialog should appear
-      await waitFor(() => screen.getByRole('dialog'));
-
-      // Click the confirm button
-      const confirmBtn = screen.getByTestId('modal-footer').querySelector('button:last-child')!;
-      await act(async () => {
-        fireEvent.click(confirmBtn);
-      });
-
-      // FormError should appear INSIDE the dialog
-      await waitFor(() => {
-        const dialog = screen.getByRole('dialog');
-        // role="alert" from FormError mock
-        const alertInsideDialog = dialog.querySelector('[role="alert"]');
-        expect(alertInsideDialog).toBeInTheDocument();
-        expect(alertInsideDialog!.textContent).toContain(
-          'translated:INVALID_DEPOSIT_STATUS_TRANSITION',
-        );
-      });
     });
   });
 
@@ -1886,7 +1267,7 @@ describe('InvoiceDepositsSection', () => {
       renderSection(deposits);
 
       expect(screen.getAllByTestId('badge-refund').length).toBeGreaterThan(0);
-      expect(screen.getAllByTestId('badge-paid').length).toBeGreaterThan(0);
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveTextContent('Paid');
     });
   });
 
@@ -1937,6 +1318,228 @@ describe('InvoiceDepositsSection', () => {
       const buttons = screen.getAllByRole('button');
       const matched = buttons.some((b) => b.getAttribute('aria-label')?.includes('Deposit'));
       expect(matched).toBe(true);
+    });
+  });
+
+  // ─── #2209: StatusMenu replaces the mark/revert menu items and StateConfirmModal ───────
+
+  describe('status menu (#2209)', () => {
+    const TOKEN = { token: `u_${'f'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+    function openMenu(testId = 'deposit-status-dep-1') {
+      fireEvent.click(screen.getByTestId(testId));
+    }
+    const rowLabels = () => screen.getAllByRole('menuitem').map((r) => r.textContent);
+
+    beforeEach(() => {
+      mockPatch.mockReset();
+      mockPost.mockReset();
+      mockShowToast.mockReset();
+      mockShowUndoToast.mockReset();
+    });
+
+    it('mounts the table and the mobile card without duplicate test ids', () => {
+      const { container } = renderSection([makeDeposit('dep-1')]);
+      expect(screen.getByTestId('deposit-status-dep-1')).toBeInTheDocument();
+      expect(screen.getByTestId('deposit-status-mobile-dep-1')).toBeInTheDocument();
+      expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+
+    it('shows each status as a menu button with its canonical label', () => {
+      renderSection([
+        makeDeposit('dep-1', { status: 'pending' }),
+        makeDeposit('dep-2', { status: 'paid', paidDate: '2026-03-10' }),
+        makeDeposit('dep-3', {
+          status: 'claimed',
+          paidDate: '2026-03-10',
+          claimedDate: '2026-03-20',
+        }),
+      ]);
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveTextContent('To pay');
+      expect(screen.getByTestId('deposit-status-dep-2')).toHaveTextContent('Paid');
+      expect(screen.getByTestId('deposit-status-dep-3')).toHaveTextContent('Submitted');
+      expect(screen.getByTestId('deposit-status-dep-1')).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('a pending deposit offers Mark paid and Mark submitted, both with a date step', () => {
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      openMenu();
+      expect(rowLabels()).toEqual(['Mark paid›', 'Mark submitted›']);
+    });
+
+    it('a paid deposit offers Mark submitted and the way back to "To pay"', () => {
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+      openMenu();
+      expect(rowLabels()).toEqual(['Mark submitted›', 'Back to “To pay”']);
+    });
+
+    it('a submitted deposit offers only the way back to "Paid"', () => {
+      renderSection([
+        makeDeposit('dep-1', {
+          status: 'claimed',
+          paidDate: '2026-03-10',
+          claimedDate: '2026-03-20',
+        }),
+      ]);
+      openMenu();
+      expect(rowLabels()).toEqual(['Back to “Paid”']);
+    });
+
+    it('Mark paid asks when the payment was made, offers only Today and Pick, and sends paidDate', async () => {
+      const onMutated = jest.fn();
+      mockPatch.mockResolvedValue({
+        deposit: makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' }),
+        undo: TOKEN,
+      });
+      renderSection([makeDeposit('dep-1', { status: 'pending' })], { onDepositMutated: onMutated });
+
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-paid'));
+      expect(
+        screen.getByRole('dialog', { name: 'When was this payment made?' }),
+      ).toBeInTheDocument();
+      expect(screen.queryByTestId('deposit-status-dep-1-date-planned')).toBeNull();
+      expect(screen.getByTestId('deposit-status-dep-1-date-pick')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-date-today'));
+
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      expect(mockPatch).toHaveBeenCalledWith(
+        `/invoices/${INVOICE_ID}/deposits/dep-1`,
+        expect.objectContaining({ status: 'paid', paidDate: expect.stringMatching(DATE_RE) }),
+      );
+      await waitFor(() => expect(onMutated).toHaveBeenCalled());
+      expect(mockShowUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Deposit is now “Paid”.',
+          dedupeKey: 'deposit:dep-1',
+        }),
+      );
+    });
+
+    it('Mark submitted from pending sets both the paid and the submitted date', async () => {
+      mockPatch.mockResolvedValue({ deposit: makeDeposit('dep-1', { status: 'claimed' }) });
+      renderSection([makeDeposit('dep-1', { status: 'pending' })]);
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-claimed'));
+      expect(screen.getByRole('dialog', { name: 'When was it submitted?' })).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-date-today'));
+
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      const body = mockPatch.mock.calls[0]![1] as Record<string, string>;
+      expect(body).toEqual({
+        status: 'claimed',
+        paidDate: expect.stringMatching(DATE_RE),
+        claimedDate: expect.stringMatching(DATE_RE),
+      });
+      expect(body.paidDate).toBe(body.claimedDate);
+    });
+
+    it('Mark submitted from paid sets only the submitted date', async () => {
+      mockPatch.mockResolvedValue({ deposit: makeDeposit('dep-1', { status: 'claimed' }) });
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-claimed'));
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-date-today'));
+
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      expect(mockPatch.mock.calls[0]![1]).toEqual({
+        status: 'claimed',
+        claimedDate: expect.stringMatching(DATE_RE),
+      });
+    });
+
+    it.each([
+      ['paid', 'pending', 'deposit-status-dep-1-option-pending'],
+      ['claimed', 'paid', 'deposit-status-dep-1-option-paid'],
+    ] as const)(
+      'going back from %s to %s applies at once with only the status',
+      async (from, to, option) => {
+        mockPatch.mockResolvedValue({ deposit: makeDeposit('dep-1', { status: to }), undo: TOKEN });
+        renderSection([
+          makeDeposit('dep-1', {
+            status: from,
+            paidDate: '2026-03-10',
+            claimedDate: from === 'claimed' ? '2026-03-20' : null,
+          }),
+        ]);
+        openMenu();
+        fireEvent.click(screen.getByTestId(option));
+
+        await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+        expect(mockPatch.mock.calls[0]![1]).toEqual({ status: to });
+        expect(screen.queryByRole('dialog', { name: /when/i })).toBeNull();
+      },
+    );
+
+    it('the mobile card hosts the same menu with its own test ids', async () => {
+      mockPatch.mockResolvedValue({ deposit: makeDeposit('dep-1', { status: 'pending' }) });
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+      openMenu('deposit-status-mobile-dep-1');
+      fireEvent.click(screen.getByTestId('deposit-status-mobile-dep-1-option-pending'));
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockPatch.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-pending'));
+
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('an API error toasts the translated copy', async () => {
+      mockPatch.mockRejectedValue(new MockApiClientError(404, { code: 'NOT_FOUND' }));
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })]);
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-pending'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'translated:NOT_FOUND'),
+      );
+    });
+
+    it('Undo posts the token and refreshes the deposits', async () => {
+      const onMutated = jest.fn();
+      mockPatch.mockResolvedValue({
+        deposit: makeDeposit('dep-1', { status: 'pending' }),
+        undo: TOKEN,
+      });
+      mockPost.mockResolvedValue({ restored: [], retractedEventIds: [] });
+      renderSection([makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10' })], {
+        onDepositMutated: onMutated,
+      });
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-pending'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      onMutated.mockClear();
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(mockPost).toHaveBeenCalledWith(`/undo/${TOKEN.token}`);
+      expect(onMutated).toHaveBeenCalledTimes(1);
+    });
+
+    it('names an unnamed deposit by its entry type in the toast', async () => {
+      mockPatch.mockResolvedValue({
+        deposit: makeDeposit('dep-1', { status: 'pending', entryType: 'refund' }),
+        undo: TOKEN,
+      });
+      renderSection([
+        makeDeposit('dep-1', { status: 'paid', paidDate: '2026-03-10', entryType: 'refund' }),
+      ]);
+      openMenu();
+      fireEvent.click(screen.getByTestId('deposit-status-dep-1-option-pending'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      expect((mockShowUndoToast.mock.calls[0]![0] as { message: string }).message).toMatch(
+        /^Refund is now/,
+      );
     });
   });
 

@@ -10,6 +10,7 @@ import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { WorkItemSummary } from '@cornerstone/shared';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as WorkItemsPageTypes from './WorkItemsPage.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
@@ -24,12 +25,17 @@ import enWorkItems from '../../i18n/en/workItems.json';
 
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   listWorkItems: mockListWorkItems,
   deleteWorkItem: mockDeleteWorkItem,
+}));
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
 }));
 
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
@@ -161,6 +167,8 @@ describe('WorkItemsPage', () => {
   beforeEach(async () => {
     mockListWorkItems.mockReset();
     mockDeleteWorkItem.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'work_item', id: 'wi-1', effects: [] });
     mockListUsers.mockReset();
     mockFetchVendors.mockReset();
     mockListPreferences.mockReset();
@@ -530,12 +538,108 @@ describe('WorkItemsPage', () => {
       await waitFor(() => expect(screen.getByTestId('wi-menu-button-wi-1')).toBeInTheDocument());
       fireEvent.click(screen.getByTestId('wi-menu-button-wi-1'));
       fireEvent.click(screen.getByTestId('wi-delete-wi-1'));
-      const confirm = await screen.findByRole('button', {
-        name: enWorkItems.list.deleteModal.deleteLabel,
-      });
+      const confirm = await screen.findByTestId('work-item-list-delete-confirm');
+      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
       fireEvent.click(confirm);
       return screen.findByRole('alert');
     }
+
+    describe('delete dialog (#2209)', () => {
+      async function openDialog() {
+        mockListWorkItems.mockResolvedValue(
+          makeListResponse([makeWorkItemSummary({ id: 'wi-1', title: 'Lay Foundation' })]),
+        );
+        renderPage();
+        await waitFor(() => expect(screen.getByTestId('wi-menu-button-wi-1')).toBeInTheDocument());
+        fireEvent.click(screen.getByTestId('wi-menu-button-wi-1'));
+        fireEvent.click(screen.getByTestId('wi-delete-wi-1'));
+      }
+
+      it('opens an alertdialog titled with the task, with Cancel focused', async () => {
+        await openDialog();
+        expect(
+          await screen.findByRole('alertdialog', { name: 'Delete Lay Foundation?' }),
+        ).toBeInTheDocument();
+        expect(screen.getByTestId('work-item-list-delete-cancel')).toHaveFocus();
+        expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
+      });
+
+      it('loads and lists what the delete also removes', async () => {
+        mockFetchDeleteImpact.mockResolvedValue({
+          entityType: 'work_item',
+          id: 'wi-1',
+          effects: [
+            { kind: 'subtasks', count: 2 },
+            { kind: 'notes', count: 0 },
+          ],
+        });
+        await openDialog();
+        await waitFor(() =>
+          expect(screen.getByTestId('work-item-list-delete-consequences')).toHaveTextContent(
+            'Subtasks deleted with it: 2',
+          ),
+        );
+        expect(screen.queryByText(/Notes deleted with it/)).toBeNull();
+        expect(mockFetchDeleteImpact).toHaveBeenCalledWith('work_item', 'wi-1');
+      });
+
+      it('does not delete until the action is pressed, and Cancel closes without deleting', async () => {
+        await openDialog();
+        fireEvent.click(await screen.findByTestId('work-item-list-delete-cancel'));
+        expect(screen.queryByRole('alertdialog')).toBeNull();
+        expect(mockDeleteWorkItem).not.toHaveBeenCalled();
+      });
+
+      it('calls deleteWorkItem for the task after the counts are ready', async () => {
+        mockDeleteWorkItem.mockResolvedValue(undefined);
+        await openDialog();
+        const confirm = await screen.findByTestId('work-item-list-delete-confirm');
+        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+        fireEvent.click(confirm);
+        await waitFor(() => expect(mockDeleteWorkItem).toHaveBeenCalledWith('wi-1'));
+        // #2209: after the dialog is gone focus is on a real control, never on <body>.
+        await waitFor(() => {
+          expect(document.activeElement).not.toBe(document.body);
+          expect(document.activeElement?.matches('button, a, input, h1, [tabindex]')).toBe(true);
+        });
+      });
+
+      it('a 409 hides the action', async () => {
+        mockDeleteWorkItem.mockRejectedValue(
+          new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+        );
+        await openDialog();
+        const confirm = await screen.findByTestId('work-item-list-delete-confirm');
+        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+        fireEvent.click(confirm);
+        await waitFor(() =>
+          expect(screen.queryByTestId('work-item-list-delete-confirm')).toBeNull(),
+        );
+        expect(screen.getByTestId('work-item-list-delete-cancel')).toBeInTheDocument();
+      });
+
+      it('a non-409 API failure (500) keeps the action for a retry', async () => {
+        mockDeleteWorkItem.mockRejectedValue(
+          new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+        );
+        await openDialog();
+        const first = await screen.findByTestId('work-item-list-delete-confirm');
+        await waitFor(() => expect(first).not.toHaveAttribute('aria-disabled'));
+        fireEvent.click(first);
+        await screen.findByRole('alert');
+        expect(screen.getByTestId('work-item-list-delete-confirm')).toBeInTheDocument();
+      });
+
+      it('a non-409 failure keeps the action for a retry', async () => {
+        mockDeleteWorkItem.mockRejectedValue(new Error('boom'));
+        await openDialog();
+        const confirm = await screen.findByTestId('work-item-list-delete-confirm');
+        await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+        fireEvent.click(confirm);
+        await screen.findByRole('alert');
+        expect(screen.getByTestId('work-item-list-delete-confirm')).toBeInTheDocument();
+      });
+    });
 
     it('delete failure with ApiClientError shows the code copy, never the server text', async () => {
       const alert = await deleteWith(

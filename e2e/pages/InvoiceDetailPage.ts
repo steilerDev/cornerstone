@@ -17,15 +17,16 @@
  * Key DOM observations from source code (InvoiceDetailPage.tsx):
  * - Breadcrumbs: shared Breadcrumbs row via BreadcrumbsBar (the old "← Back to Invoices" button is retired)
  * - h1: invoiceDisplayTitle() (client/src/lib/invoiceTitle.ts); loading/error state "Invoice", 404 "Invoice not found"
- * - Status badge: shared <Badge> chip in the page heading, data-testid="invoice-status-badge"
+ * - Status chip in the page heading, data-testid="invoice-status-badge": a StatusMenu (#2209)
+ *   for To pay / Paid (Mark paid has no date step), a plain Badge for Submitted / Offer
  * - Edit button: class="editButton", text="Edit"
  * - Delete button: class="deleteButton", text="Delete"
  * - Edit modal: role="dialog", aria-labelledby="edit-modal-title", h2="Edit Invoice"
  * - Edit form inputs: #edit-invoice-number, #edit-amount, #edit-date, #edit-due-date,
  *   #edit-status, #edit-notes
  * - Edit save: class="saveButton", text="Save Changes" / "Saving..."
- * - Delete modal: role="dialog", aria-labelledby="delete-modal-title", h2="Delete Invoice"
- * - Delete confirm: class="confirmDeleteButton", text="Delete Invoice" / "Deleting..."
+ * - Delete dialog (#2209): the shared ConfirmDialog, role="alertdialog", h2 "Delete <title>?",
+ *   testid prefix invoice-delete (confirm text "Delete" / "Deleting…")
  * - Error (not found): role="alert" inside div.errorCard
  * - InvoiceBudgetLinesSection has its own sections but we do not interact with it deeply here
  *
@@ -94,6 +95,7 @@ import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
 
 /** API (not app route) detail-endpoint matcher. */
 const API_INVOICE_DETAIL_URL = /\/api\/(?:.*\/)?invoices\//;
@@ -157,7 +159,10 @@ export class InvoiceDetailPage {
    */
   readonly editVendorError: Locator;
 
-  // Delete modal
+  /** Header StatusMenu (data-testid="invoice-status-badge"); trigger is the Badge when no move exists. */
+  readonly statusMenu: StatusMenuControl;
+
+  // Delete dialog (ConfirmDialog)
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
@@ -237,16 +242,7 @@ export class InvoiceDetailPage {
   readonly depositModalError: Locator;
   readonly depositExceedsWarning: Locator;
 
-  /** State confirm modal (Mark as paid / Mark as claimed) */
-  readonly stateConfirmModal: Locator;
-
-  /** Confirm button inside the state confirm modal */
-  readonly stateConfirmButton: Locator;
-
-  /** The state-confirm date input (#state-confirm-date) */
-  readonly stateConfirmDateInput: Locator;
-
-  /** Delete deposit modal — located by its title "Delete deposit" */
+  /** Delete deposit dialog (ConfirmDialog, alertdialog) */
   readonly deleteDepositModal: Locator;
 
   /** Warning banner inside the delete deposit modal (visible for paid/claimed deposits) */
@@ -332,7 +328,7 @@ export class InvoiceDetailPage {
   readonly editBudgetLineAmountInput: Locator;
 
   /**
-   * Remove Budget Line modal (Modal component, title="Remove Budget Line").
+   * Remove cost line dialog (ConfirmDialog, alertdialog; confirm testid invoice-line-remove-confirm).
    */
   readonly removeBudgetLineModal: Locator;
 
@@ -629,6 +625,7 @@ export class InvoiceDetailPage {
 
     // Status badge — shared Badge chip in the heading (Story #2195)
     this.statusBadge = page.getByTestId('invoice-status-badge');
+    this.statusMenu = new StatusMenuControl(page, 'invoice-status-badge');
 
     // Action buttons in the header row — scoped to header row to avoid matching
     // budget line edit buttons
@@ -692,10 +689,12 @@ export class InvoiceDetailPage {
       .locator('label[for="edit-vendor"]')
       .locator('xpath=parent::div/div[last()]');
 
-    // Delete modal — role="dialog", aria-labelledby="delete-modal-title"
-    this.deleteModal = page.locator('[role="dialog"][aria-labelledby="delete-modal-title"]');
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="confirmDeleteButton"]');
-    this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
+    // Delete dialog — the shared ConfirmDialog (role="alertdialog", testid prefix invoice-delete)
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('invoice-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('invoice-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('invoice-delete-cancel');
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
 
     // Error card (rendered when invoice not found or load fails)
@@ -772,29 +771,16 @@ export class InvoiceDetailPage {
     this.depositModalError = page.locator('[role="dialog"] [role="alert"]');
     this.depositExceedsWarning = page.getByTestId('deposit-exceeds-warning');
 
-    // State confirm modal: h2 is "Mark as paid" or "Mark as claimed"
-    this.stateConfirmModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2'),
-    });
+    // Delete deposit dialog: the shared ConfirmDialog (role="alertdialog", testid prefix
+    // deposit-delete), title "Delete <deposit name>?"
+    this.deleteDepositModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('deposit-delete-cancel') });
 
-    // Confirm button inside state confirm modal — stable data-testid added in #1407
-    this.stateConfirmButton = page.getByTestId('state-confirm-button');
+    // Warning banner (the dialog's lead) shown for paid/submitted deposits
+    this.deleteDepositWarning = this.deleteDepositModal.locator('[class*="warningBanner"]');
 
-    // State confirm date input
-    this.stateConfirmDateInput = page.locator('#state-confirm-date');
-
-    // Delete deposit modal contains h2 "Delete deposit"
-    this.deleteDepositModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2'),
-    });
-
-    // Warning banner inside delete deposit modal: [class*="warningBanner"]
-    this.deleteDepositWarning = page.locator('[class*="warningBanner"]');
-
-    // Cancel button in delete deposit modal — stable data-testid added in #1407
     this.deleteDepositCancelButton = page.getByTestId('deposit-delete-cancel');
-
-    // Delete deposit confirm button — stable data-testid added in #1407
     this.deleteDepositConfirmButton = page.getByTestId('deposit-delete-confirm');
 
     // Budget-source select in the add/edit deposit modal (Story #1891) — page-scoped for the
@@ -855,9 +841,11 @@ export class InvoiceDetailPage {
     this.editBudgetLineModal = page.getByRole('dialog', { name: 'Edit Budget Line' });
     this.editBudgetLineAmountInput = page.locator('#budget-line-amount');
 
-    // DeleteBudgetLineModal renders via the shared Modal component.
-    // Title: "Remove Budget Line" (i18n: budget:invoiceDetail.budgetLines.modal.removeTitle).
-    this.removeBudgetLineModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
+    // Remove-cost-line dialog: the shared ConfirmDialog (role="alertdialog", #2209),
+    // title "Remove this cost line from the invoice?", testid prefix invoice-line-remove.
+    this.removeBudgetLineModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('invoice-line-remove-cancel') });
 
     // ─── Full Edit + Parent Move locators (Issue #1553) ──────────────────────
     // These locators are scoped to the Edit Budget Line modal and work alongside
@@ -1288,21 +1276,42 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Confirms the "Mark paid" or "Mark claimed" state transition.
-   * The state confirm modal must already be open.
-   * Optionally updates the date input before confirming.
+   * The StatusMenu of a progress payment, resolved to the control that is visible in the
+   * current layout (table row on desktop/tablet, card on mobile - both are mounted, with
+   * test ids `deposit-status-<id>` and `deposit-status-mobile-<id>`).
+   * @param description Optional text identifying the deposit row/card; the first visible one otherwise.
    */
-  async confirmStateTransition(date?: string): Promise<void> {
-    if (date !== undefined) {
-      await this.stateConfirmDateInput.fill(date);
-    }
+  async depositStatusMenu(description?: string): Promise<StatusMenuControl> {
+    const rows = this.depositsSection.locator(
+      'tbody tr, [class*="mobileCard"]:not([class*="mobileCardList"])',
+    );
+    const scoped = description === undefined ? rows : rows.filter({ hasText: description });
+    const trigger = scoped.locator('[data-testid^="deposit-status-"]').visible().first();
+    await trigger.waitFor({ state: 'visible' });
+    const testId = await trigger.getAttribute('data-testid');
+    if (!testId) throw new Error('Deposit status control has no data-testid');
+    return new StatusMenuControl(this.page, testId);
+  }
+
+  /**
+   * Change a progress payment's status through its StatusMenu and wait for the PATCH.
+   * Forward moves ask for a date: pass 'today' or an ISO date. Reverse moves ("Back to ...")
+   * have no date step: omit `date`.
+   */
+  async changeDepositStatus(
+    to: 'pending' | 'paid' | 'claimed',
+    opts: { date?: 'today' | string; description?: string } = {},
+  ): Promise<void> {
+    const menu = await this.depositStatusMenu(opts.description);
     const responsePromise = this.page.waitForResponse(
       (resp) =>
         resp.url().includes('/deposits/') &&
         resp.request().method() === 'PATCH' &&
         resp.status() === 200,
     );
-    await this.stateConfirmButton.click();
+    if (opts.date === undefined) await menu.pickRow(to);
+    else if (opts.date === 'today') await menu.chooseToday(to);
+    else await menu.choosePickedDate(to, opts.date);
     await responsePromise;
   }
 

@@ -629,12 +629,8 @@ test.describe('Delete source', { tag: '@responsive' }, () => {
     await sourcesPage.openDeleteModal(sourceName);
     await expect(sourcesPage.deleteModal).toBeVisible();
 
-    // Modal title is "Delete Budget Source"
-    await expect(sourcesPage.deleteModalTitle).toHaveText('Delete Budget Source');
-
-    // Modal body mentions the source name
-    const modalText = await sourcesPage.deleteModal.textContent();
-    expect(modalText).toContain(sourceName);
+    // Dialog title asks "Delete <name>?" (names the source)
+    await expect(sourcesPage.deleteModalTitle).toHaveText(`Delete ${sourceName}?`);
 
     // Confirm deletion
     await sourcesPage.confirmDelete();

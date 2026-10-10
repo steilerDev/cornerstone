@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
@@ -20,6 +20,8 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
@@ -136,6 +138,9 @@ export function SubsidyProgramsPage() {
   const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('subsidy_program', deletingProgramId);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
 
   // Documents expansion state
   const [expandedDocsPrograms, setExpandedDocsPrograms] = useState<Set<string>>(() => new Set());
@@ -357,6 +362,7 @@ export function SubsidyProgramsPage() {
   const openDeleteConfirm = (programId: string) => {
     setDeletingProgramId(programId);
     setDeleteError('');
+    setDeleteBlocked(false);
     setSuccessMessage('');
   };
 
@@ -364,6 +370,7 @@ export function SubsidyProgramsPage() {
     if (!isDeleting) {
       setDeletingProgramId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -379,6 +386,7 @@ export function SubsidyProgramsPage() {
       setSuccessMessage(t('subsidies.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('subsidies.modal.deleteError'));
         } else {
@@ -432,6 +440,7 @@ export function SubsidyProgramsPage() {
       breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
+          ref={createButtonRef}
           type="button"
           className={styles.button}
           onClick={() => {
@@ -746,7 +755,7 @@ export function SubsidyProgramsPage() {
                   <form
                     onSubmit={handleUpdateProgram}
                     className={styles.editForm}
-                    aria-label={`Edit ${program.name}`}
+                    aria-label={t('subsidies.buttons.editAria', { name: program.name })}
                   >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
@@ -1162,18 +1171,18 @@ export function SubsidyProgramsPage() {
                         className={styles.editButton}
                         onClick={() => startEdit(program)}
                         disabled={!!editingProgram}
-                        aria-label={`Edit ${program.name}`}
+                        aria-label={t('subsidies.buttons.editAria', { name: program.name })}
                       >
-                        Edit
+                        {t('subsidies.buttons.edit')}
                       </button>
                       <button
                         type="button"
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(program.id)}
                         disabled={!!editingProgram}
-                        aria-label={`Delete ${program.name}`}
+                        aria-label={t('subsidies.buttons.deleteAria', { name: program.name })}
                       >
-                        Delete
+                        {t('subsidies.buttons.delete')}
                       </button>
                     </div>
                   </>
@@ -1194,55 +1203,24 @@ export function SubsidyProgramsPage() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingProgramId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('subsidies.modal.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('subsidies.modal.deleteConfirm', {
-                name: programs.find((p) => p.id === deletingProgramId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('subsidies.modal.deleteWarning')}</p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('subsidies.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteProgram(deletingProgramId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('subsidies.buttons.deleting') : t('subsidies.buttons.delete')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: programs.find((p) => p.id === deletingProgramId)?.name ?? '',
+          })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteProgram(deletingProgramId)}
+          onCancel={closeDeleteConfirm}
+          returnFocusRef={createButtonRef}
+          testIdPrefix="subsidy-delete"
+        />
       )}
     </PageLayout>
   );

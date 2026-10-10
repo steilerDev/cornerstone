@@ -986,7 +986,7 @@ describe('confirmDeleteBudgetLine', () => {
     expect(mockReloadBudgetLines).not.toHaveBeenCalled();
   });
 
-  it('resets deletingBudgetId to null on error', async () => {
+  it('keeps deletingBudgetId on error so the dialog stays open for retry', async () => {
     mockDeleteBudget.mockRejectedValueOnce({ statusCode: 409, message: 'Budget line in use' });
 
     const { result } = renderHook(() => useBudgetSection(makeOptions()));
@@ -1003,7 +1003,7 @@ describe('confirmDeleteBudgetLine', () => {
       }
     });
 
-    expect(result.current.deletingBudgetId).toBeNull();
+    expect(result.current.deletingBudgetId).toBe('bl-conflict');
   });
 
   it('rethrows the very same ApiClientError instance on 409 (no wrapping, no server text)', async () => {
@@ -1051,7 +1051,7 @@ describe('confirmDeleteBudgetLine', () => {
     });
 
     expect(thrownError).toBe(original);
-    expect(result.current.deletingBudgetId).toBeNull();
+    expect(result.current.deletingBudgetId).toBe('bl-to-delete');
   });
 });
 

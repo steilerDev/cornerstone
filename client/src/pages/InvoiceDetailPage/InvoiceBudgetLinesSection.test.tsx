@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 
@@ -1582,8 +1582,11 @@ describe('InvoiceBudgetLinesSection', () => {
         .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
-      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
-      expect(screen.getByRole('dialog', { name: /remove budget line/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeInTheDocument());
+      expect(
+        screen.getByRole('alertdialog', { name: /remove this cost line from the invoice/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-line-remove-cancel')).toHaveFocus();
     });
 
     it('confirming removal calls deleteInvoiceBudgetLine and removes the row', async () => {
@@ -1603,11 +1606,10 @@ describe('InvoiceBudgetLinesSection', () => {
         .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
-      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeInTheDocument());
 
       // Use an exact-match selector so we get the "Remove" confirm button, not the × close button
-      const dialog = screen.getByRole('dialog');
-      const removeConfirmBtn = within(dialog).getByRole('button', { name: /^Remove$/i });
+      const removeConfirmBtn = screen.getByTestId('invoice-line-remove-confirm');
 
       await act(async () => {
         fireEvent.click(removeConfirmBtn);
@@ -1632,15 +1634,12 @@ describe('InvoiceBudgetLinesSection', () => {
         .find((m) => m.textContent?.toLowerCase().includes('remove'))!;
       fireEvent.click(removeItem);
 
-      await waitFor(() => expect(screen.getByRole('dialog')).toBeInTheDocument());
+      await waitFor(() => expect(screen.getByRole('alertdialog')).toBeInTheDocument());
 
       // Find cancel button in the dialog
-      const cancelBtn = Array.from(screen.getByRole('dialog').querySelectorAll('button')).find(
-        (b) => b.textContent?.toLowerCase().includes('cancel'),
-      )!;
-      fireEvent.click(cancelBtn);
+      fireEvent.click(screen.getByTestId('invoice-line-remove-cancel'));
 
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       expect(mockDeleteInvoiceBudgetLine).not.toHaveBeenCalled();
     });
   });

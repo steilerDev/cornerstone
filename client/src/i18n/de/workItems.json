@@ -72,14 +72,6 @@
       "previousAriaLabel": "Vorherige Seite",
       "nextAriaLabel": "Nächste Seite"
     },
-    "deleteModal": {
-      "title": "Arbeitspaket löschen",
-      "confirmation": "Sind Sie sicher, dass Sie „{{title}}“ löschen möchten?",
-      "warning": "Dadurch werden auch alle zugehörigen Teilaufgaben, Abhängigkeiten und Kommentare gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
-      "cancel": "Abbrechen",
-      "deletingLabel": "Wird gelöscht...",
-      "deleteLabel": "Arbeitspaket löschen"
-    },
     "errors": {
       "loadFailed": "Arbeitspakete konnten nicht geladen werden. Bitte erneut versuchen.",
       "deleteFailed": "Arbeitspaket konnte nicht gelöscht werden. Bitte erneut versuchen."
@@ -251,43 +243,20 @@
       "deleteWorkItem": "Arbeitspaket löschen"
     },
     "modals": {
-      "deleteWorkItem": {
-        "title": "Arbeitspaket löschen?",
-        "text": "Sind Sie sicher, dass Sie „{{title}}“ löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "cancel": "Abbrechen",
-        "deleting": "Wird gelöscht...",
-        "delete": "Löschen"
-      },
       "deleteNote": {
-        "title": "Notiz löschen?",
-        "text": "Sind Sie sicher, dass Sie diese Notiz löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "cancel": "Abbrechen",
-        "delete": "Löschen"
-      },
-      "deleteSubtask": {
-        "title": "Teilaufgabe löschen?",
-        "text": "Sind Sie sicher, dass Sie diese Teilaufgabe löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "cancel": "Abbrechen",
-        "delete": "Löschen"
+        "title": "Diese Notiz löschen?"
       },
       "removeDependency": {
         "title": "Abhängigkeit entfernen?",
-        "textPredecessor": "Dieses Element wird nicht mehr von „{{title}}“ abhängen. Diese Aktion kann nicht rückgängig gemacht werden.",
-        "textSuccessor": "Dieses Element wird „{{title}}“ nicht mehr blockieren. Diese Aktion kann nicht rückgängig gemacht werden.",
-        "cancel": "Abbrechen",
-        "remove": "Entfernen"
-      },
-      "deleteBudgetLine": {
-        "title": "Budgetposition löschen?",
-        "text": "Sind Sie sicher, dass Sie diese Budgetposition löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "cancel": "Abbrechen",
-        "delete": "Löschen"
+        "textPredecessor": "Dieses Element hängt nicht mehr von „{{title}}“ ab.",
+        "textSuccessor": "Dieses Element blockiert „{{title}}“ nicht mehr.",
+        "remove": "Entfernen",
+        "removing": "Wird entfernt…"
       }
     },
     "inlineErrors": {
       "updateTitle": "Titel konnte nicht aktualisiert werden",
       "updateDescription": "Beschreibung konnte nicht aktualisiert werden",
-      "updateStatus": "Status konnte nicht aktualisiert werden",
       "updateAssignment": "Zuweisung konnte nicht aktualisiert werden",
       "updateArea": "Bereich konnte nicht aktualisiert werden",
       "updateDuration": "Dauer konnte nicht aktualisiert werden",

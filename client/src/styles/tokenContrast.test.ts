@@ -784,6 +784,11 @@ describe('phone and tablet shell rule pins (#2207)', () => {
       'components/calendar/CalendarMilestone.module.css',
       'components/calendar/CalendarHouseholdItem.module.css',
       'components/reports/ReportInvoiceList.module.css',
+      'components/StatusMenu/StatusMenu.module.css',
+      'components/ConfirmDialog/ConfirmDialog.module.css',
+      'components/Toast/Toast.module.css',
+      'components/Modal/Modal.module.css',
+      'components/Modal/AnchoredPanel.module.css',
     ]) {
       const full = path.join(srcDir, file);
       if (!fs.existsSync(full)) continue;
@@ -915,5 +920,158 @@ describe('rule scanner', () => {
     const { offenders, measured } = scanCss('y.css', css);
     expect(offenders).toEqual([]);
     expect(measured).toBe(2);
+  });
+});
+
+// ── Grammar foundations (#2209): StatusMenu, Toast, ConfirmDialog ─────────────
+
+describe('grammar foundations contrast (#2209)', () => {
+  it('light: success toast text on its background is at least 6.8:1', () => {
+    expect(
+      tokenRatio('light', '--color-success-text-on-light', '--color-toast-success-bg'),
+    ).toBeGreaterThanOrEqual(6.8);
+  });
+
+  it.each(['--color-bg-page', '--color-bg-primary'])(
+    'dark: success toast text on its translucent background composited over %s is at least 8.2:1',
+    (base) => {
+      const bg = compositeOver('dark', '--color-toast-success-bg', base);
+      expect(ratio(resolve('dark', '--color-success-text-on-light'), bg)).toBeGreaterThanOrEqual(
+        8.2,
+      );
+    },
+  );
+
+  it.each(['light', 'dark'] as const)(
+    '%s: muted text on the panel surface (--color-bg-primary) is at least 4.5:1',
+    (theme) => {
+      expect(tokenRatio(theme, '--color-text-muted', '--color-bg-primary')).toBeGreaterThanOrEqual(
+        4.5,
+      );
+    },
+  );
+});
+
+describe('grammar foundations rule pins (#2209)', () => {
+  const statusMenu = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+
+  it('StatusMenu .chip:focus-visible draws the two-ring form (page ring, then the focus colour)', () => {
+    const decls = ruleFor(statusMenu, '.chip:focus-visible');
+    expect(decls.get('outline')).toBe('none');
+    const shadow = decls.get('box-shadow') ?? '';
+    const rings = shadow.split(',').map((r) => r.trim().replace(/\s+/g, ' '));
+    expect(rings).toEqual([
+      '0 0 0 2px var(--color-bg-primary)',
+      '0 0 0 4px var(--color-border-focus)',
+    ]);
+  });
+
+  it('StatusMenu .chip::before grows the hit area with spacing tokens, never literals', () => {
+    const decls = ruleFor(statusMenu, '.chip::before');
+    expect(decls.get('position')).toBe('absolute');
+    expect(decls.get('inset')).toBe('calc(-1 * var(--spacing-3)) calc(-1 * var(--spacing-2))');
+    expect(decls.get('inset')).not.toMatch(/\d+(px|rem)/);
+  });
+
+  it('StatusMenu draws no hover ring on a busy (aria-disabled) chip', () => {
+    const css = stripComments(
+      fs.readFileSync(
+        path.join(srcDir, 'components', 'StatusMenu', 'StatusMenu.module.css'),
+        'utf8',
+      ),
+    );
+    expect(css).toMatch(/\.chip:hover:not\(\[aria-disabled='true'\]\)/);
+  });
+
+  it('Toast .dismiss and Modal .closeButton grow to --touch-target-min at <=1023px', () => {
+    for (const [file, selector] of [
+      ['Toast/Toast.module.css', '.dismiss'],
+      ['Modal/Modal.module.css', '.closeButton'],
+    ] as const) {
+      const css = stripComments(
+        fs.readFileSync(path.join(srcDir, 'components', ...file.split('/')), 'utf8'),
+      );
+      const media = /@media\s*\(max-width:\s*1023px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+      expect(media).not.toBeNull();
+      const decls = ruleFor(parseRules(media?.[1] ?? ''), selector);
+      expect(decls.get('min-width')).toBe('var(--touch-target-min)');
+      expect(decls.get('min-height')).toBe('var(--touch-target-min)');
+    }
+  });
+
+  it('Toast slides in with --transition-medium and turns the animation off for reduced motion', () => {
+    const css = stripComments(
+      fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
+    );
+    expect(ruleFor(parseRules(css), '.toast').get('animation')).toBe(
+      'slideIn var(--transition-medium) forwards',
+    );
+    const reduced = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(reduced).not.toBeNull();
+    expect(ruleFor(parseRules(reduced?.[1] ?? ''), '.toast').get('animation')).toBe('none');
+  });
+
+  it('Toast is hidden in print', () => {
+    const css = stripComments(
+      fs.readFileSync(path.join(srcDir, 'components', 'Toast', 'Toast.module.css'), 'utf8'),
+    );
+    const print = /@media\s+print\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(print).not.toBeNull();
+    expect(ruleFor(parseRules(print?.[1] ?? ''), '.container').get('display')).toBe('none');
+  });
+
+  it('ConfirmDialog footer stacks (column) and its buttons go full width at 639px', () => {
+    const css = stripComments(
+      fs.readFileSync(
+        path.join(srcDir, 'components', 'ConfirmDialog', 'ConfirmDialog.module.css'),
+        'utf8',
+      ),
+    );
+    const media = /@media\s*\(max-width:\s*639px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+    expect(media).not.toBeNull();
+    const rules = parseRules(media?.[1] ?? '');
+    expect(ruleFor(rules, '.footer').get('flex-direction')).toBe('column');
+    expect(ruleFor(rules, '.cancelButton').get('width')).toBe('100%');
+    expect(ruleFor(rules, '.cancelButton').get('min-height')).toBe('var(--touch-target-min)');
+  });
+
+  describe('busy (aria-disabled) controls keep their resting colour on hover', () => {
+    const confirm = readCss('components', 'ConfirmDialog', 'ConfirmDialog.module.css');
+    const status = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+    const bg = (decls: Map<string, string>) =>
+      decls.get('background-color') ?? decls.get('background');
+
+    it("ConfirmDialog button.confirmButton[aria-disabled='true']:hover stays on --color-danger-bg", () => {
+      expect(bg(ruleFor(confirm, "button.confirmButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-danger-bg)',
+      );
+    });
+
+    it("ConfirmDialog button.cancelButton[aria-disabled='true']:hover stays on --color-bg-tertiary", () => {
+      expect(bg(ruleFor(confirm, "button.cancelButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-bg-tertiary)',
+      );
+    });
+
+    it("StatusMenu button.plainButton[aria-disabled='true']:hover stays on --color-bg-tertiary", () => {
+      expect(bg(ruleFor(status, "button.plainButton[aria-disabled='true']:hover"))).toBe(
+        'var(--color-bg-tertiary)',
+      );
+    });
+
+    it('the pinned tokens exist in both themes', () => {
+      for (const theme of ['light', 'dark'] as const) {
+        expect(tokens[theme].has('--color-danger-bg')).toBe(true);
+        expect(tokens[theme].has('--color-bg-tertiary')).toBe(true);
+      }
+    });
+  });
+
+  it('ConfirmDialog footer is a right-aligned row above 639px', () => {
+    const decls = ruleFor(
+      readCss('components', 'ConfirmDialog', 'ConfirmDialog.module.css').slice(0, 20),
+      '.footer',
+    );
+    expect(decls.get('justify-content')).toBe('flex-end');
   });
 });

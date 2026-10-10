@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as subsidyProgramService from '../services/subsidyProgramService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import type { CreateSubsidyProgramRequest, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
 
 // JSON schema for POST /api/subsidy-programs (create program)
@@ -23,6 +24,7 @@ const createSubsidyProgramSchema = {
       maximumAmount: { type: ['number', 'null'], exclusiveMinimum: 0 },
       categoryIds: {
         type: 'array',
+        uniqueItems: true,
         items: { type: 'string' },
       },
       includesNoCategoryItems: { type: 'boolean' },
@@ -50,6 +52,7 @@ const updateSubsidyProgramSchema = {
       maximumAmount: { type: ['number', 'null'], exclusiveMinimum: 0 },
       categoryIds: {
         type: 'array',
+        uniqueItems: true,
         items: { type: 'string' },
       },
       includesNoCategoryItems: { type: 'boolean' },
@@ -148,13 +151,21 @@ export default async function subsidyProgramRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const subsidyProgram = subsidyProgramService.updateSubsidyProgram(
+      const userId = request.user.id;
+      const { result: subsidyProgram, undo } = runUndoable(
         fastify.db,
-        request.params.id,
-        request.body,
-        fastify.config.diaryAutoEvents,
+        undoStore,
+        { userId, subject: { type: 'subsidy_program', id: request.params.id }, reschedules: false },
+        () =>
+          subsidyProgramService.updateSubsidyProgram(
+            fastify.db,
+            request.params.id,
+            request.body,
+            fastify.config.diaryAutoEvents,
+            userId,
+          ),
       );
-      return reply.status(200).send({ subsidyProgram });
+      return reply.status(200).send(undo ? { subsidyProgram, undo } : { subsidyProgram });
     },
   );
 

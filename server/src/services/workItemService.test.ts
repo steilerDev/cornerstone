@@ -1701,6 +1701,68 @@ describe('Work Item Service', () => {
       expect(updated.actualEndDate).toBe(today);
     });
 
+    it('#2209 D7: not_started → completed with an explicit past actualEndDate defaults actualStartDate to that end date', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'completed',
+        actualEndDate: '2026-08-07',
+      });
+
+      expect(updated.actualEndDate).toBe('2026-08-07');
+      expect(updated.actualStartDate).toBe('2026-08-07');
+    });
+
+    it('#2209 D7: a stored actualEndDate is the default for the missing actual start', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+        actualEndDate: '2026-03-08',
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, { status: 'completed' });
+
+      expect(updated.actualEndDate).toBe('2026-03-08');
+      expect(updated.actualStartDate).toBe('2026-03-08');
+    });
+
+    it('#2209 D7: an explicit actualStartDate wins over the end-date default', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'completed',
+        actualStartDate: '2026-08-01',
+        actualEndDate: '2026-08-07',
+      });
+
+      expect(updated.actualStartDate).toBe('2026-08-01');
+      expect(updated.actualEndDate).toBe('2026-08-07');
+    });
+
+    it('#2209 D7: the actual start never ends up after the actual end', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Foundation Work',
+        status: 'not_started',
+      });
+
+      const updated = workItemService.updateWorkItem(db, workItem.id, {
+        status: 'completed',
+        actualEndDate: '2020-01-02',
+      });
+
+      expect(updated.actualStartDate! <= updated.actualEndDate!).toBe(true);
+    });
+
     it('does NOT overwrite existing actualStartDate on not_started → in_progress transition', () => {
       // Given: A not_started work item with an existing actualStartDate
       const userId = createTestUser('user@example.com', 'Test User');

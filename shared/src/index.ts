@@ -540,3 +540,43 @@ export type {
   RouteStage,
   ServedRouteId,
 } from './routes/index.js';
+
+// Undo snapshots (story 1.3)
+export { UNDO_WINDOW_MS, UNDO_SUBJECT_TYPES } from './types/undo.js';
+export type { UndoSubjectType, UndoToken, UndoRow, UndoResponse, WithUndo } from './types/undo.js';
+
+// Delete impact (story 1.3)
+export { DELETE_IMPACT_ENTITY_TYPES, DELETE_IMPACT_KINDS } from './types/deleteImpact.js';
+export type {
+  DeleteImpactEntityType,
+  DeleteImpactKind,
+  DeleteImpactEffect,
+  DeleteImpactResponse,
+} from './types/deleteImpact.js';
+
+// Status transition maps (story 1.3)
+export {
+  TASK_STATUS_ACTIONS,
+  PURCHASE_STATUS_ACTIONS,
+  MILESTONE_COMPLETION_STATES,
+  MILESTONE_STATUS_ACTIONS,
+  INVOICE_STATUS_ACTIONS,
+  PROGRESS_PAYMENT_STATUS_ACTIONS,
+  TASK_TRANSITIONS,
+  PURCHASE_TRANSITIONS,
+  MILESTONE_TRANSITIONS,
+  INVOICE_TRANSITIONS,
+  PROGRESS_PAYMENT_TRANSITIONS,
+  transitionsFrom,
+  allowedTargets,
+} from './lib/statusTransitions.js';
+export type {
+  TaskStatusAction,
+  PurchaseStatusAction,
+  MilestoneCompletionState,
+  MilestoneStatusAction,
+  InvoiceStatusAction,
+  ProgressPaymentStatusAction,
+  StatusTransition,
+  StatusTransitionMap,
+} from './lib/statusTransitions.js';

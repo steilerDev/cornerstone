@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as householdItemService from '../services/householdItemService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
   CreateHouseholdItemRequest,
@@ -244,14 +245,14 @@ export default async function householdItemRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const data = request.body as UpdateHouseholdItemRequest;
 
-    const householdItem = householdItemService.updateHouseholdItem(
+    const { result: householdItem, undo } = runUndoable(
       fastify.db,
-      id,
-      data,
-      fastify.config.vatRate,
+      undoStore,
+      { userId: request.user.id, subject: { type: 'household_item', id }, reschedules: true },
+      () => householdItemService.updateHouseholdItem(fastify.db, id, data, fastify.config.vatRate),
     );
 
-    return reply.status(200).send({ householdItem });
+    return reply.status(200).send(undo ? { householdItem, undo } : { householdItem });
   });
 
   /**

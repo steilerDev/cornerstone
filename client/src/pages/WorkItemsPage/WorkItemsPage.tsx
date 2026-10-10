@@ -8,7 +8,9 @@ import type { ColumnDef, TableState } from '../../components/DataTable/DataTable
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
 import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
@@ -57,6 +59,8 @@ export function WorkItemsPage() {
   const [deletingItem, setDeletingItem] = useState<WorkItemSummary | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact('work_item', deletingItem?.id ?? null);
 
   // Actions menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
@@ -168,6 +172,7 @@ export function WorkItemsPage() {
   const openDeleteConfirm = (item: WorkItemSummary) => {
     setDeletingItem(item);
     setDeleteError('');
+    setDeleteBlocked(false);
   };
 
   const closeDeleteConfirm = () => {
@@ -185,10 +190,12 @@ export function WorkItemsPage() {
 
     try {
       await deleteWorkItem(deletingItem.id);
+      focusPageHeading();
       setDeletingItem(null);
       await loadWorkItems();
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setDeleteError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
         setDeleteError(tCommon('requestErrors.network'));
@@ -465,45 +472,21 @@ export function WorkItemsPage() {
         }}
       />
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingItem && (
-        <Modal
-          title={t('list.deleteModal.title')}
-          onClose={closeDeleteConfirm}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('list.deleteModal.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={sharedStyles.btnConfirmDelete}
-                  onClick={() => void confirmDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting
-                    ? t('list.deleteModal.deletingLabel')
-                    : t('list.deleteModal.deleteLabel')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <p>{t('list.deleteModal.confirmation', { title: deletingItem.title })}</p>
-          {deleteError ? (
-            <div className={styles.errorBanner} role="alert">
-              {deleteError}
-            </div>
-          ) : (
-            <p className={styles.modalWarning}>{t('list.deleteModal.warning')}</p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: deletingItem.title })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          blocked={deleteBlocked}
+          onConfirm={() => void confirmDelete()}
+          onCancel={closeDeleteConfirm}
+          testIdPrefix="work-item-list-delete"
+        />
       )}
 
       {/* Keyboard shortcuts help */}

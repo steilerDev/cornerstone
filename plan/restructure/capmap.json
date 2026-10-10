@@ -111,7 +111,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > row ⋯ > Delete (modal listing consequences)",
     "change": "same",
     "gate": "none",
-    "note": "One delete rule for list and detail (PAT-03)."
+    "note": "One delete rule for list and detail (PAT-03). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts)."
   },
   "WRK-016": {
     "name": "See each work item's location as an area breadcrumb (House > Ground Floor > Kitchen)",
@@ -201,7 +201,7 @@
     "to": "Tasks > Task page > header StatusMenu + primary 'Start' / 'Mark done' (date prompt: Today · planned date · Pick); Tasks > Tasks list > row command; Home > Needs attention > inline 'Start' / 'Mark done'",
     "change": "promoted",
     "gate": "none",
-    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
+    "note": "Status changeable from Home rows (J08). List rows carry a status quick action (Start / Mark done, Evolve graft) and multi-select 'Set status' changes several tasks at once (capability-judge blind spot 1). Every status change shows a 6-second Undo that restores the snapshot (actual dates) and writes no events for A-B-A (delivery-judge blind spot 3). The date prompt offers the planned date because the server stamps today otherwise (actualStartDate / actualEndDate), which is wrong for work that ended earlier (R-M4). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2209: Tasks › Task page › header StatusMenu chip (Start / Mark done with date chips; Back to “…”); the status select is removed."
   },
   "WRK-027": {
     "name": "Edit a work item's description inline",
@@ -302,7 +302,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > note ⋯ (1) > Edit / Delete (2)",
-    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable."
+    "note": "Tucked away at most 2 clicks from its object in Tasks, because real use is zero or near zero (USE §5); still reachable. #2209: Tasks › Task page › Notes › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
   },
   "WRK-038": {
     "name": "Add a subtask (checklist item) to a work item",
@@ -352,7 +352,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Task page (Overview) > checklist item ⋯ (1) > Delete (2)",
-    "note": "Sub-record removal uses Undo instead of a modal."
+    "note": "Sub-record removal uses Undo instead of a modal. #2209: Tasks › Task page › Subtasks › Delete (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
   },
   "WRK-043": {
     "name": "See a work item's predecessors and successors as plain-language sentences",
@@ -378,7 +378,7 @@
     "to": "Tasks > Task page > Timing tab > dependency row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Task page › Dependencies › Remove (ConfirmDialog, no list; becomes an Undo toast when snapshots exist)."
   },
   "WRK-046": {
     "name": "Gate a work item on milestones (\"Required Milestones\")",
@@ -436,7 +436,7 @@
     "to": "Tasks > Task page > header ⋯ > Delete (modal with consequences); key Del",
     "change": "same",
     "gate": "none",
-    "note": "Moved from page footer to the header ⋯ menu (one delete placement)."
+    "note": "Moved from page footer to the header ⋯ menu (one delete placement). #2209: Tasks › Tasks list › row Delete; Task page › Delete (ConfirmDialog with counts)."
   },
   "WRK-069": {
     "name": "Use keyboard shortcuts on list pages and open the shortcut help overlay",
@@ -516,7 +516,7 @@
     "to": "Tasks > Milestones > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestones › row Delete (ConfirmDialog with counts)."
   },
   "WRK-079": {
     "name": "Start creating a milestone from any of five entry points",
@@ -566,7 +566,7 @@
     "to": "Tasks > Milestone page > primary 'Mark reached' (date prompt: Today · target date · Pick) / StatusMenu > Reopen",
     "change": "promoted",
     "gate": "none",
-    "note": "No longer hidden behind Edit + checkbox (P21)."
+    "note": "No longer hidden behind Edit + checkbox (P21). #2209: Tasks › Milestone page › header StatusMenu chip (Mark reached with date chips; Back to “Upcoming”); the Edit-form checkbox is removed."
   },
   "WRK-085": {
     "name": "Link contributing work items to a milestone",
@@ -614,7 +614,7 @@
     "to": "Tasks > Milestone page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (rare use). #2209: Tasks › Milestone page › Delete (ConfirmDialog with counts)."
   },
   "WRK-091": {
     "name": "Return to the milestone list or the schedule from a milestone",
@@ -1064,7 +1064,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Funding sources › Delete (ConfirmDialog with counts)."
   },
   "MNY-029": {
     "name": "Park not-yet-allocated costs on the built-in Discretionary Funding source",
@@ -1160,7 +1160,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Money › Financing › Grants › Delete (ConfirmDialog with counts)."
   },
   "MNY-041": {
     "name": "Scope a subsidy program to budget categories (incl. 'No Category', select/deselect all)",
@@ -1461,7 +1461,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > Save / Cancel (discard modal)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2209: Money › Split with AI page › Cancel with changes → ConfirmDialog “Discard changes?”."
   },
   "MNY-081": {
     "name": "View an invoice's details",
@@ -1486,7 +1486,7 @@
     "change": "promoted",
     "gate": "none",
     "decision": "Q3",
-    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Real history: 45 one-by-one Pending -> Paid changes. A paid date for invoices is data-model item O5 (recommended out), so no date is asked that cannot be stored (R-M3). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › header StatusMenu chip (Mark paid, no date step; Back to “To pay”); Submitted and Offer stay plain badges; the Edit modal keeps its Status select until 4.11 / the offers story."
   },
   "MNY-084": {
     "name": "Delete an invoice",
@@ -1494,7 +1494,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Delete (modal); Companies > Company page > Payments tab > row ⋯ > Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history. #2209: Money › Invoice page › Delete; Companies › Company page › Invoices row › Delete (ConfirmDialog with counts)."
   },
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
@@ -1570,7 +1570,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress-payment StatusMenu (To pay > Paid > Submitted) with date prompt (progress payments store paid and submitted dates)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”)."
   },
   "MNY-094": {
     "name": "Revert a deposit status (claimed to paid, paid to pending)",
@@ -1578,7 +1578,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > progress payment StatusMenu > back transitions",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2195: status chip, select and filter read the canonical invoice words (To pay / Paid / Submitted / Offer), coloured per section 7.3 through the shared Badge map (D-07). #2209: Money › Invoice page › Progress payments › row StatusMenu chip (Mark paid / Mark submitted with Today · Pick; Back to “…”)."
   },
   "MNY-095": {
     "name": "Edit or delete a deposit",
@@ -1586,7 +1586,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > row ⋯ > Edit / Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › Progress payments › row ⋯ › Delete (ConfirmDialog)."
   },
   "MNY-096": {
     "name": "See an invoice's itemized budget lines and the unallocated remainder",
@@ -1634,7 +1634,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > row ⋯ > Remove from invoice (Undo); Task / Purchase page > Cost tab > row ⋯ > Unlink",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › cost line › Remove from invoice (ConfirmDialog)."
   },
   "MNY-102": {
     "name": "Assign an unassigned (orphan) invoice line to a work item or household item",
@@ -1698,7 +1698,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Edit (Cost line dialog) / Delete (Undo)",
     "change": "same",
     "gate": "none",
-    "note": "One confirm rule (no double confirmation, PAT-03)."
+    "note": "One confirm rule (no double confirmation, PAT-03). #2209: Tasks › Task page and Purchases › Purchase page › Budget › cost line Delete (ConfirmDialog; the inline Confirm/Cancel swap and the double confirmation are removed)."
   },
   "MNY-112": {
     "name": "Move an un-invoiced budget line to another item of the same type (work item to work item, household item to household item)",
@@ -1910,7 +1910,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Companies › Company page › Delete; Companies › Companies list › row Delete (ConfirmDialog with counts)."
   },
   "MNY-139": {
     "name": "See a vendor's invoice count and outstanding balance",
@@ -1946,7 +1946,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Contact persons on the first screen (WALK 8b)."
+    "note": "Contact persons on the first screen (WALK 8b). #2209: Companies › Company page › Contact persons › Delete (ConfirmDialog, replaces window.confirm)."
   },
   "MNY-146": {
     "name": "Configure currency and VAT rate for all money formatting and VAT gross-up",
@@ -2122,7 +2122,7 @@
     "to": "Purchases > Purchases list > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts)."
   },
   "HHI-032": {
     "name": "Create a household item with a name and description",
@@ -2219,7 +2219,7 @@
     "to": "Purchases > Purchase page > header (breadcrumb 'Purchases', h1, StatusMenu; category and area in the summary strip)",
     "change": "same",
     "gate": "none",
-    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1."
+    "note": "Status shown once (VRD-14). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2196: category chip renders only when a display name resolves. #2202: breadcrumb \"Purchases\" above the h1. #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed."
   },
   "HHI-043": {
     "name": "Return to where you came from (household list or schedule) from the detail page",
@@ -2277,7 +2277,7 @@
     "to": "Purchases > Purchase page > header StatusMenu + primary by state: 'Mark ordered' (Planned) / 'Mark delivered' (Ordered or Delivery scheduled; date prompt)",
     "change": "promoted",
     "gate": "none",
-    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
+    "note": "Made more visible in Purchases because it serves a frequent job (weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2209: Purchases › Purchase page › header StatusMenu chip; the Purchase status select in Dates & Delivery is removed."
   },
   "HHI-050": {
     "name": "Automatically record today as the actual delivery date when an item is marked Arrived",
@@ -2387,7 +2387,7 @@
     "to": "Purchases > Purchase page > Timing tab > row ⋯ > Remove (Undo toast)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (rare use). #2209: Purchases › Purchase page › Dependencies › Remove (ConfirmDialog replaces the inline Confirm/Cancel swap)."
   },
   "HHI-063": {
     "name": "Automatically recompute delivery target dates and late flags when the schedule changes",
@@ -2439,7 +2439,7 @@
     "to": "Purchases > Purchase page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop."
+    "note": "Dialog bug fixed (D-09). #2196: delete dialog now uses the shared Modal, drawn above its backdrop. #2209: Purchases › Purchases list › row Delete; Purchase page › Delete (ConfirmDialog with counts)."
   },
   "HHI-094": {
     "name": "View the household item categories with colour and sort order",
@@ -2578,7 +2578,7 @@
     "to": "Site diary > Capture (/diary/new, /diary/:id/edit) > ⋯ > Discard entry (modal 'Discard this entry?')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry edit (draft) › Discard draft → ConfirmDialog “Discard this entry?”."
   },
   "JRN-017": {
     "name": "Resume an unfinished draft later from the diary list",
@@ -2730,7 +2730,7 @@
     "to": "Site diary > Entry page > header ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2209: Site diary › entry page / entry edit › Delete (ConfirmDialog with counts)."
   },
   "JRN-034": {
     "name": "Log work-item status changes to the diary automatically",
@@ -2748,7 +2748,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Invoice / Offer page > History tab and Funding source page > History tab show invoice and report events; History page lists them.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): A→B→A inside the Undo window writes no event (ADR-040 W1/W3)."
   },
   "JRN-036": {
     "name": "Log projected milestone delays automatically",
@@ -2766,7 +2766,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Grant page > History tab shows status events.",
-    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history)."
+    "note": "De-duplicated at write time (one event per real state change, no no-op events), written with parameters in `metadata` so texts render in the UI language; the 387 legacy rows are backfilled by a migration (ADR in /epic-start). Also listed on the History page (/history). #2209: System (no UI): Undo retracts the events of the undone change (ADR-040 W4)."
   },
   "JRN-038": {
     "name": "Turn automatic diary events on or off for the whole instance",
@@ -2883,7 +2883,7 @@
     "to": "Photo viewer (shared: entry page, spot viewer, Site diary tabs) > ⋯ > Delete photo (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (monthly use). #2209: Photo viewer › Delete photo (ConfirmDialog)."
   },
   "JRN-053": {
     "name": "Open the annotation editor on a photo",
@@ -2983,7 +2983,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Photo viewer > ⋯ (1) > Clear annotations (2)",
-    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Photo viewer; only the shared page template, the words and the navigation around it change (rare use). #2209: Photo viewer › Remove all markup (ConfirmDialog)."
   },
   "JRN-063": {
     "name": "Browse all diary photos as an area × orientation \"spots\" matrix",
@@ -3145,7 +3145,7 @@
     "to": "Documents panel (Paperless only; opened from the summary fact \"Documents\") > document card ⋯ > Unlink (Undo toast)",
     "change": "same",
     "gate": "paperless",
-    "note": "Kept as it works today, inside Document card ⋯; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Document card ⋯; only the shared page template, the words and the navigation around it change (monthly use). #2209: Linked Documents section › Unlink (ConfirmDialog; becomes an Undo toast when a snapshot exists)."
   },
   "JRN-084": {
     "name": "Classify an invoice document as quotation, deposit or invoice",
@@ -3545,7 +3545,7 @@
     "to": "Settings > Account > Calendar & contacts sync > Revoke (modal instead of window.confirm)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Account › Calendar & contacts sync › Revoke (ConfirmDialog, replaces window.confirm)."
   },
   "PLT-043": {
     "name": "Download an iOS/macOS configuration profile that sets up calendar and contacts sync",
@@ -3868,7 +3868,7 @@
     "to": "Settings > Users (admin only) > row ⋯ > Deactivate (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Users › Deactivate (ConfirmDialog, no list)."
   },
   "PLT-082": {
     "name": "See how each user signs in (Local, Local + OIDC, OIDC, OIDC awaiting first sign-in)",
@@ -3916,7 +3916,7 @@
     "to": "Settings > Backups (admin only) > row ⋯ > Restore (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Backups › Restore (ConfirmDialog, no list)."
   },
   "PLT-088": {
     "name": "Delete a backup archive",
@@ -3924,7 +3924,7 @@
     "to": "Settings > Backups (admin only) > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Backups › Delete (ConfirmDialog, no list)."
   },
   "PLT-089": {
     "name": "Keep only the newest N backups automatically",
@@ -4002,7 +4002,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page ⋯ > Delete with consequences modal.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos)."
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts)."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
@@ -4026,7 +4026,7 @@
     "to": "Companies > Trades sheet (list with company counts; New, Rename, Merge, Delete) — Settings > Project setup keeps a pointer row (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog)."
   },
   "PLT-101": {
     "name": "See predefined trades and categories in the interface language",
@@ -4058,7 +4058,7 @@
     "to": "Settings > Project setup > Photo orientations > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Photo orientations › row Delete (ConfirmDialog with counts)."
   },
   "PLT-105": {
     "name": "Create a budget category with colour, sort order and description",
@@ -4082,7 +4082,7 @@
     "to": "Settings > Project setup > Cost categories > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Cost categories › row Delete (ConfirmDialog)."
   },
   "PLT-108": {
     "name": "Create a household-item category with colour and sort order",
@@ -4106,7 +4106,7 @@
     "to": "Settings > Project setup > Purchase categories > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Purchase categories › row Delete (ConfirmDialog)."
   },
   "PLT-111": {
     "name": "Control the order of areas, trades, orientations and categories with a sort number",
@@ -4146,7 +4146,7 @@
     "to": "Global > toasts (with Undo for unlinks and state changes)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2209: Global › toasts (UndoToast, Ctrl/⌘ Z); server snapshot Undo via POST /api/undo/:token."
   },
   "PLT-117": {
     "name": "Monitor instance liveness and readiness (container health checks)",

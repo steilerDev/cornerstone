@@ -58,7 +58,7 @@ export class MilestonesPage {
   // Error banner (DataTable renders this when load fails)
   readonly errorBanner: Locator;
 
-  // Delete confirmation modal (shared Modal component, role="dialog")
+  // Delete confirmation (shared ConfirmDialog, role="alertdialog")
   readonly deleteModal: Locator;
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
@@ -91,16 +91,13 @@ export class MilestonesPage {
     // Error banner from DataTable
     this.errorBanner = page.locator('[role="alert"]');
 
-    // Delete confirmation modal: the shared Modal component renders role="dialog"
-    // The modal title = "Delete Milestone" (t('milestones.delete.confirm'))
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Milestone' });
-    // Confirm button uses sharedStyles.btnConfirmDelete (class hashed by CSS Modules)
-    this.deleteConfirmButton = this.deleteModal.locator('[class*="btnConfirmDelete"]');
-    // Cancel button uses sharedStyles.btnSecondary, text "Cancel"
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209),
+    // title "Delete <title>?", action "Delete", testid prefix milestone-list-delete
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('milestone-list-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('milestone-list-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('milestone-list-delete-cancel');
   }
 
   /**

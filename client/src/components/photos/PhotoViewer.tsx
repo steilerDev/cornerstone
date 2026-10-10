@@ -4,7 +4,9 @@ import { useTranslation } from 'react-i18next';
 import type { Photo } from '@cornerstone/shared';
 import { PhotoAnnotator } from './PhotoAnnotator/PhotoAnnotator.js';
 import { PhotoMetadataSidepanel } from './PhotoMetadataSidepanel.js';
-import { Modal } from '../Modal/Modal.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import { translateApiError } from '../../lib/errorTranslation.js';
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { clearAnnotation } from '../../lib/photoApi.js';
 import styles from './PhotoViewer.module.css';
 
@@ -15,7 +17,8 @@ export interface PhotoViewerProps {
   onPhotoChanged?: (photo: Photo) => void;
   editable?: boolean;
   startInAnnotator?: boolean;
-  onDelete?: (photoId: string) => void;
+  /** Rejects when the delete fails; the viewer then stays open with the error. */
+  onDelete?: (photoId: string) => void | Promise<void>;
 }
 
 export function PhotoViewer({
@@ -28,6 +31,7 @@ export function PhotoViewer({
   onDelete,
 }: PhotoViewerProps) {
   const { t } = useTranslation(['photoViewer', 'common']);
+  const { t: tErrors } = useTranslation('errors');
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isAnnotating, setIsAnnotating] = useState(startInAnnotator && editable);
@@ -36,6 +40,7 @@ export function PhotoViewer({
   const [isClearingAnnotation, setIsClearingAnnotation] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeletingPhoto, setIsDeletingPhoto] = useState(false);
+  const [deletePhotoError, setDeletePhotoError] = useState<string | null>(null);
   const [currentPhoto, setCurrentPhoto] = useState(photos[initialIndex]!);
 
   const previousFocusRef = useRef<HTMLElement | null>(null);
@@ -64,6 +69,9 @@ export function PhotoViewer({
   // Handle keyboard navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // A confirmation dialog owns the keyboard (Escape cancels it, not the viewer)
+      if (showClearConfirm || showDeleteConfirm) return;
+
       // When annotating, Escape cancels the annotator (does NOT close the viewer)
       if (isAnnotating && e.key === 'Escape') {
         e.preventDefault();
@@ -96,7 +104,7 @@ export function PhotoViewer({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [photos.length, onClose, isAnnotating]);
+  }, [photos.length, onClose, isAnnotating, showClearConfirm, showDeleteConfirm]);
 
   const handlePrevious = useCallback(() => {
     setCurrentIndex((prev) => (prev > 0 ? prev - 1 : photos.length - 1));
@@ -159,17 +167,21 @@ export function PhotoViewer({
   const handleDeletePhoto = useCallback(async () => {
     if (!onDelete) return;
     setIsDeletingPhoto(true);
+    setDeletePhotoError(null);
     try {
-      onDelete(currentPhoto.id);
-      // Close the viewer after deletion
+      await onDelete(currentPhoto.id);
+      // Close the viewer only after the delete succeeded
       onClose();
     } catch (err) {
-      // Error handling — could show a toast here
-      console.error('Failed to delete photo:', err);
+      setDeletePhotoError(
+        err instanceof ApiClientError
+          ? translateApiError(err.error.code, tErrors)
+          : t('photoViewer:deleteFailed'),
+      );
     } finally {
       setIsDeletingPhoto(false);
     }
-  }, [currentPhoto.id, onDelete, onClose]);
+  }, [currentPhoto.id, onDelete, onClose, t, tErrors]);
 
   const buildPhotoUrl = (photo: Photo, showOriginal: boolean): string => {
     if (showOriginal) {
@@ -308,7 +320,10 @@ export function PhotoViewer({
                   className={styles.iconButtonDanger}
                   aria-label={t('photoViewer:delete')}
                   data-testid="photo-viewer-delete"
-                  onClick={() => setShowDeleteConfirm(true)}
+                  onClick={() => {
+                    setDeletePhotoError(null);
+                    setShowDeleteConfirm(true);
+                  }}
                 >
                   <TrashIcon />
                 </button>
@@ -321,74 +336,40 @@ export function PhotoViewer({
           </div>
         </div>
 
-        {/* Clear Annotations confirmation modal */}
+        {/* Clear Annotations confirmation */}
         {showClearConfirm && (
-          <Modal
+          <ConfirmDialog
             title={t('photoViewer:clearConfirmTitle')}
-            onClose={() => {
-              setShowClearConfirm(false);
-              clearBtnRef.current?.focus();
-            }}
-            footer={
-              <>
-                <button
-                  type="button"
-                  className={styles.modalButtonSecondary}
-                  onClick={() => {
-                    setShowClearConfirm(false);
-                    clearBtnRef.current?.focus();
-                  }}
-                >
-                  {t('common:button.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.modalButtonDanger}
-                  onClick={handleClearAnnotation}
-                  disabled={isClearingAnnotation}
-                >
-                  {t('photoViewer:clearConfirmAction')}
-                </button>
-              </>
-            }
-          >
-            <p>{t('photoViewer:clearConfirmBody')}</p>
-          </Modal>
+            lead={t('photoViewer:clearConfirmBody')}
+            irreversible
+            confirmLabel={t('photoViewer:clearConfirmAction')}
+            busyLabel={t('photoViewer:clearing')}
+            busy={isClearingAnnotation}
+            onConfirm={() => void handleClearAnnotation()}
+            onCancel={() => setShowClearConfirm(false)}
+            returnFocusRef={clearBtnRef}
+            testIdPrefix="photo-markup-clear"
+          />
         )}
 
-        {/* Delete Photo confirmation modal */}
+        {/* Delete Photo confirmation */}
         {showDeleteConfirm && (
-          <Modal
+          <ConfirmDialog
             title={t('photoViewer:deleteConfirmTitle')}
-            onClose={() => {
+            lead={t('photoViewer:deleteConfirmBody')}
+            irreversible
+            confirmLabel={t('photoViewer:deleteConfirmAction')}
+            busyLabel={t('common:confirmDialog.deleting')}
+            busy={isDeletingPhoto}
+            error={deletePhotoError}
+            onConfirm={() => void handleDeletePhoto()}
+            onCancel={() => {
               setShowDeleteConfirm(false);
-              deleteBtnRef.current?.focus();
+              setDeletePhotoError(null);
             }}
-            footer={
-              <>
-                <button
-                  type="button"
-                  className={styles.modalButtonSecondary}
-                  onClick={() => {
-                    setShowDeleteConfirm(false);
-                    deleteBtnRef.current?.focus();
-                  }}
-                >
-                  {t('common:button.cancel')}
-                </button>
-                <button
-                  type="button"
-                  className={styles.modalButtonDanger}
-                  onClick={handleDeletePhoto}
-                  disabled={isDeletingPhoto}
-                >
-                  {t('photoViewer:deleteConfirmAction')}
-                </button>
-              </>
-            }
-          >
-            <p>{t('photoViewer:deleteConfirmBody')}</p>
-          </Modal>
+            returnFocusRef={deleteBtnRef}
+            testIdPrefix="photo-delete"
+          />
         )}
 
         {/* Metadata sidepanel */}

@@ -141,28 +141,6 @@
   color: var(--color-danger);
 }
 
-.deleteConfirmButton {
-  background: var(--color-danger);
-  color: var(--color-danger-text);
-  border: 1px solid var(--color-danger);
-}
-
-.deleteConfirmButton:hover {
-  background: var(--color-danger-active);
-  border-color: var(--color-danger-active);
-}
-
-.cancelDeleteButton {
-  background: transparent;
-  border: 1px solid var(--color-border);
-  color: var(--color-text-primary);
-}
-
-.cancelDeleteButton:hover {
-  background: var(--color-bg-primary);
-  border-color: var(--color-border-strong);
-}
-
 @media (max-width: 1023px) {
   .editButton,
   .deleteButton,

@@ -55,6 +55,13 @@
   margin-top: var(--spacing-6);
 }
 
+@media (max-width: 1023px) {
+  .closeButton {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+  }
+}
+
 @media (max-width: 767px) {
   .content {
     width: 95vw;

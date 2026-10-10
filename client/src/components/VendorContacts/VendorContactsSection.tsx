@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useRef, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   VendorContact,
@@ -7,6 +7,7 @@ import type {
 } from '@cornerstone/shared';
 import { useVendorContacts } from '../../hooks/useVendorContacts.js';
 import { Modal } from '../Modal/Modal.js';
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { FormError } from '../FormError/FormError.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -38,6 +39,7 @@ interface VendorContactsSectionProps {
 export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
   const { contacts, isLoading, error, addContact, editContact, removeContact } =
     useVendorContacts(vendorId);
 
@@ -52,6 +54,13 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
   const [editForm, setEditForm] = useState<ContactFormState>(EMPTY_FORM);
   const [editErrorMsg, setEditErrorMsg] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
+
+  // Delete confirmation state
+  const [deletingContact, setDeletingContact] = useState<VendorContact | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
 
   // Accessibility: aria-live announcement for contact mutations
   const [liveAnnouncement, setLiveAnnouncement] = useState('');
@@ -165,10 +174,37 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
     }
   };
 
-  const handleDelete = async (contact: VendorContact) => {
-    if (window.confirm(t('vendors.contacts.deleteConfirm'))) {
-      await removeContact(contact.id);
-      setLiveAnnouncement(t('vendors.contacts.contactDeleted', { name: contact.name }));
+  const handleOpenDelete = (contact: VendorContact) => {
+    setDeletingContact(contact);
+    setDeleteError('');
+    setDeleteBlocked(false);
+  };
+
+  const handleCloseDelete = () => {
+    if (!isDeleting) {
+      setDeletingContact(null);
+      setDeleteError('');
+      setDeleteBlocked(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingContact) return;
+    setIsDeleting(true);
+    setDeleteError('');
+    try {
+      await removeContact(deletingContact.id);
+      setLiveAnnouncement(t('vendors.contacts.contactDeleted', { name: deletingContact.name }));
+      setDeletingContact(null);
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
+        setDeleteError(translateApiError(err.error.code, tErrors));
+      } else {
+        setDeleteError(t('vendors.contacts.deleteError'));
+      }
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -226,7 +262,12 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
       </div>
       <div className={styles.header}>
         <h2 className={styles.heading}>{t('vendors.contacts.heading')}</h2>
-        <button type="button" className={styles.addButton} onClick={handleOpenCreateModal}>
+        <button
+          ref={addButtonRef}
+          type="button"
+          className={styles.addButton}
+          onClick={handleOpenCreateModal}
+        >
           {t('vendors.contacts.addContact')}
         </button>
       </div>
@@ -272,7 +313,7 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
                 <button
                   type="button"
                   className={styles.deleteButton}
-                  onClick={() => handleDelete(contact)}
+                  onClick={() => handleOpenDelete(contact)}
                   aria-label={t('vendors.contacts.deleteContact') + ' ' + contact.name}
                 >
                   {t('vendors.contacts.deleteContact')}
@@ -281,6 +322,23 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
             </div>
           ))}
         </div>
+      )}
+
+      {/* Delete confirmation */}
+      {deletingContact && (
+        <ConfirmDialog
+          title={tc('confirmDialog.deleteTitle', { name: deletingContact.name })}
+          irreversible
+          confirmLabel={tc('button.delete')}
+          busyLabel={tc('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDelete()}
+          onCancel={handleCloseDelete}
+          returnFocusRef={addButtonRef}
+          testIdPrefix="contact-delete"
+        />
       )}
 
       {/* Create Modal */}

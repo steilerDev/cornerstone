@@ -233,8 +233,7 @@ describe('BackupsPage', () => {
       renderPage();
       await screen.findByText(backup1.filename);
       await user.click(screen.getByRole('button', { name: /delete/i }));
-      const confirmButtons = await screen.findAllByRole('button', { name: /^delete$/i });
-      await user.click(confirmButtons[confirmButtons.length - 1]!);
+      await user.click(await screen.findByTestId('backup-delete-confirm'));
       await waitFor(() => {
         expect(screen.getByText(enErrors.BACKUP_NOT_FOUND)).toBeInTheDocument();
       });
@@ -248,8 +247,7 @@ describe('BackupsPage', () => {
       renderPage();
       await screen.findByText(backup1.filename);
       await user.click(screen.getByRole('button', { name: /delete/i }));
-      const confirmButtons = await screen.findAllByRole('button', { name: /^delete$/i });
-      await user.click(confirmButtons[confirmButtons.length - 1]!);
+      await user.click(await screen.findByTestId('backup-delete-confirm'));
       await waitFor(() => {
         expect(screen.getByText(enSettings.backups.deleteModal.error)).toBeInTheDocument();
       });
@@ -263,7 +261,7 @@ describe('BackupsPage', () => {
       renderPage();
       await screen.findByText(backup1.filename);
       await user.click(screen.getByRole('button', { name: /restore/i }));
-      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await user.click(await screen.findByTestId('backup-restore-confirm'));
       await waitFor(() => {
         expect(screen.getByText(enErrors.BACKUP_IN_PROGRESS)).toBeInTheDocument();
       });
@@ -277,7 +275,7 @@ describe('BackupsPage', () => {
       renderPage();
       await screen.findByText(backup1.filename);
       await user.click(screen.getByRole('button', { name: /restore/i }));
-      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await user.click(await screen.findByTestId('backup-restore-confirm'));
       await waitFor(() => {
         expect(screen.getByText(enErrors.RESTORE_FAILED)).toBeInTheDocument();
       });
@@ -291,7 +289,7 @@ describe('BackupsPage', () => {
       renderPage();
       await screen.findByText(backup1.filename);
       await user.click(screen.getByRole('button', { name: /restore/i }));
-      await user.click(await screen.findByRole('button', { name: /restore & restart/i }));
+      await user.click(await screen.findByTestId('backup-restore-confirm'));
       await waitFor(() => {
         expect(screen.getByText(enSettings.backups.restoreModal.error)).toBeInTheDocument();
       });
@@ -329,18 +327,16 @@ describe('BackupsPage', () => {
       await screen.findByText(backup1.filename);
 
       await user.click(screen.getByRole('button', { name: /delete/i }));
-      await user.click(
-        await screen.findByRole('button', { name: enSettings.backups.deleteModal.cancel }),
-      );
+      await user.click(await screen.findByTestId('backup-delete-cancel'));
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /delete/i }));
-      await screen.findByRole('dialog');
+      await screen.findByRole('alertdialog');
       await user.keyboard('{Escape}');
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
       expect(mockDeleteBackup).not.toHaveBeenCalled();
     });
@@ -352,18 +348,16 @@ describe('BackupsPage', () => {
       await screen.findByText(backup1.filename);
 
       await user.click(screen.getByRole('button', { name: /restore/i }));
-      await user.click(
-        await screen.findByRole('button', { name: enSettings.backups.restoreModal.cancel }),
-      );
+      await user.click(await screen.findByTestId('backup-restore-cancel'));
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
 
       await user.click(screen.getByRole('button', { name: /restore/i }));
-      await screen.findByRole('dialog');
+      await screen.findByRole('alertdialog');
       await user.keyboard('{Escape}');
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
       expect(mockRestoreBackup).not.toHaveBeenCalled();
     });
@@ -649,10 +643,9 @@ describe('BackupsPage', () => {
 
       // Modal should appear — the filename now appears in both table and modal
       await waitFor(() => {
-        expect(screen.getByText(/delete backup/i)).toBeInTheDocument();
-        // Filename appears in table row + modal <strong> tag = 2 elements
-        const filenameElements = screen.getAllByText(backup1.filename);
-        expect(filenameElements.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
+        // The filename is in the table row and in the dialog title
+        expect(screen.getByRole('alertdialog')).toHaveAccessibleName(`Delete ${backup1.filename}?`);
       });
     });
 
@@ -674,14 +667,10 @@ describe('BackupsPage', () => {
 
       // Wait for modal
       await waitFor(() => {
-        expect(screen.getByText(/delete backup/i)).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
       });
 
-      // Click confirm button in the modal footer (role button with "Delete" text, not the row button)
-      const confirmButtons = screen.getAllByRole('button', { name: /^delete$/i });
-      // The last Delete button should be in the modal confirm footer
-      const confirmButton = confirmButtons[confirmButtons.length - 1]!;
-      await user.click(confirmButton);
+      await user.click(screen.getByTestId('backup-delete-confirm'));
 
       expect(mockDeleteBackup).toHaveBeenCalledWith(backup1.filename);
     });
@@ -702,16 +691,15 @@ describe('BackupsPage', () => {
       // Open modal
       await user.click(screen.getByRole('button', { name: /delete/i }));
       await waitFor(() => {
-        expect(screen.getByText(/delete backup/i)).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
       });
 
       // Confirm delete
-      const confirmButtons = screen.getAllByRole('button', { name: /^delete$/i });
-      await user.click(confirmButtons[confirmButtons.length - 1]!);
+      await user.click(screen.getByTestId('backup-delete-confirm'));
 
       // Modal should be closed
       await waitFor(() => {
-        expect(screen.queryByText(/delete backup/i)).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog', { name: /^Delete / })).not.toBeInTheDocument();
       });
     });
   });
@@ -735,10 +723,11 @@ describe('BackupsPage', () => {
       await user.click(screen.getByRole('button', { name: /restore/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/restore backup/i)).toBeInTheDocument();
-        // The filename should appear in the modal
-        const filenameElements = screen.getAllByText(backup1.filename);
-        expect(filenameElements.length).toBeGreaterThan(0);
+        expect(screen.getByRole('alertdialog', { name: /^Restore / })).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog')).toHaveAccessibleName(
+          `Restore ${backup1.filename}?`,
+        );
+        expect(screen.getByTestId('backup-restore-cancel')).toHaveFocus();
       });
     });
 
@@ -783,11 +772,11 @@ describe('BackupsPage', () => {
       await user.click(screen.getByRole('button', { name: /restore/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/restore backup/i)).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog', { name: /^Restore / })).toBeInTheDocument();
       });
 
       // Click "Restore & Restart" confirm button
-      await user.click(screen.getByRole('button', { name: /restore & restart/i }));
+      await user.click(screen.getByTestId('backup-restore-confirm'));
 
       expect(mockRestoreBackup).toHaveBeenCalledWith(backup1.filename);
     });
@@ -810,10 +799,10 @@ describe('BackupsPage', () => {
       await user.click(screen.getByRole('button', { name: /restore/i }));
 
       await waitFor(() => {
-        expect(screen.getByText(/restore backup/i)).toBeInTheDocument();
+        expect(screen.getByRole('alertdialog', { name: /^Restore / })).toBeInTheDocument();
       });
 
-      await user.click(screen.getByRole('button', { name: /restore & restart/i }));
+      await user.click(screen.getByTestId('backup-restore-confirm'));
 
       // Should now show the restarting message
       await waitFor(() => {

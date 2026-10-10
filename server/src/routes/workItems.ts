@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as workItemService from '../services/workItemService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import * as householdItemWorkItemService from '../services/householdItemWorkItemService.js';
 import { autoReschedule, ensureDailyReschedule } from '../services/schedulingEngine.js';
 import type {
@@ -199,14 +200,22 @@ export default async function workItemRoutes(fastify: FastifyInstance) {
     const { id } = request.params as { id: string };
     const data = request.body as UpdateWorkItemRequest;
 
-    const workItem = workItemService.updateWorkItem(
+    const userId = request.user.id;
+    const { result: workItem, undo } = runUndoable(
       fastify.db,
-      id,
-      data,
-      fastify.config.diaryAutoEvents,
+      undoStore,
+      { userId, subject: { type: 'work_item', id }, reschedules: true },
+      () =>
+        workItemService.updateWorkItem(
+          fastify.db,
+          id,
+          data,
+          fastify.config.diaryAutoEvents,
+          userId,
+        ),
     );
 
-    return reply.status(200).send(workItem);
+    return reply.status(200).send(undo ? { ...workItem, undo } : workItem);
   });
 
   /**

@@ -589,7 +589,9 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
       await deleteButton.click();
 
       // A confirmation modal appears
-      const modal = page.locator('[role="dialog"]');
+      const modal = page.getByRole('alertdialog').filter({
+        has: page.getByTestId('area-delete-cancel'),
+      });
       await modal.waitFor({ state: 'visible' });
 
       // Confirm deletion
@@ -597,7 +599,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
         (resp) =>
           resp.url().includes(`/api/areas/${areaId}`) && resp.request().method() === 'DELETE',
       );
-      const confirmButton = modal.locator('[class*="confirmDeleteButton"]');
+      const confirmButton = modal.getByTestId('area-delete-confirm');
       await confirmButton.click();
       await responsePromise;
 
@@ -714,14 +716,16 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
       await deleteButton.waitFor({ state: 'visible' });
       await deleteButton.click();
 
-      const modal = page.locator('[role="dialog"]');
+      const modal = page.getByRole('alertdialog').filter({
+        has: page.getByTestId('trade-delete-cancel'),
+      });
       await modal.waitFor({ state: 'visible' });
 
       const responsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/trades/${tradeId}`) && resp.request().method() === 'DELETE',
       );
-      await modal.locator('[class*="confirmDeleteButton"]').click();
+      await modal.getByTestId('trade-delete-confirm').click();
       await responsePromise;
       await modal.waitFor({ state: 'hidden' });
 
@@ -844,7 +848,9 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
       await deleteButton.waitFor({ state: 'visible' });
       await deleteButton.click();
 
-      const modal = page.locator('[role="dialog"]');
+      const modal = page.getByRole('alertdialog').filter({
+        has: page.getByTestId('hi-category-delete-cancel'),
+      });
       await modal.waitFor({ state: 'visible' });
 
       const responsePromise = page.waitForResponse(
@@ -852,7 +858,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
           resp.url().includes(`/api/household-item-categories/${catId}`) &&
           resp.request().method() === 'DELETE',
       );
-      await modal.locator('[class*="confirmDeleteButton"]').click();
+      await modal.getByTestId('hi-category-delete-confirm').click();
       await responsePromise;
       await modal.waitFor({ state: 'hidden' });
 

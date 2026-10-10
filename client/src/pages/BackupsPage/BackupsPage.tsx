@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
@@ -184,10 +184,6 @@ export function BackupsPage() {
     );
   }
 
-  const deleteModalMessageParts = deleteTarget
-    ? t('backups.deleteModal.message', { filename: '\u0000' }).split('\u0000')
-    : null;
-
   return (
     <PageLayout maxWidth="narrow" title={pageTitle}>
       {/* Loading state */}
@@ -349,89 +345,35 @@ export function BackupsPage() {
         </>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete confirmation */}
       {deleteTarget && (
-        <Modal
-          title={t('backups.deleteModal.title')}
-          onClose={() => !isDeleting && setDeleteTarget(null)}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => setDeleteTarget(null)}
-                disabled={isDeleting}
-              >
-                {t('backups.deleteModal.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnConfirmDelete}
-                onClick={handleDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {isDeleting
-                  ? t('backups.deleteModal.confirming')
-                  : t('backups.deleteModal.confirm')}
-              </button>
-            </>
-          }
-        >
-          {deleteError && (
-            <div className={sharedStyles.bannerError} role="alert">
-              {deleteError}
-            </div>
-          )}
-          <p>
-            {deleteModalMessageParts && (
-              <>
-                {deleteModalMessageParts[0]}
-                <strong>{deleteTarget!.filename}</strong>
-                {deleteModalMessageParts[1]}
-              </>
-            )}
-          </p>
-          <p className={styles.warningText}>{t('backups.deleteModal.warning')}</p>
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: deleteTarget.filename })}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteConfirm()}
+          onCancel={() => setDeleteTarget(null)}
+          testIdPrefix="backup-delete"
+        />
       )}
 
-      {/* Restore Confirmation Modal */}
+      {/* Restore confirmation */}
       {restoreTarget && (
-        <Modal
-          title={t('backups.restoreModal.title')}
-          onClose={() => !isRestoring && setRestoreTarget(null)}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={() => setRestoreTarget(null)}
-                disabled={isRestoring}
-              >
-                {t('backups.restoreModal.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnConfirmDelete}
-                onClick={handleRestoreConfirm}
-                disabled={isRestoring}
-              >
-                {isRestoring
-                  ? t('backups.restoreModal.confirming')
-                  : t('backups.restoreModal.confirm')}
-              </button>
-            </>
-          }
-        >
-          {restoreError && (
-            <div className={sharedStyles.bannerError} role="alert">
-              {restoreError}
-            </div>
-          )}
-          <p>{t('backups.restoreModal.message')}</p>
-          <p className={styles.highlightedFilename}>{restoreTarget.filename}</p>
-          <p className={styles.warningText}>{t('backups.restoreModal.warning')}</p>
-        </Modal>
+        <ConfirmDialog
+          title={t('backups.restoreModal.title', { name: restoreTarget.filename })}
+          lead={t('backups.restoreModal.warning')}
+          irreversible
+          confirmLabel={t('backups.restoreModal.confirm')}
+          busyLabel={t('backups.restoreModal.confirming')}
+          busy={isRestoring}
+          error={restoreError || null}
+          onConfirm={() => void handleRestoreConfirm()}
+          onCancel={() => setRestoreTarget(null)}
+          testIdPrefix="backup-restore"
+        />
       )}
     </PageLayout>
   );

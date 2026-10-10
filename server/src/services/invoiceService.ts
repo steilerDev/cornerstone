@@ -554,6 +554,7 @@ export function updateInvoice(
   invoiceId: string,
   data: UpdateInvoiceRequest,
   diaryAutoEvents: boolean = true,
+  actorUserId: string | null = null,
 ): Invoice {
   const vendorName = assertVendorExists(db, vendorId);
 
@@ -660,6 +661,7 @@ export function updateInvoice(
       existing.invoiceNumber || 'N/A',
       previousStatus,
       newStatus,
+      actorUserId,
     );
   }
 

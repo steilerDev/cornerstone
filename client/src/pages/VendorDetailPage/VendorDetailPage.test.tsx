@@ -6,6 +6,7 @@ import { screen, waitFor, render, within, fireEvent } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
@@ -16,6 +17,18 @@ import type { VendorDetail, Invoice } from '@cornerstone/shared';
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockUpdateVendor = jest.fn<typeof VendorsApiTypes.updateVendor>();
 const mockDeleteVendor = jest.fn<typeof VendorsApiTypes.deleteVendor>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(prefix: string): Promise<HTMLElement> {
+  const btn = await screen.findByTestId(`${prefix}-confirm`);
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: jest.fn(),
@@ -191,6 +204,8 @@ describe('VendorDetailPage', () => {
     mockFetchVendor.mockReset();
     mockUpdateVendor.mockReset();
     mockDeleteVendor.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'vendor-1', effects: [] });
     mockFetchInvoices.mockReset();
     mockCreateInvoice.mockReset();
     mockDeleteInvoice.mockReset();
@@ -792,8 +807,11 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /delete vendor/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(
+        screen.getByRole('alertdialog', { name: 'Delete Smith Plumbing?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('vendor-delete-cancel')).toHaveFocus();
     });
 
     it('shows vendor name in the delete modal', async () => {
@@ -808,7 +826,7 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('Smith Plumbing');
     });
 
@@ -826,7 +844,7 @@ describe('VendorDetailPage', () => {
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
     });
 
@@ -843,8 +861,7 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(mockDeleteVendor).toHaveBeenCalledWith('vendor-1');
@@ -875,8 +892,8 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
@@ -903,16 +920,14 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
       });
 
-      expect(
-        within(dialog).queryByRole('button', { name: /delete vendor/i }),
-      ).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId('vendor-delete-confirm')).not.toBeInTheDocument();
     });
 
     it('shows the translated errors.json text for a non-409 ApiClientError, never the server message', async () => {
@@ -930,8 +945,8 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();
@@ -952,8 +967,8 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete vendor/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByText(/failed to delete vendor/i)).toBeInTheDocument();
@@ -1641,8 +1656,9 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /delete invoice/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: /^Delete .*\?$/ })).toBeInTheDocument();
+      expect(screen.getByTestId('vendor-invoice-delete-cancel')).toHaveFocus();
     });
 
     it('shows the invoice number in the delete modal', async () => {
@@ -1660,11 +1676,11 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('INV-001');
     });
 
-    it('shows the invoice amount in the delete modal', async () => {
+    it('names the invoice in the title and, unlike the old modal, does not repeat its amount', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
@@ -1679,8 +1695,9 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveTextContent('€1,500.00');
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toHaveAccessibleName('Delete INV-001?');
+      expect(dialog).not.toHaveTextContent('€1,500.00');
     });
 
     it('closes the delete invoice modal when Cancel is clicked', async () => {
@@ -1697,10 +1714,12 @@ describe('VendorDetailPage', () => {
       });
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
-      await user.click(within(screen.getByRole('dialog')).getByRole('button', { name: /cancel/i }));
+      await user.click(
+        within(screen.getByRole('alertdialog')).getByRole('button', { name: /cancel/i }),
+      );
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
     });
 
@@ -1720,8 +1739,7 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
+      await user.click(await enabledConfirm('vendor-invoice-delete'));
 
       await waitFor(() => {
         expect(mockDeleteInvoice).toHaveBeenCalledWith('vendor-1', 'invoice-1');
@@ -1729,7 +1747,7 @@ describe('VendorDetailPage', () => {
 
       // Dialog should close
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
 
       // The amount €1,500.00 should no longer be in the list (only appears in the delete modal)
@@ -1756,8 +1774,8 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-invoice-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
@@ -1782,19 +1800,19 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-invoice-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByText(/failed to delete invoice/i)).toBeInTheDocument();
       });
     });
 
-    it('hides "Delete Invoice" confirm button after delete error', async () => {
+    it('hides the confirm button after a 409 on invoice delete', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
       mockDeleteInvoice.mockRejectedValueOnce(
-        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
       );
 
       const user = userEvent.setup();
@@ -1808,17 +1826,15 @@ describe('VendorDetailPage', () => {
 
       await user.click(screen.getAllByRole('button', { name: /delete invoice INV-001/i })[0]!);
 
-      const dialog = screen.getByRole('dialog');
-      await user.click(within(dialog).getByRole('button', { name: /delete invoice/i }));
+      const dialog = screen.getByRole('alertdialog');
+      await user.click(await enabledConfirm('vendor-invoice-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
       });
 
       // Confirm delete button should be hidden after error
-      expect(
-        within(dialog).queryByRole('button', { name: /delete invoice/i }),
-      ).not.toBeInTheDocument();
+      expect(within(dialog).queryByTestId('vendor-invoice-delete-confirm')).not.toBeInTheDocument();
     });
 
     it('shows "this invoice" when invoice has no invoice number', async () => {
@@ -1842,7 +1858,7 @@ describe('VendorDetailPage', () => {
         })[0]!,
       );
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('this invoice');
     });
   });

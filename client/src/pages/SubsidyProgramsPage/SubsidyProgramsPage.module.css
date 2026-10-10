@@ -558,47 +558,6 @@
   composes: emptyState from '../../styles/shared.module.css';
 }
 
-/* ---- Modal ---- */
-
-.modal {
-  composes: modal from '../../styles/shared.module.css';
-}
-
-.modalBackdrop {
-  composes: modalBackdrop from '../../styles/shared.module.css';
-}
-
-.modalContent {
-  composes: modalContent from '../../styles/shared.module.css';
-}
-
-.modalTitle {
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
-}
-
-.modalText {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--spacing-3) 0;
-}
-
-.modalWarning {
-  font-size: var(--font-size-sm);
-  color: var(--color-danger);
-  margin: 0 0 var(--spacing-6) 0;
-}
-
-.modalActions {
-  composes: modalActions from '../../styles/shared.module.css';
-}
-
-.confirmDeleteButton {
-  composes: btnConfirmDelete from '../../styles/shared.module.css';
-}
-
 /* ============================================================
  * RESPONSIVE — Mobile (max 767px)
  * ============================================================ */
@@ -675,16 +634,6 @@
     width: 100%;
   }
 
-  /* Modal actions */
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-
-  .confirmDeleteButton,
-  .modalActions .cancelButton {
-    width: 100%;
-  }
-
   /* Category checkboxes wrap naturally on mobile */
   .categoryCheckboxList {
     gap: var(--spacing-1-5);
@@ -706,8 +655,7 @@
   .cancelButton,
   .editButton,
   .deleteButton,
-  .docsToggle,
-  .confirmDeleteButton {
+  .docsToggle {
     min-height: 44px;
   }
 

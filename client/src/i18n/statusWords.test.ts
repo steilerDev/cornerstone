@@ -84,7 +84,7 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
     expect(en.get('budget.invoices.summaryQuotation')).toBe('Offers');
     expect(en.get('budget.sources.barChart.claimed')).toBe('Submitted');
     expect(en.get('budget.sourceReports.confirmClaimTitle')).toBe('Mark invoices as submitted?');
-    expect(en.get('budget.invoiceDetail.deposits.menu.markClaimed')).toBe('Mark submitted…');
+    expect(en.get('common.statusAction.progressPayment.markSubmitted')).toBe('Mark submitted');
     expect(en.get('errors.INVOICES_NOT_CLAIMABLE')).toContain('marked as submitted');
     expect(en.get('common.statusVocabulary.milestone.upcoming')).toBe('Upcoming');
     expect(en.get('common.statusVocabulary.milestone.reached')).toBe('Reached');

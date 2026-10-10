@@ -116,10 +116,9 @@
       "emailInvalid": "Please enter a valid email address"
     },
     "deactivateModal": {
-      "title": "Deactivate User",
+      "title": "Deactivate {{name}}?",
       "closeAriaLabel": "Close",
-      "message": "Are you sure you want to deactivate {{name}}? Their sessions will be terminated immediately.",
-      "cancel": "Cancel",
+      "message": "Their sessions are terminated immediately.",
       "confirm": "Deactivate",
       "confirming": "Deactivating...",
       "error": "Failed to deactivate user. Please try again."
@@ -173,11 +172,7 @@
       "cancel": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
-      "deleteTitle": "Delete Area",
-      "deleteConfirm": "Are you sure you want to delete the area \"{{name}}\"?",
       "deleteWarning": "Its sub-areas are deleted with it, and photos in these areas lose their area. An area that a task or purchase uses, directly or through a sub-area, cannot be deleted.",
-      "deleting": "Deleting...",
-      "deleteButton": "Delete Area",
       "validation": {
         "nameRequired": "Area name is required",
         "nameTooLong": "Area name must be 100 characters or less"
@@ -215,11 +210,7 @@
       "cancel": "Cancel",
       "edit": "Edit",
       "delete": "Delete",
-      "deleteTitle": "Delete Trade",
-      "deleteConfirm": "Are you sure you want to delete the trade \"{{name}}\"?",
       "deleteWarning": "A trade that a company uses cannot be deleted. Change those companies' trade first.",
-      "deleting": "Deleting...",
-      "deleteButton": "Delete Trade",
       "validation": {
         "nameRequired": "Trade name is required",
         "nameTooLong": "Trade name must be 100 characters or less"
@@ -253,11 +244,6 @@
       "save": "Save",
       "saving": "Saving…",
       "cancel": "Cancel",
-      "deleteTitle": "Delete orientation",
-      "deleteConfirm": "Are you sure you want to delete \"{{name}}\"?",
-      "deleteWarning": "This action cannot be undone.",
-      "deleteButton": "Delete",
-      "deleting": "Deleting…",
       "validation": {
         "nameRequired": "Name is required.",
         "nameTooLong": "Name must be 100 characters or fewer."
@@ -298,11 +284,6 @@
       "edit": "Edit",
       "delete": "Delete",
       "sortOrderTitle": "Sort order",
-      "deleteTitle": "Delete Category",
-      "deleteConfirm": "Are you sure you want to delete the category \"{{name}}\"?",
-      "deleteWarning": "This action cannot be undone. The category will be permanently removed.",
-      "deleting": "Deleting...",
-      "deleteButton": "Delete Category",
       "validation": {
         "nameRequired": "Category name is required",
         "nameTooLong": "Category name must be 100 characters or less"
@@ -341,11 +322,6 @@
       "edit": "Edit",
       "delete": "Delete",
       "sortOrderTitle": "Sort order",
-      "deleteTitle": "Delete Category",
-      "deleteConfirm": "Are you sure you want to delete the category \"{{name}}\"?",
-      "deleteWarning": "This action cannot be undone. The category will be permanently removed.",
-      "deleting": "Deleting...",
-      "deleteButton": "Delete Category",
       "validation": {
         "nameRequired": "Category name is required",
         "nameTooLong": "Category name must be 100 characters or less"
@@ -368,7 +344,9 @@
     "generateToken": "Generate Token",
     "regenerateToken": "Regenerate Token",
     "revokeToken": "Revoke Token",
-    "revokeConfirm": "Are you sure you want to revoke the DAV token? Connected apps will stop syncing.",
+    "revokeTitle": "Revoke calendar access?",
+    "revokeLead": "Calendar and contact apps stop syncing until you create a new token.",
+    "revokeAction": "Revoke",
     "tokenActive": "Token active since {{date}}",
     "tokenWarning": "Copy this token now — it will not be shown again.",
     "copyToken": "Copy",
@@ -445,21 +423,13 @@
       "restore": "Restore"
     },
     "deleteModal": {
-      "title": "Delete Backup",
-      "message": "Are you sure you want to delete {{filename}}?",
-      "warning": "This action cannot be undone.",
-      "cancel": "Cancel",
-      "confirm": "Delete",
-      "confirming": "Deleting...",
       "error": "Failed to delete backup. Please try again."
     },
     "restoreModal": {
-      "title": "Restore Backup",
-      "message": "You are about to restore from:",
+      "title": "Restore {{name}}?",
       "warning": "This will permanently replace all current application data with the backup contents. The server will restart automatically. All current data will be lost.",
-      "cancel": "Cancel",
-      "confirm": "Restore & Restart",
-      "confirming": "Restoring...",
+      "confirm": "Restore",
+      "confirming": "Restoring…",
       "error": "Failed to initiate restore. Please try again."
     },
     "restartingMessage": "Server is restarting. Please wait a few moments and then refresh the page.",
@@ -487,7 +457,6 @@
       "addContact": "Add Contact",
       "editContact": "Edit Contact",
       "deleteContact": "Delete Contact",
-      "deleteConfirm": "Are you sure you want to delete this contact?",
       "empty": "No contacts added yet.",
       "emptyAction": "Add your first contact",
       "firstName": "First Name",
@@ -511,8 +480,7 @@
       "errors": {
         "loadFailed": "Failed to load contacts. Please try again.",
         "createFailed": "Failed to create contact. Please try again.",
-        "updateFailed": "Failed to update contact. Please try again.",
-        "deleteFailed": "Failed to delete contact. Please try again."
+        "updateFailed": "Failed to update contact. Please try again."
       }
     }
   }

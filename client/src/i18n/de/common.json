@@ -158,7 +158,8 @@
     "closeAriaLabel": "Schließen",
     "keyColumn": "Taste",
     "actionColumn": "Aktion",
-    "noPageShortcuts": "Diese Seite hat keine eigenen Tastaturkürzel."
+    "noPageShortcuts": "Diese Seite hat keine eigenen Tastaturkürzel.",
+    "everywhere": "Überall"
   },
   "toast": {
     "dismissAriaLabel": "Benachrichtigung schließen"
@@ -293,6 +294,102 @@
       "delivery": "Lieferung",
       "issue": "Mangel",
       "general_note": "Notiz"
+    }
+  },
+  "statusAction": {
+    "task": {
+      "start": "Starten",
+      "markDone": "Als abgeschlossen markieren"
+    },
+    "purchase": {
+      "markOrdered": "Als bestellt markieren",
+      "markDeliveryScheduled": "Als Lieferung geplant markieren",
+      "markDelivered": "Als geliefert markieren"
+    },
+    "milestone": {
+      "markReached": "Als erreicht markieren"
+    },
+    "invoice": {
+      "markPaid": "Als bezahlt markieren"
+    },
+    "progressPayment": {
+      "markPaid": "Als bezahlt markieren",
+      "markSubmitted": "Als eingereicht markieren"
+    }
+  },
+  "statusMenu": {
+    "nowLabel": "Aktuell: {{status}}",
+    "changeStatus": "Status ändern",
+    "changeStatusTitle": "Status ändern",
+    "setStatus": "Status festlegen",
+    "backTo": "Zurück zu „{{status}}“",
+    "back": "Zurück",
+    "today": "Heute",
+    "asPlanned": "Wie geplant",
+    "onTarget": "Im Plan",
+    "plannedChipAria": "{{label}}, {{date}}",
+    "pickDate": "Datum wählen",
+    "dateLabel": "Datum",
+    "setDate": "Datum festlegen",
+    "dateInFuture": "Wählen Sie ein Datum bis einschließlich heute.",
+    "dateBeforeStart": "Wählen Sie ein Datum ab dem Startdatum.",
+    "whenStarted": "Wann hat es begonnen?",
+    "whenFinished": "Wann wurde es abgeschlossen?",
+    "whenArrived": "Wann ist es angekommen?",
+    "whenReached": "Wann wurde es erreicht?",
+    "whenPaid": "Wann wurde diese Zahlung geleistet?",
+    "whenSubmitted": "Wann wurde es eingereicht?",
+    "changeFailed": "Der Status konnte nicht geändert werden."
+  },
+  "undoToast": {
+    "undo": "Rückgängig",
+    "undoing": "Wird rückgängig gemacht…",
+    "undone": "Änderung rückgängig gemacht.",
+    "tooLate": "Diese Änderung kann nicht mehr rückgängig gemacht werden.",
+    "changedSince": "Dies wurde seitdem geändert, daher kann es nicht rückgängig gemacht werden.",
+    "failed": "Die Änderung konnte nicht rückgängig gemacht werden.",
+    "statusChanged": "{{name}} ist jetzt „{{status}}“.",
+    "shortcutHelp": "Die letzte Änderung rückgängig machen",
+    "shortcutKeyApple": "⌘Z",
+    "shortcutKeyOther": "Strg+Z"
+  },
+  "confirmDialog": {
+    "alsoAffects": "Dies betrifft außerdem:",
+    "cannotBeUndone": "Dies kann nicht rückgängig gemacht werden.",
+    "countsFailed": "Es konnte nicht geladen werden, was zusätzlich betroffen ist.",
+    "deleteTitle": "{{name}} löschen?",
+    "deleting": "Wird gelöscht…",
+    "discardChangesTitle": "Änderungen verwerfen?",
+    "discardEntryTitle": "Diesen Eintrag verwerfen?",
+    "discard": "Verwerfen",
+    "discarding": "Wird verworfen…",
+    "keepEditing": "Weiter bearbeiten",
+    "keepEntry": "Eintrag behalten",
+    "impact": {
+      "childAreas": "Ebenfalls gelöschte Unterbereiche:",
+      "photosLoseArea": "Fotos, die ihren Bereich verlieren:",
+      "photosLoseOrientation": "Fotos, die ihre Ausrichtung verlieren:",
+      "contacts": "Ebenfalls gelöschte Ansprechpartner:",
+      "tasksUnassigned": "Aufgaben, die diese Firma verlieren:",
+      "purchasesUnassigned": "Anschaffungen, die diese Firma verlieren:",
+      "costLinesUnassigned": "Kostenpositionen, die diese Firma verlieren:",
+      "progressPayments": "Ebenfalls gelöschte Abschlagszahlungen:",
+      "costLinesUnlinked": "Aus dieser Rechnung entfernte Kostenpositionen:",
+      "documentLinks": "Verknüpfte Dokumente (sie bleiben in Paperless):",
+      "purchasesUnlinked": "Anschaffungen, die nicht mehr verknüpft sind:",
+      "progressPaymentsUnassigned": "Abschlagszahlungen, die diese Finanzierungsquelle verlieren:",
+      "tasksUnlinked": "Aufgaben, die nicht mehr verknüpft sind:",
+      "dependencies": "Aufgaben, die nicht mehr auf dieses Element warten:",
+      "purchaseDependencies": "Anschaffungen, die nicht mehr auf dieses Element warten:",
+      "costLines": "Ebenfalls gelöschte Kostenpositionen:",
+      "invoiceLinks": "Ebenfalls entfernte Rechnungsverknüpfungen:",
+      "subtasks": "Ebenfalls gelöschte Unteraufgaben:",
+      "notes": "Ebenfalls gelöschte Notizen:",
+      "taskDependencies": "Ebenfalls entfernte Abhängigkeiten:",
+      "milestoneLinks": "Meilensteine, zu denen es nicht mehr zählt:",
+      "milestoneWaits": "Meilensteine, auf die es nicht mehr wartet:",
+      "grantLinks": "Förderprogramme, die nicht mehr verknüpft sind:",
+      "photos": "Ebenfalls gelöschte Fotos:"
     }
   },
   "statusHints": {

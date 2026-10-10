@@ -521,27 +521,33 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     });
   }
 
-  describe('delete budget line', () => {
-    it('ApiClientError shows the code copy, never the server text', async () => {
-      await load();
-      mockDeleteHouseholdItemBudget.mockRejectedValue(apiError(409, 'CONFLICT'));
-      await confirmDelete();
-      await expectInlineError(enErrors.CONFLICT);
-    });
-
-    it('NetworkError shows the network copy', async () => {
-      await load();
-      mockDeleteHouseholdItemBudget.mockRejectedValue(new MockNetworkError('RAW-LOCAL'));
-      await confirmDelete();
-      await expectInlineError(enCommon.requestErrors.network);
-    });
-
-    it('any other error shows the deleteFailed copy', async () => {
-      await load();
-      mockDeleteHouseholdItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
-      await confirmDelete();
-      await expectInlineError(enBudget.budgetLineForm.errors.deleteFailed);
-    });
+  describe('delete budget line (#2209: the host dialog translates and shows the failure)', () => {
+    it.each([
+      ['ApiClientError', () => apiError(409, 'CONFLICT')],
+      ['NetworkError', () => new MockNetworkError('RAW-LOCAL')],
+      ['plain Error', () => new Error('RAW-LOCAL')],
+    ])(
+      '%s: the page rethrows the very same error and shows no banner of its own',
+      async (_n, make) => {
+        await load();
+        const failure = make();
+        mockDeleteHouseholdItemBudget.mockRejectedValue(failure);
+        await act(async () => {
+          capturedBudgetSectionProps.budgetSectionHook.handleDeleteBudgetLine('bl-1');
+        });
+        let thrown: unknown;
+        await act(async () => {
+          try {
+            await capturedBudgetSectionProps.onConfirmDeleteBudgetLine();
+          } catch (err) {
+            thrown = err;
+          }
+        });
+        expect(thrown).toBe(failure);
+        expect(inlineError() ?? null).toBeNull();
+        expect(screen.queryAllByRole('alert')).toHaveLength(0);
+      },
+    );
   });
 
   describe('subsidy linking', () => {
@@ -624,12 +630,18 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
 
   describe('a new budget action clears a stale inline error', () => {
     async function failDelete() {
-      mockDeleteHouseholdItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
-      await confirmDelete();
-      await expectInlineError(enBudget.budgetLineForm.errors.deleteFailed);
+      // Any failed budget action leaves a banner; a failed subsidy link is the simplest.
+      mockLinkHouseholdItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
+      await act(async () => {
+        capturedBudgetSectionProps.budgetSectionHook.setSelectedSubsidyId('sub-1');
+      });
+      await act(async () => {
+        await capturedBudgetSectionProps.onLinkSubsidy();
+      });
+      await expectInlineError(enHouseholdItems.detail.errors.linkSubsidy);
     }
 
-    it('a successful move clears the banner left by a failed delete', async () => {
+    it('a successful move clears the banner left by a failed action', async () => {
       await load();
       await failDelete();
       expect(screen.getAllByRole('alert')).toHaveLength(1);
@@ -645,7 +657,7 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
-    it('a successful invoice-line edit clears the banner left by a failed delete', async () => {
+    it('a successful invoice-line edit clears the banner left by a failed action', async () => {
       await load(true);
       await failDelete();
 

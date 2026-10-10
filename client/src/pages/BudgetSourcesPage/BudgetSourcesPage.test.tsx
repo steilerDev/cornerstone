@@ -9,6 +9,7 @@ import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enBudget from '../../i18n/en/budget.json';
@@ -24,6 +25,11 @@ const mockFetchBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSo
 const mockCreateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.createBudgetSource>();
 const mockUpdateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.updateBudgetSource>();
 const mockDeleteBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.deleteBudgetSource>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 const mockFetchBudgetLinesForSource =
   jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetLinesForSource>();
 
@@ -244,6 +250,12 @@ describe('BudgetSourcesPage', () => {
     mockCreateBudgetSource.mockReset();
     mockUpdateBudgetSource.mockReset();
     mockDeleteBudgetSource.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'budget_source',
+      id: 'src-1',
+      effects: [],
+    });
     mockFetchBudgetLinesForSource.mockReset();
     _capturedLinkedDocsSectionProps = null;
   });
@@ -1283,6 +1295,53 @@ describe('BudgetSourcesPage', () => {
   // ─── Delete confirmation modal ───────────────────────────────────────────────
 
   describe('delete confirmation modal', () => {
+    async function enabledConfirm() {
+      const btn = await screen.findByTestId('budget-source-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      return btn;
+    }
+
+    it('lists what the delete also changes and asks the impact endpoint for this source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'budget_source',
+        id: 'src-1',
+        effects: [
+          { kind: 'progressPaymentsUnassigned', count: 2 },
+          { kind: 'costLinesUnassigned', count: 0 },
+        ],
+      });
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await waitFor(() =>
+        expect(screen.getByTestId('budget-source-delete-consequences')).toHaveTextContent(
+          'Progress payments that lose this funding source: 2',
+        ),
+      );
+      expect(screen.queryByText(/Cost lines that lose this company/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('budget_source', 'src-1');
+    });
+
+    it('keeps the action disabled when the counts fail to load', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockFetchDeleteImpact.mockRejectedValue(new Error('offline'));
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await screen.findByTestId('budget-source-delete-retry');
+      expect(screen.getByTestId('budget-source-delete-confirm')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+    });
+
     it('shows delete confirmation modal when Delete button is clicked', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
 
@@ -1295,8 +1354,9 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /delete budget source/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Home Loan?' })).toBeInTheDocument();
+      expect(screen.getByTestId('budget-source-delete-cancel')).toHaveFocus();
     });
 
     it('shows the source name in the confirmation modal body text', async () => {
@@ -1311,7 +1371,7 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('Home Loan');
     });
 
@@ -1327,8 +1387,8 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toContainElement(screen.getByRole('button', { name: /delete source/i }));
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toContainElement(screen.getByTestId('budget-source-delete-confirm'));
     });
 
     it('closes the modal when Cancel is clicked', async () => {
@@ -1343,12 +1403,12 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       const cancelButton = dialog.querySelector('button') as HTMLButtonElement;
       await user.click(cancelButton);
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
     });
 
@@ -1364,7 +1424,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteBudgetSource).toHaveBeenCalledWith('src-1');
@@ -1375,6 +1435,21 @@ describe('BudgetSourcesPage', () => {
           screen.getByText(/budget source "home loan" deleted successfully/i),
         ).toBeInTheDocument();
       });
+    });
+
+    it('after deleting a source focus lands on a control, never on <body>', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockDeleteBudgetSource.mockResolvedValueOnce(undefined);
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await user.click(await enabledConfirm());
+      await waitFor(() => expect(mockDeleteBudgetSource).toHaveBeenCalledWith('src-1'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      expect(document.activeElement).not.toBe(document.body);
     });
 
     it('removes the deleted source from the list', async () => {
@@ -1389,7 +1464,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.queryByText('Home Loan')).not.toBeInTheDocument();
@@ -1416,7 +1491,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1444,7 +1519,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1455,7 +1530,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       // Confirm delete button should no longer be visible
-      expect(screen.queryByRole('button', { name: /delete source/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('budget-source-delete-confirm')).not.toBeInTheDocument();
     });
 
     it('shows generic error for non-409 delete failures', async () => {
@@ -1470,7 +1545,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(/failed to delete budget source/i)).toBeInTheDocument();
@@ -1491,7 +1566,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();

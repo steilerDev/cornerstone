@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -10,6 +10,7 @@ import enErrors from '../../i18n/en/errors.json';
 import enSchedule from '../../i18n/en/schedule.json';
 import type React from 'react';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type { MilestoneDetail, WorkItemSummary, HouseholdItemSummary } from '@cornerstone/shared';
@@ -70,6 +71,32 @@ jest.unstable_mockModule('../../lib/householdItemDepsApi.js', () => ({
   fetchHouseholdItemDeps: jest.fn(),
 }));
 
+// ── Toast + delete-impact mocks (#2209): the status hook toasts, the delete dialog loads counts ──
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: unknown }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
+}));
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(): Promise<HTMLElement> {
+  const btn = await screen.findByTestId('milestone-delete-confirm');
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
+
 // ── LocaleContext mock — AreaBreadcrumb renders Tooltip which calls useLocale() ──
 // Added for Issue #1239: MilestoneDetailPage now renders AreaBreadcrumb on linked WI rows.
 
@@ -116,6 +143,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: () => '—',
       formatDateTime: () => '—',
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -198,6 +226,10 @@ describe('MilestoneDetailPage', () => {
     mockGetMilestone.mockReset();
     mockUpdateMilestone.mockReset();
     mockDeleteMilestone.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'milestone', id: '1', effects: [] });
     mockLinkWorkItem.mockReset();
     mockUnlinkWorkItem.mockReset();
     mockAddDependentWorkItem.mockReset();
@@ -626,7 +658,53 @@ describe('MilestoneDetailPage', () => {
 
       await user.click(screen.getByTestId('delete-milestone-button'));
 
-      expect(screen.getByRole('dialog', { hidden: true })).toBeInTheDocument();
+      expect(
+        screen.getByRole('alertdialog', { name: 'Delete Foundation Complete?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('milestone-delete-cancel')).toHaveFocus();
+    });
+
+    it('lists what the delete also removes and asks the endpoint for this milestone', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'milestone',
+        id: '1',
+        effects: [
+          { kind: 'milestoneLinks', count: 2 },
+          { kind: 'milestoneWaits', count: 0 },
+        ],
+      });
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('delete-milestone-button')).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByTestId('delete-milestone-button'));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('milestone-delete-consequences')).toHaveTextContent(
+          'Milestones it no longer counts toward: 2',
+        ),
+      );
+      expect(screen.queryByText(/no longer waits for/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('milestone', 1);
+    });
+
+    it('a 409 hides the action and keeps Cancel', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      mockDeleteMilestone.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('delete-milestone-button')).toBeInTheDocument();
+      });
+      await user.click(screen.getByTestId('delete-milestone-button'));
+      await user.click(await enabledConfirm());
+      await waitFor(() => expect(screen.queryByTestId('milestone-delete-confirm')).toBeNull());
+      expect(screen.getByTestId('milestone-delete-cancel')).toBeInTheDocument();
     });
 
     it('navigates to milestones list after successful delete', async () => {
@@ -641,7 +719,7 @@ describe('MilestoneDetailPage', () => {
       });
 
       await user.click(screen.getByTestId('delete-milestone-button'));
-      await user.click(screen.getByTestId('confirm-delete-milestone'));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteMilestone).toHaveBeenCalledWith(1);
@@ -666,7 +744,7 @@ describe('MilestoneDetailPage', () => {
       });
 
       await user.click(screen.getByTestId('delete-milestone-button'));
-      await user.click(screen.getByTestId('confirm-delete-milestone'));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -705,6 +783,147 @@ describe('MilestoneDetailPage', () => {
   });
 
   // ─── Completed milestone ──────────────────────────────────────────────────
+
+  describe('status menu (#2209)', () => {
+    const TOKEN = { token: `u_${'e'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+
+    function respond(body: unknown) {
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    }
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+
+    beforeEach(() => {
+      makeDefaultListResponses();
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    async function loaded(detail: MilestoneDetail = emptyMilestoneDetail) {
+      mockGetMilestone.mockResolvedValue(detail);
+      renderPage();
+      await screen.findByRole('heading', { level: 1, name: detail.title });
+    }
+
+    it('replaces the completion checkbox with a status menu', async () => {
+      await loaded();
+      expect(screen.getByTestId('milestone-status')).toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).toBeNull();
+    });
+
+    it('offers only "Mark reached" for an upcoming milestone and asks when it was reached', async () => {
+      await loaded();
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual(['Mark reached›']);
+      fireEvent.click(screen.getByTestId('milestone-status-option-reached'));
+      expect(screen.getByRole('dialog', { name: 'When was it reached?' })).toBeInTheDocument();
+      // The target date lies in the past, so the "On target" chip is offered.
+      expect(screen.getByTestId('milestone-status-date-planned')).toHaveTextContent('On target');
+    });
+
+    it('"On target" sends the target date as the completion date and offers Undo', async () => {
+      respond({ ...emptyMilestoneDetail, isCompleted: true, undo: TOKEN });
+      await loaded();
+
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      fireEvent.click(screen.getByTestId('milestone-status-option-reached'));
+      fireEvent.click(screen.getByTestId('milestone-status-date-planned'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite()).toEqual({
+        url: '/api/milestones/1',
+        method: 'PATCH',
+        body: { isCompleted: true, completedAt: '2026-03-15' },
+      });
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Foundation Complete is now “Reached”.',
+          dedupeKey: 'milestone:1',
+        }),
+      );
+    });
+
+    it('"Today" sends today as the completion date', async () => {
+      respond({ ...emptyMilestoneDetail, isCompleted: true });
+      await loaded();
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      fireEvent.click(screen.getByTestId('milestone-status-option-reached'));
+      fireEvent.click(screen.getByTestId('milestone-status-date-today'));
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite().body).toEqual({
+        isCompleted: true,
+        completedAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      });
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+    });
+
+    it('a reached milestone offers the way back to "Upcoming" and sends isCompleted false', async () => {
+      respond({ ...emptyMilestoneDetail, isCompleted: false, undo: TOKEN });
+      await loaded({
+        ...emptyMilestoneDetail,
+        isCompleted: true,
+        completedAt: '2026-03-10T12:00:00.000Z',
+      });
+
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
+        'Back to “Upcoming”',
+      ]);
+      fireEvent.click(screen.getByTestId('milestone-status-option-not_reached'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite().body).toEqual({ isCompleted: false });
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      expect(mockShowUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({ message: 'Foundation Complete is now “Upcoming”.' }),
+      );
+    });
+
+    it('Undo posts the token and reloads the milestone', async () => {
+      respond({ ...emptyMilestoneDetail, isCompleted: true, undo: TOKEN });
+      await loaded();
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      fireEvent.click(screen.getByTestId('milestone-status-option-reached'));
+      fireEvent.click(screen.getByTestId('milestone-status-date-today'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockGetMilestone.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockGetMilestone.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      await loaded();
+      fireEvent.click(screen.getByTestId('milestone-status'));
+      fireEvent.click(screen.getByTestId('milestone-status-option-reached'));
+      fireEvent.click(screen.getByTestId('milestone-status-date-today'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+  });
 
   describe('completed milestone', () => {
     beforeEach(() => {

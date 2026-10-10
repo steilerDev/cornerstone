@@ -265,8 +265,7 @@ describe('VendorContactsSection', () => {
   });
 
   describe('delete', () => {
-    it('removes the contact after confirmation and announces it', async () => {
-      jest.spyOn(window, 'confirm').mockReturnValue(true);
+    async function openDelete() {
       const user = userEvent.setup();
       render(<VendorContactsSection vendorId="v-1" />);
       await user.click(
@@ -274,24 +273,84 @@ describe('VendorContactsSection', () => {
           name: `${enSettings.vendors.contacts.deleteContact} Jane Doe`,
         }),
       );
+      return user;
+    }
+
+    it('opens a confirm dialog naming the contact and does not delete yet', async () => {
+      await openDelete();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Jane Doe?' })).toBeInTheDocument();
+      expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
+      expect(screen.getByTestId('contact-delete-cancel')).toHaveFocus();
+      expect(mockRemoveContact).not.toHaveBeenCalled();
+    });
+
+    it('removes the contact after confirmation and announces it', async () => {
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-confirm'));
       await waitFor(() => {
         expect(mockRemoveContact).toHaveBeenCalledWith('c-1');
       });
       await waitFor(() => {
         expect(screen.getByRole('status')).toHaveTextContent('Contact Jane Doe deleted');
       });
+      expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 
-    it('does nothing when the confirmation is declined', async () => {
-      jest.spyOn(window, 'confirm').mockReturnValue(false);
-      const user = userEvent.setup();
-      render(<VendorContactsSection vendorId="v-1" />);
+    it('does nothing when the dialog is cancelled', async () => {
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-cancel'));
+      expect(mockRemoveContact).not.toHaveBeenCalled();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+    });
+
+    it('shows the translated server error inside the dialog and keeps it open', async () => {
+      mockRemoveContact.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-confirm'));
+      const dialog = await screen.findByRole('alertdialog');
+      await waitFor(() => expect(dialog).toHaveTextContent(enErrors.INTERNAL_ERROR));
+      expect(dialog).not.toHaveTextContent('RAW-SERVER-SENTINEL');
+      expect(screen.getByTestId('contact-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('hides the action after a 409 so only Cancel remains', async () => {
+      mockRemoveContact.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'in use' }),
+      );
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-confirm'));
+      await waitFor(() => expect(screen.queryByTestId('contact-delete-confirm')).toBeNull());
+      expect(screen.getByTestId('contact-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('shows the generic message for a non-API failure', async () => {
+      mockRemoveContact.mockRejectedValueOnce(new Error('network'));
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-confirm'));
+      await waitFor(() =>
+        expect(screen.getByRole('alertdialog')).toHaveTextContent(
+          enSettings.vendors.contacts.deleteError,
+        ),
+      );
+    });
+
+    it('reopening after a failure starts clean (no stale error, action visible)', async () => {
+      mockRemoveContact.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'in use' }),
+      );
+      const user = await openDelete();
+      await user.click(screen.getByTestId('contact-delete-confirm'));
+      await waitFor(() => expect(screen.queryByTestId('contact-delete-confirm')).toBeNull());
+      await user.click(screen.getByTestId('contact-delete-cancel'));
       await user.click(
         screen.getByRole('button', {
           name: `${enSettings.vendors.contacts.deleteContact} Jane Doe`,
         }),
       );
-      expect(mockRemoveContact).not.toHaveBeenCalled();
+      expect(screen.getByTestId('contact-delete-confirm')).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
     });
   });
 });
