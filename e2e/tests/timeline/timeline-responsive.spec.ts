@@ -12,6 +12,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { buildTimeline, mockWorkItem } from '../../fixtures/timelineMocks.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -99,35 +100,21 @@ test.describe('Tablet layout (Scenario 3)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'tablet-item',
-                title: 'Tablet Test Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'tablet-item',
+            title: 'Tablet Test Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -161,46 +148,29 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'kb-item-1',
-                title: 'First Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-              {
-                id: 'kb-item-2',
-                title: 'Second Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'kb-item-1',
+            title: 'First Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+          mockWorkItem({
+            id: 'kb-item-2',
+            title: 'Second Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
+          }),
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -238,35 +208,21 @@ test.describe('Keyboard navigation on sidebar (Scenario 4)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'enter-nav-item',
-                title: 'Enter Nav Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'enter-nav-item',
+            title: 'Enter Nav Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -361,35 +317,21 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'aria-test-item',
-                title: 'ARIA Test Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'aria-test-item',
+            title: 'ARIA Test Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -414,35 +356,21 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'role-test-item',
-                title: 'Role Test Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'role-test-item',
+            title: 'Role Test Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();

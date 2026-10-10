@@ -378,4 +378,14 @@ describe('CalendarMilestone', () => {
       }).not.toThrow();
     });
   });
+
+  describe('touchSized prop', () => {
+    it('applies the touchSized class only when the prop is set', () => {
+      const { unmount } = render(<CalendarMilestone milestone={makeMilestone()} touchSized />);
+      expect(screen.getByTestId('calendar-milestone').className).toContain('touchSized');
+      unmount();
+      renderMilestone();
+      expect(screen.getByTestId('calendar-milestone').className).not.toContain('touchSized');
+    });
+  });
 });

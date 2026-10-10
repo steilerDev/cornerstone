@@ -197,6 +197,7 @@ export function WeekGrid({
                   <CalendarMilestone
                     milestone={m}
                     onMilestoneClick={onMilestoneClick}
+                    touchSized={isPhone}
                     onMouseEnter={onMilestoneMouseEnter}
                     onMouseLeave={onMilestoneMouseLeave}
                     onMouseMove={onMilestoneMouseMove}
@@ -218,6 +219,7 @@ export function WeekGrid({
                 >
                   <CalendarHouseholdItem
                     item={hi}
+                    touchSized={isPhone}
                     onMouseEnter={onItemMouseEnter}
                     onMouseLeave={onItemMouseLeave}
                     onMouseMove={onItemMouseMove}

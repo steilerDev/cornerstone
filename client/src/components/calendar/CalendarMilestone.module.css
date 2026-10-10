@@ -58,3 +58,10 @@
   flex: 1;
   min-width: 0;
 }
+
+/* Phone week view: 44px hit area; background-clip keeps the visible marker unchanged */
+.touchSized {
+  min-height: 44px;
+  padding-block: var(--spacing-3);
+  background-clip: content-box;
+}

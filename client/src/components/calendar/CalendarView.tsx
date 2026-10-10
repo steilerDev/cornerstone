@@ -60,7 +60,7 @@ export interface CalendarViewProps {
   householdItems?: TimelineHouseholdItem[];
   /** Dependency edges — used to populate the tooltip Dependencies section. */
   dependencies?: TimelineDependency[];
-  /** Called when user clicks a milestone diamond — opens the milestone panel. */
+  /** Called when user clicks a milestone diamond — navigates to the milestone page. */
   onMilestoneClick?: (milestoneId: number) => void;
   /** True when the schedule has no tasks, milestones or purchases at all, before filters. */
   isEmpty?: boolean;

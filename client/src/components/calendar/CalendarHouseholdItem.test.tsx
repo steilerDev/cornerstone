@@ -427,4 +427,18 @@ describe('CalendarHouseholdItem', () => {
       }).not.toThrow();
     });
   });
+
+  describe('touchSized prop', () => {
+    it('applies the touchSized class only when the prop is set', () => {
+      const { unmount } = render(
+        <MemoryRouter>
+          <CalendarHouseholdItem item={makeHouseholdItem()} touchSized />
+        </MemoryRouter>,
+      );
+      expect(screen.getByTestId('calendar-hi-item').className).toContain('touchSized');
+      unmount();
+      renderHI();
+      expect(screen.getByTestId('calendar-hi-item').className).not.toContain('touchSized');
+    });
+  });
 });

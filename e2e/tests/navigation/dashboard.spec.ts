@@ -22,10 +22,12 @@
 
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import type {
+  TimelineResponse,
   Invoice,
   InvoiceListPaginatedResponse,
   InvoiceStatusBreakdown,
 } from '@cornerstone/shared';
+import { buildTimeline, mockMilestone, mockWorkItem } from '../../fixtures/timelineMocks.js';
 import { DashboardPage, DASHBOARD_ROUTE, CARD_TITLES } from '../../pages/DashboardPage.js';
 import { createMilestoneViaApi, deleteMilestoneViaApi } from '../../fixtures/apiHelpers.js';
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
@@ -134,40 +136,31 @@ function mockBudgetSources() {
   };
 }
 
-function mockTimeline() {
+function mockTimeline(): TimelineResponse {
   const today = new Date();
   const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
   const endDate = new Date(today.getFullYear(), today.getMonth() + 1, 0).toISOString().slice(0, 10);
-  return {
+  return buildTimeline({
     workItems: [
-      {
+      mockWorkItem({
         id: 'wi-001',
         title: 'Foundation Work',
         status: 'in_progress',
         startDate,
         endDate,
         durationDays: 30,
-        dependencies: [],
-        assignedUser: null,
-        isCriticalPath: true,
-      },
-      {
+      }),
+      mockWorkItem({
         id: 'wi-002',
         title: 'Framing',
         status: 'not_started',
         startDate,
         endDate,
         durationDays: 30,
-        dependencies: [],
-        assignedUser: null,
-        isCriticalPath: false,
-      },
+      }),
     ],
-    dependencies: [],
     criticalPath: ['wi-001'],
-    milestones: [],
-    dateRange: { earliest: startDate, latest: endDate },
-  };
+  });
 }
 
 type SummaryBucket = { count: number; totalAmount: number };
@@ -1680,37 +1673,20 @@ function d04Mocks(): DashboardMockOverrides {
     .toISOString()
     .slice(0, 10);
 
-  const timeline = {
+  const timeline = buildTimeline({
     workItems: [
-      {
+      mockWorkItem({
         id: 'wi-long',
         title: D04_TITLES.workItem,
         status: 'in_progress',
         startDate,
         endDate,
         durationDays: 30,
-        dependencies: [],
-        assignedUser: null,
-        isCriticalPath: true,
-      },
+      }),
     ],
-    dependencies: [],
     criticalPath: ['wi-long'],
-    milestones: [
-      {
-        id: 4242,
-        title: D04_TITLES.milestone,
-        targetDate: target,
-        isCompleted: false,
-        completedAt: null,
-        color: null,
-        workItemIds: [],
-        projectedDate: null,
-        isCritical: false,
-      },
-    ],
-    dateRange: { earliest: startDate, latest: endDate },
-  };
+    milestones: [mockMilestone({ id: 4242, title: D04_TITLES.milestone, targetDate: target })],
+  });
 
   const sources = {
     budgetSources: [

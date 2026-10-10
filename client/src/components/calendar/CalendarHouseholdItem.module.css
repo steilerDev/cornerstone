@@ -39,3 +39,11 @@
     transition: none;
   }
 }
+
+/* Phone week view: 44px hit area; background-clip keeps the visible chip unchanged */
+.touchSized {
+  height: auto;
+  min-height: 44px;
+  padding-block: var(--spacing-3);
+  background-clip: content-box;
+}

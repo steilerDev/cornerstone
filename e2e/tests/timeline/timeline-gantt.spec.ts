@@ -15,6 +15,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { buildTimeline, mockWorkItem } from '../../fixtures/timelineMocks.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -73,35 +74,21 @@ test.describe('Gantt chart renders (Scenario 2)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'mock-item-1',
-                title: 'Mock Gantt Item',
-                status: 'in_progress',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'mock-item-1',
+            title: 'Mock Gantt Item',
+            status: 'in_progress',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -148,46 +135,29 @@ test.describe('Gantt sidebar (Scenario 3)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'sidebar-item-1',
-                title: 'Foundation Work',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-              {
-                id: 'sidebar-item-2',
-                title: 'Framing',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'sidebar-item-1',
+            title: 'Foundation Work',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+          mockWorkItem({
+            id: 'sidebar-item-2',
+            title: 'Framing',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
+          }),
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -208,35 +178,21 @@ test.describe('Gantt sidebar (Scenario 3)', () => {
   test('Sidebar row has no-dates indicator when work item has no dates', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'no-dates-item',
-                title: 'Undated Task',
-                status: 'not_started',
-                startDate: null,
-                endDate: null,
-                durationDays: null,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: null,
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'no-dates-item',
+            title: 'Undated Task',
+            status: 'not_started',
+            startDate: null,
+            endDate: null,
+            durationDays: null,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -265,35 +221,21 @@ test.describe('Gantt header (Scenario 4)', () => {
       .toISOString()
       .slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'header-item',
-                title: 'Header Test Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'header-item',
+            title: 'Header Test Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -423,23 +365,12 @@ test.describe('Empty state — no work items (Scenario 7)', () => {
   test('Empty state renders when API returns no work items', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: null,
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -463,35 +394,21 @@ test.describe('No-dates state (Scenario 8)', () => {
   test('No-dates warning renders when work items have no start/end dates', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'undated-1',
-                title: 'Undated Work Item',
-                status: 'not_started',
-                startDate: null,
-                endDate: null,
-                durationDays: null,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: null,
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'undated-1',
+            title: 'Undated Work Item',
+            status: 'not_started',
+            startDate: null,
+            endDate: null,
+            durationDays: null,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [],
+      }),
+    );
 
     try {
       await timelinePage.goto();

@@ -438,6 +438,31 @@ describe('WeekGrid', () => {
       expect(screen.getByTestId('calendar-hi-item').parentElement!.style.top).toBe(`${3 * 26}px`);
     });
 
+    it('passes touchSized to milestones and purchases on a phone, not on desktop', () => {
+      const purchase: TimelineHouseholdItem = {
+        id: 'hi-t',
+        name: 'Sample Sofa',
+        category: 'furniture',
+        status: 'purchased',
+        targetDeliveryDate: '2024-03-15',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        actualDeliveryDate: null,
+        isLate: false,
+        dependencyIds: [],
+      };
+      const props = { milestones: [makeMilestone(1, '2024-03-15')], householdItems: [purchase] };
+      mockMatchMedia(true);
+      const { unmount } = renderGrid(props);
+      expect(screen.getByTestId('calendar-milestone').className).toContain('touchSized');
+      expect(screen.getByTestId('calendar-hi-item').className).toContain('touchSized');
+      unmount();
+      mockMatchMedia(false);
+      renderGrid(props);
+      expect(screen.getByTestId('calendar-milestone').className).not.toContain('touchSized');
+      expect(screen.getByTestId('calendar-hi-item').className).not.toContain('touchSized');
+    });
+
     it('places the milestone below the item lanes', () => {
       mockMatchMedia(false);
       renderGrid({ workItems: laneItems, milestones: [makeMilestone(1, '2024-03-15')] });

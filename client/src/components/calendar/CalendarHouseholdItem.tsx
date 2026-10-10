@@ -16,6 +16,8 @@ export interface CalendarHouseholdItemProps {
   onMouseLeave?: () => void;
   onMouseMove?: (mouseX: number, mouseY: number) => void;
   compact?: boolean;
+  /** Phone week view: 44px hit area (visible chip unchanged). */
+  touchSized?: boolean;
   isTouchDevice?: boolean;
   activeTouchId?: string | null;
   onTouchTap?: (itemId: string, onNavigate: () => void) => void;
@@ -41,6 +43,7 @@ export function CalendarHouseholdItem({
   onMouseLeave,
   onMouseMove,
   isTouchDevice = false,
+  touchSized = false,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   activeTouchId = null,
   onTouchTap,
@@ -98,7 +101,7 @@ export function CalendarHouseholdItem({
     <div
       role="button"
       tabIndex={0}
-      className={`${styles.hiItem} ${purchase[item.status].className}`}
+      className={`${styles.hiItem} ${purchase[item.status].className} ${touchSized ? styles.touchSized : ''}`}
       data-status={item.status}
       onClick={handleClick}
       onKeyDown={handleKeyDown}

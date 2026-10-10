@@ -52,18 +52,17 @@ Arrow hover interaction pattern:
 - `GanttChart.tsx` computes 4 useMemo maps: `milestonePoints`, `milestoneContributors`, `workItemRequiredMilestones`, `milestoneTitles`
 - Milestone X uses active date (projectedDate for late, targetDate otherwise) matching GanttMilestones positioning
 
-## Calendar Lane Allocation + Item Colors (Fix 2, fix/epic-06-uat-fixes)
+## Calendar Lane Allocation, Week Segments and Status Colours (#2198)
 
 - `allocateLanes(weekStart, weekEnd, items)` in `calendarUtils.ts` — greedy lane assignment
   - Returns `Map<itemId, laneIndex>` (0-based); multi-day items first by descending span length
   - Ensures consistent vertical position for multi-day items across all cells in a week row
-- `getItemColor(itemId)` — djb2-style hash to 1-8 color index (deterministic)
-- `CalendarItem.tsx` exports `LANE_HEIGHT_COMPACT = 20` and `LANE_HEIGHT_FULL = 26` (px)
-- `CalendarItem` props: `laneIndex?: number` (absolute `top` via inline style) + `colorIndex?: number` (palette color via inline style)
-- `MonthGrid`: `position:relative` itemsContainer, lane map per week row, milestones stacked after item lanes
-- `WeekGrid`: one lane map for whole week, `position:relative` on dayCell via inline style
-- Status CSS classes (`.notStarted`, `.inProgress`, etc.) KEPT for test compatibility; inline palette color overrides them visually
-- Calendar palette tokens: `--calendar-item-{1-8}-bg` + `--calendar-item-{1-8}-text` in tokens.css (light + dark)
+- `getWeekSegments(week, items)` cuts every dated item into exactly one `WeekSegment` per week row (`startCol`, `span`, `continuesFromPrevious/ToNext`, `lane`); grids render a segment in the cell of its first day and `CalendarItem` spans it with `right: calc((1 - span) * (100% + 1px))`. Segments show "←"/"→" arrows and the title on every week.
+- `CalendarItem.tsx` exports `LANE_HEIGHT_COMPACT = 20`, `LANE_HEIGHT_FULL = 26`, `LANE_HEIGHT_FULL_TOUCH = 48`; props `laneIndex`, `span`, `laneHeight`, `touchSized`
+- Colour comes ONLY from the shared status map: `useStatusBadgeVariants()` (`task` for items, `purchase` for chips, `milestone` for the tooltip chip). The old `getItemColor`/`colorIndex`/`--calendar-item-*` palette is deleted — do not reintroduce inline colours.
+- `MonthGrid`: per week row `lanes + max(milestones+purchases per day)` sets the row height (rows grow); milestones/purchases stack below the lanes. `WeekGrid`: same with `laneHeight`; `isPhone` (useMediaQuery) switches to 44px `touchSized` items/purchases/milestones (`padding-block` + `background-clip: content-box`).
+- Tooltip data for Gantt AND calendar is built only by `GanttChart/tooltipData.ts` (`buildWorkItemTooltipData`, `buildHouseholdItemTooltipData`, `formatAreaPath`, `estimateWorkItemTooltipHeight`); tooltip shows Company, Area and Waits for / Holds up groups.
+- Calendar milestone click navigates to the milestone page (`onMilestoneClick` from TimelinePage); empty calendar uses `EmptyState` via `CalendarView.isEmpty`.
 
 ## MilestoneWorkItemLinker — Bidirectional Relationships (Fix 4, then Fix 5-UI)
 
