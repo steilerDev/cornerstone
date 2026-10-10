@@ -37,6 +37,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
     setLocale: jest.fn(),
     syncWithServer: jest.fn(),
   }),
+  RESOLVED_LOCALES: ['en', 'de'],
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 

@@ -511,6 +511,42 @@ describe('top bar and user menu rule pins (#2206)', () => {
     expect(column.get('overflow-y')).toBeUndefined();
   });
 
+  it('OverflowMenu danger items focus with an inset danger ring', () => {
+    const decls = ruleFor(overflow, '.itemDanger:focus-visible');
+    expect(decls.get('box-shadow')).toBe('inset 0 0 0 2px var(--color-danger)');
+    expect(decls.get('outline')).toBe('none');
+  });
+
+  it('the floating menu button hover also changes its border to the primary token', () => {
+    const decls = ruleFor(appShell, '.menuFab:hover');
+    expect(decls.get('border-color')).toBe('var(--color-primary)');
+    expect(decls.get('background-color')).toBe('var(--color-bg-hover)');
+  });
+
+  it('the top bar buttons turn their transition off for reduced motion', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
+      'utf8',
+    );
+    const block = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([^@]*?\})\s*\}/.exec(css);
+    expect(block).not.toBeNull();
+    const rules = parseRules(block?.[0] ?? '');
+    const rule = rules.find((r) => r.selectors.includes('.search'));
+    expect(rule?.selectors).toEqual(['.search', '.newButton', '.bell']);
+    expect(rule?.decls.get('transition')).toBe('none');
+  });
+
+  it('the Timeline page is the full dynamic viewport below 1024 px, with no fixed 60px header allowance', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'pages', 'TimelinePage', 'TimelinePage.module.css'),
+      'utf8',
+    );
+    const page = parseRules(css).filter((r) => r.selectors.includes('.page'));
+    expect(page[0]?.decls.get('height')).toBe('100dvh');
+    expect(stripComments(css)).not.toMatch(/-\s*60px/);
+    expect(stripComments(css)).not.toMatch(/100vh/);
+  });
+
   it.each([
     ['pages/TimelinePage/TimelinePage.module.css', '.page'],
     ['pages/AutoItemizePage/AutoItemizePage.module.css', '.pageContainer'],

@@ -12,7 +12,8 @@ import { listPreferences, upsertPreference } from '../lib/preferencesApi.js';
 import { fetchConfig } from '../lib/configApi.js';
 
 export type LocalePreference = 'en' | 'de' | 'system';
-export type ResolvedLocale = 'en' | 'de';
+export const RESOLVED_LOCALES = ['en', 'de'] as const;
+export type ResolvedLocale = (typeof RESOLVED_LOCALES)[number];
 
 export interface LocaleContextValue {
   /** The user's explicit preference: 'en', 'de', or 'system' */

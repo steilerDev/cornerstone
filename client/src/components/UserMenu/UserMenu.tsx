@@ -4,8 +4,9 @@ import { routeUrl } from '@cornerstone/shared';
 import { useHref, useLinkClickHandler, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { useLocale } from '../../contexts/LocaleContext.js';
+import { RESOLVED_LOCALES, useLocale } from '../../contexts/LocaleContext.js';
 import { useTheme } from '../../contexts/ThemeContext.js';
+import type { ResolvedLocale } from '../../contexts/LocaleContext.js';
 import type { ThemePreference } from '../../contexts/ThemeContext.js';
 import { useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
@@ -16,6 +17,7 @@ import { OverflowMenu } from '../OverflowMenu/OverflowMenu.js';
 import type { OverflowMenuEntry } from '../OverflowMenu/OverflowMenu.js';
 import styles from './UserMenu.module.css';
 
+const LOCALE_LABELS: Record<ResolvedLocale, string> = { en: 'English', de: 'Deutsch' };
 const THEME_ORDER: readonly ThemePreference[] = ['light', 'dark', 'system'];
 
 /** Avatar button with the account menu: account, theme, language, help, about and log out. */
@@ -77,12 +79,15 @@ export function UserMenu() {
       id: 'language',
       label: t('userMenu.language'),
       value: resolvedLocale,
-      options: [
-        { value: 'en', label: 'English', lang: 'en', testId: 'user-menu-language-en' },
-        { value: 'de', label: 'Deutsch', lang: 'de', testId: 'user-menu-language-de' },
-      ],
+      options: RESOLVED_LOCALES.map((value) => ({
+        value,
+        label: LOCALE_LABELS[value],
+        lang: value,
+        testId: `user-menu-language-${value}`,
+      })),
       onChange: (value) => {
-        if (value === 'en' || value === 'de') setLocale(value);
+        const next = RESOLVED_LOCALES.find((locale) => locale === value);
+        if (next) setLocale(next);
       },
     },
     { kind: 'separator', id: 'sep-help' },

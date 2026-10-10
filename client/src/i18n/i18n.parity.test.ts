@@ -475,5 +475,6 @@ describe('#2206 top bar and user menu keys', () => {
     expect(bundles.de?.userMenu.account).toBe('Konto');
     expect(bundles.de?.topBar.new).toBe('Neu');
     expect(bundles.de?.topBar.attention).toBe('Braucht dich');
+    expect(bundles.de?.userMenu.about).toBe('Info');
   });
 });

@@ -82,3 +82,11 @@
 .newButton[aria-disabled='true']:hover {
   background-color: var(--color-bg-tertiary);
 }
+
+@media (prefers-reduced-motion: reduce) {
+  .search,
+  .newButton,
+  .bell {
+    transition: none;
+  }
+}

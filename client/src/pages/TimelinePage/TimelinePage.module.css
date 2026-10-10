@@ -11,8 +11,9 @@
   margin: -2rem;
   display: flex;
   flex-direction: column;
-  /* Full height: viewport minus the desktop top bar (from 1024 px, see below) */
-  height: calc(100vh - 60px);
+  /* Full viewport height below 1024 px (no top bar there); the desktop top bar is
+     subtracted from 1024 px, see below */
+  height: 100dvh;
   overflow: hidden;
   background: var(--color-bg-secondary);
 }

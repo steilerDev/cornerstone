@@ -26,6 +26,8 @@ interface MockUser {
 let mockUser: MockUser | null;
 let mockTheme: 'light' | 'dark' | 'system';
 let mockLocale: 'en' | 'de';
+// Mutated in place by the language tests: the menu must read its options from this list
+const mockLocales: string[] = ['en', 'de'];
 const mockLogout = jest.fn<() => Promise<void>>();
 const mockSetTheme = jest.fn<(theme: string) => void>();
 const mockSetLocale = jest.fn<(locale: string) => void>();
@@ -55,6 +57,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
     setLocale: mockSetLocale,
     syncWithServer: jest.fn(),
   }),
+  RESOLVED_LOCALES: mockLocales,
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -91,6 +94,7 @@ describe('UserMenu', () => {
     };
     mockTheme = 'system';
     mockLocale = 'en';
+    mockLocales.splice(0, mockLocales.length, 'en', 'de');
     mockLogout.mockReset().mockResolvedValue(undefined);
     mockSetTheme.mockReset();
     mockSetLocale.mockReset();
@@ -286,6 +290,28 @@ describe('UserMenu', () => {
       await openMenu(user);
       expect(screen.getByTestId('user-menu-language-de')).toHaveAttribute('aria-checked', 'true');
       expect(screen.getByTestId('user-menu-language-en')).toHaveAttribute('aria-checked', 'false');
+    });
+
+    it('builds its options from RESOLVED_LOCALES in list order', async () => {
+      mockLocales.splice(0, mockLocales.length, 'de', 'en');
+      const user = userEvent.setup();
+      renderMenu();
+      await openMenu(user);
+      const group = screen.getByRole('group', { name: 'Language' });
+      expect(
+        within(group)
+          .getAllByRole('menuitemradio')
+          .map((o) => o.getAttribute('data-testid')),
+      ).toEqual(['user-menu-language-de', 'user-menu-language-en']);
+    });
+
+    it('offers no language that RESOLVED_LOCALES does not list', async () => {
+      mockLocales.splice(0, mockLocales.length, 'en');
+      const user = userEvent.setup();
+      renderMenu();
+      await openMenu(user);
+      expect(screen.getByTestId('user-menu-language-en')).toBeInTheDocument();
+      expect(screen.queryByTestId('user-menu-language-de')).not.toBeInTheDocument();
     });
 
     it('sets the locale on click and keeps the menu open', async () => {

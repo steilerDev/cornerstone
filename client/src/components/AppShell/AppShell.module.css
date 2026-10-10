@@ -71,6 +71,7 @@
 
 .menuFab:hover {
   background-color: var(--color-bg-hover);
+  border-color: var(--color-primary);
   box-shadow: var(--shadow-lg);
 }
 
