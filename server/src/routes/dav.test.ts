@@ -100,6 +100,133 @@ describe('DAV Routes', () => {
     });
   });
 
+  describe('OPTIONS Allow header and unmatched /dav requests', () => {
+    const EXPECTED_ALLOW = 'OPTIONS, GET, HEAD, PROPFIND, PROPPATCH, REPORT';
+
+    it('OPTIONS without auth returns 200 with Allow listing only implemented methods', async () => {
+      const response = await app.inject({ method: 'OPTIONS', url: '/dav/' });
+
+      expect(response.statusCode).toBe(200);
+      expect(response.headers['allow']).toBe(EXPECTED_ALLOW);
+    });
+
+    it('OPTIONS Allow no longer lists PUT, DELETE or POST', async () => {
+      const response = await app.inject({ method: 'OPTIONS', url: '/dav/calendars/default/' });
+      const allowed = String(response.headers['allow']).split(/,\s*/);
+
+      expect(allowed).not.toContain('PUT');
+      expect(allowed).not.toContain('DELETE');
+      expect(allowed).not.toContain('POST');
+      expect(allowed).toEqual(['OPTIONS', 'GET', 'HEAD', 'PROPFIND', 'PROPPATCH', 'REPORT']);
+    });
+
+    it.each(['PUT', 'DELETE', 'POST'])(
+      '%s with valid auth returns 405 with Allow and an empty body',
+      async (method) => {
+        const { basicAuth } = await createUserWithToken();
+        const response = await davInject({
+          method,
+          url: '/dav/calendars/default/x.ics',
+          headers: { authorization: basicAuth },
+        });
+
+        expect(response.statusCode).toBe(405);
+        expect(response.headers['allow']).toBe(EXPECTED_ALLOW);
+        expect(response.body).toBe('');
+      },
+    );
+
+    it.each(['PUT', 'DELETE', 'POST'])(
+      '%s without auth returns 401 with WWW-Authenticate, not 405',
+      async (method) => {
+        const response = await davInject({ method, url: '/dav/calendars/default/x.ics' });
+
+        expect(response.statusCode).toBe(401);
+        expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
+        expect(response.headers['allow']).toBeUndefined();
+      },
+    );
+
+    it('PUT with an invalid token returns 401', async () => {
+      const credentials = Buffer.from('user:not-a-valid-token').toString('base64');
+      const response = await davInject({
+        method: 'PUT',
+        url: '/dav/calendars/default/x.ics',
+        headers: { authorization: `Basic ${credentials}` },
+      });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
+    });
+
+    it.each(['GET', 'PROPFIND', 'REPORT'])(
+      '%s on an unknown /dav path with valid auth returns JSON 404 ROUTE_NOT_FOUND',
+      async (method) => {
+        const { basicAuth } = await createUserWithToken();
+        const response = await davInject({
+          method,
+          url: '/dav/does/not/exist',
+          headers: { authorization: basicAuth },
+        });
+
+        expect(response.statusCode).toBe(404);
+        expect(response.headers['content-type']).toContain('application/json');
+        const body = response.json<{ error: { code: string; message: string } }>();
+        expect(body.error.code).toBe('ROUTE_NOT_FOUND');
+        expect(body.error.message).toContain(method);
+        expect(body.error.message).toContain('/dav/does/not/exist');
+      },
+    );
+
+    it.each(['GET', 'PROPFIND'])(
+      '%s on an unknown /dav path without auth returns 401',
+      async (method) => {
+        const response = await davInject({ method, url: '/dav/does/not/exist' });
+
+        expect(response.statusCode).toBe(401);
+        expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
+      },
+    );
+
+    it.each(['GET', 'PUT'])('%s under /dav never returns the SPA index.html', async (method) => {
+      const { basicAuth } = await createUserWithToken();
+      const response = await davInject({
+        method,
+        url: '/dav/some/page',
+        headers: { authorization: basicAuth, accept: 'text/html' },
+      });
+
+      expect(response.headers['content-type'] ?? '').not.toContain('text/html');
+      expect(response.body).not.toContain('<html');
+    });
+
+    it.each(['MKCOL', 'LOCK', 'MOVE'])(
+      '%s (verb Fastify does not register) with valid auth returns 405 with Allow',
+      async (method) => {
+        const { basicAuth } = await createUserWithToken();
+        const response = await davInject({
+          method,
+          url: '/dav/calendars/default/x.ics',
+          headers: { authorization: basicAuth },
+        });
+
+        expect(response.statusCode).toBe(405);
+        expect(response.headers['allow']).toBe(EXPECTED_ALLOW);
+        expect(response.body).toBe('');
+      },
+    );
+
+    it.each(['MKCOL', 'LOCK', 'MOVE'])(
+      '%s (verb Fastify does not register) without auth returns 401',
+      async (method) => {
+        const response = await davInject({ method, url: '/dav/calendars/default/x.ics' });
+
+        expect(response.statusCode).toBe(401);
+        expect(response.headers['www-authenticate']).toBe('Basic realm="Cornerstone DAV"');
+      },
+    );
+  });
+
   // ─── PROPFIND authentication ──────────────────────────────────────────────
 
   describe('PROPFIND /dav/ authentication', () => {
