@@ -10,7 +10,7 @@
  *    empty inputs, skipping items without dates
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -40,12 +40,19 @@ function createTestDb(): DbType {
 // ─── Fixture factories ────────────────────────────────────────────────────────
 
 function makeWorkItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
+  const startDate = overrides.startDate === undefined ? '2026-03-01' : overrides.startDate;
+  const endDate = overrides.endDate === undefined ? '2026-03-15' : overrides.endDate;
   return {
     id: 'wi-1',
     title: 'Lay Foundation',
     status: 'not_started',
-    startDate: '2026-03-01',
-    endDate: '2026-03-15',
+    startDate,
+    endDate,
+    projectedStartDate: startDate,
+    projectedEndDate: endDate,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     actualStartDate: null,
     actualEndDate: null,
     durationDays: 14,
@@ -69,6 +76,10 @@ function makeMilestone(overrides: Partial<TimelineMilestone> = {}): TimelineMile
     color: '#ff0000',
     workItemIds: [],
     projectedDate: null,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     isCritical: false,
     ...overrides,
   };
@@ -194,6 +205,22 @@ describe('computeCalendarETag', () => {
     expect(a).toBe(b);
   });
 
+  describe('date component', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('changes the ETag when the UTC day changes even though no data changed', () => {
+      jest.useFakeTimers({ now: new Date('2026-03-10T12:00:00Z') });
+      const day1 = computeCalendarETag(db);
+      const day1Again = computeCalendarETag(db);
+      jest.setSystemTime(new Date('2026-03-11T12:00:00Z'));
+      const day2 = computeCalendarETag(db);
+      expect(day1Again).toBe(day1);
+      expect(day2).not.toBe(day1);
+    });
+  });
+
   it('changes the ETag after inserting a work item', () => {
     const before = computeCalendarETag(db);
 
@@ -266,6 +293,34 @@ describe('buildCalendar', () => {
       const output = buildCalendar({ workItems: [wi], milestones: [], householdItems: [] });
       // The event should use 2026-03-05 as start
       expect(output).toContain('20260305');
+    });
+
+    it('uses the forecast (projected) dates, not the planned dates, for a late task', () => {
+      const wi = makeWorkItem({
+        id: 'wi-late',
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        projectedStartDate: '2026-03-10',
+        projectedEndDate: '2026-03-13',
+        isLate: true,
+        lateDays: 5,
+      });
+      const output = buildCalendar({ workItems: [wi], milestones: [], householdItems: [] });
+      expect(output).toContain('20260310');
+      expect(output).not.toContain('20260305');
+    });
+
+    it('places an undated task (null planned dates) at its forecast dates', () => {
+      const wi = makeWorkItem({
+        id: 'wi-undated',
+        startDate: null,
+        endDate: null,
+        projectedStartDate: '2026-03-10',
+        projectedEndDate: '2026-03-12',
+      });
+      const output = buildCalendar({ workItems: [wi], milestones: [], householdItems: [] });
+      expect(output).toContain('UID:wi-wi-undated@cornerstone');
+      expect(output).toContain('20260310');
     });
 
     it('skips a work item with no startDate and no actualStartDate', () => {

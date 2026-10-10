@@ -95,6 +95,8 @@ jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
 
 // Mock formatters
 jest.unstable_mockModule('../../lib/formatters.js', () => ({
+  formatDayRange: (start: Date, end: Date) =>
+    `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
   useFormatters: () => ({
     formatDate: (d: string | null | undefined) => (d ? '01/01/2026' : '—'),
     formatCurrency: (n: number) => `€${n.toFixed(2)}`,

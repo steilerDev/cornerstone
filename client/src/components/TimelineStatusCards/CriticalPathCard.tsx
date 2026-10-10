@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineWorkItem } from '@cornerstone/shared';
+import { barDates } from '../../lib/scheduleDates.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge, type BadgeVariantMap } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
@@ -21,11 +22,11 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
 
   // Find the next incomplete critical item with the earliest endDate
   const incompleteCritical = criticalItems
-    .filter((item) => item.status !== 'completed' && item.endDate)
-    .sort((a, b) => (a.endDate || '').localeCompare(b.endDate || ''));
+    .filter((item) => item.status !== 'completed' && barDates(item).end)
+    .sort((a, b) => (barDates(a).end || '').localeCompare(barDates(b).end || ''));
 
   const nextItem = incompleteCritical[0] ?? null;
-  const deadline = nextItem?.endDate ?? null;
+  const deadline = nextItem ? barDates(nextItem).end : null;
 
   // Compute days remaining — use useMemo so date construction is not in the render body.
   // All hooks must be called unconditionally before any early returns.

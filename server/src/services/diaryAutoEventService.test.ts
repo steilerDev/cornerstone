@@ -20,6 +20,7 @@ import {
   onWorkItemStatusChanged,
   onInvoiceStatusChanged,
   onMilestoneDelayed,
+  parseMilestoneDelayProjectedDate,
   onBudgetCategoryOverspend,
   onAutoRescheduleCompleted,
   onSubsidyStatusChanged,
@@ -167,7 +168,23 @@ describe('diaryAutoEventService', () => {
   // ─── onMilestoneDelayed ────────────────────────────────────────────────────
 
   describe('onMilestoneDelayed', () => {
+    function insertMilestone(id: number, opts: { completed?: boolean } = {}) {
+      const now = '2026-03-01T00:00:00.000Z';
+      db.insert(schema.milestones)
+        .values({
+          id,
+          title: `Milestone ${id}`,
+          targetDate: '2026-03-01',
+          isCompleted: opts.completed ?? false,
+          completedAt: opts.completed ? '2026-03-02T10:00:00.000Z' : null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
     it('creates a diary entry with entryType=milestone_delay, body contains milestone name', () => {
+      insertMilestone(42);
       onMilestoneDelayed(db, true, 42, 'Foundation Complete', '2026-03-01', '2026-03-15');
 
       const entries = getAllEntries();
@@ -179,18 +196,119 @@ describe('diaryAutoEventService', () => {
       expect(entry.sourceEntityType).toBe('milestone');
       expect(entry.sourceEntityId).toBe('42');
       expect(entry.body).toContain('Foundation Complete');
+      expect(entry.body).toContain('delayed by 14 days');
     });
 
     it('converts milestoneId (number) to string for sourceEntityId', () => {
-      onMilestoneDelayed(db, true, 999, 'Roof Complete', '2026-04-01', '2026-04-10');
+      insertMilestone(999);
+      onMilestoneDelayed(db, true, 999, 'Roof Complete', '2026-03-01', '2026-03-10');
 
       const entries = getAllEntries();
       expect(entries[0]!.sourceEntityId).toBe('999');
     });
 
     it('does not create entry when enabled=false', () => {
-      onMilestoneDelayed(db, false, 1, 'Some Milestone', '2026-01-01', '2026-01-15');
+      insertMilestone(1);
+      onMilestoneDelayed(db, false, 1, 'Some Milestone', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(0);
+    });
+
+    it('writes nothing for a completed milestone (AC4)', () => {
+      insertMilestone(5, { completed: true });
+      onMilestoneDelayed(db, true, 5, 'Done Milestone', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(0);
+    });
+
+    it('writes nothing when the milestone row does not exist', () => {
+      onMilestoneDelayed(db, true, 777, 'Ghost', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(0);
+    });
+
+    it('writes nothing when the projected date is not later than the target date', () => {
+      insertMilestone(6);
+      onMilestoneDelayed(db, true, 6, 'On Time', '2026-03-01', '2026-03-01');
+      onMilestoneDelayed(db, true, 6, 'Early', '2026-03-01', '2026-02-20');
+      expect(getAllEntries()).toHaveLength(0);
+    });
+
+    it('does not repeat an entry for the same projected date (AC3)', () => {
+      insertMilestone(7);
+      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(1);
+    });
+
+    it('writes a new entry for every real change of the projected date, including a return to an earlier one', () => {
+      insertMilestone(8);
+      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(1);
+      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-20');
+      expect(getAllEntries()).toHaveLength(2);
+      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(3);
+      onMilestoneDelayed(db, true, 8, 'Moving', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(3);
+    });
+
+    it('is not suppressed by another milestone entry with the same projected date', () => {
+      insertMilestone(9);
+      insertMilestone(10);
+      onMilestoneDelayed(db, true, 9, 'First', '2026-03-01', '2026-03-15');
+      onMilestoneDelayed(db, true, 10, 'Second', '2026-03-01', '2026-03-15');
+      const entries = getAllEntries();
+      expect(entries).toHaveLength(2);
+      expect(entries.map((e) => e.sourceEntityId).sort()).toEqual(['10', '9']);
+    });
+
+    it('is not suppressed by a legacy entry whose body has an unexpected shape', () => {
+      insertMilestone(11);
+      db.insert(diaryEntries)
+        .values({
+          id: 'legacy-1',
+          entryType: 'milestone_delay',
+          entryDate: '2026-03-02',
+          title: 'Legacy',
+          body: 'Some free text without the projected date marker 2026-03-15',
+          isAutomatic: true,
+          sourceEntityType: 'milestone',
+          sourceEntityId: '11',
+          createdAt: '2026-03-02T00:00:00.000Z',
+          updatedAt: '2026-03-02T00:00:00.000Z',
+        })
+        .run();
+      onMilestoneDelayed(db, true, 11, 'Legacy MS', '2026-03-01', '2026-03-15');
+      expect(getAllEntries()).toHaveLength(2);
+    });
+
+    it('writes nothing and does not throw when the de-dup lookup fails', () => {
+      insertMilestone(12);
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      jest.spyOn(db, 'select').mockImplementation(() => {
+        throw new Error('db down');
+      });
+      expect(() =>
+        onMilestoneDelayed(db, true, 12, 'Broken', '2026-03-01', '2026-03-15'),
+      ).not.toThrow();
+      expect(warn).toHaveBeenCalled();
+      jest.restoreAllMocks();
+      expect(getAllEntries()).toHaveLength(0);
+    });
+  });
+
+  describe('parseMilestoneDelayProjectedDate', () => {
+    it('returns the projected date from a milestone-delay body', () => {
+      expect(
+        parseMilestoneDelayProjectedDate(
+          'Roof is delayed by 14 days (Target date 2026-03-01, new projected date 2026-03-15)',
+        ),
+      ).toBe('2026-03-15');
+    });
+
+    it('returns null for other text', () => {
+      expect(parseMilestoneDelayProjectedDate('Something else entirely')).toBeNull();
+      expect(parseMilestoneDelayProjectedDate('new projected date 2026-03-15 and more')).toBeNull();
+      expect(parseMilestoneDelayProjectedDate('')).toBeNull();
     });
   });
 

@@ -4,7 +4,12 @@
  * EPIC-06 Story 6.3 — Timeline Data API (GET /api/timeline)
  */
 
-import type { WorkItemStatus, UserSummary, VendorSummary } from './workItem.js';
+import type {
+  WorkItemStatus,
+  UserSummary,
+  VendorSummary,
+  WorkItemScheduleFields,
+} from './workItem.js';
 import type { DependencyType } from './dependency.js';
 import type { AreaSummary } from './area.js';
 import type {
@@ -17,7 +22,7 @@ import type {
  * A work item entry in the timeline response.
  * Contains only scheduling-relevant fields — no budget information.
  */
-export interface TimelineWorkItem {
+export interface TimelineWorkItem extends WorkItemScheduleFields {
   id: string;
   title: string;
   status: WorkItemStatus;
@@ -65,8 +70,16 @@ export interface TimelineMilestone {
   color: string | null;
   /** IDs of work items linked to this milestone. */
   workItemIds: string[];
-  /** Computed: latest end date among linked work items, or null if no linked items have dates. */
+  /** Forecast: latest projectedEndDate among contributing work items; null when none. */
   projectedDate: string | null;
+  /** Not completed and projectedDate > targetDate. */
+  isLate: boolean;
+  /** projectedDate - targetDate in days when isLate, else null. */
+  lateDays: number | null;
+  /** Not completed and projectedDate < targetDate. */
+  isEarly: boolean;
+  /** targetDate - projectedDate in days when isEarly, else null. */
+  earlyDays: number | null;
   /** True when this milestone is on the critical path. */
   isCritical: boolean;
 }
@@ -93,7 +106,7 @@ export interface TimelineHouseholdItem {
 }
 
 /**
- * The date range spanned by all returned work items.
+ * The date range spanned by all returned work items (min/max over planned and forecast dates).
  * Null when no work items have dates set.
  */
 export interface TimelineDateRange {

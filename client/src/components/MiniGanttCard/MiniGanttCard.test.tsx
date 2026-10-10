@@ -88,6 +88,11 @@ const baseWorkItem = {
   status: 'in_progress' as const,
   startDate: daysFromWindowStart(1),
   endDate: daysFromWindowStart(3),
+  projectedStartDate: daysFromWindowStart(1),
+  projectedEndDate: daysFromWindowStart(3),
+  isLate: false,
+  lateDays: null,
+  isHeldUp: false,
   actualStartDate: null,
   actualEndDate: null,
   durationDays: 2,
@@ -123,6 +128,8 @@ describe('MiniGanttCard', () => {
           id: 'wi-future',
           startDate: daysFromToday(35),
           endDate: daysFromToday(45),
+          projectedStartDate: daysFromToday(35),
+          projectedEndDate: daysFromToday(45),
         },
       ],
     };
@@ -130,6 +137,71 @@ describe('MiniGanttCard', () => {
     renderWithRouter(<MiniGanttCard timeline={futureTimeline} />);
 
     expect(screen.getByTestId('mini-gantt-empty')).toBeInTheDocument();
+  });
+
+  // ── Forecast dates decide what is in the window (contract 4, #2199) ──────────
+
+  it('renders a late item whose planned dates are outside the window but whose forecast is inside', () => {
+    const timeline: TimelineResponse = {
+      ...emptyTimeline,
+      workItems: [
+        {
+          ...baseWorkItem,
+          id: 'wi-late',
+          startDate: daysFromToday(-40),
+          endDate: daysFromToday(-30),
+          projectedStartDate: daysFromWindowStart(1),
+          projectedEndDate: daysFromWindowStart(3),
+          isLate: true,
+          lateDays: 39,
+        },
+      ],
+    };
+
+    renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+    expect(screen.queryByTestId('mini-gantt-empty')).not.toBeInTheDocument();
+  });
+
+  it('shows the empty state when the planned dates are in the window but the forecast is beyond it', () => {
+    const timeline: TimelineResponse = {
+      ...emptyTimeline,
+      workItems: [
+        {
+          ...baseWorkItem,
+          id: 'wi-held',
+          startDate: daysFromWindowStart(1),
+          endDate: daysFromWindowStart(2),
+          projectedStartDate: daysFromToday(40),
+          projectedEndDate: daysFromToday(45),
+          isHeldUp: true,
+        },
+      ],
+    };
+
+    renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+    expect(screen.getByTestId('mini-gantt-empty')).toBeInTheDocument();
+  });
+
+  it('renders an undated task (null planned dates) at its forecast', () => {
+    const timeline: TimelineResponse = {
+      ...emptyTimeline,
+      workItems: [
+        {
+          ...baseWorkItem,
+          id: 'wi-undated',
+          startDate: null,
+          endDate: null,
+          projectedStartDate: daysFromWindowStart(2),
+          projectedEndDate: daysFromWindowStart(3),
+        },
+      ],
+    };
+
+    renderWithRouter(<MiniGanttCard timeline={timeline} />);
+
+    expect(screen.queryByTestId('mini-gantt-empty')).not.toBeInTheDocument();
   });
 
   // ── Test 3: SVG rendered when work items fall within the window ──────────────
@@ -158,6 +230,8 @@ describe('MiniGanttCard', () => {
           title: 'Item 1',
           startDate: daysFromWindowStart(1),
           endDate: daysFromWindowStart(2),
+          projectedStartDate: daysFromWindowStart(1),
+          projectedEndDate: daysFromWindowStart(2),
         },
         {
           ...baseWorkItem,
@@ -165,6 +239,8 @@ describe('MiniGanttCard', () => {
           title: 'Item 2',
           startDate: daysFromWindowStart(2),
           endDate: daysFromWindowStart(3),
+          projectedStartDate: daysFromWindowStart(2),
+          projectedEndDate: daysFromWindowStart(3),
         },
       ],
     };
@@ -209,6 +285,10 @@ describe('MiniGanttCard', () => {
           color: null,
           workItemIds: [],
           projectedDate: null,
+          isLate: false,
+          lateDays: null,
+          isEarly: false,
+          earlyDays: null,
           isCritical: false,
         },
       ],
@@ -236,6 +316,10 @@ describe('MiniGanttCard', () => {
           color: null,
           workItemIds: [],
           projectedDate: null,
+          isLate: false,
+          lateDays: null,
+          isEarly: false,
+          earlyDays: null,
           isCritical: false,
         },
       ],
@@ -275,6 +359,8 @@ describe('MiniGanttCard', () => {
           title: 'Undated Item',
           startDate: null,
           endDate: null,
+          projectedStartDate: null,
+          projectedEndDate: null,
         },
         // Item with valid dates within the window — must be included
         {
@@ -283,6 +369,8 @@ describe('MiniGanttCard', () => {
           title: 'Dated Item',
           startDate: daysFromWindowStart(1),
           endDate: daysFromWindowStart(2),
+          projectedStartDate: daysFromWindowStart(1),
+          projectedEndDate: daysFromWindowStart(2),
         },
       ],
     };
@@ -312,6 +400,8 @@ describe('MiniGanttCard', () => {
           title: 'Item A',
           startDate: daysFromWindowStart(1),
           endDate: daysFromWindowStart(2),
+          projectedStartDate: daysFromWindowStart(1),
+          projectedEndDate: daysFromWindowStart(2),
         },
         {
           ...baseWorkItem,
@@ -319,6 +409,8 @@ describe('MiniGanttCard', () => {
           title: 'Item B',
           startDate: daysFromWindowStart(2),
           endDate: daysFromWindowStart(3),
+          projectedStartDate: daysFromWindowStart(2),
+          projectedEndDate: daysFromWindowStart(3),
         },
       ],
       milestones: [
@@ -331,6 +423,10 @@ describe('MiniGanttCard', () => {
           color: null,
           workItemIds: [],
           projectedDate: null,
+          isLate: false,
+          lateDays: null,
+          isEarly: false,
+          earlyDays: null,
           isCritical: false,
         },
       ],
@@ -407,6 +503,8 @@ describe('MiniGanttCard', () => {
           title: 'Predecessor',
           startDate: daysFromWindowStart(0),
           endDate: daysFromWindowStart(1),
+          projectedStartDate: daysFromWindowStart(0),
+          projectedEndDate: daysFromWindowStart(1),
         },
         {
           ...baseWorkItem,
@@ -414,6 +512,8 @@ describe('MiniGanttCard', () => {
           title: 'Successor',
           startDate: daysFromWindowStart(2),
           endDate: daysFromWindowStart(3),
+          projectedStartDate: daysFromWindowStart(2),
+          projectedEndDate: daysFromWindowStart(3),
         },
       ],
       dependencies: [],

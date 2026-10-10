@@ -36,8 +36,7 @@ import type {
   VendorSummary,
   TradeSummary,
 } from '@cornerstone/shared';
-import { schedule } from './schedulingEngine.js';
-import type { SchedulingWorkItem, SchedulingDependency } from './schedulingEngine.js';
+import { computeScheduleProjection, workItemProjectionOf } from './schedulingEngine.js';
 import { resolveAreaAncestors } from './areaService.js';
 import type { AreaMapEntry } from './areaService.js';
 
@@ -111,14 +110,14 @@ function computeDateRange(
 
   // Consider work item dates
   for (const item of workItems) {
-    if (item.startDate) {
-      if (!earliest || item.startDate < earliest) {
-        earliest = item.startDate;
+    for (const start of [item.startDate, item.projectedStartDate]) {
+      if (start && (!earliest || start < earliest)) {
+        earliest = start;
       }
     }
-    if (item.endDate) {
-      if (!latest || item.endDate > latest) {
-        latest = item.endDate;
+    for (const end of [item.endDate, item.projectedEndDate]) {
+      if (end && (!latest || end > latest)) {
+        latest = end;
       }
     }
   }
@@ -164,13 +163,27 @@ function computeDateRange(
  * the overall date range.
  */
 export function getTimeline(db: DbType): TimelineResponse {
-  // ── 1. Fetch work items that have at least one date set ─────────────────────
+  // ── 0. Schedule projection (planned vs forecast, contract 4) ────────────────
+
+  const projection = computeScheduleProjection(db);
+
+  // ── 1. Fetch work items that have a stored or forecast date ─────────────────
+  //
+  // Undated tasks (no stored dates) stay on the timeline through their forecast dates.
 
   const rawWorkItems = db
     .select()
     .from(workItems)
-    .where(or(isNotNull(workItems.startDate), isNotNull(workItems.endDate)))
-    .all();
+    .all()
+    .filter((wi) => {
+      const fields = workItemProjectionOf(projection, wi);
+      return (
+        wi.startDate !== null ||
+        wi.endDate !== null ||
+        fields.projectedStartDate !== null ||
+        fields.projectedEndDate !== null
+      );
+    });
 
   // ── 1b. Fetch household items with at least one date set ─────────────────────────
 
@@ -280,6 +293,7 @@ export function getTimeline(db: DbType): TimelineResponse {
       status: wi.status,
       startDate: wi.startDate,
       endDate: wi.endDate,
+      ...workItemProjectionOf(projection, wi),
       actualStartDate: wi.actualStartDate,
       actualEndDate: wi.actualEndDate,
       durationDays: wi.durationDays,
@@ -303,179 +317,13 @@ export function getTimeline(db: DbType): TimelineResponse {
     leadLagDays: dep.leadLagDays,
   }));
 
-  // ── 5. Compute critical path via the scheduling engine ───────────────────────
-  //
-  // Build milestone CPM nodes and dependencies so milestones are included in the
-  // critical path calculation.
+  // ── 5. Critical path and milestones from the schedule projection ─────────────
 
-  // The engine needs the full work item set (not just dated ones) for accurate CPM.
-  const allWorkItems = db.select().from(workItems).all();
+  const criticalPath = projection.criticalPath;
 
-  const engineWorkItems: SchedulingWorkItem[] = allWorkItems.map((wi) => ({
-    id: wi.id,
-    status: wi.status,
-    startDate: wi.startDate,
-    endDate: wi.endDate,
-    actualStartDate: wi.actualStartDate,
-    actualEndDate: wi.actualEndDate,
-    durationDays: wi.durationDays,
-    startAfter: wi.startAfter,
-    startBefore: wi.startBefore,
-  }));
-
-  // Load milestones and links for CPM node construction
   const allMilestones = db.select().from(milestones).all();
   const allMilestoneLinks = db.select().from(milestoneWorkItems).all();
-  // Note: allMilestoneDeps already loaded in section 3; reuse it here
 
-  // Map milestones by ID
-  const milestoneMap = new Map<number, typeof milestones.$inferSelect>();
-  for (const milestone of allMilestones) {
-    milestoneMap.set(milestone.id, milestone);
-  }
-
-  // Build milestoneId → contributors map
-  const milestoneContributorsMap = new Map<number, string[]>();
-  for (const link of allMilestoneLinks) {
-    const existing = milestoneContributorsMap.get(link.milestoneId) ?? [];
-    existing.push(link.workItemId);
-    milestoneContributorsMap.set(link.milestoneId, existing);
-  }
-
-  // Build milestoneId → dependents map
-  const milestoneDependentsMap = new Map<number, string[]>();
-  for (const dep of allMilestoneDeps) {
-    const existing = milestoneDependentsMap.get(dep.milestoneId) ?? [];
-    existing.push(dep.workItemId);
-    milestoneDependentsMap.set(dep.milestoneId, existing);
-  }
-
-  // Identify milestones with links and create CPM nodes
-  const milestoneIdsWithLinks = new Set<number>();
-  for (const id of milestoneContributorsMap.keys()) {
-    milestoneIdsWithLinks.add(id);
-  }
-  for (const id of milestoneDependentsMap.keys()) {
-    milestoneIdsWithLinks.add(id);
-  }
-
-  const milestoneCpmNodes: SchedulingWorkItem[] = [];
-  const milestoneCpmDeps: SchedulingDependency[] = [];
-
-  for (const milestoneId of milestoneIdsWithLinks) {
-    const milestone = milestoneMap.get(milestoneId);
-    if (!milestone) continue;
-
-    const milestoneNodeId = `milestone:${milestoneId}`;
-    const completedDate = milestone.completedAt ? milestone.completedAt.slice(0, 10) : null;
-
-    // Create zero-duration CPM node
-    milestoneCpmNodes.push({
-      id: milestoneNodeId,
-      status: milestone.completedAt ? 'completed' : 'not_started',
-      startDate: completedDate ?? milestone.targetDate,
-      endDate: completedDate ?? milestone.targetDate,
-      actualStartDate: completedDate ?? null,
-      actualEndDate: completedDate ?? null,
-      durationDays: 0,
-      startAfter: null,
-      startBefore: null,
-    });
-
-    // Create contributor → milestone deps
-    const contributors = milestoneContributorsMap.get(milestoneId) ?? [];
-    for (const contributorId of contributors) {
-      milestoneCpmDeps.push({
-        predecessorId: contributorId,
-        successorId: milestoneNodeId,
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
-      });
-    }
-
-    // Create milestone → dependent deps
-    const dependents = milestoneDependentsMap.get(milestoneId) ?? [];
-    for (const dependentId of dependents) {
-      milestoneCpmDeps.push({
-        predecessorId: milestoneNodeId,
-        successorId: dependentId,
-        dependencyType: 'finish_to_start',
-        leadLagDays: 0,
-      });
-    }
-  }
-
-  const engineDependencies: SchedulingDependency[] = [
-    ...rawDependencies.map((dep) => ({
-      predecessorId: dep.predecessorId,
-      successorId: dep.successorId,
-      dependencyType: dep.dependencyType,
-      leadLagDays: dep.leadLagDays,
-    })),
-    ...milestoneCpmDeps,
-  ];
-
-  const today = new Date().toISOString().slice(0, 10);
-
-  const scheduleResult = schedule({
-    mode: 'full',
-    workItems: [...engineWorkItems, ...milestoneCpmNodes],
-    dependencies: engineDependencies,
-    today,
-  });
-
-  // If a cycle is detected, return an empty critical path rather than erroring —
-  // the timeline view should still render; the schedule endpoint surfaces the error.
-  const hasCycle = !!scheduleResult.cycleNodes?.length;
-  // Filter out milestone nodes from the returned critical path
-  const criticalPath = hasCycle
-    ? []
-    : scheduleResult.criticalPath.filter((id: string) => !id.startsWith('milestone:'));
-
-  // Derive set of critical milestone IDs
-  const criticalMilestoneIds = new Set<number>();
-  if (!hasCycle) {
-    for (const id of scheduleResult.criticalPath) {
-      if (id.startsWith('milestone:')) {
-        criticalMilestoneIds.add(parseInt(id.slice('milestone:'.length), 10));
-      }
-    }
-  }
-
-  // ── 5b. Apply CPM-scheduled dates for not_started items ──────────────────────
-  //
-  // The schedule engine applies the implicit "today floor" for not_started items:
-  // their start date cannot be in the past. Apply the engine's output to the
-  // timeline response so the Gantt chart always reflects the current schedule.
-  // Only not_started items are updated — in_progress and completed items keep
-  // their stored dates (which represent user-accepted/actual values).
-
-  if (!hasCycle) {
-    const scheduledDatesMap = new Map<string, { start: string; end: string }>();
-    for (const si of scheduleResult.scheduledItems) {
-      scheduledDatesMap.set(si.workItemId, {
-        start: si.scheduledStartDate,
-        end: si.scheduledEndDate,
-      });
-    }
-
-    for (const wi of timelineWorkItems) {
-      if (wi.status === 'not_started') {
-        const scheduled = scheduledDatesMap.get(wi.id);
-        if (scheduled) {
-          wi.startDate = scheduled.start;
-          wi.endDate = scheduled.end;
-        }
-      }
-    }
-  }
-
-  // ── 6. Build milestone timeline objects with isCritical propagation ──────────
-  //
-  // Reuse allMilestones, allMilestoneLinks, and milestoneLinkMap from section 5.
-  // Add isCritical field based on criticalMilestoneIds.
-
-  // Build milestoneId → workItemIds map (reuse from section 5 data).
   const milestoneLinkMap = new Map<number, string[]>();
   for (const link of allMilestoneLinks) {
     const existing = milestoneLinkMap.get(link.milestoneId) ?? [];
@@ -483,51 +331,23 @@ export function getTimeline(db: DbType): TimelineResponse {
     milestoneLinkMap.set(link.milestoneId, existing);
   }
 
-  // Build workItemId → endDate map for projectedDate computation.
-  // For not_started items, use CPM-scheduled end dates so milestone projections
-  // reflect the current schedule (including the today floor).
-  const workItemStatusMap = new Map<string, string>();
-  const workItemEndDateMap = new Map<string, string | null>();
-  for (const wi of allWorkItems) {
-    workItemStatusMap.set(wi.id, wi.status);
-    workItemEndDateMap.set(wi.id, wi.endDate);
-  }
-  if (!hasCycle) {
-    for (const si of scheduleResult.scheduledItems) {
-      // Skip milestone nodes when building work item end date map
-      if (si.workItemId.startsWith('milestone:')) {
-        continue;
-      }
-      if (workItemStatusMap.get(si.workItemId) === 'not_started') {
-        workItemEndDateMap.set(si.workItemId, si.scheduledEndDate);
-      }
-    }
-  }
-
-  const timelineMilestones: TimelineMilestone[] = allMilestones.map((m) => {
-    const linkedIds = milestoneLinkMap.get(m.id) ?? [];
-
-    // Compute projectedDate: latest endDate among linked work items.
-    let projectedDate: string | null = null;
-    for (const wiId of linkedIds) {
-      const endDate = workItemEndDateMap.get(wiId) ?? null;
-      if (endDate && (!projectedDate || endDate > projectedDate)) {
-        projectedDate = endDate;
-      }
-    }
-
-    return {
-      id: m.id,
-      title: m.title,
-      targetDate: m.targetDate,
-      isCompleted: m.isCompleted,
-      completedAt: m.completedAt,
-      color: m.color,
-      workItemIds: linkedIds,
-      projectedDate,
-      isCritical: criticalMilestoneIds.has(m.id),
-    };
-  });
+  const timelineMilestones: TimelineMilestone[] = allMilestones.map((m) => ({
+    id: m.id,
+    title: m.title,
+    targetDate: m.targetDate,
+    isCompleted: m.isCompleted,
+    completedAt: m.completedAt,
+    color: m.color,
+    workItemIds: milestoneLinkMap.get(m.id) ?? [],
+    ...(projection.milestones.get(m.id) ?? {
+      projectedDate: null,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
+    }),
+    isCritical: projection.criticalMilestoneIds.has(m.id),
+  }));
 
   // ── 7a. Fetch all HI dependencies ────────────────────────────────────────────
 

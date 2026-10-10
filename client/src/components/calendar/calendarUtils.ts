@@ -10,6 +10,7 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
+import { barDates } from '../../lib/scheduleDates.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -234,10 +235,11 @@ export function getWeekSegments(week: CalendarDay[], items: TimelineWorkItem[]):
   const segments: WeekSegment[] = [];
 
   for (const item of items) {
-    if (!item.startDate || !item.endDate) continue;
-    if (item.startDate > weekEnd || item.endDate < weekStart) continue;
-    const clampedStart = item.startDate > weekStart ? item.startDate : weekStart;
-    const clampedEnd = item.endDate < weekEnd ? item.endDate : weekEnd;
+    const { start: itemStart, end: itemEnd } = barDates(item);
+    if (!itemStart || !itemEnd) continue;
+    if (itemStart > weekEnd || itemEnd < weekStart) continue;
+    const clampedStart = itemStart > weekStart ? itemStart : weekStart;
+    const clampedEnd = itemEnd < weekEnd ? itemEnd : weekEnd;
     const startCol = week.findIndex((d) => d.dateStr === clampedStart);
     const endCol = week.findIndex((d) => d.dateStr === clampedEnd);
     if (startCol < 0 || endCol < 0) continue;
@@ -245,8 +247,8 @@ export function getWeekSegments(week: CalendarDay[], items: TimelineWorkItem[]):
       item,
       startCol,
       span: endCol - startCol + 1,
-      continuesFromPrevious: item.startDate < weekStart,
-      continuesToNext: item.endDate > weekEnd,
+      continuesFromPrevious: itemStart < weekStart,
+      continuesToNext: itemEnd > weekEnd,
       lane: lanes.get(item.id) ?? 0,
     });
   }
@@ -311,15 +313,17 @@ export function allocateLanes(
 ): Map<string, number> {
   // Only items with both dates that overlap this week
   const weekItems = items.filter((item) => {
-    if (!item.startDate || !item.endDate) return false;
+    const { start, end } = barDates(item);
+    if (!start || !end) return false;
     // Item overlaps if its range intersects [weekStart, weekEnd]
-    return item.startDate <= weekEnd && item.endDate >= weekStart;
+    return start <= weekEnd && end >= weekStart;
   });
 
   // Calculate how many days each item spans *within* this week
   function spanInWeek(item: TimelineWorkItem): number {
-    const start = item.startDate! > weekStart ? item.startDate! : weekStart;
-    const end = item.endDate! < weekEnd ? item.endDate! : weekEnd;
+    const dates = barDates(item);
+    const start = dates.start! > weekStart ? dates.start! : weekStart;
+    const end = dates.end! < weekEnd ? dates.end! : weekEnd;
     // Count days between start and end inclusive
     const startDate = parseIsoDate(start);
     const endDate = parseIsoDate(end);
@@ -359,8 +363,9 @@ export function allocateLanes(
 
   for (const item of sorted) {
     // Days this item occupies within the week
-    const itemStart = item.startDate! > weekStart ? item.startDate! : weekStart;
-    const itemEnd = item.endDate! < weekEnd ? item.endDate! : weekEnd;
+    const dates = barDates(item);
+    const itemStart = dates.start! > weekStart ? dates.start! : weekStart;
+    const itemEnd = dates.end! < weekEnd ? dates.end! : weekEnd;
     const occupiedDays = weekDays.filter((d) => d >= itemStart && d <= itemEnd);
 
     // Find the lowest lane free on all occupied days

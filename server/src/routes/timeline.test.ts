@@ -15,7 +15,12 @@ import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
-import type { TimelineResponse, ApiErrorResponse } from '@cornerstone/shared';
+import type {
+  TimelineResponse,
+  ApiErrorResponse,
+  WorkItemSummary,
+  WorkItemDetail,
+} from '@cornerstone/shared';
 import {
   workItems,
   workItemDependencies,
@@ -486,19 +491,17 @@ describe('Timeline Routes', () => {
       expect(ms!.projectedDate).toBe(wiBEndDate);
     });
 
-    it('returns projectedDate: null when all linked work items have null endDate', async () => {
+    it('falls back to the forecast end (start, zero duration) when linked work items have no endDate', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
-      // Use in_progress so the engine does not override endDate via CPM scheduling.
-      // (not_started items get CPM-computed endDate applied.)
+      // Far-future start so the today floor never applies; no endDate and no duration.
       const wiA = createTestWorkItem(userId, 'Task A', {
-        status: 'in_progress',
-        startDate: '2026-03-01',
-      }); // no endDate
-      const msId = createTestMilestone(userId, 'Phase 1 Done', '2026-06-01');
+        startDate: '2099-03-01',
+      });
+      const msId = createTestMilestone(userId, 'Phase 1 Done', '2099-06-01');
       linkMilestoneToWorkItem(msId, wiA);
 
       const response = await app.inject({
@@ -510,30 +513,40 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       const ms = body.milestones.find((m) => m.id === msId);
-      expect(ms!.projectedDate).toBeNull();
+      expect(ms!.projectedDate).toBe('2099-03-01');
+      expect(ms!.isEarly).toBe(true);
     });
   });
 
   // ─── GET /api/timeline — Work item filtering ─────────────────────────────────
 
   describe('work item date filtering', () => {
-    it('excludes work items with no dates from workItems array', async () => {
+    it('keeps a task without stored dates on the timeline at its forecast dates (A5)', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
         'password123',
       );
-      createTestWorkItem(userId, 'Undated Work Item');
+      const wiId = createTestWorkItem(userId, 'Undated Work Item');
+      const before = new Date().toISOString().slice(0, 10);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/timeline',
         headers: { cookie },
       });
+      const after = new Date().toISOString().slice(0, 10);
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.workItems).toHaveLength(0);
+      expect(body.workItems).toHaveLength(1);
+      const item = body.workItems[0]!;
+      expect(item.id).toBe(wiId);
+      expect(item.startDate).toBeNull();
+      expect([before, after]).toContain(item.projectedStartDate);
+      expect(item.isLate).toBe(false);
+      expect(item.lateDays).toBeNull();
+      expect(item.isHeldUp).toBe(false);
     });
 
     it('includes work items with only startDate set', async () => {
@@ -576,7 +589,7 @@ describe('Timeline Routes', () => {
       expect(body.workItems[0]!.id).toBe(wiId);
     });
 
-    it('returns only dated items when mixing dated and undated work items', async () => {
+    it('returns dated and undated work items together', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -595,7 +608,7 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.workItems).toHaveLength(2);
+      expect(body.workItems).toHaveLength(4);
       const ids = body.workItems.map((w) => w.id);
       expect(ids).toContain(dated1);
       expect(ids).toContain(dated2);
@@ -623,8 +636,8 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      // Work items without dates are excluded from workItems
-      expect(body.workItems).toHaveLength(0);
+      // Undated tasks stay on the timeline through their forecast dates
+      expect(body.workItems).toHaveLength(2);
       // But the dependency is still included
       expect(body.dependencies).toHaveLength(1);
       expect(body.dependencies[0]!.predecessorId).toBe(wiA);
@@ -755,7 +768,7 @@ describe('Timeline Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.workItems).toHaveLength(0); // undated WI excluded
+      expect(body.workItems).toHaveLength(1); // undated WI stays through its forecast dates
       expect(body.milestones[0]!.workItemIds).toContain(wiUndated); // link still present
     });
   });
@@ -854,18 +867,9 @@ describe('Timeline Routes', () => {
         'Test User',
         'password123',
       );
-      // Use in_progress items so dates are preserved verbatim (not_started items
-      // have the implicit today floor applied by the CPM engine).
-      createTestWorkItem(userId, 'WI 1', {
-        status: 'in_progress',
-        startDate: '2026-03-01',
-        endDate: '2026-05-15',
-      });
-      createTestWorkItem(userId, 'WI 2', {
-        status: 'in_progress',
-        startDate: '2026-01-01',
-        endDate: '2026-08-31',
-      });
+      // Far-future dates so the today floor never moves them.
+      createTestWorkItem(userId, 'WI 1', { startDate: '2099-03-01', endDate: '2099-05-15' });
+      createTestWorkItem(userId, 'WI 2', { startDate: '2099-01-01', endDate: '2099-08-31' });
 
       const response = await app.inject({
         method: 'GET',
@@ -876,11 +880,11 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.dateRange).not.toBeNull();
-      expect(body.dateRange!.earliest).toBe('2026-01-01');
-      expect(body.dateRange!.latest).toBe('2026-08-31');
+      expect(body.dateRange!.earliest).toBe('2099-01-01');
+      expect(body.dateRange!.latest).toBe('2099-08-31');
     });
 
-    it('returns null dateRange when all work items lack dates', async () => {
+    it('spans today (the forecast) when all work items lack dates', async () => {
       const { userId, cookie } = await createUserWithSession(
         'user@example.com',
         'Test User',
@@ -888,16 +892,20 @@ describe('Timeline Routes', () => {
       );
       createTestWorkItem(userId, 'Undated A');
       createTestWorkItem(userId, 'Undated B');
+      const before = new Date().toISOString().slice(0, 10);
 
       const response = await app.inject({
         method: 'GET',
         url: '/api/timeline',
         headers: { cookie },
       });
+      const after = new Date().toISOString().slice(0, 10);
 
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
-      expect(body.dateRange).toBeNull();
+      expect(body.dateRange).not.toBeNull();
+      expect([before, after]).toContain(body.dateRange!.earliest);
+      expect(body.dateRange!.latest).toBe(body.dateRange!.earliest);
     });
 
     it('returns non-null dateRange when only startDates are present across work items', async () => {
@@ -906,10 +914,9 @@ describe('Timeline Routes', () => {
         'Test User',
         'password123',
       );
-      // Use in_progress items so dates are preserved verbatim (not_started items
-      // have the implicit today floor applied by the CPM engine).
-      createTestWorkItem(userId, 'WI A', { status: 'in_progress', startDate: '2026-06-01' });
-      createTestWorkItem(userId, 'WI B', { status: 'in_progress', startDate: '2026-02-15' });
+      // Far-future dates so the today floor never moves them.
+      createTestWorkItem(userId, 'WI A', { startDate: '2099-06-01' });
+      createTestWorkItem(userId, 'WI B', { startDate: '2099-02-15' });
 
       const response = await app.inject({
         method: 'GET',
@@ -920,9 +927,9 @@ describe('Timeline Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<TimelineResponse>();
       expect(body.dateRange).not.toBeNull();
-      // earliest = minimum startDate; latest falls back to earliest when no endDates are set
-      expect(body.dateRange!.earliest).toBe('2026-02-15');
-      expect(body.dateRange!.latest).toBe('2026-02-15');
+      // earliest = minimum start; with no durations each forecast end equals its start
+      expect(body.dateRange!.earliest).toBe('2099-02-15');
+      expect(body.dateRange!.latest).toBe('2099-06-01');
     });
   });
 
@@ -1095,6 +1102,204 @@ describe('Timeline Routes', () => {
       expect(first.statusCode).toBe(200);
       expect(second.statusCode).toBe(200);
       expect(first.json()).toEqual(second.json());
+    });
+  });
+
+  // ─── Scheduler truth (contract 4, #2199) ─────────────────────────────────────
+
+  describe('scheduler truth', () => {
+    function pastDateStr(daysAgo: number): string {
+      return futureDateStr(-daysAgo);
+    }
+
+    function todayStr(): string {
+      return futureDateStr(0);
+    }
+
+    it('reports a late task with planned dates, forecast dates and lateDays (scenario 16)', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const planned = pastDateStr(5);
+      const wiId = createTestWorkItem(userId, 'Late task', {
+        startDate: planned,
+        endDate: futureDateStr(-2),
+        durationDays: 3,
+      });
+      const msId = createTestMilestone(userId, 'Late MS', futureDateStr(1));
+      linkMilestoneToWorkItem(msId, wiId);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const item = body.workItems.find((w) => w.id === wiId)!;
+      expect(item.startDate).toBe(planned);
+      expect(item.projectedStartDate).toBe(todayStr());
+      expect(item.projectedEndDate).toBe(futureDateStr(3));
+      expect(item.isLate).toBe(true);
+      expect(item.lateDays).toBe(5);
+
+      const ms = body.milestones.find((m) => m.id === msId)!;
+      expect(ms.projectedDate).toBe(futureDateStr(3));
+      expect(ms.isLate).toBe(true);
+      expect(ms.lateDays).toBe(2);
+      expect(ms.isEarly).toBe(false);
+      expect(ms.earlyDays).toBeNull();
+
+      const maxProjected = Math.max(...body.workItems.map((w) => Date.parse(w.projectedEndDate!)));
+      expect(Date.parse(body.dateRange!.latest)).toBeGreaterThanOrEqual(maxProjected);
+    });
+
+    it('keeps the critical path unchanged against a pinned fixture', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const a = createTestWorkItem(userId, 'A', { startDate: futureDateStr(10), durationDays: 10 });
+      const b = createTestWorkItem(userId, 'B', { durationDays: 5 });
+      const c = createTestWorkItem(userId, 'C', { startDate: futureDateStr(10), durationDays: 2 });
+      createTestDependency(a, b);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      const body = response.json<TimelineResponse>();
+      expect(body.criticalPath).toEqual([a, b]);
+      expect(body.criticalPath).not.toContain(c);
+    });
+
+    it('serves one date source for a not-started task on every endpoint (AC2, scenario 17)', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const a = createTestWorkItem(userId, 'Late A', {
+        startDate: pastDateStr(5),
+        endDate: futureDateStr(-2),
+        durationDays: 3,
+      });
+      const b = createTestWorkItem(userId, 'Held B', {
+        startDate: futureDateStr(-2),
+        endDate: futureDateStr(2),
+        durationDays: 4,
+      });
+      const onTime = createTestWorkItem(userId, 'On time', {
+        startDate: futureDateStr(20),
+        endDate: futureDateStr(23),
+        durationDays: 3,
+      });
+      createTestDependency(a, b);
+      const msId = createTestMilestone(userId, 'MS', futureDateStr(30));
+      linkMilestoneToWorkItem(msId, a);
+
+      const get = async (url: string) => {
+        const r = await app.inject({ method: 'GET', url, headers: { cookie } });
+        expect(r.statusCode).toBe(200);
+        return r.json();
+      };
+
+      const timeline = (await get('/api/timeline')) as TimelineResponse;
+      const list = (await get('/api/work-items?pageSize=100')) as {
+        items: Array<WorkItemSummary>;
+      };
+      const detail = (await get(`/api/work-items/${a}`)) as WorkItemDetail;
+      const deps = (await get(`/api/work-items/${b}/dependencies`)) as {
+        predecessors: Array<{ workItem: WorkItemSummary }>;
+      };
+      const milestone = (await get(`/api/milestones/${msId}`)) as {
+        workItems: WorkItemSummary[];
+      };
+
+      const pick = (
+        w: WorkItemSummary | WorkItemDetail | TimelineResponse['workItems'][number],
+      ) => ({
+        startDate: w.startDate,
+        endDate: w.endDate,
+        projectedStartDate: w.projectedStartDate,
+        projectedEndDate: w.projectedEndDate,
+        isLate: w.isLate,
+        lateDays: w.lateDays,
+        isHeldUp: w.isHeldUp,
+      });
+
+      const fromTimeline = pick(timeline.workItems.find((w) => w.id === a)!);
+      expect(pick(list.items.find((w) => w.id === a)!)).toEqual(fromTimeline);
+      expect(pick(detail)).toEqual(fromTimeline);
+      expect(pick(deps.predecessors[0]!.workItem)).toEqual(fromTimeline);
+      expect(pick(milestone.workItems[0]!)).toEqual(fromTimeline);
+      expect(fromTimeline.isLate).toBe(true);
+
+      const onTimeFields = pick(timeline.workItems.find((w) => w.id === onTime)!);
+      expect(onTimeFields.projectedStartDate).toBe(onTimeFields.startDate);
+      expect(onTimeFields.projectedEndDate).toBe(onTimeFields.endDate);
+      expect(onTimeFields.isLate).toBe(false);
+    });
+
+    it('returns the schedule fields computed after the reschedule on PATCH (scenario 18)', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const wiId = createTestWorkItem(userId, 'Late task', {
+        startDate: pastDateStr(5),
+        endDate: futureDateStr(-2),
+        durationDays: 3,
+      });
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: `/api/work-items/${wiId}`,
+        headers: { cookie },
+        payload: { durationDays: 6 },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const detail = response.json<WorkItemDetail>();
+      expect(detail.startDate).toBe(pastDateStr(5));
+      expect(detail.endDate).toBe(futureDateStr(1));
+      expect(detail.projectedEndDate).toBe(futureDateStr(6));
+      expect(detail.isLate).toBe(true);
+    });
+
+    it('writes exactly one milestone-delay diary entry across repeated reschedules and none once completed (scenario 15)', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const wiId = createTestWorkItem(userId, 'Late task', {
+        startDate: pastDateStr(5),
+        endDate: futureDateStr(-2),
+        durationDays: 3,
+      });
+      const msId = createTestMilestone(userId, 'Overdue MS', pastDateStr(10));
+      linkMilestoneToWorkItem(msId, wiId);
+
+      const patch = () =>
+        app.inject({
+          method: 'PATCH',
+          url: `/api/work-items/${wiId}`,
+          headers: { cookie },
+          payload: { durationDays: 3 },
+        });
+      const delayEntries = async () => {
+        const r = await app.inject({
+          method: 'GET',
+          url: '/api/diary-entries?type=milestone_delay&automatic=true',
+          headers: { cookie },
+        });
+        expect(r.statusCode).toBe(200);
+        return r.json<{ items: Array<{ sourceEntityId: string | null }> }>().items;
+      };
+
+      expect((await patch()).statusCode).toBe(200);
+      expect((await patch()).statusCode).toBe(200);
+      const entries = await delayEntries();
+      expect(entries).toHaveLength(1);
+      expect(entries[0]!.sourceEntityId).toBe(String(msId));
+
+      const complete = await app.inject({
+        method: 'PATCH',
+        url: `/api/milestones/${msId}`,
+        headers: { cookie },
+        payload: { isCompleted: true },
+      });
+      expect(complete.statusCode).toBe(200);
+      expect((await patch()).statusCode).toBe(200);
+      expect(await delayEntries()).toHaveLength(1);
     });
   });
 });

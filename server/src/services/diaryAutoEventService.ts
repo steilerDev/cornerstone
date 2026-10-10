@@ -9,8 +9,10 @@
  * EPIC-16: Story 16.3 — Automatic System Event Logging
  */
 
+import { and, desc, eq, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import { diaryEntries, milestones } from '../db/schema.js';
 import { createAutomaticDiaryEntry } from './diaryService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -163,7 +165,20 @@ export function onDepositStatusChanged(
 }
 
 /**
- * Log a milestone delay detection to the diary.
+ * Read the projected date back from an existing milestone-delay body
+ * (`… new projected date YYYY-MM-DD)`). Returns null when the body does not match.
+ */
+export function parseMilestoneDelayProjectedDate(body: string): string | null {
+  const match = /new projected date (\d{4}-\d{2}-\d{2})\)$/.exec(body);
+  return match?.[1] ?? null;
+}
+
+/**
+ * Log a milestone delay detection to the diary (ADR-040 W2).
+ *
+ * Writes nothing when the milestone is completed, when the projected date is not later than the
+ * target date, or when the latest milestone-delay entry of this milestone already names the same
+ * projected date. The last check parses the English body until #2223 replaces it with `metadata`.
  *
  * @param db - Database connection
  * @param enabled - Whether auto-events are enabled
@@ -180,6 +195,33 @@ export function onMilestoneDelayed(
   targetDate: string,
   projectedDate: string,
 ): void {
+  if (!enabled) return;
+  if (projectedDate <= targetDate) return;
+
+  try {
+    const milestone = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
+    if (!milestone || milestone.isCompleted || milestone.completedAt) return;
+
+    const latest = db
+      .select({ body: diaryEntries.body })
+      .from(diaryEntries)
+      .where(
+        and(
+          eq(diaryEntries.entryType, 'milestone_delay'),
+          eq(diaryEntries.isAutomatic, true),
+          eq(diaryEntries.sourceEntityType, 'milestone'),
+          eq(diaryEntries.sourceEntityId, String(milestoneId)),
+        ),
+      )
+      .orderBy(desc(diaryEntries.createdAt), desc(sql`rowid`))
+      .limit(1)
+      .get();
+    if (latest && parseMilestoneDelayProjectedDate(latest.body) === projectedDate) return;
+  } catch (error) {
+    console.warn('[diaryAutoEvent] milestone-delay de-dup failed', error);
+    return;
+  }
+
   // Calculate delay days
   const target = new Date(targetDate + 'T00:00:00Z');
   const projected = new Date(projectedDate + 'T00:00:00Z');

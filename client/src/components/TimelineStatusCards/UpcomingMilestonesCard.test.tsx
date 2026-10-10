@@ -57,6 +57,10 @@ const baseMilestone: TimelineMilestone = {
   color: null,
   workItemIds: [],
   projectedDate: null,
+  isLate: false,
+  lateDays: null,
+  isEarly: false,
+  earlyDays: null,
   isCritical: false,
 };
 

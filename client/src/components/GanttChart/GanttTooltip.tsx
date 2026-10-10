@@ -3,7 +3,12 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus, DependencyType, HouseholdItemStatus } from '@cornerstone/shared';
 import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
-import { useFormatters } from '../../lib/formatters.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
+import { useFormatters, toBcp47Locale } from '../../lib/formatters.js';
+import type { ScheduleSignalState } from '../../lib/scheduleDates.js';
+import { plannedRangeText, showsPlannedRow } from '../../lib/scheduleDates.js';
+import { Badge } from '../Badge/Badge.js';
+import { scheduleSignalBadgeProps } from '../Badge/statusBadgeVariants.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { estimateWorkItemTooltipHeight } from './tooltipData.js';
 import styles from './GanttTooltip.module.css';
@@ -26,8 +31,14 @@ export interface GanttTooltipWorkItemData {
   kind: 'work-item';
   title: string;
   status: WorkItemStatus;
+  /** Dates the bar draws (actual, else forecast). */
   startDate: string | null;
   endDate: string | null;
+  /** Planned (stored) dates; the "Planned" row renders when they differ from the shown dates. */
+  plannedStartDate: string | null;
+  plannedEndDate: string | null;
+  /** Late / Held up signal, or null when on time. */
+  scheduleSignal: ScheduleSignalState | null;
   durationDays: number | null;
   assignedUserName: string | null;
   /** Company (vendor) name, if the work item has one. */
@@ -160,8 +171,17 @@ function WorkItemTooltipContent({
 }) {
   const { t } = useTranslation('schedule');
   const { formatDate } = useFormatters();
+  const { resolvedLocale } = useLocale();
 
-  const { task: taskVariants } = useStatusBadgeVariants();
+  const { task: taskVariants, scheduleSignal: scheduleSignalVariants } = useStatusBadgeVariants();
+  const plannedValue = showsPlannedRow(data)
+    ? plannedRangeText(
+        data.plannedStartDate,
+        data.plannedEndDate,
+        toBcp47Locale(resolvedLocale),
+        formatDate,
+      )
+    : null;
 
   const dependencyTypeLabels: Record<DependencyType, string> = {
     finish_to_start: t('gantt.tooltip.dependency.finishToStart')!,
@@ -260,8 +280,16 @@ function WorkItemTooltipContent({
       {/* Header: title + status badge */}
       <div className={styles.header}>
         <span className={styles.title}>{data.title}</span>
-        <span className={`${styles.statusBadge} ${taskVariants[data.status].className}`}>
-          {taskVariants[data.status].label}
+        <span className={styles.headerChips}>
+          <span className={`${styles.statusBadge} ${taskVariants[data.status].className}`}>
+            {taskVariants[data.status].label}
+          </span>
+          {data.scheduleSignal && (
+            <Badge
+              {...scheduleSignalBadgeProps(data.scheduleSignal, scheduleSignalVariants)}
+              testId="gantt-tooltip-schedule-signal"
+            />
+          )}
         </span>
       </div>
 
@@ -276,6 +304,12 @@ function WorkItemTooltipContent({
         <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.endLabel')}</span>
         <span className={styles.detailValue}>{formatDate(data.endDate)}</span>
       </div>
+      {plannedValue && (
+        <div className={styles.detailRow} data-testid="gantt-tooltip-planned">
+          <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.plannedLabel')}</span>
+          <span className={styles.detailValue}>{plannedValue}</span>
+        </div>
+      )}
 
       {/* Duration section — planned/actual/variance when both available, single row fallback */}
       {hasBothDurations ? (

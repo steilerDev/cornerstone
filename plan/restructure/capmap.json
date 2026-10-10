@@ -55,7 +55,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > Filters sheet > Start / End date range",
     "change": "same",
     "gate": "none",
-    "note": "Filter made functional (listed as non-functional today)."
+    "note": "Filter made functional (listed as non-functional today). #2199: made functional — Start/End date filters apply to the shown date (actual, else forecast)."
   },
   "WRK-008": {
     "name": "Filter work items by number of budget lines (min/max)",
@@ -79,7 +79,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > Sort menu / column headers",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2199: start/end sort follows the shown date (actual, else forecast); empty dates last."
   },
   "WRK-011": {
     "name": "Page through long lists (work items, household items, invoices) and change the page size (10/25/50/100)",
@@ -226,7 +226,7 @@
     "to": "Tasks > Task page > header 'Late · n d' chip; Tasks > Tasks list > Late group; Home > Needs attention (N1, N2)",
     "change": "promoted",
     "gate": "none",
-    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15)."
+    "note": "Lateness exposed instead of silently showing 'today' (D-15, WALK-01). Late = planned start (before the scheduler's floor to today) is in the past; isLate is added to the timeline API (D-15). #2199: the server returns isLate/lateDays/isHeldUp and planned vs forecast dates (timeline, Tasks list, Task page); the client-side \"Delayed by\" indicator is replaced by the header 'Late · n d' chip; the Tasks list status cell shows Late / Held up until 5.1 adds the Late group. The Tasks list and Task page show the forecast dates; the Task page shows the plan as secondary text when it differs."
   },
   "WRK-030": {
     "name": "Assign or change a work item's area",
@@ -848,7 +848,7 @@
     "to": "System (no UI) — UI shows 'Late · n d' on Tasks > Task page, the Tasks list Late group and Home attention rows",
     "change": "same",
     "gate": "none",
-    "note": "Behaviour kept; lateness no longer hidden (D-15)."
+    "note": "Behaviour kept; lateness no longer hidden (D-15). #2199: the daily push is now read-time only — stored (planned) dates are no longer overwritten; bars, calendar and feed show the forecast."
   },
   "WRK-124": {
     "name": "Have actual start/end dates filled in automatically when the status changes",
@@ -2757,7 +2757,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Milestone page > History tab shows de-duplicated delay events; Home N3 shows one row per late milestone.",
-    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV."
+    "note": "214 repeated entries collapse to a handful (USE-02, D-16). No delay events after a milestone is reached; one attention row per late milestone, never per event (D-16). Legacy exact repeats (156) are collapsed at read time; deleting them is decision D-EV. #2199: write-time de-dup part 1 (ADR-040 W2) — no event for a reached milestone, none when the projected date equals the latest event's."
   },
   "JRN-037": {
     "name": "Log subsidy application status changes automatically",

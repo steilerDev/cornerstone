@@ -60,9 +60,26 @@ export interface WorkItem {
 }
 
 /**
+ * Read-time schedule projection (contract 4, #2199). startDate/endDate of the host type are the
+ * PLANNED dates (stored, never floored to today); these fields are the forecast.
+ */
+export interface WorkItemScheduleFields {
+  /** Forecast start: equals startDate unless the item is late or held up (or undated). */
+  projectedStartDate: string | null;
+  /** Forecast end: equals endDate unless the item is late or held up (or undated). */
+  projectedEndDate: string | null;
+  /** The today floor moved this item itself (not started and planned start passed, or in progress and planned end passed without an actual end). Never true when completed or undated. */
+  isLate: boolean;
+  /** Days between the planned and forecast date of the late edge (start when not started, end when in progress). Non-null (>= 1) exactly when isLate. */
+  lateDays: number | null;
+  /** Not late itself, but its forecast moved because an unfinished predecessor is late. */
+  isHeldUp: boolean;
+}
+
+/**
  * Work item summary (used in list responses and dependencies).
  */
-export interface WorkItemSummary {
+export interface WorkItemSummary extends WorkItemScheduleFields {
   id: string;
   title: string;
   status: WorkItemStatus;
@@ -94,7 +111,7 @@ export interface DependencyResponse {
 /**
  * Work item detail (used in single-item responses).
  */
-export interface WorkItemDetail {
+export interface WorkItemDetail extends WorkItemScheduleFields {
   id: string;
   title: string;
   description: string | null;
@@ -186,6 +203,14 @@ export interface WorkItemListQuery {
   q?: string;
   budgetLinesMin?: number;
   budgetLinesMax?: number;
+  /** YYYY-MM-DD, inclusive, applied to the shown start date (actual ?? forecast). */
+  startDateFrom?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown start date (actual ?? forecast). */
+  startDateTo?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown end date (actual ?? forecast). */
+  endDateFrom?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown end date (actual ?? forecast). */
+  endDateTo?: string;
   sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
 }

@@ -142,6 +142,28 @@ describe('workItemsApi', () => {
       expect(mockFetch).toHaveBeenCalledWith('/api/work-items?q=electrical', expect.any(Object));
     });
 
+    it('sends the four shown-date filters when provided', async () => {
+      const mockResponse: WorkItemListResponse = {
+        items: [],
+        pagination: { page: 1, pageSize: 25, totalPages: 0, totalItems: 0 },
+      };
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => mockResponse } as Response);
+
+      await listWorkItems({
+        startDateFrom: '2026-03-01',
+        startDateTo: '2026-03-31',
+        endDateFrom: '2026-04-01',
+        endDateTo: '2026-04-30',
+      });
+
+      const url = mockFetch.mock.calls[0]![0] as string;
+      const params = new URL(url, 'http://localhost').searchParams;
+      expect(params.get('startDateFrom')).toBe('2026-03-01');
+      expect(params.get('startDateTo')).toBe('2026-03-31');
+      expect(params.get('endDateFrom')).toBe('2026-04-01');
+      expect(params.get('endDateTo')).toBe('2026-04-30');
+    });
+
     it('includes sortBy query param when provided', async () => {
       const mockResponse: WorkItemListResponse = {
         items: [],
@@ -212,6 +234,11 @@ describe('workItemsApi', () => {
             status: 'in_progress',
             startDate: '2026-01-01',
             endDate: '2026-01-15',
+            projectedStartDate: '2026-01-01',
+            projectedEndDate: '2026-01-15',
+            isLate: false,
+            lateDays: null,
+            isHeldUp: false,
             durationDays: 14,
             actualStartDate: null,
             actualEndDate: null,
@@ -258,6 +285,11 @@ describe('workItemsApi', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -292,6 +324,11 @@ describe('workItemsApi', () => {
         status: 'completed',
         startDate: '2026-01-01',
         endDate: '2026-01-15',
+        projectedStartDate: '2026-01-01',
+        projectedEndDate: '2026-01-15',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 14,
         actualStartDate: null,
         actualEndDate: null,
@@ -340,6 +377,11 @@ describe('workItemsApi', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -382,6 +424,11 @@ describe('workItemsApi', () => {
         status: 'not_started',
         startDate: '2026-02-01',
         endDate: '2026-02-15',
+        projectedStartDate: '2026-02-01',
+        projectedEndDate: '2026-02-15',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 14,
         actualStartDate: null,
         actualEndDate: null,
@@ -430,6 +477,11 @@ describe('workItemsApi', () => {
         status: 'in_progress',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -471,6 +523,11 @@ describe('workItemsApi', () => {
         status: 'completed',
         startDate: '2026-01-01',
         endDate: '2026-01-15',
+        projectedStartDate: '2026-01-01',
+        projectedEndDate: '2026-01-15',
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: 14,
         actualStartDate: null,
         actualEndDate: null,

@@ -9,6 +9,8 @@ import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge } from '../../components/Badge/Badge.js';
+import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
+import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
@@ -238,7 +240,20 @@ export function WorkItemsPage() {
           value: status,
           label: statusVariants.task[status].label,
         })),
-        render: (item) => <Badge variants={statusVariants.task} value={item.status} />,
+        render: (item, surface) => {
+          const signal = scheduleSignalOf(item);
+          return (
+            <span className={styles.statusCell}>
+              <Badge variants={statusVariants.task} value={item.status} />
+              {signal && (
+                <Badge
+                  {...scheduleSignalBadgeProps(signal, statusVariants.scheduleSignal)}
+                  testId={dataTableTestId('wi-schedule-signal', item.id, surface)}
+                />
+              )}
+            </span>
+          );
+        },
       },
       {
         key: 'assignedTo',
@@ -286,7 +301,7 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'date',
         filterParamKey: 'startDate',
-        render: (item) => formatDate(item.startDate),
+        render: (item) => formatDate(barDates(item).start),
       },
       {
         key: 'endDate',
@@ -297,7 +312,7 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'date',
         filterParamKey: 'endDate',
-        render: (item) => formatDate(item.endDate),
+        render: (item) => formatDate(barDates(item).end),
       },
       {
         key: 'budgetLines',

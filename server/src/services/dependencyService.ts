@@ -16,7 +16,7 @@ import {
   CircularDependencyError,
 } from '../errors/AppError.js';
 import { toWorkItemSummary } from './workItemService.js';
-import { autoReschedule } from './schedulingEngine.js';
+import { autoReschedule, computeScheduleProjection } from './schedulingEngine.js';
 import { loadAreaMap } from './areaService.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
@@ -249,6 +249,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
 
   // Load area map once for all work item summaries
   const areaMap = loadAreaMap(db);
+  const projection = computeScheduleProjection(db);
 
   // Fetch predecessors: work items that this item depends on
   const predecessorRows = db
@@ -262,7 +263,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
     .all();
 
   const predecessors: DependencyResponse[] = predecessorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem, areaMap),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap, projection),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));
@@ -279,7 +280,7 @@ export function getDependencies(db: DbType, workItemId: string): WorkItemDepende
     .all();
 
   const successors: DependencyResponse[] = successorRows.map((row) => ({
-    workItem: toWorkItemSummary(db, row.workItem, areaMap),
+    workItem: toWorkItemSummary(db, row.workItem, areaMap, projection),
     dependencyType: row.dependency.dependencyType,
     leadLagDays: row.dependency.leadLagDays,
   }));

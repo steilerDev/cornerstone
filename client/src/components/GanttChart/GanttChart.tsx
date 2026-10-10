@@ -2,6 +2,7 @@ import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus, TimelineHouseholdItem } from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
+import { barDates } from '../../lib/scheduleDates.js';
 import {
   computeChartRange,
   computeChartWidth,
@@ -342,10 +343,12 @@ export function GanttChart({
   // Sort work items by start date ascending (nulls last) for waterfall ordering
   const sortedWorkItems = useMemo(() => {
     return [...data.workItems].sort((a, b) => {
-      if (a.startDate === null && b.startDate === null) return 0;
-      if (a.startDate === null) return 1;
-      if (b.startDate === null) return -1;
-      return a.startDate < b.startDate ? -1 : a.startDate > b.startDate ? 1 : 0;
+      const aStart = barDates(a).start;
+      const bStart = barDates(b).start;
+      if (aStart === null && bStart === null) return 0;
+      if (aStart === null) return 1;
+      if (bStart === null) return -1;
+      return aStart < bStart ? -1 : aStart > bStart ? 1 : 0;
     });
   }, [data.workItems]);
 
@@ -379,7 +382,7 @@ export function GanttChart({
     // Sort: by effective date ascending, nulls last; order on same date: milestones, then HIs, then work items
     all.sort((a, b) => {
       const getDate = (row: UnifiedRow): string | null => {
-        if (row.kind === 'workItem') return row.item.startDate;
+        if (row.kind === 'workItem') return barDates(row.item).start;
         if (row.kind === 'milestone') return milestoneSortDate(row.milestone);
         return row.item.earliestDeliveryDate;
       };
@@ -400,8 +403,9 @@ export function GanttChart({
       // Same date and type: sort by duration (longest first)
       const getDuration = (row: UnifiedRow): number => {
         if (row.kind === 'milestone') return 0; // milestones have no duration
-        const start = row.kind === 'workItem' ? row.item.startDate : row.item.earliestDeliveryDate;
-        const end = row.kind === 'workItem' ? row.item.endDate : row.item.latestDeliveryDate;
+        const start =
+          row.kind === 'workItem' ? barDates(row.item).start : row.item.earliestDeliveryDate;
+        const end = row.kind === 'workItem' ? barDates(row.item).end : row.item.latestDeliveryDate;
         if (!start || !end) return 0;
         return new Date(end).getTime() - new Date(start).getTime();
       };
@@ -463,9 +467,8 @@ export function GanttChart({
   const barData = useMemo(() => {
     return sortedWorkItems.map((item) => {
       const rowIdx = workItemRowIndices.get(item.id) ?? 0;
-      // Use actual dates when available (AC12: actual dates override CPM-scheduled dates)
-      const effectiveStartDate = item.actualStartDate ?? item.startDate;
-      const effectiveEndDate = item.actualEndDate ?? item.endDate;
+      // Actual dates win, else the forecast (contract 4): the bar shows where work really sits
+      const { start: effectiveStartDate, end: effectiveEndDate } = barDates(item);
       const position = computeBarPosition(
         effectiveStartDate,
         effectiveEndDate,
@@ -1393,14 +1396,14 @@ export function GanttChart({
 
             {/* Work item bars (foreground layer) */}
             <g role="list" aria-label={t('gantt.workItemBarsAriaLabel')}>
-              {barData.map(({ item, position, rowIndex }) => (
+              {barData.map(({ item, position, rowIndex, effectiveStartDate, effectiveEndDate }) => (
                 <GanttBar
                   key={item.id}
                   id={item.id}
                   title={item.title}
                   status={item.status}
-                  startDate={item.startDate}
-                  endDate={item.endDate}
+                  startDate={effectiveStartDate}
+                  endDate={effectiveEndDate}
                   x={position.x}
                   width={position.width}
                   rowIndex={rowIndex}

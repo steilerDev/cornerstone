@@ -38,6 +38,11 @@ function makeItem(overrides: Partial<TimelineWorkItem> = {}): TimelineWorkItem {
     assignedUser: null,
     assignedVendor: null,
     area: null,
+    projectedStartDate: overrides.startDate !== undefined ? overrides.startDate : '2024-03-10',
+    projectedEndDate: overrides.endDate !== undefined ? overrides.endDate : '2024-03-20',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     ...overrides,
   };
 }

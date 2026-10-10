@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import type {
@@ -16,6 +16,7 @@ import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enWorkItems from '../../i18n/en/workItems.json';
+import i18n from '../../i18n/index.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 import type * as WorkItemBudgetsApiTypes from '../../lib/workItemBudgetsApi.js';
@@ -259,6 +260,9 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
+    toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
     formatTime: fmtTime,
@@ -285,6 +289,11 @@ describe('WorkItemDetailPage', () => {
     status: 'in_progress',
     startDate: '2024-01-01',
     endDate: '2024-01-31',
+    projectedStartDate: '2024-01-01',
+    projectedEndDate: '2024-01-31',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     durationDays: 30,
     actualStartDate: null,
     actualEndDate: null,
@@ -423,6 +432,183 @@ describe('WorkItemDetailPage', () => {
 
   afterEach(() => {
     jest.clearAllMocks();
+  });
+
+  describe('schedule signal chip (contract 4, #2199)', () => {
+    const lateItem: WorkItemDetail = {
+      ...mockWorkItem,
+      status: 'not_started',
+      startDate: '2024-01-01',
+      endDate: '2024-01-31',
+      projectedStartDate: '2024-01-06',
+      projectedEndDate: '2024-02-05',
+      isLate: true,
+      lateDays: 5,
+    };
+
+    it('shows the Late chip with the day count in the header', async () => {
+      mockGetWorkItem.mockResolvedValue(lateItem);
+      renderPage();
+
+      const chip = await screen.findByTestId('work-item-schedule-signal');
+      expect(chip).toHaveTextContent('Late · 5 d');
+    });
+
+    it('shows the Held up chip in the header', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        ...mockWorkItem,
+        status: 'not_started',
+        isHeldUp: true,
+        projectedStartDate: '2024-01-06',
+      });
+      renderPage();
+
+      expect(await screen.findByTestId('work-item-schedule-signal')).toHaveTextContent('Held up');
+    });
+
+    it('lets Late win over Held up', async () => {
+      mockGetWorkItem.mockResolvedValue({ ...lateItem, isHeldUp: true });
+      renderPage();
+
+      expect(await screen.findByTestId('work-item-schedule-signal')).toHaveTextContent(
+        'Late · 5 d',
+      );
+    });
+
+    it('shows no chip for an on-time item', async () => {
+      mockGetWorkItem.mockResolvedValue(mockWorkItem);
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
+    });
+
+    it('never computes lateness itself: a past start with isLate false shows no "Delayed by" text', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        ...mockWorkItem,
+        status: 'not_started',
+        startDate: '2000-01-01',
+        endDate: '2000-01-31',
+        projectedStartDate: '2000-01-01',
+        projectedEndDate: '2000-01-31',
+        isLate: false,
+        lateDays: null,
+      });
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+      expect(screen.queryByText(/Delayed by/i)).not.toBeInTheDocument();
+      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
+    });
+
+    it('shows no "Delayed by" text for a late item either (the chip replaces it)', async () => {
+      mockGetWorkItem.mockResolvedValue(lateItem);
+      renderPage();
+
+      await screen.findByTestId('work-item-schedule-signal');
+      expect(screen.queryByText(/Delayed by/i)).not.toBeInTheDocument();
+    });
+
+    it('renders an undated task without chip and with an empty planned start', async () => {
+      mockGetWorkItem.mockResolvedValue({
+        ...mockWorkItem,
+        status: 'not_started',
+        startDate: null,
+        endDate: null,
+        projectedStartDate: '2024-01-10',
+        projectedEndDate: '2024-01-12',
+      });
+      renderPage();
+
+      await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+      expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
+    });
+
+    describe('forecast dates and the planned line', () => {
+      it('shows the forecast in Start/End and the planned range on a second line for a late task', async () => {
+        mockGetWorkItem.mockResolvedValue(lateItem);
+        renderPage();
+
+        const planned = await screen.findByTestId('work-item-planned-dates');
+        expect(planned).toHaveTextContent('Planned:');
+        expect(planned).toHaveTextContent('2024');
+        // Start/End show the forecast (Jan 6 / Feb 5), not the planned Jan 1 / Jan 31
+        expect(screen.getByText('Jan 6, 2024')).toBeInTheDocument();
+        expect(screen.getByText('Feb 5, 2024')).toBeInTheDocument();
+        expect(screen.queryByText('Jan 1, 2024')).not.toBeInTheDocument();
+      });
+
+      it('shows no planned line for an on-time task', async () => {
+        mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'not_started' });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+      });
+
+      it('shows the forecast and no planned line for an undated task', async () => {
+        mockGetWorkItem.mockResolvedValue({
+          ...mockWorkItem,
+          status: 'not_started',
+          startDate: null,
+          endDate: null,
+          projectedStartDate: '2024-01-10',
+          projectedEndDate: '2024-01-12',
+        });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.getByText('Jan 10, 2024')).toBeInTheDocument();
+        expect(screen.getByText('Jan 12, 2024')).toBeInTheDocument();
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+      });
+
+      it('shows "Not scheduled" when neither actual nor forecast dates exist', async () => {
+        mockGetWorkItem.mockResolvedValue({
+          ...mockWorkItem,
+          status: 'completed',
+          startDate: null,
+          endDate: null,
+          projectedStartDate: null,
+          projectedEndDate: null,
+        });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+        expect(screen.getAllByText(enWorkItems.detail.schedule.notScheduled).length).toBe(2);
+      });
+    });
+
+    describe('title edit buttons', () => {
+      afterEach(async () => {
+        await act(async () => {
+          await i18n.changeLanguage('en');
+        });
+      });
+
+      it('labels Save and Cancel from the common vocabulary', async () => {
+        mockGetWorkItem.mockResolvedValue(mockWorkItem);
+        renderPage();
+        fireEvent.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
+
+        expect(screen.getByRole('button', { name: enCommon.button.save })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: enCommon.button.cancel })).toBeInTheDocument();
+      });
+
+      it('shows the German Save and Cancel labels when the language is German', async () => {
+        await act(async () => {
+          await i18n.changeLanguage('de');
+        });
+        mockGetWorkItem.mockResolvedValue(mockWorkItem);
+        renderPage();
+        fireEvent.click(await screen.findByRole('heading', { name: 'Test Work Item', level: 1 }));
+
+        expect(screen.getByRole('button', { name: 'Speichern' })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Abbrechen' })).toBeInTheDocument();
+      });
+    });
   });
 
   describe('initial render', () => {
@@ -566,7 +752,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for null startDate', async () => {
-      const workItemNoStart = { ...mockWorkItem, startDate: null };
+      const workItemNoStart = { ...mockWorkItem, startDate: null, projectedStartDate: null };
       mockGetWorkItem.mockResolvedValue(workItemNoStart);
 
       renderPage();
@@ -578,7 +764,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for null endDate', async () => {
-      const workItemNoEnd = { ...mockWorkItem, endDate: null };
+      const workItemNoEnd = { ...mockWorkItem, endDate: null, projectedEndDate: null };
       mockGetWorkItem.mockResolvedValue(workItemNoEnd);
 
       renderPage();
@@ -589,7 +775,13 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for both dates when both are null', async () => {
-      const workItemNoDates = { ...mockWorkItem, startDate: null, endDate: null };
+      const workItemNoDates = {
+        ...mockWorkItem,
+        startDate: null,
+        endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+      };
       mockGetWorkItem.mockResolvedValue(workItemNoDates);
 
       renderPage();
@@ -755,6 +947,11 @@ describe('WorkItemDetailPage', () => {
         status: 'completed',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -795,6 +992,11 @@ describe('WorkItemDetailPage', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -1238,6 +1440,11 @@ describe('WorkItemDetailPage', () => {
         status: 'completed',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -1289,6 +1496,11 @@ describe('WorkItemDetailPage', () => {
         status: 'not_started',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,
@@ -1351,6 +1563,11 @@ describe('WorkItemDetailPage', () => {
       status: 'completed',
       startDate: null,
       endDate: null,
+      projectedStartDate: null,
+      projectedEndDate: null,
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
       durationDays: null,
       actualStartDate: null,
       actualEndDate: null,
@@ -1783,6 +2000,11 @@ describe('WorkItemDetailPage', () => {
         status: 'completed',
         startDate: null,
         endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+        isLate: false,
+        lateDays: null,
+        isHeldUp: false,
         durationDays: null,
         actualStartDate: null,
         actualEndDate: null,

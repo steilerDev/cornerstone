@@ -6,6 +6,7 @@ import {
   buildProgressPaymentStatusVariants,
   buildPurchaseStatusVariants,
   buildRefundVariants,
+  buildScheduleSignalVariants,
   buildTaskStatusVariants,
 } from '../components/Badge/statusBadgeVariants.js';
 
@@ -20,6 +21,7 @@ export function useStatusBadgeVariants() {
       purchase: buildPurchaseStatusVariants(t),
       milestone: buildMilestoneStatusVariants(t),
       refund: buildRefundVariants(t),
+      scheduleSignal: (lateDays: number) => buildScheduleSignalVariants(t, lateDays),
     }),
     [t],
   );

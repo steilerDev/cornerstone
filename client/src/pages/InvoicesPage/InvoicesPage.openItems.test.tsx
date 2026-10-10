@@ -60,6 +60,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       minimumFractionDigits: 2,
     }).format(n);
   return {
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatDate: fmtDate,
     formatCurrency: fmtCurrency,
     formatPercent: (n: number) => `${n.toFixed(2)}%`,

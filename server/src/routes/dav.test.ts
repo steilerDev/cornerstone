@@ -281,6 +281,41 @@ describe('DAV Routes', () => {
       expect(response.payload).toContain('END:VCALENDAR');
     });
 
+    it('places a late task at its forecast start (today), not its planned start (contract 4)', async () => {
+      const { basicAuth } = await createUserWithToken();
+      const day = (offset: number) => {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() + offset);
+        return d.toISOString().slice(0, 10);
+      };
+      const wiId = `wi-late-${Date.now()}`;
+      const now = new Date().toISOString();
+      app.db
+        .insert(workItems)
+        .values({
+          id: wiId,
+          title: 'Late Work',
+          status: 'not_started',
+          startDate: day(-5),
+          endDate: day(-2),
+          durationDays: 3,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/dav/calendars/default/wi-${wiId}.ics`,
+        headers: { Authorization: basicAuth },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const compact = (d: string) => d.replaceAll('-', '');
+      expect(response.payload).toMatch(new RegExp(`DTSTART[^\\r\\n]*${compact(day(0))}`));
+      expect(response.payload).not.toContain(compact(day(-5)));
+    });
+
     it('returns 404 for unknown work item id', async () => {
       const { basicAuth } = await createUserWithToken();
 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus } from '@cornerstone/shared';
+import { barDates } from '../../lib/scheduleDates.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { toUtcMidnight, addDays, daysBetween } from '../GanttChart/ganttUtils.js';
 import styles from './MiniGanttCard.module.css';
@@ -109,9 +110,10 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   // Filter work items that overlap the window
   const filteredWorkItems = useMemo(() => {
     return timeline.workItems.filter((item) => {
-      if (!item.startDate || !item.endDate) return false;
-      const start = toUtcMidnight(item.startDate);
-      const end = toUtcMidnight(item.endDate);
+      const drawn = barDates(item);
+      if (!drawn.start || !drawn.end) return false;
+      const start = toUtcMidnight(drawn.start);
+      const end = toUtcMidnight(drawn.end);
       // Overlap check: item.start <= windowEnd AND item.end >= windowStart
       return start <= windowEnd && end >= windowStart;
     });
@@ -261,8 +263,10 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
           const barY = y + BAR_OFFSET_Y;
 
           // Compute bar position
-          const startDate = toUtcMidnight(item.startDate!);
-          const endDate = toUtcMidnight(item.endDate!);
+          const drawn = barDates(item);
+          if (!drawn.start || !drawn.end) return null;
+          const startDate = toUtcMidnight(drawn.start);
+          const endDate = toUtcMidnight(drawn.end);
           const x = dateToX(startDate, windowStart);
           const xEnd = dateToX(endDate, windowStart);
           const rawWidth = xEnd - x;

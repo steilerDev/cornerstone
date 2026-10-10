@@ -1971,3 +1971,13 @@ PR #2272 added `toLikeContainsPattern` and claimed every list search now matches
 area, trade and orientation search helpers, still interpolated a raw `%${term}%` with no `ESCAPE`.
 The diff only shows the converted sites. To find the rest, run
 `grep -rn "LIKE" server/src | grep -v ESCAPE`.
+
+## Re-defining a stored column's meaning orphans readers that relied on the old meaning (PR #2274)
+
+When a PR changes what a column _means_ without renaming it, every reader of the old meaning silently
+becomes a second source. In #2199, `start_date`/`end_date` went from "floored to today" to "planned,
+unfloored". The diff converted the chart, calendar and Home readers to `barDates()`. It did not convert
+`MilestoneDetailPage` (its projected date came from `wi.endDate`) or the TimelinePage empty-state check.
+**Review step:** grep the client and server for every read of the old field, not just the files in the
+diff. Check each read: does it want the old meaning (now a different field) or the new one? Also check
+whether sort keys and `hasX` guards still use the old meaning. The diff shows only the converted sites.

@@ -63,6 +63,7 @@ export type {
   WorkItem,
   WorkItemStatus,
   WorkItemSummary,
+  WorkItemScheduleFields,
   WorkItemDetail,
   UserSummary,
   VendorSummary,

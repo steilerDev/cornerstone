@@ -88,6 +88,7 @@
       "workItem": {
         "startLabel": "Anfang",
         "endLabel": "Ende",
+        "plannedLabel": "Geplant",
         "ownerLabel": "Verantwortlicher",
         "areaLabel": "Bereich",
         "companyLabel": "Firma",

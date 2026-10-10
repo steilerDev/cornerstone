@@ -6,7 +6,7 @@
  * are owned by the qa-integration-tester agent.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import enCommon from '../../i18n/en/common.json';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
@@ -436,6 +436,48 @@ describe('TimelinePage', () => {
   // Calendar empty state and milestone navigation (#2198)
   // ---------------------------------------------------------------------------
 
+  describe('no-dates banner follows the shown dates (#2199)', () => {
+    const UNDATED = {
+      id: 'wi-undated',
+      title: 'Test Undated',
+      status: 'not_started' as const,
+      startDate: null,
+      endDate: null,
+      projectedStartDate: '2026-03-10',
+      projectedEndDate: '2026-03-12',
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+      durationDays: 2,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+    };
+
+    it('shows no "no scheduled items" banner when only undated tasks with forecast dates exist', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, workItems: [UNDATED] });
+      renderWithRouter(['/schedule']);
+      await screen.findByRole('heading', { name: /schedule/i });
+      await waitFor(() => {
+        expect(mockGetTimeline).toHaveBeenCalled();
+      });
+      expect(screen.queryByTestId('timeline-no-dates')).not.toBeInTheDocument();
+    });
+
+    it('still shows the banner when a task has neither actual nor forecast dates', async () => {
+      mockGetTimeline.mockResolvedValue({
+        ...EMPTY_TIMELINE,
+        workItems: [{ ...UNDATED, projectedStartDate: null, projectedEndDate: null }],
+      });
+      renderWithRouter(['/schedule']);
+      expect(await screen.findByTestId('timeline-no-dates')).toBeInTheDocument();
+    });
+  });
+
   describe('calendar empty state and milestone click (#2198)', () => {
     function thisMonthDate(day: number): string {
       const now = new Date();
@@ -451,6 +493,10 @@ describe('TimelinePage', () => {
       color: null,
       workItemIds: [],
       projectedDate: null,
+      isLate: false,
+      lateDays: null,
+      isEarly: false,
+      earlyDays: null,
       isCritical: false,
     };
 
@@ -460,6 +506,11 @@ describe('TimelinePage', () => {
       status: 'not_started',
       startDate: thisMonthDate(5),
       endDate: thisMonthDate(6),
+      projectedStartDate: thisMonthDate(5),
+      projectedEndDate: thisMonthDate(6),
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
       durationDays: 2,
       actualStartDate: null,
       actualEndDate: null,

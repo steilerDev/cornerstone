@@ -257,6 +257,9 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
+    toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
     formatTime: fmtTime,
@@ -283,6 +286,11 @@ describe('WorkItemDetailPage', () => {
     status: 'in_progress',
     startDate: '2024-01-01',
     endDate: '2024-01-31',
+    projectedStartDate: '2024-01-01',
+    projectedEndDate: '2024-01-31',
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     durationDays: 30,
     actualStartDate: null,
     actualEndDate: null,

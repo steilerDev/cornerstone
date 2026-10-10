@@ -201,12 +201,13 @@ describe('Work Item Routes', () => {
       expect(workItem.title).toBe('Pour foundation');
       expect(workItem.description).toBe('Pour concrete foundation for main structure');
       expect(workItem.status).toBe('in_progress');
-      // autoReschedule() runs after creation. The item has status 'in_progress', so Rule 3
-      // floors the end date to today when the computed EF (startDate + durationDays =
-      // 2026-03-05) is in the past. startDate is preserved as the user set it.
+      // autoReschedule() persists the PLANNED end (startDate + durationDays = 2026-03-05);
+      // the today floor is a read-time projection (contract 4, #2199).
       expect(workItem.startDate).toBe('2026-03-01');
+      expect(workItem.endDate).toBe('2026-03-05');
       const todayStr = new Date().toISOString().slice(0, 10);
-      expect(workItem.endDate).toBe(todayStr);
+      expect(workItem.projectedEndDate).toBe(todayStr);
+      expect(workItem.isLate).toBe(true);
       expect(workItem.durationDays).toBe(4);
       expect(workItem.startAfter).toBe('2026-02-28');
       expect(workItem.startBefore).toBe('2026-03-10');
@@ -530,6 +531,84 @@ describe('Work Item Routes', () => {
       expect(workItem).not.toHaveProperty('created_by');
       expect(workItem).not.toHaveProperty('created_at');
       expect(workItem).not.toHaveProperty('updated_at');
+    });
+  });
+
+  describe('GET /api/work-items — shown-date query params (contract 4, #2199)', () => {
+    it('accepts the four date filters and filters on the shown dates', async () => {
+      const { userId, cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const now = new Date().toISOString();
+      const day = (offset: number) => {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() + offset);
+        return d.toISOString().slice(0, 10);
+      };
+      app.db
+        .insert(schema.workItems)
+        .values([
+          {
+            id: 'wi-late',
+            title: 'Late',
+            status: 'not_started',
+            startDate: day(-5),
+            endDate: day(-2),
+            durationDays: 3,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          },
+          {
+            id: 'wi-future',
+            title: 'Future',
+            status: 'not_started',
+            startDate: day(20),
+            endDate: day(23),
+            durationDays: 3,
+            createdBy: userId,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ])
+        .run();
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/work-items?startDateFrom=${day(0)}&startDateTo=${day(1)}&endDateFrom=${day(0)}&endDateTo=${day(10)}`,
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{
+        items: Array<{ id: string }>;
+        pagination: { totalItems: number };
+      }>();
+      // The late task is shown from today (forecast), so a window starting today finds it.
+      expect(body.items.map((i) => i.id)).toEqual(['wi-late']);
+      expect(body.pagination.totalItems).toBe(1);
+    });
+
+    it.each(['startDateFrom', 'startDateTo', 'endDateFrom', 'endDateTo'])(
+      'rejects an invalid %s with 400 VALIDATION_ERROR',
+      async (param) => {
+        const { cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+        const response = await app.inject({
+          method: 'GET',
+          url: `/api/work-items?${param}=bad`,
+          headers: { cookie },
+        });
+        expect(response.statusCode).toBe(400);
+        expect(response.json<{ error: { code: string } }>().error.code).toBe('VALIDATION_ERROR');
+      },
+    );
+
+    it('rejects an impossible calendar date', async () => {
+      const { cookie } = await createUserWithSession('u@example.com', 'U', 'password123');
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/work-items?startDateFrom=2026-02-31',
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(400);
     });
   });
 

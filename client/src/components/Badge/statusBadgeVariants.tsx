@@ -13,6 +13,7 @@ import {
   MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariant } from './Badge.js';
 import badgeStyles from './Badge.module.css';
@@ -147,6 +148,35 @@ export function buildMilestoneStatusVariants(
     };
   }
   return result;
+}
+
+/** Schedule-signal chips: Late (with day count) and Held up. 'critical' is out of scope here. */
+export function buildScheduleSignalVariants(
+  t: StatusLabelT,
+  lateDays: number,
+): Record<ShownScheduleSignal, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyScheduleSignal;
+  return {
+    late: {
+      label: t(set.key('late'), { ns: set.ns, days: lateDays }),
+      className: badgeStyles.scheduleAtRisk!,
+    },
+    held_up: {
+      label: t(set.key('held_up'), { ns: set.ns }),
+      className: badgeStyles.scheduleWarning!,
+    },
+  };
+}
+
+/** Props that make every surface render the same signal chip. */
+export function scheduleSignalBadgeProps(
+  state: ScheduleSignalState,
+  variantsFor: (days: number) => Record<ShownScheduleSignal, BadgeVariant>,
+): { variants: Record<ShownScheduleSignal, BadgeVariant>; value: ShownScheduleSignal } {
+  return {
+    variants: variantsFor(state.signal === 'late' ? state.days : 0),
+    value: state.signal,
+  };
 }
 
 export function buildRefundVariants(t: StatusLabelT): { refund: BadgeVariant } {

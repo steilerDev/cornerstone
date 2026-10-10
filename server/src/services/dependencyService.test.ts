@@ -1,4 +1,5 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { eq } from 'drizzle-orm';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -629,6 +630,61 @@ describe('Dependency Service', () => {
 
       const deps = dependencyService.getDependencies(db, workItemB);
       expect(deps.predecessors[0]!.leadLagDays).toBe(5);
+    });
+  });
+
+  describe('getDependencies — schedule projection (contract 4, #2199)', () => {
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date('2026-03-10T12:00:00.000Z') });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('carries planned dates, forecast dates and flags on both sides', () => {
+      const userId = createTestUser('proj@example.com', 'Proj');
+      const a = createTestWorkItem(userId, 'A');
+      const b = createTestWorkItem(userId, 'B');
+      db.update(schema.workItems)
+        .set({
+          startDate: '2026-03-05',
+          endDate: '2026-03-08',
+          durationDays: 3,
+        })
+        .where(eq(schema.workItems.id, a))
+        .run();
+      db.update(schema.workItems)
+        .set({
+          startDate: '2026-03-08',
+          endDate: '2026-03-12',
+          durationDays: 4,
+        })
+        .where(eq(schema.workItems.id, b))
+        .run();
+      db.insert(schema.workItemDependencies)
+        .values({
+          predecessorId: a,
+          successorId: b,
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        })
+        .run();
+
+      const ofB = dependencyService.getDependencies(db, b);
+      const pred = ofB.predecessors[0]!.workItem;
+      expect(pred.startDate).toBe('2026-03-05');
+      expect(pred.projectedStartDate).toBe('2026-03-10');
+      expect(pred.isLate).toBe(true);
+      expect(pred.lateDays).toBe(5);
+
+      const ofA = dependencyService.getDependencies(db, a);
+      const succ = ofA.successors[0]!.workItem;
+      expect(succ.startDate).toBe('2026-03-08');
+      expect(succ.projectedStartDate).toBe('2026-03-13');
+      expect(succ.isHeldUp).toBe(true);
+      expect(succ.isLate).toBe(false);
+      expect(succ.lateDays).toBeNull();
     });
   });
 });

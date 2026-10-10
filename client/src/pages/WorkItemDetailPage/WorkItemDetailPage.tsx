@@ -82,7 +82,7 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
-import { useFormatters } from '../../lib/formatters.js';
+import { useFormatters, toBcp47Locale } from '../../lib/formatters.js';
 import { roundMoney } from '../../lib/money.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
@@ -91,6 +91,13 @@ import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveI
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Badge } from '../../components/Badge/Badge.js';
+import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
+import {
+  barDates,
+  plannedRangeText,
+  scheduleSignalOf,
+  showsPlannedRow,
+} from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -106,7 +113,7 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
-  const { vatRate } = useLocale();
+  const { vatRate, resolvedLocale } = useLocale();
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -1271,27 +1278,8 @@ export default function WorkItemDetailPage() {
   const linkedSubsidyIds = new Set(linkedSubsidies.map((s) => s.id));
   const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
 
-  // Delay indicator: shown when not_started and scheduled start is in the past
-  // eslint-disable-next-line @eslint-react/purity -- intentional current-time read for delay calculation; value is meant to reflect render time
-  const today = new Date();
-  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-  const isDelayed =
-    workItem.status === 'not_started' && !!workItem.startDate && workItem.startDate < todayStr;
-  const delayDays = isDelayed
-    ? Math.floor(
-        (new Date(todayStr).getTime() - new Date(workItem.startDate!).getTime()) /
-          (1000 * 60 * 60 * 24),
-      )
-    : 0;
-  const delayIndicator = isDelayed ? (
-    <div className={styles.delayIndicator} role="status" aria-live="polite">
-      <span aria-hidden="true">⚠</span>
-      {t('detail.schedule.delayed', {
-        count: delayDays,
-        unit: delayDays === 1 ? t('detail.schedule.day') : t('detail.schedule.days')!,
-      })}
-    </div>
-  ) : null;
+  const scheduleSignal = scheduleSignalOf(workItem);
+  const shownDates = barDates(workItem);
 
   // Available milestones for 'required' and 'linked' milestone pickers
   const requiredMilestoneIds = new Set(workItemMilestones.required.map((m) => m.id));
@@ -1430,10 +1418,10 @@ export default function WorkItemDetailPage() {
                 />
                 <div className={styles.titleEditActions}>
                   <button type="button" onClick={saveTitle} className={styles.saveButton}>
-                    Save
+                    {tCommon('button.save')}
                   </button>
                   <button type="button" onClick={cancelTitleEdit} className={styles.cancelButton}>
-                    Cancel
+                    {tCommon('button.cancel')}
                   </button>
                 </div>
               </div>
@@ -1445,6 +1433,12 @@ export default function WorkItemDetailPage() {
           </div>
 
           <div className={styles.statusSection}>
+            {scheduleSignal && (
+              <Badge
+                {...scheduleSignalBadgeProps(scheduleSignal, statusVariants.scheduleSignal)}
+                testId="work-item-schedule-signal"
+              />
+            )}
             <select
               className={styles.statusSelect}
               value={workItem.status}
@@ -1509,8 +1503,8 @@ export default function WorkItemDetailPage() {
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.startDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate
-                    ? formatDate(workItem.startDate)
+                  {shownDates.start
+                    ? formatDate(shownDates.start)
                     : t('detail.schedule.notScheduled')}
                 </span>
               </div>
@@ -1518,14 +1512,27 @@ export default function WorkItemDetailPage() {
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.endDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate
-                    ? formatDate(workItem.endDate)
-                    : t('detail.schedule.notScheduled')}
+                  {shownDates.end ? formatDate(shownDates.end) : t('detail.schedule.notScheduled')}
                 </span>
               </div>
             </div>
-            {/* Delay indicator: shown when not_started and scheduled start is in the past */}
-            {delayIndicator}
+            {showsPlannedRow({
+              startDate: shownDates.start,
+              endDate: shownDates.end,
+              plannedStartDate: workItem.startDate,
+              plannedEndDate: workItem.endDate,
+            }) && (
+              <p className={styles.plannedDates} data-testid="work-item-planned-dates">
+                {t('detail.schedule.plannedRange', {
+                  range: plannedRangeText(
+                    workItem.startDate,
+                    workItem.endDate,
+                    toBcp47Locale(resolvedLocale),
+                    formatDate,
+                  ),
+                })}
+              </p>
+            )}
           </section>
 
           {/* Area */}

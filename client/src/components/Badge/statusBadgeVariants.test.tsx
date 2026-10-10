@@ -12,6 +12,7 @@ import {
 } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import enBudget from '../../i18n/en/budget.json';
+import deCommon from '../../i18n/de/common.json';
 import { Badge } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 import {
@@ -21,7 +22,9 @@ import {
   buildProgressPaymentStatusVariants,
   buildPurchaseStatusVariants,
   buildRefundVariants,
+  buildScheduleSignalVariants,
   buildTaskStatusVariants,
+  scheduleSignalBadgeProps,
 } from './statusBadgeVariants.js';
 import type { StatusLabelT } from './statusBadgeVariants.js';
 
@@ -203,5 +206,65 @@ describe('buildMilestoneStatusVariants (#2198)', () => {
     expect(calls).toHaveLength(MILESTONE_DISPLAY_STATUSES.length);
     expect(calls.every((c) => c.days === 0)).toBe(true);
     expect(calls.every((c) => c.key.includes('statusVocabulary.milestone.'))).toBe(true);
+  });
+});
+
+// ── Schedule signal chips (contract 4, #2199) ────────────────────────────────
+
+/** Real-resource t() for a locale, with {{days}} interpolation. */
+function realTFor(common: unknown): StatusLabelT {
+  return (key, options) => {
+    let node: unknown = common;
+    for (const part of key.split('.')) {
+      node = (node as Record<string, unknown> | undefined)?.[part];
+    }
+    if (typeof node !== 'string') throw new Error(`missing key ${key}`);
+    const days = (options as { days?: number }).days;
+    return days === undefined ? node : node.replace('{{days}}', String(days));
+  };
+}
+
+describe('buildScheduleSignalVariants', () => {
+  it('interpolates the day count into the English late label', () => {
+    const variants = buildScheduleSignalVariants(realTFor(enCommon), 3);
+    expect(variants.late.label).toBe('Late · 3 d');
+    expect(variants.held_up.label).toBe('Held up');
+  });
+
+  it('uses the German vocabulary', () => {
+    const variants = buildScheduleSignalVariants(realTFor(deCommon), 3);
+    expect(variants.late.label).toBe('Verspätet · 3 T');
+    expect(variants.held_up.label).toBe('Aufgehalten');
+  });
+
+  it('maps late to scheduleAtRisk and held up to scheduleWarning', () => {
+    const variants = buildScheduleSignalVariants(realTFor(enCommon), 1);
+    expect(variants.late.className).toBe(badgeStyles.scheduleAtRisk);
+    expect(variants.held_up.className).toBe(badgeStyles.scheduleWarning);
+    expect(variants.late.className).toBe('scheduleAtRisk');
+    expect(variants.held_up.className).toBe('scheduleWarning');
+  });
+
+  it('renders through Badge with the variant label and class', () => {
+    const variants = buildScheduleSignalVariants(realTFor(enCommon), 5);
+    render(<Badge variants={variants} value="late" testId="chip" />);
+    expect(screen.getByTestId('chip')).toHaveTextContent('Late · 5 d');
+    expect(screen.getByTestId('chip')).toHaveClass('scheduleAtRisk');
+  });
+});
+
+describe('scheduleSignalBadgeProps', () => {
+  const variantsFor = (days: number) => buildScheduleSignalVariants(realTFor(enCommon), days);
+
+  it('passes the late day count to the variant builder', () => {
+    const props = scheduleSignalBadgeProps({ signal: 'late', days: 4 }, variantsFor);
+    expect(props.value).toBe('late');
+    expect(props.variants.late.label).toBe('Late · 4 d');
+  });
+
+  it('builds a held-up chip without a day count', () => {
+    const props = scheduleSignalBadgeProps({ signal: 'held_up' }, variantsFor);
+    expect(props.value).toBe('held_up');
+    expect(props.variants.held_up.label).toBe('Held up');
   });
 });

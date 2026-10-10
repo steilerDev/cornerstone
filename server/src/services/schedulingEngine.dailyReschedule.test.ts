@@ -92,7 +92,7 @@ describe('ensureDailyReschedule', () => {
     dbUpdateSpy.mockRestore();
   });
 
-  it('runs autoReschedule when date changes (simulated via tracker reset)', () => {
+  it('runs autoReschedule when date changes and keeps the stored planned start (no floor persisted)', () => {
     // Insert a work item with a stale past start date
     const now = new Date().toISOString();
     const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
@@ -126,16 +126,16 @@ describe('ensureDailyReschedule', () => {
       })
       .run();
 
-    // First call should reschedule the work item (today floors the start date)
+    // First call persists the PLANNED schedule only (contract 4, #2199): the today floor is a
+    // read-time projection and is never written.
     ensureDailyReschedule(db);
 
     const wiAfterFirst = sqlite
       .prepare('SELECT start_date FROM work_items WHERE id = ?')
       .get('wi-test-drs') as { start_date: string };
 
-    const today = new Date().toISOString().slice(0, 10);
-    // After reschedule, the not_started item's start date should be floored to today
-    expect(wiAfterFirst.start_date).toBe(today);
+    // The stored (planned) start stays in the past; it is NOT floored to today.
+    expect(wiAfterFirst.start_date).toBe(yesterday);
   });
 
   it('resetRescheduleTracker allows the next call to re-run reschedule', () => {

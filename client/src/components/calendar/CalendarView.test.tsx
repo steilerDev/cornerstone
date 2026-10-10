@@ -49,6 +49,11 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 function makeWorkItem(id: string, startDate: string, endDate: string): TimelineWorkItem {
   return {
     id,
+    projectedStartDate: startDate,
+    projectedEndDate: endDate,
+    isLate: false,
+    lateDays: null,
+    isHeldUp: false,
     title: `Item ${id}`,
     status: 'not_started',
     startDate,
@@ -74,6 +79,10 @@ function makeMilestone(id: number, targetDate: string): TimelineMilestone {
     color: null,
     workItemIds: [],
     projectedDate: null,
+    isLate: false,
+    lateDays: null,
+    isEarly: false,
+    earlyDays: null,
     isCritical: false,
   };
 }
