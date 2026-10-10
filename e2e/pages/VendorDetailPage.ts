@@ -220,7 +220,7 @@ export class VendorDetailPage {
     await this.breadcrumbs.trailLink('Companies').click();
     // Compare the path only: below 1024px Back restores the list through history, which keeps
     // the list's own query string (e.g. ?q=...), so a glob on the full URL would never match
-    await this.page.waitForURL((url) => url.pathname.endsWith('/settings/vendors'));
+    await this.page.waitForURL((url) => url.pathname === routeUrl('vendors'));
   }
 
   /**

@@ -1159,7 +1159,7 @@ export class InvoiceDetailPage {
   async goBackToInvoices(): Promise<void> {
     await this.breadcrumbs.trailLink('Invoices').click();
     // Path only: Back through history (< 1024px) keeps the list's query string
-    await this.page.waitForURL((url) => url.pathname.endsWith('/budget/invoices'));
+    await this.page.waitForURL((url) => url.pathname === routeUrl('invoices'));
   }
 
   // ─── Deposits Section helpers (Issue #1404) ─────────────────────────────
