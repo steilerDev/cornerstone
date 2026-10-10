@@ -176,27 +176,6 @@ export function getWeekDates(date: Date): CalendarDay[] {
 // ---------------------------------------------------------------------------
 
 /**
- * Returns work items that overlap the given day.
- * An item overlaps if its startDate <= day <= endDate.
- * Items without both dates are excluded.
- *
- * Items are sorted by duration (longest first) for consistent visual ordering.
- */
-export function getItemsForDay(dateStr: string, items: TimelineWorkItem[]): TimelineWorkItem[] {
-  const filtered = items.filter((item) => {
-    if (!item.startDate || !item.endDate) return false;
-    return item.startDate <= dateStr && item.endDate >= dateStr;
-  });
-
-  // Sort by duration (longest first)
-  return filtered.sort((a, b) => {
-    const durationA = new Date(a.endDate!).getTime() - new Date(a.startDate!).getTime();
-    const durationB = new Date(b.endDate!).getTime() - new Date(b.startDate!).getTime();
-    return durationB - durationA;
-  });
-}
-
-/**
  * Returns milestones that should appear on the given day.
  *
  * Date resolution order:
@@ -226,22 +205,53 @@ export function getMilestonesForDay(
 }
 
 // ---------------------------------------------------------------------------
-// Multi-day span helpers
+// Week segments
 // ---------------------------------------------------------------------------
 
-/**
- * Returns whether a work item starts on the given day
- * (used to decide whether to render the item title or a continuation bar).
- */
-export function isItemStart(dateStr: string, item: TimelineWorkItem): boolean {
-  return item.startDate === dateStr;
+/** One item's slice of a single calendar week. */
+export interface WeekSegment {
+  item: TimelineWorkItem;
+  /** 0-based column (0 = Sunday) of the segment's first day in this week. */
+  startCol: number;
+  /** Day columns covered (1–7). */
+  span: number;
+  /** The item started before this week (segment shows "←"). */
+  continuesFromPrevious: boolean;
+  /** The item ends after this week (segment shows "→"). */
+  continuesToNext: boolean;
+  /** Lane from allocateLanes(). */
+  lane: number;
 }
 
 /**
- * Returns whether a work item ends on the given day.
+ * Cuts every dated item that overlaps the week into exactly one segment.
+ * Sorted by lane, then startCol.
  */
-export function isItemEnd(dateStr: string, item: TimelineWorkItem): boolean {
-  return item.endDate === dateStr;
+export function getWeekSegments(week: CalendarDay[], items: TimelineWorkItem[]): WeekSegment[] {
+  const weekStart = week[0]!.dateStr;
+  const weekEnd = week[6]!.dateStr;
+  const lanes = allocateLanes(weekStart, weekEnd, items);
+  const segments: WeekSegment[] = [];
+
+  for (const item of items) {
+    if (!item.startDate || !item.endDate) continue;
+    if (item.startDate > weekEnd || item.endDate < weekStart) continue;
+    const clampedStart = item.startDate > weekStart ? item.startDate : weekStart;
+    const clampedEnd = item.endDate < weekEnd ? item.endDate : weekEnd;
+    const startCol = week.findIndex((d) => d.dateStr === clampedStart);
+    const endCol = week.findIndex((d) => d.dateStr === clampedEnd);
+    if (startCol < 0 || endCol < 0) continue;
+    segments.push({
+      item,
+      startCol,
+      span: endCol - startCol + 1,
+      continuesFromPrevious: item.startDate < weekStart,
+      continuesToNext: item.endDate > weekEnd,
+      lane: lanes.get(item.id) ?? 0,
+    });
+  }
+
+  return segments.sort((a, b) => a.lane - b.lane || a.startCol - b.startCol);
 }
 
 // ---------------------------------------------------------------------------
@@ -373,44 +383,6 @@ export function allocateLanes(
 }
 
 // ---------------------------------------------------------------------------
-// Item color palette
-// ---------------------------------------------------------------------------
-
-/**
- * Returns a deterministic color index (1–8) for a work item based on its ID.
- * The same ID always maps to the same color slot.
- */
-export function getItemColor(itemId: string): number {
-  let hash = 0;
-  for (let i = 0; i < itemId.length; i++) {
-    hash = (hash * 31 + itemId.charCodeAt(i)) >>> 0; // keep as unsigned 32-bit
-  }
-  return (hash % 8) + 1; // 1-indexed, 1..8
-}
-
-/**
- * Returns '#ffffff' or '#000000' — whichever achieves WCAG AA contrast
- * against the given hex background color.
- *
- * @param bgHex - A 6-digit hex color string, with or without '#' prefix (e.g. '#3b82f6' or '3b82f6').
- */
-export function getContrastTextColor(bgHex: string): string {
-  const hex = bgHex.replace(/^#/, '');
-  if (hex.length !== 6) return '#000000';
-  const r = parseInt(hex.slice(0, 2), 16);
-  const g = parseInt(hex.slice(2, 4), 16);
-  const b = parseInt(hex.slice(4, 6), 16);
-  // sRGB linearisation per WCAG 2.x
-  function linearise(c: number): number {
-    const s = c / 255;
-    return s <= 0.04045 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
-  }
-  const L = 0.2126 * linearise(r) + 0.7152 * linearise(g) + 0.0722 * linearise(b);
-  // WCAG AA: use white text when luminance < 0.179 (approx 4.5:1 contrast against white)
-  return L < 0.179 ? '#ffffff' : '#000000';
-}
-
-// ---------------------------------------------------------------------------
 // Display helpers
 // ---------------------------------------------------------------------------
 
@@ -498,9 +470,13 @@ export function formatDateForAria(dateStr: string, locale = 'en-US'): string {
   const month = parts[1]!; // must be YYYY-MM-DD format
   const day = parts[2]!; // must be YYYY-MM-DD format
   const date = new Date(Date.UTC(year, month - 1, day));
-  const weekday = date.toLocaleDateString(locale, { weekday: 'long', timeZone: 'UTC' });
-  const monthName = date.toLocaleDateString(locale, { month: 'long', timeZone: 'UTC' });
-  return `${weekday}, ${monthName} ${day}, ${year}`;
+  return date.toLocaleDateString(locale, {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    timeZone: 'UTC',
+  });
 }
 
 /**

@@ -6,11 +6,13 @@
  * Days outside the current month are visually dimmed.
  *
  * Lane allocation: each week row runs allocateLanes() to give multi-day items
- * a consistent vertical lane index across all cells they span.  The items
- * container gets a fixed height sized to fit the maximum lane count.
+ * a consistent vertical lane index; each item is cut into one segment per week
+ * row (getWeekSegments) that spans its day columns.  Rows grow to fit their lanes
+ * plus the milestones and purchases of their busiest day.
  */
 
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import type {
   TimelineWorkItem,
   TimelineMilestone,
@@ -23,15 +25,12 @@ import { CalendarMilestone } from './CalendarMilestone.js';
 import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
 import {
   getMonthGrid,
-  getItemsForDay,
   getMilestonesForDay,
   getHouseholdItemsForDay,
-  isItemStart,
-  isItemEnd,
-  allocateLanes,
-  getItemColor,
+  getWeekSegments,
   getDayName,
   getDayNameNarrow,
+  getMonthName,
   formatDateForAria,
 } from './calendarUtils.js';
 import styles from './MonthGrid.module.css';
@@ -93,18 +92,12 @@ export function MonthGrid({
 }: MonthGridProps) {
   const { resolvedLocale } = useLocale();
   const localeString = toBcp47Locale(resolvedLocale);
+  const { t } = useTranslation('schedule');
   const weeks = useMemo(() => getMonthGrid(year, month), [year, month]);
 
-  // Pre-compute lane allocations for every week row and color index per item.
-  // Each week gets its own Map<itemId, laneIndex>.
-  const weekLaneMaps = useMemo(
-    () =>
-      weeks.map((week) => {
-        // week is guaranteed to have 7 elements from getMonthGrid
-        const weekStart = week[0]!.dateStr;
-        const weekEnd = week[6]!.dateStr;
-        return allocateLanes(weekStart, weekEnd, workItems);
-      }),
+  // Pre-compute the item segments of every week row.
+  const weekSegments = useMemo(
+    () => weeks.map((week) => getWeekSegments(week, workItems)),
     [weeks, workItems],
   );
 
@@ -112,7 +105,9 @@ export function MonthGrid({
     <div
       className={styles.grid}
       role="grid"
-      aria-label={`Calendar for ${year}-${String(month).padStart(2, '0')}`}
+      aria-label={t('calendar.monthGridAriaLabel', {
+        period: `${getMonthName(month, localeString)} ${year}`,
+      })}
     >
       {/* Day name header row */}
       <div className={styles.headerRow} role="row">
@@ -131,23 +126,26 @@ export function MonthGrid({
 
       {/* Week rows */}
       {weeks.map((week, weekIdx) => {
-        // weekLaneMaps is constructed from weeks.map, so each weekIdx has a corresponding laneMap
-        const laneMap = weekLaneMaps[weekIdx]!;
-
-        // Determine the maximum lane count for this week row (to size containers)
-        const maxLane = laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) : -1;
-        // Container height = (maxLane + 1) lanes + extra space for milestones
-        const containerHeight = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_COMPACT : undefined;
+        const segments = weekSegments[weekIdx]!;
+        const lanes = segments.length > 0 ? Math.max(...segments.map((sg) => sg.lane)) + 1 : 0;
+        // Busiest day's milestones + purchases stack below the item lanes
+        const extras = Math.max(
+          0,
+          ...week.map(
+            (d) =>
+              getMilestonesForDay(d.dateStr, milestones).length +
+              getHouseholdItemsForDay(d.dateStr, householdItems).length,
+          ),
+        );
+        const containerHeight = (lanes + extras) * LANE_HEIGHT_COMPACT;
+        const milestoneTopOffset = lanes * LANE_HEIGHT_COMPACT;
 
         return (
           // eslint-disable-next-line @eslint-react/no-array-index-key -- static month grid; week index is a stable key here
-          <div key={weekIdx} className={styles.weekRow} role="row">
+          <div key={weekIdx} className={styles.weekRow} role="row" data-testid="calendar-week-row">
             {week.map((day) => {
-              const dayItems = getItemsForDay(day.dateStr, workItems);
+              const dayCol = week.indexOf(day);
               const dayMilestones = getMilestonesForDay(day.dateStr, milestones);
-
-              // Calculate the milestone top offset: comes after all lanes
-              const milestoneTopOffset = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_COMPACT : 0;
 
               return (
                 <div
@@ -166,34 +164,28 @@ export function MonthGrid({
                   {/* Work item bars + milestone diamonds */}
                   <div
                     className={styles.itemsContainer}
-                    style={
-                      containerHeight !== undefined
-                        ? {
-                            height: containerHeight + dayMilestones.length * LANE_HEIGHT_COMPACT,
-                          }
-                        : undefined
-                    }
+                    style={containerHeight > 0 ? { height: containerHeight } : undefined}
                   >
-                    {dayItems.map((item) => {
-                      return (
+                    {segments
+                      .filter((sg) => sg.startCol === dayCol)
+                      .map((sg) => (
                         <CalendarItem
-                          key={item.id}
-                          item={item}
-                          isStart={isItemStart(day.dateStr, item)}
-                          isEnd={isItemEnd(day.dateStr, item)}
+                          key={sg.item.id}
+                          item={sg.item}
+                          isStart={!sg.continuesFromPrevious}
+                          isEnd={!sg.continuesToNext}
+                          span={sg.span}
                           compact
-                          isHighlighted={hoveredItemId === item.id}
+                          isHighlighted={hoveredItemId === sg.item.id}
                           onMouseEnter={onItemMouseEnter}
                           onMouseLeave={onItemMouseLeave}
                           onMouseMove={onItemMouseMove}
-                          laneIndex={laneMap.get(item.id)}
-                          colorIndex={getItemColor(item.id)}
+                          laneIndex={sg.lane}
                           isTouchDevice={isTouchDevice}
                           activeTouchId={activeTouchId}
                           onTouchTap={onTouchTap}
                         />
-                      );
-                    })}
+                      ))}
 
                     {/* Milestone diamonds — stacked after all item lanes */}
                     {dayMilestones.map((m, mIdx) => (
@@ -222,10 +214,7 @@ export function MonthGrid({
                         key={`hi-${hi.id}`}
                         style={{
                           position: 'absolute',
-                          top:
-                            milestoneTopOffset +
-                            dayMilestones.length * LANE_HEIGHT_COMPACT +
-                            hiIdx * LANE_HEIGHT_COMPACT,
+                          top: (lanes + dayMilestones.length + hiIdx) * LANE_HEIGHT_COMPACT,
                           left: 0,
                           right: 0,
                         }}

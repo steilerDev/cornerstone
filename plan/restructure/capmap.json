@@ -736,7 +736,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > tooltip (dates, company, area, 'Waits for' / 'Holds up n tasks' with direction)",
     "change": "same",
     "gate": "none",
-    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08)."
+    "note": "Direction shown (WALK-08). The tooltip names the company and says which way each dependency points ('Waits for' / 'Holds up'); today it shows only the user and no direction (D-33, WALK-08). #2198: the tooltip names the company and splits dependencies into Waits for / Holds up (D-33)."
   },
   "WRK-106": {
     "name": "See milestones as diamonds with on-track / late / ahead / completed state",
@@ -752,7 +752,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > milestone tooltip",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the milestone tooltip groups say Holds up and \"+N more\" is translated."
   },
   "WRK-108": {
     "name": "See household-item delivery windows on the Gantt and calendar, with a tooltip",
@@ -760,7 +760,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar > purchase delivery windows",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the purchase tooltip header shows the status word and names the area; the calendar shows the shared status colours."
   },
   "WRK-109": {
     "name": "Open an item's detail page from the Gantt",
@@ -792,7 +792,7 @@
     "to": "Tasks > Calendar (Month)",
     "change": "same",
     "gate": "none",
-    "note": "Overlap and unlabeled-segment defects fixed (D-14)."
+    "note": "Overlap and unlabeled-segment defects fixed (D-14). #2198: items are cut into one labelled segment per week; rows grow to fit their lanes; an empty calendar offers Add a task (D-14)."
   },
   "WRK-113": {
     "name": "Switch the calendar between month and week view",
@@ -800,7 +800,7 @@
     "to": "Tasks > Calendar > Month | Week",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: week-view columns line up with the header and phone items get 44px hit areas."
   },
   "WRK-114": {
     "name": "Move the calendar to the previous/next month or week, or back to today",
@@ -808,7 +808,7 @@
     "to": "Tasks > Calendar > ‹ Today ›",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: the week label reads as one date range in the active language."
   },
   "WRK-115": {
     "name": "Highlight every cell of a multi-day item on hover",
@@ -816,7 +816,7 @@
     "to": "Tasks > Calendar > hover highlight",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2198: a multi-day item is one segment per week, so it highlights as a whole."
   },
   "WRK-116": {
     "name": "Open a work item or household item from the calendar",
@@ -824,7 +824,7 @@
     "to": "Tasks > Calendar > click item opens Task / Purchase page",
     "change": "same",
     "gate": "none",
-    "note": "Purchases pass their origin too (D-11)."
+    "note": "Purchases pass their origin too (D-11). #2198: tasks and purchases show their tooltip on keyboard focus and read status, area and dates."
   },
   "WRK-117": {
     "name": "Open a milestone from the calendar (currently does nothing)",
@@ -832,7 +832,7 @@
     "to": "Tasks > Calendar > click milestone opens Milestone page",
     "change": "same",
     "gate": "none",
-    "note": "Dead click fixed (D-11)."
+    "note": "Dead click fixed (D-11). #2198: calendar milestones open the milestone page and show a tooltip on keyboard focus."
   },
   "WRK-122": {
     "name": "Have start/end dates recalculated automatically (CPM) after every scheduling-relevant change",

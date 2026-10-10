@@ -147,52 +147,106 @@ describe('CalendarHouseholdItem', () => {
       expect(button.getAttribute('aria-label')).toContain('Ordered');
     });
 
-    it('aria-label includes the earliestDeliveryDate when set', () => {
-      renderHI({ item: makeHouseholdItem({ earliestDeliveryDate: '2026-05-15' }) });
-      const button = screen.getByRole('button');
-      expect(button.getAttribute('aria-label')).toContain('May 15, 2026');
+    it('aria-label includes the date the chip is drawn on (targetDeliveryDate)', () => {
+      renderHI({ item: makeHouseholdItem({ targetDeliveryDate: '2026-05-15' }) });
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-label',
+        'Purchase: Leather Sofa, Planned, delivery May 15, 2026',
+      );
     });
 
-    it('aria-label says "unscheduled" when earliestDeliveryDate is null', () => {
+    it('the actual delivery date wins over the target date in the aria-label', () => {
       renderHI({
-        item: makeHouseholdItem({ earliestDeliveryDate: null }),
+        item: makeHouseholdItem({
+          status: 'arrived',
+          targetDeliveryDate: '2026-05-15',
+          actualDeliveryDate: '2026-05-17',
+        }),
+      });
+      const label = screen.getByRole('button').getAttribute('aria-label');
+      expect(label).toContain('May 17, 2026');
+      expect(label).not.toContain('May 15, 2026');
+    });
+
+    it('includes the area name when the purchase has an area', () => {
+      renderHI({
+        item: makeHouseholdItem({
+          targetDeliveryDate: '2026-05-15',
+          area: { id: 'a1', name: 'Test Kitchen', color: null, ancestors: [] },
+        }),
+      });
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-label',
+        'Purchase: Leather Sofa, Planned, Test Kitchen, delivery May 15, 2026',
+      );
+    });
+
+    it('omits the area when the purchase has none', () => {
+      renderHI({ item: makeHouseholdItem({ targetDeliveryDate: '2026-05-15', area: null }) });
+      expect(screen.getByRole('button').getAttribute('aria-label')).not.toContain(', ,');
+      expect(screen.getByRole('button').getAttribute('aria-label')).toBe(
+        'Purchase: Leather Sofa, Planned, delivery May 15, 2026',
+      );
+    });
+
+    it('aria-label says "delivery not scheduled" when there is no target or actual date', () => {
+      renderHI({
+        item: makeHouseholdItem({ targetDeliveryDate: null, actualDeliveryDate: null }),
       });
       const button = screen.getByRole('button');
       expect(button.getAttribute('aria-label')).toContain('delivery not scheduled');
     });
   });
 
-  // ── Color scheme (delivered vs default) ───────────────────────────────────
+  // ── Colour by status (Badge purchase classes) ─────────────────────────────
 
-  describe('CSS class for color scheme', () => {
-    it('non-delivered item uses the "default" CSS class (not delivered)', () => {
+  describe('CSS class per purchase status', () => {
+    it.each(['planned', 'purchased', 'scheduled', 'arrived'] as const)(
+      'status %s uses the Badge %s class and exposes data-status',
+      (status) => {
+        renderHI({ item: makeHouseholdItem({ status }) });
+        const el = screen.getByTestId('calendar-hi-item');
+        expect(el.className).toContain(status);
+        expect(el).toHaveAttribute('data-status', status);
+      },
+    );
+
+    it('a planned purchase does not carry another status class', () => {
       renderHI({ item: makeHouseholdItem({ status: 'planned' }) });
-      const button = screen.getByTestId('calendar-hi-item');
-      // Should have the default class and NOT the delivered class
-      expect(button.className).toContain('default');
-      expect(button.className).not.toContain('arrived');
+      const className = screen.getByTestId('calendar-hi-item').className;
+      expect(className).not.toContain('arrived');
+      expect(className).not.toContain('purchased');
+      expect(className).not.toContain('scheduled');
+    });
+  });
+
+  // ── Focus shows the tooltip (#2198) ───────────────────────────────────────
+
+  describe('focus and blur', () => {
+    it('focus calls onMouseEnter with the id and the centre of the element rect', () => {
+      const onMouseEnter = jest.fn();
+      renderHI({ onMouseEnter });
+      const el = screen.getByTestId('calendar-hi-item');
+      el.getBoundingClientRect = () =>
+        ({ left: 10, top: 20, width: 100, height: 20, right: 110, bottom: 40 }) as DOMRect;
+      fireEvent.focus(el);
+      expect(onMouseEnter).toHaveBeenCalledWith('hi-1', 60, 30);
     });
 
-    it('delivered item uses the "delivered" CSS class', () => {
-      renderHI({
-        item: makeHouseholdItem({ status: 'arrived', actualDeliveryDate: '2026-04-18' }),
-      });
-      const button = screen.getByTestId('calendar-hi-item');
-      expect(button.className).toContain('arrived');
+    it('blur calls onMouseLeave', () => {
+      const onMouseLeave = jest.fn();
+      renderHI({ onMouseLeave });
+      fireEvent.blur(screen.getByTestId('calendar-hi-item'));
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
     });
 
-    it('ordered item uses the "default" CSS class (not delivered)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'purchased' }) });
-      const button = screen.getByTestId('calendar-hi-item');
-      expect(button.className).toContain('default');
-      expect(button.className).not.toContain('arrived');
-    });
-
-    it('scheduled item uses the "default" CSS class (not arrived)', () => {
-      renderHI({ item: makeHouseholdItem({ status: 'scheduled' }) });
-      const button = screen.getByTestId('calendar-hi-item');
-      expect(button.className).toContain('default');
-      expect(button.className).not.toContain('arrived');
+    it('focus and blur without handlers do not throw', () => {
+      renderHI();
+      const el = screen.getByTestId('calendar-hi-item');
+      expect(() => {
+        fireEvent.focus(el);
+        fireEvent.blur(el);
+      }).not.toThrow();
     });
   });
 

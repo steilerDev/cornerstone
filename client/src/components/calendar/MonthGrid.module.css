@@ -14,7 +14,7 @@
 
 .headerRow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   border-bottom: 1px solid var(--color-border-strong);
   background: var(--color-bg-secondary);
   flex-shrink: 0;
@@ -39,9 +39,9 @@
 
 .weekRow {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  flex: 1;
-  min-height: 0;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  flex: 1 0 auto;
+  min-height: auto;
   border-bottom: 1px solid var(--color-border);
 }
 
@@ -58,6 +58,7 @@
   border-right: 1px solid var(--color-border);
   background: var(--color-bg-primary);
   min-height: 0;
+  min-width: 0;
   overflow: visible;
   transition: background var(--transition-fast);
 }

@@ -2,7 +2,6 @@ import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineResponse, WorkItemStatus, TimelineHouseholdItem } from '@cornerstone/shared';
 import { useTouchTooltip } from '../../hooks/useTouchTooltip.js';
-import { computeActualDuration } from '../../lib/formatters.js';
 import {
   computeChartRange,
   computeChartWidth,
@@ -25,6 +24,7 @@ import type { BarRect } from './arrowUtils.js';
 import { GanttHeader } from './GanttHeader.js';
 import { GanttSidebar } from './GanttSidebar.js';
 import { GanttTooltip } from './GanttTooltip.js';
+import { buildHouseholdItemTooltipData, buildWorkItemTooltipData } from './tooltipData.js';
 import type {
   GanttTooltipData,
   GanttTooltipPosition,
@@ -955,29 +955,14 @@ export function GanttChart({
           clearTimeout(hideTimerRef.current);
           hideTimerRef.current = null;
         }
-        const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
-        const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
-        const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
-        const tooltipDeps = itemDependencyLookup.get(itemId)?.tooltipDeps ?? [];
         setTooltipTriggerId(itemId);
-        setTooltipData({
-          kind: 'work-item',
-          title: tooltipItem.title,
-          status: tooltipItem.status,
-          startDate: tooltipItem.startDate,
-          endDate: tooltipItem.endDate,
-          durationDays: tooltipItem.durationDays,
-          plannedDurationDays: tooltipItem.durationDays,
-          actualDurationDays,
-          assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
-          areaName: tooltipItem.area
-            ? [...tooltipItem.area.ancestors.map((a) => a.name), tooltipItem.area.name].join(
-                ' \u203a ',
-              )
-            : null,
-          dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
-          workItemId: itemId,
-        });
+        setTooltipData(
+          buildWorkItemTooltipData(
+            tooltipItem,
+            itemDependencyLookup.get(itemId)?.tooltipDeps,
+            today,
+          ),
+        );
         setTooltipPosition({
           x: window.innerWidth / 2,
           y: window.innerHeight / 3,
@@ -1030,19 +1015,7 @@ export function GanttChart({
           hideTimerRef.current = null;
         }
         setTooltipTriggerId(hiId);
-        setTooltipData({
-          kind: 'household-item',
-          name: tooltipItem.name,
-          category: tooltipItem.category,
-          status: tooltipItem.status,
-          earliestDeliveryDate: tooltipItem.earliestDeliveryDate,
-          latestDeliveryDate: tooltipItem.latestDeliveryDate,
-          targetDeliveryDate: tooltipItem.targetDeliveryDate,
-          actualDeliveryDate: tooltipItem.actualDeliveryDate,
-          isLate: tooltipItem.isLate,
-          householdItemId: hiId,
-          linkedItems: hiLinkedItemsMap.get(hiId),
-        });
+        setTooltipData(buildHouseholdItemTooltipData(tooltipItem, hiLinkedItemsMap.get(hiId)));
         setTooltipPosition({
           x: window.innerWidth / 2,
           y: window.innerHeight / 3,
@@ -1379,19 +1352,7 @@ export function GanttChart({
                   tooltipTriggerElementRef.current = e.currentTarget;
                   const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                   showTimerRef.current = setTimeout(() => {
-                    setTooltipData({
-                      kind: 'household-item',
-                      name: hi.name,
-                      category: hi.category,
-                      status: hi.status,
-                      earliestDeliveryDate: hi.earliestDeliveryDate,
-                      latestDeliveryDate: hi.latestDeliveryDate,
-                      targetDeliveryDate: hi.targetDeliveryDate,
-                      actualDeliveryDate: hi.actualDeliveryDate,
-                      isLate: hi.isLate,
-                      householdItemId: hi.id,
-                      linkedItems: hiLinkedItemsMap.get(hi.id),
-                    });
+                    setTooltipData(buildHouseholdItemTooltipData(hi, hiLinkedItemsMap.get(hi.id)));
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
                 }}
@@ -1415,19 +1376,7 @@ export function GanttChart({
                     y: rect.top + rect.height / 2,
                   };
                   showTimerRef.current = setTimeout(() => {
-                    setTooltipData({
-                      kind: 'household-item',
-                      name: hi.name,
-                      category: hi.category,
-                      status: hi.status,
-                      earliestDeliveryDate: hi.earliestDeliveryDate,
-                      latestDeliveryDate: hi.latestDeliveryDate,
-                      targetDeliveryDate: hi.targetDeliveryDate,
-                      actualDeliveryDate: hi.actualDeliveryDate,
-                      isLate: hi.isLate,
-                      householdItemId: hi.id,
-                      linkedItems: hiLinkedItemsMap.get(hi.id),
-                    });
+                    setTooltipData(buildHouseholdItemTooltipData(hi, hiLinkedItemsMap.get(hi.id)));
                     setTooltipPosition(newPos);
                   }, TOOLTIP_SHOW_DELAY);
                 }}
@@ -1474,34 +1423,13 @@ export function GanttChart({
                     const newPos: GanttTooltipPosition = { x: e.clientX, y: e.clientY };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      // Compute planned vs actual duration for tooltip (#333)
-                      const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
-                      const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
-                      const actualDurationDays = computeActualDuration(
-                        effectiveStart,
-                        effectiveEnd,
-                        today,
+                      setTooltipData(
+                        buildWorkItemTooltipData(
+                          tooltipItem,
+                          itemDependencyLookup.get(item.id)?.tooltipDeps,
+                          today,
+                        ),
                       );
-                      const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
-                      setTooltipData({
-                        kind: 'work-item',
-                        title: tooltipItem.title,
-                        status: tooltipItem.status,
-                        startDate: tooltipItem.startDate,
-                        endDate: tooltipItem.endDate,
-                        durationDays: tooltipItem.durationDays,
-                        plannedDurationDays: tooltipItem.durationDays,
-                        actualDurationDays,
-                        assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
-                        areaName: tooltipItem.area
-                          ? [
-                              ...tooltipItem.area.ancestors.map((a) => a.name),
-                              tooltipItem.area.name,
-                            ].join(' \u203a ')
-                          : null,
-                        dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
-                        workItemId: item.id,
-                      });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
                   }}
@@ -1531,34 +1459,13 @@ export function GanttChart({
                     };
                     showTimerRef.current = setTimeout(() => {
                       setTooltipTriggerId(item.id);
-                      // Compute planned vs actual duration for tooltip (#333)
-                      const effectiveStart = tooltipItem.actualStartDate ?? tooltipItem.startDate;
-                      const effectiveEnd = tooltipItem.actualEndDate ?? tooltipItem.endDate;
-                      const actualDurationDays = computeActualDuration(
-                        effectiveStart,
-                        effectiveEnd,
-                        today,
+                      setTooltipData(
+                        buildWorkItemTooltipData(
+                          tooltipItem,
+                          itemDependencyLookup.get(item.id)?.tooltipDeps,
+                          today,
+                        ),
                       );
-                      const tooltipDeps = itemDependencyLookup.get(item.id)?.tooltipDeps ?? [];
-                      setTooltipData({
-                        kind: 'work-item',
-                        title: tooltipItem.title,
-                        status: tooltipItem.status,
-                        startDate: tooltipItem.startDate,
-                        endDate: tooltipItem.endDate,
-                        durationDays: tooltipItem.durationDays,
-                        plannedDurationDays: tooltipItem.durationDays,
-                        actualDurationDays,
-                        assignedUserName: tooltipItem.assignedUser?.displayName ?? null,
-                        areaName: tooltipItem.area
-                          ? [
-                              ...tooltipItem.area.ancestors.map((a) => a.name),
-                              tooltipItem.area.name,
-                            ].join(' \u203a ')
-                          : null,
-                        dependencies: tooltipDeps.length > 0 ? [...tooltipDeps] : undefined,
-                        workItemId: item.id,
-                      });
                       setTooltipPosition(newPos);
                     }, TOOLTIP_SHOW_DELAY);
                   }}

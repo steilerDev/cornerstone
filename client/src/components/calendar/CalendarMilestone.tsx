@@ -5,7 +5,11 @@
  * Clicking opens the Milestones panel (via callback).
  */
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  FocusEvent as ReactFocusEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
@@ -82,6 +86,11 @@ export function CalendarMilestone({
     onMouseMove?.(e.clientX, e.clientY);
   }
 
+  function handleFocus(e: ReactFocusEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    onMouseEnter?.(milestone.id, r.left + r.width / 2, r.top + r.height / 2);
+  }
+
   const statusLabel = milestoneStatusLabel(tCommon, milestone);
 
   return (
@@ -94,6 +103,8 @@ export function CalendarMilestone({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onMouseLeave?.()}
       onMouseMove={handleMouseMove}
+      onFocus={handleFocus}
+      onBlur={() => onMouseLeave?.()}
       aria-label={t('calendar.milestone.ariaLabel', {
         title: milestone.title,
         status: statusLabel,

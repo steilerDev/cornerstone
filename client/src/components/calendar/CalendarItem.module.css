@@ -4,7 +4,7 @@
  * Items use absolute positioning within a position:relative container
  * (the .itemsContainer in MonthGrid / the .dayCell in WeekGrid).
  * Vertical position is controlled by a laneIndex via inline style top offset.
- * Color is applied via inline CSS custom properties (--calendar-item-N-*).
+ * Colour comes from the shared status map (Badge classes via useStatusBadgeVariants).
  * ============================================================ */
 
 .item {
@@ -15,6 +15,7 @@
   overflow: hidden;
   transition: filter var(--transition-fast);
   min-width: 0;
+  z-index: var(--z-raised);
   border-top: none;
   border-bottom: none;
 }
@@ -39,7 +40,7 @@
 .compact {
   height: 18px;
   padding: 0 var(--spacing-1);
-  font-size: var(--font-size-2xs);
+  font-size: var(--font-size-xs);
 }
 
 /* ---- Full (week view) ---- */
@@ -85,12 +86,7 @@
   font-weight: var(--font-weight-medium);
 }
 
-/* ---- Multi-day spanning — bridge cell gaps ---- */
-
-/* Compact (month view): continuation bars extend into adjacent cell gap */
-.compact.noEndRound {
-  margin-right: -1px;
-}
+/* ---- Segment margins ---- */
 
 .compact.startRounded {
   margin-left: var(--spacing-1);
@@ -98,11 +94,6 @@
 
 .compact.endRounded {
   margin-right: var(--spacing-1);
-}
-
-/* Full (week view): continuation bars extend into adjacent cell gap */
-.full.noEndRound {
-  margin-right: -1px;
 }
 
 .full.startRounded {
@@ -113,24 +104,33 @@
   margin-right: var(--spacing-2);
 }
 
-/* ---- Status colors (fallback / semantic — overridden by inline palette color) ---- */
-/*
- * These classes are kept for semantic markup and test compatibility.
- * When a colorIndex is provided from getItemColor(), the palette color is applied
- * via inline style and takes visual precedence over these CSS class colors.
- */
+/* ---- Continuation arrows ---- */
 
-.notStarted {
-  background: var(--color-status-not-started-bg);
-  color: var(--color-status-not-started-text);
+.continuation {
+  flex-shrink: 0;
+  margin-inline: var(--spacing-0-5);
 }
 
-.inProgress {
-  background: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
+/* ---- Phone week view: 44px hit area ---- */
+
+.touchSized {
+  min-height: 44px;
+  padding-block: var(--spacing-3);
+  background-clip: content-box;
 }
 
-.completed {
-  background: var(--color-status-completed-bg);
-  color: var(--color-status-completed-text);
+@media (max-width: 767px) {
+  .full.startRounded {
+    margin-left: var(--spacing-0-5);
+  }
+
+  .full.endRounded {
+    margin-right: var(--spacing-0-5);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .item {
+    transition: none;
+  }
 }

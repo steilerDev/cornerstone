@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import type {
   HouseholdItemStatus,
+  MilestoneDisplayStatus,
   InvoiceDepositStatus,
   InvoiceStatus,
   WorkItemStatus,
@@ -9,6 +10,7 @@ import {
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
+  MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -16,7 +18,7 @@ import type { BadgeVariant } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 
 /** Minimal t() shape: works with useTranslation().t and i18n.getFixedT(). */
-export type StatusLabelT = (key: string, options: { ns: string }) => string;
+export type StatusLabelT = (key: string, options: { ns: string; days?: number }) => string;
 
 /** Decorative check mark for the Submitted chip (aria-hidden; the label is the accessible name). */
 export function CheckIcon(): ReactNode {
@@ -58,6 +60,13 @@ const PURCHASE_STATUS_CLASS: Record<HouseholdItemStatus, string> = {
   purchased: badgeStyles.purchased!,
   scheduled: badgeStyles.scheduled!,
   arrived: badgeStyles.arrived!,
+};
+
+const MILESTONE_STATUS_CLASS: Record<MilestoneDisplayStatus, string> = {
+  upcoming: badgeStyles.milestoneUpcoming!,
+  late: badgeStyles.milestoneLate!,
+  early: badgeStyles.milestoneEarly!,
+  reached: badgeStyles.milestoneReached!,
 };
 
 export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatus, BadgeVariant> {
@@ -117,6 +126,24 @@ export function buildPurchaseStatusVariants(
     result[status] = {
       label: t(set.key(status), { ns: set.ns }),
       className: PURCHASE_STATUS_CLASS[status],
+    };
+  }
+  return result;
+}
+
+/**
+ * Milestone display-status chips. The label is the bare word; late/early words carry a day
+ * count, so callers with a milestone should take the label from milestoneStatusLabel().
+ */
+export function buildMilestoneStatusVariants(
+  t: StatusLabelT,
+): Record<MilestoneDisplayStatus, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyMilestone;
+  const result = {} as Record<MilestoneDisplayStatus, BadgeVariant>;
+  for (const status of MILESTONE_DISPLAY_STATUSES) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns, days: 0 }),
+      className: MILESTONE_STATUS_CLASS[status],
     };
   }
   return result;

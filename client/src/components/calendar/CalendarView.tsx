@@ -40,7 +40,12 @@ import {
   getDayName,
   getWeekDates,
 } from './calendarUtils.js';
-import { computeActualDuration, toBcp47Locale } from '../../lib/formatters.js';
+import { formatDayRange, toBcp47Locale } from '../../lib/formatters.js';
+import { EmptyState } from '../EmptyState/EmptyState.js';
+import {
+  buildHouseholdItemTooltipData,
+  buildWorkItemTooltipData,
+} from '../GanttChart/tooltipData.js';
 import styles from './CalendarView.module.css';
 
 // ---------------------------------------------------------------------------
@@ -57,6 +62,8 @@ export interface CalendarViewProps {
   dependencies?: TimelineDependency[];
   /** Called when user clicks a milestone diamond — opens the milestone panel. */
   onMilestoneClick?: (milestoneId: number) => void;
+  /** True when the schedule has no tasks, milestones or purchases at all, before filters. */
+  isEmpty?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -122,6 +129,27 @@ function ChevronRightIcon() {
   );
 }
 
+function CalendarIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      fill="none"
+      viewBox="0 0 24 24"
+      stroke="currentColor"
+      width="1em"
+      height="1em"
+      aria-hidden="true"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+      />
+    </svg>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Tooltip debounce timings (matches GanttChart)
 // ---------------------------------------------------------------------------
@@ -147,6 +175,7 @@ export function CalendarView({
   householdItems = EMPTY_HOUSEHOLD_ITEMS,
   dependencies = EMPTY_DEPENDENCIES,
   onMilestoneClick,
+  isEmpty = false,
 }: CalendarViewProps) {
   const { t } = useTranslation('schedule');
   const { resolvedLocale } = useLocale();
@@ -286,38 +315,13 @@ export function CalendarView({
         // First tap: build tooltip data and show it
         const item = workItemById.get(itemId);
         if (item) {
-          const today = new Date();
-          const effectiveStart = item.actualStartDate ?? item.startDate;
-          const effectiveEnd = item.actualEndDate ?? item.endDate;
-          const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
-          setTooltipData({
-            kind: 'work-item',
-            title: item.title,
-            status: item.status,
-            startDate: item.startDate,
-            endDate: item.endDate,
-            durationDays: item.durationDays,
-            assignedUserName: item.assignedUser?.displayName ?? null,
-            plannedDurationDays: item.durationDays,
-            actualDurationDays,
-            dependencies: itemTooltipDepsMap.get(itemId),
-          });
+          setTooltipData(
+            buildWorkItemTooltipData(item, itemTooltipDepsMap.get(itemId), new Date()),
+          );
         } else {
           const hi = householdItemById.get(itemId);
           if (hi) {
-            setTooltipData({
-              kind: 'household-item',
-              name: hi.name,
-              category: hi.category,
-              status: hi.status,
-              earliestDeliveryDate: hi.earliestDeliveryDate,
-              latestDeliveryDate: hi.latestDeliveryDate,
-              targetDeliveryDate: hi.targetDeliveryDate,
-              actualDeliveryDate: hi.actualDeliveryDate,
-              isLate: hi.isLate,
-              householdItemId: hi.id,
-              linkedItems: hiLinkedItemsMap.get(hi.id),
-            });
+            setTooltipData(buildHouseholdItemTooltipData(hi, hiLinkedItemsMap.get(hi.id)));
           }
         }
         // Position tooltip at viewport center as a safe default for touch
@@ -353,22 +357,9 @@ export function CalendarView({
       const item = workItemById.get(itemId);
       if (item) {
         tooltipShowTimerRef.current = setTimeout(() => {
-          const today = new Date();
-          const effectiveStart = item.actualStartDate ?? item.startDate;
-          const effectiveEnd = item.actualEndDate ?? item.endDate;
-          const actualDurationDays = computeActualDuration(effectiveStart, effectiveEnd, today);
-          setTooltipData({
-            kind: 'work-item',
-            title: item.title,
-            status: item.status,
-            startDate: item.startDate,
-            endDate: item.endDate,
-            durationDays: item.durationDays,
-            assignedUserName: item.assignedUser?.displayName ?? null,
-            plannedDurationDays: item.durationDays,
-            actualDurationDays,
-            dependencies: itemTooltipDepsMap.get(itemId),
-          });
+          setTooltipData(
+            buildWorkItemTooltipData(item, itemTooltipDepsMap.get(itemId), new Date()),
+          );
           setTooltipPosition({ x: mouseX, y: mouseY });
         }, TOOLTIP_SHOW_DELAY);
         return;
@@ -378,19 +369,7 @@ export function CalendarView({
       const hi = householdItemById.get(itemId);
       if (hi) {
         tooltipShowTimerRef.current = setTimeout(() => {
-          setTooltipData({
-            kind: 'household-item',
-            name: hi.name,
-            category: hi.category,
-            status: hi.status,
-            earliestDeliveryDate: hi.earliestDeliveryDate,
-            latestDeliveryDate: hi.latestDeliveryDate,
-            targetDeliveryDate: hi.targetDeliveryDate,
-            actualDeliveryDate: hi.actualDeliveryDate,
-            isLate: hi.isLate,
-            householdItemId: hi.id,
-            linkedItems: hiLinkedItemsMap.get(hi.id),
-          });
+          setTooltipData(buildHouseholdItemTooltipData(hi, hiLinkedItemsMap.get(hi.id)));
           setTooltipPosition({ x: mouseX, y: mouseY });
         }, TOOLTIP_SHOW_DELAY);
       }
@@ -534,13 +513,7 @@ export function CalendarView({
     // getWeekDates always returns exactly 7 elements
     const first = weekDays[0]!;
     const last = weekDays[6]!;
-    const firstMonth = getMonthName(first.date.getUTCMonth() + 1, localeString);
-    const lastMonth = getMonthName(last.date.getUTCMonth() + 1, localeString);
-    if (firstMonth === lastMonth) {
-      navLabel = `${firstMonth} ${first.dayOfMonth}–${last.dayOfMonth}, ${first.date.getUTCFullYear()}`;
-    } else {
-      navLabel = `${firstMonth} ${first.dayOfMonth} – ${lastMonth} ${last.dayOfMonth}, ${last.date.getUTCFullYear()}`;
-    }
+    navLabel = formatDayRange(first.date, last.date, localeString);
   }
 
   // ---------------------------------------------------------------------------
@@ -639,11 +612,20 @@ export function CalendarView({
         className={styles.gridArea}
         aria-label={
           calendarMode === 'week'
-            ? `Week of ${weekDayLabels}`
+            ? t('calendar.weekGridAriaLabel', { days: weekDayLabels })
             : `${getMonthName(displayMonth, localeString)} ${displayYear}`
         }
       >
-        {calendarMode === 'month' ? (
+        {isEmpty ? (
+          <div data-testid="calendar-empty">
+            <EmptyState
+              icon={<CalendarIcon />}
+              message={t('calendar.emptyState.message')}
+              description={t('calendar.emptyState.description')}
+              action={{ label: t('calendar.emptyState.action'), href: '/project/work-items/new' }}
+            />
+          </div>
+        ) : calendarMode === 'month' ? (
           <MonthGrid
             year={displayYear}
             month={displayMonth}

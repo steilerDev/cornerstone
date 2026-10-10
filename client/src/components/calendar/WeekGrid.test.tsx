@@ -10,7 +10,11 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import type * as WeekGridTypes from './WeekGrid.js';
 
 // Mock LocaleContext so the component can call useLocale() without a provider.
@@ -95,6 +99,7 @@ function renderGrid(props: {
   weekDate?: Date;
   workItems?: TimelineWorkItem[];
   milestones?: TimelineMilestone[];
+  householdItems?: TimelineHouseholdItem[];
   onMilestoneClick?: jest.Mock;
   onItemMouseEnter?: jest.Mock;
   onItemMouseLeave?: jest.Mock;
@@ -109,6 +114,7 @@ function renderGrid(props: {
         weekDate={props.weekDate ?? WEEK_DATE}
         workItems={props.workItems ?? []}
         milestones={props.milestones ?? []}
+        householdItems={props.householdItems}
         onMilestoneClick={props.onMilestoneClick}
         onItemMouseEnter={props.onItemMouseEnter}
         onItemMouseLeave={props.onItemMouseLeave}
@@ -202,11 +208,27 @@ describe('WeekGrid', () => {
       expect(screen.getAllByTestId('calendar-item')).toHaveLength(1);
     });
 
-    it('renders CalendarItem in multiple cells when item spans multiple days', () => {
+    it('renders one segment (in the first day cell) when an item spans several days', () => {
       // Item spans Mon–Wed (3 days within the week)
       const item = makeWorkItem('b', '2024-03-11', '2024-03-13', 'Multi-day Task');
       renderGrid({ workItems: [item] });
-      expect(screen.getAllByTestId('calendar-item')).toHaveLength(3);
+      const segments = screen.getAllByTestId('calendar-item');
+      expect(segments).toHaveLength(1);
+      expect(segments[0]!.closest('[role="gridcell"]')).toHaveAttribute(
+        'aria-label',
+        'Monday, March 11, 2024',
+      );
+      expect(segments[0]!.style.right).toBe('calc(-2 * (100% + 1px))');
+    });
+
+    it('draws a week-spanning item with arrows on the side that continues', () => {
+      const item = makeWorkItem('w', '2024-03-05', '2024-03-20', 'Spanning Task');
+      renderGrid({ workItems: [item] });
+      const segment = screen.getByTestId('calendar-item');
+      expect(segment.style.right).toBe('calc(-6 * (100% + 1px))');
+      expect(segment.textContent).toContain('←');
+      expect(segment.textContent).toContain('→');
+      expect(segment).toHaveTextContent('Spanning Task');
     });
 
     it('does not render CalendarItem for item outside the week', () => {
@@ -313,6 +335,113 @@ describe('WeekGrid', () => {
         }
       }
       expect(emptyDayCount).toBe(0);
+    });
+  });
+
+  describe('empty day placeholder with spanning segments (#2198)', () => {
+    function placeholderCells(): boolean[] {
+      return screen
+        .getAllByRole('gridcell')
+        .map((cell) =>
+          Array.from(cell.children).some((child) => child.getAttribute('aria-hidden') === 'true'),
+        );
+    }
+
+    it('shows no placeholder on days covered by a segment that started earlier in the week', () => {
+      // Mon–Wed task: the segment lives in Monday's cell but covers Tue and Wed too
+      renderGrid({ workItems: [makeWorkItem('b', '2024-03-11', '2024-03-13')] });
+      // Sun, Mon, Tue, Wed, Thu, Fri, Sat
+      expect(placeholderCells()).toEqual([true, false, false, false, true, true, true]);
+    });
+
+    it('shows no placeholder on a day holding only a milestone', () => {
+      renderGrid({ milestones: [makeMilestone(1, '2024-03-14')] });
+      expect(placeholderCells()).toEqual([true, true, true, true, false, true, true]);
+    });
+  });
+
+  // ── Lane height: phone vs. larger screens (#2198) ─────────────────────────
+
+  describe('lane height', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    function mockMatchMedia(matches: boolean) {
+      window.matchMedia = ((query: string) => ({
+        matches: matches && query === '(max-width: 767px)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+    }
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
+    const laneItems = [
+      makeWorkItem('a', '2024-03-11', '2024-03-13', 'Lane A'),
+      makeWorkItem('b', '2024-03-12', '2024-03-14', 'Lane B'),
+    ];
+
+    it('on a phone, items are touch sized and lanes are 48px apart', () => {
+      mockMatchMedia(true);
+      renderGrid({ workItems: laneItems });
+      const tops = screen.getAllByTestId('calendar-item').map((el) => el.style.top);
+      expect(tops).toEqual(['0px', '48px']);
+      for (const el of screen.getAllByTestId('calendar-item')) {
+        expect(el.className).toContain('touchSized');
+      }
+    });
+
+    it('on larger screens, items are not touch sized and lanes are 26px apart', () => {
+      mockMatchMedia(false);
+      renderGrid({ workItems: laneItems });
+      const items = screen.getAllByTestId('calendar-item');
+      expect(items.map((el) => el.style.top)).toEqual(['0px', '26px']);
+      for (const el of items) {
+        expect(el.className).not.toContain('touchSized');
+      }
+    });
+
+    it('sizes day cells for lanes plus the busiest day of milestones and purchases (phone)', () => {
+      mockMatchMedia(true);
+      renderGrid({ workItems: laneItems, milestones: [makeMilestone(1, '2024-03-15')] });
+      const cells = screen.getAllByRole('gridcell');
+      // 2 lanes + 1 milestone = 3 × 48
+      expect(cells[0]!.style.minHeight).toBe(`${3 * 48}px`);
+    });
+
+    it('stacks a purchase below the lanes and the day milestones', () => {
+      mockMatchMedia(false);
+      const purchase: TimelineHouseholdItem = {
+        id: 'hi-1',
+        name: 'Sample Sofa',
+        category: 'furniture',
+        status: 'purchased',
+        targetDeliveryDate: '2024-03-15',
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        actualDeliveryDate: null,
+        isLate: false,
+        dependencyIds: [],
+      };
+      renderGrid({
+        workItems: laneItems,
+        milestones: [makeMilestone(1, '2024-03-15')],
+        householdItems: [purchase],
+      });
+      // 2 lanes + 1 milestone before the purchase
+      expect(screen.getByTestId('calendar-hi-item').parentElement!.style.top).toBe(`${3 * 26}px`);
+    });
+
+    it('places the milestone below the item lanes', () => {
+      mockMatchMedia(false);
+      renderGrid({ workItems: laneItems, milestones: [makeMilestone(1, '2024-03-15')] });
+      expect(screen.getByTestId('calendar-milestone').parentElement!.style.top).toBe(`${2 * 26}px`);
     });
   });
 

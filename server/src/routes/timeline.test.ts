@@ -16,7 +16,14 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { TimelineResponse, ApiErrorResponse } from '@cornerstone/shared';
-import { workItems, workItemDependencies, milestones, milestoneWorkItems } from '../db/schema.js';
+import {
+  workItems,
+  workItemDependencies,
+  milestones,
+  milestoneWorkItems,
+  areas,
+  householdItems,
+} from '../db/schema.js';
 
 describe('Timeline Routes', () => {
   let app: FastifyInstance;
@@ -972,6 +979,74 @@ describe('Timeline Routes', () => {
   });
 
   // ─── GET /api/timeline — Read-only behaviour ──────────────────────────────────
+
+  // ─── Purchase area (#2198) ─────────────────────────────────────────────────
+
+  describe('householdItems[].area', () => {
+    function insertAreaRow(id: string, name: string, parentId: string | null) {
+      const now = new Date().toISOString();
+      app.db
+        .insert(areas)
+        .values({
+          id,
+          name,
+          parentId,
+          color: null,
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    function insertPurchase(id: string, areaId: string | null) {
+      const now = new Date().toISOString();
+      app.db
+        .insert(householdItems)
+        .values({
+          id,
+          name: `Purchase ${id}`,
+          categoryId: 'hic-furniture',
+          status: 'planned',
+          targetDeliveryDate: '2026-05-20',
+          areaId,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    it('includes area: null for a purchase without an area and the area chain for one with', async () => {
+      const { cookie } = await createUserWithSession(
+        'user@example.com',
+        'Test User',
+        'password123',
+      );
+      insertAreaRow('area-test-house', 'Test House', null);
+      insertAreaRow('area-test-kitchen', 'Test Kitchen', 'area-test-house');
+      insertPurchase('hi-no-area', null);
+      insertPurchase('hi-in-kitchen', 'area-test-kitchen');
+
+      const response = await app.inject({
+        method: 'GET',
+        url: '/api/timeline',
+        headers: { cookie },
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<TimelineResponse>();
+      const without = body.householdItems.find((h) => h.id === 'hi-no-area')!;
+      const within = body.householdItems.find((h) => h.id === 'hi-in-kitchen')!;
+      expect(without).toHaveProperty('area');
+      expect(without.area).toBeNull();
+      expect(within.area).toMatchObject({
+        id: 'area-test-kitchen',
+        name: 'Test Kitchen',
+        ancestors: [{ id: 'area-test-house', name: 'Test House' }],
+      });
+    });
+  });
 
   describe('read-only behaviour', () => {
     it('does not modify work item dates when called', async () => {

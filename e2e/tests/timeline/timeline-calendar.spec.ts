@@ -17,6 +17,12 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
+import {
+  buildTimeline,
+  dayOfCurrentMonth,
+  mockMilestone,
+  mockWorkItem,
+} from '../../fixtures/timelineMocks.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -28,6 +34,26 @@ function getCurrentMonthName(): string {
 
 function getCurrentYear(): number {
   return new Date().getFullYear();
+}
+
+/**
+ * Serve one dated task this month. The calendar shows an empty state (no grid) when nothing is
+ * scheduled, so every test that asserts the grid needs data and must not depend on the shared DB.
+ */
+async function mockOneScheduledTask(timelinePage: TimelinePage): Promise<void> {
+  await timelinePage.mockTimeline(
+    buildTimeline({
+      workItems: [
+        mockWorkItem({
+          id: 'test-calendar-grid-task',
+          title: 'Test Grid Task',
+          startDate: dayOfCurrentMonth(5),
+          endDate: dayOfCurrentMonth(6),
+          durationDays: 2,
+        }),
+      ],
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,6 +109,14 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Month grid renders (Scenario 2 + 3)', { tag: '@responsive' }, () => {
+  test.beforeEach(async ({ page }) => {
+    await mockOneScheduledTask(new TimelinePage(page));
+  });
+
+  test.afterEach(async ({ page }) => {
+    await new TimelinePage(page).unmockTimeline();
+  });
+
   test('Calendar view shows month grid with current month and year', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.gotoCalendar();
@@ -237,6 +271,14 @@ test.describe('Month/Week mode toggle (Scenario 6)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Week grid renders (Scenario 7)', () => {
+  test.beforeEach(async ({ page }) => {
+    await mockOneScheduledTask(new TimelinePage(page));
+  });
+
+  test.afterEach(async ({ page }) => {
+    await new TimelinePage(page).unmockTimeline();
+  });
+
   test('Week grid is visible after switching to week mode', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.gotoCalendar();
@@ -295,49 +337,35 @@ test.describe('Work items in calendar view (Scenario 8)', () => {
   }) => {
     const timelinePage = new TimelinePage(page);
 
-    const today = new Date();
-    // Create a work item within the current month
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
-    const endDate = new Date(today.getFullYear(), today.getMonth(), 15).toISOString().slice(0, 10);
+    const startDate = dayOfCurrentMonth(1);
+    const endDate = dayOfCurrentMonth(15);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'calendar-work-item',
-                title: 'Calendar Test Item',
-                status: 'in_progress',
-                startDate,
-                endDate,
-                durationDays: 15,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'calendar-work-item',
+            title: 'Test Calendar Item',
+            status: 'in_progress',
+            startDate,
+            endDate,
+            durationDays: 15,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+      }),
+    );
 
     try {
       await timelinePage.gotoCalendar();
       await expect(timelinePage.calendarView).toBeVisible();
 
-      // The calendar should render a grid
+      // The calendar renders the grid and at least one segment of the task
       await expect(timelinePage.calendarGridArea).toBeVisible();
+      await expect(
+        timelinePage.calendarItems.filter({ hasText: 'Test Calendar Item' }).first(),
+      ).toBeVisible();
     } finally {
-      await page.unroute('**/api/timeline');
+      await timelinePage.unmockTimeline();
     }
   });
 });
@@ -350,56 +378,25 @@ test.describe('Milestones in calendar view (Scenario 9)', () => {
   test('Milestone markers appear in the calendar grid when milestones exist', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
 
-    const today = new Date();
-    const milestoneDate = new Date(today.getFullYear(), today.getMonth(), 15)
-      .toISOString()
-      .slice(0, 10);
-    const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+    const milestoneDate = dayOfCurrentMonth(15);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [
-              {
-                id: 99,
-                title: 'Calendar Milestone',
-                targetDate: milestoneDate,
-                isCompleted: false,
-                completedAt: null,
-                projectedDate: null,
-                workItemIds: [],
-              },
-            ],
-            dateRange: { earliest: startDate, latest: milestoneDate },
-          }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        milestones: [
+          mockMilestone({ id: 99, title: 'Test Calendar Milestone', targetDate: milestoneDate }),
+        ],
+      }),
+    );
 
     try {
       await timelinePage.gotoCalendar();
       await expect(timelinePage.calendarView).toBeVisible();
 
-      // Check for milestone markers in the calendar
-      // CalendarMilestone components render SVG diamonds in the grid cells
-      const calendarMilestones = page.locator('[data-testid="calendar-milestone"]');
-      // If the milestone is in the current month, it should be visible
-      if (await calendarMilestones.first().isVisible()) {
-        const count = await calendarMilestones.count();
-        expect(count).toBeGreaterThan(0);
-      }
-      // Calendar grid should be rendered even if milestone isn't in visible month
-      await expect(timelinePage.calendarGridArea).toBeVisible();
+      // A milestone alone is enough content to show the grid instead of the empty state
+      await expect(timelinePage.calendarEmpty).toHaveCount(0);
+      await expect(timelinePage.calendarMilestones.first()).toBeVisible();
     } finally {
-      await page.unroute('**/api/timeline');
+      await timelinePage.unmockTimeline();
     }
   });
 });
@@ -411,22 +408,28 @@ test.describe('Milestones in calendar view (Scenario 9)', () => {
 test.describe('Calendar dark mode (Scenario 10)', { tag: '@responsive' }, () => {
   test('Calendar view renders correctly in dark mode', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
+    await mockOneScheduledTask(timelinePage);
 
-    await page.goto('/schedule/calendar');
-    await page.evaluate(() => {
-      document.documentElement.setAttribute('data-theme', 'dark');
-    });
-    await timelinePage.heading.waitFor({ state: 'visible' });
-    await timelinePage.calendarView.waitFor({ state: 'visible' });
+    try {
+      await page.goto('/schedule/calendar');
+      await page.evaluate(() => {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      });
+      await timelinePage.heading.waitFor({ state: 'visible' });
+      await timelinePage.calendarView.waitFor({ state: 'visible' });
 
-    await expect(timelinePage.calendarView).toBeVisible();
-    await expect(timelinePage.calendarGridArea).toBeVisible();
+      await expect(timelinePage.calendarView).toBeVisible();
+      await expect(timelinePage.calendarGridArea).toBeVisible();
+      await expect(page.getByRole('grid')).toBeVisible();
 
-    // No horizontal scroll in dark mode
-    const hasHorizontalScroll = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > window.innerWidth;
-    });
-    expect(hasHorizontalScroll).toBe(false);
+      // No horizontal scroll in dark mode
+      const hasHorizontalScroll = await page.evaluate(() => {
+        return document.documentElement.scrollWidth > window.innerWidth;
+      });
+      expect(hasHorizontalScroll).toBe(false);
+    } finally {
+      await timelinePage.unmockTimeline();
+    }
   });
 });
 

@@ -208,6 +208,19 @@ export function formatWeekdayMonthDay(date: Date, locale = 'en-US'): string {
 }
 
 /**
+ * Format a date range as one phrase: "October 4 – 10, 2026" (en-US),
+ * "4.–10. Oktober 2026" (de-DE). Dates are UTC midnight.
+ */
+export function formatDayRange(start: Date, end: Date, locale = 'en-US'): string {
+  return new Intl.DateTimeFormat(locale, {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  }).formatRange(start, end);
+}
+
+/**
  * Format a byte count as a human-readable, locale-aware file size string
  * (e.g. "1.5 MB", "1,5 MB" in de-DE). Unit suffixes (B/KB/MB) are not
  * translated — they are standard abbreviations in both supported locales.

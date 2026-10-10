@@ -10,7 +10,11 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
 import { DAY_NAMES } from './calendarUtils.js';
 import type * as MonthGridTypes from './MonthGrid.js';
 
@@ -181,7 +185,7 @@ describe('MonthGrid', () => {
 
     it('aria-label on grid matches year and month', () => {
       renderGrid({ year: 2024, month: 3 });
-      expect(screen.getByRole('grid')).toHaveAttribute('aria-label', 'Calendar for 2024-03');
+      expect(screen.getByRole('grid')).toHaveAttribute('aria-label', 'Calendar for March 2024');
     });
   });
 
@@ -213,9 +217,9 @@ describe('MonthGrid', () => {
       // Item spans all of March 2024
       const item = makeWorkItem('a', '2024-03-01', '2024-03-31', 'Foundation Work');
       renderGrid({ year: 2024, month: 3, workItems: [item] });
-      // 31 days in March → 31 calendar-item elements
+      // One segment per week row (March 2024 spans 6 week rows), not one element per day
       const calendarItems = screen.getAllByTestId('calendar-item');
-      expect(calendarItems.length).toBe(31);
+      expect(calendarItems.length).toBe(6);
     });
 
     it('does not render CalendarItem for item outside displayed month', () => {
@@ -237,12 +241,40 @@ describe('MonthGrid', () => {
       }
     });
 
-    it('renders item in every cell it spans within the grid', () => {
-      // Item spans March 10–12 (3 days)
+    it('renders one segment for an item that stays within a week', () => {
+      // Item spans March 10–12 (Sun–Tue of one week) → a single 3-column segment
       const item = makeWorkItem('c', '2024-03-10', '2024-03-12', 'Short Task');
       renderGrid({ year: 2024, month: 3, workItems: [item] });
       const calendarItems = screen.getAllByTestId('calendar-item');
-      expect(calendarItems.length).toBe(3);
+      expect(calendarItems.length).toBe(1);
+      expect(calendarItems[0]!.style.right).toBe('calc(-2 * (100% + 1px))');
+    });
+
+    it('cuts an item across 3 weeks into exactly 3 segments, one per week row', () => {
+      const item = makeWorkItem('long', '2024-03-06', '2024-03-19', 'Long Task');
+      renderGrid({ year: 2024, month: 3, workItems: [item] });
+      const segments = screen.getAllByTestId('calendar-item');
+      expect(segments).toHaveLength(3);
+      const rows = segments.map((el) => el.closest('[data-testid="calendar-week-row"]'));
+      expect(new Set(rows).size).toBe(3);
+      for (const el of segments) {
+        expect(el).toHaveTextContent('Long Task');
+        expect(el).toHaveAttribute('data-status', 'not_started');
+      }
+      const labels = segments.map((el) => el.getAttribute('aria-label'));
+      expect(new Set(labels).size).toBe(1);
+    });
+
+    it('marks the first segment as the start and the last as the end (continuation arrows)', () => {
+      const item = makeWorkItem('long', '2024-03-06', '2024-03-19', 'Long Task');
+      renderGrid({ year: 2024, month: 3, workItems: [item] });
+      const [first, middle, last] = screen.getAllByTestId('calendar-item');
+      expect(first!.textContent).toContain('→');
+      expect(first!.textContent).not.toContain('←');
+      expect(middle!.textContent).toContain('←');
+      expect(middle!.textContent).toContain('→');
+      expect(last!.textContent).toContain('←');
+      expect(last!.textContent).not.toContain('→');
     });
 
     it('renders multiple items per day when items overlap', () => {
@@ -256,6 +288,101 @@ describe('MonthGrid', () => {
     it('renders no CalendarItem elements when workItems is empty', () => {
       renderGrid({ year: 2024, month: 3, workItems: [] });
       expect(screen.queryAllByTestId('calendar-item')).toHaveLength(0);
+    });
+  });
+
+  // ── Row height with milestones and purchases (#2198) ──────────────────────
+
+  describe('week row container height', () => {
+    function makePurchase(id: string, targetDeliveryDate: string): TimelineHouseholdItem {
+      return {
+        id,
+        name: `Purchase ${id}`,
+        category: 'furniture',
+        status: 'planned',
+        targetDeliveryDate,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        actualDeliveryDate: null,
+        isLate: false,
+        dependencyIds: [],
+      };
+    }
+
+    function containerHeights(): string[] {
+      return screen
+        .getAllByTestId('calendar-week-row')
+        .flatMap((row) => [...row.querySelectorAll<HTMLElement>('[class*="itemsContainer"]')])
+        .map((el) => el.style.height);
+    }
+
+    it('sizes every container of a row for its lanes plus its busiest day of milestones and purchases', () => {
+      render(
+        <MemoryRouter>
+          <MonthGrid
+            year={2024}
+            month={3}
+            workItems={[
+              makeWorkItem('a', '2024-03-11', '2024-03-13'),
+              makeWorkItem('b', '2024-03-12', '2024-03-14'),
+            ]}
+            milestones={[makeMilestone(1, '2024-03-15')]}
+            householdItems={[makePurchase('p1', '2024-03-15'), makePurchase('p2', '2024-03-15')]}
+          />
+        </MemoryRouter>,
+      );
+      const rows = screen.getAllByTestId('calendar-week-row');
+      // Row of Mar 10-16: 2 lanes + (1 milestone + 2 purchases on Fri) = 5 lanes of 20px
+      const target = rows[2]!;
+      const containers = target.querySelectorAll<HTMLElement>('[class*="itemsContainer"]');
+      expect(containers).toHaveLength(7);
+      for (const container of containers) {
+        expect(container.style.height).toBe(`${(2 + 3) * 20}px`);
+      }
+    });
+
+    it('leaves rows without any items unaffected', () => {
+      render(
+        <MemoryRouter>
+          <MonthGrid
+            year={2024}
+            month={3}
+            workItems={[makeWorkItem('a', '2024-03-11', '2024-03-13')]}
+            milestones={[]}
+            householdItems={[makePurchase('p1', '2024-03-15')]}
+          />
+        </MemoryRouter>,
+      );
+      const heights = containerHeights();
+      // 6 rows × 7 containers; only the Mar 10-16 row is sized: 1 lane + 1 purchase
+      expect(heights).toHaveLength(42);
+      const sized = heights.filter((h) => h !== '');
+      expect(sized).toHaveLength(7);
+      expect(new Set(sized)).toEqual(new Set([`${2 * 20}px`]));
+    });
+
+    it('a row with only a milestone gets one lane of height', () => {
+      renderGrid({ year: 2024, month: 3, milestones: [makeMilestone(1, '2024-03-15')] });
+      const sized = containerHeights().filter((h) => h !== '');
+      expect(new Set(sized)).toEqual(new Set(['20px']));
+    });
+
+    it('stacks purchases below the milestone on the same day', () => {
+      render(
+        <MemoryRouter>
+          <MonthGrid
+            year={2024}
+            month={3}
+            workItems={[]}
+            milestones={[makeMilestone(1, '2024-03-15')]}
+            householdItems={[makePurchase('p1', '2024-03-15')]}
+          />
+        </MemoryRouter>,
+      );
+      const purchase = screen.getByTestId('calendar-hi-item').parentElement!;
+      const milestone = screen.getByTestId('calendar-milestone').parentElement!;
+      expect(milestone.style.top).toBe('0px');
+      expect(purchase.style.top).toBe('20px');
     });
   });
 

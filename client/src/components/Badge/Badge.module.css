@@ -104,6 +104,27 @@
   color: var(--color-status-not-started-text);
 }
 
+/* Milestone display status (reached / late / early / upcoming) */
+.milestoneUpcoming {
+  background-color: var(--color-status-in-progress-bg);
+  color: var(--color-status-in-progress-text);
+}
+
+.milestoneLate {
+  background-color: var(--color-danger-bg);
+  color: var(--color-danger-text-on-light);
+}
+
+.milestoneEarly {
+  background-color: var(--color-success-bg);
+  color: var(--color-success-text-on-light);
+}
+
+.milestoneReached {
+  background-color: var(--color-status-completed-bg);
+  color: var(--color-status-completed-text);
+}
+
 /* Invoice / progress-payment status (§7.3, #2195). Offer and Refund are info, never red. */
 .offer,
 .refund {

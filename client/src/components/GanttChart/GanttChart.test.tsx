@@ -1023,3 +1023,196 @@ describe('GanttChart — areaName in work item tooltip data (Issue #1239)', () =
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Story #2198 — tooltip data built by the shared builders (vendor, groups, purchase area)
+// ---------------------------------------------------------------------------
+
+describe('GanttChart — tooltip data from the shared builders (#2198)', () => {
+  function wi(id: string, title: string, overrides: Record<string, unknown> = {}) {
+    return {
+      id,
+      title,
+      status: 'in_progress' as const,
+      startDate: '2024-07-01',
+      endDate: '2024-07-31',
+      durationDays: 30,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+      ...overrides,
+    };
+  }
+
+  it('shows the Company and the Waits for / Holds up groups when hovering a task bar', async () => {
+    const { act } = await import('react');
+    const data = makeTimeline({
+      workItems: [
+        wi('wi-a', 'Test Before'),
+        wi('wi-b', 'Test Middle', {
+          assignedVendor: { id: 'v1', name: 'Sample Tiling Ltd', trade: null },
+        }),
+        wi('wi-c', 'Test After'),
+      ],
+      dependencies: [
+        {
+          predecessorId: 'wi-a',
+          successorId: 'wi-b',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        },
+        {
+          predecessorId: 'wi-b',
+          successorId: 'wi-c',
+          dependencyType: 'finish_to_start',
+          leadLagDays: 0,
+        },
+      ],
+    });
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data });
+      fireEvent.mouseEnter(screen.getByTestId('gantt-bar-wi-b'), { clientX: 300, clientY: 100 });
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Sample Tiling Ltd');
+      expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Test Before');
+      expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Test After');
+      expect(screen.getByTestId('gantt-tooltip').textContent).not.toMatch(
+        /Dependencies|Blocks|Downstream/,
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('shows the status word and the area path when hovering a purchase circle', async () => {
+    const { act } = await import('react');
+    const data = makeTimeline({
+      householdItems: [
+        {
+          id: 'hi-area',
+          name: 'Sample Cabinets',
+          category: 'furniture',
+          status: 'purchased',
+          targetDeliveryDate: '2024-08-15',
+          earliestDeliveryDate: '2024-08-10',
+          latestDeliveryDate: '2024-08-20',
+          actualDeliveryDate: null,
+          isLate: false,
+          dependencyIds: [],
+          area: {
+            id: 'area-k',
+            name: 'Test Kitchen',
+            color: null,
+            ancestors: [{ id: 'area-h', name: 'Test House', color: null }],
+          },
+        },
+      ],
+    });
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data });
+      fireEvent.mouseEnter(screen.getByTestId('gantt-hi-circle'), { clientX: 300, clientY: 100 });
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(tooltip).toHaveTextContent('Ordered');
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent(
+        'Test House › Test Kitchen',
+      );
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+});
+
+describe('GanttChart — keyboard focus and touch use the same tooltip builders (#2198)', () => {
+  const purchase = {
+    id: 'hi-focus',
+    name: 'Sample Cabinets',
+    category: 'furniture' as const,
+    status: 'scheduled' as const,
+    targetDeliveryDate: '2024-08-15',
+    earliestDeliveryDate: null,
+    latestDeliveryDate: null,
+    actualDeliveryDate: null,
+    isLate: false,
+    dependencyIds: [],
+    area: { id: 'area-k', name: 'Test Kitchen', color: null, ancestors: [] },
+  };
+
+  const task = {
+    id: 'wi-focus',
+    title: 'Test Focus Task',
+    status: 'in_progress' as const,
+    startDate: '2024-07-01',
+    endDate: '2024-07-31',
+    durationDays: 30,
+    actualStartDate: null,
+    actualEndDate: null,
+    startAfter: null,
+    startBefore: null,
+    assignedUser: null,
+    assignedVendor: { id: 'v1', name: 'Sample Tiling Ltd', trade: null },
+    area: null,
+  };
+
+  it('focusing a task bar shows the tooltip with the Company', async () => {
+    const { act } = await import('react');
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data: makeTimeline({ workItems: [task], dependencies: [] }) });
+      fireEvent.focus(screen.getByTestId('gantt-bar-wi-focus'));
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Sample Tiling Ltd');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('focusing a purchase circle shows the tooltip with the area', async () => {
+    const { act } = await import('react');
+    jest.useFakeTimers();
+    try {
+      renderGanttChart({ data: makeTimeline({ householdItems: [purchase] }) });
+      fireEvent.focus(screen.getByTestId('gantt-hi-circle'));
+      await act(async () => {
+        jest.advanceTimersByTime(200);
+      });
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Kitchen');
+      expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Delivery scheduled');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('the first touch tap on a purchase circle shows its tooltip with the area', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      matches: query === '(pointer: coarse)',
+      media: query,
+      onchange: null,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      dispatchEvent: () => false,
+    })) as unknown as typeof window.matchMedia;
+    try {
+      renderGanttChart({ data: makeTimeline({ householdItems: [purchase] }) });
+      fireEvent.click(screen.getByTestId('gantt-hi-circle'));
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Kitchen');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});
