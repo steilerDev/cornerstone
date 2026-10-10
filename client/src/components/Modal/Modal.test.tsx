@@ -732,4 +732,124 @@ describe('Modal', () => {
       expect(locked()).toBe('true');
     });
   });
+
+  describe('skipOpenerRef (#2209 focus after delete)', () => {
+    function SkipHost({
+      skip,
+      withReturnRef = true,
+      withHeading = true,
+    }: {
+      skip: { current: boolean };
+      withReturnRef?: boolean;
+      withHeading?: boolean;
+    }) {
+      const [open, setOpen] = React.useState(false);
+      const returnRef = React.useRef<HTMLHeadingElement>(null);
+      return (
+        <main>
+          {withHeading && <h1>Page heading</h1>}
+          <h2 ref={returnRef} tabIndex={-1}>
+            Section heading
+          </h2>
+          <button type="button" onClick={() => setOpen(true)}>
+            opener
+          </button>
+          <button type="button" onClick={() => setOpen(false)}>
+            close modal
+          </button>
+          <button type="button">elsewhere</button>
+          {open && (
+            <Modal
+              title="Skip"
+              onClose={() => setOpen(false)}
+              skipOpenerRef={skip}
+              returnFocusRef={withReturnRef ? returnRef : undefined}
+            >
+              <button type="button">inside</button>
+            </Modal>
+          )}
+        </main>
+      );
+    }
+
+    async function openAndClose() {
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      return opener;
+    }
+
+    it('skip=true: a live, enabled opener is skipped and returnFocusRef gets focus', async () => {
+      render(<SkipHost skip={{ current: true }} />);
+      const opener = await openAndClose();
+      expect(opener).toBeEnabled();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('skip=true without a returnFocusRef falls through to the page heading', async () => {
+      render(<SkipHost skip={{ current: true }} withReturnRef={false} />);
+      await openAndClose();
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('skip=false restores the opener as before', async () => {
+      render(<SkipHost skip={{ current: false }} />);
+      const opener = await openAndClose();
+      expect(opener).toHaveFocus();
+    });
+
+    it('omitting the prop restores the opener', async () => {
+      render(<SkipHost skip={undefined as never} />);
+      const opener = await openAndClose();
+      expect(opener).toHaveFocus();
+    });
+
+    it('the flag is read at unmount, not at mount', async () => {
+      const skip = { current: false };
+      render(<SkipHost skip={skip} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      skip.current = true; // set while the dialog is open (a confirm click)
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('the flag turned off again before unmount restores the opener (cancel after a failed confirm)', async () => {
+      const skip = { current: true };
+      render(<SkipHost skip={skip} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      skip.current = false;
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(opener).toHaveFocus();
+    });
+
+    it('skip=true does not override focus the host already moved elsewhere', async () => {
+      render(<SkipHost skip={{ current: true }} />);
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      const elsewhere = screen.getByRole('button', { name: 'elsewhere' });
+      elsewhere.focus();
+      fireEvent.click(screen.getByRole('button', { name: 'close modal' }));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(elsewhere).toHaveFocus();
+    });
+  });
 });

@@ -1406,7 +1406,6 @@ export function BudgetSourcesPage() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteSource(deletingSourceId)}
           onCancel={closeDeleteConfirm}
-          returnFocusRef={createButtonRef}
           testIdPrefix="budget-source-delete"
         />
       )}

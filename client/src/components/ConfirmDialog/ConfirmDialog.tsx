@@ -38,7 +38,14 @@ export interface ConfirmDialogProps {
   readonly blocked?: boolean;
   readonly onConfirm: () => void;
   readonly onCancel: () => void;
+  /** A stable, enabled element (a section heading with tabIndex -1); never the thing being acted on. */
   readonly returnFocusRef?: RefObject<HTMLElement | null>;
+  /**
+   * Refocus the opener after a confirmed action. Default false: the opener is usually what was
+   * just deleted, so focus goes to `returnFocusRef` or the page heading. Cancel and Escape always
+   * return to the opener.
+   */
+  readonly restoreToOpenerOnConfirm?: boolean;
   readonly testIdPrefix?: string;
 }
 
@@ -60,11 +67,18 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   returnFocusRef,
+  restoreToOpenerOnConfirm = false,
   testIdPrefix = 'confirm-dialog',
 }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
   const cancelRef = useRef<HTMLButtonElement>(null);
   const descriptionId = useId();
+  // Set when the action is triggered; Cancel / Escape reset it so those return to the opener.
+  const skipOpenerRef = useRef(false);
+  const handleCancel = () => {
+    skipOpenerRef.current = false;
+    onCancel();
+  };
 
   const waiting = consequences?.status === 'loading' || consequences?.status === 'error';
   const actionDisabled = busy || waiting;
@@ -79,7 +93,8 @@ export function ConfirmDialog({
       initialFocusRef={cancelRef}
       dismissible={!busy}
       returnFocusRef={returnFocusRef}
-      onClose={onCancel}
+      skipOpenerRef={skipOpenerRef}
+      onClose={handleCancel}
       className={styles.dialog}
       footer={
         <div className={styles.footer}>
@@ -89,7 +104,7 @@ export function ConfirmDialog({
             className={styles.cancelButton}
             aria-disabled={busy ? 'true' : undefined}
             onClick={() => {
-              if (!busy) onCancel();
+              if (!busy) handleCancel();
             }}
             data-testid={`${testIdPrefix}-cancel`}
           >
@@ -101,7 +116,10 @@ export function ConfirmDialog({
               className={styles.confirmButton}
               aria-disabled={actionDisabled ? 'true' : undefined}
               onClick={() => {
-                if (!actionDisabled) onConfirm();
+                if (!actionDisabled) {
+                  skipOpenerRef.current = !restoreToOpenerOnConfirm;
+                  onConfirm();
+                }
               }}
               data-testid={`${testIdPrefix}-confirm`}
             >

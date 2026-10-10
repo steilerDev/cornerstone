@@ -336,7 +336,6 @@ export function VendorContactsSection({ vendorId }: VendorContactsSectionProps) 
           error={deleteError || null}
           onConfirm={() => void handleDelete()}
           onCancel={handleCloseDelete}
-          returnFocusRef={addButtonRef}
           testIdPrefix="contact-delete"
         />
       )}

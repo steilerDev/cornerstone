@@ -23,6 +23,11 @@ export interface ModalProps {
   dismissible?: boolean;
   /** Focus target on close when the opener is gone and focus is inside the modal or on body. */
   returnFocusRef?: React.RefObject<HTMLElement | null>;
+  /**
+   * When `.current` is true at unmount, the opener is not refocused (it is the thing the dialog
+   * just acted on and may be removed later): focus goes to `returnFocusRef`, else the heading.
+   */
+  skipOpenerRef?: React.RefObject<boolean>;
 }
 
 export function Modal({
@@ -36,6 +41,7 @@ export function Modal({
   describedById,
   dismissible = true,
   returnFocusRef,
+  skipOpenerRef,
 }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -44,6 +50,8 @@ export function Modal({
   const openerRef = useRef<HTMLElement | null>(null);
   const latestReturnFocusRef = useRef(returnFocusRef);
   latestReturnFocusRef.current = returnFocusRef;
+  const latestSkipOpenerRef = useRef(skipOpenerRef);
+  latestSkipOpenerRef.current = skipOpenerRef;
 
   const handleClose = () => {
     if (dismissible) onClose();
@@ -67,7 +75,7 @@ export function Modal({
     // Each candidate is tried in turn; focus() is a no-op on a disabled or hidden element, so
     // success is checked by reading activeElement. Last resort: the page heading, never body.
     const restore = () => {
-      const opener = openerRef.current;
+      const opener = latestSkipOpenerRef.current?.current ? null : openerRef.current;
       if (opener && opener !== document.body && opener.isConnected) {
         opener.focus();
         if (document.activeElement === opener) return;

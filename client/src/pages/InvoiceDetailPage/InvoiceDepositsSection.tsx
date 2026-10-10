@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import type { ReactNode, RefObject } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -361,7 +361,6 @@ export function InvoiceDepositsSection({
           error={formError}
           blocked={deleteBlocked}
           isMutating={isMutating}
-          returnFocusRef={addButtonRef}
           t={t}
         />
       )}
@@ -540,7 +539,6 @@ interface DeleteDepositDialogProps {
   error: string;
   blocked: boolean;
   isMutating: boolean;
-  returnFocusRef: RefObject<HTMLElement | null>;
   t: (key: string, opts?: Record<string, unknown>) => string;
 }
 
@@ -552,7 +550,6 @@ function DeleteDepositDialog({
   error,
   blocked,
   isMutating,
-  returnFocusRef,
   t,
 }: DeleteDepositDialogProps) {
   const isPaidOrClaimed = deposit.status === 'paid' || deposit.status === 'claimed';
@@ -575,7 +572,6 @@ function DeleteDepositDialog({
       error={error || null}
       onConfirm={onConfirm}
       onCancel={onClose}
-      returnFocusRef={returnFocusRef}
       testIdPrefix="deposit-delete"
     />
   );

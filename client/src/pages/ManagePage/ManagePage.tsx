@@ -276,7 +276,7 @@ function AreasTab() {
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const deleteImpact = useDeleteImpact('area', deletingAreaId);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateArea = async (event: FormEvent) => {
     event.preventDefault();
@@ -444,7 +444,9 @@ function AreasTab() {
 
       {/* Create new area */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.areas.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.areas.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.areas.createDescription')}</p>
 
         {createError && (
@@ -539,12 +541,7 @@ function AreasTab() {
             />
           </div>
 
-          <button
-            ref={createButtonRef}
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newName.trim()}
-          >
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
             {isCreating ? t('manage.areas.creating') : t('manage.areas.createButton')}
           </button>
         </form>
@@ -762,7 +759,7 @@ function AreasTab() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteArea(deletingAreaId)}
           onCancel={closeDeleteDialog}
-          returnFocusRef={createButtonRef}
+          returnFocusRef={sectionHeadingRef}
           testIdPrefix="area-delete"
         />
       )}
@@ -815,7 +812,7 @@ function TradesTab() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateTrade = async (event: FormEvent) => {
     event.preventDefault();
@@ -979,7 +976,9 @@ function TradesTab() {
 
       {/* Create new trade */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.trades.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.trades.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.trades.createDescription')}</p>
 
         {createError && (
@@ -1061,12 +1060,7 @@ function TradesTab() {
             />
           </div>
 
-          <button
-            ref={createButtonRef}
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newName.trim()}
-          >
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
             {isCreating ? t('manage.trades.creating') : t('manage.trades.createButton')}
           </button>
         </form>
@@ -1264,7 +1258,7 @@ function TradesTab() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteTrade(deletingTradeId)}
           onCancel={closeDeleteDialog}
-          returnFocusRef={createButtonRef}
+          returnFocusRef={sectionHeadingRef}
           testIdPrefix="trade-delete"
         />
       )}
@@ -1316,7 +1310,7 @@ function OrientationsTab() {
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const deleteImpact = useDeleteImpact('orientation', deletingOrientationId);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateOrientation = async (event: FormEvent) => {
     event.preventDefault();
@@ -1474,7 +1468,9 @@ function OrientationsTab() {
 
       {/* Create new orientation */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.orientations.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.orientations.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.orientations.createDescription')}</p>
 
         {createError && (
@@ -1533,12 +1529,7 @@ function OrientationsTab() {
             />
           </div>
 
-          <button
-            ref={createButtonRef}
-            type="submit"
-            className={styles.button}
-            disabled={isCreating || !newName.trim()}
-          >
+          <button type="submit" className={styles.button} disabled={isCreating || !newName.trim()}>
             {isCreating ? t('manage.orientations.creating') : t('manage.orientations.createButton')}
           </button>
         </form>
@@ -1719,7 +1710,7 @@ function OrientationsTab() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteOrientation(deletingOrientationId)}
           onCancel={closeDeleteDialog}
-          returnFocusRef={createButtonRef}
+          returnFocusRef={sectionHeadingRef}
           testIdPrefix="orientation-delete"
         />
       )}
@@ -1760,7 +1751,7 @@ function BudgetCategoriesTab() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     void loadCategories();
@@ -1968,7 +1959,9 @@ function BudgetCategoriesTab() {
 
       {/* Create form */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.budgetCategories.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
 
         {createError && (
@@ -2052,7 +2045,6 @@ function BudgetCategoriesTab() {
 
           <div className={styles.formActions}>
             <button
-              ref={createButtonRef}
               type="submit"
               className={styles.button}
               disabled={isCreating || !newName.trim()}
@@ -2259,7 +2251,7 @@ function BudgetCategoriesTab() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteCategory(deletingCategoryId)}
           onCancel={closeDeleteConfirm}
-          returnFocusRef={createButtonRef}
+          returnFocusRef={sectionHeadingRef}
           testIdPrefix="budget-category-delete"
         />
       )}
@@ -2298,7 +2290,7 @@ function HouseholdItemCategoriesTab() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
   const [deleteBlocked, setDeleteBlocked] = useState(false);
-  const createButtonRef = useRef<HTMLButtonElement>(null);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     void loadCategories();
@@ -2508,7 +2500,9 @@ function HouseholdItemCategoriesTab() {
 
       {/* Create form */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.householdItemCategories.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>
           {t('manage.householdItemCategories.createDescription')}
         </p>
@@ -2579,7 +2573,6 @@ function HouseholdItemCategoriesTab() {
 
           <div className={styles.formActions}>
             <button
-              ref={createButtonRef}
               type="submit"
               className={styles.button}
               disabled={isCreating || !newName.trim()}
@@ -2762,7 +2755,7 @@ function HouseholdItemCategoriesTab() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteCategory(deletingCategoryId)}
           onCancel={closeDeleteConfirm}
-          returnFocusRef={createButtonRef}
+          returnFocusRef={sectionHeadingRef}
           testIdPrefix="hi-category-delete"
         />
       )}

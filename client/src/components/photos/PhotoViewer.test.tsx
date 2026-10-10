@@ -102,21 +102,38 @@ jest.unstable_mockModule('./PhotoAnnotator/PhotoAnnotator.js', () => ({
 
 // ─── Mock Modal to avoid portal/focus issues ──────────────────────────────────
 
+let lastModalProps: {
+  skipOpenerRef?: { current: boolean };
+  returnFocusRef?: unknown;
+} = {};
+
 jest.unstable_mockModule('../Modal/Modal.js', () => ({
   Modal: ({
     title,
     children,
     footer,
     onClose,
+    skipOpenerRef,
+    returnFocusRef,
   }: {
     title: string;
     children: React.ReactNode;
     footer?: React.ReactNode;
     onClose: () => void;
+    skipOpenerRef?: { current: boolean };
+    returnFocusRef?: unknown;
   }) =>
     React.createElement(
       'div',
-      { 'data-testid': 'mock-modal', role: 'dialog', 'aria-label': title },
+      {
+        'data-testid': 'mock-modal',
+        role: 'dialog',
+        'aria-label': title,
+        ref: () => {
+          // Capture what the dialog passes to Modal (committed on every render).
+          lastModalProps = { skipOpenerRef, returnFocusRef };
+        },
+      },
       React.createElement('button', { 'data-testid': 'modal-close', onClick: onClose }, 'Close'),
       children,
       footer,
@@ -838,6 +855,35 @@ describe('PhotoViewer', () => {
       expect(mockOnDelete).toHaveBeenCalledTimes(2);
       expect(mockOnClose).toHaveBeenCalledTimes(1);
       expect(screen.queryByRole('alert')).toBeNull();
+    });
+
+    it('delete: no returnFocusRef (falls back to the h1) and confirm skips the deleted photo opener', () => {
+      openDelete([makePhoto({ id: 'only' })]);
+      expect(lastModalProps.returnFocusRef).toBeUndefined();
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+      fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      expect(lastModalProps.skipOpenerRef?.current).toBe(true);
+    });
+
+    it('delete: cancel after a failed confirm resets the skip flag', async () => {
+      mockOnDelete.mockRejectedValue(new Error('x'));
+      openDelete([makePhoto({ id: 'only' })]);
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('photo-delete-confirm'));
+      });
+      await screen.findByRole('alert');
+      expect(lastModalProps.skipOpenerRef?.current).toBe(true);
+      fireEvent.click(screen.getByTestId('photo-delete-cancel'));
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+    });
+
+    it('clear markup: keeps clearBtnRef and returns to the opener after a confirmed clear', () => {
+      openClear();
+      expect(lastModalProps.returnFocusRef).toBeDefined();
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
+      fireEvent.click(screen.getByTestId('photo-markup-clear-confirm'));
+      // restoreToOpenerOnConfirm: the clear button is not deleted, so the opener is restored
+      expect(lastModalProps.skipOpenerRef?.current).toBe(false);
     });
 
     it('clear annotations: dialog is titled, lists the lead and uses the photo-markup-clear ids', () => {

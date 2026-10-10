@@ -1218,7 +1218,6 @@ export function SubsidyProgramsPage() {
           error={deleteError || null}
           onConfirm={() => void handleDeleteProgram(deletingProgramId)}
           onCancel={closeDeleteConfirm}
-          returnFocusRef={createButtonRef}
           testIdPrefix="subsidy-delete"
         />
       )}

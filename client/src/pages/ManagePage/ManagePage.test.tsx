@@ -970,10 +970,11 @@ describe('ManagePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Area "Kitchen" deleted successfully/)).toBeInTheDocument();
       });
-      // #2209: after the dialog is gone focus is on a real control, never on <body>.
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
       await waitFor(() => {
-        expect(document.activeElement).not.toBe(document.body);
-        expect(document.activeElement?.matches('button, a, input, h1, [tabindex]')).toBe(true);
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 
@@ -1167,10 +1168,11 @@ describe('ManagePage', () => {
       await waitFor(() => {
         expect(screen.getByText(/Trade "Plumbing" deleted successfully/)).toBeInTheDocument();
       });
-      // #2209: after the dialog is gone focus is on a real control, never on <body>.
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
       await waitFor(() => {
-        expect(document.activeElement).not.toBe(document.body);
-        expect(document.activeElement?.matches('button, a, input, h1, [tabindex]')).toBe(true);
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 
@@ -1395,7 +1397,7 @@ describe('ManagePage', () => {
       });
     });
 
-    it('after deleting a budget category focus lands on a control, never on <body>', async () => {
+    it('after deleting a budget category focus lands on the section heading, not on <body> or the deleted row button', async () => {
       const user = userEvent.setup();
       mockDeleteBudgetCategory.mockResolvedValue(undefined);
       renderManagePage('/settings/manage?tab=budget-categories');
@@ -1404,7 +1406,8 @@ describe('ManagePage', () => {
       await user.click(await enabledConfirm('budget-category-delete'));
       await waitFor(() => expect(mockDeleteBudgetCategory).toHaveBeenCalledWith('bc-1'));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(document.activeElement).not.toBe(document.body);
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H2'));
+      expect(document.activeElement).toHaveAttribute('tabindex', '-1');
     });
 
     it('shows in-use error when deleting a budget category referenced by budget entries', async () => {
@@ -1900,10 +1903,11 @@ describe('ManagePage', () => {
       await waitFor(() => {
         expect(screen.getByText('Orientation "North" deleted.')).toBeInTheDocument();
       });
-      // #2209: after the dialog is gone focus is on a real control, never on <body>.
+      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
       await waitFor(() => {
-        expect(document.activeElement).not.toBe(document.body);
-        expect(document.activeElement?.matches('button, a, input, h1, [tabindex]')).toBe(true);
+        expect(document.activeElement?.tagName).toBe('H2');
+        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
+        expect(document.activeElement).not.toHaveAttribute('data-testid');
       });
     });
 

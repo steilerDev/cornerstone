@@ -1173,12 +1173,16 @@ export class InvoiceDetailPage {
       // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
         .locator(
-          `button[aria-haspopup="menu"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
+          `button[aria-haspopup="menu"][aria-label^="Deposit actions"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
         )
         .visible()
         .first();
     } else {
-      menuButton = this.depositsSection.locator('button[aria-haspopup="menu"]').visible().first();
+      // The status chip is also aria-haspopup="menu" (#2209): only the kebab carries this label
+      menuButton = this.depositsSection
+        .locator('button[aria-haspopup="menu"][aria-label^="Deposit actions"]')
+        .visible()
+        .first();
     }
 
     await menuButton.click();

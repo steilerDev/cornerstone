@@ -348,6 +348,7 @@ export function PhotoViewer({
             onConfirm={() => void handleClearAnnotation()}
             onCancel={() => setShowClearConfirm(false)}
             returnFocusRef={clearBtnRef}
+            restoreToOpenerOnConfirm
             testIdPrefix="photo-markup-clear"
           />
         )}
@@ -367,7 +368,6 @@ export function PhotoViewer({
               setShowDeleteConfirm(false);
               setDeletePhotoError(null);
             }}
-            returnFocusRef={deleteBtnRef}
             testIdPrefix="photo-delete"
           />
         )}

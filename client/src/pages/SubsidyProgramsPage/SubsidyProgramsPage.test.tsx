@@ -1662,7 +1662,7 @@ describe('SubsidyProgramsPage', () => {
       });
     });
 
-    it('after deleting a program focus lands on a control, never on <body>', async () => {
+    it('after deleting a program focus lands on the page heading (h1), never on <body>', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       mockDeleteSubsidyProgram.mockResolvedValueOnce(undefined);
       const user = userEvent.setup();
@@ -1674,7 +1674,8 @@ describe('SubsidyProgramsPage', () => {
       await user.click(await enabledConfirm());
       await waitFor(() => expect(mockDeleteSubsidyProgram).toHaveBeenCalledWith('prog-1'));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(document.activeElement).not.toBe(document.body);
+      // no returnFocusRef any more: the chain skips the deleted row and ends on the page h1
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H1'));
     });
 
     it('shows success message after successful deletion', async () => {

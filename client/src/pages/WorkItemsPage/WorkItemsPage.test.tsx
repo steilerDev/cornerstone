@@ -597,11 +597,8 @@ describe('WorkItemsPage', () => {
         await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
         fireEvent.click(confirm);
         await waitFor(() => expect(mockDeleteWorkItem).toHaveBeenCalledWith('wi-1'));
-        // #2209: after the dialog is gone focus is on a real control, never on <body>.
-        await waitFor(() => {
-          expect(document.activeElement).not.toBe(document.body);
-          expect(document.activeElement?.matches('button, a, input, h1, [tabindex]')).toBe(true);
-        });
+        // #2209: a confirmed delete skips the opener; focus ends on the page heading, never <body>.
+        await waitFor(() => expect(document.activeElement?.tagName).toBe('H1'));
       });
 
       it('a 409 hides the action', async () => {

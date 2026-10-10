@@ -4,7 +4,7 @@
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
 import { useRef, useState } from 'react';
 import type { ComponentProps } from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { ConfirmDialog } from './ConfirmDialog.js';
 
 type Props = ComponentProps<typeof ConfirmDialog>;
@@ -294,6 +294,218 @@ describe('ConfirmDialog', () => {
       // Mounted open: the opener captured at mount is the body, so the fallback takes over.
       fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
       expect(screen.getByRole('button', { name: 'fallback' })).toHaveFocus();
+    });
+  });
+
+  describe('focus after the dialog closes (#2209)', () => {
+    function FocusHost({
+      confirmSucceeds = true,
+      restoreToOpenerOnConfirm,
+      withReturnRef = true,
+    }: {
+      confirmSucceeds?: boolean;
+      restoreToOpenerOnConfirm?: boolean;
+      withReturnRef?: boolean;
+    }) {
+      const [open, setOpen] = useState(false);
+      const sectionRef = useRef<HTMLHeadingElement>(null);
+      return (
+        <main>
+          <h1>Page heading</h1>
+          <h2 ref={sectionRef} tabIndex={-1}>
+            Section heading
+          </h2>
+          <button type="button" onClick={() => setOpen(true)}>
+            opener
+          </button>
+          {open && (
+            <ConfirmDialog
+              {...baseProps({
+                onConfirm: () => {
+                  if (confirmSucceeds) setOpen(false);
+                },
+                onCancel: () => setOpen(false),
+                returnFocusRef: withReturnRef ? sectionRef : undefined,
+                restoreToOpenerOnConfirm,
+              })}
+            />
+          )}
+        </main>
+      );
+    }
+
+    async function openDialog() {
+      const opener = screen.getByRole('button', { name: 'opener' });
+      opener.focus();
+      fireEvent.click(opener);
+      await screen.findByRole('alertdialog');
+      return opener;
+    }
+
+    const settle = () =>
+      act(async () => {
+        await Promise.resolve();
+      });
+
+    it('a successful confirm skips the opener (it is usually what was deleted) and lands on returnFocusRef', async () => {
+      render(<FocusHost />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('a successful confirm without a returnFocusRef lands on the page heading', async () => {
+      render(<FocusHost withReturnRef={false} />);
+      await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('Cancel returns focus to the opener', async () => {
+      render(<FocusHost />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('Escape returns focus to the opener', async () => {
+      render(<FocusHost />);
+      const opener = await openDialog();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await settle();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a backdrop click returns focus to the opener', async () => {
+      const { baseElement } = render(<FocusHost />);
+      const opener = await openDialog();
+      fireEvent.click(baseElement.querySelector('[class*="modalBackdrop"]')!);
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('the close (x) button returns focus to the opener', async () => {
+      render(<FocusHost />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a failed confirm followed by Cancel returns to the opener (the flag is reset)', async () => {
+      render(<FocusHost confirmSucceeds={false} />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a failed confirm followed by Escape returns to the opener', async () => {
+      render(<FocusHost confirmSucceeds={false} />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      fireEvent.keyDown(document, { key: 'Escape' });
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a failed confirm followed by a backdrop click returns to the opener', async () => {
+      const { baseElement } = render(<FocusHost confirmSucceeds={false} />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      fireEvent.click(baseElement.querySelector('[class*="modalBackdrop"]')!);
+      await settle();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a failed confirm, then a successful retry, skips the opener', async () => {
+      function Retry() {
+        const [open, setOpen] = useState(false);
+        const attemptsRef = useRef(0);
+        const sectionRef = useRef<HTMLHeadingElement>(null);
+        return (
+          <main>
+            <h2 ref={sectionRef} tabIndex={-1}>
+              Section heading
+            </h2>
+            <button type="button" onClick={() => setOpen(true)}>
+              opener
+            </button>
+            {open && (
+              <ConfirmDialog
+                {...baseProps({
+                  onConfirm: () => {
+                    attemptsRef.current += 1;
+                    if (attemptsRef.current > 1) setOpen(false);
+                  },
+                  onCancel: () => setOpen(false),
+                  returnFocusRef: sectionRef,
+                })}
+              />
+            )}
+          </main>
+        );
+      }
+      render(<Retry />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      expect(opener).not.toHaveFocus();
+      expect(screen.getByRole('heading', { name: 'Section heading' })).toHaveFocus();
+    });
+
+    it('restoreToOpenerOnConfirm returns to the opener after a confirmed action', async () => {
+      render(<FocusHost restoreToOpenerOnConfirm />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      await settle();
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(opener).toHaveFocus();
+    });
+
+    it('a press on a disabled (loading) confirm does not set the skip flag', async () => {
+      function Loading() {
+        const [open, setOpen] = useState(false);
+        const sectionRef = useRef<HTMLHeadingElement>(null);
+        return (
+          <main>
+            <h2 ref={sectionRef} tabIndex={-1}>
+              Section heading
+            </h2>
+            <button type="button" onClick={() => setOpen(true)}>
+              opener
+            </button>
+            {open && (
+              <ConfirmDialog
+                {...baseProps({
+                  consequences: { status: 'loading' },
+                  onCancel: () => setOpen(false),
+                  returnFocusRef: sectionRef,
+                })}
+              />
+            )}
+          </main>
+        );
+      }
+      render(<Loading />);
+      const opener = await openDialog();
+      fireEvent.click(screen.getByTestId('confirm-dialog-confirm'));
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      await settle();
+      expect(opener).toHaveFocus();
     });
   });
 });

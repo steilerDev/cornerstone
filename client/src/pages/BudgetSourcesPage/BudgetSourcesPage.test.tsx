@@ -1582,7 +1582,7 @@ describe('BudgetSourcesPage', () => {
       });
     });
 
-    it('after deleting a source focus lands on a control, never on <body>', async () => {
+    it('after deleting a source focus lands on the page heading (h1), never on <body>', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
       mockDeleteBudgetSource.mockResolvedValueOnce(undefined);
       const user = userEvent.setup();
@@ -1594,7 +1594,8 @@ describe('BudgetSourcesPage', () => {
       await user.click(await enabledConfirm());
       await waitFor(() => expect(mockDeleteBudgetSource).toHaveBeenCalledWith('src-1'));
       await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
-      expect(document.activeElement).not.toBe(document.body);
+      // no returnFocusRef any more: the chain skips the deleted row and ends on the page h1
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H1'));
     });
 
     it('removes the deleted source from the list', async () => {

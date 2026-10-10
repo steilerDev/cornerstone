@@ -10,7 +10,7 @@
  *   1. Task: Start > Today - chip, toast and the actual start (API)
  *   2. Task: Mark done > Pick a past date, then Undo restores status and date (API); focus
  *   3. Ctrl+Z undoes the newest toast; Ctrl+Z inside a text input does not
- *   4. Purchase: Mark delivered > As planned stores the target date
+ *   4. Purchase: Mark delivered > Today stores the actual delivery date
  *   5. Milestone: Mark reached > Today; Back to "Upcoming"
  *   6. Invoice: Mark paid applies at once, no date step (AC3)
  *   7. Progress payment: Mark submitted > Today (table row or mobile card, per viewport)
@@ -219,7 +219,7 @@ test.describe('StatusMenu — task status', { tag: '@responsive' }, () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('StatusMenu — purchase status', { tag: '@responsive' }, () => {
-  test('Mark delivered > As planned stores the target delivery date', async ({
+  test('Mark delivered > Today stores the actual delivery date; no "As planned" chip without a target', async ({
     page,
     testPrefix,
   }) => {
@@ -229,14 +229,18 @@ test.describe('StatusMenu — purchase status', { tag: '@responsive' }, () => {
     const id = await createHouseholdItemViaApi(page, {
       name,
       status: 'planned',
-      targetDeliveryDate: '2026-02-12',
     });
 
     try {
       await detail.goto(id);
       await expect(detail.statusMenu.trigger).toHaveText('Planned');
 
-      await detail.statusMenu.choosePlanned('arrived');
+      // targetDeliveryDate is derived by the scheduler (not settable), so there is no target
+      // yet and the date step offers no "As planned" chip
+      await detail.statusMenu.pickRow('arrived');
+      await expect(detail.statusMenu.dateToday).toBeVisible();
+      await expect(detail.statusMenu.datePlanned).toBeHidden();
+      await detail.statusMenu.dateToday.click();
 
       await expect(detail.statusMenu.trigger).toHaveText('Delivered');
       await expect(toasts.undoToastWith(`${name} is now “Delivered”.`)).toBeVisible();
@@ -246,7 +250,7 @@ test.describe('StatusMenu — purchase status', { tag: '@responsive' }, () => {
         householdItem: { status: string; actualDeliveryDate: string | null };
       };
       expect(body.householdItem.status).toBe('arrived');
-      expect(body.householdItem.actualDeliveryDate).toBe('2026-02-12');
+      expect(body.householdItem.actualDeliveryDate).toBe(localToday());
     } finally {
       await deleteHouseholdItemViaApi(page, id);
     }
@@ -284,6 +288,14 @@ test.describe('StatusMenu — milestone', { tag: '@responsive' }, () => {
 
       const reopened = await page.request.get(`${API.milestones}/${id}`);
       expect(((await reopened.json()) as { isCompleted: boolean }).isCompleted).toBe(false);
+
+      // The target date (in the past) is offered as the "On target" chip and stored as chosen
+      await detail.statusMenu.choosePlanned('reached');
+      await expect(detail.statusMenu.trigger).toHaveText('Reached');
+      const onTarget = await page.request.get(`${API.milestones}/${id}`);
+      expect(((await onTarget.json()) as { completedAt: string | null }).completedAt).toContain(
+        '2026-03-01',
+      );
     } finally {
       await deleteMilestoneViaApi(page, id);
     }
@@ -320,9 +332,9 @@ test.describe('StatusMenu — invoice and progress payment', { tag: '@responsive
       await expect(detail.statusMenu.datePick).toBeHidden();
       await expect(detail.statusMenu.trigger).toHaveText('Paid');
 
-      const resp = await page.request.get(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
-      const body = (await resp.json()) as { invoice: { status: string } };
-      expect(body.invoice.status).toBe('paid');
+      const resp = await page.request.get(`${API.vendors}/${vendorId}/invoices`);
+      const body = (await resp.json()) as { invoices: { id: string; status: string }[] };
+      expect(body.invoices.find((invoice) => invoice.id === invoiceId)?.status).toBe('paid');
     } finally {
       await deleteVendorViaApi(page, vendorId);
     }
