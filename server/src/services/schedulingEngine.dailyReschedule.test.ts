@@ -138,6 +138,52 @@ describe('ensureDailyReschedule', () => {
     expect(wiAfterFirst.start_date).toBe(yesterday);
   });
 
+  it('D-16: the daily run never writes a milestone_delay diary entry, for a late or a completed milestone', () => {
+    // Only a user edit reports a delay (once per change); the daily run passes no
+    // onMilestoneDelayed, so repeated day changes cannot add automatic diary rows.
+    const now = new Date().toISOString();
+    const past = (days: number) =>
+      new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+    db.insert(schema.workItems)
+      .values({
+        id: 'wi-d16',
+        title: 'Late contributor',
+        status: 'not_started',
+        startDate: past(10),
+        endDate: past(8),
+        durationDays: 2,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run();
+    for (const [id, isCompleted] of [
+      [1, false],
+      [2, true],
+    ] as const) {
+      db.insert(schema.milestones)
+        .values({
+          id,
+          title: `Milestone ${id}`,
+          targetDate: past(20),
+          isCompleted,
+          completedAt: isCompleted ? now : null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      db.insert(schema.milestoneWorkItems).values({ milestoneId: id, workItemId: 'wi-d16' }).run();
+    }
+
+    ensureDailyReschedule(db);
+    resetRescheduleTracker();
+    ensureDailyReschedule(db);
+
+    const rows = sqlite
+      .prepare("SELECT COUNT(*) AS n FROM diary_entries WHERE entry_type = 'milestone_delay'")
+      .get() as { n: number };
+    expect(rows.n).toBe(0);
+  });
+
   it('resetRescheduleTracker allows the next call to re-run reschedule', () => {
     ensureDailyReschedule(db);
     resetRescheduleTracker();

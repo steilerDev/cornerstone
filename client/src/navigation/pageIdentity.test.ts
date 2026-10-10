@@ -41,6 +41,32 @@ describe('navLabelKeyForRoute', () => {
   });
 });
 
+describe('navLabelKeyForRoute and the interim Money views', () => {
+  // The sidebar shows Funding sources, Grants and the Bank report as interim views, but page
+  // identity keeps treating them as non-views: they have no NavConfig label of their own.
+  it.each(['budgetSources', 'budgetSubsidies', 'bankReport'])(
+    'gives the interim view %s no NavConfig label',
+    (id) => {
+      expect(navLabelKeyForRoute(id)).toBeNull();
+      expect(isNavView(id)).toBe(false);
+    },
+  );
+
+  it('still labels the three pages through the page labels', () => {
+    expect(pageLabelKeyForRoute('budgetSources')).toBe('navigation.fundingSources');
+    expect(originLabelKeyForPath('/budget/sources')).toBe('navigation.fundingSources');
+    expect(navLabelKeyForPath('/budget/reports')).toBeNull();
+  });
+
+  it('leaves the Money trail unchanged for an interim page', () => {
+    expect(breadcrumbChain('budgetSources', {}).map((c) => c.id)).toEqual(['budgetOverview']);
+  });
+
+  it('labels the real Money view Invoices in the first loop', () => {
+    expect(navLabelKeyForRoute('invoices')).toBe('navigation.invoices');
+  });
+});
+
 describe('navLabelKeyForPath', () => {
   it('resolves a served view path', () => {
     expect(navLabelKeyForPath('/schedule/calendar')).toBe('navigation.calendar');

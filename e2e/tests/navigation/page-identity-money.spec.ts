@@ -52,6 +52,7 @@ import {
   mockPreview,
   mockTags,
 } from '../../fixtures/paperlessInvoiceMocks.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { AutoItemizePage } from '../../pages/AutoItemizePage.js';
 import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
@@ -701,10 +702,11 @@ test.describe('Page identity: Money (#2203)', () => {
       expect(replaced.some((entry) => entry.url.includes('paymentStatus=paid'))).toBe(true);
     });
 
-    test('E5: switching the Money tab replaces, so Back leaves the Money pages entirely', async ({
+    test('E5: switching the Money view replaces, so Back leaves the Money pages entirely', async ({
       page,
     }) => {
       const overviewPage = new BudgetOverviewPage(page);
+      const appShell = new AppShellPage(page);
       await installRouteLog(page);
 
       await page.goto(routeUrl('workItems'));
@@ -712,9 +714,11 @@ test.describe('Page identity: Money (#2203)', () => {
 
       await page.goto(routeUrl('budgetOverview'));
       await expect(overviewPage.heading).toBeVisible();
-      await overviewPage.subNav.getByRole('link', { name: 'Invoices', exact: true }).click();
+      await appShell.openView('invoices');
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoices'));
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Invoices');
 
+      // Switching views inside the section replaces (ADR-038 rule 8): nothing is pushed
       const log = await readRouteLog(page);
       expect(log.filter((entry) => entry.kind === 'pushState')).toEqual([]);
       expect(

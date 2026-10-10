@@ -71,18 +71,19 @@ function makeRoot() {
   );
   writeFileSync(join(dir, 'capabilities.json'), JSON.stringify(inventory));
   writeFileSync(join(dir, 'capmap.json'), JSON.stringify(capmap));
+  writeFileSync(join(dir, 'defects.json'), JSON.stringify({ defects: [], later: [] }));
   return root;
 }
 
 const byName = (parts) => Object.fromEntries(parts.map((p) => [p.name, p]));
 
 describe('runAll', () => {
-  it('runs the four parts in order', async () => {
+  it('runs the five parts in order', async () => {
     const root = makeRoot();
     const parts = await runAll({ root, mode: 'write' });
     assert.deepEqual(
       parts.map((p) => p.name),
-      ['route map', 'capability map', 'pattern baseline', 'privacy'],
+      ['route map', 'capability map', 'pattern baseline', 'defects', 'privacy'],
     );
   });
 
@@ -110,6 +111,7 @@ describe('runAll', () => {
       'summary.json is stale — run npm run plan:build',
     ]);
     assert.match(parts['pattern baseline'].errors[0], /input missing: .*baseline\.json/);
+    assert.deepEqual(parts.defects.errors, []);
     assert.deepEqual(parts.privacy.errors, []);
   });
 
@@ -148,7 +150,23 @@ describe('runAll', () => {
     assert.match(parts['route map'].errors[0], /input missing: .*App\.tsx/);
     assert.equal(parts['capability map'].errors.length, 3);
     assert.match(parts['pattern baseline'].errors[0], /input missing: .*client\/src/);
+    assert.deepEqual(parts.defects.errors, ['plan/restructure/defects.json is missing']);
     assert.deepEqual(parts.privacy.errors, []);
+  });
+
+  it('the defects part fails on its own when a listed test does not name its defect id', async () => {
+    const root = makeRoot();
+    await runAll({ root, mode: 'write' });
+    mkdirSync(join(root, 'client/src'), { recursive: true });
+    writeFileSync(join(root, 'client/src/a.test.ts'), "it('covers nothing', () => {});\n");
+    writeFileSync(
+      join(root, 'plan/restructure/defects.json'),
+      JSON.stringify({ defects: [{ id: 'D-01', story: 1, tests: ['client/src/a.test.ts'] }] }),
+    );
+    const parts = byName(await runAll({ root }));
+    assert.deepEqual(parts.defects.errors, ['D-01: client/src/a.test.ts does not name D-01']);
+    assert.deepEqual(parts['route map'].errors, []);
+    assert.deepEqual(parts['capability map'].errors, []);
   });
 
   it('privacy uses the full profile (money amounts fail)', async () => {
@@ -179,7 +197,7 @@ describe('CLI', () => {
     // Check mode only: reads whatever plan data exists, writes nothing. Asserts structure,
     // not the content of the real plan files.
     const r = cli('--check');
-    for (const name of ['route map', 'capability map', 'pattern baseline', 'privacy']) {
+    for (const name of ['route map', 'capability map', 'pattern baseline', 'defects', 'privacy']) {
       assert.ok(r.stdout.includes(`== ${name} ==`), name);
     }
     assert.ok([0, 1].includes(r.status));

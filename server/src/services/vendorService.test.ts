@@ -618,7 +618,7 @@ describe('Vendor Service', () => {
 
     // Mutation guard for every outstandingBalance case below: the old implementation was
     // SUM(amount) WHERE status IN ('pending','claimed'); each assertion fails under it.
-    it('counts only pending invoices; claimed (submitted) and paid never count', () => {
+    it('D-06: counts only pending invoices; claimed (submitted) and paid never count', () => {
       const vendor = createTestVendor('Balance Vendor');
       createTestInvoice(vendor.id, 'pending', 500);
       createTestInvoice(vendor.id, 'claimed', 300); // old SUM would have added 300
@@ -630,7 +630,7 @@ describe('Vendor Service', () => {
       expect(result.invoiceCount).toBe(3);
     });
 
-    it('outstandingBalance is 0 with only paid and claimed invoices', () => {
+    it('D-06: outstandingBalance is 0 with only paid and claimed invoices', () => {
       const vendor = createTestVendor('Settled Vendor');
       createTestInvoice(vendor.id, 'paid', 1000);
       createTestInvoice(vendor.id, 'claimed', 250);

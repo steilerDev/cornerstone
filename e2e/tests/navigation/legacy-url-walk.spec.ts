@@ -70,7 +70,7 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   ['/project', '/project/overview'],
   ['/budget', '/budget/overview'],
   ['/schedule', '/schedule/gantt'],
-  ['/settings', '/settings/profile'],
+  ['/settings', '/settings/manage'],
   // Legacy paths
   ['/work-items', '/project/work-items'],
   ['/work-items/new', '/project/work-items/new'],

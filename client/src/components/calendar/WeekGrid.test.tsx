@@ -217,7 +217,7 @@ describe('WeekGrid', () => {
       expect(screen.getAllByTestId('calendar-item')).toHaveLength(1);
     });
 
-    it('renders one segment (in the first day cell) when an item spans several days', () => {
+    it('D-14: renders one segment (in the first day cell) when an item spans several days', () => {
       // Item spans Mon–Wed (3 days within the week)
       const item = makeWorkItem('b', '2024-03-11', '2024-03-13', 'Multi-day Task');
       renderGrid({ workItems: [item] });
@@ -230,7 +230,7 @@ describe('WeekGrid', () => {
       expect(segments[0]!.style.right).toBe('calc(-2 * (100% + 1px))');
     });
 
-    it('draws a week-spanning item with arrows on the side that continues', () => {
+    it('D-14: draws a week-spanning item with arrows on the side that continues', () => {
       const item = makeWorkItem('w', '2024-03-05', '2024-03-20', 'Spanning Task');
       renderGrid({ workItems: [item] });
       const segment = screen.getByTestId('calendar-item');
@@ -416,7 +416,7 @@ describe('WeekGrid', () => {
       }
     });
 
-    it('sizes day cells for lanes plus the busiest day of milestones and purchases (phone)', () => {
+    it('D-14: sizes day cells for lanes plus the busiest day of milestones and purchases (phone)', () => {
       mockMatchMedia(true);
       renderGrid({ workItems: laneItems, milestones: [makeMilestone(1, '2024-03-15')] });
       const cells = screen.getAllByRole('gridcell');

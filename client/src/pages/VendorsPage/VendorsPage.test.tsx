@@ -19,6 +19,7 @@ import type { Vendor, VendorListItem } from '@cornerstone/shared';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
@@ -245,51 +246,16 @@ describe('VendorsPage', () => {
     });
   });
 
-  describe('settings subnav', () => {
-    it('renders the Settings section SubNav with correct aria-label', async () => {
-      renderPage();
+  describe('no tab row', () => {
+    it('renders no Settings tab row of its own: the sidebar lists the Settings views (AC5)', async () => {
+      const { container } = renderPage();
 
       await waitFor(() => {
         expect(screen.queryByRole('status')).not.toBeInTheDocument();
       });
 
-      const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
-      expect(nav).toBeInTheDocument();
-    });
-
-    it('hides the User Management and Backups tabs from members (D-23)', async () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: 'user-member',
-          email: 'member@example.com',
-          displayName: 'Member',
-          role: 'member' as const,
-          authProvider: 'local' as const,
-          oidcLinked: false,
-          createdAt: '2024-01-01T00:00:00.000Z',
-          updatedAt: '2024-01-01T00:00:00.000Z',
-          deactivatedAt: null,
-        },
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-      renderPage();
-
-      const nav = await screen.findByRole('navigation', { name: 'Settings section navigation' });
-      expect(within(nav).getByRole('link', { name: 'Profile' })).toBeInTheDocument();
-      expect(within(nav).queryByRole('link', { name: 'User Management' })).toBeNull();
-      expect(within(nav).queryByRole('link', { name: 'Backups' })).toBeNull();
-    });
-
-    it('shows the User Management and Backups tabs to admins', async () => {
-      renderPage();
-
-      const nav = await screen.findByRole('navigation', { name: 'Settings section navigation' });
-      expect(within(nav).getByRole('link', { name: 'User Management' })).toBeInTheDocument();
-      expect(within(nav).getByRole('link', { name: 'Backups' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Settings section navigation' })).toBeNull();
+      expect(ownNavigations(container)).toEqual([]);
     });
   });
 
@@ -367,7 +333,7 @@ describe('VendorsPage', () => {
           .map((a) => a.getAttribute('href'));
       }
 
-      it('shows the first contact phone as a tel link when the vendor has no phone', async () => {
+      it('D-34: shows the first contact phone as a tel link when the vendor has no phone', async () => {
         await renderWith(makeListItem({ phone: null, firstContactPhone: '555-0101' }));
 
         expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);
@@ -383,7 +349,7 @@ describe('VendorsPage', () => {
         expect(new Set(telHrefs())).toEqual(new Set(['tel:555-0102']));
       });
 
-      it('falls back to the contact phone when the vendor phone is blank', async () => {
+      it('D-34: falls back to the contact phone when the vendor phone is blank', async () => {
         await renderWith(makeListItem({ phone: '  ', firstContactPhone: '555-0101' }));
 
         expect(screen.getAllByText('555-0101').length).toBeGreaterThan(0);

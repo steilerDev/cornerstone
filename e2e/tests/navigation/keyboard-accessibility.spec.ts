@@ -28,30 +28,30 @@ test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
     expect(focusedElement).toBeTruthy();
 
     // Continue tabbing through nav items
+    // (#2205: the primary entries of the sidebar built from NavConfig)
     const expectedLinks = [
-      'Dashboard',
-      'Work Items',
-      'Budget',
-      'Schedule',
-      'Household Items',
-      'Documents',
-      'Profile',
-      'User Management',
+      'Home',
+      'Tasks',
+      'Purchases',
+      'Site diary',
+      'Photos',
+      'Money',
+      'Companies',
     ];
 
-    let foundLinks = 0;
+    const foundLinks = new Set<string>();
     for (let i = 0; i < 20; i++) {
       // Tab up to 20 times to traverse the nav
       await page.keyboard.press('Tab');
       focusedElement = await page.evaluate(() => document.activeElement?.textContent?.trim());
 
       if (focusedElement && expectedLinks.includes(focusedElement)) {
-        foundLinks++;
+        foundLinks.add(focusedElement);
       }
     }
 
-    // Verify we encountered several nav links during tabbing
-    expect(foundLinks).toBeGreaterThan(0);
+    // Verify every primary entry was reached by keyboard
+    expect([...foundLinks].sort()).toEqual([...expectedLinks].sort());
   });
 
   test('Escape key closes sidebar (mobile/tablet)', async ({ page }) => {

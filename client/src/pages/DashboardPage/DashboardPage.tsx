@@ -22,7 +22,6 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { usePreferences } from '../../hooks/usePreferences.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { DashboardCard } from '../../components/DashboardCard/DashboardCard.js';
 import { BudgetSummaryCard } from '../../components/BudgetSummaryCard/BudgetSummaryCard.js';
 import { SourceUtilizationCard } from '../../components/SourceUtilizationCard/SourceUtilizationCard.js';
@@ -40,13 +39,6 @@ import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCar
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './DashboardPage.module.css';
-
-const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard'), ns: 'common' },
-  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems'), ns: 'common' },
-  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems'), ns: 'common' },
-  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones'), ns: 'common' },
-];
 
 type DataSourceKey =
   'budgetOverview' | 'budgetSources' | 'timeline' | 'invoices' | 'subsidyPrograms' | 'diaryEntries';
@@ -644,7 +636,6 @@ export function DashboardPage() {
           )}
         </div>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       {/* Desktop/tablet: flat grid */}
       <div

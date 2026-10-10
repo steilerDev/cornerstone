@@ -2,7 +2,7 @@
  * E2E tests for Budget Overview page print behaviour (Issue #1310 / fix/1310-print-budget-overview)
  *
  * Tests covered:
- * 1. Print hides app chrome (sidebar, SubNav, Add button) — hero card removed in #1389
+ * 1. Print hides app chrome (sidebar, Add button) — hero card removed in #1389
  * 2. Print forces full expansion of collapsed breakdown rows (beforeprint event)
  * 3. Print hides expand chevron buttons
  * 4. Print shows page title (h1)
@@ -213,7 +213,7 @@ async function mountRoutes(page: Page, overviewBody: object, breakdownBody: obje
 test.describe('Budget Overview — print behaviour', () => {
   // NOTE: Hero card ("Budget overview" section) was removed in issue #1389.
   // The test name and heroCard assertions have been updated accordingly.
-  test('Print hides app chrome: sidebar, SubNav, and Add button', async ({ page }) => {
+  test('Print hides app chrome: sidebar and Add button', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountRoutes(
       page,
@@ -227,7 +227,6 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // Verify chrome is visible on screen before switching to print
       await expect(overviewPage.sidebar).toBeVisible();
-      await expect(overviewPage.subNav).toBeVisible();
       await expect(overviewPage.addButton).toBeVisible();
 
       // Switch to print media
@@ -235,9 +234,6 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // Sidebar (aside element) must be hidden
       await expect(overviewPage.sidebar).not.toBeVisible();
-
-      // Budget section SubNav must be hidden
-      await expect(overviewPage.subNav).not.toBeVisible();
 
       // Add dropdown button must be hidden
       await expect(overviewPage.addButton).not.toBeVisible();

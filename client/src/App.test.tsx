@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
@@ -530,21 +530,24 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute('href', '/');
+    // The sidebar logo carries the same name; the page's own link is the one inside <main>.
+    expect(
+      within(screen.getByRole('main')).getByRole('link', { name: 'Go to Home' }),
+    ).toHaveAttribute('href', '/');
+    expect(screen.getAllByRole('link', { name: 'Go to Home' })).toHaveLength(2);
   });
 
   it('navigates to VendorsPage at /settings/vendors', async () => {
     window.history.pushState({}, 'Vendors', '/settings/vendors');
     render(<App />);
 
-    // VendorsPage shows a Settings SubNav — the nav aria-label is "Settings section navigation"
-    // Wait for lazy-loaded VendorsPage to resolve and render the SubNav
-    const nav = await screen.findByRole(
-      'navigation',
-      { name: /settings section navigation/i },
+    // Wait for the lazy-loaded VendorsPage to resolve and render its heading
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Vendors' },
       { timeout: 5000 },
     );
-    expect(nav).toBeInTheDocument();
+    expect(heading).toBeInTheDocument();
   });
 
   it('navigates to VendorDetailPage at /settings/vendors/:id', async () => {
@@ -618,7 +621,7 @@ describe('App', () => {
 
       await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 });
       expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/');
-      expect(screen.getByRole('button', { name: /^settings$/i })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: /^settings$/i })).toHaveAttribute(
         'aria-current',
         'page',
       );
@@ -664,13 +667,14 @@ describe('App', () => {
     window.history.pushState({}, 'Budget Vendors', '/budget/vendors');
     render(<App />);
 
-    // After redirect, VendorsPage at /settings/vendors renders the Settings SubNav
-    const nav = await screen.findByRole(
-      'navigation',
-      { name: /settings section navigation/i },
+    // After the redirect, VendorsPage at /settings/vendors renders its heading
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Vendors' },
       { timeout: 5000 },
     );
-    expect(nav).toBeInTheDocument();
+    expect(heading).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/settings/vendors');
   });
 
   it('redirects /budget/vendors/:id to /settings/vendors/:id (preserves id param)', async () => {

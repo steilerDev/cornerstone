@@ -29,12 +29,14 @@ export function navLabelKeyForRoute(id: string): NavLabelKey | null {
   if (!isKnownRouteId(id)) return null;
   for (const section of NAV_SECTIONS) {
     if (section.route === id) return section.mainViewLabelKey;
-    const view = section.views.find((v) => v.route === id);
+    const view = section.views.find((v) => v.interimUntil === undefined && v.route === id);
     if (view) return view.labelKey;
   }
   for (const section of NAV_SECTIONS) {
     if (aliasMatches(section.route, id)) return section.mainViewLabelKey;
-    const view = section.views.find((v) => aliasMatches(v.route, id));
+    const view = section.views.find(
+      (v) => v.interimUntil === undefined && aliasMatches(v.route, id),
+    );
     if (view) return view.labelKey;
   }
   return null;

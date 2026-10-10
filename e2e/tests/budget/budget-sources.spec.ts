@@ -22,6 +22,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import type { Page } from '@playwright/test';
 import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -97,19 +98,18 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     // h2 "Sources" was removed in visual cleanup #1185 — no longer asserted.
   });
 
-  test('Budget sub-navigation is visible', async ({ page }) => {
+  test('Funding sources is the highlighted Money view in the sidebar', async ({ page }) => {
     const sourcesPage = new BudgetSourcesPage(page);
+    const appShell = new AppShellPage(page);
 
     await sourcesPage.goto();
     // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await sourcesPage.heading.waitFor({ state: 'visible' });
 
-    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
-    await expect(subNav).toBeVisible();
-
-    // "Sources" tab is active
-    const sourcesTab = subNav.getByRole('link', { name: 'Sources' });
-    await expect(sourcesTab).toBeVisible();
+    // #2205: interim sidebar view under Money (until Financing exists), no in-page tab row
+    await expect(appShell.viewLink('budgetSources')).toHaveText('Funding sources');
+    await expect(appShell.viewLink('budgetSources')).toHaveAttribute('aria-current', 'page');
+    await expect(appShell.activeEntries).toHaveCount(1);
   });
 
   test('Page URL is /budget/sources', async ({ page }) => {

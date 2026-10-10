@@ -14,7 +14,6 @@ import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVari
 import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -28,13 +27,6 @@ import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemsPage.module.css';
-
-const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
-  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
-  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
-  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
-];
 
 export function WorkItemsPage() {
   const { t } = useTranslation('workItems');
@@ -447,7 +439,6 @@ export function WorkItemsPage() {
           {t('list.newWorkItem')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<WorkItemSummary>
         pageKey="workItems"

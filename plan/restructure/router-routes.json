@@ -195,7 +195,7 @@
       "kind": "redirect",
       "target": "/project/milestones/:id"
     },
-    { "path": "/settings", "guard": "member", "kind": "redirect", "target": "/settings/profile" },
+    { "path": "/settings", "guard": "member", "kind": "redirect", "target": "/settings/manage" },
     { "path": "/settings/backups", "guard": "admin", "kind": "page", "element": "BackupsPage" },
     { "path": "/settings/manage", "guard": "member", "kind": "page", "element": "ManagePage" },
     { "path": "/settings/profile", "guard": "member", "kind": "page", "element": "ProfilePage" },

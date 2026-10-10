@@ -254,7 +254,7 @@ test.describe('Money truth — over-allocated source (AC1)', { tag: '@responsive
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Money truth — company Still to pay (AC2)', { tag: '@responsive' }, () => {
-  test('Paid and claimed invoices give 0 without danger colour; pending minus paid progress payment gives 600', async ({
+  test('D-06: Paid and claimed invoices give 0 without danger colour; pending minus paid progress payment gives 600', async ({
     page,
     testPrefix,
   }) => {
@@ -596,7 +596,7 @@ test.describe(
   'Money truth — Add Invoice from Budget overview (AC8)',
   { tag: '@responsive' },
   () => {
-    test('Add > Add Invoice opens the manual create modal with status pending', async ({
+    test('D-35: Add > Add Invoice opens the manual create modal with status pending', async ({
       page,
     }) => {
       // The test environment has no Paperless + AI, so the manual modal is expected

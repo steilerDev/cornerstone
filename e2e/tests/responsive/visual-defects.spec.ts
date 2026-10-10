@@ -279,7 +279,7 @@ const LONG_DESCRIPTION =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Visual defects — purchase delete dialog (AC1)', { tag: '@responsive' }, () => {
-  test('Dialog is drawn above the backdrop, Escape closes it, confirming returns to the list', async ({
+  test('D-09: Dialog is drawn above the backdrop, Escape closes it, confirming returns to the list', async ({
     page,
     testPrefix,
   }) => {
@@ -325,7 +325,7 @@ test.describe('Visual defects — purchase delete dialog (AC1)', { tag: '@respon
 
 test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@responsive' }, () => {
   for (const theme of ['light', 'dark'] as const) {
-    test(`Task page with long title and expanded invoice group does not scroll sideways (${theme})`, async ({
+    test(`D-22: Task page with long title and expanded invoice group does not scroll sideways (${theme})`, async ({
       page,
       testPrefix,
     }) => {
@@ -369,7 +369,7 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
       expect(await hasSidewaysScroll(page), 'after expanding the invoice group').toBe(false);
     });
 
-    test(`Settings Manage: one tab row, no sideways page scroll, last tab reachable (${theme})`, async ({
+    test(`D-22: Settings Manage: one tab row, no sideways page scroll, last tab reachable (${theme})`, async ({
       page,
     }) => {
       skipUnlessPhone(page);
@@ -788,7 +788,7 @@ test.describe(
   'Visual defects — rows never overlap their cells (AC10)',
   { tag: '@responsive' },
   () => {
-    test('Sources > Show lines: description and amount do not collide, with and without selection', async ({
+    test('D-28: Sources > Show lines: description and amount do not collide, with and without selection', async ({
       page,
       testPrefix,
     }) => {

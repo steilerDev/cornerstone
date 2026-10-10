@@ -108,7 +108,7 @@ async function openListFor(page: Page, title: string): Promise<WorkItemsPage> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
-  test('A late task shows its forecast start, keeps its plan and shows Late; its successor shows Held up', async ({
+  test('D-38: A late task shows its forecast start, keeps its plan and shows Late; its successor shows Held up', async ({
     page,
     testPrefix,
   }) => {
@@ -223,7 +223,7 @@ test.describe('Schedule tooltip shows the schedule signal (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('One date source for a late task (Scenario 4)', () => {
-  test('List, task page, Schedule tooltip, calendar and Home all use the same forecast dates', async ({
+  test('D-38: List, task page, Schedule tooltip, calendar and Home all use the same forecast dates', async ({
     page,
     testPrefix,
   }) => {
@@ -343,7 +343,7 @@ test.describe('Late chip on the list (Scenario 5)', { tag: '@responsive' }, () =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Undated task (Scenario 6)', () => {
-  test('A task without dates is never Late, shows its forecast start with no planned line, and still has a bar', async ({
+  test('D-38: A task without dates is never Late, shows its forecast start with no planned line, and still has a bar', async ({
     page,
     testPrefix,
   }) => {

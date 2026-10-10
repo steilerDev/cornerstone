@@ -32,6 +32,9 @@ export const NAV_LABEL_KEYS = [
   'navigation.milestones',
   'navigation.invoices',
   'navigation.financing',
+  'navigation.fundingSources',
+  'navigation.grants',
+  'navigation.bankReport',
   'navigation.projectSetup',
   'navigation.account',
   'navigation.users',
@@ -45,6 +48,8 @@ export interface NavView {
   readonly labelKey: NavLabelKey;
   /** Glossary canon term (search aliases via getSearchAliases). */
   readonly term: string;
+  /** Interim view: shown only while this route is NOT served (staging, like the route map's `interim`). */
+  readonly interimUntil?: RouteId;
 }
 
 export interface NavSection {
@@ -125,6 +130,24 @@ export const NAV_SECTIONS: readonly NavSection[] = [
     term: 'Money',
     views: [
       { route: 'invoices', labelKey: 'navigation.invoices', term: 'Invoice' },
+      {
+        route: 'budgetSources',
+        labelKey: 'navigation.fundingSources',
+        term: 'Funding source',
+        interimUntil: 'financing',
+      },
+      {
+        route: 'budgetSubsidies',
+        labelKey: 'navigation.grants',
+        term: 'Grant',
+        interimUntil: 'financing',
+      },
+      {
+        route: 'bankReport',
+        labelKey: 'navigation.bankReport',
+        term: 'Bank report',
+        interimUntil: 'financing',
+      },
       { route: 'financing', labelKey: 'navigation.financing', term: 'Financing' },
     ],
     owns: ['Money'],
@@ -219,6 +242,20 @@ function isVisible(route: RouteId, ctx: NavContext): boolean {
 export function navSections(ctx: NavContext): readonly NavSection[] {
   return NAV_SECTIONS.filter((section) => isVisible(section.route, ctx)).map((section) => ({
     ...section,
-    views: section.views.filter((view) => isVisible(view.route, ctx)),
+    views: section.views.filter(
+      (view) =>
+        isVisible(view.route, ctx) &&
+        (view.interimUntil === undefined || !isRouteServed(view.interimUntil)),
+    ),
   }));
+}
+
+/** True when a served NavConfig route is Paperless-gated, i.e. the shell must ask the Paperless status. */
+export function paperlessStatusNeeded(sections: readonly NavSection[] = NAV_SECTIONS): boolean {
+  const gated = (route: RouteId): boolean => {
+    if (!isRouteServed(route)) return false;
+    const { gate } = getRouteEntry(route);
+    return gate === 'paperless' || gate === 'paperless+ai';
+  };
+  return sections.some((s) => gated(s.route) || s.views.some((v) => gated(v.route)));
 }

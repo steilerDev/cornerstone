@@ -29,10 +29,6 @@
   flex-shrink: 0;
 }
 
-.subNav {
-  margin-bottom: var(--spacing-4);
-}
-
 .content {
   display: flex;
   flex-direction: column;
@@ -61,10 +57,6 @@
   .action > * {
     width: 100%;
     min-height: 44px;
-  }
-
-  .subNav {
-    margin-bottom: var(--spacing-3);
   }
 }
 

@@ -678,9 +678,10 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
 
       await page.goto(routeUrl('scheduleGantt'));
       await timeline.waitForLoaded();
-      await timeline.calendarViewButton.click();
+      await timeline.switchToCalendar();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('scheduleCalendar'));
 
+      // Switching views inside the section replaces (ADR-038 rule 8): nothing is pushed
       const log = await readRouteLog(page);
       expect(log.filter((entry) => entry.kind === 'pushState')).toEqual([]);
       expect(log.filter((entry) => entry.kind === 'replaceState').length).toBeGreaterThan(0);

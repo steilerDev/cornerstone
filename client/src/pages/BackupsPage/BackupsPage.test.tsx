@@ -17,7 +17,7 @@ import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSettings from '../../i18n/en/settings.json';
-import enCommon from '../../i18n/en/common.json';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import type {
   BackupListResponse,
@@ -312,13 +312,12 @@ describe('BackupsPage', () => {
   // ─── Modal cancel / dismiss ───────────────────────────────────────────────
 
   describe('navigation', () => {
-    it('labels the settings sub-navigation with common.subNav.settings', async () => {
+    it('renders no Settings tab row of its own: the sidebar lists the Settings views (AC5)', async () => {
       mockListBackups.mockResolvedValueOnce({ backups: [] } as BackupListResponse);
-      renderPage();
+      const { container } = renderPage();
+      await screen.findByRole('heading', { level: 1 });
 
-      expect(
-        await screen.findByRole('navigation', { name: enCommon.subNav.settings }),
-      ).toBeInTheDocument();
+      expect(ownNavigations(container)).toEqual([]);
     });
   });
 

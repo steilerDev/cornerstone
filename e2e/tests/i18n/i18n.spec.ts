@@ -163,12 +163,40 @@ test.describe('i18n: Language Switching', () => {
     await page.getByRole('heading', { level: 1 }).waitFor({ state: 'visible' });
 
     // Then: The page is in German (localStorage sets locale before first render)
-    // Navigation sidebar links use German translation keys
-    const nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
-    await expect(nav.getByRole('link', { name: 'Projekt', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Budget', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Zeitplan', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Tagebuch', exact: true })).toBeVisible();
+    // Navigation sidebar links use German translation keys (#2205: built from NavConfig)
+    const nav = page.getByRole('navigation', { name: 'Hauptnavigation' });
+    await expect(nav.locator('[data-testid^="sidebar-section-"]')).toHaveText([
+      'Start',
+      'Aufgaben',
+      'Anschaffungen',
+      'Bautagebuch',
+      'Fotos',
+      'Finanzen',
+      'Firmen',
+    ]);
+    // The footer Settings entry sits in its own landmark
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Einstellungen', exact: true })
+        .getByRole('link', { name: 'Einstellungen', exact: true }),
+    ).toBeVisible();
+  });
+
+  test('Sidebar Settings group reads Einstellungen and Konto for a member (#2205)', async ({
+    page,
+  }) => {
+    // Given: German locale; the isolated user is a member, so Users/Backups are not offered
+    await setLanguage(page, 'de');
+    await page.goto(ROUTES.profile);
+    await page.reload();
+    await expect(page.getByRole('heading', { level: 1, name: 'Konto', exact: true })).toBeVisible();
+
+    // Then: both landmarks carry German names, and the Settings group lists only the two views
+    await expect(page.getByRole('navigation', { name: 'Hauptnavigation' })).toBeVisible();
+    const settingsNav = page.getByRole('navigation', { name: 'Einstellungen', exact: true });
+    await expect(settingsNav.getByRole('link')).toHaveText(['Einstellungen', 'Konto']);
+    await expect(page.getByTestId('sidebar-view-settingsUsers')).toHaveCount(0);
+    await expect(page.getByTestId('sidebar-view-settingsBackups')).toHaveCount(0);
   });
 
   test('Key page headings render in German after language switch', async ({ page }) => {
@@ -389,13 +417,12 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Then: All navigation links are visible and not overflowing
     const sidebar = page.locator('aside');
     await expect(sidebar).toBeVisible();
-    await expect(sidebar.getByText('Projekt', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('Budget', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('Zeitplan', { exact: true })).toBeVisible();
-    await expect(sidebar.getByText('Tagebuch', { exact: true })).toBeVisible();
+    for (const label of ['Start', 'Aufgaben', 'Finanzen', 'Bautagebuch', 'Firmen']) {
+      await expect(sidebar.getByText(label, { exact: true })).toBeVisible();
+    }
 
-    // And: The sidebar Settings button is visible
-    await expect(sidebar.getByText('Einstellungen')).toBeVisible();
+    // And: The sidebar Settings link is visible
+    await expect(sidebar.getByRole('link', { name: 'Einstellungen', exact: true })).toBeVisible();
   });
 
   test('German text renders on vendors page without breaking layout', async ({ page }) => {
@@ -409,13 +436,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
       .getByRole('heading', { level: 1, name: 'Auftragnehmer' })
       .waitFor({ state: 'visible' });
 
-    // Then: The Settings sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
-    // Vendors moved from Budget section to Settings section (Story #1283).
-    // The Settings sub-nav link is the reliable indicator that the page is in German and loaded.
-    const subNav = page.getByRole('navigation', {
-      name: 'Navigation im Bereich Einstellungen',
-    });
-    await expect(subNav.getByRole('link', { name: 'Auftragnehmer' })).toBeVisible();
+    // Then: the sidebar's Companies entry ("Firmen") is the highlighted one (#2205: the Settings
+    // tab row is gone). It is the reliable indicator that the shell is in German and loaded.
+    const companies = page.getByTestId('sidebar-section-companies');
+    await expect(companies).toHaveText('Firmen');
+    await expect(companies).toHaveAttribute('aria-current', 'page');
   });
 
   test('German text renders on work items page', async ({ page }) => {
@@ -427,11 +452,13 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     await page.getByRole('heading', { level: 1, name: 'Aufgaben' }).waitFor({ state: 'visible' });
 
     // Then: The page renders with the German h1 heading (#2202: "Aufgaben", the page's own name)
-    // and the translated Project sub-nav name
+    // and the translated Tasks views nested in the sidebar (#2205: the Project tab row is gone)
     await expect(page.getByRole('heading', { level: 1, name: 'Aufgaben' })).toBeVisible();
-    await expect(
-      page.getByRole('navigation', { name: 'Navigation im Bereich Projekt' }),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid^="sidebar-view-"]')).toHaveText([
+      'Zeitplan',
+      'Kalender',
+      'Meilensteine',
+    ]);
   });
 });
 

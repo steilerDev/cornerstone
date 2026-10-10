@@ -259,7 +259,7 @@ describe('MilestoneDetailPage', () => {
       });
 
       expect(screen.getByText(/not found/i)).toBeInTheDocument();
-      // Not-found state renders without SubNav; only the "Back to Milestones" link is present.
+      // Not-found state has no tab row; only the "Back to Milestones" link is present.
       expect(screen.getByRole('link', { name: /back to milestones/i })).toBeInTheDocument();
     });
 

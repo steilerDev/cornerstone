@@ -65,7 +65,7 @@ test.describe('View toggle (Scenario 1)', { tag: '@responsive' }, () => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    // Start in Gantt view (default) — NavLink sets aria-current="page" on active link
+    // Start in Gantt view (default) — the Schedule sidebar view is the current one (#2205)
     await expect(timelinePage.ganttViewButton).toHaveAttribute('aria-current', 'page');
 
     // Switch to calendar

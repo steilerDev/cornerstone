@@ -9,9 +9,7 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav } from '../../components/SubNav/SubNav.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
-import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetOverviewPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -282,11 +280,7 @@ export function BudgetOverviewPage() {
   // ---- Loading state ----
   if (isLoading) {
     return (
-      <PageLayout
-        title={pageTitle}
-        action={actionDropdown}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} action={actionDropdown}>
         <div className={styles.loading} role="status" aria-label={t('overview.loading')}>
           {t('overview.loading')}
         </div>
@@ -297,11 +291,7 @@ export function BudgetOverviewPage() {
   // ---- Error state ----
   if (error) {
     return (
-      <PageLayout
-        title={pageTitle}
-        action={actionDropdown}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} action={actionDropdown}>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('overview.error')}</h2>
           <p>{error}</p>
@@ -320,11 +310,7 @@ export function BudgetOverviewPage() {
   const hasData = overview.minPlanned > 0 || overview.actualCost > 0 || overview.sourceCount > 0;
 
   return (
-    <PageLayout
-      title={pageTitle}
-      action={actionDropdown}
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-    >
+    <PageLayout title={pageTitle} action={actionDropdown}>
       {/* Empty state */}
       {!hasData && (
         <div className={styles.emptyState}>

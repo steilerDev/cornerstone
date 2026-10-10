@@ -432,7 +432,7 @@ describe('DataTable', () => {
       expect(screen.getByRole('searchbox')).toHaveValue('typing');
     });
 
-    it('Clear filters cancels a pending search and empties the input', () => {
+    it('D-21: Clear filters cancels a pending search and empties the input', () => {
       const onStateChange = jest.fn();
       render(table({ onStateChange, tableState: makeTableState({ search: 'existing' }) }));
       type('stale draft');
@@ -443,7 +443,7 @@ describe('DataTable', () => {
       expect((onStateChange.mock.calls as [TableState][])[0]![0].search).toBe('');
     });
 
-    it('keeps the same focused search box when a reload starts and results are empty', () => {
+    it('D-21: keeps the same focused search box when a reload starts and results are empty', () => {
       const { rerender } = render(table({}));
       const input = screen.getByRole('searchbox');
       input.focus();
@@ -458,7 +458,7 @@ describe('DataTable', () => {
       expect(screen.getByRole('columnheader', { name: /title/i })).toBeInTheDocument();
     });
 
-    it('keeps typed text and focus across a reload cycle', () => {
+    it('D-21: keeps typed text and focus across a reload cycle', () => {
       const { rerender } = render(table({}));
       const input = screen.getByRole('searchbox');
       input.focus();

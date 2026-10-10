@@ -13,6 +13,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { buildTimeline, mockWorkItem } from '../../fixtures/timelineMocks.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,10 +58,11 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await expect(timelinePage.heading).toHaveText('Schedule');
   });
 
-  test('View toggle buttons are visible on mobile viewport', async ({ page }) => {
+  test('View links are visible in the sidebar drawer on mobile viewport', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
+    await new AppShellPage(page).openSidebarIfDrawer();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
@@ -397,12 +399,16 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     await expect(timelinePage.zoomToolbar).toHaveAttribute('aria-label', 'Zoom level');
   });
 
-  test('View toggle navigation has accessible label', async ({ page }) => {
+  test('Tasks views are listed in the labelled sidebar navigation', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
+    const appShell = new AppShellPage(page);
     await timelinePage.goto();
 
-    const viewNav = page.getByRole('navigation', { name: 'Schedule section navigation' });
-    await expect(viewNav).toBeVisible();
+    // #2205: the Schedule tab row is gone; its views are sidebar links under Tasks
+    await appShell.openSidebarIfDrawer();
+    await expect(appShell.nav).toBeVisible();
+    await expect(appShell.viewLinks).toHaveText(['Schedule', 'Calendar', 'Milestones']);
+    await expect(appShell.viewLink('scheduleGantt')).toHaveAttribute('aria-current', 'page');
   });
 
   test('Calendar mode toolbar has role=toolbar', async ({ page }) => {

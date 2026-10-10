@@ -11,6 +11,12 @@ export class AppShellPage {
   readonly sidebarCloseButton: Locator;
   readonly nav: Locator;
   readonly overlay: Locator;
+  /** Footer landmark "Settings" / "Einstellungen" (Settings entry + its views, #2205). */
+  readonly settingsNav: Locator;
+  /** Every sidebar link currently marked as the page's entry (exactly one, none on 404). */
+  readonly activeEntries: Locator;
+  /** The nested view links currently rendered (only the active section shows its views). */
+  readonly viewLinks: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -26,6 +32,50 @@ export class AppShellPage {
     this.nav = page.getByRole('navigation', { name: /Main navigation|Hauptnavigation/ });
     // Overlay uses data-testid="sidebar-overlay" (AppShell.tsx) — not a generic div[aria-hidden].
     this.overlay = page.getByTestId('sidebar-overlay');
+    this.settingsNav = page.getByRole('navigation', { name: /^(Settings|Einstellungen)$/ });
+    this.activeEntries = this.sidebar.locator('[aria-current="page"]');
+    this.viewLinks = this.sidebar.locator('[data-testid^="sidebar-view-"]');
+  }
+
+  /**
+   * A section entry by NavConfig section id (home, tasks, purchases, diary, photos, money,
+   * companies, settings, ...). Test id `sidebar-section-<id>`.
+   */
+  sectionLink(id: string): Locator {
+    return this.page.getByTestId(`sidebar-section-${id}`);
+  }
+
+  /**
+   * A nested view by route id (scheduleGantt, scheduleCalendar, milestones, invoices,
+   * budgetSources, budgetSubsidies, bankReport, settingsProfile, settingsUsers, settingsBackups).
+   * Views only exist in the DOM while the page is inside their section. Test id
+   * `sidebar-view-<route>`.
+   */
+  viewLink(route: string): Locator {
+    return this.page.getByTestId(`sidebar-view-${route}`);
+  }
+
+  /** True when the sidebar is an off-canvas drawer (<= 1024px). */
+  private needsDrawer(): boolean {
+    const width = this.page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER;
+    return width <= 1024;
+  }
+
+  /** Open the drawer when the viewport needs one (no-op on desktop). */
+  async openSidebarIfDrawer(): Promise<void> {
+    if (this.needsDrawer()) await this.openSidebar();
+  }
+
+  /** Click a section entry (opens the drawer first on <= 1024px; the drawer closes on click). */
+  async openSection(id: string): Promise<void> {
+    await this.openSidebarIfDrawer();
+    await this.sectionLink(id).click();
+  }
+
+  /** Click a nested view (the page must already be inside its section). */
+  async openView(route: string): Promise<void> {
+    await this.openSidebarIfDrawer();
+    await this.viewLink(route).click();
   }
 
   async openSidebar(): Promise<void> {

@@ -1,5 +1,6 @@
 import { describe, it, expect } from '@jest/globals';
-import { getRouteEntry, isRouteServed } from '@cornerstone/shared';
+import { getRouteEntry, isRouteServed, routePattern } from '@cornerstone/shared';
+import type { ServedRouteId } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
 import deCommon from '../i18n/de/common.json';
 import { GLOSSARY } from '../i18n/glossary.js';
@@ -101,18 +102,17 @@ describe('NAV_SECTIONS', () => {
     }
   });
 
-  it('uses the glossary plural (or singular) as the English label of every entry', () => {
+  it('uses the glossary plural or singular as the English label of every entry', () => {
     const entries = [
       ...NAV_SECTIONS.map((s) => ({ term: s.term, key: s.labelKey })),
       ...allViews.map(({ view }) => ({ term: view.term, key: view.labelKey })),
     ];
     for (const { term, key } of entries) {
       const forms = GLOSSARY.terms.find((t) => t.canon === term)?.en;
-      const expected = forms?.plural ?? forms?.singular;
-      expect({ key, label: lookup(enCommon, stripNamespace(key)) }).toEqual({
-        key,
-        label: expected,
-      });
+      const accepted = [forms?.plural, forms?.singular].filter(Boolean);
+      const label = lookup(enCommon, stripNamespace(key));
+      // A view label may be the singular or the plural ("Bank report" matches its page h1).
+      expect({ key, ok: accepted.includes(label as string) }).toEqual({ key, ok: true });
     }
   });
 
@@ -158,7 +158,7 @@ describe('NAV_SECTIONS', () => {
 
 describe('NAV_LABEL_KEYS', () => {
   it('is a literal tuple of navigation.* keys without duplicates', () => {
-    expect(NAV_LABEL_KEYS).toHaveLength(21);
+    expect(NAV_LABEL_KEYS).toHaveLength(24);
     expect(new Set(NAV_LABEL_KEYS).size).toBe(NAV_LABEL_KEYS.length);
     for (const key of NAV_LABEL_KEYS) expect(key).toMatch(/^navigation\.[A-Za-z]+$/);
   });
@@ -202,9 +202,6 @@ describe('NAV_LABEL_KEYS', () => {
     'invoiceNotFound',
     'newInvoice',
     'splitWithAi',
-    'bankReport',
-    'fundingSources',
-    'grants',
     // #2204: diary entry words
     'newDiaryEntry',
     'editDiaryEntry',
@@ -245,6 +242,55 @@ describe('NAV_LABEL_KEYS', () => {
     for (const tree of [enCommon, deCommon]) {
       const navigation = (tree as { navigation: Record<string, string> }).navigation;
       expect(navigation.backTo).toContain('{{origin}}');
+    }
+  });
+});
+
+describe('Money views (interim staging until Financing is served)', () => {
+  const money = NAV_SECTIONS.find((s) => s.id === 'money');
+
+  it('defines the Money views in order, the three interim ones carrying interimUntil financing', () => {
+    expect(viewRoutes(money)).toEqual([
+      'invoices',
+      'budgetSources',
+      'budgetSubsidies',
+      'bankReport',
+      'financing',
+    ]);
+    const interim = money?.views.filter((v) => v.interimUntil !== undefined) ?? [];
+    expect(interim.map((v) => v.route)).toEqual(['budgetSources', 'budgetSubsidies', 'bankReport']);
+    for (const view of interim) expect(view.interimUntil).toBe('financing');
+  });
+
+  it('labels the interim views Funding sources, Grants and Bank report', () => {
+    const labels = Object.fromEntries(
+      (money?.views ?? []).map((v) => [v.route, lookup(enCommon, v.labelKey)]),
+    );
+    expect(labels).toMatchObject({
+      budgetSources: 'Funding sources',
+      budgetSubsidies: 'Grants',
+      bankReport: 'Bank report',
+    });
+  });
+
+  it('still has every interimUntil target unserved: serving it forces the cleanup of the interim views', () => {
+    const interim = allViews.filter(({ view }) => view.interimUntil !== undefined);
+    expect(interim.length).toBeGreaterThan(0);
+    for (const { view } of interim) {
+      // When this fails, the story that serves the target must delete the interim views from
+      // NavConfig (they already vanish from navSections on their own) and this guard.
+      const targetServed = isRouteServed(view.interimUntil as never);
+      expect({ route: view.route, targetServed }).toEqual({
+        route: view.route,
+        targetServed: false,
+      });
+    }
+  });
+
+  it('uses only static hrefs: every served section and view route is param-free', () => {
+    const routes = [...NAV_SECTIONS.map((s) => s.route), ...allViews.map(({ view }) => view.route)];
+    for (const route of routes.filter((r) => isRouteServed(r))) {
+      expect(routePattern(route as ServedRouteId)).not.toContain(':');
     }
   });
 });
@@ -313,7 +359,12 @@ describe('navSections', () => {
       'scheduleCalendar',
       'milestones',
     ]);
-    expect(viewRoutes(sections.find((s) => s.id === 'money'))).toEqual(['invoices']);
+    expect(viewRoutes(sections.find((s) => s.id === 'money'))).toEqual([
+      'invoices',
+      'budgetSources',
+      'budgetSubsidies',
+      'bankReport',
+    ]);
     expect(viewRoutes(sections.find((s) => s.id === 'settings'))).toEqual([
       'settingsProfile',
       'settingsUsers',
@@ -328,6 +379,12 @@ describe('navSections', () => {
 
   it('does not change which sections a member sees (no section is admin-only today)', () => {
     expect(ids(navSections(MEMBER))).toEqual(ids(navSections(ADMIN)));
+  });
+
+  it('shows the interim Money views to a member as well as an admin', () => {
+    expect(viewRoutes(navSections(MEMBER).find((s) => s.id === 'money'))).toEqual(
+      viewRoutes(navSections(ADMIN).find((s) => s.id === 'money')),
+    );
   });
 
   it('hides Paperless-gated routes when Paperless is not configured', () => {

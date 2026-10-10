@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
 import { CalendarView } from '../../components/calendar/CalendarView.js';
-import { ScheduleSubNav } from '../../components/ScheduleSubNav/ScheduleSubNav.js';
 import {
   type ZoomLevel,
   COLUMN_WIDTHS,
@@ -570,9 +569,6 @@ export function TimelinePage() {
           </div>
         </div>
       </div>
-
-      {/* Schedule sub-navigation: Gantt / Calendar view toggle */}
-      <ScheduleSubNav />
 
       {/* Chart / calendar area */}
       <div className={styles.chartArea} ref={chartAreaRef}>

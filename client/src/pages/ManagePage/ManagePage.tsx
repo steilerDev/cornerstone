@@ -24,7 +24,6 @@ import { generateRandomColor } from '../../lib/colorUtils.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useTranslation } from 'react-i18next';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
@@ -32,7 +31,6 @@ import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useOrientations } from '../../hooks/useOrientations.js';
-import { useAuth } from '../../contexts/AuthContext.js';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import {
@@ -48,7 +46,6 @@ import {
   deleteHouseholdItemCategory,
 } from '../../lib/householdItemCategoriesApi.js';
 import styles from './ManagePage.module.css';
-import { routeUrl } from '@cornerstone/shared';
 
 const DEFAULT_COLOR = '#3b82f6';
 
@@ -2859,7 +2856,6 @@ function HouseholdItemCategoriesTab() {
 export function ManagePage() {
   const { t } = useTranslation('settings');
   const { t: tCommon } = useTranslation('common');
-  const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   // The URL is the single source of truth; nothing is written to it on load (D-10)
   const activeTab = parseTab(searchParams.get('tab'));
@@ -2878,8 +2874,6 @@ export function ManagePage() {
   );
   const pageTitle = tCommon('navigation.projectSetup');
   useDocumentTitle(pageTitle);
-
-  const isAdmin = user?.role === 'admin';
 
   const tabLabels: Record<Tab, string> = {
     household: t('manage.tabs.household'),
@@ -2908,30 +2902,8 @@ export function ManagePage() {
     el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
   };
 
-  const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
-    {
-      labelKey: 'subnav.settings.userManagement',
-      to: routeUrl('settingsUsers'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-    {
-      labelKey: 'subnav.settings.backups',
-      to: routeUrl('settingsBackups'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-  ];
-
   return (
-    <PageLayout
-      maxWidth="narrow"
-      title={pageTitle}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-    >
+    <PageLayout maxWidth="narrow" title={pageTitle}>
       <div className={styles.tabList} role="tablist" onKeyDown={handleTabKeyDown}>
         {MANAGE_TABS.map((tab) => (
           <button

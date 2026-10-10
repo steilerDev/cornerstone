@@ -460,7 +460,7 @@
     "to": "Tasks > Milestones (tab next to Tasks / Schedule / Calendar)",
     "change": "same",
     "gate": "none",
-    "note": "Milestones stay siblings of tasks; schedule anchors live with the schedule."
+    "note": "Milestones stay siblings of tasks; schedule anchors live with the schedule. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
   },
   "WRK-072": {
     "name": "Search milestones by title or description",
@@ -632,7 +632,7 @@
     "gate": "none",
     "acceptance": "Sidebar view 'Schedule' under Tasks, title menu 'Tasks ▾' > Schedule, Home > This week 'Open schedule', search 'Schedule' or 'Gantt', key g s all open /schedule/gantt.",
     "decision": "Q1b, PLAN §2.0 #1",
-    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view)."
+    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
   },
   "WRK-093": {
     "name": "Switch between Gantt and Calendar views",
@@ -640,7 +640,7 @@
     "to": "Tasks > Schedule / Tasks > Calendar views under Tasks in the sidebar and the title menu (URLs /schedule/gantt and /schedule/calendar kept; ?view=calendar on /schedule is preserved, D-11)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2202: /schedule?view=calendar lands on /schedule/calendar in one hop (live query map); Gantt/Calendar tab switches use history replace."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2202: /schedule?view=calendar lands on /schedule/calendar in one hop (live query map); Gantt/Calendar tab switches use history replace. #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
   },
   "WRK-094": {
     "name": "Show or hide work items, milestones and household items on the schedule",
@@ -1013,7 +1013,7 @@
     "to": "Money > Financing > Loans & own funds cards (type, status, amount, rate)",
     "change": "same",
     "gate": "none",
-    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\"."
+    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
   },
   "MNY-023": {
     "name": "See each source's utilization bar with segment tooltips",
@@ -1125,7 +1125,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Financing); every old URL redirects there in one hop.",
-    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3). #2203: interim h1 \"Grants\", breadcrumb \"Money\"."
+    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3). #2203: interim h1 \"Grants\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
   },
   "MNY-037": {
     "name": "Create a subsidy program",
@@ -1731,7 +1731,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served. #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -1962,7 +1962,7 @@
     "to": "Global > Sidebar > Purchases (own destination); phone and tablet: More sheet > Purchases",
     "change": "promoted",
     "gate": "none",
-    "note": "Household Items renamed Purchases (P13)."
+    "note": "Household Items renamed Purchases (P13). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
   },
   "HHI-002": {
     "name": "Start creating a household item from the list header or the empty-list state",
@@ -3210,7 +3210,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q1",
-    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600."
+    "note": "One NavConfig drives sidebar, bar, titles and breadcrumbs (principle 12). #2200: active item is white on blue-600 (5.17:1) in both themes, weight 600. #2205: rendered from navSections(); quiet group shows each entry when its page is served; one active entry resolved from the route map."
   },
   "PLT-002": {
     "name": "Return to the project overview by clicking the logo / app name",
@@ -3218,7 +3218,7 @@
     "to": "Global > Sidebar header (house name) -> Home",
     "change": "same",
     "gate": "none",
-    "note": "Project identity shown (GLB-04)."
+    "note": "Project identity shown (GLB-04). #2205: logo opens Home (/), aria-label \"Go to Home\"."
   },
   "PLT-003": {
     "name": "Open Settings from the sidebar footer",
@@ -3226,7 +3226,7 @@
     "to": "Global > Sidebar > Settings (opens Settings > Project setup; real link with aria-current); Global > User menu > Account",
     "change": "same",
     "gate": "none",
-    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\"."
+    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\". #2205: Settings is a link to /settings/manage with aria-current; /settings redirects there."
   },
   "PLT-004": {
     "name": "Switch between the pages of a section via the second-level tab bar (sub-nav)",
@@ -3234,7 +3234,7 @@
     "to": "Global > Sidebar views from NavConfig: while inside Tasks, Money or Settings their views show under the section entry, the current one highlighted (no tab rows); phones and tablets switch views from the title menu ('Tasks ▾', 'Money ▾', 'Settings ▾')",
     "change": "moved",
     "gate": "none",
-    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2). #2200: members see no User Management or Backups tab (verified on all five Settings pages)."
+    "note": "The second-level tab rows go (owner, 7 Oct, PLAN §2.0 #1, #14): the sidebar is the navigation and the page title names the highlighted view (§2.0 #2). #2200: members see no User Management or Backups tab (verified on all five Settings pages). #2205: tab rows removed (10 copied arrays + ScheduleSubNav); views nest under their section while inside; guard test client/src/navigation/noTabRows.test.ts."
   },
   "PLT-005": {
     "name": "Cycle the colour theme Light -> Dark -> System from the sidebar",

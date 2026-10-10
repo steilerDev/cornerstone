@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 import { loginUrlFor, readNextParam } from './nextParam.js';
 
 describe('loginUrlFor', () => {
-  it('carries the full in-app URL (path, search and hash) as an encoded next', () => {
+  it('D-13: carries the full in-app URL (path, search and hash) as an encoded next', () => {
     expect(loginUrlFor({ pathname: '/diary', search: '?q=1', hash: '#h' })).toBe(
       '/login?next=%2Fdiary%3Fq%3D1%23h',
     );
@@ -25,7 +25,7 @@ describe('loginUrlFor', () => {
 });
 
 describe('readNextParam', () => {
-  it('returns the decoded next', () => {
+  it('D-13: returns the decoded next, so a deep link survives sign-in', () => {
     expect(readNextParam('?next=%2Fdiary')).toBe('/diary');
     expect(readNextParam('?next=%2Fdiary%3Fq%3D1%23h')).toBe('/diary?q=1#h');
   });

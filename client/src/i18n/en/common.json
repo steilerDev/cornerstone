@@ -1,12 +1,4 @@
 {
-  "nav": {
-    "project": "Project",
-    "budget": "Budget",
-    "schedule": "Schedule",
-    "diary": "Diary",
-    "photos": "Photos",
-    "settings": "Settings"
-  },
   "navigation": {
     "home": "Home",
     "tasks": "Tasks",
@@ -80,7 +72,7 @@
   "aria": {
     "closeMenu": "Close menu",
     "openMenu": "Open menu",
-    "goToOverview": "Go to project overview",
+    "goToHome": "Go to Home",
     "closeDialog": "Close dialog",
     "clearSelection": "Clear selection",
     "noArea": "No area",
@@ -91,7 +83,8 @@
     "selectOrientation": "Select an orientation",
     "selectAssignment": "Select user or vendor",
     "unassigned": "Unassigned",
-    "mainNavigation": "Main navigation"
+    "mainNavigation": "Main navigation",
+    "settingsNavigation": "Settings"
   },
   "loading": "Loading...",
   "searching": "Searching...",
@@ -154,28 +147,6 @@
   "assignmentPicker": {
     "usersGroup": "Users",
     "vendorsGroup": "Vendors"
-  },
-  "subnav": {
-    "project": {
-      "overview": "Overview",
-      "workItems": "Work Items",
-      "householdItems": "Household Items",
-      "milestones": "Milestones"
-    },
-    "budget": {
-      "overview": "Overview",
-      "invoices": "Invoices",
-      "sources": "Sources",
-      "subsidies": "Subsidies",
-      "reports": "Reports"
-    },
-    "settings": {
-      "profile": "Profile",
-      "manage": "Manage",
-      "vendors": "Vendors",
-      "userManagement": "User Management",
-      "backups": "Backups"
-    }
   },
   "dataTable": {
     "search": {
@@ -240,12 +211,6 @@
   "requestErrors": {
     "network": "Can't reach the server. Check your connection and try again.",
     "unexpected": "An unexpected error occurred. Please try again."
-  },
-  "subNav": {
-    "project": "Project section navigation",
-    "budget": "Budget section navigation",
-    "settings": "Settings section navigation",
-    "schedule": "Schedule section navigation"
   },
   "statusVocabulary": {
     "invoice": {

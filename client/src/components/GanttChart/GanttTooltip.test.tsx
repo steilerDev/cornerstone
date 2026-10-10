@@ -636,7 +636,7 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
 
   // ── AC-4: with dependencies → shows section ──────────────────────────────
 
-  it('the word "Dependencies" never appears; the groups are named Waits for / Holds up (#2198)', () => {
+  it('D-33: the word "Dependencies" never appears; the groups are named Waits for / Holds up (#2198)', () => {
     renderWorkItemWithDeps([
       { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
       { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
@@ -646,7 +646,7 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
     expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up (1)');
   });
 
-  it('groups: two predecessors and one successor give Waits for (2) before Holds up (1)', () => {
+  it('D-33: groups: two predecessors and one successor give Waits for (2) before Holds up (1)', () => {
     renderWorkItemWithDeps([
       { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
       { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },

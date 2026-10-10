@@ -24,10 +24,8 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './UserManagementPage.module.css';
-import { routeUrl } from '@cornerstone/shared';
 
 interface EditFormData {
   displayName: string;
@@ -78,24 +76,6 @@ export function UserManagementPage() {
   const { user: currentUser, oidcEnabled } = useAuth();
 
   const isAdmin = currentUser?.role === 'admin';
-
-  const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
-    {
-      labelKey: 'subnav.settings.userManagement',
-      to: routeUrl('settingsUsers'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-    {
-      labelKey: 'subnav.settings.backups',
-      to: routeUrl('settingsBackups'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-  ];
 
   // Data state
   const [users, setUsers] = useState<UserResponse[]>([]);
@@ -667,7 +647,6 @@ export function UserManagementPage() {
     <PageLayout
       maxWidth="narrow"
       title={pageTitle}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
       action={
         isAdmin ? (
           <button

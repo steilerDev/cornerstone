@@ -39,7 +39,7 @@ function weekRowIndexOfDay(day: number): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Calendar week segments (Scenario 1)', { tag: '@responsive' }, () => {
-  test('A long task is one labelled segment per week row and nothing overflows its row', async ({
+  test('D-14: A long task is one labelled segment per week row and nothing overflows its row', async ({
     page,
   }) => {
     const timelinePage = new TimelinePage(page);
@@ -396,7 +396,9 @@ test.describe('Calendar status colours and tooltips (Scenario 3)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Calendar empty state (Scenario 4)', { tag: '@responsive' }, () => {
-  test('Nothing scheduled shows the empty state with a link to add a task', async ({ page }) => {
+  test('D-14: Nothing scheduled shows the empty state with a link to add a task', async ({
+    page,
+  }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.mockTimeline(buildTimeline());
 

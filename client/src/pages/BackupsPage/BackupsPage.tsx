@@ -2,9 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { BackupMeta, BackupSchedulerStatus } from '@cornerstone/shared';
-import { useAuth } from '../../contexts/AuthContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
@@ -22,7 +20,6 @@ import {
 } from '../../lib/backupsApi.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './BackupsPage.module.css';
-import { routeUrl } from '@cornerstone/shared';
 
 export function BackupsPage() {
   const { t } = useTranslation('settings');
@@ -31,27 +28,6 @@ export function BackupsPage() {
   const pageTitle = tCommon('navigation.backups');
   useDocumentTitle(pageTitle);
   const { formatDate, formatDateTime, formatFileSize } = useFormatters();
-  const { user } = useAuth();
-
-  const isAdmin = user?.role === 'admin';
-
-  const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
-    {
-      labelKey: 'subnav.settings.userManagement',
-      to: routeUrl('settingsUsers'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-    {
-      labelKey: 'subnav.settings.backups',
-      to: routeUrl('settingsBackups'),
-      ns: 'common',
-      visible: isAdmin,
-    },
-  ];
 
   // Data state
   const [backups, setBackups] = useState<BackupMeta[]>([]);
@@ -202,11 +178,7 @@ export function BackupsPage() {
   // If restore has been initiated, show the restarting message
   if (restoreInitiated) {
     return (
-      <PageLayout
-        maxWidth="narrow"
-        title={pageTitle}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-      >
+      <PageLayout maxWidth="narrow" title={pageTitle}>
         <EmptyState icon="⏳" message={t('backups.restartingMessage')} />
       </PageLayout>
     );
@@ -217,11 +189,7 @@ export function BackupsPage() {
     : null;
 
   return (
-    <PageLayout
-      maxWidth="narrow"
-      title={pageTitle}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-    >
+    <PageLayout maxWidth="narrow" title={pageTitle}>
       {/* Loading state */}
       {isLoading && <Skeleton lines={5} loadingLabel={t('backups.loading')} />}
 

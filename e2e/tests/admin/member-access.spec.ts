@@ -8,9 +8,10 @@
  *   E3. AC1 — "Back to Home" goes to the project overview; Back returns to the No-access page
  *             (no redirect loop).
  *   E4. AC1 — the legacy /admin/users URL lands on /settings/users with the No-access page.
- *   E5. AC2 — a member's Settings navigation has no User Management / Backups entries.
+ *   E5. AC2 / D-23 — a member's sidebar Settings group has no Users / Backups entries (#2205:
+ *             the check moved from the removed Settings tab row to the sidebar).
  *   E6. The server still refuses a member (403 on backups list and user creation).
- *   E7. AC3/AC4 — computed colours in the real build: active sidebar item and primary button
+ *   E7. AC3/AC4 — computed colours in the real build: active sidebar view and primary button
  *             (light), page background and sidebar item (dark). Desktop only.
  *
  * Uses a REAL member account (no /api/auth/me mock) so the server half is exercised too.
@@ -121,21 +122,24 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     await expect(noAccess.heading).toBeVisible();
   });
 
-  for (const [name, route] of [
-    ['Profile', ROUTES.profile],
-    ['Manage', ROUTES.manage],
-    ['Vendors', ROUTES.settingsVendors],
+  // Inside Settings the group lists the entry plus its views; on Companies only the entry shows
+  for (const [name, route, expected] of [
+    ['Account', ROUTES.profile, ['Settings', 'Account']],
+    ['Project setup', ROUTES.manage, ['Settings', 'Account']],
+    ['Companies', ROUTES.settingsVendors, ['Settings']],
   ] as const) {
-    test(`E5: member's Settings navigation on ${name} has no User Management or Backups`, async ({
+    test(`E5 (D-23): member's sidebar Settings group on ${name} has no Users or Backups`, async ({
       page,
     }) => {
+      const shell = new AppShellPage(page);
       await page.goto(route);
       await expect(page.getByRole('heading', { level: 1 }).first()).toBeVisible();
 
-      const settingsNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-      await expect(settingsNav.getByRole('link', { name: 'Profile' })).toBeVisible();
-      await expect(settingsNav.getByRole('link', { name: 'User Management' })).toHaveCount(0);
-      await expect(settingsNav.getByRole('link', { name: 'Backups' })).toHaveCount(0);
+      await expect(shell.settingsNav.getByRole('link')).toHaveText([...expected]);
+      await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
+      await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
+      await expect(shell.settingsNav.getByRole('link', { name: 'Users' })).toHaveCount(0);
+      await expect(shell.settingsNav.getByRole('link', { name: 'Backups' })).toHaveCount(0);
     });
   }
 
@@ -168,7 +172,8 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     const profile = new ProfilePage(page);
     await profile.goto();
 
-    const activeSettings = page.locator('aside').getByRole('button', { name: 'Settings' });
+    // The active sidebar entry on the Account page is its nested view link
+    const activeSettings = new AppShellPage(page).viewLink('settingsProfile');
     await expect(activeSettings).toHaveAttribute('aria-current', 'page');
 
     // Light theme

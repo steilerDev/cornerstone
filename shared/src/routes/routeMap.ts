@@ -736,8 +736,7 @@ export const ROUTE_MAP = [
     gate: 'none',
     permanent: false,
     carries: ['*'],
-    stage: 'interim',
-    interim: '/settings/profile',
+    stage: 'done',
   },
   {
     from: '/work-items',

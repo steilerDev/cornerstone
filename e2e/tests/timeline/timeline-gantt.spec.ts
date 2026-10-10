@@ -16,6 +16,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import { buildTimeline, mockWorkItem } from '../../fixtures/timelineMocks.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { TimelinePage, TIMELINE_ROUTE } from '../../pages/TimelinePage.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
@@ -38,10 +39,12 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
     expect(page.url()).toContain('/schedule/gantt');
   });
 
-  test('Toolbar is rendered with view toggle buttons', async ({ page }) => {
+  test('Sidebar lists the Schedule and Calendar views', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
+    // #2205: the view switch lives in the sidebar; on <= 1024px it sits in the drawer
+    await new AppShellPage(page).openSidebarIfDrawer();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
@@ -498,6 +501,7 @@ test.describe('Dark mode rendering (Scenario 10)', { tag: '@responsive' }, () =>
     await timelinePage.heading.waitFor({ state: 'visible' });
 
     await expect(timelinePage.heading).toBeVisible();
+    await new AppShellPage(page).openSidebarIfDrawer();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
 

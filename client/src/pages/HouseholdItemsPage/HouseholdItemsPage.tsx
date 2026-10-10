@@ -11,7 +11,6 @@ import { Modal } from '../../components/Modal/Modal.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
@@ -25,13 +24,6 @@ import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
-
-const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
-  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
-  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
-  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
-];
 
 export function HouseholdItemsPage() {
   const { t } = useTranslation('householdItems');
@@ -457,7 +449,6 @@ export function HouseholdItemsPage() {
           {t('newButton')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<HouseholdItemSummary>
         pageKey="householdItems"

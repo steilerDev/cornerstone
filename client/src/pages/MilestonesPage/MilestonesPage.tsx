@@ -11,7 +11,6 @@ import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { Modal } from '../../components/Modal/Modal.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -22,13 +21,6 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './MilestonesPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
-
-const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
-  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
-  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
-  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
-];
 
 export function MilestonesPage() {
   const { formatDate } = useFormatters();
@@ -397,7 +389,6 @@ export function MilestonesPage() {
           {t('milestones.newButton')}
         </button>
       }
-      subNav={<SubNav tabs={PROJECT_TABS} ariaLabel={tCommon('subNav.project')} />}
     >
       <DataTable<MilestoneSummary>
         pageKey="milestones"

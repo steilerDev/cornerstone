@@ -57,19 +57,9 @@ describe('PageLayout', () => {
     expect(container.querySelector('.action')).toBeNull();
   });
 
-  // ── subNav prop ───────────────────────────────────────────────────────────
+  // ── no sub-navigation row (AC5, #2205) ────────────────────────────────────
 
-  it('renders subNav content when subNav prop is provided', () => {
-    render(
-      <PageLayout title="Test" subNav={<div data-testid="sub-nav">nav</div>}>
-        <p>content</p>
-      </PageLayout>,
-    );
-
-    expect(screen.getByTestId('sub-nav')).toBeInTheDocument();
-  });
-
-  it('does not render the subNav wrapper div when subNav is undefined', () => {
+  it('renders no sub-navigation wrapper or navigation landmark of its own', () => {
     const { container } = render(
       <PageLayout title="Test">
         <p>content</p>
@@ -77,6 +67,20 @@ describe('PageLayout', () => {
     );
 
     expect(container.querySelector('.subNav')).toBeNull();
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
+  it('puts the breadcrumb slot above the header row and nothing in between', () => {
+    render(
+      <PageLayout title="Test" breadcrumbs={<nav aria-label="Trail">trail</nav>}>
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    const trail = screen.getByRole('navigation', { name: 'Trail' });
+    const heading = screen.getByRole('heading', { level: 1, name: 'Test' });
+    expect(trail.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(trail.nextElementSibling).toBe(heading.parentElement);
   });
 
   // ── maxWidth prop ─────────────────────────────────────────────────────────
@@ -140,14 +144,14 @@ describe('PageLayout', () => {
 
   // ── combined props ────────────────────────────────────────────────────────
 
-  it('renders title, action, subNav, and children together correctly', () => {
+  it('renders title, action, breadcrumbs, and children together correctly', () => {
     render(
       <PageLayout
         title="Budget"
         maxWidth="wide"
         testId="budget-page"
         action={<button type="button">Add</button>}
-        subNav={<nav aria-label="Budget nav">tabs</nav>}
+        breadcrumbs={<nav aria-label="Budget trail">trail</nav>}
       >
         <table>
           <tbody>
@@ -161,7 +165,7 @@ describe('PageLayout', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'Budget' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add' })).toBeInTheDocument();
-    expect(screen.getByRole('navigation', { name: 'Budget nav' })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: 'Budget trail' })).toBeInTheDocument();
     expect(screen.getByRole('cell', { name: 'Row 1' })).toBeInTheDocument();
   });
 

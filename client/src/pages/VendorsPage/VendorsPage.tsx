@@ -8,10 +8,8 @@ import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
 import { FormError } from '../../components/FormError/FormError.js';
-import { useAuth } from '../../contexts/AuthContext.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -31,27 +29,8 @@ export function VendorsPage() {
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { trades } = useTrades();
   const { formatDate } = useFormatters();
-
-  const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
-    {
-      labelKey: 'subnav.settings.userManagement',
-      to: routeUrl('settingsUsers'),
-      ns: 'common',
-      visible: user?.role === 'admin',
-    },
-    {
-      labelKey: 'subnav.settings.backups',
-      to: routeUrl('settingsBackups'),
-      ns: 'common',
-      visible: user?.role === 'admin',
-    },
-  ];
 
   // Data state
   const [vendors, setVendors] = useState<VendorListItem[]>([]);
@@ -350,7 +329,6 @@ export function VendorsPage() {
           {t('vendors.addVendor')}
         </button>
       }
-      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
       <DataTable<VendorListItem>
         pageKey="vendors"
