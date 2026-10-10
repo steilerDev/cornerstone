@@ -2,10 +2,14 @@
  * CalendarMilestone — diamond marker for a milestone shown in a calendar day cell.
  *
  * Styled consistently with the Gantt diamond markers, using the same CSS tokens.
- * Clicking opens the Milestones panel (via callback).
+ * Clicking navigates to the milestone page (via callback).
  */
 
-import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import type {
+  FocusEvent as ReactFocusEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
 import { milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
@@ -17,8 +21,10 @@ import styles from './CalendarMilestone.module.css';
 
 export interface CalendarMilestoneProps {
   milestone: TimelineMilestone;
-  /** Called when user clicks or activates the milestone marker. */
+  /** Called when user clicks or activates the marker — navigates to the milestone page. */
   onMilestoneClick?: (milestoneId: number) => void;
+  /** Phone week view: 44px hit area (visible marker unchanged). */
+  touchSized?: boolean;
   /**
    * Called when mouse enters the milestone marker — passes milestone ID and
    * mouse viewport coordinates for tooltip positioning.
@@ -57,6 +63,7 @@ function DiamondIcon({ completed }: { completed: boolean }) {
 export function CalendarMilestone({
   milestone,
   onMilestoneClick,
+  touchSized = false,
   onMouseEnter,
   onMouseLeave,
   onMouseMove,
@@ -82,18 +89,25 @@ export function CalendarMilestone({
     onMouseMove?.(e.clientX, e.clientY);
   }
 
+  function handleFocus(e: ReactFocusEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    onMouseEnter?.(milestone.id, r.left + r.width / 2, r.top + r.height / 2);
+  }
+
   const statusLabel = milestoneStatusLabel(tCommon, milestone);
 
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`${styles.milestone} ${milestone.isCompleted ? styles.milestoneComplete : styles.milestoneIncomplete}`}
+      className={`${styles.milestone} ${milestone.isCompleted ? styles.milestoneComplete : styles.milestoneIncomplete} ${touchSized ? styles.touchSized : ''}`}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => onMouseLeave?.()}
       onMouseMove={handleMouseMove}
+      onFocus={handleFocus}
+      onBlur={() => onMouseLeave?.()}
       aria-label={t('calendar.milestone.ariaLabel', {
         title: milestone.title,
         status: statusLabel,

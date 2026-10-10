@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   buildInvoiceStatusVariants,
+  buildMilestoneStatusVariants,
   buildProgressPaymentStatusVariants,
   buildPurchaseStatusVariants,
   buildRefundVariants,
@@ -17,6 +18,7 @@ export function useStatusBadgeVariants() {
       progressPayment: buildProgressPaymentStatusVariants(t),
       task: buildTaskStatusVariants(t),
       purchase: buildPurchaseStatusVariants(t),
+      milestone: buildMilestoneStatusVariants(t),
       refund: buildRefundVariants(t),
     }),
     [t],

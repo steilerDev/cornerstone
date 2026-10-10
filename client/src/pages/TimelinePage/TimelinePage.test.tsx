@@ -13,6 +13,7 @@ import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
+import { LocaleProvider } from '../../contexts/LocaleContext.js';
 
 /** Renders the current router location pathname into a data-testid for navigation assertions. */
 function LocationDisplay() {
@@ -78,10 +79,12 @@ describe('TimelinePage', () => {
 
   function renderWithRouter(initialEntries?: string[]) {
     return render(
-      <MemoryRouter initialEntries={initialEntries}>
-        <TimelinePage />
-        <LocationDisplay />
-      </MemoryRouter>,
+      <LocaleProvider>
+        <MemoryRouter initialEntries={initialEntries}>
+          <TimelinePage />
+          <LocationDisplay />
+        </MemoryRouter>
+      </LocaleProvider>,
     );
   }
 
@@ -426,6 +429,74 @@ describe('TimelinePage', () => {
         'href',
         '/schedule/calendar',
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // Calendar empty state and milestone navigation (#2198)
+  // ---------------------------------------------------------------------------
+
+  describe('calendar empty state and milestone click (#2198)', () => {
+    function thisMonthDate(day: number): string {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    const MILESTONE: TimelineResponse['milestones'][number] = {
+      id: 42,
+      title: 'Test Shell Done',
+      targetDate: thisMonthDate(10),
+      isCompleted: false,
+      completedAt: null,
+      color: null,
+      workItemIds: [],
+      projectedDate: null,
+      isCritical: false,
+    };
+
+    const WORK_ITEM: TimelineResponse['workItems'][number] = {
+      id: 'wi-1',
+      title: 'Test Task',
+      status: 'not_started',
+      startDate: thisMonthDate(5),
+      endDate: thisMonthDate(6),
+      durationDays: 2,
+      actualStartDate: null,
+      actualEndDate: null,
+      startAfter: null,
+      startBefore: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+    };
+
+    it('shows the calendar empty state when tasks, milestones and purchases are all empty', async () => {
+      renderWithRouter(['/schedule/calendar']);
+      expect(await screen.findByTestId('calendar-empty')).toBeInTheDocument();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+    });
+
+    it('does not show the empty state when only a milestone exists', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, milestones: [MILESTONE] });
+      renderWithRouter(['/schedule/calendar']);
+      expect(await screen.findByRole('grid')).toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-empty')).not.toBeInTheDocument();
+    });
+
+    it('does not show the empty state when entity filters hide everything that exists', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, workItems: [WORK_ITEM] });
+      // Only milestones are shown, so the visible arrays are empty but the schedule is not
+      renderWithRouter(['/schedule/calendar?filter=milestones']);
+      expect(await screen.findByRole('grid')).toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-empty')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('calendar-item')).not.toBeInTheDocument();
+    });
+
+    it('clicking a calendar milestone navigates to /project/milestones/:id', async () => {
+      mockGetTimeline.mockResolvedValue({ ...EMPTY_TIMELINE, milestones: [MILESTONE] });
+      renderWithRouter(['/schedule/calendar']);
+      fireEvent.click(await screen.findByTestId('calendar-milestone'));
+      expect(screen.getByTestId('location-display')).toHaveTextContent('/project/milestones/42');
     });
   });
 });

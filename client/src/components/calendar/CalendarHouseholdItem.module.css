@@ -1,8 +1,10 @@
 .hiItem {
+  --chip-height: 18px;
+
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-1);
-  height: 18px;
+  height: var(--chip-height);
   border-radius: var(--radius-full);
   padding: 0 var(--spacing-2);
   font-size: var(--font-size-xs);
@@ -28,16 +30,6 @@
   opacity: 0.7;
 }
 
-.default {
-  background: var(--color-hi-status-scheduled-bg);
-  color: var(--color-hi-status-scheduled-text);
-}
-
-.arrived {
-  background: var(--color-hi-status-arrived-bg);
-  color: var(--color-hi-status-arrived-text);
-}
-
 .name {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -48,4 +40,14 @@
   .hiItem {
     transition: none;
   }
+}
+
+/* Phone week view: 44px hit area. Transparent block borders add vertical hit area only;
+   padding-box clipping keeps the visible chip exactly the non-touch chip height. */
+.touchSized {
+  height: auto;
+  min-height: 44px;
+  border-block: calc((44px - var(--chip-height)) / 2) solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
 }

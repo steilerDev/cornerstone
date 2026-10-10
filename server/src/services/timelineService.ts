@@ -172,13 +172,33 @@ export function getTimeline(db: DbType): TimelineResponse {
     .where(or(isNotNull(workItems.startDate), isNotNull(workItems.endDate)))
     .all();
 
+  // ── 1b. Fetch household items with at least one date set ─────────────────────────
+
+  const hiWithDates = db
+    .select()
+    .from(householdItems)
+    .where(
+      or(
+        isNotNull(householdItems.earliestDeliveryDate),
+        isNotNull(householdItems.latestDeliveryDate),
+        isNotNull(householdItems.targetDeliveryDate),
+      ),
+    )
+    .all();
+
   // ── 2. Build maps for assignedUserId, areaId, and assignedVendorId (batch lookup) ─
 
   const assignedUserIds = [
     ...new Set(rawWorkItems.map((wi) => wi.assignedUserId).filter(Boolean) as string[]),
   ];
 
-  const areaIds = [...new Set(rawWorkItems.map((wi) => wi.areaId).filter(Boolean) as string[])];
+  const areaIds = [
+    ...new Set(
+      [...rawWorkItems.map((wi) => wi.areaId), ...hiWithDates.map((hi) => hi.areaId)].filter(
+        Boolean,
+      ) as string[],
+    ),
+  ];
 
   const assignedVendorIds = [
     ...new Set(rawWorkItems.map((wi) => wi.assignedVendorId).filter(Boolean) as string[]),
@@ -509,20 +529,6 @@ export function getTimeline(db: DbType): TimelineResponse {
     };
   });
 
-  // ── 7. Fetch household items with at least one date set ─────────────────────────
-
-  const hiWithDates = db
-    .select()
-    .from(householdItems)
-    .where(
-      or(
-        isNotNull(householdItems.earliestDeliveryDate),
-        isNotNull(householdItems.latestDeliveryDate),
-        isNotNull(householdItems.targetDeliveryDate),
-      ),
-    )
-    .all();
-
   // ── 7a. Fetch all HI dependencies ────────────────────────────────────────────
 
   const allHIDeps = db.select().from(householdItemDeps).all();
@@ -557,6 +563,12 @@ export function getTimeline(db: DbType): TimelineResponse {
       actualDeliveryDate: hi.actualDeliveryDate,
       isLate: hi.isLate,
       dependencyIds,
+      area: hi.areaId
+        ? toAreaSummaryInternal(
+            areaMap.get(hi.areaId) ?? null,
+            resolveAreaAncestors(hi.areaId, areaMap),
+          )
+        : null,
     };
   });
 

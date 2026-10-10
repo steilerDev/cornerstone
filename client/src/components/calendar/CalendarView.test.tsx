@@ -19,7 +19,13 @@ import {
 } from '@jest/globals';
 import { render, screen, fireEvent, cleanup, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import type { TimelineWorkItem, TimelineMilestone } from '@cornerstone/shared';
+import type {
+  TimelineWorkItem,
+  TimelineMilestone,
+  TimelineHouseholdItem,
+} from '@cornerstone/shared';
+import type * as I18nTypes from '../../i18n/index.js';
+import type * as FormattersTypes from '../../lib/formatters.js';
 import type * as CalendarViewTypes from './CalendarView.js';
 
 // ─── Mock: LocaleContext — CalendarView uses useLocale() directly ─────────────
@@ -113,11 +119,16 @@ function parseCellAriaLabel(label: string): Date {
 // ---------------------------------------------------------------------------
 
 let CalendarView: typeof CalendarViewTypes.CalendarView;
+// Loaded lazily: static imports would evaluate the real LocaleContext before the mock is registered.
+let i18n: typeof I18nTypes.default;
+let formatDayRange: typeof FormattersTypes.formatDayRange;
 
 beforeEach(async () => {
   if (!CalendarView) {
     const module = await import('./CalendarView.js');
     CalendarView = module.CalendarView;
+    i18n = (await import('../../i18n/index.js')).default;
+    formatDayRange = (await import('../../lib/formatters.js')).formatDayRange;
   }
 });
 
@@ -132,17 +143,28 @@ afterEach(() => {
 function renderCalendar(props: {
   workItems?: TimelineWorkItem[];
   milestones?: TimelineMilestone[];
+  householdItems?: TimelineHouseholdItem[];
   onMilestoneClick?: jest.Mock;
   initialSearchParams?: string;
+  isEmpty?: boolean;
 }) {
-  const { workItems = [], milestones = [], onMilestoneClick, initialSearchParams = '' } = props;
+  const {
+    workItems = [],
+    milestones = [],
+    householdItems,
+    onMilestoneClick,
+    initialSearchParams = '',
+    isEmpty,
+  } = props;
   const initialEntry = initialSearchParams ? `/?${initialSearchParams}` : '/';
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <CalendarView
         workItems={workItems}
         milestones={milestones}
+        householdItems={householdItems}
         onMilestoneClick={onMilestoneClick}
+        isEmpty={isEmpty}
       />
     </MemoryRouter>,
   );
@@ -190,9 +212,9 @@ describe('CalendarView', () => {
 
     it('renders the MonthGrid by default (month mode)', () => {
       renderCalendar({});
-      // MonthGrid has role="grid" with aria-label matching "Calendar for YYYY-MM"
+      // MonthGrid has role="grid" with aria-label "Calendar for <Month> <year>"
       const grid = screen.getByRole('grid');
-      expect(grid.getAttribute('aria-label')).toMatch(/^Calendar for \d{4}-\d{2}$/);
+      expect(grid.getAttribute('aria-label')).toMatch(/^Calendar for [A-Z][a-z]+ \d{4}$/);
     });
   });
 
@@ -423,6 +445,16 @@ describe('CalendarView', () => {
       const heading = screen.getByRole('heading', { level: 2 });
       // Same month: "March 10–16, 2024" | Cross month: "March 29 – April 4, 2026"
       expect(heading.textContent).toMatch(/[A-Z][a-z]+ \d+\s*[–-]\s*([A-Z][a-z]+ )?\d+, \d{4}/);
+    });
+
+    it('week label is the formatDayRange of the displayed Sunday-Saturday cells', () => {
+      renderCalendar({ initialSearchParams: 'calendarMode=week' });
+      const cells = screen.getAllByRole('gridcell');
+      const first = parseCellAriaLabel(cells[0]!.getAttribute('aria-label')!);
+      const last = parseCellAriaLabel(cells[6]!.getAttribute('aria-label')!);
+      expect(screen.getByRole('heading', { level: 2 }).textContent).toBe(
+        formatDayRange(first, last, 'en-US'),
+      );
     });
 
     it('updates period label after month navigation', () => {
@@ -706,6 +738,332 @@ describe('CalendarView', () => {
 
       // Tooltip should never have appeared
       expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Empty state (#2198) ───────────────────────────────────────────────────
+
+  describe('empty state', () => {
+    it('renders the empty state with message, description and an Add a task link, and no grid', () => {
+      renderCalendar({ isEmpty: true });
+      const empty = screen.getByTestId('calendar-empty');
+      expect(empty).toHaveTextContent('Nothing is scheduled yet');
+      expect(empty).toHaveTextContent(
+        'Tasks, milestones and purchases appear here as soon as a task has dates.',
+      );
+      const link = screen.getByRole('link', { name: 'Add a task' });
+      expect(link).toHaveAttribute('href', '/project/work-items/new');
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+    });
+
+    it('keeps the toolbar usable: Next still changes the period label', () => {
+      renderCalendar({ isEmpty: true });
+      const before = screen.getByRole('heading', { level: 2 }).textContent;
+      fireEvent.click(screen.getByRole('button', { name: /next month/i }));
+      expect(screen.getByRole('heading', { level: 2 }).textContent).not.toBe(before);
+      expect(screen.getByTestId('calendar-empty')).toBeInTheDocument();
+    });
+
+    it('shows the empty state in week mode as well', () => {
+      renderCalendar({ isEmpty: true, initialSearchParams: 'calendarMode=week' });
+      expect(screen.getByTestId('calendar-empty')).toBeInTheDocument();
+      expect(screen.queryByRole('grid')).not.toBeInTheDocument();
+    });
+
+    it('renders the grid when isEmpty is false, even with empty arrays', () => {
+      renderCalendar({ isEmpty: false, workItems: [], milestones: [] });
+      expect(screen.queryByTestId('calendar-empty')).not.toBeInTheDocument();
+      expect(screen.getByRole('grid')).toBeInTheDocument();
+    });
+
+    it('renders the grid when isEmpty is omitted', () => {
+      renderCalendar({});
+      expect(screen.queryByTestId('calendar-empty')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Localised aria-labels (#2198) ─────────────────────────────────────────
+
+  describe('grid area aria-label from t()', () => {
+    afterEach(async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    });
+
+    it('week mode reads "Woche vom ..." in German', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      renderCalendar({ initialSearchParams: 'calendarMode=week' });
+      const gridArea = screen.getByRole('grid').parentElement;
+      expect(gridArea?.getAttribute('aria-label')).toMatch(/^Woche vom /);
+    });
+
+    it('week mode reads "Week of ..." in English', () => {
+      renderCalendar({ initialSearchParams: 'calendarMode=week' });
+      const gridArea = screen.getByRole('grid').parentElement;
+      expect(gridArea?.getAttribute('aria-label')).toMatch(/^Week of /);
+    });
+
+    it('month grid reads "Kalender für ..." in German', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      renderCalendar({});
+      expect(screen.getByRole('grid').getAttribute('aria-label')).toMatch(/^Kalender für /);
+    });
+  });
+
+  // ── Tooltip content: area, company, purchase (#2198) ──────────────────────
+
+  describe('tooltip content from the shared builders', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    function thisMonthDate(day: number): string {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    it('shows the area path and the Company when hovering a task with both', () => {
+      const item: TimelineWorkItem = {
+        ...makeWorkItem('wi-area', thisMonthDate(5), thisMonthDate(5)),
+        title: 'Test Tiling',
+        area: {
+          id: 'a-kitchen',
+          name: 'Test Kitchen',
+          color: null,
+          ancestors: [{ id: 'a-root', name: 'Test House', color: null }],
+        },
+        assignedVendor: { id: 'v1', name: 'Sample Tiling Ltd', trade: null },
+      };
+      renderCalendar({ workItems: [item] });
+      fireEvent.mouseEnter(screen.getByTestId('calendar-item'), { clientX: 300, clientY: 200 });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent(
+        'Test House › Test Kitchen',
+      );
+      expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Sample Tiling Ltd');
+      expect(tooltip).toHaveTextContent('Test Tiling');
+    });
+
+    it('shows a Waits for / Holds up grouping built from the dependencies', () => {
+      const a = { ...makeWorkItem('a', thisMonthDate(3), thisMonthDate(3)), title: 'Test Before' };
+      const b = { ...makeWorkItem('b', thisMonthDate(5), thisMonthDate(5)), title: 'Test Middle' };
+      const c = { ...makeWorkItem('c', thisMonthDate(7), thisMonthDate(7)), title: 'Test After' };
+      render(
+        <MemoryRouter>
+          <CalendarView
+            workItems={[a, b, c]}
+            milestones={[]}
+            dependencies={[
+              {
+                predecessorId: 'a',
+                successorId: 'b',
+                dependencyType: 'finish_to_start',
+                leadLagDays: 0,
+              },
+              {
+                predecessorId: 'b',
+                successorId: 'c',
+                dependencyType: 'finish_to_start',
+                leadLagDays: 0,
+              },
+            ]}
+          />
+        </MemoryRouter>,
+      );
+      const middle = screen
+        .getAllByTestId('calendar-item')
+        .find((el) => el.textContent?.includes('Test Middle'))!;
+      fireEvent.mouseEnter(middle, { clientX: 300, clientY: 200 });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Test Before');
+      expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Test After');
+    });
+
+    it('shows the purchase status word and area when hovering a purchase chip', () => {
+      const purchase: TimelineHouseholdItem = {
+        id: 'hi-1',
+        name: 'Sample Sofa',
+        category: 'furniture',
+        status: 'purchased',
+        targetDeliveryDate: thisMonthDate(9),
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        actualDeliveryDate: null,
+        isLate: false,
+        dependencyIds: [],
+        area: { id: 'a-living', name: 'Test Living Room', color: null, ancestors: [] },
+      };
+      renderCalendar({ householdItems: [purchase] });
+      fireEvent.mouseEnter(screen.getByTestId('calendar-hi-item'), { clientX: 300, clientY: 200 });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(tooltip).toHaveTextContent('Ordered');
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Living Room');
+    });
+
+    it('shows the tooltip when an item receives keyboard focus', () => {
+      const item = makeWorkItem('wi-focus', thisMonthDate(6), thisMonthDate(6));
+      renderCalendar({ workItems: [item] });
+      fireEvent.focus(screen.getByTestId('calendar-item'));
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+    });
+
+    it('hides the tooltip when the focused item is blurred', () => {
+      const item = makeWorkItem('wi-blur', thisMonthDate(6), thisMonthDate(6));
+      renderCalendar({ workItems: [item] });
+      const el = screen.getByTestId('calendar-item');
+      fireEvent.focus(el);
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      fireEvent.blur(el);
+      act(() => {
+        jest.advanceTimersByTime(500);
+      });
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    });
+  });
+
+  // ── Touch two-tap and linked items (#2198) ────────────────────────────────
+
+  describe('touch device and linked purchases', () => {
+    const originalMatchMedia = window.matchMedia;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      window.matchMedia = ((query: string) => ({
+        matches: query === '(pointer: coarse)',
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+    });
+
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+      jest.useRealTimers();
+    });
+
+    function thisMonthDate(day: number): string {
+      const now = new Date();
+      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    }
+
+    function makePurchase(overrides: Partial<TimelineHouseholdItem> = {}): TimelineHouseholdItem {
+      return {
+        id: 'hi-1',
+        name: 'Sample Sofa',
+        category: 'furniture',
+        status: 'scheduled',
+        targetDeliveryDate: thisMonthDate(9),
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        actualDeliveryDate: null,
+        isLate: false,
+        dependencyIds: [],
+        ...overrides,
+      };
+    }
+
+    it('the first tap on a task shows its tooltip with area and Company instead of navigating', () => {
+      const item: TimelineWorkItem = {
+        ...makeWorkItem('wi-touch', thisMonthDate(5), thisMonthDate(5)),
+        area: { id: 'a1', name: 'Test Kitchen', color: null, ancestors: [] },
+        assignedVendor: { id: 'v1', name: 'Sample Tiling Ltd', trade: null },
+      };
+      renderCalendar({ workItems: [item] });
+      fireEvent.click(screen.getByTestId('calendar-item'));
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Kitchen');
+      expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Sample Tiling Ltd');
+    });
+
+    it('the second tap on the same task hides the tooltip again', () => {
+      const item = makeWorkItem('wi-touch2', thisMonthDate(5), thisMonthDate(5));
+      renderCalendar({ workItems: [item] });
+      const el = screen.getByTestId('calendar-item');
+      fireEvent.click(el);
+      expect(screen.getByTestId('gantt-tooltip')).toBeInTheDocument();
+      fireEvent.click(el);
+      expect(screen.queryByTestId('gantt-tooltip')).not.toBeInTheDocument();
+    });
+
+    it('the first tap on a purchase shows its tooltip with the status word and linked tasks', () => {
+      const predecessor = {
+        ...makeWorkItem('wi-pre', thisMonthDate(3), thisMonthDate(3)),
+        title: 'Test Prep',
+      };
+      const purchase = makePurchase({
+        area: { id: 'a2', name: 'Test Living Room', color: null, ancestors: [] },
+        dependencyIds: [
+          { predecessorType: 'work_item', predecessorId: 'wi-pre' },
+          { predecessorType: 'milestone', predecessorId: '4' },
+          { predecessorType: 'work_item', predecessorId: 'wi-missing' },
+        ],
+      });
+      renderCalendar({
+        workItems: [predecessor],
+        milestones: [{ ...makeMilestone(4, thisMonthDate(2)), title: 'Test Shell Done' }],
+        householdItems: [purchase],
+      });
+      fireEvent.click(screen.getByTestId('calendar-hi-item'));
+      const tooltip = screen.getByTestId('gantt-tooltip');
+      expect(tooltip).toHaveTextContent('Delivery scheduled');
+      expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test Living Room');
+      expect(tooltip).toHaveTextContent('Test Prep');
+      expect(tooltip).toHaveTextContent('Test Shell Done');
+    });
+
+    it('hovering a purchase with linked tasks lists them in the tooltip (pointer devices)', () => {
+      window.matchMedia = ((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        addListener: () => {},
+        removeListener: () => {},
+        dispatchEvent: () => false,
+      })) as unknown as typeof window.matchMedia;
+      const predecessor = {
+        ...makeWorkItem('wi-pre', thisMonthDate(3), thisMonthDate(3)),
+        title: 'Test Prep',
+      };
+      renderCalendar({
+        workItems: [predecessor],
+        householdItems: [
+          makePurchase({
+            dependencyIds: [{ predecessorType: 'work_item', predecessorId: 'wi-pre' }],
+          }),
+        ],
+      });
+      fireEvent.mouseEnter(screen.getByTestId('calendar-hi-item'), { clientX: 10, clientY: 10 });
+      act(() => {
+        jest.advanceTimersByTime(150);
+      });
+      expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test Prep');
     });
   });
 });

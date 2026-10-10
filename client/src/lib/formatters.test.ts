@@ -11,6 +11,7 @@ import {
   computeActualDuration,
   formatWeekdayShort,
   formatWeekdayMonthDay,
+  formatDayRange,
   formatFileSize,
   formatFileSizeDecimal,
   formatHours,
@@ -625,6 +626,46 @@ describe('formatWeekdayMonthDay', () => {
   it('default locale (omitted) behaves as en-US', () => {
     const date = new Date(2026, 1, 24);
     expect(formatWeekdayMonthDay(date)).toBe(formatWeekdayMonthDay(date, 'en-US'));
+  });
+});
+
+// ─── formatDayRange (#2198) ───────────────────────────────────────────────────
+
+describe('formatDayRange', () => {
+  const d = (y: number, m: number, day: number) => new Date(Date.UTC(y, m - 1, day));
+
+  it('collapses a same-month range in en-US to one phrase', () => {
+    expect(formatDayRange(d(2026, 10, 4), d(2026, 10, 10), 'en-US')).toMatch(
+      /^October\s4\s[–-]\s10,\s2026$/,
+    );
+  });
+
+  it('shows both months for a cross-month range in en-US', () => {
+    expect(formatDayRange(d(2026, 10, 28), d(2026, 11, 3), 'en-US')).toMatch(
+      /^October\s28\s[–-]\sNovember\s3,\s2026$/,
+    );
+  });
+
+  it('collapses a same-month range in de-DE with German month name', () => {
+    expect(formatDayRange(d(2026, 10, 4), d(2026, 10, 10), 'de-DE')).toMatch(
+      /^4\.\s?[–-]\s?10\.\sOktober\s2026$/,
+    );
+  });
+
+  it('shows both months for a cross-month range in de-DE', () => {
+    const result = formatDayRange(d(2026, 10, 28), d(2026, 11, 3), 'de-DE');
+    expect(result).toMatch(/28\.\sOktober/);
+    expect(result).toMatch(/3\.\sNovember\s2026$/);
+  });
+
+  it('defaults to en-US when no locale is given', () => {
+    expect(formatDayRange(d(2026, 10, 4), d(2026, 10, 10))).toBe(
+      formatDayRange(d(2026, 10, 4), d(2026, 10, 10), 'en-US'),
+    );
+  });
+
+  it('formats UTC midnight dates without shifting the day', () => {
+    expect(formatDayRange(d(2026, 1, 1), d(2026, 1, 1), 'en-US')).toMatch(/January\s1,\s2026/);
   });
 });
 

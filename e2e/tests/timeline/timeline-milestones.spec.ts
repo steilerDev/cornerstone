@@ -10,6 +10,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { buildTimeline, mockMilestone, mockWorkItem } from '../../fixtures/timelineMocks.js';
 import { TimelinePage } from '../../pages/TimelinePage.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -29,45 +30,21 @@ test.describe('Milestone diamond markers on Gantt', () => {
       .slice(0, 10);
 
     // Mock timeline data with a milestone
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'milestone-chart-item',
-                title: 'Milestone Chart Item',
-                status: 'not_started',
-                startDate,
-                endDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [
-              {
-                id: 1,
-                title: 'Foundation Complete',
-                targetDate: endDate,
-                isCompleted: false,
-                completedAt: null,
-                projectedDate: null,
-                workItemIds: [],
-              },
-            ],
-            dateRange: { earliest: startDate, latest: endDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'milestone-chart-item',
+            title: 'Milestone Chart Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: endDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [mockMilestone({ id: 1, title: 'Foundation Complete', targetDate: endDate })],
+      }),
+    );
 
     try {
       await timelinePage.goto();
@@ -91,45 +68,21 @@ test.describe('Milestone diamond markers on Gantt', () => {
       .slice(0, 10);
     const startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
 
-    await page.route('**/api/timeline', async (route) => {
-      if (route.request().method() === 'GET') {
-        await route.fulfill({
-          status: 200,
-          contentType: 'application/json',
-          body: JSON.stringify({
-            workItems: [
-              {
-                id: 'aria-item',
-                title: 'ARIA Test Item',
-                status: 'not_started',
-                startDate,
-                endDate: targetDate,
-                durationDays: 30,
-                dependencies: [],
-                assignedUser: null,
-                isCriticalPath: false,
-              },
-            ],
-            dependencies: [],
-            criticalPath: [],
-            milestones: [
-              {
-                id: 42,
-                title: 'Phase 1 Done',
-                targetDate,
-                isCompleted: false,
-                completedAt: null,
-                projectedDate: null,
-                workItemIds: [],
-              },
-            ],
-            dateRange: { earliest: startDate, latest: targetDate },
+    await timelinePage.mockTimeline(
+      buildTimeline({
+        workItems: [
+          mockWorkItem({
+            id: 'aria-item',
+            title: 'ARIA Test Item',
+            status: 'not_started',
+            startDate: startDate,
+            endDate: targetDate,
+            durationDays: 30,
           }),
-        });
-      } else {
-        await route.continue();
-      }
-    });
+        ],
+        milestones: [mockMilestone({ id: 42, title: 'Phase 1 Done', targetDate: targetDate })],
+      }),
+    );
 
     try {
       await timelinePage.goto();

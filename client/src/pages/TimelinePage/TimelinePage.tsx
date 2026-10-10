@@ -318,6 +318,11 @@ export function TimelinePage() {
     data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
 
   const isEmpty = data !== null && data.workItems.length === 0;
+  const calendarIsEmpty =
+    data !== null &&
+    data.workItems.length === 0 &&
+    data.milestones.length === 0 &&
+    data.householdItems.length === 0;
 
   return (
     <div className={styles.page} data-testid="timeline-page">
@@ -674,6 +679,8 @@ export function TimelinePage() {
             milestones={filteredMilestones}
             householdItems={filteredHouseholdItems}
             dependencies={data.dependencies}
+            isEmpty={calendarIsEmpty}
+            onMilestoneClick={handleMilestoneClick}
           />
         )}
       </div>

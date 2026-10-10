@@ -3,6 +3,9 @@
  * ============================================================ */
 
 .milestone {
+  --chip-height: 18px;
+
+  min-height: var(--chip-height);
   display: flex;
   align-items: center;
   gap: var(--spacing-1);
@@ -57,4 +60,13 @@
   white-space: nowrap;
   flex: 1;
   min-width: 0;
+}
+
+/* Phone week view: 44px hit area. Transparent block borders add vertical hit area only;
+   padding-box clipping keeps the visible marker exactly the non-touch chip height. */
+.touchSized {
+  min-height: 44px;
+  border-block: calc((44px - var(--chip-height)) / 2) solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
 }

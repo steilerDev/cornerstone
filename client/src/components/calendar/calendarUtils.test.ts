@@ -14,21 +14,18 @@ import {
   getTodayStr,
   getMonthGrid,
   getWeekDates,
-  getItemsForDay,
   getMilestonesForDay,
   getHouseholdItemsForDay,
-  isItemStart,
-  isItemEnd,
   prevMonth,
   nextMonth,
   prevWeek,
   nextWeek,
   getMonthName,
   formatDateForAria,
+  getWeekSegments,
+  allocateLanes,
   DAY_NAMES,
   DAY_NAMES_NARROW,
-  getItemColor,
-  getContrastTextColor,
 } from './calendarUtils.js';
 import type {
   TimelineWorkItem,
@@ -436,83 +433,6 @@ describe('getWeekDates', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getItemsForDay
-// ---------------------------------------------------------------------------
-
-describe('getItemsForDay', () => {
-  it('returns empty array when items list is empty', () => {
-    expect(getItemsForDay('2024-03-15', [])).toEqual([]);
-  });
-
-  it('excludes items without startDate', () => {
-    const item = makeWorkItem('1', null, '2024-03-20');
-    expect(getItemsForDay('2024-03-15', [item])).toEqual([]);
-  });
-
-  it('excludes items without endDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', null);
-    expect(getItemsForDay('2024-03-15', [item])).toEqual([]);
-  });
-
-  it('excludes items where both startDate and endDate are null', () => {
-    const item = makeWorkItem('1', null, null);
-    expect(getItemsForDay('2024-03-15', [item])).toEqual([]);
-  });
-
-  it('includes item on its start date', () => {
-    const item = makeWorkItem('1', '2024-03-15', '2024-03-20');
-    expect(getItemsForDay('2024-03-15', [item])).toContain(item);
-  });
-
-  it('includes item on its end date', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-15');
-    expect(getItemsForDay('2024-03-15', [item])).toContain(item);
-  });
-
-  it('includes item for a date between start and end', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-20');
-    expect(getItemsForDay('2024-03-15', [item])).toContain(item);
-  });
-
-  it('excludes item before its start date', () => {
-    const item = makeWorkItem('1', '2024-03-16', '2024-03-20');
-    expect(getItemsForDay('2024-03-15', [item])).toEqual([]);
-  });
-
-  it('excludes item after its end date', () => {
-    const item = makeWorkItem('1', '2024-03-01', '2024-03-14');
-    expect(getItemsForDay('2024-03-15', [item])).toEqual([]);
-  });
-
-  it('handles single-day item (start === end)', () => {
-    const item = makeWorkItem('1', '2024-03-15', '2024-03-15');
-    expect(getItemsForDay('2024-03-15', [item])).toContain(item);
-    expect(getItemsForDay('2024-03-14', [item])).toHaveLength(0);
-    expect(getItemsForDay('2024-03-16', [item])).toHaveLength(0);
-  });
-
-  it('filters correctly among multiple items', () => {
-    const itemA = makeWorkItem('a', '2024-03-01', '2024-03-10');
-    const itemB = makeWorkItem('b', '2024-03-08', '2024-03-20');
-    const itemC = makeWorkItem('c', '2024-03-15', '2024-03-25');
-    const result = getItemsForDay('2024-03-09', [itemA, itemB, itemC]);
-    expect(result).toContain(itemA);
-    expect(result).toContain(itemB);
-    expect(result).not.toContain(itemC);
-  });
-
-  it('preserves item order as returned', () => {
-    const items = [
-      makeWorkItem('1', '2024-03-01', '2024-03-31'),
-      makeWorkItem('2', '2024-03-01', '2024-03-31'),
-      makeWorkItem('3', '2024-03-01', '2024-03-31'),
-    ];
-    const result = getItemsForDay('2024-03-15', items);
-    expect(result.map((i) => i.id)).toEqual(['1', '2', '3']);
-  });
-});
-
-// ---------------------------------------------------------------------------
 // getMilestonesForDay
 // ---------------------------------------------------------------------------
 
@@ -641,58 +561,6 @@ describe('getHouseholdItemsForDay', () => {
     expect(result).toContain(item1);
     expect(result).toContain(item2);
     expect(result).not.toContain(item3);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// isItemStart
-// ---------------------------------------------------------------------------
-
-describe('isItemStart', () => {
-  it('returns true when dateStr matches item startDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-20');
-    expect(isItemStart('2024-03-10', item)).toBe(true);
-  });
-
-  it('returns false when dateStr does not match item startDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-20');
-    expect(isItemStart('2024-03-11', item)).toBe(false);
-  });
-
-  it('returns false when item has no startDate', () => {
-    const item = makeWorkItem('1', null, '2024-03-20');
-    expect(isItemStart('2024-03-15', item)).toBe(false);
-  });
-
-  it('returns false when item has null startDate and null endDate', () => {
-    const item = makeWorkItem('1', null, null);
-    expect(isItemStart('2024-03-15', item)).toBe(false);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// isItemEnd
-// ---------------------------------------------------------------------------
-
-describe('isItemEnd', () => {
-  it('returns true when dateStr matches item endDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-20');
-    expect(isItemEnd('2024-03-20', item)).toBe(true);
-  });
-
-  it('returns false when dateStr does not match item endDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', '2024-03-20');
-    expect(isItemEnd('2024-03-19', item)).toBe(false);
-  });
-
-  it('returns false when item has no endDate', () => {
-    const item = makeWorkItem('1', '2024-03-10', null);
-    expect(isItemEnd('2024-03-15', item)).toBe(false);
-  });
-
-  it('returns false for endDate null even when item is single-day', () => {
-    const item = makeWorkItem('1', '2024-03-15', null);
-    expect(isItemEnd('2024-03-15', item)).toBe(false);
   });
 });
 
@@ -931,6 +799,11 @@ describe('formatDateForAria', () => {
       expect(formatDateForAria('2024-03-11')).toBe('Monday, March 11, 2024');
     });
 
+    it('formats the exact en-US and de-DE sentences (weekday, day, month, year)', () => {
+      expect(formatDateForAria('2026-02-24', 'en-US')).toBe('Tuesday, February 24, 2026');
+      expect(formatDateForAria('2026-02-24', 'de-DE')).toBe('Dienstag, 24. Februar 2026');
+    });
+
     it('explicit en-US locale behaves identically to the default', () => {
       expect(formatDateForAria('2024-03-11', 'en-US')).toBe(formatDateForAria('2024-03-11'));
     });
@@ -958,97 +831,94 @@ describe('DAY_NAMES_NARROW', () => {
 });
 
 // ---------------------------------------------------------------------------
-// getItemColor (#335)
+// getWeekSegments (#2198)
 // ---------------------------------------------------------------------------
 
-describe('getItemColor', () => {
-  it('returns a number between 1 and 8 inclusive', () => {
-    const result = getItemColor('item-1');
-    expect(result).toBeGreaterThanOrEqual(1);
-    expect(result).toBeLessThanOrEqual(8);
+describe('getWeekSegments', () => {
+  // Sunday 2024-03-03 .. Saturday 2024-03-09
+  const week1 = getWeekDates(new Date(Date.UTC(2024, 2, 3)));
+  const week2 = getWeekDates(new Date(Date.UTC(2024, 2, 10)));
+  const week3 = getWeekDates(new Date(Date.UTC(2024, 2, 17)));
+
+  it('gives an item inside one week exactly one segment with both continuation flags false', () => {
+    const item = makeWorkItem('a', '2024-03-05', '2024-03-07');
+    const segments = getWeekSegments(week1, [item]);
+    expect(segments).toHaveLength(1);
+    expect(segments[0]).toMatchObject({
+      startCol: 2,
+      span: 3,
+      continuesFromPrevious: false,
+      continuesToNext: false,
+    });
   });
 
-  it('returns an integer', () => {
-    expect(Number.isInteger(getItemColor('item-1'))).toBe(true);
+  it('cuts an item from Wednesday of week 1 to Tuesday of week 3 into one segment per week', () => {
+    const item = makeWorkItem('long', '2024-03-06', '2024-03-19');
+    const all = [week1, week2, week3].map((w) => getWeekSegments(w, [item]));
+    expect(all.every((s) => s.length === 1)).toBe(true);
+    const [s1, s2, s3] = all.map((s) => s[0]!);
+    expect([s1!.startCol, s2!.startCol, s3!.startCol]).toEqual([3, 0, 0]);
+    expect([s1!.span, s2!.span, s3!.span]).toEqual([4, 7, 3]);
+    expect([s1, s2, s3].map((s) => [s!.continuesFromPrevious, s!.continuesToNext])).toEqual([
+      [false, true],
+      [true, true],
+      [true, false],
+    ]);
   });
 
-  it('is deterministic — same input always yields same output', () => {
-    expect(getItemColor('abc-123')).toBe(getItemColor('abc-123'));
+  it('gives an item spanning exactly Sunday to Saturday a span of 7 without continuations', () => {
+    const item = makeWorkItem('full', '2024-03-03', '2024-03-09');
+    const [segment] = getWeekSegments(week1, [item]);
+    expect(segment).toMatchObject({
+      startCol: 0,
+      span: 7,
+      continuesFromPrevious: false,
+      continuesToNext: false,
+    });
   });
 
-  it('distributes differently for distinct IDs', () => {
-    const colors = new Set(
-      [
-        'item-1',
-        'item-2',
-        'item-3',
-        'item-4',
-        'item-5',
-        'item-6',
-        'item-7',
-        'item-8',
-        'item-9',
-        'item-10',
-      ].map(getItemColor),
-    );
-    // At least 2 distinct color values across 10 items
-    expect(colors.size).toBeGreaterThanOrEqual(2);
+  it('skips items that miss a date or lie outside the week', () => {
+    const items = [
+      makeWorkItem('no-start', null, '2024-03-05'),
+      makeWorkItem('no-end', '2024-03-05', null),
+      makeWorkItem('none', null, null),
+      makeWorkItem('before', '2024-02-20', '2024-03-02'),
+      makeWorkItem('after', '2024-03-10', '2024-03-12'),
+    ];
+    expect(getWeekSegments(week1, items)).toEqual([]);
   });
 
-  it('empty string ID returns a value in range', () => {
-    const result = getItemColor('');
-    expect(result).toBeGreaterThanOrEqual(1);
-    expect(result).toBeLessThanOrEqual(8);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// getContrastTextColor (#335)
-// ---------------------------------------------------------------------------
-
-describe('getContrastTextColor', () => {
-  it('returns #ffffff for a dark background (black)', () => {
-    expect(getContrastTextColor('#000000')).toBe('#ffffff');
-  });
-
-  it('returns #000000 for a light background (white)', () => {
-    expect(getContrastTextColor('#ffffff')).toBe('#000000');
+  it('uses the lane that allocateLanes assigns to each item', () => {
+    const items = [
+      makeWorkItem('a', '2024-03-04', '2024-03-06'),
+      makeWorkItem('b', '2024-03-05', '2024-03-08'),
+      makeWorkItem('c', '2024-03-07', '2024-03-09'),
+    ];
+    const lanes = allocateLanes('2024-03-03', '2024-03-09', items);
+    const segments = getWeekSegments(week1, items);
+    expect(segments).toHaveLength(3);
+    for (const sg of segments) {
+      expect(sg.lane).toBe(lanes.get(sg.item.id));
+    }
+    // overlapping items must not share a lane
+    expect(new Set(segments.filter((sg) => sg.item.id !== 'c').map((sg) => sg.lane)).size).toBe(2);
   });
 
-  it('returns #ffffff for a dark blue background', () => {
-    // #1e3a5f is a dark navy — should use white text
-    expect(getContrastTextColor('#1e3a5f')).toBe('#ffffff');
-  });
-
-  it('returns #000000 for a light yellow background', () => {
-    // #ffff00 is bright yellow — should use black text
-    expect(getContrastTextColor('#ffff00')).toBe('#000000');
-  });
-
-  it('handles hex without # prefix', () => {
-    // Should work with or without leading '#'
-    expect(getContrastTextColor('000000')).toBe('#ffffff');
-    expect(getContrastTextColor('ffffff')).toBe('#000000');
-  });
-
-  it('returns #000000 for invalid (too-short) hex string', () => {
-    // Fallback for malformed input
-    expect(getContrastTextColor('#fff')).toBe('#000000');
-    expect(getContrastTextColor('#12')).toBe('#000000');
-  });
-
-  it('returns #ffffff for a medium-dark red (#cc0000)', () => {
-    expect(getContrastTextColor('#cc0000')).toBe('#ffffff');
-  });
-
-  it('returns #000000 for a medium-light green (#90ee90 = lightgreen)', () => {
-    // lightgreen has high luminance — should prefer black text
-    expect(getContrastTextColor('#90ee90')).toBe('#000000');
-  });
-
-  it('returns one of the two expected values', () => {
-    // The function must always return exactly '#ffffff' or '#000000'
-    const result = getContrastTextColor('#3b82f6');
-    expect(['#ffffff', '#000000']).toContain(result);
+  it('sorts segments by lane, then by start column', () => {
+    const items = [
+      makeWorkItem('late', '2024-03-08', '2024-03-09'),
+      makeWorkItem('mid', '2024-03-05', '2024-03-06'),
+      makeWorkItem('early', '2024-03-03', '2024-03-04'),
+      makeWorkItem('over', '2024-03-04', '2024-03-08'),
+    ];
+    const segments = getWeekSegments(week1, items);
+    for (let i = 1; i < segments.length; i++) {
+      const prev = segments[i - 1]!;
+      const cur = segments[i]!;
+      expect(
+        prev.lane < cur.lane || (prev.lane === cur.lane && prev.startCol <= cur.startCol),
+      ).toBe(true);
+    }
+    expect(segments.length).toBe(4);
   });
 });

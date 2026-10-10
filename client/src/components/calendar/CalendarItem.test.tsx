@@ -120,7 +120,7 @@ describe('CalendarItem', () => {
       renderItem({ item });
       expect(screen.getByRole('button')).toHaveAttribute(
         'aria-label',
-        'Task: Roof Installation, status: In progress',
+        'Task: Roof Installation, In progress, Mar 10, 2024 to Mar 20, 2024',
       );
     });
 
@@ -140,11 +140,50 @@ describe('CalendarItem', () => {
       expect(screen.getByText('Foundation Work')).toBeInTheDocument();
     });
 
-    it('does not show title text when isStart=false', () => {
+    it('shows the title on a continuation segment (isStart=false) so every week row is readable', () => {
       const item = makeItem({ title: 'Foundation Work' });
       renderItem({ item, isStart: false });
-      // The title span is only rendered when isStart is true
-      expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
+      expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+    });
+
+    it.each([
+      ['start', true, false],
+      ['middle', false, false],
+      ['end', false, true],
+      ['single', true, true],
+    ])('shows the title on a %s segment', (_name, isStart, isEnd) => {
+      renderItem({ isStart, isEnd });
+      expect(screen.getByText('Foundation Work')).toBeInTheDocument();
+    });
+
+    it('shows "←" only when the item continues from a previous week, aria-hidden', () => {
+      renderItem({ isStart: false, isEnd: true });
+      const arrow = screen.getByText('←');
+      expect(arrow).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.queryByText('→')).not.toBeInTheDocument();
+    });
+
+    it('shows "→" only when the item continues into the next week, aria-hidden', () => {
+      renderItem({ isStart: true, isEnd: false });
+      const arrow = screen.getByText('→');
+      expect(arrow).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.queryByText('←')).not.toBeInTheDocument();
+    });
+
+    it('shows neither arrow on a single-segment item and both on a middle segment', () => {
+      const { unmount } = renderItem({ isStart: true, isEnd: true });
+      expect(screen.queryByText('←')).not.toBeInTheDocument();
+      expect(screen.queryByText('→')).not.toBeInTheDocument();
+      unmount();
+      renderItem({ isStart: false, isEnd: false });
+      expect(screen.getByText('←')).toBeInTheDocument();
+      expect(screen.getByText('→')).toBeInTheDocument();
+    });
+
+    it('hides the visible title from assistive tech; the aria-label carries the full sentence', () => {
+      renderItem();
+      expect(screen.getByText('Foundation Work')).toHaveAttribute('aria-hidden', 'true');
+      expect(screen.getByRole('button')).toHaveAccessibleName(/^Task: Foundation Work,/);
     });
   });
 
@@ -411,49 +450,151 @@ describe('CalendarItem', () => {
     });
   });
 
-  // ── tagColor / tagTextColor — #335 color-coding by tag ────────────────────
+  // ── Status colour (#2198): by status, never by id ─────────────────────────
 
-  describe('tagColor and tagTextColor props', () => {
-    it('applies inline background style when tagColor is provided', () => {
-      render(
-        <MemoryRouter>
-          <CalendarItem item={makeItem()} isStart isEnd tagColor="#3b82f6" tagTextColor="#ffffff" />
-        </MemoryRouter>,
-      );
+  describe('status colour', () => {
+    it.each([
+      ['not_started', 'notStarted'],
+      ['in_progress', 'inProgress'],
+      ['completed', 'completed'],
+    ] as const)('uses the Badge class %s -> %s and carries data-status', (status, badgeClass) => {
+      renderItem({ item: makeItem({ status }) });
       const el = screen.getByTestId('calendar-item');
-      expect(el.style.background).toBe('rgb(59, 130, 246)'); // #3b82f6
+      expect(el.className).toContain(badgeClass);
+      expect(el).toHaveAttribute('data-status', status);
     });
 
-    it('applies inline color style when tagTextColor is provided', () => {
-      render(
-        <MemoryRouter>
-          <CalendarItem item={makeItem()} isStart isEnd tagColor="#3b82f6" tagTextColor="#ffffff" />
-        </MemoryRouter>,
-      );
-      const el = screen.getByTestId('calendar-item');
-      expect(el.style.color).toBe('rgb(255, 255, 255)'); // #ffffff
+    it('gives two in-progress items with different ids the same colour class', () => {
+      const { unmount } = renderItem({ item: makeItem({ id: 'aaa', status: 'in_progress' }) });
+      const first = screen.getByTestId('calendar-item').className;
+      unmount();
+      renderItem({ item: makeItem({ id: 'zzz-different', status: 'in_progress' }) });
+      expect(screen.getByTestId('calendar-item').className).toBe(first);
     });
 
-    it('uses CSS variable when colorIndex is provided and tagColor is null', () => {
-      render(
-        <MemoryRouter>
-          <CalendarItem item={makeItem()} isStart isEnd colorIndex={3} tagColor={null} />
-        </MemoryRouter>,
-      );
+    it('sets no inline background or colour (the colour comes from the class)', () => {
+      renderItem({ item: makeItem({ status: 'completed' }) });
       const el = screen.getByTestId('calendar-item');
-      // colorIndex uses CSS variable reference — inline style contains var()
-      expect(el.style.background).toContain('var(--calendar-item-3-bg)');
-    });
-
-    it('renders with no inline color when neither tagColor nor colorIndex is provided', () => {
-      render(
-        <MemoryRouter>
-          <CalendarItem item={makeItem()} isStart isEnd />
-        </MemoryRouter>,
-      );
-      const el = screen.getByTestId('calendar-item');
-      // No explicit background set — empty string or inherits
       expect(el.style.background).toBeFalsy();
+      expect(el.style.backgroundColor).toBeFalsy();
+      expect(el.style.color).toBeFalsy();
+    });
+  });
+
+  // ── aria-label with area (#2198) ──────────────────────────────────────────
+
+  describe('aria-label with and without area', () => {
+    it('includes the area name when the item has an area', () => {
+      const item = makeItem({
+        area: { id: 'a1', name: 'Test Kitchen', color: null, ancestors: [] },
+      });
+      renderItem({ item });
+      expect(screen.getByRole('button')).toHaveAttribute(
+        'aria-label',
+        'Task: Foundation Work, Not started, Test Kitchen, Mar 10, 2024 to Mar 20, 2024',
+      );
+    });
+
+    it('omits the area segment when the item has no area', () => {
+      renderItem();
+      expect(screen.getByRole('button').getAttribute('aria-label')).not.toContain('Test Kitchen');
+    });
+
+    it('is identical for every isStart/isEnd combination of the same item', () => {
+      const labels = [
+        [true, true],
+        [true, false],
+        [false, true],
+        [false, false],
+      ].map(([isStart, isEnd]) => {
+        const { unmount } = renderItem({ isStart: isStart!, isEnd: isEnd! });
+        const label = screen.getByRole('button').getAttribute('aria-label');
+        unmount();
+        return label;
+      });
+      expect(new Set(labels).size).toBe(1);
+    });
+  });
+
+  // ── segment layout: span, lane, touch size ────────────────────────────────
+
+  describe('segment layout', () => {
+    function renderLaid(
+      props: Partial<React.ComponentProps<typeof CalendarItemTypes.CalendarItem>>,
+    ) {
+      return render(
+        <MemoryRouter>
+          <CalendarItem item={makeItem()} isStart isEnd {...props} />
+        </MemoryRouter>,
+      );
+    }
+
+    it('span=3 stretches the right edge over three day columns', () => {
+      renderLaid({ laneIndex: 0, span: 3 });
+      expect(screen.getByTestId('calendar-item').style.right).toBe('calc(-2 * (100% + 1px))');
+    });
+
+    it('span=1 anchors the right edge at 0', () => {
+      renderLaid({ laneIndex: 0, span: 1 });
+      expect(screen.getByTestId('calendar-item').style.right).toBe('0px');
+    });
+
+    it('positions by lane using the compact lane height (20) in month mode', () => {
+      renderLaid({ laneIndex: 2, compact: true });
+      expect(screen.getByTestId('calendar-item').style.top).toBe('40px');
+    });
+
+    it('positions by lane using the full lane height (26) in week mode', () => {
+      renderLaid({ laneIndex: 2, compact: false });
+      expect(screen.getByTestId('calendar-item').style.top).toBe('52px');
+    });
+
+    it('laneHeight overrides the default lane height', () => {
+      renderLaid({ laneIndex: 2, laneHeight: 48 });
+      expect(screen.getByTestId('calendar-item').style.top).toBe('96px');
+    });
+
+    it('stays in normal flow (no absolute positioning) without a laneIndex', () => {
+      renderLaid({});
+      expect(screen.getByTestId('calendar-item').style.position).toBe('');
+    });
+
+    it('touchSized adds the touchSized class, and is absent otherwise', () => {
+      const { unmount } = renderLaid({ touchSized: true });
+      expect(screen.getByTestId('calendar-item').className).toContain('touchSized');
+      unmount();
+      renderLaid({});
+      expect(screen.getByTestId('calendar-item').className).not.toContain('touchSized');
+    });
+  });
+
+  // ── keyboard focus shows the tooltip (#2198) ─────────────────────────────
+
+  describe('focus and blur', () => {
+    it('focus calls onMouseEnter with the id and the centre of the element rect', () => {
+      const onMouseEnter = jest.fn();
+      renderItem({ onMouseEnter });
+      const el = screen.getByTestId('calendar-item');
+      el.getBoundingClientRect = () =>
+        ({ left: 100, top: 40, width: 60, height: 20, right: 160, bottom: 60 }) as DOMRect;
+      fireEvent.focus(el);
+      expect(onMouseEnter).toHaveBeenCalledWith('item-1', 130, 50);
+    });
+
+    it('blur calls onMouseLeave', () => {
+      const onMouseLeave = jest.fn();
+      renderItem({ onMouseLeave });
+      fireEvent.blur(screen.getByTestId('calendar-item'));
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('focus and blur without handlers do not throw', () => {
+      renderItem();
+      const el = screen.getByTestId('calendar-item');
+      expect(() => {
+        fireEvent.focus(el);
+        fireEvent.blur(el);
+      }).not.toThrow();
     });
   });
 

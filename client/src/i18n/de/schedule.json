@@ -90,7 +90,9 @@
         "endLabel": "Ende",
         "ownerLabel": "Verantwortlicher",
         "areaLabel": "Bereich",
-        "dependencies": "Abhängigkeiten",
+        "companyLabel": "Firma",
+        "waitsFor": "Wartet auf",
+        "holdsUp": "Hält auf",
         "more": "weitere"
       },
       "milestone": {
@@ -98,14 +100,14 @@
         "projectedLabel": "Voraussichtlich",
         "doneLabel": "Fertig",
         "contributing": "Beitrag",
-        "blockedByThis": "Wird von diesem blockiert",
+        "blockedByThis": "Hält auf",
         "linkedItems": "Verknüpfte Elemente",
         "none": "Keine",
-        "contributingAriaLabel": "Arbeitspakete, die zu diesem Meilenstein beitragen",
-        "blockedByThisAriaLabel": "Arbeitspakete, die von diesem Meilenstein blockiert werden"
+        "contributingAriaLabel": "Aufgaben, die zu diesem Meilenstein beitragen",
+        "blockedByThisAriaLabel": "Aufgaben, die dieser Meilenstein aufhält"
       },
       "householdItem": {
-        "statusLabel": "Status",
+        "areaLabel": "Bereich",
         "earliestLabel": "Früheste",
         "targetLabel": "Zielangabe",
         "latestLabel": "Späteste",
@@ -134,11 +136,20 @@
     },
     "householdItem": {
       "ariaLabel": "Anschaffung: {{name}}, {{status}}, Lieferung {{date}}",
+      "ariaLabelWithArea": "Anschaffung: {{name}}, {{status}}, {{area}}, Lieferung {{date}}",
       "ariaLabelUnscheduled": "Anschaffung: {{name}}, {{status}}, Lieferung nicht geplant"
     },
     "item": {
-      "ariaLabel": "Aufgabe: {{title}}, Status: {{status}}"
+      "ariaLabel": "Aufgabe: {{title}}, {{status}}, {{start}} bis {{end}}",
+      "ariaLabelWithArea": "Aufgabe: {{title}}, {{status}}, {{area}}, {{start}} bis {{end}}"
     },
+    "emptyState": {
+      "message": "Noch nichts geplant",
+      "description": "Aufgaben, Meilensteine und Anschaffungen erscheinen hier, sobald eine Aufgabe Termine hat.",
+      "action": "Aufgabe hinzufügen"
+    },
+    "monthGridAriaLabel": "Kalender für {{period}}",
+    "weekGridAriaLabel": "Woche vom {{days}}",
     "navigation": {
       "previousMonth": "Vorheriger Monat",
       "nextMonth": "Nächster Monat",

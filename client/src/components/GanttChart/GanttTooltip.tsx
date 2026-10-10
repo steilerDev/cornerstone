@@ -2,16 +2,17 @@ import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus, DependencyType, HouseholdItemStatus } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { estimateWorkItemTooltipHeight } from './tooltipData.js';
 import styles from './GanttTooltip.module.css';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-/** A single entry in the work-item tooltip's Dependencies list. */
+/** A single entry in the work-item tooltip's Waits for / Holds up lists. */
 export interface GanttTooltipDependencyEntry {
   /** Title of the related (predecessor or successor) work item. */
   relatedTitle: string;
@@ -29,11 +30,13 @@ export interface GanttTooltipWorkItemData {
   endDate: string | null;
   durationDays: number | null;
   assignedUserName: string | null;
+  /** Company (vendor) name, if the work item has one. */
+  assignedVendorName?: string | null;
   /** Area name, if the work item is assigned to an area. */
   areaName?: string | null;
   /**
    * Dependency relationships for this work item (predecessors and successors).
-   * When absent or empty, no "Dependencies" section is rendered in the tooltip.
+   * Grouped by `role` into Waits for / Holds up; empty groups are not rendered.
    */
   dependencies?: GanttTooltipDependencyEntry[];
   /**
@@ -84,7 +87,8 @@ export interface GanttTooltipArrowData {
 export interface GanttTooltipHouseholdItemData {
   kind: 'household-item';
   name: string;
-  category: string;
+  /** Area path, if the purchase is assigned to an area. */
+  areaName?: string | null;
   status: HouseholdItemStatus;
   earliestDeliveryDate: string | null;
   latestDeliveryDate: string | null;
@@ -140,20 +144,7 @@ interface GanttTooltipProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-const STATUS_BADGE_CLASSES: Record<WorkItemStatus, string> = {
-  not_started: styles.statusNotStarted!,
-  in_progress: styles.statusInProgress!,
-  completed: styles.statusCompleted!,
-};
-
 const TOOLTIP_WIDTH = 240;
-/**
- * Base height estimate for tooltip flip-logic. When the work-item tooltip has
- * visible dependencies, the actual rendered height will be larger — we add
- * 18px per dependency row on top of this base when computing the flip point.
- * Increased from 130 to 165 to account for planned/actual/variance duration rows.
- */
-const TOOLTIP_HEIGHT_BASE = 165;
 const TOOLTIP_HEIGHT_ESTIMATE = 200; // safe upper bound used for arrow/milestone tooltips
 const OFFSET_X = 12;
 const OFFSET_Y = 8;
@@ -168,15 +159,9 @@ function WorkItemTooltipContent({
   isTouchDevice?: boolean;
 }) {
   const { t } = useTranslation('schedule');
-  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
-  const taskStatusSet = I18N_UNION_KEYS.statusVocabularyTask;
-  const statusLabels: Record<WorkItemStatus, string> = {
-    not_started: tCommon(taskStatusSet.key('not_started')),
-    in_progress: tCommon(taskStatusSet.key('in_progress')),
-    completed: tCommon(taskStatusSet.key('completed')),
-  };
+  const { task: taskVariants } = useStatusBadgeVariants();
 
   const dependencyTypeLabels: Record<DependencyType, string> = {
     finish_to_start: t('gantt.tooltip.dependency.finishToStart')!,
@@ -192,8 +177,8 @@ function WorkItemTooltipContent({
   }
 
   const dependencies = data.dependencies ?? [];
-  const shownDeps = dependencies.slice(0, MAX_DEPS_SHOWN);
-  const depsOverflowCount = dependencies.length - shownDeps.length;
+  const waitsFor = dependencies.filter((d) => d.role === 'predecessor');
+  const holdsUp = dependencies.filter((d) => d.role === 'successor');
 
   // Whether the duration section rendered a trailing separator.
   // Used to avoid a double separator when there is no owner row between the
@@ -204,7 +189,7 @@ function WorkItemTooltipContent({
   // in the variance branch handles the case where there IS an owner row or dependencies
   // follow directly. We suppress it here by moving the separator responsibility to
   // the dependencies block and removing the trailing separator from the variance branch.
-  const hasOwner = data.assignedUserName !== null;
+  const hasAssignee = data.assignedUserName != null || data.assignedVendorName != null;
 
   const durationVariance = hasBothDurations
     ? data.actualDurationDays! - data.plannedDurationDays!
@@ -237,13 +222,46 @@ function WorkItemTooltipContent({
       </div>
     );
 
+  function renderDependencyGroup(
+    label: string,
+    entries: GanttTooltipDependencyEntry[],
+    testId: string,
+  ) {
+    if (entries.length === 0) return null;
+    const shown = entries.slice(0, MAX_DEPS_SHOWN);
+    const overflow = entries.length - shown.length;
+    return (
+      <div className={styles.linkedItemsSection} data-testid={testId}>
+        <span className={styles.linkedItemsLabel}>
+          {label} ({entries.length})
+        </span>
+        <ul className={styles.linkedItemsList} aria-label={label}>
+          {shown.map((dep, idx) => (
+            // eslint-disable-next-line @eslint-react/no-array-index-key -- dependency list filtered at render time; composite key with title+index is stable
+            <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
+              <span className={styles.depTypeLabel}>
+                {dependencyTypeLabels[dep.dependencyType]}
+              </span>{' '}
+              {dep.relatedTitle}
+            </li>
+          ))}
+          {overflow > 0 && (
+            <li className={styles.linkedItemsOverflow}>
+              +{overflow} {t('gantt.tooltip.workItem.more')}
+            </li>
+          )}
+        </ul>
+      </div>
+    );
+  }
+
   return (
     <>
       {/* Header: title + status badge */}
       <div className={styles.header}>
         <span className={styles.title}>{data.title}</span>
-        <span className={`${styles.statusBadge} ${STATUS_BADGE_CLASSES[data.status]}`}>
-          {statusLabels[data.status]}
+        <span className={`${styles.statusBadge} ${taskVariants[data.status].className}`}>
+          {taskVariants[data.status].label}
         </span>
       </div>
 
@@ -297,53 +315,43 @@ function WorkItemTooltipContent({
       {/* Separator after duration section — only when variance was shown AND owner follows.
           When variance is shown but no owner, the separator before dependencies handles it.
           When no variance is shown, no separator is needed here. */}
-      {hasBothDurations && hasOwner && <div className={styles.separator} aria-hidden="true" />}
+      {hasBothDurations && hasAssignee && <div className={styles.separator} aria-hidden="true" />}
 
       {/* Assigned user */}
-      {hasOwner && (
+      {data.assignedUserName != null && (
         <div className={styles.detailRow}>
           <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.ownerLabel')}</span>
           <span className={styles.detailValue}>{data.assignedUserName}</span>
         </div>
       )}
 
+      {/* Company */}
+      {data.assignedVendorName && (
+        <div className={styles.detailRow} data-testid="gantt-tooltip-company">
+          <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.companyLabel')}</span>
+          <span className={styles.detailValue}>{data.assignedVendorName}</span>
+        </div>
+      )}
+
       {/* Area */}
       {data.areaName && (
-        <div className={styles.detailRow}>
+        <div className={styles.detailRow} data-testid="gantt-tooltip-area">
           <span className={styles.detailLabel}>{t('gantt.tooltip.workItem.areaLabel')}</span>
           <span className={styles.detailValue}>{data.areaName}</span>
         </div>
       )}
 
-      {/* Dependencies section — separator only when preceding content exists */}
-      {dependencies.length > 0 && (
-        <>
-          <div className={styles.separator} aria-hidden="true" />
-          <div className={styles.linkedItemsSection}>
-            <span className={styles.linkedItemsLabel}>
-              {t('gantt.tooltip.workItem.dependencies')} ({dependencies.length})
-            </span>
-            <ul
-              className={styles.linkedItemsList}
-              aria-label={t('gantt.tooltip.workItem.dependencies')}
-            >
-              {shownDeps.map((dep, idx) => (
-                // eslint-disable-next-line @eslint-react/no-array-index-key -- dependency list filtered at render time; composite key with title+index is stable
-                <li key={`${dep.relatedTitle}-${idx}`} className={styles.linkedItem}>
-                  <span className={styles.depTypeLabel}>
-                    {dependencyTypeLabels[dep.dependencyType]}
-                  </span>{' '}
-                  {dep.relatedTitle}
-                </li>
-              ))}
-              {depsOverflowCount > 0 && (
-                <li className={styles.linkedItemsOverflow}>
-                  +{depsOverflowCount} {t('gantt.tooltip.workItem.more')}
-                </li>
-              )}
-            </ul>
-          </div>
-        </>
+      {/* Waits for / Holds up — one separator before the first non-empty group */}
+      {dependencies.length > 0 && <div className={styles.separator} aria-hidden="true" />}
+      {renderDependencyGroup(
+        t('gantt.tooltip.workItem.waitsFor'),
+        waitsFor,
+        'gantt-tooltip-waits-for',
+      )}
+      {renderDependencyGroup(
+        t('gantt.tooltip.workItem.holdsUp'),
+        holdsUp,
+        'gantt-tooltip-holds-up',
       )}
 
       {/* Touch device navigation affordance — "View item" link visible only on pointer: coarse */}
@@ -384,12 +392,8 @@ function MilestoneTooltipContent({
 
   const displayStatus = milestoneDisplayStatus(data).status;
   const statusLabel = milestoneStatusLabel(tCommon, data);
-  const statusClass =
-    displayStatus === 'reached'
-      ? styles.statusCompleted!
-      : displayStatus === 'late'
-        ? styles.statusLate!
-        : styles.statusInProgress!;
+  const { milestone: milestoneVariants } = useStatusBadgeVariants();
+  const statusClass = milestoneVariants[displayStatus].className;
 
   const { linkedWorkItems, dependentWorkItems } = data;
   const shownLinked = linkedWorkItems.slice(0, MAX_LINKED_ITEMS_SHOWN);
@@ -478,7 +482,9 @@ function MilestoneTooltipContent({
                   </li>
                 ))}
                 {linkedOverflowCount > 0 && (
-                  <li className={styles.linkedItemsOverflow}>+{linkedOverflowCount} more</li>
+                  <li className={styles.linkedItemsOverflow}>
+                    +{linkedOverflowCount} {t('gantt.tooltip.workItem.more')}
+                  </li>
                 )}
               </ul>
             </div>
@@ -507,7 +513,9 @@ function MilestoneTooltipContent({
                   </li>
                 ))}
                 {dependentOverflowCount > 0 && (
-                  <li className={styles.linkedItemsOverflow}>+{dependentOverflowCount} more</li>
+                  <li className={styles.linkedItemsOverflow}>
+                    +{dependentOverflowCount} {t('gantt.tooltip.workItem.more')}
+                  </li>
                 )}
               </ul>
             </div>
@@ -547,40 +555,29 @@ function HouseholdItemTooltipContent({
   onNavigate?: (itemId: string) => void;
 }) {
   const { t } = useTranslation('schedule');
-  const { t: tCommon } = useTranslation('common');
   const { formatDate } = useFormatters();
 
-  const statusLabel = tCommon(I18N_UNION_KEYS.statusVocabularyPurchase.key(data.status));
-
-  // Select badge colors based on delivery status
-  const isDelivered = data.status === 'arrived';
-  const badgeBg = isDelivered
-    ? 'var(--color-hi-status-arrived-bg)'
-    : 'var(--color-hi-status-scheduled-bg)';
-  const badgeColor = isDelivered
-    ? 'var(--color-hi-status-arrived-text)'
-    : 'var(--color-hi-status-scheduled-text)';
+  const { purchase: purchaseVariants } = useStatusBadgeVariants();
 
   return (
     <>
-      {/* Header: name + category */}
+      {/* Header: name + status chip */}
       <div className={styles.header}>
         <span className={styles.title}>{data.name}</span>
-        <span
-          className={styles.statusBadge}
-          style={{ backgroundColor: badgeBg, color: badgeColor }}
-        >
-          {data.category}
+        <span className={`${styles.statusBadge} ${purchaseVariants[data.status].className}`}>
+          {purchaseVariants[data.status].label}
         </span>
       </div>
 
       <div className={styles.separator} aria-hidden="true" />
 
-      {/* Status */}
-      <div className={styles.detailRow}>
-        <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.statusLabel')}</span>
-        <span className={styles.detailValue}>{statusLabel}</span>
-      </div>
+      {/* Area */}
+      {data.areaName && (
+        <div className={styles.detailRow} data-testid="gantt-tooltip-area">
+          <span className={styles.detailLabel}>{t('gantt.tooltip.householdItem.areaLabel')}</span>
+          <span className={styles.detailValue}>{data.areaName}</span>
+        </div>
+      )}
 
       {/* Earliest delivery date */}
       {data.earliestDeliveryDate && (
@@ -644,7 +641,8 @@ function HouseholdItemTooltipContent({
               ))}
               {data.linkedItems.length > MAX_LINKED_ITEMS_SHOWN && (
                 <li className={styles.linkedItemsOverflow}>
-                  +{data.linkedItems.length - MAX_LINKED_ITEMS_SHOWN} more
+                  +{data.linkedItems.length - MAX_LINKED_ITEMS_SHOWN}{' '}
+                  {t('gantt.tooltip.workItem.more')}
                 </li>
               )}
             </ul>
@@ -703,12 +701,9 @@ export function GanttTooltip({
   // Compute tooltip x/y, flipping to avoid viewport overflow
   const viewportHeight = typeof window !== 'undefined' ? window.innerHeight : 800;
 
-  // For work-item tooltips with dependencies, estimate height dynamically
-  // so the flip-point avoids clipping the dependencies list at the viewport bottom.
-  const depsCount = data.kind === 'work-item' ? (data.dependencies?.length ?? 0) : 0;
   const heightEstimate =
-    data.kind === 'work-item' && depsCount > 0
-      ? TOOLTIP_HEIGHT_BASE + Math.min(depsCount, MAX_DEPS_SHOWN) * 18
+    data.kind === 'work-item'
+      ? estimateWorkItemTooltipHeight(data, MAX_DEPS_SHOWN)
       : TOOLTIP_HEIGHT_ESTIMATE;
 
   // Default: place tooltip to the left of the cursor so it doesn't cover upcoming work items

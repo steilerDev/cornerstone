@@ -134,33 +134,23 @@ export class MilestonesPage {
   async getMilestoneTitles(): Promise<string[]> {
     const tableVisible = await this.tableContainer.isVisible();
 
+    // One atomic read per branch: the list re-renders while other tests/helpers mutate shared
+    // data, so never snapshot elements with .all() and read them one by one.
     if (tableVisible) {
-      // Desktop/tablet: read first column (Title) from each row.
-      // DataTable renders td cells; the title column is first.
-      const rows = await this.tableBody.locator('tr').all();
-      const titles: string[] = [];
-      for (const row of rows) {
-        // First td in each row is the Title column
-        const titleCell = row.locator('td').first();
-        const text = await titleCell.textContent();
-        if (text) titles.push(text.trim());
-      }
-      return titles;
+      // Desktop/tablet: first td in each row is the Title column.
+      const texts = await this.tableBody.locator('tr > td:first-child').allTextContents();
+      return texts.map((text) => text.trim()).filter(Boolean);
     }
 
     // Mobile fallback: DataTableCard renders cards with first column as header.
-    // `.cardsContainer` holds direct `.card` children; use `[class^="card_"]` so the
-    // CSS-module-hashed `card_abc123` class is matched without greedy sub-string
-    // matches picking up `cardHeader_/cardRow_/cardValue_` etc.
-    const cards = await this.cardsContainer.locator('[class^="card_"]').all();
-    const titles: string[] = [];
-    for (const card of cards) {
-      // First cardValue in the card is the Title column value
-      const titleEl = card.locator('[class*="cardValue"]').first();
-      const text = await titleEl.textContent();
-      if (text) titles.push(text.trim());
-    }
-    return titles;
+    // `[class^="card_"]` matches the CSS-module-hashed `card_abc123` card without picking up
+    // `cardHeader_/cardRow_/cardValue_`. The first cardValue is the Title column value.
+    const texts = await this.cardsContainer
+      .locator('[class^="card_"]')
+      .evaluateAll((cards) =>
+        cards.map((card) => card.querySelector('[class*="cardValue"]')?.textContent ?? ''),
+      );
+    return texts.map((text) => text.trim()).filter(Boolean);
   }
 
   /**
@@ -188,25 +178,28 @@ export class MilestonesPage {
   async openActionsMenu(title: string): Promise<void> {
     const tableVisible = await this.tableContainer.isVisible();
 
+    // Filter inside the locator so the match is re-evaluated at click time (the list re-renders).
     if (tableVisible) {
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(title)) {
-          await row.locator('[aria-label="Actions menu"]').click();
-          return;
-        }
+      const row = this.tableBody
+        .locator('tr')
+        .filter({ hasText: title })
+        .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
+        .first();
+      if ((await row.count()) > 0) {
+        await row.locator('[aria-label="Actions menu"]').click();
+        return;
       }
     }
 
-    // Mobile fallback: search in cards
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(title)) {
-        await card.locator('[aria-label="Actions menu"]').click();
-        return;
-      }
+    // Mobile fallback: cards
+    const card = this.cardsContainer
+      .locator('[class*="card"]')
+      .filter({ hasText: title })
+      .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
+      .first();
+    if ((await card.count()) > 0) {
+      await card.locator('[aria-label="Actions menu"]').click();
+      return;
     }
 
     throw new Error(`Milestone with title "${title}" not found in list`);
@@ -219,30 +212,34 @@ export class MilestonesPage {
   async openDeleteModal(title: string): Promise<void> {
     const tableVisible = await this.tableContainer.isVisible();
 
+    // Filter inside the locator so the match is re-evaluated at click time (the list re-renders).
     if (tableVisible) {
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(title)) {
-          await row.locator('[aria-label="Actions menu"]').click();
-          // The menu dropdown renders buttons: "Edit" and "Delete"
-          await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
-          await this.deleteModal.waitFor({ state: 'visible' });
-          return;
-        }
-      }
-    }
-
-    // Mobile fallback
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(title)) {
-        await card.locator('[aria-label="Actions menu"]').click();
+      const row = this.tableBody
+        .locator('tr')
+        .filter({ hasText: title })
+        .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
+        .first();
+      if ((await row.count()) > 0) {
+        await row.locator('[aria-label="Actions menu"]').click();
+        // The menu dropdown renders buttons: "Edit" and "Delete"
         await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
         await this.deleteModal.waitFor({ state: 'visible' });
         return;
       }
+    }
+
+    // Mobile fallback: cards
+    const card = this.cardsContainer
+      .locator('[class*="card"]')
+      .filter({ hasText: title })
+      .filter({ has: this.page.locator('[aria-label="Actions menu"]') })
+      .first();
+    if ((await card.count()) > 0) {
+      await card.locator('[aria-label="Actions menu"]').click();
+      // The menu dropdown renders buttons: "Edit" and "Delete"
+      await this.page.getByRole('button', { name: 'Delete', exact: true }).click();
+      await this.deleteModal.waitFor({ state: 'visible' });
+      return;
     }
 
     throw new Error(`Milestone with title "${title}" not found in list`);
@@ -279,24 +276,18 @@ export class MilestonesPage {
     const tableVisible = await this.tableContainer.isVisible();
 
     if (tableVisible) {
-      const rows = await this.tableBody.locator('tr').all();
-      for (const row of rows) {
-        const rowText = await row.textContent();
-        if (rowText?.includes(title)) {
-          await row.click();
-          return;
-        }
+      const row = this.tableBody.locator('tr').filter({ hasText: title }).first();
+      if ((await row.count()) > 0) {
+        await row.click();
+        return;
       }
     }
 
     // Mobile fallback: click card
-    const cards = await this.cardsContainer.locator('[class*="card"]').all();
-    for (const card of cards) {
-      const cardText = await card.textContent();
-      if (cardText?.includes(title)) {
-        await card.click();
-        return;
-      }
+    const card = this.cardsContainer.locator('[class*="card"]').filter({ hasText: title }).first();
+    if ((await card.count()) > 0) {
+      await card.click();
+      return;
     }
 
     throw new Error(`Milestone with title "${title}" not found in list`);

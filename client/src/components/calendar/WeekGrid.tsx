@@ -5,9 +5,8 @@
  * Work items appear as blocks with full titles visible.
  * Milestones appear as diamond markers.
  *
- * Lane allocation: runs allocateLanes() across the full week so that multi-day
- * items occupy the same vertical lane in every day cell they span.
- * Each day cell is position:relative; items are positioned absolutely by lane.
+ * Each item is one segment (getWeekSegments) rendered in the cell of its first
+ * day and spanning its day columns; segments are positioned absolutely by lane.
  */
 
 import { useMemo } from 'react';
@@ -19,18 +18,15 @@ import type {
 } from '@cornerstone/shared';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { toBcp47Locale } from '../../lib/formatters.js';
-import { CalendarItem, LANE_HEIGHT_FULL } from './CalendarItem.js';
+import { useMediaQuery } from '../../hooks/useMediaQuery.js';
+import { CalendarItem, LANE_HEIGHT_FULL, LANE_HEIGHT_FULL_TOUCH } from './CalendarItem.js';
 import { CalendarMilestone } from './CalendarMilestone.js';
 import { CalendarHouseholdItem } from './CalendarHouseholdItem.js';
 import {
   getWeekDates,
-  getItemsForDay,
   getMilestonesForDay,
   getHouseholdItemsForDay,
-  isItemStart,
-  isItemEnd,
-  allocateLanes,
-  getItemColor,
+  getWeekSegments,
   getDayName,
   getMonthName,
   formatDateForAria,
@@ -96,28 +92,29 @@ export function WeekGrid({
   const { t } = useTranslation('schedule');
   const days = useMemo(() => getWeekDates(weekDate), [weekDate]);
 
-  // Lane allocation for the entire week
-  const laneMap = useMemo(() => {
-    const weekStart = days[0]!.dateStr; // getWeekDates always returns 7 elements
-    const weekEnd = days[6]!.dateStr; // getWeekDates always returns 7 elements
-    return allocateLanes(weekStart, weekEnd, workItems);
-  }, [days, workItems]);
+  const isPhone = useMediaQuery('(max-width: 767px)');
+  const laneHeight = isPhone ? LANE_HEIGHT_FULL_TOUCH : LANE_HEIGHT_FULL;
 
-  // Max lane across the whole week (to size each day cell consistently)
-  const maxLane = useMemo(
-    () => (laneMap.size > 0 ? Math.max(...Array.from(laneMap.values())) : -1),
-    [laneMap],
+  const segments = useMemo(() => getWeekSegments(days, workItems), [days, workItems]);
+  const lanes = segments.length > 0 ? Math.max(...segments.map((sg) => sg.lane)) + 1 : 0;
+
+  // Busiest day's milestones + purchases stack below the item lanes
+  const extras = useMemo(
+    () =>
+      Math.max(
+        0,
+        ...days.map(
+          (d) =>
+            getMilestonesForDay(d.dateStr, milestones).length +
+            getHouseholdItemsForDay(d.dateStr, householdItems).length,
+        ),
+      ),
+    [days, milestones, householdItems],
   );
 
-  // Minimum cell height = all lanes + space for milestones (use max milestones across days)
-  const maxMilestonesInADay = useMemo(() => {
-    return Math.max(0, ...days.map((d) => getMilestonesForDay(d.dateStr, milestones).length));
-  }, [days, milestones]);
-
-  const minCellHeight =
-    maxLane >= 0
-      ? (maxLane + 1) * LANE_HEIGHT_FULL + maxMilestonesInADay * LANE_HEIGHT_FULL
-      : undefined;
+  const totalLanes = lanes + extras;
+  const minCellHeight = totalLanes > 0 ? totalLanes * laneHeight : undefined;
+  const milestoneTopOffset = lanes * laneHeight;
 
   return (
     <div className={styles.grid} role="grid" aria-label={t('calendar.weeklyCalendarAriaLabel')}>
@@ -146,12 +143,8 @@ export function WeekGrid({
 
       {/* Day columns */}
       <div className={styles.daysRow} role="row">
-        {days.map((day) => {
-          const dayItems = getItemsForDay(day.dateStr, workItems);
+        {days.map((day, dayCol) => {
           const dayMilestones = getMilestonesForDay(day.dateStr, milestones);
-
-          // Milestone top offset comes after all item lanes
-          const milestoneTopOffset = maxLane >= 0 ? (maxLane + 1) * LANE_HEIGHT_FULL : 0;
 
           return (
             <div
@@ -166,26 +159,28 @@ export function WeekGrid({
               aria-label={formatDateForAria(day.dateStr, localeString)}
             >
               {/* Work item blocks */}
-              {dayItems.map((item) => {
-                return (
+              {segments
+                .filter((sg) => sg.startCol === dayCol)
+                .map((sg) => (
                   <CalendarItem
-                    key={item.id}
-                    item={item}
-                    isStart={isItemStart(day.dateStr, item)}
-                    isEnd={isItemEnd(day.dateStr, item)}
+                    key={sg.item.id}
+                    item={sg.item}
+                    isStart={!sg.continuesFromPrevious}
+                    isEnd={!sg.continuesToNext}
+                    span={sg.span}
                     compact={false}
-                    isHighlighted={hoveredItemId === item.id}
+                    laneHeight={laneHeight}
+                    touchSized={isPhone}
+                    isHighlighted={hoveredItemId === sg.item.id}
                     onMouseEnter={onItemMouseEnter}
                     onMouseLeave={onItemMouseLeave}
                     onMouseMove={onItemMouseMove}
-                    laneIndex={laneMap.get(item.id)}
-                    colorIndex={getItemColor(item.id)}
+                    laneIndex={sg.lane}
                     isTouchDevice={isTouchDevice}
                     activeTouchId={activeTouchId}
                     onTouchTap={onTouchTap}
                   />
-                );
-              })}
+                ))}
 
               {/* Milestone markers — stacked below all item lanes */}
               {dayMilestones.map((m, mIdx) => (
@@ -193,7 +188,7 @@ export function WeekGrid({
                   key={m.id}
                   style={{
                     position: 'absolute',
-                    top: milestoneTopOffset + mIdx * LANE_HEIGHT_FULL,
+                    top: milestoneTopOffset + mIdx * laneHeight,
                     left: 0,
                     right: 0,
                     padding: '0 var(--spacing-2)',
@@ -202,6 +197,7 @@ export function WeekGrid({
                   <CalendarMilestone
                     milestone={m}
                     onMilestoneClick={onMilestoneClick}
+                    touchSized={isPhone}
                     onMouseEnter={onMilestoneMouseEnter}
                     onMouseLeave={onMilestoneMouseLeave}
                     onMouseMove={onMilestoneMouseMove}
@@ -215,10 +211,7 @@ export function WeekGrid({
                   key={`hi-${hi.id}`}
                   style={{
                     position: 'absolute',
-                    top:
-                      milestoneTopOffset +
-                      dayMilestones.length * LANE_HEIGHT_FULL +
-                      hiIdx * LANE_HEIGHT_FULL,
+                    top: milestoneTopOffset + (dayMilestones.length + hiIdx) * laneHeight,
                     left: 0,
                     right: 0,
                     padding: '0 var(--spacing-2)',
@@ -226,6 +219,7 @@ export function WeekGrid({
                 >
                   <CalendarHouseholdItem
                     item={hi}
+                    touchSized={isPhone}
                     onMouseEnter={onItemMouseEnter}
                     onMouseLeave={onItemMouseLeave}
                     onMouseMove={onItemMouseMove}
@@ -237,7 +231,7 @@ export function WeekGrid({
               ))}
 
               {/* Empty day placeholder */}
-              {dayItems.length === 0 &&
+              {!segments.some((sg) => sg.startCol <= dayCol && dayCol < sg.startCol + sg.span) &&
                 dayMilestones.length === 0 &&
                 getHouseholdItemsForDay(day.dateStr, householdItems).length === 0 && (
                   <div className={styles.emptyDay} aria-hidden="true" />

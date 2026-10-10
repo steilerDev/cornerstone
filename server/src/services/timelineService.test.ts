@@ -1200,6 +1200,83 @@ describe('getTimeline service', () => {
       expect(Array.isArray(hi.dependencyIds)).toBe(true);
     });
 
+    // ─── Purchase area (#2198) ────────────────────────────────────────────────
+
+    function insertArea(id: string, name: string, parentId: string | null, color: string | null) {
+      const now = new Date().toISOString();
+      db.insert(schema.areas)
+        .values({
+          id,
+          name,
+          parentId,
+          color,
+          description: null,
+          sortOrder: 0,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    it('returns area: null for a purchase without an area', () => {
+      const hiId = insertHouseholdItem({ targetDeliveryDate: '2026-05-20' });
+      const hi = getTimeline(db).householdItems.find((h) => h.id === hiId)!;
+      expect(hi.area).toBeNull();
+    });
+
+    it('returns a root-level area with an empty ancestor chain (no work item uses that area)', () => {
+      insertArea('area-test-house', 'Test House', null, '#aabbcc');
+      const hiId = insertHouseholdItem({
+        targetDeliveryDate: '2026-05-20',
+        areaId: 'area-test-house',
+      });
+      const hi = getTimeline(db).householdItems.find((h) => h.id === hiId)!;
+      expect(hi.area).toEqual({
+        id: 'area-test-house',
+        name: 'Test House',
+        color: '#aabbcc',
+        ancestors: [],
+      });
+    });
+
+    it('returns a nested area with its ancestors root-first', () => {
+      insertArea('area-test-house', 'Test House', null, null);
+      insertArea('area-test-floor', 'Test Ground Floor', 'area-test-house', null);
+      insertArea('area-test-kitchen', 'Test Kitchen', 'area-test-floor', '#112233');
+      const hiId = insertHouseholdItem({
+        targetDeliveryDate: '2026-05-20',
+        areaId: 'area-test-kitchen',
+      });
+      const hi = getTimeline(db).householdItems.find((h) => h.id === hiId)!;
+      expect(hi.area).not.toBeNull();
+      expect(hi.area!.id).toBe('area-test-kitchen');
+      expect(hi.area!.name).toBe('Test Kitchen');
+      expect(hi.area!.color).toBe('#112233');
+      expect(hi.area!.ancestors.map((a) => a.name)).toEqual(['Test House', 'Test Ground Floor']);
+      expect(hi.area!.ancestors.map((a) => a.id)).toEqual(['area-test-house', 'area-test-floor']);
+    });
+
+    it('resolves the same area for a task and a purchase in it', () => {
+      const userId = insertUser(db);
+      insertArea('area-test-house', 'Test House', null, null);
+      insertArea('area-test-kitchen', 'Test Kitchen', 'area-test-house', null);
+      insertWorkItem(db, userId, { startDate: '2026-03-01', areaId: 'area-test-kitchen' });
+      const hiId = insertHouseholdItem({
+        targetDeliveryDate: '2026-05-20',
+        areaId: 'area-test-kitchen',
+      });
+      const result = getTimeline(db);
+      const hi = result.householdItems.find((h) => h.id === hiId)!;
+      expect(hi.area).toEqual(result.workItems[0]!.area);
+      expect(hi.area!.ancestors).toHaveLength(1);
+    });
+
+    it('does not resolve areas of purchases that have no delivery dates', () => {
+      insertArea('area-test-house', 'Test House', null, null);
+      insertHouseholdItem({ areaId: 'area-test-house' });
+      expect(getTimeline(db).householdItems).toEqual([]);
+    });
+
     it('dependencyIds includes predecessor references with correct shape', () => {
       const userId = insertUser(db);
       const wiId = insertWorkItem(db, userId, { startDate: '2026-03-01', endDate: '2026-05-10' });

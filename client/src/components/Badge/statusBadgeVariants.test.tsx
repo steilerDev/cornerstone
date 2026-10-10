@@ -7,6 +7,7 @@ import {
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
+  MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
@@ -16,6 +17,7 @@ import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
   buildInvoiceStatusVariants,
+  buildMilestoneStatusVariants,
   buildProgressPaymentStatusVariants,
   buildPurchaseStatusVariants,
   buildRefundVariants,
@@ -176,5 +178,30 @@ describe('CheckIcon', () => {
     expect(svg).toHaveAttribute('aria-hidden', 'true');
     expect(svg).toHaveAttribute('focusable', 'false');
     expect(svg?.querySelector('path')).toHaveAttribute('stroke', 'currentColor');
+  });
+});
+
+describe('buildMilestoneStatusVariants (#2198)', () => {
+  it('has exactly one entry per MilestoneDisplayStatus with its own Badge class', () => {
+    const variants = buildMilestoneStatusVariants(realT);
+    expect(Object.keys(variants).sort()).toEqual([...MILESTONE_DISPLAY_STATUSES].sort());
+    expect(variants.upcoming.className).toBe('milestoneUpcoming');
+    expect(variants.late.className).toBe('milestoneLate');
+    expect(variants.early.className).toBe('milestoneEarly');
+    expect(variants.reached.className).toBe('milestoneReached');
+  });
+
+  it('takes the bare word from the common vocabulary and passes days: 0 to t()', () => {
+    const calls: Array<{ key: string; days: number | undefined }> = [];
+    const spyT: StatusLabelT = (key, options) => {
+      calls.push({ key, days: options.days });
+      return realT(key, options);
+    };
+    const variants = buildMilestoneStatusVariants(spyT);
+    expect(variants.upcoming.label).toBe('Upcoming');
+    expect(variants.reached.label).toBe('Reached');
+    expect(calls).toHaveLength(MILESTONE_DISPLAY_STATUSES.length);
+    expect(calls.every((c) => c.days === 0)).toBe(true);
+    expect(calls.every((c) => c.key.includes('statusVocabulary.milestone.'))).toBe(true);
   });
 });

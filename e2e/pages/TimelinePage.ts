@@ -29,6 +29,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import type { TimelineResponse } from '@cornerstone/shared';
 
 export const TIMELINE_ROUTE = '/schedule/gantt';
 
@@ -92,6 +93,22 @@ export class TimelinePage {
   readonly calendarTodayButton: Locator;
   readonly calendarPeriodLabel: Locator;
   readonly calendarGridArea: Locator;
+  /** Empty state shown instead of the grid when nothing is scheduled (#2198). */
+  readonly calendarEmpty: Locator;
+  /** One per week row of the month grid. */
+  readonly calendarWeekRows: Locator;
+  /** Task segments (one per week row an item touches). */
+  readonly calendarItems: Locator;
+  /** Purchase chips. */
+  readonly calendarPurchases: Locator;
+  /** Milestone markers. */
+  readonly calendarMilestones: Locator;
+
+  // ── Tooltip rows (#2198) ───────────────────────────────────────────────────
+  readonly tooltipCompany: Locator;
+  readonly tooltipArea: Locator;
+  readonly tooltipWaitsFor: Locator;
+  readonly tooltipHoldsUp: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -142,6 +159,42 @@ export class TimelinePage {
     this.calendarTodayButton = page.getByLabel('Today');
     this.calendarPeriodLabel = page.locator('[class*="periodLabel"]');
     this.calendarGridArea = page.locator('[class*="gridArea"]');
+    this.calendarEmpty = page.getByTestId('calendar-empty');
+    this.calendarWeekRows = page.getByTestId('calendar-week-row');
+    this.calendarItems = page.getByTestId('calendar-item');
+    this.calendarPurchases = page.getByTestId('calendar-hi-item');
+    this.calendarMilestones = page.getByTestId('calendar-milestone');
+
+    // Tooltip rows
+    this.tooltipCompany = page.getByTestId('gantt-tooltip-company');
+    this.tooltipArea = page.getByTestId('gantt-tooltip-area');
+    this.tooltipWaitsFor = page.getByTestId('gantt-tooltip-waits-for');
+    this.tooltipHoldsUp = page.getByTestId('gantt-tooltip-holds-up');
+  }
+
+  // ── Mocked data ────────────────────────────────────────────────────────────
+
+  /**
+   * Serve a synthetic `GET /api/timeline` response (other methods pass through).
+   * Callers must call {@link unmockTimeline} in a `finally` block.
+   */
+  async mockTimeline(payload: TimelineResponse): Promise<void> {
+    await this.page.route('**/api/timeline', async (route) => {
+      if (route.request().method() === 'GET') {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await route.continue();
+      }
+    });
+  }
+
+  /** Remove the route installed by {@link mockTimeline}. */
+  async unmockTimeline(): Promise<void> {
+    await this.page.unroute('**/api/timeline');
   }
 
   // ── Sidebar row helpers ────────────────────────────────────────────────────

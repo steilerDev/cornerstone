@@ -13,6 +13,7 @@ describe('useStatusBadgeVariants', () => {
     const { result } = renderHook(() => useStatusBadgeVariants());
     expect(Object.keys(result.current).sort()).toEqual([
       'invoice',
+      'milestone',
       'progressPayment',
       'purchase',
       'refund',
@@ -31,6 +32,12 @@ describe('useStatusBadgeVariants', () => {
     ]);
     expect(Object.keys(result.current.task)).toHaveLength(3);
     expect(Object.keys(result.current.purchase)).toHaveLength(4);
+    expect(Object.keys(result.current.milestone).sort()).toEqual([
+      'early',
+      'late',
+      'reached',
+      'upcoming',
+    ]);
     expect(Object.keys(result.current.refund)).toEqual(['refund']);
   });
 

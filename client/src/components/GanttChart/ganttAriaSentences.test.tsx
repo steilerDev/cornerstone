@@ -197,7 +197,9 @@ describe('Calendar aria-label sentences', () => {
       </LocaleProvider>,
     );
     const label = screen.getByRole('button').getAttribute('aria-label')!;
-    expect(label).toBe('Aufgabe: Sample Roofing, Status: Abgeschlossen');
+    expect(label).toMatch(
+      /^Aufgabe: Sample Roofing, Abgeschlossen, 1\. Apr\.? 2026 bis 10\. Apr\.? 2026$/,
+    );
     expect(label).not.toMatch(ENGLISH_FRAGMENTS);
   });
 

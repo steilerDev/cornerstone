@@ -347,4 +347,45 @@ describe('CalendarMilestone', () => {
       );
     });
   });
+
+  // ── Keyboard focus shows the tooltip (#2198) ──────────────────────────────
+
+  describe('focus and blur', () => {
+    it('focus calls onMouseEnter with the milestone id and the rect centre', () => {
+      const onMouseEnter = jest.fn();
+      renderMilestone({ milestone: makeMilestone({ id: 9 }), onMouseEnter });
+      const el = screen.getByTestId('calendar-milestone');
+      el.getBoundingClientRect = () =>
+        ({ left: 20, top: 10, width: 80, height: 20, right: 100, bottom: 30 }) as DOMRect;
+      fireEvent.focus(el);
+      expect(onMouseEnter).toHaveBeenCalledTimes(1);
+      expect(onMouseEnter).toHaveBeenCalledWith(9, 60, 20);
+    });
+
+    it('blur calls onMouseLeave', () => {
+      const onMouseLeave = jest.fn();
+      renderMilestone({ onMouseLeave });
+      fireEvent.blur(screen.getByTestId('calendar-milestone'));
+      expect(onMouseLeave).toHaveBeenCalledTimes(1);
+    });
+
+    it('focus and blur without handlers do not throw', () => {
+      renderMilestone();
+      const el = screen.getByTestId('calendar-milestone');
+      expect(() => {
+        fireEvent.focus(el);
+        fireEvent.blur(el);
+      }).not.toThrow();
+    });
+  });
+
+  describe('touchSized prop', () => {
+    it('applies the touchSized class only when the prop is set', () => {
+      const { unmount } = render(<CalendarMilestone milestone={makeMilestone()} touchSized />);
+      expect(screen.getByTestId('calendar-milestone').className).toContain('touchSized');
+      unmount();
+      renderMilestone();
+      expect(screen.getByTestId('calendar-milestone').className).not.toContain('touchSized');
+    });
+  });
 });

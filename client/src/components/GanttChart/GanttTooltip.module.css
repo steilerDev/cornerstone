@@ -15,7 +15,13 @@
   font-size: var(--font-size-sm);
   pointer-events: none;
   /* Fade-in animation */
-  animation: tooltipFadeIn 0.1s ease forwards;
+  animation: tooltipFadeIn var(--transition-fast) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tooltip {
+    animation: none;
+  }
 }
 
 @keyframes tooltipFadeIn {
@@ -122,26 +128,6 @@
   font-weight: var(--font-weight-medium);
   white-space: nowrap;
   flex-shrink: 0;
-}
-
-.statusNotStarted {
-  background: var(--color-tooltip-status-not-started-bg);
-  color: var(--color-gray-200);
-}
-
-.statusInProgress {
-  background: var(--color-tooltip-status-in-progress-bg);
-  color: var(--color-blue-200);
-}
-
-.statusCompleted {
-  background: var(--color-tooltip-status-completed-bg);
-  color: var(--color-emerald-200);
-}
-
-.statusLate {
-  background: var(--color-tooltip-status-late-bg);
-  color: var(--color-red-200);
 }
 
 /* ---- Milestone linked items list ---- */
@@ -285,7 +271,7 @@
   width: 100%;
   padding: var(--spacing-2);
   background: var(--color-primary);
-  color: white;
+  color: var(--color-primary-text);
   border: none;
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);

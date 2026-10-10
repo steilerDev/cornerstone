@@ -90,7 +90,9 @@
         "endLabel": "End",
         "ownerLabel": "Owner",
         "areaLabel": "Area",
-        "dependencies": "Dependencies",
+        "companyLabel": "Company",
+        "waitsFor": "Waits for",
+        "holdsUp": "Holds up",
         "more": "more"
       },
       "milestone": {
@@ -98,14 +100,14 @@
         "projectedLabel": "Projected",
         "doneLabel": "Done",
         "contributing": "Contributing",
-        "blockedByThis": "Blocked by this",
+        "blockedByThis": "Holds up",
         "linkedItems": "Linked Items",
         "none": "None",
-        "contributingAriaLabel": "Work items contributing to this milestone",
-        "blockedByThisAriaLabel": "Work items blocked by this milestone"
+        "contributingAriaLabel": "Tasks contributing to this milestone",
+        "blockedByThisAriaLabel": "Tasks this milestone holds up"
       },
       "householdItem": {
-        "statusLabel": "Status",
+        "areaLabel": "Area",
         "earliestLabel": "Earliest",
         "targetLabel": "Target",
         "latestLabel": "Latest",
@@ -134,11 +136,20 @@
     },
     "householdItem": {
       "ariaLabel": "Purchase: {{name}}, {{status}}, delivery {{date}}",
+      "ariaLabelWithArea": "Purchase: {{name}}, {{status}}, {{area}}, delivery {{date}}",
       "ariaLabelUnscheduled": "Purchase: {{name}}, {{status}}, delivery not scheduled"
     },
     "item": {
-      "ariaLabel": "Task: {{title}}, status: {{status}}"
+      "ariaLabel": "Task: {{title}}, {{status}}, {{start}} to {{end}}",
+      "ariaLabelWithArea": "Task: {{title}}, {{status}}, {{area}}, {{start}} to {{end}}"
     },
+    "emptyState": {
+      "message": "Nothing is scheduled yet",
+      "description": "Tasks, milestones and purchases appear here as soon as a task has dates.",
+      "action": "Add a task"
+    },
+    "monthGridAriaLabel": "Calendar for {{period}}",
+    "weekGridAriaLabel": "Week of {{days}}",
     "navigation": {
       "previousMonth": "Previous month",
       "nextMonth": "Next month",

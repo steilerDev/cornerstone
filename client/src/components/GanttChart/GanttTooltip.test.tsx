@@ -6,7 +6,7 @@
  * and ArrowTooltipContent (Issue #287: arrow hover highlighting).
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render as rtlRender, screen } from '@testing-library/react';
+import { render as rtlRender, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactElement } from 'react';
@@ -161,7 +161,6 @@ describe('GanttTooltip', () => {
     const base: GanttTooltipHouseholdItemData = {
       kind: 'household-item',
       name: 'Sample Cabinets',
-      category: 'furniture',
       status: 'planned',
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
@@ -298,12 +297,24 @@ describe('GanttTooltip', () => {
     });
 
     it('flips vertically when tooltip would overflow bottom viewport edge', () => {
-      // Viewport height = 800. TOOLTIP_HEIGHT_ESTIMATE = 200, OFFSET_Y = 8.
-      // y=700: tooltipY = 700 + 8 = 708, 708 + 200 = 908 > 792 → flip
+      // Viewport height = 800. A plain work item tooltip is estimated at 165px (OFFSET_Y = 8).
+      // y=700: tooltipY = 700 + 8 = 708, 708 + 165 = 873 > 792 → flip
       renderTooltip({}, { x: 100, y: 700 });
       const tooltip = screen.getByTestId('gantt-tooltip');
-      // When flipped: top = 700 - 200 - 8 = 492
-      expect(tooltip).toHaveStyle({ top: '492px' });
+      // When flipped: top = 700 - 165 - 8 = 527
+      expect(tooltip).toHaveStyle({ top: '527px' });
+    });
+
+    it('a plain work item tooltip still fits below the cursor at y=605', () => {
+      // y=605: 613 + 165 = 778 <= 792 → stays below the cursor
+      renderTooltip({}, { x: 100, y: 605 });
+      expect(screen.getByTestId('gantt-tooltip')).toHaveStyle({ top: '613px' });
+    });
+
+    it('flips with the taller estimate when a Company row is present', () => {
+      // y=605: 613 + 183 = 796 > 792 → flip: top = 605 - 183 - 8 = 414
+      renderTooltip({ assignedVendorName: 'Sample Tiling Ltd' }, { x: 100, y: 605 });
+      expect(screen.getByTestId('gantt-tooltip')).toHaveStyle({ top: '414px' });
     });
 
     it('does not flip vertically when tooltip fits within viewport height', () => {
@@ -404,9 +415,9 @@ describe('GanttTooltip', () => {
       const tooltip = screen.getByTestId('gantt-tooltip');
       // Both should be flipped:
       // - horizontal: 1200 - 240 - 12 = 948
-      // - vertical:   700 - 200 - 8 = 492 (TOOLTIP_HEIGHT_ESTIMATE = 200)
+      // - vertical:   700 - 165 - 8 = 527 (work item base height estimate = 165)
       expect(tooltip).toHaveStyle({ left: '948px' });
-      expect(tooltip).toHaveStyle({ top: '492px' });
+      expect(tooltip).toHaveStyle({ top: '527px' });
     });
   });
 });
@@ -618,11 +629,67 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
 
   // ── AC-4: with dependencies → shows section ──────────────────────────────
 
-  it('AC-4: renders a Dependencies section heading when work item has one dependency', () => {
+  it('the word "Dependencies" never appears; the groups are named Waits for / Holds up (#2198)', () => {
     renderWorkItemWithDeps([
+      { relatedTitle: 'Site Prep', dependencyType: 'finish_to_start', role: 'predecessor' },
       { relatedTitle: 'Framing', dependencyType: 'finish_to_start', role: 'successor' },
     ]);
-    expect(screen.getByText(/Dependencies/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Dependencies/i)).not.toBeInTheDocument();
+    expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Waits for (1)');
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Holds up (1)');
+  });
+
+  it('groups: two predecessors and one successor give Waits for (2) before Holds up (1)', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Pred Two', dependencyType: 'finish_to_start', role: 'predecessor' },
+    ]);
+    const waits = screen.getByTestId('gantt-tooltip-waits-for');
+    const holds = screen.getByTestId('gantt-tooltip-holds-up');
+    expect(waits).toHaveTextContent('Waits for (2)');
+    expect(holds).toHaveTextContent('Holds up (1)');
+    // Mutation caught: swapping `role` in either filter puts the titles in the wrong group.
+    expect(within(waits).getByText(/Pred One/)).toBeInTheDocument();
+    expect(within(waits).getByText(/Pred Two/)).toBeInTheDocument();
+    expect(within(waits).queryByText(/Succ One/)).not.toBeInTheDocument();
+    expect(within(holds).getByText(/Succ One/)).toBeInTheDocument();
+    expect(within(holds).queryByText(/Pred/)).not.toBeInTheDocument();
+    // Mutation caught: rendering Holds up before Waits for.
+    expect(waits.compareDocumentPosition(holds) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('groups: only successors render no Waits for section', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
+    ]);
+    expect(screen.queryByTestId('gantt-tooltip-waits-for')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Waits for/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toBeInTheDocument();
+  });
+
+  it('groups: only predecessors render no Holds up section', () => {
+    renderWorkItemWithDeps([
+      { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
+    ]);
+    expect(screen.queryByTestId('gantt-tooltip-holds-up')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Holds up/)).not.toBeInTheDocument();
+  });
+
+  it('groups: 7 predecessors show 5 plus "+2 more" inside Waits for only', () => {
+    const deps: WorkItemDependency[] = Array.from({ length: 7 }, (_, i) => ({
+      relatedTitle: `Pred ${i + 1}`,
+      dependencyType: 'finish_to_start' as const,
+      role: 'predecessor' as const,
+    }));
+    deps.push({ relatedTitle: 'Succ 1', dependencyType: 'finish_to_start', role: 'successor' });
+    renderWorkItemWithDeps(deps);
+    const waits = screen.getByTestId('gantt-tooltip-waits-for');
+    expect(waits).toHaveTextContent('Waits for (7)');
+    expect(within(waits).getByText(/Pred 5/)).toBeInTheDocument();
+    expect(within(waits).queryByText(/Pred 6/)).not.toBeInTheDocument();
+    expect(within(waits).getByText('+2 more')).toBeInTheDocument();
+    expect(within(screen.getByTestId('gantt-tooltip-holds-up')).queryByText(/more/)).toBeNull();
   });
 
   it('AC-4: renders the connected item title for a predecessor dependency', () => {
@@ -690,6 +757,17 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
     expect(screen.queryByText(/\+\d+ more/)).not.toBeInTheDocument();
   });
 
+  it('AC-5: the limit of 5 applies per group, so 5 + 5 shows everything without overflow', () => {
+    const deps: WorkItemDependency[] = Array.from({ length: 10 }, (_, i) => ({
+      relatedTitle: `Both ${i + 1}`,
+      dependencyType: 'finish_to_start' as const,
+      role: (i < 5 ? 'predecessor' : 'successor') as 'predecessor' | 'successor',
+    }));
+    renderWorkItemWithDeps(deps);
+    expect(screen.getByText(/Both 10/)).toBeInTheDocument();
+    expect(screen.queryByText(/\+\d+ more/)).not.toBeInTheDocument();
+  });
+
   it('AC-4: renders all 5 dependencies when exactly 5 are provided (no overflow)', () => {
     const fiveDeps: WorkItemDependency[] = [
       { relatedTitle: 'Item A', dependencyType: 'finish_to_start', role: 'predecessor' },
@@ -708,14 +786,14 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
 
   // ── AC-5: overflow indicator ──────────────────────────────────────────────
 
-  it('AC-5: shows "+1 more" overflow when 6 dependencies provided (shows first 5)', () => {
+  it('AC-5: shows "+1 more" overflow when a group has 6 entries (shows first 5)', () => {
     const sixDeps: WorkItemDependency[] = [
       { relatedTitle: 'Item A', dependencyType: 'finish_to_start', role: 'predecessor' },
-      { relatedTitle: 'Item B', dependencyType: 'finish_to_start', role: 'successor' },
-      { relatedTitle: 'Item C', dependencyType: 'finish_to_start', role: 'successor' },
-      { relatedTitle: 'Item D', dependencyType: 'finish_to_start', role: 'successor' },
-      { relatedTitle: 'Item E', dependencyType: 'finish_to_start', role: 'successor' },
-      { relatedTitle: 'Item F', dependencyType: 'finish_to_start', role: 'successor' },
+      { relatedTitle: 'Item B', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item C', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item D', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item E', dependencyType: 'finish_to_start', role: 'predecessor' },
+      { relatedTitle: 'Item F', dependencyType: 'finish_to_start', role: 'predecessor' },
     ];
     renderWorkItemWithDeps(sixDeps);
     // First 5 should be shown
@@ -727,11 +805,11 @@ describe('GanttTooltip — work item dependencies section (Issue #295)', () => {
     expect(screen.getByText('+1 more')).toBeInTheDocument();
   });
 
-  it('AC-5: shows "+N more" with correct count for 10 dependencies (shows first 5)', () => {
+  it('AC-5: shows "+N more" with correct count for a group of 10 (shows first 5)', () => {
     const tenDeps: WorkItemDependency[] = Array.from({ length: 10 }, (_, i) => ({
       relatedTitle: `Item ${i + 1}`,
       dependencyType: 'finish_to_start' as const,
-      role: (i < 5 ? 'predecessor' : 'successor') as 'predecessor' | 'successor',
+      role: 'predecessor' as const,
     }));
     renderWorkItemWithDeps(tenDeps);
     // First 5 visible
@@ -827,7 +905,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('Target')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with dependentWorkItems shows "Blocked by this (N)" label', () => {
+  it('milestone tooltip with dependentWorkItems shows "Holds up (N)" label', () => {
     const msWithDependents: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       dependentWorkItems: [
@@ -836,7 +914,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
       ],
     };
     render(<GanttTooltip data={msWithDependents} position={{ x: 100, y: 200 }} />);
-    expect(screen.getByText(/Blocked by this \(2\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Holds up \(2\)/)).toBeInTheDocument();
   });
 
   it('milestone tooltip with linkedWorkItems shows "Contributing (N)" label', () => {
@@ -851,7 +929,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText(/Contributing \(2\)/)).toBeInTheDocument();
   });
 
-  it('milestone tooltip shows both Contributing and Blocked sections when both lists are populated', () => {
+  it('milestone tooltip shows both Contributing and Holds up sections when both lists are populated', () => {
     const msWithBoth: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
@@ -859,7 +937,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     };
     render(<GanttTooltip data={msWithBoth} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
-    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Holds up \(1\)/)).toBeInTheDocument();
     expect(screen.getByText('Site Prep')).toBeInTheDocument();
     expect(screen.getByText('Framing')).toBeInTheDocument();
   });
@@ -895,14 +973,15 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     expect(screen.getByText('None')).toBeInTheDocument();
   });
 
-  it('milestone tooltip with only contributing items shows "None" for Blocked by this section', () => {
+  it('milestone tooltip with only contributing items shows "None" for the Holds up section', () => {
     const msWithLinkedOnly: GanttTooltipMilestoneData = {
       ...MILESTONE_DATA,
       linkedWorkItems: [{ id: 'wi-1', title: 'Site Prep' }],
     };
     render(<GanttTooltip data={msWithLinkedOnly} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText(/Contributing \(1\)/)).toBeInTheDocument();
-    expect(screen.getByText('Blocked by this')).toBeInTheDocument();
+    expect(screen.getByText('Holds up')).toBeInTheDocument();
+    expect(screen.queryByText(/Blocked by this/)).not.toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
   });
 
@@ -914,7 +993,7 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     render(<GanttTooltip data={msWithDependentsOnly} position={{ x: 100, y: 200 }} />);
     expect(screen.getByText('Contributing')).toBeInTheDocument();
     expect(screen.getByText('None')).toBeInTheDocument();
-    expect(screen.getByText(/Blocked by this \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Holds up \(1\)/)).toBeInTheDocument();
   });
 });
 
@@ -1335,7 +1414,6 @@ describe('GanttTooltip — de-DE locale', () => {
     const hiData: GanttTooltipHouseholdItemData = {
       kind: 'household-item',
       name: 'Kitchen Cabinets',
-      category: 'furniture',
       status: 'scheduled',
       earliestDeliveryDate: null,
       latestDeliveryDate: null,
@@ -1356,5 +1434,225 @@ describe('GanttTooltip — de-DE locale', () => {
       ),
     ).not.toThrow();
     expect(screen.queryByText(/undefined/i)).not.toBeInTheDocument();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// GanttTooltip — Company row, purchase chip/area, milestone chips (#2198)
+// ---------------------------------------------------------------------------
+
+describe('GanttTooltip — Company and Owner rows (#2198)', () => {
+  it('shows a Company row with the vendor name and no Owner row when only a vendor is assigned', () => {
+    renderTooltip({ assignedUserName: null, assignedVendorName: 'Sample Tiling Ltd' });
+    const company = screen.getByTestId('gantt-tooltip-company');
+    expect(company).toHaveTextContent('Company');
+    expect(company).toHaveTextContent('Sample Tiling Ltd');
+    expect(screen.queryByText('Owner')).not.toBeInTheDocument();
+  });
+
+  it('shows Owner without a Company row when only a user is assigned', () => {
+    renderTooltip({ assignedUserName: 'Alex Example', assignedVendorName: null });
+    expect(screen.getByText('Owner')).toBeInTheDocument();
+    expect(screen.getByText('Alex Example')).toBeInTheDocument();
+    expect(screen.queryByTestId('gantt-tooltip-company')).not.toBeInTheDocument();
+    expect(screen.queryByText('Company')).not.toBeInTheDocument();
+  });
+
+  it('shows both rows when a user and a vendor are assigned', () => {
+    renderTooltip({ assignedUserName: 'Alex Example', assignedVendorName: 'Sample Tiling Ltd' });
+    expect(screen.getByText('Owner')).toBeInTheDocument();
+    expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Sample Tiling Ltd');
+  });
+
+  it('shows neither row when nobody is assigned', () => {
+    renderTooltip({ assignedUserName: null, assignedVendorName: null });
+    expect(screen.queryByText('Owner')).not.toBeInTheDocument();
+    expect(screen.queryByText('Company')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('gantt-tooltip-company')).not.toBeInTheDocument();
+  });
+
+  it('shows the Area row for a task only when areaName is set', () => {
+    renderTooltip({ areaName: 'Test House › Test Kitchen' });
+    expect(screen.getByTestId('gantt-tooltip-area')).toHaveTextContent('Test House › Test Kitchen');
+  });
+
+  it('shows no Area row for a task without areaName', () => {
+    renderTooltip({ areaName: null });
+    expect(screen.queryByTestId('gantt-tooltip-area')).not.toBeInTheDocument();
+  });
+
+  it('uses the Badge task class for the status chip', () => {
+    renderTooltip({ status: 'in_progress' });
+    expect(screen.getByText('In progress').className).toContain('inProgress');
+  });
+});
+
+describe('GanttTooltip — purchase header and rows (#2198)', () => {
+  const PURCHASE: GanttTooltipHouseholdItemData = {
+    kind: 'household-item',
+    name: 'Sample Cabinets',
+    status: 'planned',
+    earliestDeliveryDate: null,
+    latestDeliveryDate: null,
+    targetDeliveryDate: '2026-03-10',
+    actualDeliveryDate: null,
+    isLate: false,
+  };
+
+  it.each([
+    ['planned', 'Planned', 'planned'],
+    ['purchased', 'Ordered', 'purchased'],
+    ['scheduled', 'Delivery scheduled', 'scheduled'],
+    ['arrived', 'Delivered', 'arrived'],
+  ] as const)(
+    'the header chip for %s shows "%s" with the Badge purchase class %s',
+    (status, word, badgeClass) => {
+      render(<GanttTooltip data={{ ...PURCHASE, status }} position={DEFAULT_POSITION} />);
+      const chip = screen.getByText(word);
+      expect(chip.className).toContain(badgeClass);
+      expect(chip).not.toHaveAttribute('style');
+    },
+  );
+
+  it('has no separate Status row', () => {
+    render(<GanttTooltip data={PURCHASE} position={DEFAULT_POSITION} />);
+    expect(screen.queryByText('Status')).not.toBeInTheDocument();
+  });
+
+  it('shows the Area row only when areaName is given', () => {
+    const { unmount } = render(
+      <GanttTooltip
+        data={{ ...PURCHASE, areaName: 'Test House › Test Kitchen' }}
+        position={DEFAULT_POSITION}
+      />,
+    );
+    const area = screen.getByTestId('gantt-tooltip-area');
+    expect(area).toHaveTextContent('Area');
+    expect(area).toHaveTextContent('Test House › Test Kitchen');
+    unmount();
+
+    render(<GanttTooltip data={{ ...PURCHASE, areaName: null }} position={DEFAULT_POSITION} />);
+    expect(screen.queryByTestId('gantt-tooltip-area')).not.toBeInTheDocument();
+  });
+
+  it('shows the delivery dates, floored-to-today note and capped linked items', () => {
+    render(
+      <GanttTooltip
+        data={{
+          ...PURCHASE,
+          earliestDeliveryDate: '2026-03-08',
+          latestDeliveryDate: '2026-03-14',
+          actualDeliveryDate: '2026-03-11',
+          isLate: true,
+          linkedItems: Array.from({ length: 6 }, (_, i) => ({
+            id: `wi-${i}`,
+            title: `Linked ${i + 1}`,
+            type: 'work_item' as const,
+          })),
+        }}
+        position={DEFAULT_POSITION}
+      />,
+    );
+    expect(screen.getByText('Earliest')).toBeInTheDocument();
+    expect(screen.getByText('Target')).toBeInTheDocument();
+    expect(screen.getByText('Latest')).toBeInTheDocument();
+    expect(screen.getByText('Actual')).toBeInTheDocument();
+    expect(screen.getByText('Linked 5')).toBeInTheDocument();
+    expect(screen.queryByText('Linked 6')).not.toBeInTheDocument();
+    expect(screen.getByText('+1 more')).toBeInTheDocument();
+  });
+
+  it('shows a View item button on touch devices that navigates through the callback', async () => {
+    const onHiNavigate = jest.fn();
+    render(
+      <GanttTooltip
+        data={{ ...PURCHASE, householdItemId: 'hi-1' }}
+        position={DEFAULT_POSITION}
+        isTouchDevice
+        onHiNavigate={onHiNavigate}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: 'View item' }));
+    expect(onHiNavigate).toHaveBeenCalledWith('hi-1');
+  });
+});
+
+describe('GanttTooltip — milestone chip and labels (#2198)', () => {
+  const MS: GanttTooltipMilestoneData = {
+    kind: 'milestone',
+    title: 'Foundation Complete',
+    targetDate: '2024-07-01',
+    projectedDate: null,
+    isCompleted: false,
+    isLate: false,
+    completedAt: null,
+    linkedWorkItems: [],
+    dependentWorkItems: [],
+  };
+
+  it.each([
+    ['upcoming', {}, 'Upcoming', 'milestoneUpcoming'],
+    [
+      'reached',
+      { isCompleted: true, completedAt: '2024-07-01T10:00:00.000Z' },
+      'Reached',
+      'milestoneReached',
+    ],
+    ['late', { projectedDate: '2024-07-06', isLate: true }, 'Late · 5 d', 'milestoneLate'],
+    ['early', { projectedDate: '2024-06-28' }, 'Early · 3 d', 'milestoneEarly'],
+  ] as const)('the %s chip carries the Badge class %s', (_s, overrides, word, badgeClass) => {
+    render(<GanttTooltip data={{ ...MS, ...overrides }} position={DEFAULT_POSITION} />);
+    expect(screen.getByText(word).className).toContain(badgeClass);
+  });
+
+  it('names the successor list "Holds up" with the new aria-label, via t()', () => {
+    render(
+      <GanttTooltip
+        data={{
+          ...MS,
+          dependentWorkItems: Array.from({ length: 7 }, (_, i) => ({
+            id: `wi-${i}`,
+            title: `Task ${i + 1}`,
+          })),
+        }}
+        position={DEFAULT_POSITION}
+      />,
+    );
+    expect(screen.getByText(/Holds up \(7\)/)).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Tasks this milestone holds up' })).toBeInTheDocument();
+    expect(screen.getByText('+2 more')).toBeInTheDocument();
+  });
+
+  it('shows a View item button on touch devices that calls onMilestoneNavigate', async () => {
+    const onMilestoneNavigate = jest.fn();
+    render(
+      <GanttTooltip
+        data={{ ...MS, milestoneId: 7 }}
+        position={DEFAULT_POSITION}
+        isTouchDevice
+        onMilestoneNavigate={onMilestoneNavigate}
+      />,
+    );
+    await userEvent.click(screen.getByRole('button', { name: /View item/ }));
+    expect(onMilestoneNavigate).toHaveBeenCalledWith(7);
+  });
+});
+
+describe('GanttTooltip — de-DE group labels (#2198)', () => {
+  beforeEach(() => {
+    localStorage.setItem('locale', 'de');
+  });
+
+  it('names the task groups "Wartet auf" and "Hält auf" and shows "Firma"', () => {
+    renderTooltip({
+      assignedVendorName: 'Sample Tiling Ltd',
+      dependencies: [
+        { relatedTitle: 'Pred One', dependencyType: 'finish_to_start', role: 'predecessor' },
+        { relatedTitle: 'Succ One', dependencyType: 'finish_to_start', role: 'successor' },
+      ],
+    });
+    expect(screen.getByTestId('gantt-tooltip-waits-for')).toHaveTextContent('Wartet auf (1)');
+    expect(screen.getByTestId('gantt-tooltip-holds-up')).toHaveTextContent('Hält auf (1)');
+    expect(screen.getByTestId('gantt-tooltip-company')).toHaveTextContent('Firma');
   });
 });
