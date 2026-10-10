@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
@@ -273,7 +274,7 @@ export function ReportInvoiceList({
               {/* 7th grid column: open-invoice affordance. Sibling of .attachmentColumn,
                   NOT inside the checkboxWithContent <label> above — see AC 2.5. */}
               <IconLinkButton
-                to={`/budget/invoices/${invoice.invoiceId}`}
+                to={routeUrl('invoice', { id: invoice.invoiceId })}
                 newTab
                 ariaLabel={t('sourceReports.openInvoiceAriaLabel', {
                   vendor: invoice.vendorName,
@@ -342,8 +343,8 @@ export function ReportInvoiceList({
                                     <Link
                                       to={
                                         line.linkedItem.type === 'work_item'
-                                          ? `/project/work-items/${line.linkedItem.id}`
-                                          : `/household-items/${line.linkedItem.id}`
+                                          ? routeUrl('workItem', { id: line.linkedItem.id })
+                                          : routeUrl('householdItem', { id: line.linkedItem.id })
                                       }
                                       className={styles.linkedItemLink}
                                     >
@@ -402,8 +403,8 @@ export function ReportInvoiceList({
                                 <Link
                                   to={
                                     line.linkedItem.type === 'work_item'
-                                      ? `/project/work-items/${line.linkedItem.id}`
-                                      : `/household-items/${line.linkedItem.id}`
+                                      ? routeUrl('workItem', { id: line.linkedItem.id })
+                                      : routeUrl('householdItem', { id: line.linkedItem.id })
                                   }
                                   className={styles.linkedItemLink}
                                 >

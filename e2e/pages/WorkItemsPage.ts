@@ -22,8 +22,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const WORK_ITEMS_ROUTE = '/project/work-items';
+export const WORK_ITEMS_ROUTE = routeUrl('workItems');
 
 export class WorkItemsPage {
   readonly page: Page;

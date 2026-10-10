@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { WorkItemSummary, WorkItemListQuery, FilterMeta } from '@cornerstone/shared';
-import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
@@ -29,10 +29,10 @@ import sharedStyles from '../../styles/shared.module.css';
 import styles from './WorkItemsPage.module.css';
 
 const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: '/project/overview' },
-  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
-  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
-  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
+  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
+  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
+  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
+  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
 ];
 
 export function WorkItemsPage() {
@@ -220,7 +220,7 @@ export function WorkItemsPage() {
         defaultVisible: true,
         render: (item) => (
           <div className={styles.titleCell}>
-            <Link to={`/project/work-items/${item.id}`} className={styles.itemLink}>
+            <Link to={routeUrl('workItem', { id: item.id })} className={styles.itemLink}>
               {item.title}
             </Link>
             <AreaBreadcrumb area={item.area ?? null} variant="compact" />
@@ -368,7 +368,7 @@ export function WorkItemsPage() {
             type="button"
             className={styles.menuItem}
             onClick={() => {
-              navigate(`/project/work-items/${item.id}`);
+              navigate(routeUrl('workItem', { id: item.id }));
               setActiveMenuId(null);
             }}
             data-testid={dataTableTestId('wi-view', item.id, surface)}
@@ -396,7 +396,7 @@ export function WorkItemsPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate('/project/work-items/new'),
+        handler: () => navigate(routeUrl('workItemNew')),
         description: t('list.shortcuts.newWorkItem')!,
       },
       {
@@ -439,7 +439,7 @@ export function WorkItemsPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/work-items/new')}
+          onClick={() => navigate(routeUrl('workItemNew'))}
           data-testid="new-work-item-button"
         >
           {t('list.newWorkItem')}
@@ -457,7 +457,7 @@ export function WorkItemsPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(item) => item.id}
-        onRowClick={(item) => navigate(`/project/work-items/${item.id}`)}
+        onRowClick={(item) => navigate(routeUrl('workItem', { id: item.id }))}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
@@ -467,7 +467,7 @@ export function WorkItemsPage() {
           description: t('list.empty.noItemsText')!,
           action: {
             label: t('list.empty.createFirst')!,
-            onClick: () => navigate('/project/work-items/new'),
+            onClick: () => navigate(routeUrl('workItemNew')),
           },
         }}
       />

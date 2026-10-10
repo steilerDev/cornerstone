@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary, DiarySourceEntityType } from '@cornerstone/shared';
@@ -21,15 +22,15 @@ function getSourceEntityRoute(entry: DiaryEntrySummary): string | null {
 
   switch (entry.sourceEntityType) {
     case 'work_item':
-      return `/project/work-items/${entry.sourceEntityId}`;
+      return routeUrl('workItem', { id: entry.sourceEntityId });
     case 'invoice':
-      return `/budget/invoices/${entry.sourceEntityId}`;
+      return routeUrl('invoice', { id: entry.sourceEntityId });
     case 'milestone':
-      return `/project/milestones/${entry.sourceEntityId}`;
+      return routeUrl('milestone', { id: entry.sourceEntityId });
     case 'budget_source':
-      return `/budget/sources`;
+      return routeUrl('budgetSources');
     case 'subsidy_program':
-      return `/budget/subsidies`;
+      return routeUrl('budgetSubsidies');
     default:
       return null;
   }
@@ -50,7 +51,10 @@ export function DiaryEntryCard({ entry }: DiaryEntryCardProps) {
     .filter(Boolean)
     .join(' ');
 
-  const cardLink = entry.status === 'draft' ? `/diary/${entry.id}/edit` : `/diary/${entry.id}`;
+  const cardLink =
+    entry.status === 'draft'
+      ? routeUrl('diaryEntryEdit', { id: entry.id })
+      : routeUrl('diaryEntry', { id: entry.id });
 
   return (
     <Link

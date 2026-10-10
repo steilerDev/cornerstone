@@ -16,6 +16,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export interface EditVendorData {
   name?: string;
@@ -207,7 +208,7 @@ export class VendorDetailPage {
   }
 
   async goto(vendorId: string): Promise<void> {
-    await this.page.goto(`/settings/vendors/${vendorId}`);
+    await this.page.goto(routeUrl('vendor', { id: vendorId }));
     await this.pageTitle.waitFor({ state: 'visible' });
   }
 

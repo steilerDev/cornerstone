@@ -1,6 +1,7 @@
 import './i18n/index.js';
 import { lazy, Suspense, useEffect } from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { LIVE_REDIRECT_ROUTES, liveConditionalRules, routePattern } from '@cornerstone/shared';
 import { AppShell } from './components/AppShell/AppShell';
 import { AuthProvider } from './contexts/AuthContext';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
@@ -11,16 +12,8 @@ import { RoleGuard } from './components/AuthGuard/RoleGuard';
 import { ToastProvider } from './components/Toast/ToastContext';
 import { ToastList } from './components/Toast/Toast';
 import { ChunkLoadErrorBoundary } from './components/ChunkLoadErrorBoundary/index.js';
-
-/** Redirect helper that resolves route params (e.g. :id) into the target path. */
-function ParamRedirect({ to }: { to: string }) {
-  const params = useParams();
-  const resolved = Object.entries(params).reduce(
-    (path, [key, value]) => path.replace(`:${key}`, value ?? ''),
-    to,
-  );
-  return <Navigate to={resolved} replace />;
-}
+import { RouteRedirect } from './navigation/RouteRedirect.js';
+import { RouteGate } from './navigation/RouteGate.js';
 
 /**
  * Bridge component that syncs theme with server when user authenticates.
@@ -105,6 +98,9 @@ const PhotoSpotViewerPage = lazy(() => import('./pages/PhotoSpotViewerPage/Photo
 const NotFoundPage = lazy(() => import('./pages/NotFoundPage/NotFoundPage'));
 const NoAccessPage = lazy(() => import('./pages/NoAccessPage/NoAccessPage'));
 
+/** Live conditional redirects (Paperless off) of the Paperless invoice review page. */
+const PAPERLESS_REVIEW_RULES = liveConditionalRules('invoicePaperlessReview');
+
 export function App() {
   return (
     <ChunkLoadErrorBoundary>
@@ -118,7 +114,7 @@ export function App() {
                 <Routes>
                   {/* Auth routes (no AppShell wrapper) */}
                   <Route
-                    path="setup"
+                    path={routePattern('setup')}
                     element={
                       <Suspense fallback={<div>Loading...</div>}>
                         <SetupPage />
@@ -126,200 +122,138 @@ export function App() {
                     }
                   />
                   <Route
-                    path="login"
+                    path={routePattern('login')}
                     element={
                       <Suspense fallback={<div>Loading...</div>}>
                         <LoginPage />
                       </Suspense>
                     }
                   />
-
                   {/* Protected app routes (with AuthGuard and AppShell wrapper) */}
                   <Route element={<AuthGuard />}>
                     <Route element={<AppShell />}>
-                      {/* Root redirects to /project */}
-                      <Route index element={<Navigate to="/project" replace />} />
-
-                      {/* Project section */}
-                      <Route path="project">
-                        <Route index element={<Navigate to="overview" replace />} />
-                        <Route path="overview" element={<DashboardPage />} />
-                        <Route path="work-items" element={<WorkItemsPage />} />
-                        <Route path="work-items/new" element={<WorkItemCreatePage />} />
-                        <Route path="work-items/:id" element={<WorkItemDetailPage />} />
-                        <Route path="household-items" element={<HouseholdItemsPage />} />
-                        <Route path="household-items/new" element={<HouseholdItemCreatePage />} />
-                        <Route path="household-items/:id" element={<HouseholdItemDetailPage />} />
+                      <Route path={routePattern('dashboard')} element={<DashboardPage />} />
+                      <Route path={routePattern('workItems')} element={<WorkItemsPage />} />
+                      <Route path={routePattern('workItemNew')} element={<WorkItemCreatePage />} />
+                      <Route path={routePattern('workItem')} element={<WorkItemDetailPage />} />
+                      <Route
+                        path={routePattern('householdItems')}
+                        element={<HouseholdItemsPage />}
+                      />
+                      <Route
+                        path={routePattern('householdItemNew')}
+                        element={<HouseholdItemCreatePage />}
+                      />
+                      <Route
+                        path={routePattern('householdItem')}
+                        element={<HouseholdItemDetailPage />}
+                      />
+                      <Route
+                        path={routePattern('householdItemEdit')}
+                        element={<HouseholdItemEditPage />}
+                      />
+                      <Route path={routePattern('milestones')} element={<MilestonesPage />} />
+                      <Route
+                        path={routePattern('milestoneNew')}
+                        element={<MilestoneCreatePage />}
+                      />
+                      <Route path={routePattern('milestone')} element={<MilestoneDetailPage />} />
+                      <Route
+                        path={routePattern('budgetOverview')}
+                        element={<BudgetOverviewPage />}
+                      />
+                      <Route path={routePattern('budgetSources')} element={<BudgetSourcesPage />} />
+                      <Route
+                        path={routePattern('budgetSubsidies')}
+                        element={<SubsidyProgramsPage />}
+                      />
+                      <Route path={routePattern('invoices')} element={<InvoicesPage />} />
+                      <Route element={<RouteGate rules={PAPERLESS_REVIEW_RULES} />}>
                         <Route
-                          path="household-items/:id/edit"
-                          element={<HouseholdItemEditPage />}
-                        />
-                        <Route path="milestones" element={<MilestonesPage />} />
-                        <Route path="milestones/new" element={<MilestoneCreatePage />} />
-                        <Route path="milestones/:id" element={<MilestoneDetailPage />} />
-                      </Route>
-
-                      {/* Budget section */}
-                      <Route path="budget">
-                        <Route index element={<Navigate to="overview" replace />} />
-                        <Route path="overview" element={<BudgetOverviewPage />} />
-                        <Route
-                          path="categories"
-                          element={<Navigate to="/settings/manage?tab=budget-categories" replace />}
-                        />
-                        <Route path="sources" element={<BudgetSourcesPage />} />
-                        <Route path="subsidies" element={<SubsidyProgramsPage />} />
-                        <Route path="invoices" element={<InvoicesPage />} />
-                        <Route
-                          path="invoices/new/paperless"
+                          path={routePattern('invoicePaperlessReview')}
                           element={
                             <Suspense fallback={<div>Loading...</div>}>
                               <PaperlessInvoiceReviewPage />
                             </Suspense>
                           }
                         />
-                        <Route path="invoices/:id" element={<InvoiceDetailPage />} />
-                        <Route
-                          path="invoices/:id/auto-itemize/:documentId"
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <AutoItemizePage />
-                            </Suspense>
-                          }
-                        />
-                        <Route path="reports" element={<ReportWizardPage />} />
                       </Route>
-
-                      {/* Schedule (renamed from Timeline) */}
-                      <Route path="schedule">
-                        <Route index element={<Navigate to="gantt" replace />} />
-                        <Route path="gantt" element={<TimelinePage />} />
-                        <Route path="calendar" element={<TimelinePage />} />
+                      <Route path={routePattern('invoice')} element={<InvoiceDetailPage />} />
+                      <Route
+                        path={routePattern('invoiceAutoItemize')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <AutoItemizePage />
+                          </Suspense>
+                        }
+                      />
+                      <Route path={routePattern('bankReport')} element={<ReportWizardPage />} />
+                      <Route path={routePattern('scheduleGantt')} element={<TimelinePage />} />
+                      <Route path={routePattern('scheduleCalendar')} element={<TimelinePage />} />
+                      <Route
+                        path={routePattern('diary')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <DiaryPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path={routePattern('diaryEntryNew')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <DiaryEntryCreatePage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path={routePattern('diaryEntry')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <DiaryEntryDetailPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path={routePattern('diaryEntryEdit')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <DiaryEntryEditPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path={routePattern('photos')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <PhotosPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route
+                        path={routePattern('photoSpot')}
+                        element={
+                          <Suspense fallback={<div>Loading...</div>}>
+                            <PhotoSpotViewerPage />
+                          </Suspense>
+                        }
+                      />
+                      <Route path={routePattern('settingsProfile')} element={<ProfilePage />} />
+                      <Route path={routePattern('settingsManage')} element={<ManagePage />} />
+                      <Route path={routePattern('vendors')} element={<VendorsPage />} />
+                      <Route path={routePattern('vendor')} element={<VendorDetailPage />} />
+                      <Route element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}>
+                        <Route
+                          path={routePattern('settingsUsers')}
+                          element={<UserManagementPage />}
+                        />
+                        <Route path={routePattern('settingsBackups')} element={<BackupsPage />} />
                       </Route>
-
-                      {/* Diary section */}
-                      <Route path="diary">
-                        <Route
-                          index
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <DiaryPage />
-                            </Suspense>
-                          }
-                        />
-                        <Route
-                          path="new"
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <DiaryEntryCreatePage />
-                            </Suspense>
-                          }
-                        />
-                        <Route
-                          path=":id"
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <DiaryEntryDetailPage />
-                            </Suspense>
-                          }
-                        />
-                        <Route
-                          path=":id/edit"
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <DiaryEntryEditPage />
-                            </Suspense>
-                          }
-                        />
-                      </Route>
-
-                      {/* Photos section */}
-                      <Route path="photos">
-                        <Route
-                          index
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <PhotosPage />
-                            </Suspense>
-                          }
-                        />
-                        <Route
-                          path="spot/:areaKey/:orientationKey"
-                          element={
-                            <Suspense fallback={<div>Loading...</div>}>
-                              <PhotoSpotViewerPage />
-                            </Suspense>
-                          }
-                        />
-                      </Route>
-
-                      {/* Settings section */}
-                      <Route path="settings">
-                        <Route index element={<Navigate to="profile" replace />} />
-                        <Route path="profile" element={<ProfilePage />} />
-                        <Route path="manage" element={<ManagePage />} />
-                        <Route path="vendors" element={<VendorsPage />} />
-                        <Route path="vendors/:id" element={<VendorDetailPage />} />
-                        <Route
-                          element={<RoleGuard allow={['admin']} fallback={<NoAccessPage />} />}
-                        >
-                          <Route path="users" element={<UserManagementPage />} />
-                          <Route path="backups" element={<BackupsPage />} />
-                        </Route>
-                      </Route>
-
-                      {/* Legacy redirects — preserve old bookmarks */}
-                      <Route
-                        path="work-items"
-                        element={<Navigate to="/project/work-items" replace />}
-                      />
-                      <Route
-                        path="work-items/new"
-                        element={<Navigate to="/project/work-items/new" replace />}
-                      />
-                      <Route
-                        path="work-items/:id"
-                        element={<ParamRedirect to="/project/work-items/:id" />}
-                      />
-                      <Route
-                        path="household-items"
-                        element={<Navigate to="/project/household-items" replace />}
-                      />
-                      <Route
-                        path="household-items/new"
-                        element={<Navigate to="/project/household-items/new" replace />}
-                      />
-                      <Route
-                        path="household-items/:id"
-                        element={<ParamRedirect to="/project/household-items/:id" />}
-                      />
-                      <Route
-                        path="household-items/:id/edit"
-                        element={<ParamRedirect to="/project/household-items/:id/edit" />}
-                      />
-                      <Route path="invoices" element={<Navigate to="/budget/invoices" replace />} />
-                      <Route
-                        path="invoices/:id"
-                        element={<ParamRedirect to="/budget/invoices/:id" />}
-                      />
-                      <Route path="timeline" element={<Navigate to="/schedule/gantt" replace />} />
-                      <Route path="manage" element={<Navigate to="/settings/manage" replace />} />
-                      <Route path="tags" element={<Navigate to="/settings/manage" replace />} />
-                      <Route path="profile" element={<Navigate to="/settings/profile" replace />} />
-                      <Route
-                        path="admin/users"
-                        element={<Navigate to="/settings/users" replace />}
-                      />
-                      <Route
-                        path="budget/vendors"
-                        element={<Navigate to="/settings/vendors" replace />}
-                      />
-                      <Route
-                        path="budget/vendors/:id"
-                        element={<ParamRedirect to="/settings/vendors/:id" />}
-                      />
-
-                      <Route path="*" element={<NotFoundPage />} />
+                      {/* Redirects generated from the shared route map (legacy URLs, section roots) */}
+                      {LIVE_REDIRECT_ROUTES.map((r) => (
+                        <Route key={r.from} path={r.path} element={<RouteRedirect rule={r} />} />
+                      ))}
+                      <Route path={routePattern('notFound')} element={<NotFoundPage />} />
                     </Route>
                   </Route>
                 </Routes>

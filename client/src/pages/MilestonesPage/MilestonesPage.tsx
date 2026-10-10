@@ -20,12 +20,13 @@ import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './MilestonesPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: '/project/overview' },
-  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
-  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
-  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
+  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
+  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
+  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
+  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
 ];
 
 export function MilestonesPage() {
@@ -331,7 +332,7 @@ export function MilestonesPage() {
           <button
             type="button"
             className={styles.menuItem}
-            onClick={() => navigate(`/project/milestones/${milestone.id}`)}
+            onClick={() => navigate(routeUrl('milestone', { id: milestone.id }))}
             data-testid={dataTableTestId('milestone-edit', milestone.id, surface)}
           >
             {t('milestones.menu.edit')}
@@ -354,7 +355,7 @@ export function MilestonesPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate('/project/milestones/new'),
+        handler: () => navigate(routeUrl('milestoneNew')),
         description: t('milestones.keyboard.newMilestone')!,
       },
       {
@@ -388,7 +389,7 @@ export function MilestonesPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/milestones/new')}
+          onClick={() => navigate(routeUrl('milestoneNew'))}
           data-testid="new-milestone-button"
         >
           {t('milestones.newButton')}
@@ -406,7 +407,7 @@ export function MilestonesPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(m) => String(m.id)}
-        onRowClick={(m) => navigate(`/project/milestones/${m.id}`)}
+        onRowClick={(m) => navigate(routeUrl('milestone', { id: m.id }))}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={setTableState}
@@ -415,7 +416,7 @@ export function MilestonesPage() {
           description: t('milestones.empty.noItemsMessage')!,
           action: {
             label: t('milestones.empty.createFirst')!,
-            onClick: () => navigate('/project/milestones/new'),
+            onClick: () => navigate(routeUrl('milestoneNew')),
           },
         }}
       />

@@ -25,7 +25,7 @@ Exit codes: 0 ok, 1 findings, 2 usage or IO error.
 | -------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `capabilities.json`  | curated                 | Capability inventory: id, domain, frequency, where it lives today.                                                                                                                                                                     |
 | `capmap.json`        | curated                 | Where each capability goes: `to`, `change`, `gate`, `clicks`, `clickPath`.                                                                                                                                                             |
-| `routemap.json`      | curated                 | Every URL the router serves or will serve, and where it lands.                                                                                                                                                                         |
+| `routemap.json`      | curated                 | Every URL the router serves or will serve, and where it lands (with notes). Must agree with `shared/src/routes/routeMap.ts`.                                                                                                           |
 | `router-routes.json` | generated, never edited | Routes extracted from `client/src/App.tsx`. Drift fails CI.                                                                                                                                                                            |
 | `summary.json`       | generated, never edited | Counts derived from the capability map and route map.                                                                                                                                                                                  |
 | `baseline.json`      | generated + audited     | Measured UI pattern counts (`measured`), planned additions (`allowedAdditions`) and hand-audited inventories (`audited`). `plan:build` rewrites `measured` and moves consumed names out of `allowedAdditions`; `audited` is untouched. |
@@ -51,10 +51,24 @@ the build and commit the result.
 
 ## Route map rules
 
+- **Runtime source:** `shared/src/routes/routeMap.ts` (`ROUTE_MAP`, 88 entries). `routemap.json` stays
+  the curated record with the notes and must agree field by field (`from`, order, `to`, `kind`,
+  `change`, `section`, `guard`, `gate`, `permanent`, `carries`); `plan:check` fails on any difference
+  (`route map drift: ...`). A route change edits both files in the same PR.
+- **`stage`:** `done` = served as `to`/`kind` say; `interim` = served today but not yet in its final
+  form (`interim: 'page'` = today's page still serves it, any other string = a one-hop redirect to
+  today's equivalent); `planned` = not served yet (the router must not serve it). The story that builds
+  a target page flips the stage and deletes `interim`.
+- **`App.tsx` takes its routes from the map:** page paths via `routePattern('<id>')`, redirects via
+  `LIVE_REDIRECT_ROUTES.map(...)` rendering `RouteRedirect`. `RoleGuard allow={[...]}` sets the guard
+  and `RouteGate` marks gated pages; both are checked against the map (`guard`, live conditional rules).
+- `shared/src/routes/` must stay self-contained (only `./` imports): the plan tooling and E2E load it
+  as source, without a build.
 - Every route the router serves has an entry whose `from` (before any `?query`, `#anchor` or
   ` (condition)`) equals the router path. Adding a route in `App.tsx` without a route-map entry fails.
-- Every entry other than `new`, `repair`, `query-map` and `conditional` must be served by the router
-  today.
+- Every `done`/`interim` entry without a `match` (query maps and conditionals) must be served by the
+  router in its effective form; `planned` entries must not be served. (Without the shared map, the
+  older rule applies: every entry other than `new`, `repair`, `query-map` and `conditional`.)
 - Fields: `kind` (`page` or `redirect`), `change` (one of the eleven values in the wiki legend), `guard`
   (`public`, `member`, `admin`), `gate` (`none`, `paperless`, `paperless+ai`), `permanent` (boolean),
   `carries` (list of strings), `section` and `note` (non-empty). No duplicate `from`.

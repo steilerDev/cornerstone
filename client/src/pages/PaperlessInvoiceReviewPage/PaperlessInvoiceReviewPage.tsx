@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
@@ -249,7 +249,7 @@ export function PaperlessInvoiceReviewPage() {
   }, [documentId, t, tErrors]);
 
   const handleCancel = useCallback(() => {
-    navigate('/budget/invoices');
+    navigate(routeUrl('invoices'));
   }, [navigate]);
 
   const settleCreate = (v: { id: string; name: string } | null) => {
@@ -336,7 +336,7 @@ export function PaperlessInvoiceReviewPage() {
         lines: linesPayload,
       });
 
-      navigate(`/budget/invoices/${result.invoice.id}`);
+      navigate(routeUrl('invoice', { id: result.invoice.id }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setPageError(translateApiError(err.error.code, tErrors));
@@ -437,7 +437,7 @@ export function PaperlessInvoiceReviewPage() {
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
           <div>
-            <Link to="/budget/invoices" className={styles.breadcrumb}>
+            <Link to={routeUrl('invoices')} className={styles.breadcrumb}>
               {t('autoItemize.backToInvoices')}
             </Link>
           </div>

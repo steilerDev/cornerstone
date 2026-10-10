@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -114,7 +115,7 @@ export function CriticalPathCard({ criticalPath, workItems }: CriticalPathCardPr
           data-testid="critical-deadline"
           style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-primary)' }}
         >
-          <Link to={`/work-items/${nextItem.id}`} className={styles.link}>
+          <Link to={routeUrl('workItem', { id: nextItem.id })} className={styles.link}>
             {formatDate(deadline)}
           </Link>
         </div>

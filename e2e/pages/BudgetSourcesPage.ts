@@ -12,8 +12,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const BUDGET_SOURCES_ROUTE = '/budget/sources';
+export const BUDGET_SOURCES_ROUTE = routeUrl('budgetSources');
 
 export interface CreateBudgetSourceData {
   name: string;

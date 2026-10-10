@@ -29,8 +29,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const HOUSEHOLD_ITEM_CREATE_ROUTE = '/project/household-items/new';
+export const HOUSEHOLD_ITEM_CREATE_ROUTE = routeUrl('householdItemNew');
 
 export interface HouseholdItemFormData {
   name?: string;
@@ -177,7 +178,7 @@ export class HouseholdItemCreatePage {
     await this.page.waitForURL(
       (url) => {
         const path = url.pathname;
-        return path.startsWith('/project/household-items/') && !path.endsWith('/new');
+        return path.startsWith(`${routeUrl('householdItems')}/`) && !path.endsWith('/new');
       },
       { timeout: 30000 },
     );

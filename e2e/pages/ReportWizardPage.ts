@@ -404,8 +404,9 @@
  */
 
 import { expect, type Page, type Locator, type Download } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const REPORT_WIZARD_ROUTE = '/budget/reports';
+export const REPORT_WIZARD_ROUTE = routeUrl('bankReport');
 
 export type SourceReportUseCase = 'budget-overview' | 'claim' | 'proof-of-funds';
 

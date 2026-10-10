@@ -1,3 +1,5 @@
+import { routeUrl } from '../../shared/src/routes/index.js';
+
 /**
  * Test data constants used across E2E tests
  */
@@ -20,26 +22,26 @@ export const TEST_MEMBER = {
 };
 
 export const ROUTES = {
-  home: '/project/overview',
-  photos: '/photos',
-  setup: '/setup',
-  login: '/login',
-  workItems: '/project/work-items',
-  workItemsNew: '/project/work-items/new',
-  budget: '/budget/overview',
-  budgetCategories: '/settings/manage?tab=budget-categories',
-  settingsVendors: '/settings/vendors',
-  budgetSources: '/budget/sources',
-  budgetSubsidies: '/budget/subsidies',
-  budgetReports: '/budget/reports',
-  manage: '/settings/manage',
-  timeline: '/schedule',
-  householdItems: '/project/household-items',
-  householdItemsNew: '/project/household-items/new',
-  profile: '/settings/profile',
-  userManagement: '/settings/users',
-  diary: '/diary',
-  backups: '/settings/backups',
+  home: routeUrl('dashboard'),
+  photos: routeUrl('photos'),
+  setup: routeUrl('setup'),
+  login: routeUrl('login'),
+  workItems: routeUrl('workItems'),
+  workItemsNew: routeUrl('workItemNew'),
+  budget: routeUrl('budgetOverview'),
+  budgetCategories: routeUrl('settingsManage', undefined, { tab: 'budget-categories' }),
+  settingsVendors: routeUrl('vendors'),
+  budgetSources: routeUrl('budgetSources'),
+  budgetSubsidies: routeUrl('budgetSubsidies'),
+  budgetReports: routeUrl('bankReport'),
+  manage: routeUrl('settingsManage'),
+  timeline: routeUrl('schedule'),
+  householdItems: routeUrl('householdItems'),
+  householdItemsNew: routeUrl('householdItemNew'),
+  profile: routeUrl('settingsProfile'),
+  userManagement: routeUrl('settingsUsers'),
+  diary: routeUrl('diary'),
+  backups: routeUrl('settingsBackups'),
 };
 
 export const API = {

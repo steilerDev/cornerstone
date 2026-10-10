@@ -6,6 +6,7 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import styles from './DiaryEntryCreatePage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 interface TypeCardProps {
   type: ManualDiaryEntryType;
@@ -47,7 +48,7 @@ export default function DiaryEntryCreatePage() {
     setIsCreating(true);
     try {
       const draft = await createDiaryEntry({ entryType: type, status: 'draft' });
-      navigate(`/diary/${draft.id}/edit`, { replace: true });
+      navigate(routeUrl('diaryEntryEdit', { id: draft.id }), { replace: true });
     } catch (err) {
       showToast('error', t('createPage.draftCreateError'));
       console.error('Failed to create draft:', err);
@@ -59,7 +60,11 @@ export default function DiaryEntryCreatePage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
+        <button
+          type="button"
+          className={styles.backButton}
+          onClick={() => navigate(routeUrl('diary'))}
+        >
           {t('createPage.backLink')}
         </button>
         <h1 className={styles.title}>{t('createPage.title')}</h1>

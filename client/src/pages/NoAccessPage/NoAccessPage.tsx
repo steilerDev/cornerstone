@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
+import { routeUrl } from '@cornerstone/shared';
 
 /** Decorative lock (stroke icon, sized by EmptyState's .icon font-size). */
 function LockIcon() {
@@ -31,7 +32,7 @@ export function NoAccessPage() {
         messageAs="h1"
         message={t('noAccess.title')}
         description={t('noAccess.description')}
-        action={{ label: t('noAccess.backLink'), href: '/project' }}
+        action={{ label: t('noAccess.backLink'), href: routeUrl('project') }}
       />
     </div>
   );

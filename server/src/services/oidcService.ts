@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import * as client from 'openid-client';
+import { routeUrl } from '@cornerstone/shared';
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
@@ -54,13 +55,13 @@ export async function discoverOidcConfig(
  *
  * @param config - openid-client Configuration
  * @param redirectUri - OAuth callback URL
- * @param appRedirect - The path to redirect to after login (default '/')
+ * @param appRedirect - The path to redirect to after login (default: the home route)
  * @returns Authorization URL and state
  */
 export function buildAuthorizationUrl(
   config: client.Configuration,
   redirectUri: string,
-  appRedirect: string = '/',
+  appRedirect: string = routeUrl('home'),
 ): { authorizationUrl: string; state: string } {
   const state = randomBytes(32).toString('hex');
 

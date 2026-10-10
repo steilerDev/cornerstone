@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -61,7 +62,7 @@ export interface GanttTooltipWorkItemData {
   actualDurationDays?: number | null;
   /**
    * Work item ID used for the "View item" navigation link on touch devices.
-   * When provided, a "View item" link to `/work-items/:workItemId` is rendered
+   * When provided, a "View item" link to the `workItem` route is rendered
    * in the tooltip on touch (pointer: coarse) devices.
    */
   workItemId?: string;
@@ -393,7 +394,7 @@ function WorkItemTooltipContent({
         <>
           <div className={styles.separator} aria-hidden="true" />
           <Link
-            to={`/project/work-items/${data.workItemId}`}
+            to={routeUrl('workItem', { id: data.workItemId })}
             className={styles.viewItemLink}
             aria-label={`${t('gantt.tooltip.navigation.viewItem')} ${data.title}`}
           >

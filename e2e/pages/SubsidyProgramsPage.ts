@@ -22,8 +22,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const SUBSIDY_PROGRAMS_ROUTE = '/budget/subsidies';
+export const SUBSIDY_PROGRAMS_ROUTE = routeUrl('budgetSubsidies');
 
 export interface CreateSubsidyProgramData {
   name: string;

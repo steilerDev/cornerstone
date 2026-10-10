@@ -495,3 +495,42 @@ export type {
   GenerateReportContentRequest,
   GenerateReportContentResponse,
 } from './types/sourceReport.js';
+
+// Routes (EPIC-21 route map, ADR-038)
+export {
+  ROUTE_MAP,
+  LIVE_REDIRECT_ROUTES,
+  baseFrom,
+  conditionHolds,
+  effectiveTarget,
+  getRouteEntry,
+  isRouteServed,
+  liveConditionalRules,
+  matchLocation,
+  matchPattern,
+  resolveLocation,
+  resolveRedirect,
+  routePattern,
+  routeUrl,
+} from './routes/index.js';
+export type {
+  LiveRedirectRoute,
+  RouteChange,
+  RouteCondition,
+  RouteContext,
+  RouteGate,
+  RouteGateContext,
+  RouteGuard,
+  RouteId,
+  RouteKind,
+  RouteMapEntry,
+  RouteMatch,
+  RouteParams,
+  RoutePatternOf,
+  RouteQuery,
+  RouteQueryValue,
+  RouteResolution,
+  RouteSection,
+  RouteStage,
+  ServedRouteId,
+} from './routes/index.js';

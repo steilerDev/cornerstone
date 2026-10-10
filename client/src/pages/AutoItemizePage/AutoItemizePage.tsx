@@ -40,7 +40,7 @@ import { CONFIDENCE_LABELS } from '../../lib/budgetConstants.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './AutoItemizePage.module.css';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 
 type PageStatus = 'loading' | 'error' | 'ready' | 'saving';
 
@@ -256,14 +256,14 @@ export function AutoItemizePage() {
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
-      navigate(`/budget/invoices/${invoiceId}`);
+      navigate(routeUrl('invoice', { id: invoiceId }));
     }
   }, [isDirty, invoiceId, navigate]);
 
   const handleConfirmCancel = useCallback(() => {
     if (!invoiceId) return;
     setShowCancelConfirm(false);
-    navigate(`/budget/invoices/${invoiceId}`);
+    navigate(routeUrl('invoice', { id: invoiceId }));
   }, [invoiceId, navigate]);
 
   const handleSave = useCallback(async () => {
@@ -331,7 +331,7 @@ export function AutoItemizePage() {
         ...(Object.keys(patch).length > 0 ? { invoicePatch: patch } : {}),
       });
 
-      navigate(`/budget/invoices/${invoiceId}`);
+      navigate(routeUrl('invoice', { id: invoiceId }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setPageError(translateApiError(err.error.code, tErrors));
@@ -494,7 +494,7 @@ export function AutoItemizePage() {
                 {t('autoItemize.retry')}
               </button>
             )}
-            <Link to={`/budget/invoices/${invoiceId}`} className={sharedStyles.btnSecondary}>
+            <Link to={routeUrl('invoice', { id: invoiceId })} className={sharedStyles.btnSecondary}>
               {t('autoItemize.backToInvoice')}
             </Link>
           </div>
@@ -508,7 +508,7 @@ export function AutoItemizePage() {
       <div className={styles.pageContainer} data-layout="full-height">
         <div className={styles.pageHeader}>
           <div>
-            <Link to={`/budget/invoices/${invoiceId}`} className={styles.breadcrumb}>
+            <Link to={routeUrl('invoice', { id: invoiceId })} className={styles.breadcrumb}>
               {t('autoItemize.backToInvoice')}
             </Link>
           </div>

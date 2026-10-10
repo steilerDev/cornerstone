@@ -10,6 +10,7 @@ import { useAreas } from '../../hooks/useAreas.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import styles from './HouseholdItemEditPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 interface Vendor {
   id: string;
@@ -119,7 +120,7 @@ export function HouseholdItemEditPage() {
       });
 
       showToast('success', t('edit.success'));
-      navigate(`/project/household-items/${id}`);
+      navigate(routeUrl('householdItem', { id: id! }));
     } catch (err) {
       setError(t('edit.errorBanner'));
       console.error('Failed to update household item:', err);
@@ -142,7 +143,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/project/household-items')}
+            onClick={() => navigate(routeUrl('householdItems'))}
           >
             {t('edit.backButton')}
           </button>
@@ -159,7 +160,7 @@ export function HouseholdItemEditPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate(`/project/household-items/${id}`)}
+          onClick={() => navigate(routeUrl('householdItem', { id: id! }))}
           disabled={isSubmitting}
         >
           {t('edit.backButton')}
@@ -322,7 +323,7 @@ export function HouseholdItemEditPage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate(`/project/household-items/${id}`)}
+            onClick={() => navigate(routeUrl('householdItem', { id: id! }))}
             disabled={isSubmitting}
           >
             {t('edit.cancel')}

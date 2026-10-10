@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Navigate, Outlet } from 'react-router-dom';
 import { getAuthMe } from '../../lib/authApi.js';
 import { useState, useEffect } from 'react';
@@ -56,11 +57,11 @@ export function AuthGuard() {
   }
 
   if (authState.setupRequired) {
-    return <Navigate to="/setup" replace />;
+    return <Navigate to={routeUrl('setup')} replace />;
   }
 
   if (!authState.isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to={routeUrl('login')} replace />;
   }
 
   return <Outlet />;

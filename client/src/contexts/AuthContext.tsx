@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { createContext, use, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { getAuthMe, logout as logoutApi, type AuthMeResponse } from '../lib/authApi.js';
 import type { UserResponse } from '@cornerstone/shared';
@@ -84,7 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         error: null,
       });
       // Force full page reload to /login so AuthGuard re-runs its mount check
-      window.location.assign('/login');
+      window.location.assign(routeUrl('login'));
     }
   };
 

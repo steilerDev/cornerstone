@@ -34,6 +34,7 @@
 - [claim-deposit-scope-1922.md](claim-deposit-scope-1922.md) — PR #1922 invoice/deposit claim-scope split: `handleMarkClaimed`'s two-array submit, server-truth success-banner counts, the three "deposit surfaces the invoice" shapes, `claimNothingClaimable` guard.
 - [issue-1973-column-visibility-pdf.md](issue-1973-column-visibility-pdf.md) — column-visibility toggles wired to the PDF (supersedes #1966): reducer reset facts (use-case change resets `hiddenColumns`, `SET_ATTACH_DOCUMENTS` doesn't), Scenarios 28-33, size-diff PDF-consequence proof pattern, `goBack()` viewport-independent multi-step walk, new `columnToggleGroup`/`usageHiddenAttachmentsWarning` POM locators.
 - [issue-1911-splitkind-e2e.md](issue-1911-splitkind-e2e.md) — #1911 `splitKind` field: incoming spec said "no E2E changes needed", was wrong — fixed Scenario 18's mis-seeded fixture AND found Scenario 17 independently affected (zero-contribution-line case) by cross-referencing unit-test ACs; new AC-3.2 regression-guard sibling test; POM docblock corrections.
+- [story-2201-route-map-walk.md](story-2201-route-map-walk.md) — #2201: POMs build URLs via shared `routeUrl`; legacy-url-walk spec design (frozen 26 redirects, hop log, strict param seeding).
 
 ## Open follow-ups to flag to orchestrator
 

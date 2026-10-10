@@ -29,6 +29,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class HouseholdItemEditPage {
   readonly page: Page;
@@ -110,7 +111,7 @@ export class HouseholdItemEditPage {
    * Waits for the form heading to become visible (confirms the form loaded).
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/project/household-items/${id}/edit`);
+    await this.page.goto(routeUrl('householdItemEdit', { id }));
     await this.heading.waitFor({ state: 'visible' });
   }
 

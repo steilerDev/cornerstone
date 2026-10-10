@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import type {
   FocusEvent as ReactFocusEvent,
   KeyboardEvent as ReactKeyboardEvent,
@@ -54,7 +55,7 @@ export function CalendarHouseholdItem({
   const navigate = useNavigate();
 
   function handleNavigate() {
-    navigate(`/project/household-items/${item.id}`);
+    navigate(routeUrl('householdItem', { id: item.id }));
   }
 
   function handleClick() {

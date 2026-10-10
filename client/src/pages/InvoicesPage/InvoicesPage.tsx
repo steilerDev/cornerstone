@@ -19,7 +19,7 @@ import type {
   PaperlessDocumentSearchResult,
   PaperlessStatusResponse,
 } from '@cornerstone/shared';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
   ColumnDef,
   TableState,
@@ -115,12 +115,12 @@ function renderInvoiceNumberCell(
   return (
     <span className={styles.invoiceNumberCell}>
       {inv.invoiceNumber ? (
-        <Link to={`/budget/invoices/${inv.id}`} className={styles.invoiceLink}>
+        <Link to={routeUrl('invoice', { id: inv.id })} className={styles.invoiceLink}>
           {inv.invoiceNumber}
         </Link>
       ) : (
         <Link
-          to={`/budget/invoices/${inv.id}`}
+          to={routeUrl('invoice', { id: inv.id })}
           className={`${styles.invoiceLink} ${styles.invoiceLinkNoNumber}`}
         >
           —
@@ -418,7 +418,7 @@ export function InvoicesPage() {
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);
-    navigate(`/budget/invoices/new/paperless?documentId=${doc.id}`);
+    navigate(routeUrl('invoicePaperlessReview', undefined, { documentId: doc.id }));
   };
 
   const handlePaperlessManualEntry = () => {
@@ -530,7 +530,7 @@ export function InvoicesPage() {
         filterParamKey: 'vendorId',
         enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (inv) => (
-          <Link to={`/settings/vendors/${inv.vendorId}`} className={styles.vendorLink}>
+          <Link to={routeUrl('vendor', { id: inv.vendorId })} className={styles.vendorLink}>
             {inv.vendorName}
           </Link>
         ),
@@ -803,7 +803,7 @@ export function InvoicesPage() {
             type="button"
             className={styles.menuItem}
             onClick={() => {
-              navigate(`/budget/invoices/${invoice.id}`);
+              navigate(routeUrl('invoice', { id: invoice.id }));
               setActiveMenuId(null);
             }}
             data-testid={dataTableTestId('invoice-view', invoice.id, surface)}
@@ -924,7 +924,7 @@ export function InvoicesPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(inv) => inv.id}
-        onRowClick={(inv) => navigate(`/budget/invoices/${inv.id}`)}
+        onRowClick={(inv) => navigate(routeUrl('invoice', { id: inv.id }))}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}

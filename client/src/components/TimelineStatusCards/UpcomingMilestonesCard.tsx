@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -54,7 +55,7 @@ export function UpcomingMilestonesCard({ milestones }: UpcomingMilestonesCardPro
           return (
             <li key={milestone.id} data-testid="milestone-row" className={styles.listItem}>
               <Link
-                to={`/project/milestones/${milestone.id}`}
+                to={routeUrl('milestone', { id: milestone.id })}
                 className={styles.milestoneTitle}
                 title={milestone.title}
               >

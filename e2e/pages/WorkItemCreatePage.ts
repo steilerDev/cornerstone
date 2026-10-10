@@ -31,8 +31,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const WORK_ITEM_CREATE_ROUTE = '/project/work-items/new';
+export const WORK_ITEM_CREATE_ROUTE = routeUrl('workItemNew');
 
 export interface WorkItemFormData {
   title?: string;

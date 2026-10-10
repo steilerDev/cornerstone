@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
@@ -36,7 +37,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
         message={t('cards.recentDiary.emptyMessage')}
         action={{
           label: t('cards.recentDiary.emptyAction')!,
-          href: '/diary/new',
+          href: routeUrl('diaryEntryNew'),
         }}
         className={styles.emptyState}
       />
@@ -49,7 +50,7 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
         {entries.map((entry) => (
           <Link
             key={entry.id}
-            to={`/diary/${entry.id}`}
+            to={routeUrl('diaryEntry', { id: entry.id })}
             className={styles.entryItem}
             data-testid={`recent-diary-${entry.id}`}
           >
@@ -72,10 +73,10 @@ export function RecentDiaryCard({ entries, isLoading, error }: RecentDiaryCardPr
       </div>
 
       <div className={styles.footer}>
-        <Link to="/diary/new" className={styles.addLink}>
+        <Link to={routeUrl('diaryEntryNew')} className={styles.addLink}>
           {t('cards.recentDiary.newEntry')}
         </Link>
-        <Link to="/diary" className={styles.viewAllLink}>
+        <Link to={routeUrl('diary')} className={styles.viewAllLink}>
           {t('cards.recentDiary.viewAll')}
         </Link>
       </div>

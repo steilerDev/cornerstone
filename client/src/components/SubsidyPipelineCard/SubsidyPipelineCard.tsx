@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -130,7 +131,7 @@ export function SubsidyPipelineCard({ subsidyPrograms }: SubsidyPipelineCardProp
       </ul>
 
       <div className={styles.footer}>
-        <Link to="/budget/subsidies" className={styles.link}>
+        <Link to={routeUrl('budgetSubsidies')} className={styles.link}>
           {t('cards.subsidyPipeline.viewAllSubsidies')}
         </Link>
       </div>

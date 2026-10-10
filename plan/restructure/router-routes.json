@@ -1,7 +1,7 @@
 {
   "routes": [
     { "path": "*", "guard": "member", "kind": "page", "element": "NotFoundPage" },
-    { "path": "/", "guard": "member", "kind": "redirect", "target": "/project" },
+    { "path": "/", "guard": "member", "kind": "redirect", "target": "/project/overview" },
     { "path": "/admin/users", "guard": "member", "kind": "redirect", "target": "/settings/users" },
     { "path": "/budget", "guard": "member", "kind": "redirect", "target": "/budget/overview" },
     {
@@ -26,6 +26,7 @@
     {
       "path": "/budget/invoices/new/paperless",
       "guard": "member",
+      "gated": true,
       "kind": "page",
       "element": "PaperlessInvoiceReviewPage"
     },
@@ -56,6 +57,13 @@
     },
     {
       "path": "/budget/vendors/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/settings/vendors/:id"
+    },
+    { "path": "/companies", "guard": "member", "kind": "redirect", "target": "/settings/vendors" },
+    {
+      "path": "/companies/:id",
       "guard": "member",
       "kind": "redirect",
       "target": "/settings/vendors/:id"
@@ -175,13 +183,25 @@
     { "path": "/schedule", "guard": "member", "kind": "redirect", "target": "/schedule/gantt" },
     { "path": "/schedule/calendar", "guard": "member", "kind": "page", "element": "TimelinePage" },
     { "path": "/schedule/gantt", "guard": "member", "kind": "page", "element": "TimelinePage" },
+    {
+      "path": "/schedule/milestones",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/milestones"
+    },
+    {
+      "path": "/schedule/milestones/:id",
+      "guard": "member",
+      "kind": "redirect",
+      "target": "/project/milestones/:id"
+    },
     { "path": "/settings", "guard": "member", "kind": "redirect", "target": "/settings/profile" },
-    { "path": "/settings/backups", "guard": "member", "kind": "page", "element": "BackupsPage" },
+    { "path": "/settings/backups", "guard": "admin", "kind": "page", "element": "BackupsPage" },
     { "path": "/settings/manage", "guard": "member", "kind": "page", "element": "ManagePage" },
     { "path": "/settings/profile", "guard": "member", "kind": "page", "element": "ProfilePage" },
     {
       "path": "/settings/users",
-      "guard": "member",
+      "guard": "admin",
       "kind": "page",
       "element": "UserManagementPage"
     },

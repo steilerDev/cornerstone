@@ -12,6 +12,7 @@ import { SubNav } from '../../components/SubNav/SubNav.js';
 import { CostBreakdownTable } from '../../components/CostBreakdownTable/CostBreakdownTable.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetOverviewPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 // ---- Main component ----
 
@@ -243,7 +244,7 @@ export function BudgetOverviewPage() {
             role="menuitem"
             onClick={() => {
               setAddOpen(false);
-              void navigate('/budget/invoices?create=1');
+              void navigate(routeUrl('invoices', undefined, { create: 1 }));
             }}
             data-testid="budget-overview-add-invoice"
           >
@@ -255,7 +256,7 @@ export function BudgetOverviewPage() {
             role="menuitem"
             onClick={() => {
               setAddOpen(false);
-              void navigate('/settings/vendors');
+              void navigate(routeUrl('vendors'));
             }}
             data-testid="budget-overview-add-vendor"
           >

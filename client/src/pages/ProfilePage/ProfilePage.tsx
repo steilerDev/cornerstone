@@ -10,6 +10,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
 import styles from './ProfilePage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 interface PasswordFormErrors {
   currentPassword?: string;
@@ -31,18 +32,18 @@ export function ProfilePage() {
   const { locale, setLocale } = useLocale();
 
   const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: '/settings/vendors', ns: 'common' },
+    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
+    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
     {
       labelKey: 'subnav.settings.userManagement',
-      to: '/settings/users',
+      to: routeUrl('settingsUsers'),
       ns: 'common',
       visible: user?.role === 'admin',
     },
     {
       labelKey: 'subnav.settings.backups',
-      to: '/settings/backups',
+      to: routeUrl('settingsBackups'),
       ns: 'common',
       visible: user?.role === 'admin',
     },

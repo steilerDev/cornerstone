@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -720,7 +720,7 @@ export function HouseholdItemDetailPage() {
     try {
       await deleteHouseholdItem(item.id);
       showToast('success', t('detail.delete.deleted'));
-      navigate('/project/household-items');
+      navigate(routeUrl('householdItems'));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(translateApiError(err.error.code, tErrors));
@@ -754,7 +754,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/project/household-items')}
+              onClick={() => navigate(routeUrl('householdItems'))}
             >
               {t('detail.backToHouseholdItems')}
             </button>
@@ -774,7 +774,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/project/household-items')}
+              onClick={() => navigate(routeUrl('householdItems'))}
             >
               {t('detail.backToHouseholdItems')}
             </button>
@@ -806,14 +806,20 @@ export function HouseholdItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
+                onClick={() =>
+                  navigate(
+                    fromView
+                      ? routeUrl('schedule', undefined, { view: fromView })
+                      : routeUrl('schedule'),
+                  )
+                }
               >
                 {t('detail.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/project/household-items')}
+                onClick={() => navigate(routeUrl('householdItems'))}
               >
                 {t('detail.toHouseholdItems')}
               </button>
@@ -823,14 +829,14 @@ export function HouseholdItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate('/project/household-items')}
+                onClick={() => navigate(routeUrl('householdItems'))}
               >
                 {t('detail.backButton')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/schedule')}
+                onClick={() => navigate(routeUrl('schedule'))}
               >
                 {t('detail.toSchedule')}
               </button>
@@ -853,7 +859,7 @@ export function HouseholdItemDetailPage() {
             <button
               type="button"
               className={styles.editButton}
-              onClick={() => navigate(`/project/household-items/${item.id}/edit`)}
+              onClick={() => navigate(routeUrl('householdItemEdit', { id: item.id }))}
             >
               {t('detail.edit')}
             </button>
@@ -877,7 +883,7 @@ export function HouseholdItemDetailPage() {
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
               <dd className={styles.infoValue}>
                 {item.vendor ? (
-                  <Link to={`/settings/vendors/${item.vendor.id}`} className={styles.infoLink}>
+                  <Link to={routeUrl('vendor', { id: item.vendor.id })} className={styles.infoLink}>
                     {item.vendor.name}
                   </Link>
                 ) : (
@@ -1227,7 +1233,7 @@ export function HouseholdItemDetailPage() {
                     {dep.predecessorType === 'work_item' ? (
                       <>
                         <Link
-                          to={`/project/work-items/${dep.predecessorId}`}
+                          to={routeUrl('workItem', { id: dep.predecessorId })}
                           className={styles.depPredLink}
                         >
                           {dep.predecessor.title}

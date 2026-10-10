@@ -26,6 +26,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './UserManagementPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 interface EditFormData {
   displayName: string;
@@ -76,18 +77,18 @@ export function UserManagementPage() {
   const isAdmin = currentUser?.role === 'admin';
 
   const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: '/settings/vendors', ns: 'common' },
+    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
+    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
     {
       labelKey: 'subnav.settings.userManagement',
-      to: '/settings/users',
+      to: routeUrl('settingsUsers'),
       ns: 'common',
       visible: isAdmin,
     },
     {
       labelKey: 'subnav.settings.backups',
-      to: '/settings/backups',
+      to: routeUrl('settingsBackups'),
       ns: 'common',
       visible: isAdmin,
     },

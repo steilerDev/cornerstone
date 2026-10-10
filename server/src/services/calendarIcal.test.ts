@@ -14,6 +14,7 @@ import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { routeUrl } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { toDateOnly, computeETag, computeCalendarETag, buildCalendar } from './calendarIcal.js';
@@ -363,6 +364,9 @@ describe('buildCalendar', () => {
         'https://myhouse.example.com',
       );
       expect(output).toContain('https://myhouse.example.com/project/work-items/wi-url');
+      expect(output).toContain(
+        `https://myhouse.example.com${routeUrl('workItem', { id: 'wi-url' })}`,
+      );
     });
 
     it('does not include a URL when baseUrl is not provided', () => {
@@ -438,6 +442,7 @@ describe('buildCalendar', () => {
         'https://example.com',
       );
       expect(output).toContain('https://example.com/project/milestones/30');
+      expect(output).toContain(`https://example.com${routeUrl('milestone', { id: 30 })}`);
     });
 
     it('creates events for multiple milestones', () => {
@@ -532,6 +537,7 @@ describe('buildCalendar', () => {
         'https://example.com',
       );
       expect(output).toContain('https://example.com/project/household-items/hi-url');
+      expect(output).toContain(`https://example.com${routeUrl('householdItem', { id: 'hi-url' })}`);
     });
 
     it('appends "(Delivery)" to the household item name in SUMMARY', () => {

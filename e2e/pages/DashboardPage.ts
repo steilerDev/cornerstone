@@ -6,8 +6,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const DASHBOARD_ROUTE = '/project/overview';
+export const DASHBOARD_ROUTE = routeUrl('dashboard');
 
 /** Card IDs as used in data-testid attributes. These match the DashboardCardId type in shared. */
 export type DashboardCardId =

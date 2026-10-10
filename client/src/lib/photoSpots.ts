@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import type {
   AreaResponse,
   AreaSummary,
@@ -27,9 +28,10 @@ export function buildSpotViewerPath(
   orientationId: string | null,
   photoId?: string,
 ): string {
-  const base = `/photos/spot/${encodeURIComponent(toSpotUrlKey(areaId))}/${encodeURIComponent(
-    toSpotUrlKey(orientationId),
-  )}`;
+  const base = routeUrl('photoSpot', {
+    areaKey: toSpotUrlKey(areaId),
+    orientationKey: toSpotUrlKey(orientationId),
+  });
   return photoId ? `${base}?photo=${encodeURIComponent(photoId)}` : base;
 }
 

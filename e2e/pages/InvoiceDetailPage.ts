@@ -92,6 +92,10 @@
 
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
+
+/** API (not app route) detail-endpoint matcher. */
+const API_INVOICE_DETAIL_URL = /\/api\/(?:.*\/)?invoices\//;
 
 export class InvoiceDetailPage {
   readonly page: Page;
@@ -974,7 +978,7 @@ export class InvoiceDetailPage {
    * Navigate to the invoice detail page by ID.
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/budget/invoices/${id}`);
+    await this.page.goto(routeUrl('invoice', { id }));
     await this.heading.waitFor({ state: 'visible' });
   }
 
@@ -1059,7 +1063,7 @@ export class InvoiceDetailPage {
   async saveEdit(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) =>
-        resp.url().includes('/invoices/') &&
+        API_INVOICE_DETAIL_URL.test(resp.url()) &&
         resp.request().method() === 'PATCH' &&
         resp.status() === 200,
     );
@@ -1140,7 +1144,7 @@ export class InvoiceDetailPage {
   async confirmDelete(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
       (resp) =>
-        resp.url().includes('/invoices/') &&
+        API_INVOICE_DETAIL_URL.test(resp.url()) &&
         resp.request().method() === 'DELETE' &&
         resp.status() === 204,
     );
@@ -1270,7 +1274,7 @@ export class InvoiceDetailPage {
     const method = expectedStatus === 201 ? 'POST' : 'PATCH';
     const responsePromise = this.page.waitForResponse(
       (resp) =>
-        resp.url().includes('/invoices/') &&
+        API_INVOICE_DETAIL_URL.test(resp.url()) &&
         resp.url().includes('/deposits') &&
         resp.request().method() === method &&
         resp.status() === expectedStatus,

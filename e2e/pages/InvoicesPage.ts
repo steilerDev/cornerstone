@@ -74,8 +74,12 @@
 
 import { expect, type Page, type Locator } from '@playwright/test';
 import { PaperlessPickerModal } from './PaperlessPickerModal.js';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const INVOICES_ROUTE = '/budget/invoices';
+/** API (not app route) invoices-endpoint matcher. */
+const API_INVOICES_URL = /\/api\/(?:.*\/)?invoices/;
+
+export const INVOICES_ROUTE = routeUrl('invoices');
 
 export type InvoiceStatus = 'pending' | 'paid' | 'claimed' | 'quotation';
 
@@ -345,7 +349,7 @@ export class InvoicesPage {
 
     const responsePromise = this.page.waitForResponse(
       (resp) =>
-        resp.url().includes('/invoices') &&
+        API_INVOICES_URL.test(resp.url()) &&
         resp.request().method() === 'POST' &&
         resp.status() === 201,
     );

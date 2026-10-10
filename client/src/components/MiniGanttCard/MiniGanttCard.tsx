@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -136,7 +137,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      navigate('/schedule');
+      navigate(routeUrl('schedule'));
     }
   };
 
@@ -145,7 +146,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
     return (
       <div
         className={styles.container}
-        onClick={() => navigate('/schedule')}
+        onClick={() => navigate(routeUrl('schedule'))}
         onKeyDown={handleKeyDown}
         role="button"
         tabIndex={0}
@@ -187,7 +188,7 @@ export function MiniGanttCard({ timeline }: MiniGanttCardProps) {
   return (
     <div
       className={styles.container}
-      onClick={() => navigate('/schedule')}
+      onClick={() => navigate(routeUrl('schedule'))}
       onKeyDown={handleKeyDown}
       role="button"
       tabIndex={0}

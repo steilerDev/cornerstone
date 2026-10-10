@@ -38,8 +38,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const ORIENTATIONS_URL = '/settings/manage?tab=orientations';
+export const ORIENTATIONS_URL = routeUrl('settingsManage', undefined, { tab: 'orientations' });
 const PANEL_ID = 'orientations-panel';
 
 export class OrientationsPage {

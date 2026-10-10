@@ -7,6 +7,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../shared/AuthPage.module.css';
 import styles from './SetupPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 interface FormErrors {
   email?: string;
@@ -34,7 +35,7 @@ export function SetupPage() {
         const response = await getAuthMe();
         if (!response.setupRequired) {
           // Setup already complete, redirect to login
-          navigate('/login', { replace: true });
+          navigate(routeUrl('login'), { replace: true });
         }
       } catch {
         // If API call fails, allow setup form to render
@@ -86,7 +87,7 @@ export function SetupPage() {
     try {
       await setup({ email, displayName, password });
       // Setup complete, redirect to login
-      navigate('/login', { replace: true });
+      navigate(routeUrl('login'), { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(translateApiError(error.error.code, tErrors));

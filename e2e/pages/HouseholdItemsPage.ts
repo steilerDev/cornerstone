@@ -44,8 +44,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const HOUSEHOLD_ITEMS_ROUTE = '/project/household-items';
+export const HOUSEHOLD_ITEMS_ROUTE = routeUrl('householdItems');
 
 export class HouseholdItemsPage {
   readonly page: Page;

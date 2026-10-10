@@ -3296,7 +3296,7 @@
     "to": "Router > redirect table generated from the shared route map: 30 single-hop path redirects + query maps (see routemap.json)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (rare use). #2201: redirects are generated from shared/src/routes (one hop, query and hash carried); repairs /schedule/milestones(/:id) live; /companies(/:id) served as interim redirects; legacy entries have no route id, so code cannot emit them."
   },
   "PLT-012": {
     "name": "Land on a sensible default page when opening a section root",
@@ -3304,7 +3304,7 @@
     "to": "Router > / renders Home; /schedule -> Tasks > Schedule (query kept); /budget -> Money > Overview; /settings -> Settings > Project setup",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (daily use). #2201: / lands on /project/overview in one hop (was two)."
   },
   "PLT-013": {
     "name": "See a \"Page not found\" page for unknown in-app URLs, with a link back to the project overview",

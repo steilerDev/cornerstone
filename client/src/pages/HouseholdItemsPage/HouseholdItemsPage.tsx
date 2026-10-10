@@ -21,15 +21,15 @@ import { useAreas } from '../../hooks/useAreas.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './HouseholdItemsPage.module.css';
 
 const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: '/project/overview' },
-  { labelKey: 'subnav.project.workItems', to: '/project/work-items' },
-  { labelKey: 'subnav.project.householdItems', to: '/project/household-items' },
-  { labelKey: 'subnav.project.milestones', to: '/project/milestones' },
+  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard') },
+  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems') },
+  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems') },
+  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones') },
 ];
 
 export function HouseholdItemsPage() {
@@ -218,7 +218,7 @@ export function HouseholdItemsPage() {
         defaultVisible: true,
         render: (item) => (
           <div className={styles.titleCell}>
-            <Link to={`/project/household-items/${item.id}`} className={styles.itemLink}>
+            <Link to={routeUrl('householdItem', { id: item.id })} className={styles.itemLink}>
               {item.name}
             </Link>
             <AreaBreadcrumb area={item.area ?? null} variant="compact" />
@@ -419,7 +419,7 @@ export function HouseholdItemsPage() {
             type="button"
             className={styles.menuItem}
             onClick={() => {
-              navigate(`/project/household-items/${item.id}`);
+              navigate(routeUrl('householdItem', { id: item.id }));
               setActiveMenuId(null);
             }}
             data-testid={dataTableTestId('hi-view', item.id, surface)}
@@ -449,7 +449,7 @@ export function HouseholdItemsPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate('/project/household-items/new')}
+          onClick={() => navigate(routeUrl('householdItemNew'))}
           data-testid="new-household-item-button"
         >
           {t('newButton')}
@@ -467,7 +467,7 @@ export function HouseholdItemsPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(item) => item.id}
-        onRowClick={(item) => navigate(`/project/household-items/${item.id}`)}
+        onRowClick={(item) => navigate(routeUrl('householdItem', { id: item.id }))}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}
@@ -477,7 +477,7 @@ export function HouseholdItemsPage() {
           description: t('empty.noItemsMessage')!,
           action: {
             label: t('empty.createFirstItem')!,
-            onClick: () => navigate('/project/household-items/new'),
+            onClick: () => navigate(routeUrl('householdItemNew')),
           },
         }}
       />

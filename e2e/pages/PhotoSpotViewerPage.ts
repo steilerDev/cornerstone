@@ -8,6 +8,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class PhotoSpotViewerPage {
   readonly page: Page;
@@ -45,8 +46,9 @@ export class PhotoSpotViewerPage {
   }
 
   async goto(areaKey: string, orientationKey: string, photoId?: string): Promise<void> {
-    const q = photoId ? `?photo=${encodeURIComponent(photoId)}` : '';
-    await this.page.goto(`/photos/spot/${areaKey}/${orientationKey}${q}`);
+    await this.page.goto(
+      routeUrl('photoSpot', { areaKey, orientationKey }, { photo: photoId || undefined }),
+    );
   }
 
   historyItem(photoId: string): Locator {

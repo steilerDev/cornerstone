@@ -11,8 +11,11 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const BUDGET_CATEGORIES_ROUTE = '/settings/manage?tab=budget-categories';
+export const BUDGET_CATEGORIES_ROUTE = routeUrl('settingsManage', undefined, {
+  tab: 'budget-categories',
+});
 
 export interface CreateCategoryData {
   name: string;

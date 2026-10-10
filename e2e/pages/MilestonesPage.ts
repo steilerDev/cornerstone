@@ -28,9 +28,10 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const MILESTONES_ROUTE = '/project/milestones';
-export const MILESTONES_NEW_ROUTE = '/project/milestones/new';
+export const MILESTONES_ROUTE = routeUrl('milestones');
+export const MILESTONES_NEW_ROUTE = routeUrl('milestoneNew');
 
 export class MilestonesPage {
   readonly page: Page;

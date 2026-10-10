@@ -61,6 +61,7 @@
 
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class PaperlessInvoiceReviewPage {
   readonly page: Page;
@@ -335,8 +336,7 @@ export class PaperlessInvoiceReviewPage {
    * Omit the id to reach the "No document chosen" state.
    */
   async goto(documentId?: number): Promise<void> {
-    const query = documentId === undefined ? '' : `?documentId=${documentId}`;
-    await this.page.goto(`/budget/invoices/new/paperless${query}`);
+    await this.page.goto(routeUrl('invoicePaperlessReview', undefined, { documentId }));
   }
 
   /**
@@ -450,7 +450,7 @@ export class PaperlessInvoiceReviewPage {
    * Check if the page is at the review route.
    */
   async isAtReviewRoute(): Promise<boolean> {
-    return this.page.url().includes('/budget/invoices/new/paperless');
+    return this.page.url().includes(routeUrl('invoicePaperlessReview'));
   }
 
   // ─── Story #1764: Line card helpers (shared AutoItemizeLineList locators) ──

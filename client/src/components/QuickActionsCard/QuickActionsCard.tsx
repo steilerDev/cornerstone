@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import styles from './QuickActionsCard.module.css';
@@ -13,42 +14,42 @@ export function QuickActionsCard() {
   return (
     <div className={styles.container}>
       {/* Primary action: New Work Item */}
-      <Link to="/project/work-items/new" className={styles.primaryAction}>
+      <Link to={routeUrl('workItemNew')} className={styles.primaryAction}>
         {t('cards.quickActions.newWorkItem')}
       </Link>
 
       {/* Quick navigation links grid */}
       <div className={styles.linksGrid}>
         <Link
-          to="/project/work-items"
+          to={routeUrl('workItems')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.workItems')}
         >
           {t('cards.quickActions.workItems')}
         </Link>
         <Link
-          to="/schedule"
+          to={routeUrl('schedule')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.timeline')}
         >
           {t('cards.quickActions.timeline')}
         </Link>
         <Link
-          to="/budget/overview"
+          to={routeUrl('budgetOverview')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.budget')}
         >
           {t('cards.quickActions.budget')}
         </Link>
         <Link
-          to="/budget/invoices"
+          to={routeUrl('invoices')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.invoices')}
         >
           {t('cards.quickActions.invoices')}
         </Link>
         <Link
-          to="/settings/vendors"
+          to={routeUrl('vendors')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.vendors')}
         >

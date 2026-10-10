@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { ATTACHMENT_TYPES } from '@cornerstone/shared';
+import { ATTACHMENT_TYPES, routeUrl } from '@cornerstone/shared';
 import type {
   DocumentLinkWithMetadata,
   DocumentLinkEntityType,
@@ -409,7 +409,12 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                   entityType === 'invoice' && config?.autoItemizeEnabled
                     ? (l) => {
                         if (l.document) {
-                          navigate(`/budget/invoices/${entityId}/auto-itemize/${l.document.id}`);
+                          navigate(
+                            routeUrl('invoiceAutoItemize', {
+                              id: entityId,
+                              documentId: l.document.id,
+                            }),
+                          );
                         }
                       }
                     : undefined

@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -89,7 +90,7 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
           <div className={styles.invoiceInfo}>
             <div className={styles.invoiceIdentity}>
               <Link
-                to={`/budget/invoices/${invoiceId}`}
+                to={routeUrl('invoice', { id: invoiceId })}
                 className={styles.invoiceLink}
                 onClick={(e) => e.stopPropagation()}
               >

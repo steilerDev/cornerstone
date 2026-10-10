@@ -15,8 +15,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const BUDGET_OVERVIEW_ROUTE = '/budget/overview';
+export const BUDGET_OVERVIEW_ROUTE = routeUrl('budgetOverview');
 export const BUDGET_OVERVIEW_URL_PATTERN = /\/budget\/overview/;
 
 export class BudgetOverviewPage {

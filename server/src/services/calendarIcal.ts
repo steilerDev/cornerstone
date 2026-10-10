@@ -3,7 +3,7 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type Database from 'better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import ical from 'ical-generator';
-import type { TimelineResponse } from '@cornerstone/shared';
+import { routeUrl, type TimelineResponse } from '@cornerstone/shared';
 import { shownWorkItemDates } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes> & { $client: Database.Database };
@@ -81,7 +81,7 @@ export function buildCalendar(
       id: `wi-${wi.id}@cornerstone`,
       summary: wi.title,
       description: wiDesc || undefined,
-      url: baseUrl ? `${baseUrl}/project/work-items/${wi.id}` : undefined,
+      url: baseUrl ? `${baseUrl}${routeUrl('workItem', { id: wi.id })}` : undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,
@@ -101,7 +101,7 @@ export function buildCalendar(
       id: `milestone-${milestone.id}@cornerstone`,
       summary: milestone.title,
       description: msDesc || undefined,
-      url: baseUrl ? `${baseUrl}/project/milestones/${milestone.id}` : undefined,
+      url: baseUrl ? `${baseUrl}${routeUrl('milestone', { id: milestone.id })}` : undefined,
       start: new Date(eventDate),
       end: new Date(eventDate),
       allDay: true,
@@ -126,7 +126,7 @@ export function buildCalendar(
       id: `hi-${hi.id}@cornerstone`,
       summary: `${hi.name} (Delivery)`,
       description: hiDesc || undefined,
-      url: baseUrl ? `${baseUrl}/project/household-items/${hi.id}` : undefined,
+      url: baseUrl ? `${baseUrl}${routeUrl('householdItem', { id: hi.id })}` : undefined,
       start: new Date(startDate),
       end: new Date(endDate),
       allDay: true,
