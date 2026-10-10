@@ -35,7 +35,7 @@
 
 .backButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .backButton:disabled {
@@ -648,7 +648,7 @@
 }
 
 .button:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -695,7 +695,7 @@
 }
 
 .saveButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -789,7 +789,7 @@
 }
 
 .confirmDeleteButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

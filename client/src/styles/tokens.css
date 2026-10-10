@@ -26,7 +26,7 @@
   --color-gray-300: #d1d5db;
   --color-gray-400: #9ca3af;
   --color-gray-500: #6b7280;
-  --color-gray-550: #656c7a;
+  --color-gray-550: #5f6674;
   --color-gray-600: #4b5563;
   --color-gray-700: #374151;
   --color-gray-800: #1f2937;
@@ -49,6 +49,7 @@
   --color-red-500: #dc2626;
   --color-red-600: #b91c1c;
   --color-red-700: #991b1b;
+  --color-red-800: #7f1d1d;
 
   /* --- Green ---
    * Note: these values map to Tailwind's mixed green/emerald scales.
@@ -61,19 +62,19 @@
   --color-green-200: #bbf7d0;
   --color-green-500: #10b981;
   --color-green-600: #059669;
+  --color-green-650: #047857;
   --color-green-700: #166534;
   --color-green-900: #065f46;
 
   /* --- Dark Palette (used exclusively in dark theme overrides) --- */
   /* Slate scale — backgrounds, borders, text in dark mode */
+  --color-slate-950: #0c1424;
   --color-slate-900: #0f172a;
-  --color-slate-800: #1a1a2e;
-  --color-slate-700: #16213e;
   --color-slate-600: #1e293b;
+  --color-slate-550: #273449;
   --color-slate-500: #334155;
   --color-slate-400: #475569;
   --color-slate-300: #64748b;
-  --color-slate-250: #8392aa;
   --color-slate-200: #94a3b8;
   --color-slate-150: #cbd5e1;
   --color-slate-100: #e2e8f0;
@@ -84,6 +85,7 @@
 
   /* Red scale additions — dark mode danger variants */
   --color-red-300: #fca5a5;
+  --color-red-350: #f87171;
 
   /* Orange scale — critical path accent, warning text */
   --color-orange-300: #fdba74;
@@ -110,6 +112,7 @@
   --color-bg-tertiary: var(--color-gray-100);
   --color-bg-inverse: var(--color-gray-800);
   --color-bg-hover: var(--color-gray-50);
+  --color-bg-page: var(--color-gray-50);
 
   /* --- Text --- */
   --color-text-primary: var(--color-gray-900);
@@ -118,28 +121,28 @@
   --color-text-muted: var(--color-gray-550);
   --color-text-subtle: var(--color-gray-600);
   --color-text-inverse: var(--color-white);
-  --color-text-placeholder: var(--color-gray-400);
+  --color-text-placeholder: var(--color-gray-550);
   --color-text-disabled: var(--color-gray-400);
   --color-text-quoted: var(--color-gray-550);
 
   /* --- Borders --- */
   --color-border: var(--color-gray-200);
   --color-border-strong: var(--color-gray-300);
-  --color-border-focus: var(--color-blue-500);
+  --color-border-focus: var(--color-blue-600);
 
   /* --- Primary action (blue) --- */
-  --color-primary: var(--color-blue-500);
-  --color-primary-hover: var(--color-blue-600);
-  --color-primary-active: var(--color-blue-700);
+  --color-primary: var(--color-blue-600);
+  --color-primary-hover: var(--color-blue-700);
+  --color-primary-active: var(--color-blue-800);
   --color-primary-text: var(--color-white);
   --color-primary-bg: var(--color-blue-100);
   --color-primary-bg-hover: var(--color-blue-200);
   --color-primary-badge-text: var(--color-blue-800);
 
   /* --- Danger / Error (red) --- */
-  --color-danger: var(--color-red-500);
-  --color-danger-hover: var(--color-red-600);
-  --color-danger-active: var(--color-red-700);
+  --color-danger: var(--color-red-600);
+  --color-danger-hover: var(--color-red-700);
+  --color-danger-active: var(--color-red-800);
   --color-danger-text: var(--color-white);
   --color-danger-bg: var(--color-red-50);
   --color-danger-bg-strong: var(--color-red-100);
@@ -154,8 +157,8 @@
   --color-warning-badge-bg: rgba(251, 146, 60, 0.15);
 
   /* --- Success (green) --- */
-  --color-success: var(--color-green-500);
-  --color-success-hover: var(--color-green-600);
+  --color-success: var(--color-green-650);
+  --color-success-hover: var(--color-green-700);
   --color-success-text: var(--color-white);
   --color-success-bg: var(--color-green-50);
   --color-success-border: var(--color-green-200);
@@ -168,9 +171,12 @@
   --color-sidebar-bg: var(--color-gray-800);
   --color-sidebar-text: var(--color-gray-50);
   --color-sidebar-hover: var(--color-gray-700);
-  --color-sidebar-active: var(--color-blue-500);
   --color-sidebar-focus-ring: var(--color-blue-400);
   --color-sidebar-separator: var(--color-gray-700);
+
+  /* --- Navigation: active item (same in both themes) --- */
+  --color-nav-active-bg: var(--color-blue-600);
+  --color-nav-active-text: var(--color-white);
 
   /* --- Focus ring --- */
   --color-focus-ring: rgba(59, 130, 246, 0.3);
@@ -620,36 +626,37 @@
 
 [data-theme='dark'] {
   /* --- Backgrounds --- */
-  --color-bg-primary: var(--color-slate-800);
-  --color-bg-secondary: var(--color-slate-700);
-  --color-bg-tertiary: var(--color-slate-600);
+  --color-bg-primary: var(--color-slate-600);
+  --color-bg-secondary: var(--color-slate-550);
+  --color-bg-tertiary: var(--color-slate-500);
   --color-bg-inverse: var(--color-gray-100);
-  --color-bg-hover: var(--color-slate-600);
+  --color-bg-hover: var(--color-slate-550);
+  --color-bg-page: var(--color-slate-950);
 
   /* --- Source Budget Line Panel surface tints (dark mode) --- */
-  --color-surface-area-tint: var(--color-slate-700);
-  --color-surface-item-tint: var(--color-slate-800);
+  --color-surface-area-tint: var(--color-slate-550);
+  --color-surface-item-tint: var(--color-slate-600);
 
   /* --- Text --- */
   --color-text-primary: var(--color-slate-50);
   --color-text-secondary: var(--color-slate-150);
   --color-text-body: var(--color-slate-200);
-  --color-text-muted: var(--color-slate-250);
+  --color-text-muted: var(--color-slate-200);
   --color-text-subtle: var(--color-slate-200);
   --color-text-inverse: var(--color-gray-900);
-  --color-text-placeholder: var(--color-slate-400);
+  --color-text-placeholder: var(--color-slate-200);
   --color-text-disabled: var(--color-slate-400);
   --color-text-quoted: var(--color-slate-200);
 
   /* --- Borders --- */
-  --color-border: var(--color-slate-500);
-  --color-border-strong: var(--color-slate-400);
+  --color-border: var(--color-slate-400);
+  --color-border-strong: var(--color-slate-300);
   --color-border-focus: var(--color-blue-400);
 
   /* --- Primary action --- */
   --color-primary: var(--color-blue-400);
-  --color-primary-hover: var(--color-blue-500);
-  --color-primary-active: var(--color-blue-600);
+  --color-primary-hover: var(--color-blue-300);
+  --color-primary-active: var(--color-blue-500);
   --color-primary-text: var(--color-gray-900);
   --color-primary-bg: rgba(59, 130, 246, 0.15);
   --color-primary-bg-hover: rgba(59, 130, 246, 0.25);
@@ -662,12 +669,12 @@
   --color-warning-badge-bg: rgba(251, 146, 60, 0.2);
 
   /* --- Danger / Error --- */
-  --color-danger: var(--color-red-400);
-  --color-danger-hover: var(--color-red-400);
-  --color-danger-active: var(--color-red-500);
+  --color-danger: var(--color-red-350);
+  --color-danger-hover: var(--color-red-300);
+  --color-danger-active: var(--color-red-400);
   --color-danger-text: var(--color-gray-900);
   --color-danger-bg: rgba(239, 68, 68, 0.1);
-  --color-danger-bg-strong: rgba(239, 68, 68, 0.2);
+  --color-danger-bg-strong: rgba(239, 68, 68, 0.15);
   --color-danger-border: rgba(239, 68, 68, 0.3);
   --color-danger-text-on-light: var(--color-red-300);
   --color-danger-input-border: var(--color-red-400);
@@ -675,7 +682,7 @@
   /* --- Success --- */
   --color-success: var(--color-emerald-400);
   --color-success-hover: var(--color-green-500);
-  --color-success-text: var(--color-white);
+  --color-success-text: var(--color-gray-900);
   --color-success-bg: rgba(16, 185, 129, 0.1);
   --color-success-border: rgba(16, 185, 129, 0.3);
   --color-success-text-on-light: var(--color-emerald-300);
@@ -687,7 +694,6 @@
   --color-sidebar-bg: var(--color-slate-900);
   --color-sidebar-text: var(--color-slate-100);
   --color-sidebar-hover: var(--color-slate-600);
-  --color-sidebar-active: var(--color-blue-500);
   --color-sidebar-focus-ring: var(--color-blue-400);
   --color-sidebar-separator: var(--color-slate-500);
 
@@ -718,7 +724,7 @@
   --color-role-admin-bg: rgba(59, 130, 246, 0.2);
   --color-role-admin-text: var(--color-blue-300);
   --color-role-member-bg: var(--color-slate-500);
-  --color-role-member-text: var(--color-slate-200);
+  --color-role-member-text: var(--color-slate-100);
 
   /* --- User status badges --- */
   --color-user-active-bg: rgba(16, 185, 129, 0.15);
@@ -805,18 +811,18 @@
   --color-budget-claimed: var(--color-emerald-400);
   --color-budget-paid: var(--color-blue-400);
   --color-budget-pending: rgba(59, 130, 246, 0.15);
-  --color-budget-projected: rgba(59, 130, 246, 0.25);
+  --color-budget-projected: var(--color-blue-300);
   --color-budget-allocated: rgba(96, 165, 250, 0.35);
   --color-budget-projected-uncertainty: color-mix(
     in srgb,
     var(--color-budget-projected) 55%,
     transparent
   );
-  --color-budget-track: var(--color-slate-600);
+  --color-budget-track: var(--color-slate-500);
   --color-budget-overflow: var(--color-danger);
 
   /* --- Gantt chart --- */
-  --color-gantt-bar-not-started: var(--color-slate-400);
+  --color-gantt-bar-not-started: var(--color-slate-200);
   --color-gantt-bar-in-progress: var(--color-blue-400);
   --color-gantt-bar-completed: var(--color-emerald-400);
   --color-gantt-bar-blocked: var(--color-red-400);
@@ -830,7 +836,7 @@
   --color-gantt-row-odd: var(--color-bg-secondary);
 
   /* Dependency arrows (brighter in dark mode for contrast) */
-  --color-gantt-arrow-default: var(--color-slate-400);
+  --color-gantt-arrow-default: var(--color-slate-200);
   --color-gantt-arrow-critical: var(--color-orange-300);
   --color-gantt-arrow-milestone: var(--color-blue-400);
 

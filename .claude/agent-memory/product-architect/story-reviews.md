@@ -1061,3 +1061,7 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
   `dueFlag` called 3x per cell, the dead negative at ReportContentEditor.test:917, stale comments plus
   'No Invoice #', and the one-colour-map rule missing from CLAUDE.md. In r2, re-grep `statusPending|statusQuotation`
   and `milestones.status`.
+- **PR #2275 (#2200, roles and contrast)**: one finding. `RoleGuard` (a pathless layout route, the client half of
+  `requireRole`) was documented only in the Style Guide. I wrote the Architecture › Frontend auth section myself
+  (wiki `52475afe`) and asked for a gitlink bump. Lesson: when a PR adds a client route or auth convention, check
+  Architecture as well as the Style Guide. Writing the wiki fix myself makes the PR fix one mechanical bump.

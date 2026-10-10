@@ -19,6 +19,8 @@ export interface EmptyStateProps {
   action?: EmptyStateAction;
   /** Additional CSS class */
   className?: string;
+  /** Element for the message: 'p' (default) or 'h1' when the empty state is the whole page. */
+  messageAs?: 'p' | 'h1';
 }
 
 /** Real anchor (middle-click works) that navigates in-app on a plain click. */
@@ -32,7 +34,17 @@ function EmptyStateLink({ href, label }: { href: string; label: string }) {
   );
 }
 
-export function EmptyState({ icon, message, description, action, className }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  message,
+  description,
+  action,
+  className,
+  messageAs,
+}: EmptyStateProps) {
+  const Message = messageAs === 'h1' ? 'h1' : 'p';
+  const messageClass =
+    messageAs === 'h1' ? `${styles.message} ${styles.messageHeading}` : styles.message;
   if (action?.href) {
     return (
       <div className={`${styles.emptyState} ${className || ''}`}>
@@ -42,7 +54,7 @@ export function EmptyState({ icon, message, description, action, className }: Em
           </div>
         )}
 
-        <p className={styles.message}>{message}</p>
+        <Message className={messageClass}>{message}</Message>
 
         {description && <p className={styles.description}>{description}</p>}
 
@@ -59,7 +71,7 @@ export function EmptyState({ icon, message, description, action, className }: Em
         </div>
       )}
 
-      <p className={styles.message}>{message}</p>
+      <Message className={messageClass}>{message}</Message>
 
       {description && <p className={styles.description}>{description}</p>}
 

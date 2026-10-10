@@ -108,7 +108,7 @@
   border: 1px solid var(--color-border-strong);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--color-primary);
+  color: var(--color-primary-badge-text);
   text-decoration: none;
   transition: var(--transition-normal);
 }
@@ -116,6 +116,7 @@
 .sourceLink:hover {
   background-color: var(--color-primary-bg);
   border-color: var(--color-primary);
+  color: var(--color-primary-badge-text);
 }
 
 .sourceLink:focus-visible {

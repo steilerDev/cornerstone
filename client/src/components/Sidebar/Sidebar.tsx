@@ -15,6 +15,7 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
   const { user: _user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const isSettingsActive = location.pathname.startsWith('/settings');
   const sidebarClassName = [styles.sidebar, isOpen && styles.open].filter(Boolean).join(' ');
 
   return (
@@ -64,7 +65,8 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
         <ThemeToggle />
         <button
           type="button"
-          className={`${styles.logoutButton} ${location.pathname.startsWith('/settings') ? styles.active : ''}`}
+          className={`${styles.logoutButton} ${isSettingsActive ? styles.active : ''}`}
+          aria-current={isSettingsActive ? 'page' : undefined}
           onClick={() => {
             navigate('/settings');
             onClose();

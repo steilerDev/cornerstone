@@ -209,4 +209,53 @@ describe('EmptyState', () => {
     // More directly: the container is present and has the base class
     expect(wrapper.className).toContain('emptyState');
   });
+
+  // ── messageAs prop ────────────────────────────────────────────────────────
+
+  describe('messageAs', () => {
+    it('renders the message in a paragraph and no heading by default', () => {
+      render(<EmptyState message="Nothing here" />);
+
+      const message = screen.getByText('Nothing here');
+      expect(message.tagName).toBe('P');
+      expect(message).toHaveClass('message');
+      expect(message).not.toHaveClass('messageHeading');
+      expect(screen.queryByRole('heading')).toBeNull();
+    });
+
+    it('keeps the paragraph when messageAs is "p"', () => {
+      render(<EmptyState message="Nothing here" messageAs="p" />);
+
+      expect(screen.getByText('Nothing here').tagName).toBe('P');
+      expect(screen.queryByRole('heading')).toBeNull();
+    });
+
+    it('renders an h1 with message and messageHeading classes (link action branch)', () => {
+      renderInRouter(
+        <EmptyState
+          message="No access"
+          messageAs="h1"
+          description="Ask an admin"
+          action={{ label: 'Back', href: '/project' }}
+        />,
+      );
+
+      const heading = screen.getByRole('heading', { level: 1, name: 'No access' });
+      expect(heading).toHaveClass('message');
+      expect(heading).toHaveClass('messageHeading');
+      expect(screen.getByText('Ask an admin').tagName).toBe('P');
+      expect(screen.getByRole('link', { name: 'Back' })).toHaveAttribute('href', '/project');
+    });
+
+    it('renders an h1 with message and messageHeading classes (button action branch)', () => {
+      const onClick = jest.fn();
+      render(<EmptyState message="No access" messageAs="h1" action={{ label: 'Go', onClick }} />);
+
+      const heading = screen.getByRole('heading', { level: 1, name: 'No access' });
+      expect(heading).toHaveClass('message');
+      expect(heading).toHaveClass('messageHeading');
+      fireEvent.click(screen.getByRole('button', { name: 'Go' }));
+      expect(onClick).toHaveBeenCalledTimes(1);
+    });
+  });
 });

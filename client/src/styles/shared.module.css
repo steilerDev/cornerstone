@@ -56,7 +56,7 @@
 }
 
 .btnPrimary:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -87,7 +87,7 @@
 }
 
 .btnPrimaryCompact:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -211,7 +211,7 @@
 }
 
 .btnConfirmDelete:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

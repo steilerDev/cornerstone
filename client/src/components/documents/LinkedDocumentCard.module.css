@@ -280,6 +280,7 @@
 .itemizeButton:hover {
   background: var(--color-primary-bg);
   border-color: var(--color-primary-hover);
+  color: var(--color-primary-badge-text);
 }
 
 .itemizeButton:focus-visible {

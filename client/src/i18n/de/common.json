@@ -72,6 +72,11 @@
     "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
     "backLink": "Zurück zur Projektübersicht"
   },
+  "noAccess": {
+    "title": "Sie haben keinen Zugriff auf diese Seite",
+    "description": "Wenden Sie sich an einen Administrator, wenn Sie Zugriff benötigen.",
+    "backLink": "Zurück zum Start"
+  },
   "tagPicker": {
     "placeholderEmpty": "Tags hinzufügen...",
     "placeholderMore": "Weitere hinzufügen...",

@@ -19,7 +19,7 @@
 
 .ssoButton:hover:not(:disabled) {
   background-color: var(--color-bg-secondary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .ssoButton:focus-visible {

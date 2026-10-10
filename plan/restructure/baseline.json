@@ -22,6 +22,7 @@
       "MilestoneCreatePage": { "destinations": 7, "primaryButtons": 1, "searchFields": 0 },
       "MilestoneDetailPage": { "destinations": 4, "primaryButtons": 7, "searchFields": 2 },
       "MilestonesPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 1 },
+      "NoAccessPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
       "NotFoundPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PaperlessInvoiceReviewPage": { "destinations": 1, "primaryButtons": 12, "searchFields": 0 },
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },

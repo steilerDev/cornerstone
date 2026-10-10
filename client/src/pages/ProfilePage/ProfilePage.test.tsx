@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
@@ -26,8 +26,17 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
 }));
 
 // Mock SubNav — uses NavLink (requires Router context); stub it out since ProfilePage has no MemoryRouter
+// It mirrors SubNav's `visible !== false` filter so tests can see which tabs are offered.
 jest.unstable_mockModule('../../components/SubNav/SubNav.js', () => ({
-  SubNav: () => null,
+  SubNav: ({ tabs }: { tabs: { labelKey: string; visible?: boolean }[] }) => (
+    <ul data-testid="settings-tabs">
+      {tabs
+        .filter((tab) => tab.visible !== false)
+        .map((tab) => (
+          <li key={tab.labelKey}>{tab.labelKey}</li>
+        ))}
+    </ul>
+  ),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -202,6 +211,32 @@ describe('ProfilePage', () => {
 
       // Then: Role is "Administrator"
       expect(screen.getByText('Administrator')).toBeInTheDocument();
+    });
+
+    it('offers no User Management or Backups tab to members (D-23)', () => {
+      render(<ProfilePage />);
+
+      const tabs = screen.getByTestId('settings-tabs');
+      expect(within(tabs).getByText('subnav.settings.profile')).toBeInTheDocument();
+      expect(within(tabs).queryByText('subnav.settings.userManagement')).toBeNull();
+      expect(within(tabs).queryByText('subnav.settings.backups')).toBeNull();
+    });
+
+    it('offers the User Management and Backups tabs to admins', () => {
+      mockUseAuth.mockReturnValue({
+        user: { ...mockLocalUser, role: 'admin' },
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
+      });
+
+      render(<ProfilePage />);
+
+      const tabs = screen.getByTestId('settings-tabs');
+      expect(within(tabs).getByText('subnav.settings.userManagement')).toBeInTheDocument();
+      expect(within(tabs).getByText('subnav.settings.backups')).toBeInTheDocument();
     });
 
     it('displays role as "Member" for member users', () => {

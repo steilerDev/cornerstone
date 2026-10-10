@@ -255,6 +255,41 @@ describe('VendorsPage', () => {
       const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
       expect(nav).toBeInTheDocument();
     });
+
+    it('hides the User Management and Backups tabs from members (D-23)', async () => {
+      mockUseAuth.mockReturnValue({
+        user: {
+          id: 'user-member',
+          email: 'member@example.com',
+          displayName: 'Member',
+          role: 'member' as const,
+          authProvider: 'local' as const,
+          oidcLinked: false,
+          createdAt: '2024-01-01T00:00:00.000Z',
+          updatedAt: '2024-01-01T00:00:00.000Z',
+          deactivatedAt: null,
+        },
+        oidcEnabled: false,
+        isLoading: false,
+        error: null,
+        refreshAuth: jest.fn(async () => Promise.resolve()),
+        logout: jest.fn(async () => Promise.resolve()),
+      });
+      renderPage();
+
+      const nav = await screen.findByRole('navigation', { name: 'Settings section navigation' });
+      expect(within(nav).getByRole('link', { name: 'Profile' })).toBeInTheDocument();
+      expect(within(nav).queryByRole('link', { name: 'User Management' })).toBeNull();
+      expect(within(nav).queryByRole('link', { name: 'Backups' })).toBeNull();
+    });
+
+    it('shows the User Management and Backups tabs to admins', async () => {
+      renderPage();
+
+      const nav = await screen.findByRole('navigation', { name: 'Settings section navigation' });
+      expect(within(nav).getByRole('link', { name: 'User Management' })).toBeInTheDocument();
+      expect(within(nav).getByRole('link', { name: 'Backups' })).toBeInTheDocument();
+    });
   });
 
   describe('data display', () => {

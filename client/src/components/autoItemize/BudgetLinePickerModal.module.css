@@ -99,7 +99,7 @@
 }
 
 .addButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

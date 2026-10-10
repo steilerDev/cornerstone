@@ -247,7 +247,7 @@
   background: var(--color-primary-bg);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
-  color: var(--color-primary);
+  color: var(--color-primary-badge-text);
   border: 1px solid var(--color-primary);
 }
 

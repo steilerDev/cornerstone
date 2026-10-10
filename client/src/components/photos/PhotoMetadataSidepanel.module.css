@@ -151,7 +151,7 @@
 
 .errorMessage {
   padding: var(--spacing-2);
-  background: var(--color-red-50);
+  background: var(--color-danger-bg);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-sm);
   color: var(--color-danger);

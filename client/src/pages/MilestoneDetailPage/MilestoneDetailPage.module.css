@@ -31,7 +31,7 @@
 
 .backButton:hover:not(:disabled) {
   background: var(--color-bg-tertiary);
-  border-color: var(--color-text-placeholder);
+  border-color: var(--color-text-disabled);
 }
 
 .backButton:disabled {
@@ -523,7 +523,7 @@
 }
 
 .saveButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -639,7 +639,7 @@
 }
 
 .modalDeleteButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 
@@ -660,7 +660,7 @@
 }
 
 .modalActionButton:disabled {
-  background-color: var(--color-text-placeholder);
+  background-color: var(--color-text-disabled);
   cursor: not-allowed;
 }
 

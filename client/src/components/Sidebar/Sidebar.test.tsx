@@ -185,6 +185,26 @@ describe('Sidebar', () => {
     expect(settingsButton).toHaveClass('active');
   });
 
+  it('settings button has aria-current="page" and the active class on /settings/profile', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/settings/profile'],
+    });
+
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
+    expect(settingsButton).toHaveAttribute('aria-current', 'page');
+    expect(settingsButton).toHaveClass('active');
+  });
+
+  it('settings button has no aria-current and is not active outside /settings', () => {
+    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
+      initialEntries: ['/project'],
+    });
+
+    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
+    expect(settingsButton).not.toHaveAttribute('aria-current');
+    expect(settingsButton).not.toHaveClass('active');
+  });
+
   it('only one nav link is active at a time', () => {
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
       initialEntries: ['/budget'],
