@@ -438,8 +438,7 @@ test.describe('Detail page load (Scenario 11)', { tag: '@responsive' }, () => {
         await expect(detailPage.heading).toHaveText(title);
 
         // Status badge should say "Upcoming" (new milestone is not completed)
-        const statusText = await detailPage.getStatusText();
-        expect(statusText.toLowerCase()).toMatch(/upcoming/i);
+        await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
 
         // Back button is visible
         await expect(detailPage.backButton).toBeVisible();
@@ -571,8 +570,7 @@ test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, 
       await detailPage.goto(createdId);
 
       // Verify initial status is Upcoming
-      const statusBefore = await detailPage.getStatusText();
-      expect(statusBefore.toLowerCase()).toMatch(/upcoming/i);
+      await expect(detailPage.statusBadge).toHaveText(/upcoming/i);
 
       // Enter edit mode
       await detailPage.startEditing();
@@ -584,8 +582,7 @@ test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, 
       await detailPage.saveChanges();
 
       // Status badge should now say "Reached"
-      const statusAfter = await detailPage.getStatusText();
-      expect(statusAfter.toLowerCase()).toMatch(/reached/i);
+      await expect(detailPage.statusBadge).toHaveText(/reached/i);
     } finally {
       if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
     }

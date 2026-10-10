@@ -2907,8 +2907,16 @@ export function ManagePage() {
   ];
 
   useEffect(() => {
-    setSearchParams({ tab: activeTab });
-  }, [activeTab, setSearchParams]);
+    if (searchParams.get('tab') === activeTab) return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.set('tab', activeTab);
+        return next;
+      },
+      { replace: true },
+    );
+  }, [activeTab, searchParams, setSearchParams]);
 
   return (
     <PageLayout

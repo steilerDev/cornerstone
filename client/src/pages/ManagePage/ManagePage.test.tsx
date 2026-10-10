@@ -4,7 +4,9 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, Router } from 'react-router-dom';
+import type { Location, Navigator, To } from 'react-router-dom';
+import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
@@ -374,6 +376,112 @@ describe('ManagePage', () => {
       const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
       expect(within(nav).getByRole('link', { name: 'User Management' })).toBeInTheDocument();
       expect(within(nav).getByRole('link', { name: 'Backups' })).toBeInTheDocument();
+    });
+  });
+
+  describe('tab-to-URL sync (replace, never push, other query keys kept)', () => {
+    /**
+     * A low-level <Router> whose navigator records every navigation with its history action.
+     * (A data router cannot be used: jsdom has no global Request.) A pushed entry would show as
+     * PUSH, so a REPLACE-only log proves history does not grow.
+     * Mutation: the old effect `setSearchParams({ tab: activeTab })` (no replace, no skip when the
+     * tab already matches, drops every other key) fails every test in this block.
+     */
+    function renderRouted(url: string) {
+      const log: string[] = [];
+      const toText = (to: To): string => {
+        if (typeof to === 'string') return to;
+        return `${to.pathname ?? ''}${to.search ?? ''}${to.hash ?? ''}`;
+      };
+      const toLocation = (text: string): Location => {
+        const [beforeHash = '', hash = ''] = text.split('#');
+        const [pathname = '', search = ''] = beforeHash.split('?');
+        return {
+          pathname,
+          search: search ? `?${search}` : '',
+          hash: hash ? `#${hash}` : '',
+          state: null,
+          key: 'default',
+        };
+      };
+
+      function RecordingRouter({ children }: { children: ReactNode }) {
+        const [location, setLocation] = useState<Location>(() => toLocation(url));
+        const navigator = useMemo<Navigator>(
+          () => ({
+            createHref: (to) => toText(to),
+            go: () => undefined,
+            push: (to) => {
+              log.push(`PUSH ${toText(to)}`);
+              setLocation(toLocation(toText(to)));
+            },
+            replace: (to) => {
+              log.push(`REPLACE ${toText(to)}`);
+              setLocation(toLocation(toText(to)));
+            },
+          }),
+          [],
+        );
+        return (
+          <Router location={location} navigator={navigator}>
+            <span data-testid="location">{`${location.pathname}${location.search}`}</span>
+            {children}
+          </Router>
+        );
+      }
+
+      render(
+        <RecordingRouter>
+          <ManagePage />
+        </RecordingRouter>,
+      );
+      return { log };
+    }
+
+    it('does not navigate when ?tab already matches, and keeps the location', async () => {
+      const { log } = renderRouted('/settings/manage?tab=household&q=x');
+
+      expect(await screen.findByRole('tab', { name: 'Household' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+      expect(log).toEqual([]);
+      expect(screen.getByTestId('location')).toHaveTextContent(
+        '/settings/manage?tab=household&q=x',
+      );
+    });
+
+    it('replaces exactly once with ?tab=areas when no tab is present, without growing history', async () => {
+      const { log } = renderRouted('/settings/manage');
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/settings/manage?tab=areas'),
+      );
+      expect(log).toEqual(['REPLACE /settings/manage?tab=areas']);
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('keeps other query keys when it adds the tab', async () => {
+      const { log } = renderRouted('/settings/manage?q=x');
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/settings/manage?q=x&tab=areas'),
+      );
+      expect(log).toEqual(['REPLACE /settings/manage?q=x&tab=areas']);
+    });
+
+    it('replaces the tab and keeps other keys when another tab is clicked', async () => {
+      const user = userEvent.setup();
+      const { log } = renderRouted('/settings/manage?tab=household&q=x');
+      await screen.findByRole('tab', { name: 'Household' });
+
+      await user.click(screen.getByRole('tab', { name: 'Trades' }));
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/settings/manage?tab=trades&q=x'),
+      );
+      expect(log).toEqual(['REPLACE /settings/manage?tab=trades&q=x']);
+      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute('aria-selected', 'true');
     });
   });
 

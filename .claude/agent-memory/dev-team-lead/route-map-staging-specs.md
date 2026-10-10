@@ -26,3 +26,7 @@ Found while speccing #2201 (EPIC-21 P0.10, shared route map + NavConfig).
 **Why:** each of these would have surfaced late, as CI-only failures or a silent contract break.
 
 Related: [[restructure-baseline-hazards]], [[url-state-specs]], [[empty-state-replacement-specs]]
+
+**Addendum (CI on PR #2276):** a one-hop walk test also fails on landing pages that write the URL on mount. `ManagePage` ran `setSearchParams({ tab })` in an effect: a push, and a replacement of the whole query. That broke "replace, never push" and dropped the carried query.
+
+- **How to apply:** when speccing a redirect walk, grep every landing page for mount-time `setSearchParams`/`navigate` calls without `{ replace: true }`. Spec those fixes up front: replace, merge into `prev`, and skip when the URL is already equal.
