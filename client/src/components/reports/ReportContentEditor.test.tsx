@@ -69,9 +69,10 @@
  * fixture's `REPORT_*_LABEL` value and fail loudly, rather than passing by coincidence.
  *
  * Status badge label: `row.statusText` (pre-translated by buildReportContent via reportT, e.g.
- * fixture value `REPORT_PAID_TEXT` below) supplies the Badge's rendered label — NOT the chrome `t`
- * mock's echo of `sources.lines.invoiceStatus.<status>` — while `row.status` (the raw enum value)
- * only supplies the status-specific className via the STATUS_BADGE_CLASSNAME map.
+ * fixture value `REPORT_PAID_TEXT` below) supplies the Badge's rendered label — NOT a chrome `t`
+ * echo of `statusVocabulary.invoice.<status>` — while `row.status` (the raw enum value) only
+ * supplies the colour class (and the Submitted check icon) from the shared invoice variant map
+ * (`useStatusBadgeVariants`).
  */
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
@@ -83,6 +84,10 @@ import type {
   ReportColumnKey,
 } from '../../lib/reportContent/index.js';
 import { reportColumnsForUseCase } from '../../lib/reportContent/index.js';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import enCommon from '../../i18n/en/common.json';
 import { ReportContentEditor } from './ReportContentEditor.js';
 import styles from './ReportContentEditor.module.css';
 import { usageChunkCharsForWidth, USAGE_WIDTH_7COL } from '../../lib/reportPdf/overviewPdf.js';
@@ -912,9 +917,70 @@ describe('ReportContentEditor — table rows', () => {
     const table = getDesktopTable(container);
     expect(within(table).getByText(LABELS.status)).toBeInTheDocument();
     expect(within(table).getByText('REPORT_PAID_TEXT')).toBeInTheDocument();
-    // The chrome-t echo for this same concept never appears — the Badge label is NOT re-derived
-    // via the chrome t() prop.
-    expect(within(table).queryByText('sources.lines.invoiceStatus.paid')).not.toBeInTheDocument();
+    // Neither the canonical label ("Paid") nor a key echo appears: the chip label is NOT
+    // re-derived from the shared map or the chrome t() prop, it is the report-language statusText.
+    expect(
+      within(table).queryByText(enCommon.statusVocabulary.invoice.paid),
+    ).not.toBeInTheDocument();
+    expect(within(table).queryByText('statusVocabulary.invoice.paid')).not.toBeInTheDocument();
+  });
+
+  it('shows the canonical statusVocabulary.invoice.paid label when statusText carries it', () => {
+    const rows = [makeRow({ status: 'paid', statusText: enCommon.statusVocabulary.invoice.paid })];
+    const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
+    const chip = within(getDesktopTable(container)).getByText(
+      enCommon.statusVocabulary.invoice.paid,
+    );
+    expect(chip.className).toContain('badge');
+    expect(chip.className).toContain('paid');
+  });
+
+  it.each([
+    ['pending', 'pending'],
+    ['paid', 'paid'],
+    ['claimed', 'claimed'],
+    ['quotation', 'offer'],
+  ] as const)(
+    'status %s uses the shared Badge class %s (never a local status class)',
+    (status, cls) => {
+      const rows = [makeRow({ status, statusText: `TEXT_${status}` })];
+      const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
+      const chip = within(getDesktopTable(container)).getByText(`TEXT_${status}`);
+      expect(chip.className).toContain(cls);
+      expect(chip.className).not.toMatch(/status[A-Z]/);
+    },
+  );
+
+  it('the Submitted chip carries the decorative check icon and tooltip; the others do not', () => {
+    const { container, unmount } = renderEditor({
+      content: makeContent({
+        isOverview: true,
+        rows: [makeRow({ status: 'claimed', statusText: 'TEXT_claimed' })],
+      }),
+    });
+    const chip = within(getDesktopTable(container)).getByText('TEXT_claimed');
+    expect(chip.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
+    expect(chip).toHaveAttribute('title', enCommon.statusHints.submitted);
+    unmount();
+    const second = renderEditor({
+      content: makeContent({
+        isOverview: true,
+        rows: [makeRow({ status: 'paid', statusText: 'TEXT_paid' })],
+      }),
+    });
+    const paid = within(getDesktopTable(second.container)).getByText('TEXT_paid');
+    expect(paid.querySelector('svg')).toBeNull();
+    expect(paid).not.toHaveAttribute('title');
+  });
+
+  it('the four local status colour rules are deleted from the editor stylesheet', () => {
+    const css = fs.readFileSync(
+      path.join(path.dirname(fileURLToPath(import.meta.url)), 'ReportContentEditor.module.css'),
+      'utf8',
+    );
+    for (const name of ['statusPending', 'statusPaid', 'statusClaimed', 'statusQuotation']) {
+      expect(css).not.toContain(`.${name}`);
+    }
   });
 
   it('gives the status Badge the status-specific className via the raw row.status key', () => {
@@ -922,7 +988,8 @@ describe('ReportContentEditor — table rows', () => {
     const { container } = renderEditor({ content: makeContent({ isOverview: true, rows }) });
     const table = getDesktopTable(container);
     const badge = within(table).getByText('REPORT_PAID_TEXT');
-    expect(badge.className).toContain(styles.statusPaid);
+    expect(badge.className).toContain('paid');
+    expect(badge.className).not.toContain('statusPaid');
   });
 
   it('#1959: renders attachmentsNote as grey inline .usageMetaText INSIDE the usage cell — no Attachments Note column header, and only for rows that have a note', () => {

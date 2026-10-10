@@ -37,7 +37,7 @@ function addDaysIso(today: string, days: number): string {
  */
 export function dueFlag(dueDate: string | null, today: string): 'overdue' | 'dueSoon' | null {
   if (!dueDate) return null;
-  if (dueDate < today) return 'overdue';
+  if (isOverdue(dueDate, today)) return 'overdue';
   return dueDate <= addDaysIso(today, DUE_SOON_DAYS) ? 'dueSoon' : null;
 }
 

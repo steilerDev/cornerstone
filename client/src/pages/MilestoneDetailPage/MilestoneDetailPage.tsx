@@ -23,6 +23,7 @@ import { createHouseholdItemDep, deleteHouseholdItemDep } from '../../lib/househ
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
 
@@ -34,6 +35,7 @@ export function MilestoneDetailPage() {
     formatDateTime: _formatDateTime,
   } = useFormatters();
   const { t } = useTranslation('schedule');
+  const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -530,9 +532,11 @@ export function MilestoneDetailPage() {
                   milestone.isCompleted ? styles.statusCompleted : styles.statusPending
                 }`}
               >
-                {milestone.isCompleted
-                  ? t('milestones.detail.view.status.completed')
-                  : t('milestones.detail.view.status.pending')}
+                {tCommon(
+                  I18N_UNION_KEYS.statusVocabularyMilestone.key(
+                    milestone.isCompleted ? 'reached' : 'upcoming',
+                  ),
+                )}
               </span>
             </div>
             <button

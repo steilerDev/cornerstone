@@ -9,7 +9,7 @@
  * - "To Schedule" secondary nav button
  * - View card (.viewCard) containing:
  *   - h2 = milestone.title (class milestoneTitle)
- *   - Status badge: "Completed" or "Pending"
+ *   - Status badge: "Reached" or "Upcoming"
  *   - Edit button: data-testid="edit-milestone-button"
  *   - Fields: Target Date, Description (conditional), Completed At (conditional)
  *   - Linked Items section (list + search input: data-testid="item-search-input")
@@ -257,7 +257,7 @@ export class MilestoneDetailPage {
   }
 
   /**
-   * Get the status badge text (e.g., "Completed" or "Pending").
+   * Get the status badge text (e.g., "Reached" or "Upcoming").
    */
   async getStatusText(): Promise<string> {
     return (await this.statusBadge.textContent()) ?? '';

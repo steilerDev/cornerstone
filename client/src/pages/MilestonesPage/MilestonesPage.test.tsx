@@ -254,6 +254,17 @@ describe('MilestonesPage', () => {
   // ─── Status words (#2195) ─────────────────────────────────────────────────
 
   describe('status words', () => {
+    it('a finished milestone reads "Reached", never "Completed"', async () => {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone2]);
+
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getAllByText('Reached').length).toBeGreaterThan(0);
+      });
+      expect(screen.queryByText('Completed')).not.toBeInTheDocument();
+    });
+
     it('a not-yet-reached milestone reads "Upcoming", never "Pending"', async () => {
       mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
 

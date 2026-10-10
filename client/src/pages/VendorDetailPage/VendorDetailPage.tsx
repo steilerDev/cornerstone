@@ -21,8 +21,6 @@ import { INVOICE_STATUSES } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
-// INVOICE_STATUS_LABELS will be dynamically generated from i18n
-
 /** Invoice form state used for both create and edit. */
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -713,7 +711,9 @@ export function VendorDetailPage() {
                   <li key={invoice.id} className={styles.invoiceCard}>
                     <div className={styles.invoiceCardRow}>
                       <span className={styles.invoiceCardNumber}>
-                        {invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : 'No Invoice #'}
+                        {invoice.invoiceNumber
+                          ? `#${invoice.invoiceNumber}`
+                          : t('vendorDetail.invoiceCard.noInvoiceNumber')}
                       </span>
                       <Badge
                         variants={statusVariants.invoice}

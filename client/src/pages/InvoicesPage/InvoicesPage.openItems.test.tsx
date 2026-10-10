@@ -620,6 +620,10 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
       await waitFor(() => expect(screen.getAllByText('INV-A').length).toBeGreaterThan(0));
       const chip = screen.getByTestId('deposit-overdue-dep-a1');
       expect(chip.className).toContain('overduePast');
+      expect(chip).toHaveTextContent('Overdue');
+      const mobile = screen.getByTestId('deposit-overdue-mobile-dep-a1');
+      expect(mobile.className).toContain('overduePast');
+      expect(screen.queryByTestId('deposit-due-soon-dep-a1')).not.toBeInTheDocument();
     });
   });
 

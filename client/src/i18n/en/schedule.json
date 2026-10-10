@@ -123,11 +123,6 @@
         "viewItem": "View item"
       }
     },
-    "status": {
-      "completed": "Completed",
-      "late": "Late",
-      "onTrack": "On track"
-    },
     "skeleton": {
       "loading": "Loading chart..."
     },
@@ -181,10 +176,6 @@
         "completedAt": "Completed Date",
         "actions": "Actions"
       }
-    },
-    "status": {
-      "completed": "Completed",
-      "pending": "Upcoming"
     },
     "card": {
       "targetDate": "Target Date:",
@@ -318,11 +309,7 @@
         "targetDate": "Target Date",
         "projectedDate": "Projected Date",
         "description": "Description",
-        "completedAt": "Completed At",
-        "status": {
-          "completed": "Completed",
-          "pending": "Upcoming"
-        }
+        "completedAt": "Completed At"
       },
       "failedLink": "Failed to link work item. Please try again.",
       "failedUnlink": "Failed to unlink work item. Please try again.",

@@ -155,6 +155,26 @@ function renderInvoiceNumberCell(
   );
 }
 
+/** Overdue / due-soon flag next to a deposit's due date (dueFlag computed once). */
+function renderDepositDueFlag(
+  dueDate: string | null,
+  today: string,
+  depositId: string,
+  flagVariants: BadgeVariantMap,
+  mobile: boolean,
+): ReactNode {
+  const flag = dueFlag(dueDate, today);
+  if (!flag) return null;
+  const prefix = flag === 'overdue' ? 'deposit-overdue' : 'deposit-due-soon';
+  return (
+    <Badge
+      variants={flagVariants}
+      value={flag}
+      testId={`${prefix}${mobile ? '-mobile' : ''}-${depositId}`}
+    />
+  );
+}
+
 export function InvoicesPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
@@ -669,13 +689,7 @@ export function InvoicesPage() {
           return (
             <td key={key} className={dtStyles.tableCell}>
               {formatDate(deposit.dueDate)}
-              {dueFlag(deposit.dueDate, today) && (
-                <Badge
-                  variants={flagVariants}
-                  value={dueFlag(deposit.dueDate, today)!}
-                  testId={`deposit-${dueFlag(deposit.dueDate, today) === 'overdue' ? 'overdue' : 'due-soon'}-${deposit.id}`}
-                />
-              )}
+              {renderDepositDueFlag(deposit.dueDate, today, deposit.id, flagVariants, false)}
             </td>
           );
         case 'amount':
@@ -733,13 +747,7 @@ export function InvoicesPage() {
             t('invoices.openItems.depositOrdinal', { index: ordinal.index, total: ordinal.total })
           )}
           <span>{formatDate(deposit.dueDate)}</span>
-          {dueFlag(deposit.dueDate, today) && (
-            <Badge
-              variants={flagVariants}
-              value={dueFlag(deposit.dueDate, today)!}
-              testId={`deposit-${dueFlag(deposit.dueDate, today) === 'overdue' ? 'overdue' : 'due-soon'}-mobile-${deposit.id}`}
-            />
-          )}
+          {renderDepositDueFlag(deposit.dueDate, today, deposit.id, flagVariants, true)}
           <span
             className={`${styles.childAmount} ${
               deposit.entryType === 'refund' ? styles.childAmountNegative : ''

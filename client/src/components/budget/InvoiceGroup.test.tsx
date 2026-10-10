@@ -509,7 +509,10 @@ describe('InvoiceGroup', () => {
     fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
 
     fireEvent.click(screen.getByTestId('stub-edit-line-1'));
-    expect(props.onEdit).toHaveBeenCalledWith(props.lines[0]);
+    const line = props.lines[0];
+    expect(line).toBeDefined();
+    if (!line) throw new Error('fixture line missing');
+    expect(props.onEdit).toHaveBeenCalledWith(line);
     fireEvent.click(screen.getByTestId('stub-delete-line-1'));
     expect(props.onDelete).toHaveBeenCalledWith('line-1');
     fireEvent.click(screen.getByTestId('stub-confirm-line-1'));

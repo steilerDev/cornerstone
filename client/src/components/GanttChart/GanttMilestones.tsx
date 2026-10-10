@@ -6,7 +6,7 @@ import type {
 } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineMilestone } from '@cornerstone/shared';
-import { milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
+import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { dateToX, toUtcMidnight, ROW_HEIGHT } from './ganttUtils.js';
 import type { ChartRange, ZoomLevel } from './ganttUtils.js';
@@ -44,16 +44,15 @@ export type MilestoneStatus = 'completed' | 'late' | 'ahead' | 'on_track';
 
 /** Compute the milestone status from its data fields. */
 export function computeMilestoneStatus(milestone: TimelineMilestone): MilestoneStatus {
-  if (milestone.isCompleted) return 'completed';
-  if (milestone.projectedDate !== null) {
-    if (milestone.projectedDate > milestone.targetDate) {
-      return 'late';
-    }
-    if (milestone.projectedDate < milestone.targetDate) {
-      return 'ahead';
-    }
-  }
-  return 'on_track';
+  // Single source: the canonical display status (lib/milestoneStatusLabel.ts).
+  const { status } = milestoneDisplayStatus(milestone);
+  return status === 'reached'
+    ? 'completed'
+    : status === 'early'
+      ? 'ahead'
+      : status === 'late'
+        ? 'late'
+        : 'on_track';
 }
 
 export interface MilestoneDiamond {

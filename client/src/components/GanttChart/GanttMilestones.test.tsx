@@ -8,6 +8,7 @@
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { GanttMilestones, computeMilestoneStatus } from './GanttMilestones.js';
+import { milestoneDisplayStatus } from '../../lib/milestoneStatusLabel.js';
 import { LocaleProvider } from '../../contexts/LocaleContext.js';
 import type {
   GanttMilestonesProps,
@@ -946,5 +947,75 @@ describe('GanttMilestones — ahead status, focus handlers and connector colours
     expect(onMilestoneFocus).toHaveBeenCalledWith(MILESTONE_INCOMPLETE, expect.any(Object));
     fireEvent.blur(diamond);
     expect(onMilestoneBlur).toHaveBeenCalledWith(MILESTONE_INCOMPLETE);
+  });
+});
+
+describe('GanttMilestones — colour and label agree for every display state (#2195)', () => {
+  const STATES = [
+    {
+      name: 'upcoming',
+      ms: { ...MILESTONE_INCOMPLETE, id: 21 },
+      status: 'on_track',
+      fill: COLORS.incompleteFill,
+      word: 'Upcoming',
+    },
+    {
+      name: 'reached',
+      ms: { ...MILESTONE_COMPLETE, id: 22 },
+      status: 'completed',
+      fill: COLORS.completeFill,
+      word: 'Reached',
+    },
+    {
+      name: 'late',
+      ms: { ...MILESTONE_LATE, id: 23 },
+      status: 'late',
+      fill: COLORS.lateFill,
+      word: 'Late · 31 d',
+    },
+    {
+      name: 'early',
+      ms: {
+        ...MILESTONE_INCOMPLETE,
+        id: 24,
+        targetDate: '2024-08-01',
+        projectedDate: '2024-07-15',
+      },
+      status: 'ahead',
+      fill: COLORS.aheadFill,
+      word: 'Early · 17 d',
+    },
+  ] as const;
+
+  it.each(STATES)('$name: status, fill colour and label word are consistent', (state) => {
+    expect(computeMilestoneStatus(state.ms)).toBe(state.status);
+    renderMilestones({
+      milestones: [state.ms],
+      milestoneRowIndices: new Map([[state.ms.id, 0]]),
+    });
+    const diamond = screen.getByTestId('gantt-milestone-diamond');
+    expect(diamond.querySelector('polygon')?.getAttribute('fill')).toBe(state.fill);
+    expect(diamond.getAttribute('aria-label')).toContain(state.word);
+  });
+
+  it('computeMilestoneStatus and milestoneDisplayStatus never disagree on a sample grid', () => {
+    for (const isCompleted of [true, false]) {
+      for (const projectedDate of [null, '2024-06-01', '2024-07-01', '2024-09-01']) {
+        const ms = {
+          ...MILESTONE_INCOMPLETE,
+          isCompleted,
+          projectedDate,
+          targetDate: '2024-07-01',
+        };
+        const display = milestoneDisplayStatus(ms).status;
+        const expected = {
+          reached: 'completed',
+          late: 'late',
+          early: 'ahead',
+          upcoming: 'on_track',
+        }[display];
+        expect(computeMilestoneStatus(ms)).toBe(expected);
+      }
+    }
   });
 });

@@ -483,7 +483,7 @@ Before creating a new UI component, check if an existing shared component can be
 
 **Shared components** (must be used instead of creating alternatives):
 
-- `Badge` — status indicators, severity badges, outcome badges (parameterized by variant map)
+- `Badge` — status indicators, severity badges, outcome badges (parameterized by variant map). Status chips get their colour only from the shared `useStatusBadgeVariants` hook (`client/src/hooks/`), built on `client/src/components/Badge/statusBadgeVariants.tsx` (one variant map per status vocabulary) — no local status colour maps and no per-page status CSS classes.
 - `SearchPicker` — search-as-you-type dropdowns for entity selection (work items, household items, etc.)
 - `Modal` — dialog overlays with backdrop, escape key, focus management
 - `Skeleton` — loading placeholder with configurable line count

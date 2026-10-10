@@ -18,6 +18,7 @@ import {
   visibleReportColumns,
 } from '../../lib/reportContent/index.js';
 import { Badge } from '../Badge/Badge.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { EditableField, type EditableFieldLengthLimit } from '../EditableField/EditableField.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './ReportContentEditor.module.css';
@@ -40,14 +41,6 @@ export interface ReportContentEditorProps {
   /** HTML lang attribute for UI-chrome content (reset button, sr-only hints). Omit when report language matches UI language. */
   uiLang?: string;
 }
-
-// Status badge className mapping
-const STATUS_BADGE_CLASSNAME: Record<InvoiceStatus, string> = {
-  pending: styles.statusPending!,
-  paid: styles.statusPaid!,
-  claimed: styles.statusClaimed!,
-  quotation: styles.statusQuotation!,
-};
 
 type ColumnKey = ReportColumnKey;
 
@@ -131,6 +124,11 @@ export function ReportContentEditor({
   );
   const show = (col: ColumnKey) => visible.has(col);
   const requiredHintId = useId();
+  const statusVariants = useStatusBadgeVariants();
+  // Colour (and icon) from the shared invoice map; the label stays the report-language text.
+  const rowStatusVariants = (status: string, label: string) => ({
+    [status]: { ...statusVariants.invoice[status as InvoiceStatus], label },
+  });
 
   // Label lookup for the column-toggle list — mirrors overviewPdf.ts's HEADER_LABEL pattern, so
   // the toggle list's column ENUMERATION comes from reportColumnsForUseCase (AC 2.1's single
@@ -379,12 +377,7 @@ export function ReportContentEditor({
                   <td>
                     <Badge
                       value={row.status}
-                      variants={{
-                        [row.status]: {
-                          label: row.statusText,
-                          className: STATUS_BADGE_CLASSNAME[row.status as InvoiceStatus],
-                        },
-                      }}
+                      variants={rowStatusVariants(row.status, row.statusText)}
                     />
                   </td>
                 )}
@@ -485,12 +478,7 @@ export function ReportContentEditor({
                 <span className={styles.mobileCardCaption}>{content.labels.status}</span>
                 <Badge
                   value={row.status}
-                  variants={{
-                    [row.status]: {
-                      label: row.statusText,
-                      className: STATUS_BADGE_CLASSNAME[row.status as InvoiceStatus],
-                    },
-                  }}
+                  variants={rowStatusVariants(row.status, row.statusText)}
                 />
               </div>
             )}

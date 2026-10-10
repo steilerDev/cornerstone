@@ -801,6 +801,22 @@ describe('GanttTooltip — milestone kind (no dependencies section)', () => {
     dependentWorkItems: [],
   };
 
+  it.each([
+    ['upcoming', {}, 'Upcoming'],
+    ['reached', { isCompleted: true, completedAt: '2024-07-01T10:00:00.000Z' }, 'Reached'],
+    ['late', { projectedDate: '2024-07-06', isLate: true }, 'Late · 5 d'],
+    ['early', { projectedDate: '2024-06-28' }, 'Early · 3 d'],
+  ] as const)(
+    'milestone tooltip status badge reads the canonical word for %s (%s)',
+    (_state, overrides, word) => {
+      render(
+        <GanttTooltip data={{ ...MILESTONE_DATA, ...overrides }} position={{ x: 100, y: 200 }} />,
+      );
+      expect(screen.getByText(word)).toBeInTheDocument();
+      expect(screen.queryByText(/^(Completed|Pending|On Track|Ahead)$/)).not.toBeInTheDocument();
+    },
+  );
+
   it('does not render a "Dependencies" section label for milestone tooltips', () => {
     render(<GanttTooltip data={MILESTONE_DATA} position={{ x: 100, y: 200 }} />);
     expect(screen.queryByText(/^Dependencies$/i)).not.toBeInTheDocument();

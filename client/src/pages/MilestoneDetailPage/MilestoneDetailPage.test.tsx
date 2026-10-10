@@ -667,6 +667,8 @@ describe('MilestoneDetailPage', () => {
       // Status badge should show "completed" — multiple elements may match /completed/i
       // (status badge + completedAt label), so use getAllByText and assert at least one exists
       expect(screen.getAllByText(/completed/i).length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Reached').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Upcoming')).not.toBeInTheDocument();
     });
   });
 

@@ -21,8 +21,6 @@ import { INVOICE_STATUSES } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
-// STATUS_LABELS will be dynamically generated from i18n
-
 interface InvoiceFormState {
   invoiceNumber: string;
   amount: string;

@@ -555,7 +555,7 @@ test.describe('Edit milestone (Scenario 12)', { tag: '@responsive' }, () => {
 // Scenario 13: Mark milestone as completed
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, () => {
-  test('Checking "Mark as completed" and saving changes status badge to Completed', async ({
+  test('Checking "Mark as completed" and saving changes status badge to Reached', async ({
     page,
     testPrefix,
   }) => {
@@ -583,9 +583,9 @@ test.describe('Mark milestone completed (Scenario 13)', { tag: '@responsive' }, 
       // Save changes
       await detailPage.saveChanges();
 
-      // Status badge should now say "Completed"
+      // Status badge should now say "Reached"
       const statusAfter = await detailPage.getStatusText();
-      expect(statusAfter.toLowerCase()).toMatch(/completed/i);
+      expect(statusAfter.toLowerCase()).toMatch(/reached/i);
     } finally {
       if (createdId !== null) await deleteMilestoneViaApi(page, createdId);
     }

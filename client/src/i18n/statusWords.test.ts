@@ -86,7 +86,11 @@ describe('no legacy invoice status word in any en value (AC7)', () => {
     expect(en.get('budget.sourceReports.confirmClaimTitle')).toBe('Mark invoices as submitted?');
     expect(en.get('budget.invoiceDetail.deposits.menu.markClaimed')).toBe('Mark submitted…');
     expect(en.get('errors.INVOICES_NOT_CLAIMABLE')).toContain('marked as submitted');
-    expect(en.get('schedule.milestones.status.pending')).toBe('Upcoming');
+    expect(en.get('common.statusVocabulary.milestone.upcoming')).toBe('Upcoming');
+    expect(en.get('common.statusVocabulary.milestone.reached')).toBe('Reached');
+    expect(de.get('common.statusVocabulary.milestone.upcoming')).toBe('Anstehend');
+    expect(en.has('schedule.milestones.status.pending')).toBe(false);
+    expect(de.has('schedule.milestones.status.pending')).toBe(false);
     expect(en.get('workItems.create.pendingDeps.ariaLabel')).toBe('Dependencies to add');
   });
 });

@@ -123,11 +123,7 @@
         "viewItem": "Artikel ansehen"
       }
     },
-    "status": {
-      "completed": "Abgeschlossen",
-      "late": "Verspätet",
-      "onTrack": "Im Plan"
-    },
+    "status": {},
     "skeleton": {
       "loading": "Diagramm wird geladen..."
     },
@@ -182,10 +178,7 @@
         "actions": "Aktionen"
       }
     },
-    "status": {
-      "completed": "Abgeschlossen",
-      "pending": "Anstehend"
-    },
+    "status": {},
     "card": {
       "targetDate": "Zieldatum:",
       "status": "Status:",
@@ -319,10 +312,7 @@
         "projectedDate": "Voraussichtliches Datum",
         "description": "Beschreibung",
         "completedAt": "Abgeschlossen am",
-        "status": {
-          "completed": "Abgeschlossen",
-          "pending": "Anstehend"
-        }
+        "status": {}
       },
       "failedLink": "Fehler beim Verknüpfen des Arbeitspakets. Bitte versuchen Sie es erneut.",
       "failedUnlink": "Fehler beim Aufheben der Verknüpfung des Arbeitspakets. Bitte versuchen Sie es erneut.",
