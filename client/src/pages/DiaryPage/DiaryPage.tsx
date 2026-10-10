@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -268,7 +269,7 @@ export default function DiaryPage() {
             </p>
           </div>
           <Link
-            to="/diary/new"
+            to={routeUrl('diaryEntryNew')}
             className={`${shared.btnPrimary} ${styles.createButton}`}
             style={{ textDecoration: 'none' }}
           >
@@ -306,7 +307,7 @@ export default function DiaryPage() {
           }}
         >
           <p>{t('empty.title')}</p>
-          <Link to="/diary/new" className={shared.btnPrimary} ref={emptyStateCtaRef}>
+          <Link to={routeUrl('diaryEntryNew')} className={shared.btnPrimary} ref={emptyStateCtaRef}>
             {t('empty.createButton')}
           </Link>
         </div>

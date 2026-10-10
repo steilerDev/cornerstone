@@ -7,12 +7,13 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import styles from './MilestoneCreatePage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
-  { labelKey: 'subnav.project.workItems', to: '/project/work-items', ns: 'common' },
-  { labelKey: 'subnav.project.householdItems', to: '/project/household-items', ns: 'common' },
-  { labelKey: 'subnav.project.milestones', to: '/project/milestones', ns: 'common' },
+  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard'), ns: 'common' },
+  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems'), ns: 'common' },
+  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems'), ns: 'common' },
+  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones'), ns: 'common' },
 ];
 
 export function MilestoneCreatePage() {
@@ -58,7 +59,7 @@ export function MilestoneCreatePage() {
         description: formData.description || undefined,
       });
 
-      navigate(`/project/milestones/${milestone.id}`);
+      navigate(routeUrl('milestone', { id: milestone.id }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -74,7 +75,7 @@ export function MilestoneCreatePage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <div className={styles.headerTitle}>
-          <Link to="/project/milestones" className={styles.backLink}>
+          <Link to={routeUrl('milestones')} className={styles.backLink}>
             {t('milestones.create.backLink')}
           </Link>
           <h1 className={styles.pageTitle}>{t('milestones.page.title')}</h1>
@@ -154,7 +155,7 @@ export function MilestoneCreatePage() {
           >
             {isSubmitting ? t('milestones.create.submitting') : t('milestones.create.submit')}
           </button>
-          <Link to="/project/milestones" className={styles.cancelLink}>
+          <Link to={routeUrl('milestones')} className={styles.cancelLink}>
             {t('milestones.create.cancel')}
           </Link>
         </div>

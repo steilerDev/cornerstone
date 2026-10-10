@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useState, useEffect, useMemo, useRef, useCallback, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -604,7 +605,11 @@ export function InvoiceBudgetLinesSection({
                     ) : (
                       <>
                         <Link
-                          to={`/project/${line.parentItemType === 'work_item' ? 'work-items' : 'household-items'}/${line.parentItemId}`}
+                          to={
+                            line.parentItemType === 'work_item'
+                              ? routeUrl('workItem', { id: line.parentItemId! })
+                              : routeUrl('householdItem', { id: line.parentItemId! })
+                          }
                           className={styles.linkedItemLink}
                         >
                           {line.parentItemTitle}

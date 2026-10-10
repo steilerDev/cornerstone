@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams, useLocation, matchPath } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useTimeline } from '../../hooks/useTimeline.js';
 import { GanttChart, GanttChartSkeleton } from '../../components/GanttChart/GanttChart.js';
@@ -14,6 +14,7 @@ import {
 } from '../../components/GanttChart/ganttUtils.js';
 import { barDates } from '../../lib/scheduleDates.js';
 import styles from './TimelinePage.module.css';
+import { routeUrl, routePattern } from '@cornerstone/shared';
 
 // ---------------------------------------------------------------------------
 // Icons
@@ -282,27 +283,30 @@ export function TimelinePage() {
 
   // ---- View toggle: gantt (default) or calendar ----
   const location = useLocation();
-  const activeView: 'gantt' | 'calendar' = location.pathname.includes('/calendar')
+  const activeView: 'gantt' | 'calendar' = matchPath(
+    routePattern('scheduleCalendar'),
+    location.pathname,
+  )
     ? 'calendar'
     : 'gantt';
 
   const handleItemClick = useCallback(
     (id: string) => {
-      void navigate(`/project/work-items/${id}`, { state: { from: 'schedule' } });
+      void navigate(routeUrl('workItem', { id: id }), { state: { from: 'schedule' } });
     },
     [navigate],
   );
 
   const handleHouseholdItemClick = useCallback(
     (id: string) => {
-      void navigate(`/project/household-items/${id}`, { state: { from: 'schedule' } });
+      void navigate(routeUrl('householdItem', { id: id }), { state: { from: 'schedule' } });
     },
     [navigate],
   );
 
   const handleMilestoneClick = useCallback(
     (id: number) => {
-      void navigate(`/project/milestones/${id}`, { state: { from: 'schedule' } });
+      void navigate(routeUrl('milestone', { id: id }), { state: { from: 'schedule' } });
     },
     [navigate],
   );
@@ -524,7 +528,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate('/project/work-items/new');
+                    void navigate(routeUrl('workItemNew'));
                   }}
                   data-testid="timeline-add-work-item"
                 >
@@ -536,7 +540,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate('/project/household-items/new');
+                    void navigate(routeUrl('householdItemNew'));
                   }}
                   data-testid="timeline-add-household-item"
                 >
@@ -548,7 +552,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate('/project/milestones/new');
+                    void navigate(routeUrl('milestoneNew'));
                   }}
                   data-testid="timeline-add-milestone"
                 >
@@ -613,7 +617,7 @@ export function TimelinePage() {
             <p className={styles.emptyStateDescription}>
               {t('timeline.emptyState.noItemsMessage')}
             </p>
-            <Link to="/project/work-items" className={styles.emptyStateLink}>
+            <Link to={routeUrl('workItems')} className={styles.emptyStateLink}>
               {t('timeline.emptyState.goToWorkItems')}
             </Link>
           </div>
@@ -646,7 +650,7 @@ export function TimelinePage() {
               <p className={styles.emptyStateDescription}>
                 {t('timeline.emptyState.noScheduledMessage')}
               </p>
-              <Link to="/project/work-items" className={styles.emptyStateLink}>
+              <Link to={routeUrl('workItems')} className={styles.emptyStateLink}>
                 {t('timeline.emptyState.goToWorkItems')}
               </Link>
             </div>

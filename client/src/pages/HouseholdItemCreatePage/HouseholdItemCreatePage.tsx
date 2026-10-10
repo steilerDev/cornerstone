@@ -1,7 +1,7 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
+import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import type {
   HouseholdItemCategory,
@@ -134,7 +134,7 @@ export function HouseholdItemCreatePage() {
       });
 
       showToast('success', t('create.success'));
-      navigate(`/project/household-items/${item.id}`);
+      navigate(routeUrl('householdItem', { id: item.id }));
     } catch (err) {
       setError(t('create.errorBanner'));
       console.error('Failed to create household item:', err);
@@ -156,7 +156,7 @@ export function HouseholdItemCreatePage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/project/household-items')}
+          onClick={() => navigate(routeUrl('householdItems'))}
           disabled={isSubmitting}
         >
           {t('create.backButton')}
@@ -421,7 +421,7 @@ export function HouseholdItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/project/household-items')}
+            onClick={() => navigate(routeUrl('householdItems'))}
             disabled={isSubmitting}
           >
             {t('create.cancel')}

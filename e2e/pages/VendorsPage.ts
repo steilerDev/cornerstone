@@ -16,8 +16,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const VENDORS_ROUTE = '/settings/vendors';
+export const VENDORS_ROUTE = routeUrl('vendors');
 
 export interface CreateVendorData {
   name: string;

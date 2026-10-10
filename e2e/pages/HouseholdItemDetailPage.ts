@@ -27,6 +27,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class HouseholdItemDetailPage {
   readonly page: Page;
@@ -102,7 +103,7 @@ export class HouseholdItemDetailPage {
    * Navigate to the household item detail page.
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/project/household-items/${id}`);
+    await this.page.goto(routeUrl('householdItem', { id }));
     await this.heading.waitFor({ state: 'visible', timeout: 10000 });
   }
 

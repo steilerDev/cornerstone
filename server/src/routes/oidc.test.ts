@@ -135,6 +135,48 @@ describe('OIDC Routes', () => {
     });
   });
 
+  describe('GET /api/auth/oidc/login — post-login redirect default', () => {
+    beforeEach(async () => {
+      process.env.OIDC_ISSUER = 'https://oidc.example.com';
+      process.env.OIDC_CLIENT_ID = 'client-123';
+      process.env.OIDC_CLIENT_SECRET = 'secret-456';
+      app = await buildApp();
+      mockDiscoverOidcConfig.mockResolvedValue({});
+      mockBuildAuthorizationUrl.mockReturnValue({
+        authorizationUrl: 'https://oidc.example.com/authorize?state=s',
+        state: 's',
+      });
+    });
+
+    it.each([
+      ['no redirect parameter', '/api/auth/oidc/login'],
+      ['an absolute-URL redirect', '/api/auth/oidc/login?redirect=https%3A%2F%2Fevil.test%2F'],
+      ['a protocol-relative redirect', '/api/auth/oidc/login?redirect=%2F%2Fevil.test'],
+    ])('falls back to the home route "/" for %s', async (_name, url) => {
+      const response = await app.inject({ method: 'GET', url });
+
+      expect(response.statusCode).toBe(302);
+      expect(mockBuildAuthorizationUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(String),
+        '/',
+      );
+    });
+
+    it('passes a safe in-app redirect through unchanged', async () => {
+      await app.inject({
+        method: 'GET',
+        url: '/api/auth/oidc/login?redirect=%2Fproject%2Fwork-items',
+      });
+
+      expect(mockBuildAuthorizationUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(String),
+        '/project/work-items',
+      );
+    });
+  });
+
   describe('GET /api/auth/oidc/callback', () => {
     it('redirects to /login?error=oidc_not_configured when OIDC not enabled', async () => {
       // Given: Server with OIDC disabled

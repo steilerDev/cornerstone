@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
@@ -69,7 +70,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
                 data-testid="invoice-row"
                 className={`${styles.item} ${overdue ? styles.itemOverdue : ''}`}
               >
-                <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
+                <Link to={routeUrl('invoice', { id: invoice.id })} className={styles.itemLink}>
                   <span className={styles.vendorName} title={invoice.vendorName}>
                     {invoice.vendorName}
                   </span>
@@ -97,7 +98,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
 
               return (
                 <li key={invoice.id} data-testid="quotation-row" className={styles.item}>
-                  <Link to={`/budget/invoices/${invoice.id}`} className={styles.itemLink}>
+                  <Link to={routeUrl('invoice', { id: invoice.id })} className={styles.itemLink}>
                     <span className={styles.vendorName} title={invoice.vendorName}>
                       {invoice.vendorName}
                     </span>
@@ -125,7 +126,7 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
             <strong>{formatCurrency(summary.quotation.totalAmount)}</strong>
           </div>
         )}
-        <Link to="/budget/invoices" className={styles.link}>
+        <Link to={routeUrl('invoices')} className={styles.link}>
           {t('cards.invoicePipeline.viewAllInvoices')}
         </Link>
       </div>

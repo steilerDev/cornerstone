@@ -21,6 +21,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorsPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
@@ -33,18 +34,18 @@ export function VendorsPage() {
   const { formatDate } = useFormatters();
 
   const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: '/settings/manage', ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: '/settings/vendors', ns: 'common' },
+    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
+    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
+    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
     {
       labelKey: 'subnav.settings.userManagement',
-      to: '/settings/users',
+      to: routeUrl('settingsUsers'),
       ns: 'common',
       visible: user?.role === 'admin',
     },
     {
       labelKey: 'subnav.settings.backups',
-      to: '/settings/backups',
+      to: routeUrl('settingsBackups'),
       ns: 'common',
       visible: user?.role === 'admin',
     },
@@ -195,7 +196,7 @@ export function VendorsPage() {
         sortKey: 'name',
         defaultVisible: true,
         render: (v) => (
-          <Link to={`/settings/vendors/${v.id}`} className={styles.vendorLink}>
+          <Link to={routeUrl('vendor', { id: v.id })} className={styles.vendorLink}>
             {v.name}
           </Link>
         ),
@@ -316,7 +317,7 @@ export function VendorsPage() {
           <button
             type="button"
             className={styles.menuItem}
-            onClick={() => navigate(`/settings/vendors/${vendor.id}`)}
+            onClick={() => navigate(routeUrl('vendor', { id: vendor.id }))}
             data-testid={dataTableTestId('vendor-view', vendor.id, surface)}
           >
             {t('vendors.buttons.view')}
@@ -359,7 +360,7 @@ export function VendorsPage() {
         isLoading={isLoading}
         error={error}
         getRowKey={(v) => v.id}
-        onRowClick={(v) => navigate(`/settings/vendors/${v.id}`)}
+        onRowClick={(v) => navigate(routeUrl('vendor', { id: v.id }))}
         renderActions={renderActions}
         tableState={tableState}
         onStateChange={handleStateChange}

@@ -46,6 +46,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class MilestoneDetailPage {
   readonly page: Page;
@@ -134,7 +135,7 @@ export class MilestoneDetailPage {
    * No explicit timeout — uses project-level actionTimeout.
    */
   async goto(id: number | string): Promise<void> {
-    await this.page.goto(`/project/milestones/${id}`);
+    await this.page.goto(routeUrl('milestone', { id }));
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),
       this.notFoundState.waitFor({ state: 'visible' }),

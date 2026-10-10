@@ -1,0 +1,32 @@
+// Route map barrel (EPIC-21, ADR-038). E2E page objects import this file as source.
+export { ROUTE_MAP } from './routeMap.js';
+export type {
+  RouteChange,
+  RouteCondition,
+  RouteGate,
+  RouteGuard,
+  RouteKind,
+  RouteMapEntry,
+  RouteMatch,
+  RouteSection,
+  RouteStage,
+} from './types.js';
+export { getRouteEntry, isRouteServed, routePattern, routeUrl } from './routeUrl.js';
+export type {
+  RouteId,
+  RouteParams,
+  RoutePatternOf,
+  RouteQuery,
+  RouteQueryValue,
+  ServedRouteId,
+} from './routeUrl.js';
+export {
+  LIVE_REDIRECT_ROUTES,
+  conditionHolds,
+  effectiveTarget,
+  liveConditionalRules,
+  resolveRedirect,
+} from './redirects.js';
+export type { LiveRedirectRoute, RouteGateContext } from './redirects.js';
+export { baseFrom, matchLocation, matchPattern, resolveLocation } from './match.js';
+export type { RouteContext, RouteResolution } from './match.js';

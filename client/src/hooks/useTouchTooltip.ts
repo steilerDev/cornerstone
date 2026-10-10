@@ -16,9 +16,9 @@
  *   // In the item's click handler:
  *   onClick={() => {
  *     if (isTouchDevice) {
- *       handleTouchTap(item.id, () => navigate(`/work-items/${item.id}`));
+ *       handleTouchTap(item.id, () => navigate(routeUrl('workItem', { id: item.id })));
  *     } else {
- *       navigate(`/work-items/${item.id}`);
+ *       navigate(routeUrl('workItem', { id: item.id }));
  *     }
  *   }}
  *

@@ -2,7 +2,7 @@ import { useState, useEffect, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { OidcLoginErrorCode } from '@cornerstone/shared';
-import { OIDC_LOGIN_ERROR_CODES } from '@cornerstone/shared';
+import { OIDC_LOGIN_ERROR_CODES, routeUrl } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { Logo } from '../../components/Logo/Logo.js';
 import { login, getAuthMe } from '../../lib/authApi.js';
@@ -55,7 +55,7 @@ export function LoginPage() {
         const authMeResponse = await getAuthMe();
         // If user is already authenticated, redirect to home
         if (authMeResponse.user) {
-          navigate('/', { replace: true });
+          navigate(routeUrl('home'), { replace: true });
           return;
         }
         setOidcEnabled(authMeResponse.oidcEnabled);
@@ -99,7 +99,7 @@ export function LoginPage() {
     try {
       await login({ email, password });
       // Successful login - redirect to app
-      navigate('/', { replace: true });
+      navigate(routeUrl('home'), { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(translateApiError(error.error.code, tErrors));

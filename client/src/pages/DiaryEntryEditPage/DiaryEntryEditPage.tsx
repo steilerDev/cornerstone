@@ -15,7 +15,7 @@ import type {
   DiarySignatureEntry,
   ManualDiaryEntryType,
 } from '@cornerstone/shared';
-import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
+import { isDiaryEntrySignatureLocked, routeUrl } from '@cornerstone/shared';
 import {
   getDiaryEntry,
   updateDiaryEntry,
@@ -148,7 +148,7 @@ export default function DiaryEntryEditPage() {
         const data = await getDiaryEntry(id);
         if (!data.isAutomatic && isDiaryEntrySignatureLocked(data)) {
           showToast('info', t('editPage.signedEntriesError'));
-          navigate(`/diary/${data.id}`);
+          navigate(routeUrl('diaryEntry', { id: data.id }));
           return;
         }
         setEntry(data);
@@ -411,7 +411,7 @@ export default function DiaryEntryEditPage() {
 
       setEntry(promoted);
       showToast('success', t('editPage.updateSuccess'));
-      navigate(`/diary/${promoted.id}`);
+      navigate(routeUrl('diaryEntry', { id: promoted.id }));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -452,7 +452,7 @@ export default function DiaryEntryEditPage() {
         });
 
         showToast('success', t('editPage.updateSuccess'));
-        navigate(`/diary/${entry.id}`);
+        navigate(routeUrl('diaryEntry', { id: entry.id }));
       } catch (err) {
         setError(
           err instanceof ApiClientError
@@ -478,7 +478,7 @@ export default function DiaryEntryEditPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('editPage.deleteSuccess'));
-      navigate('/diary');
+      navigate(routeUrl('diary'));
     } catch (err) {
       setDeleteError(t('editPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
@@ -493,7 +493,7 @@ export default function DiaryEntryEditPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('editPage.deleteSuccess'));
-      navigate('/diary');
+      navigate(routeUrl('diary'));
     } catch (err) {
       setDeleteError(t('editPage.deleteError'));
       console.error('Failed to discard draft:', err);
@@ -511,7 +511,11 @@ export default function DiaryEntryEditPage() {
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>{t('editPage.notFoundTitle')}</h2>
           <p className={styles.errorMessage}>{t('editPage.notFoundMessage')}</p>
-          <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate(routeUrl('diary'))}
+          >
             {t('editPage.backButton')}
           </button>
         </div>
@@ -525,7 +529,11 @@ export default function DiaryEntryEditPage() {
         <div className={styles.errorCard}>
           <h2 className={styles.errorTitle}>{t('editPage.errorTitle')}</h2>
           <p className={styles.errorMessage}>{error || t('editPage.loadError')}</p>
-          <button type="button" className={styles.backButton} onClick={() => navigate('/diary')}>
+          <button
+            type="button"
+            className={styles.backButton}
+            onClick={() => navigate(routeUrl('diary'))}
+          >
             {t('editPage.backButton')}
           </button>
         </div>
@@ -542,7 +550,9 @@ export default function DiaryEntryEditPage() {
           type="button"
           className={styles.backButton}
           onClick={() =>
-            entry.status === 'draft' ? navigate('/diary') : navigate(`/diary/${entry.id}`)
+            entry.status === 'draft'
+              ? navigate(routeUrl('diary'))
+              : navigate(routeUrl('diaryEntry', { id: entry.id }))
           }
           disabled={isSubmitting}
         >
@@ -644,7 +654,7 @@ export default function DiaryEntryEditPage() {
                 <button
                   type="button"
                   className={shared.btnSecondary}
-                  onClick={() => navigate('/diary')}
+                  onClick={() => navigate(routeUrl('diary'))}
                   disabled={isSubmitting}
                 >
                   {t('editPage.cancel')}
@@ -668,7 +678,7 @@ export default function DiaryEntryEditPage() {
                 <button
                   type="button"
                   className={shared.btnSecondary}
-                  onClick={() => navigate(`/diary/${entry.id}`)}
+                  onClick={() => navigate(routeUrl('diaryEntry', { id: entry.id }))}
                   disabled={isSubmitting}
                 >
                   {t('editPage.cancel')}

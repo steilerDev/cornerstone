@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type Database from 'better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
+import { routeUrl } from '@cornerstone/shared';
 // vcard-creator is CJS — default import gives the module namespace, class is at .default
 import VCardModule from 'vcard-creator';
 
@@ -80,8 +81,9 @@ export function buildVendorVcard(
     vcard.addNote(vendor.notes);
   }
 
+  // Permanent URL (ADR-038 §3.4): lands on the company page in one hop.
   if (baseUrl) {
-    vcard.addUrl({ url: `${baseUrl}/budget/vendors/${vendor.id}`, type: ['work'] });
+    vcard.addUrl({ url: `${baseUrl}${routeUrl('company', { id: vendor.id })}`, type: ['work'] });
   }
 
   let vcardStr = vcard.toString();
@@ -140,7 +142,10 @@ export function buildContactVcard(
   vcard.addCompany({ name: vendorName });
 
   if (baseUrl) {
-    vcard.addUrl({ url: `${baseUrl}/budget/vendors/${contact.vendorId}`, type: ['work'] });
+    vcard.addUrl({
+      url: `${baseUrl}${routeUrl('company', { id: contact.vendorId })}`,
+      type: ['work'],
+    });
   }
 
   let vcardStr = vcard.toString();

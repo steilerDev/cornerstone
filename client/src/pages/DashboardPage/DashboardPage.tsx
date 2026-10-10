@@ -11,7 +11,7 @@ import type {
   SubsidyProgram,
   DiaryEntrySummary,
 } from '@cornerstone/shared';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { fetchBudgetOverview } from '../../lib/budgetOverviewApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
@@ -40,10 +40,10 @@ import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCar
 import styles from './DashboardPage.module.css';
 
 const PROJECT_TABS: SubNavTab[] = [
-  { labelKey: 'subnav.project.overview', to: '/project/overview', ns: 'common' },
-  { labelKey: 'subnav.project.workItems', to: '/project/work-items', ns: 'common' },
-  { labelKey: 'subnav.project.householdItems', to: '/project/household-items', ns: 'common' },
-  { labelKey: 'subnav.project.milestones', to: '/project/milestones', ns: 'common' },
+  { labelKey: 'subnav.project.overview', to: routeUrl('dashboard'), ns: 'common' },
+  { labelKey: 'subnav.project.workItems', to: routeUrl('workItems'), ns: 'common' },
+  { labelKey: 'subnav.project.householdItems', to: routeUrl('householdItems'), ns: 'common' },
+  { labelKey: 'subnav.project.milestones', to: routeUrl('milestones'), ns: 'common' },
 ];
 
 type DataSourceKey =
@@ -76,7 +76,10 @@ export function DashboardPage() {
       section: 'budget-details' as DashboardSection,
       dataSource: 'budgetSources' as DataSourceKey,
       emptyMessage: t('cards.sourceUtilization.emptyMessage')!,
-      emptyAction: { label: t('cards.sourceUtilization.emptyAction')!, href: '/budget/sources' },
+      emptyAction: {
+        label: t('cards.sourceUtilization.emptyAction')!,
+        href: routeUrl('budgetSources'),
+      },
     },
     {
       id: 'upcoming-milestones' as DashboardCardId,
@@ -109,7 +112,7 @@ export function DashboardPage() {
       section: 'primary' as DashboardSection,
       dataSource: 'invoices' as DataSourceKey,
       emptyMessage: t('cards.invoicePipeline.emptyMessage')!,
-      emptyAction: { label: t('cards.invoicePipeline.emptyAction')!, href: '/budget/invoices' },
+      emptyAction: { label: t('cards.invoicePipeline.emptyAction')!, href: routeUrl('invoices') },
     },
     {
       id: 'subsidy-pipeline' as DashboardCardId,
@@ -117,7 +120,10 @@ export function DashboardPage() {
       section: 'budget-details' as DashboardSection,
       dataSource: 'subsidyPrograms' as DataSourceKey,
       emptyMessage: t('cards.subsidyPipeline.emptyMessage')!,
-      emptyAction: { label: t('cards.subsidyPipeline.emptyAction')!, href: '/budget/subsidies' },
+      emptyAction: {
+        label: t('cards.subsidyPipeline.emptyAction')!,
+        href: routeUrl('budgetSubsidies'),
+      },
     },
     {
       id: 'recent-diary' as DashboardCardId,
@@ -125,7 +131,7 @@ export function DashboardPage() {
       section: 'primary' as DashboardSection,
       dataSource: 'diaryEntries' as DataSourceKey,
       emptyMessage: t('cards.recentDiary.emptyMessage')!,
-      emptyAction: { label: t('cards.recentDiary.emptyAction')!, href: '/diary/new' },
+      emptyAction: { label: t('cards.recentDiary.emptyAction')!, href: routeUrl('diaryEntryNew') },
     },
     {
       id: 'quick-actions' as DashboardCardId,
@@ -542,7 +548,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate('/project/work-items/new');
+                    void navigate(routeUrl('workItemNew'));
                   }}
                   data-testid="dashboard-add-work-item"
                 >
@@ -554,7 +560,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate('/project/household-items/new');
+                    void navigate(routeUrl('householdItemNew'));
                   }}
                   data-testid="dashboard-add-household-item"
                 >
@@ -566,7 +572,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate('/project/milestones/new');
+                    void navigate(routeUrl('milestoneNew'));
                   }}
                   data-testid="dashboard-add-milestone"
                 >
@@ -578,7 +584,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate('/diary/new');
+                    void navigate(routeUrl('diaryEntryNew'));
                   }}
                   data-testid="dashboard-add-diary-entry"
                 >
@@ -590,7 +596,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate('/budget/invoices?create=1');
+                    void navigate(routeUrl('invoices', undefined, { create: 1 }));
                   }}
                   data-testid="dashboard-add-invoice"
                 >

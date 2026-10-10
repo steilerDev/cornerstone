@@ -1,6 +1,6 @@
 import { strict as assert } from 'node:assert';
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { after, describe, it } from 'node:test';
@@ -11,6 +11,12 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPT = join(HERE, 'check-all.mjs');
 const roots = [];
 after(() => roots.forEach((r) => rmSync(r, { recursive: true, force: true })));
+
+const REDIRECT_TARGETS = {
+  '/budget': '/budget/overview',
+  '/legacy/:id': '/tasks/:id',
+  '/old-login': '/login',
+};
 
 const routemap = [
   ['*', 'public'],
@@ -25,13 +31,14 @@ const routemap = [
 ].map(([from, guard, kind = 'page']) => ({
   from,
   kind,
+  stage: 'done',
   change: 'kept',
   guard,
   gate: 'none',
   permanent: false,
   carries: [],
   section: 'Section',
-  to: '/target',
+  to: REDIRECT_TARGETS[from] ?? '/target',
   note: 'A note',
 }));
 
@@ -52,6 +59,16 @@ function makeRoot() {
     'export const HomePage = () => null;',
   );
   writeFileSync(join(dir, 'routemap.json'), JSON.stringify(routemap));
+  // Synthetic shared route module that agrees with the route map above.
+  const routesDir = join(root, 'shared/src/routes');
+  mkdirSync(routesDir, { recursive: true });
+  for (const file of readdirSync(join(HERE, '__fixtures__/routes'))) {
+    copyFileSync(join(HERE, '__fixtures__/routes', file), join(routesDir, file));
+  }
+  writeFileSync(
+    join(routesDir, 'routeMap.ts'),
+    `export const ROUTE_MAP = ${JSON.stringify(routemap)};\n`,
+  );
   writeFileSync(join(dir, 'capabilities.json'), JSON.stringify(inventory));
   writeFileSync(join(dir, 'capmap.json'), JSON.stringify(capmap));
   return root;

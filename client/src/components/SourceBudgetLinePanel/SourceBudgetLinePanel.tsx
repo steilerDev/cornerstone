@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -523,7 +524,11 @@ export function SourceBudgetLinePanel({
                 <div className={styles.parentItemHeader}>
                   <span className={styles.parentItemName}>{parentGroup.parentName}</span>
                   <Link
-                    to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
+                    to={
+                      parentType === 'work-item'
+                        ? routeUrl('workItem', { id: parentGroup.parentId })
+                        : routeUrl('householdItem', { id: parentGroup.parentId })
+                    }
                     className={styles.parentItemNavLink}
                     aria-label={t('sources.budgetLines.move.navigateToItem', {
                       name: parentGroup.parentName,
@@ -598,7 +603,11 @@ export function SourceBudgetLinePanel({
             return (
               <div key={parentGroup.parentId} className={styles.parentItemBlock}>
                 <Link
-                  to={`/project/${parentType === 'work-item' ? 'work-items' : 'household-items'}/${parentGroup.parentId}`}
+                  to={
+                    parentType === 'work-item'
+                      ? routeUrl('workItem', { id: parentGroup.parentId })
+                      : routeUrl('householdItem', { id: parentGroup.parentId })
+                  }
                   className={`${styles.parentItemHeader} ${styles.parentItemHeaderLink}`}
                 >
                   {parentGroup.parentName}

@@ -48,6 +48,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class AutoItemizePage {
   readonly page: Page;
@@ -345,7 +346,7 @@ export class AutoItemizePage {
    * In real usage this page is reached via InvoiceDetailPage → Itemize button.
    */
   async goto(invoiceId: string, documentId: number): Promise<void> {
-    await this.page.goto(`/budget/invoices/${invoiceId}/auto-itemize/${documentId}`);
+    await this.page.goto(routeUrl('invoiceAutoItemize', { id: invoiceId, documentId }));
     await this.pageTitle.waitFor({ state: 'visible' });
   }
 

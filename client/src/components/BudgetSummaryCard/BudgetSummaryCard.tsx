@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { BudgetOverview } from '@cornerstone/shared';
@@ -110,7 +111,7 @@ export function BudgetSummaryCard({ overview, paidAmount }: BudgetSummaryCardPro
 
       {/* Footer */}
       <div className={styles.footer}>
-        <Link to="/budget/overview" className={styles.footerLink}>
+        <Link to={routeUrl('budgetOverview')} className={styles.footerLink}>
           {t('cards.budgetSummary.viewBudgetOverview')}
         </Link>
       </div>

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -1132,7 +1132,7 @@ export default function WorkItemDetailPage() {
     setInlineError(null);
     try {
       await deleteWorkItem(id);
-      navigate('/project/work-items');
+      navigate(routeUrl('workItems'));
     } catch (err) {
       setInlineError(t('detail.inlineErrors.deleteWorkItem'));
       console.error('Failed to delete work item:', err);
@@ -1239,7 +1239,7 @@ export default function WorkItemDetailPage() {
             <button
               type="button"
               className={styles.backButton}
-              onClick={() => navigate('/project/work-items')}
+              onClick={() => navigate(routeUrl('workItems'))}
             >
               {t('detail.notFound.back')}
             </button>
@@ -1259,7 +1259,7 @@ export default function WorkItemDetailPage() {
             <button
               type="button"
               className={styles.backButton}
-              onClick={() => navigate('/project/work-items')}
+              onClick={() => navigate(routeUrl('workItems'))}
             >
               {t('detail.error.back')}
             </button>
@@ -1369,14 +1369,20 @@ export default function WorkItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
+                onClick={() =>
+                  navigate(
+                    fromView
+                      ? routeUrl('schedule', undefined, { view: fromView })
+                      : routeUrl('schedule'),
+                  )
+                }
               >
                 {t('detail.nav.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/project/work-items')}
+                onClick={() => navigate(routeUrl('workItems'))}
               >
                 {t('detail.nav.toWorkItems')}
               </button>
@@ -1386,14 +1392,14 @@ export default function WorkItemDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate('/project/work-items')}
+                onClick={() => navigate(routeUrl('workItems'))}
               >
                 {t('detail.nav.backToWorkItems')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/schedule')}
+                onClick={() => navigate(routeUrl('schedule'))}
               >
                 {t('detail.nav.toSchedule')}
               </button>
@@ -2099,7 +2105,7 @@ export default function WorkItemDetailPage() {
             {linkedHouseholdItems.map((hi) => (
               <li key={hi.id} className={styles.householdItemLinkRow}>
                 <Link
-                  to={`/project/household-items/${hi.id}`}
+                  to={routeUrl('householdItem', { id: hi.id })}
                   className={styles.householdItemLinkName}
                 >
                   {hi.name}

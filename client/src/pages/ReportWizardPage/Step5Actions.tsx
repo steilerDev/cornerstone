@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import type { TFunction } from 'i18next';
 import type { SourceReportType, PaperlessStatusResponse } from '@cornerstone/shared';
@@ -90,7 +91,7 @@ export function Step5Actions({
                   }),
                 })}
           </div>
-          <Link to="/budget/invoices" className={sharedStyles.bannerLink}>
+          <Link to={routeUrl('invoices')} className={sharedStyles.bannerLink}>
             {t('sourceReports.viewInvoices')}
           </Link>
         </div>

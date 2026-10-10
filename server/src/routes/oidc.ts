@@ -1,5 +1,5 @@
 import type { FastifyInstance, FastifyRequest } from 'fastify';
-import type { OidcLoginErrorCode } from '@cornerstone/shared';
+import { routeUrl, type OidcLoginErrorCode } from '@cornerstone/shared';
 import {
   AppError,
   OidcEmailUnverifiedError,
@@ -25,7 +25,7 @@ function isSafeRedirect(redirect: string): boolean {
 
 /** Builds the `/login?error=<code>` redirect target; the code set is a compile-time contract with the client. */
 function loginErrorPath(code: OidcLoginErrorCode): string {
-  return `/login?error=${code}`;
+  return routeUrl('login', undefined, { error: code });
 }
 
 export const OIDC_CALLBACK_PATH = '/api/auth/oidc/callback';
@@ -59,8 +59,8 @@ export default async function oidcRoutes(fastify: FastifyInstance) {
     }
 
     // Read optional redirect query parameter and validate it
-    const { redirect = '/' } = request.query as { redirect?: string };
-    const safeRedirect = isSafeRedirect(redirect) ? redirect : '/';
+    const { redirect = routeUrl('home') } = request.query as { redirect?: string };
+    const safeRedirect = isSafeRedirect(redirect) ? redirect : routeUrl('home');
 
     // Discover OIDC configuration
     const config = await oidcService.discoverOidcConfig(

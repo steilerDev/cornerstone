@@ -50,8 +50,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const DIARY_EDIT_ROUTE = '/diary';
+export const DIARY_EDIT_ROUTE = routeUrl('diary');
 
 export class DiaryEntryEditPage {
   readonly page: Page;

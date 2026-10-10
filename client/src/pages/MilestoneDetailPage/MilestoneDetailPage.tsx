@@ -26,6 +26,7 @@ import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import styles from './MilestoneDetailPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 export function MilestoneDetailPage() {
   const {
@@ -439,7 +440,7 @@ export function MilestoneDetailPage() {
 
     try {
       await deleteMilestone(milestone.id);
-      navigate('/project/milestones');
+      navigate(routeUrl('milestones'));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -464,7 +465,7 @@ export function MilestoneDetailPage() {
         <div className={styles.notFound}>
           <h2>{t('milestones.detail.notFound')}</h2>
           <p>{t('milestones.detail.notFoundMessage')}</p>
-          <Link to="/project/milestones" className={styles.linkButton}>
+          <Link to={routeUrl('milestones')} className={styles.linkButton}>
             {t('milestones.detail.backLink')}
           </Link>
         </div>
@@ -481,14 +482,20 @@ export function MilestoneDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate(fromView ? `/schedule?view=${fromView}` : '/schedule')}
+                onClick={() =>
+                  navigate(
+                    fromView
+                      ? routeUrl('schedule', undefined, { view: fromView })
+                      : routeUrl('schedule'),
+                  )
+                }
               >
                 {t('milestones.detail.backToSchedule')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/project/milestones')}
+                onClick={() => navigate(routeUrl('milestones'))}
               >
                 {t('milestones.detail.toMilestones')}
               </button>
@@ -498,14 +505,14 @@ export function MilestoneDetailPage() {
               <button
                 type="button"
                 className={styles.backButton}
-                onClick={() => navigate('/project/milestones')}
+                onClick={() => navigate(routeUrl('milestones'))}
               >
                 {t('milestones.detail.backButton')}
               </button>
               <button
                 type="button"
                 className={styles.secondaryNavButton}
-                onClick={() => navigate('/schedule')}
+                onClick={() => navigate(routeUrl('schedule'))}
               >
                 {t('milestones.detail.toSchedule')}
               </button>
@@ -616,7 +623,10 @@ export function MilestoneDetailPage() {
                         {t('milestones.detail.workItem')}
                       </span>
                       <div className={styles.workItemTitleCell}>
-                        <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
+                        <Link
+                          to={routeUrl('workItem', { id: item.id })}
+                          className={styles.workItemLink}
+                        >
                           {item.title}
                         </Link>
                         <AreaBreadcrumb area={item.area ?? null} variant="compact" />
@@ -639,7 +649,7 @@ export function MilestoneDetailPage() {
                         {t('milestones.detail.householdItem')}
                       </span>
                       <Link
-                        to={`/project/household-items/${item.id}`}
+                        to={routeUrl('householdItem', { id: item.id })}
                         className={styles.workItemLink}
                       >
                         {item.name}
@@ -738,7 +748,10 @@ export function MilestoneDetailPage() {
                 <ul className={styles.linkedWorkItemsList}>
                   {milestone.dependentWorkItems.map((item) => (
                     <li key={item.id} className={styles.linkedWorkItem}>
-                      <Link to={`/project/work-items/${item.id}`} className={styles.workItemLink}>
+                      <Link
+                        to={routeUrl('workItem', { id: item.id })}
+                        className={styles.workItemLink}
+                      >
                         {item.title}
                       </Link>
                       <button

@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { Link } from 'react-router-dom';
@@ -289,7 +290,7 @@ export function SpotViewer({
           </div>
           <span className={styles.entryMeta}>{longDate}</span>
           <Link
-            to={`/diary/${entry.id}`}
+            to={routeUrl('diaryEntry', { id: entry.id })}
             className={styles.entryLink}
             data-testid="spot-viewer-diary-link"
           >

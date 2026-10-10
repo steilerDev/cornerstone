@@ -13,7 +13,7 @@ import type {
   SubsidyAdjustment,
   BudgetSourceSummaryBreakdown,
 } from '@cornerstone/shared';
-import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+import { CONFIDENCE_MARGINS, routeUrl } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { usePrintExpansion } from '../../hooks/usePrintExpansion.js';
 import { Badge } from '../Badge/Badge.js';
@@ -400,7 +400,7 @@ function WorkItemRow({
                 className={`${styles.chevron} ${itemExpanded ? styles.chevronOpen : ''}`}
               />
             </button>
-            <Link to={`/project/work-items/${item.workItemId}`} className={styles.nameLink}>
+            <Link to={routeUrl('workItem', { id: item.workItemId })} className={styles.nameLink}>
               {item.title}
             </Link>
             {item.costDisplay === 'actual' && (
@@ -612,7 +612,7 @@ function HouseholdItemRow({
               />
             </button>
             <Link
-              to={`/project/household-items/${item.householdItemId}`}
+              to={routeUrl('householdItem', { id: item.householdItemId })}
               className={styles.nameLink}
             >
               {item.name}

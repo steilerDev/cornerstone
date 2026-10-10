@@ -9,6 +9,7 @@
  *   calendarMode=month|week   (defaults to "month")
  */
 
+import { routeUrl } from '@cornerstone/shared';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -622,7 +623,7 @@ export function CalendarView({
               icon={<CalendarIcon />}
               message={t('calendar.emptyState.message')}
               description={t('calendar.emptyState.description')}
-              action={{ label: t('calendar.emptyState.action'), href: '/project/work-items/new' }}
+              action={{ label: t('calendar.emptyState.action'), href: routeUrl('workItemNew') }}
             />
           </div>
         ) : calendarMode === 'month' ? (

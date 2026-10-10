@@ -1055,7 +1055,7 @@ describe('ReportInvoiceList', () => {
         fireEvent.click(findExpandButton(container, 'inv-1'));
 
         const links = screen.getAllByRole('link', { name: 'Kitchen Cabinet' });
-        expect(links[0]).toHaveAttribute('href', '/household-items/hi-1');
+        expect(links[0]).toHaveAttribute('href', '/project/household-items/hi-1');
       });
 
       it('renders an "unassigned" badge instead of a link when linkedItem is null', () => {

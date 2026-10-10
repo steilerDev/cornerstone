@@ -30,7 +30,7 @@ describe('photoSpots URL helpers', () => {
   it('builds the viewer path with encoded segments and optional ?photo=', () => {
     expect(buildSpotViewerPath('a1', 'o1')).toBe('/photos/spot/a1/o1');
     expect(buildSpotViewerPath(null, null)).toBe('/photos/spot/none/none');
-    expect(buildSpotViewerPath('a/b', 'o c', 'p 1')).toBe('/photos/spot/a%2Fb/o%20c?photo=p%201');
+    expect(buildSpotViewerPath('a/b', 'o c', 'p 1')).toBe('/photos/spot/a%2Fb/o%20c?photo=p+1');
   });
 
   it('joins area ancestors root-first with the U+203A separator', () => {

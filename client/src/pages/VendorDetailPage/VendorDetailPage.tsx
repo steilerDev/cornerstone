@@ -17,7 +17,7 @@ import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import styles from './VendorDetailPage.module.css';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
@@ -188,7 +188,7 @@ export function VendorDetailPage() {
 
     try {
       await deleteVendor(id);
-      navigate('/settings/vendors');
+      navigate(routeUrl('vendors'));
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 409) {
@@ -337,7 +337,7 @@ export function VendorDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/settings/vendors')}
+              onClick={() => navigate(routeUrl('vendors'))}
             >
               {t('vendorDetail.backToVendors')}
             </button>
@@ -361,7 +361,7 @@ export function VendorDetailPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/settings/vendors')}
+            onClick={() => navigate(routeUrl('vendors'))}
           >
             ← {t('vendorDetail.backToVendors')}
           </button>
@@ -694,7 +694,7 @@ export function VendorDetailPage() {
                             <button
                               type="button"
                               className={styles.rowActionButton}
-                              onClick={() => navigate(`/budget/invoices/${invoice.id}`)}
+                              onClick={() => navigate(routeUrl('invoice', { id: invoice.id }))}
                               aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
                               {t('vendorDetail.buttons.editRow')}
@@ -747,7 +747,7 @@ export function VendorDetailPage() {
                       <button
                         type="button"
                         className={styles.rowActionButton}
-                        onClick={() => navigate(`/budget/invoices/${invoice.id}`)}
+                        onClick={() => navigate(routeUrl('invoice', { id: invoice.id }))}
                         aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                       >
                         {t('vendorDetail.buttons.editRow')}

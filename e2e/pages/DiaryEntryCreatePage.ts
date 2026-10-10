@@ -22,8 +22,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const DIARY_CREATE_ROUTE = '/diary/new';
+export const DIARY_CREATE_ROUTE = routeUrl('diaryEntryNew');
 
 export type ManualDiaryEntryType =
   'daily_log' | 'site_visit' | 'delivery' | 'issue' | 'general_note';

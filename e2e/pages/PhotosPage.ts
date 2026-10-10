@@ -8,8 +8,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const PHOTOS_ROUTE = '/photos';
+export const PHOTOS_ROUTE = routeUrl('photos');
 
 export class PhotosPage {
   readonly page: Page;

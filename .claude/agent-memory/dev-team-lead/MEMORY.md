@@ -42,3 +42,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Read-time projection specs](read-time-projection-specs.md) — stale updated_at ETags, partial module mocks, stored-vs-two-run fallback, E2E timeline mocks, client second sources
 - [Route-map staging specs](route-map-staging-specs.md) — stage/interim for unbuilt targets, E2E has no shared/dist, plan tools transpile TS, fs tests in client, unmocked gates
 - [URL-state & search specs](url-state-specs.md) — history.state survives reload (test goto), waitForURL globs vs new ?params, RR7 transition drops keystrokes, scanner phones
+- [Page identity specs](page-identity-specs.md) — title effect ordering (layout fallback + passive page hook), views never show Back, validate origin state, smoke title, capmap vs UX, stale auth post-login, `/\` redirect, tab-effect pushes, static-page origin labels

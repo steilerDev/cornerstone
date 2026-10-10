@@ -30,6 +30,7 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import styles from './BudgetSourcesPage.module.css';
+import { routeUrl } from '@cornerstone/shared';
 
 // ---- Display helpers ----
 
@@ -1328,7 +1329,10 @@ export function BudgetSourcesPage() {
                             {
                               id: 'generate-report',
                               label: t('sources.generateReport'),
-                              onClick: () => navigate(`/budget/reports?sourceId=${source.id}`),
+                              onClick: () =>
+                                navigate(
+                                  routeUrl('bankReport', undefined, { sourceId: source.id }),
+                                ),
                             },
                           ]}
                           triggerAriaLabel={t('sources.generateReportMenuAriaLabel', {

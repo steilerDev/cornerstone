@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { routeUrl } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { computeAddressBookETag, buildVendorVcard, buildContactVcard } from './vendorVcard.js';
@@ -198,7 +199,16 @@ describe('buildVendorVcard', () => {
       makeVendor({ id: 'vendor-abc' }),
       'https://myhouse.example.com',
     );
-    expect(output).toContain('https://myhouse.example.com/budget/vendors/vendor-abc');
+    expect(output).toContain('https://myhouse.example.com/companies/vendor-abc');
+  });
+
+  it('builds the vendor URL from the route map (permanent company URL)', () => {
+    const base = 'https://example.test';
+    const output = buildVendorVcard(makeVendor({ id: 'v-1' }), base);
+    expect(output).toContain(`${base}${routeUrl('company', { id: 'v-1' })}`);
+    // Frozen literal: a route-map change must not silently retarget stored vCard links.
+    expect(output).toContain('https://example.test/companies/v-1');
+    expect(output).not.toContain('/budget/vendors/');
   });
 
   it('omits URL field when baseUrl is not provided', () => {
@@ -224,7 +234,7 @@ describe('buildVendorVcard', () => {
     expect(output).toContain('+49-123-456789');
     expect(output).toContain('Hauptstrasse 1');
     expect(output).toContain('Premium vendor');
-    expect(output).toContain('https://app.example.com/budget/vendors/vendor-full');
+    expect(output).toContain('https://app.example.com/companies/vendor-full');
     expect(output).toContain('KIND:org');
     expect(output).toContain('UID:urn:uuid:vendor-vendor-full');
     expect(output).toContain('REV:2026-02-01T12:00:00Z');
@@ -369,7 +379,15 @@ describe('buildContactVcard', () => {
       'Acme',
       'https://myhouse.example.com',
     );
-    expect(output).toContain('https://myhouse.example.com/budget/vendors/vendor-abc');
+    expect(output).toContain('https://myhouse.example.com/companies/vendor-abc');
+  });
+
+  it('builds the contact vendor URL from the route map (permanent company URL)', () => {
+    const base = 'https://example.test';
+    const output = buildContactVcard(makeContact({ vendorId: 'v-1' }), 'Acme', base);
+    expect(output).toContain(`${base}${routeUrl('company', { id: 'v-1' })}`);
+    expect(output).toContain('https://example.test/companies/v-1');
+    expect(output).not.toContain('/budget/vendors/');
   });
 
   it('omits URL field when baseUrl is not provided', () => {
@@ -400,7 +418,7 @@ describe('buildContactVcard', () => {
     expect(output).toContain('+1-555-9999');
     expect(output).toContain('Key decision maker');
     expect(output).toContain('Full Service Co');
-    expect(output).toContain('https://app.example.com/budget/vendors/vendor-full');
+    expect(output).toContain('https://app.example.com/companies/vendor-full');
     expect(output).toContain('UID:urn:uuid:contact-contact-full');
     expect(output).toContain('REV:2026-01-15T09:00:00Z');
   });

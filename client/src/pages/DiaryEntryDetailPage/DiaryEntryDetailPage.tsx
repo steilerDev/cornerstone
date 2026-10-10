@@ -6,7 +6,7 @@ import type {
   DiarySignatureEntry,
   DiarySourceEntityType,
 } from '@cornerstone/shared';
-import { isDiaryEntrySignatureLocked } from '@cornerstone/shared';
+import { isDiaryEntrySignatureLocked, routeUrl } from '@cornerstone/shared';
 import { getDiaryEntry, deleteDiaryEntry } from '../../lib/diaryApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -111,7 +111,7 @@ export default function DiaryEntryDetailPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('detailPage.deleteSuccess'));
-      navigate('/diary');
+      navigate(routeUrl('diary'));
     } catch (err) {
       setDeleteError(t('detailPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
@@ -127,7 +127,7 @@ export default function DiaryEntryDetailPage() {
     return (
       <div className={styles.page}>
         <div className={shared.bannerError}>{error}</div>
-        <Link to="/diary" className={shared.btnSecondary}>
+        <Link to={routeUrl('diary')} className={shared.btnSecondary}>
           {t('detailPage.backLink')}
         </Link>
       </div>
@@ -139,7 +139,7 @@ export default function DiaryEntryDetailPage() {
       <div className={styles.page}>
         <div className={shared.emptyState}>
           <p>{t('detail.notFoundMessage')}</p>
-          <Link to="/diary" className={shared.btnPrimary}>
+          <Link to={routeUrl('diary')} className={shared.btnPrimary}>
             {t('detailPage.backLink')}
           </Link>
         </div>
@@ -155,7 +155,7 @@ export default function DiaryEntryDetailPage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/diary')}
+          onClick={() => navigate(routeUrl('diary'))}
           aria-label={t('detailPage.backLinkAriaLabel')}
         >
           {t('detailPage.backLink')}
@@ -163,7 +163,7 @@ export default function DiaryEntryDetailPage() {
         <div className={styles.actionButtons}>
           {!entry.isAutomatic && !isLocked && (
             <>
-              <Link to={`/diary/${entry.id}/edit`} className={styles.editButton}>
+              <Link to={routeUrl('diaryEntryEdit', { id: entry.id })} className={styles.editButton}>
                 {t('detailPage.edit')}
               </Link>
               <button
@@ -245,7 +245,10 @@ export default function DiaryEntryDetailPage() {
               <div className={styles.photoEmptyState}>
                 <p>{t('detailPage.photosEmpty')}</p>
                 {!entry.isAutomatic && (
-                  <Link to={`/diary/${entry.id}/edit`} className={styles.addPhotoLink}>
+                  <Link
+                    to={routeUrl('diaryEntryEdit', { id: entry.id })}
+                    className={styles.addPhotoLink}
+                  >
                     {t('detailPage.addPhotos')}
                   </Link>
                 )}
@@ -369,15 +372,15 @@ function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLin
   const getRoute = (): string | null => {
     switch (sourceType) {
       case 'work_item':
-        return `/project/work-items/${sourceId}`;
+        return routeUrl('workItem', { id: sourceId });
       case 'invoice':
-        return `/budget/invoices/${sourceId}`;
+        return routeUrl('invoice', { id: sourceId });
       case 'milestone':
-        return `/project/milestones/${sourceId}`;
+        return routeUrl('milestone', { id: sourceId });
       case 'budget_source':
-        return '/budget/sources';
+        return routeUrl('budgetSources');
       case 'subsidy_program':
-        return '/budget/subsidies';
+        return routeUrl('budgetSubsidies');
       default:
         return null;
     }

@@ -30,8 +30,9 @@
 
 import type { Page, Locator } from '@playwright/test';
 import type { TimelineResponse } from '@cornerstone/shared';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const TIMELINE_ROUTE = '/schedule/gantt';
+export const TIMELINE_ROUTE = routeUrl('scheduleGantt');
 
 export class TimelinePage {
   readonly page: Page;
@@ -240,7 +241,7 @@ export class TimelinePage {
 
   /** Navigate to schedule in calendar view. */
   async gotoCalendar(): Promise<void> {
-    await this.page.goto('/schedule/calendar');
+    await this.page.goto(routeUrl('scheduleCalendar'));
     await this.heading.waitFor({ state: 'visible' });
     await this.calendarView.waitFor({ state: 'visible' });
   }

@@ -368,7 +368,7 @@ describe('CriticalPathCard', () => {
 
   // ── Test 11: Next deadline is a link to /work-items/:id ──────────────────
 
-  it('renders the next critical deadline as a link to /work-items/:id', () => {
+  it('renders the next critical deadline as a link to /project/work-items/:id', () => {
     const workItems: TimelineWorkItem[] = [
       {
         ...baseWorkItem,
@@ -384,6 +384,6 @@ describe('CriticalPathCard', () => {
     const deadlineEl = screen.getByTestId('critical-deadline');
     const link = deadlineEl.querySelector('a');
     expect(link).not.toBeNull();
-    expect(link).toHaveAttribute('href', '/work-items/wi-link');
+    expect(link).toHaveAttribute('href', '/project/work-items/wi-link');
   });
 });

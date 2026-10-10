@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
+import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
 import type {
   UserResponse,
   WorkItemStatus,
@@ -201,11 +201,9 @@ export default function WorkItemCreatePage() {
 
       // Navigate to detail page, optionally with error state
       if (failedDeps.length > 0) {
-        navigate(
-          `/project/work-items/${workItem.id}?depError=${encodeURIComponent(failedDeps.join(', '))}`,
-        );
+        navigate(routeUrl('workItem', { id: workItem.id }, { depError: failedDeps.join(', ') }));
       } else {
-        navigate(`/project/work-items/${workItem.id}`);
+        navigate(routeUrl('workItem', { id: workItem.id }));
       }
     } catch (err) {
       setError(t('create.errors.createFailed'));
@@ -228,7 +226,7 @@ export default function WorkItemCreatePage() {
         <button
           type="button"
           className={styles.backButton}
-          onClick={() => navigate('/project/work-items')}
+          onClick={() => navigate(routeUrl('workItems'))}
           disabled={isSubmitting}
         >
           {t('create.backToWorkItems')}
@@ -448,7 +446,7 @@ export default function WorkItemCreatePage() {
           <button
             type="button"
             className={styles.cancelButton}
-            onClick={() => navigate('/project/work-items')}
+            onClick={() => navigate(routeUrl('workItems'))}
             disabled={isSubmitting}
           >
             {t('create.actions.cancel')}

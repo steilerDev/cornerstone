@@ -1,3 +1,4 @@
+import { routeUrl } from '@cornerstone/shared';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -64,7 +65,7 @@ export default function PhotoSpotViewerPage() {
     return i >= 0 ? i : 0;
   }, [photos, photoParam]);
 
-  const backTo = `/photos${(location.state as { fromSearch?: string } | null)?.fromSearch ?? ''}`;
+  const backTo = `${routeUrl('photos')}${(location.state as { fromSearch?: string } | null)?.fromSearch ?? ''}`;
   const backState = useMemo(() => ({ focusSpotId: `spot-${currentSpotKey}` }), [currentSpotKey]);
   const goBack = useCallback(() => {
     void navigate(backTo, { state: backState });

@@ -13,6 +13,7 @@
  * at the same vertical position across all cells they span in a week row.
  */
 
+import { routeUrl } from '@cornerstone/shared';
 import type {
   CSSProperties,
   FocusEvent as ReactFocusEvent,
@@ -117,7 +118,7 @@ export function CalendarItem({
   const { formatDate } = useFormatters();
 
   function doNavigate() {
-    void navigate(`/project/work-items/${item.id}`, {
+    void navigate(routeUrl('workItem', { id: item.id }), {
       state: { from: 'schedule', view: 'calendar' },
     });
   }

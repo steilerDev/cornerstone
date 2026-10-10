@@ -44,6 +44,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
 export class WorkItemDetailPage {
   readonly page: Page;
@@ -199,7 +200,7 @@ export class WorkItemDetailPage {
    * the error state to appear (load failure / 404).
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(`/project/work-items/${id}`);
+    await this.page.goto(routeUrl('workItem', { id }));
     // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),

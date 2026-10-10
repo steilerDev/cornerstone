@@ -17,7 +17,7 @@ import { ConvertQuotationModal } from './ConvertQuotationModal.js';
 import { useConvertQuotation } from './useConvertQuotation.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
 import styles from './InvoiceDetailPage.module.css';
-import { INVOICE_STATUSES } from '@cornerstone/shared';
+import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 
@@ -225,7 +225,7 @@ export function InvoiceDetailPage() {
     setDeleteError('');
     try {
       await deleteInvoice(invoice.vendorId, invoice.id);
-      navigate('/budget/invoices');
+      navigate(routeUrl('invoices'));
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(translateApiError(err.error.code, tErrors));
@@ -255,7 +255,7 @@ export function InvoiceDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate('/budget/invoices')}
+              onClick={() => navigate(routeUrl('invoices'))}
             >
               {t('invoiceDetail.backToInvoices')}
             </button>
@@ -276,7 +276,7 @@ export function InvoiceDetailPage() {
           <button
             type="button"
             className={styles.backButton}
-            onClick={() => navigate('/budget/invoices')}
+            onClick={() => navigate(routeUrl('invoices'))}
           >
             ← {t('invoiceDetail.backToInvoices')}
           </button>
@@ -330,7 +330,7 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
               <dd className={styles.infoValue}>
-                <Link to={`/settings/vendors/${invoice.vendorId}`} className={styles.infoLink}>
+                <Link to={routeUrl('vendor', { id: invoice.vendorId })} className={styles.infoLink}>
                   {invoice.vendorName}
                 </Link>
               </dd>

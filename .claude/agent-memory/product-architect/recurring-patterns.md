@@ -1981,3 +1981,12 @@ unfloored". The diff converted the chart, calendar and Home readers to `barDates
 **Review step:** grep the client and server for every read of the old field, not just the files in the
 diff. Check each read: does it want the old meaning (now a different field) or the new one? Also check
 whether sort keys and `hasX` guards still use the old meaning. The diff shows only the converted sites.
+
+## Source-scanning guards: check what the scanner cannot see (PR #2276)
+
+A literal-scanning guard (`routeSource.test.ts`: string literals matching app-path prefixes) misses any
+URL piece that does not start with a prefix. `` `${routeUrl(...)}?photo=…` `` escapes it because the
+literal starts with `?`. **Review step:** grep for `routeUrl(` followed by `?`/`#` on the same line, and
+for `${base}?`. An AST extractor that expands a generator (`LIVE_REDIRECT_ROUTES.map(r => <Route …>)`)
+must also check the generated element's wiring (`path={r.from}`, `rule={r}`), not just the tag shape.
+Otherwise a wrong `path` still reports every map entry as served, and the drift check passes vacuously.

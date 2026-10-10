@@ -28,8 +28,9 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { routeUrl } from '../../shared/src/routes/index.js';
 
-export const MILESTONE_CREATE_ROUTE = '/project/milestones/new';
+export const MILESTONE_CREATE_ROUTE = routeUrl('milestoneNew');
 
 export interface MilestoneFormData {
   title?: string;

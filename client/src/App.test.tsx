@@ -661,7 +661,7 @@ describe('App', () => {
     window.history.pushState({}, 'Budget Vendor Detail', '/budget/vendors/vendor-42');
     render(<App />);
 
-    // After ParamRedirect, VendorDetailPage at /settings/vendors/vendor-42 renders
+    // After the route-map redirect, VendorDetailPage at /settings/vendors/vendor-42 renders
     // without crashing and without showing a 404
     await waitFor(
       () => {
