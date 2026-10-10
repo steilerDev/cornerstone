@@ -35,3 +35,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Governance story specs](governance-story-specs.md) — owners for plan/.claude/.github/CLAUDE.md, residual policy text in pr-review.js, privacy scanner w/o leaking denylist
 - [Restructure i18n specs](restructure-i18n-specs.md) — new en money-word values fail plan:check baseline; canonical statusVocabulary sets; transition rule; §2.0 supersedes
 - [Invariant removal specs](invariant-removal-specs.md) — grep every guard under the error code incl. inverse paths; lock-step ERROR_CODES/en/de; advisory client mirrors; docs
+- [Status vocabulary switch specs](status-vocabulary-switch-specs.md) — hidden parallel colour maps/literal label maps, partial canonical sets, PDF getFixedT ns, banned-word test scope
+- [UX visual spec verification](ux-visual-spec-verification.md) — check named tokens exist, new short money labels vs baseline, confirm "can't find" claims from CSS

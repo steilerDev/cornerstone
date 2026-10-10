@@ -7,7 +7,14 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import type { FastifyInstance } from 'fastify';
 import type { Vendor, VendorDetail, ApiErrorResponse } from '@cornerstone/shared';
-import { vendors, invoices, workItems, workItemBudgets, trades } from '../db/schema.js';
+import {
+  vendors,
+  invoices,
+  invoiceDeposits,
+  workItems,
+  workItemBudgets,
+  trades,
+} from '../db/schema.js';
 
 describe('Vendor Routes', () => {
   let app: FastifyInstance;
@@ -739,12 +746,26 @@ describe('Vendor Routes', () => {
       expect(body.vendor.trade!.color).toBe('#AABBCC');
     });
 
-    it('includes invoiceCount and outstandingBalance in detail response', async () => {
+    it('returns Still to pay: paid and claimed never count, paid progress payments are subtracted', async () => {
       const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
       const vendor = createTestVendor('Stats Vendor');
-      createTestInvoice(vendor.id, 'pending', 500);
-      createTestInvoice(vendor.id, 'claimed', 300);
+      createTestInvoice(vendor.id, 'claimed', 300); // old SUM(pending+claimed) would add 300
       createTestInvoice(vendor.id, 'paid', 1000);
+      const pendingId = createTestInvoice(vendor.id, 'pending', 1000);
+      const now = new Date().toISOString();
+      app.db
+        .insert(invoiceDeposits)
+        .values({
+          id: `dep-${Math.random().toString(36).substring(7)}`,
+          invoiceId: pendingId,
+          amount: 400,
+          dueDate: '2026-01-15',
+          status: 'paid',
+          entryType: 'deposit',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
 
       const response = await app.inject({
         method: 'GET',
@@ -755,7 +776,7 @@ describe('Vendor Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<{ vendor: VendorDetail }>();
       expect(body.vendor.invoiceCount).toBe(3);
-      expect(body.vendor.outstandingBalance).toBe(800); // pending + claimed only
+      expect(body.vendor.outstandingBalance).toBe(600);
     });
 
     it('returns invoiceCount 0 and outstandingBalance 0 when no invoices', async () => {

@@ -362,7 +362,7 @@
     transparent
   );
   --color-budget-track: var(--color-bg-tertiary);
-  --color-budget-overflow: var(--color-danger-bg-strong);
+  --color-budget-overflow: var(--color-danger);
 
   /* ============================================================
    * LAYER 2 — SOURCE BUDGET LINE PANEL SURFACE TOKENS
@@ -855,7 +855,7 @@
     transparent
   );
   --color-budget-track: var(--color-slate-600);
-  --color-budget-overflow: rgba(239, 68, 68, 0.2);
+  --color-budget-overflow: var(--color-danger);
 
   /* --- Gantt chart --- */
   --color-gantt-bar-not-started: var(--color-slate-400);

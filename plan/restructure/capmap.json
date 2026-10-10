@@ -1005,7 +1005,7 @@
     "to": "Global > New menu > Invoice / Offer / Company (company pre-filled on a company page)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page)."
+    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35)."
   },
   "MNY-022": {
     "name": "View all financing sources with type, status, total and interest rate",
@@ -1021,7 +1021,7 @@
     "to": "Money > Financing > card bar (overflow segment visible) and Money > Funding source page > bar",
     "change": "same",
     "gate": "none",
-    "note": "Over-allocation made visible (D-05)."
+    "note": "Over-allocation made visible (D-05). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05)."
   },
   "MNY-024": {
     "name": "See each source's projected range, paid and claimed totals with remaining amounts",
@@ -1299,7 +1299,7 @@
     "to": "Global > New menu > Invoice / Offer (company pre-filled on a company page); Money > Invoices > primary 'New invoice' ('New offer' on the Offers chip); Companies > Company page > Payments tab > 'New invoice'; Task / Purchase page > Cost tab > 'New invoice' -> one New invoice / New offer dialog (ObjectForm) with 'For task / purchase' (allocates the full amount at create) and the 'Add another after saving' checkbox",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one."
+    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17)."
   },
   "MNY-061": {
     "name": "Choose a Paperless document as the starting point for a new invoice",
@@ -1594,7 +1594,7 @@
     "to": "Money > Invoice / Offer page > Cost tab (lines in their entry basis, marked net or gross; totals gross) + summary 'Not yet split'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19)."
   },
   "MNY-097": {
     "name": "Itemize an invoice by linking existing budget lines with amounts",
@@ -1602,7 +1602,7 @@
     "to": "Money > Invoice / Offer page > Cost tab > 'Add cost line' (pick task / purchase, then estimate line or new) and 'Add lines (grid)': grid dialog with keyboard rows, duplicate, paste from a spreadsheet and the document preview beside it (Paperless only)",
     "change": "promoted",
     "gate": "none",
-    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times)."
+    "note": "Long offers without AI (50 real lines; AI itemisation used 0 times). #2194: Remaining to allocate subtracts already-linked lines; Planned and the prefill are gross (D-19, D-20)."
   },
   "MNY-098": {
     "name": "Create a new budget line on a work item or household item directly from the invoice",
@@ -1714,7 +1714,7 @@
     "to": "Task / Purchase page > Cost tab > row ⋯ > Link to invoice",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2194: compact one-line rows with the amount left per invoice; a fully allocated invoice is neutral, never a red error (D-27)."
   },
   "MNY-114": {
     "name": "See an item's budget lines grouped by invoice",
@@ -1722,7 +1722,7 @@
     "to": "Task / Purchase page > Cost tab > grouped by offer / invoice, estimates first",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19)."
   },
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",
@@ -1731,7 +1731,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6)."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18)."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -1919,7 +1919,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06)."
+    "note": "Balance definition fixed (D-06). Still to pay per company = to-pay invoices − their paid progress payments + progress payments still to pay; submitted invoices never count (fixes D-06). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06)."
   },
   "MNY-140": {
     "name": "View and edit vendor master data",
@@ -1937,7 +1937,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Row action says Open, not Edit (VRD-15)."
+    "note": "Row action says Open, not Edit (VRD-15). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06)."
   },
   "MNY-142": {
     "name": "Manage a vendor's contact persons",
@@ -3692,7 +3692,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Overview funding rows and Financing cards show '€x over-allocated' per source.",
-    "note": "On real data one source stays over-allocated because the other sources cannot absorb the excess, so the note stays until funding changes (R-M5)."
+    "note": "On real data one source stays over-allocated because the other sources cannot absorb the excess, so the note stays until funding changes (R-M5). #2194: over-allocation drawn as a visible striped segment beyond the source amount and stated as \"Over-allocated by …\" under the bar (D-05)."
   },
   "PLT-060": {
     "name": "See the next upcoming milestones and whether they are on track",

@@ -1058,34 +1058,48 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders the outstanding balance badge when invoices exist', async () => {
+    it('renders the header outstanding figure from the server value, not the invoice list', async () => {
+      // sampleVendor.outstandingBalance = 2,500; the list below would sum to 2,300 client-side
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // pending (€1500) + claimed (€800) = €2300 outstanding
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, claimedInvoice]);
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
-        expect(screen.getByText(/€2,300\.00/)).toBeInTheDocument();
       });
+      const header = screen.getByText(/outstanding:/i);
+      expect(within(header).getByText('€2,500.00')).toBeInTheDocument();
+      expect(screen.queryByText(/€2,300\.00/)).not.toBeInTheDocument();
     });
 
-    it('outstanding balance excludes paid invoices', async () => {
-      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
-      // paid (€2500) is excluded; only pending (€1500) counts
+    it('shows a neutral formatted zero in header and stat when the server balance is 0', async () => {
+      // pending invoice in the list: a client-side sum would be 1,500 and red
+      mockFetchVendor.mockResolvedValueOnce({ ...sampleVendor, outstandingBalance: 0 });
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice, paidInvoice]);
 
-      renderPage();
+      const { container } = renderPage();
 
       await waitFor(() => {
-        // Outstanding badge is the <strong> element showing the computed outstanding
-        // €1,500.00 appears in both the outstanding badge and the table row (both ok)
-        const outstandingElements = screen.getAllByText(/€1,500\.00/);
-        expect(outstandingElements.length).toBeGreaterThan(0);
-        // Verify it's NOT €4,000.00 (which would be the total if paid was included)
-        expect(screen.queryByText(/€4,000\.00/)).not.toBeInTheDocument();
+        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
       });
+      const headerValue = within(screen.getByText(/outstanding:/i)).getByText('€0.00');
+      expect(headerValue.className).not.toContain('outstandingAmount');
+      expect(container.querySelector('[class*="statValueDanger"]')).toBeNull();
+    });
+
+    it('paints header and stat card red with the same predicate when the balance is > 0', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([paidInvoice]);
+
+      const { container } = renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByText(/outstanding:/i)).toBeInTheDocument();
+      });
+      const headerValue = within(screen.getByText(/outstanding:/i)).getByText('€2,500.00');
+      expect(headerValue.className).toContain('outstandingAmount');
+      expect(container.querySelector('[class*="statValueDanger"]')).not.toBeNull();
     });
 
     it('renders invoice date in readable format', async () => {
@@ -1241,6 +1255,22 @@ describe('VendorDetailPage', () => {
       // The submit button is "Add Invoice" inside the form/dialog
       const submitBtn = within(dialog).getByRole('button', { name: /^add invoice$/i });
       expect(submitBtn).toBeDisabled();
+    });
+
+    it('opens the create modal with the status preset to Pending (Quotation must be chosen)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockFetchInvoices.mockResolvedValueOnce([]);
+
+      const user = userEvent.setup();
+      renderPage();
+
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /add invoice/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /add invoice/i }));
+
+      const status = within(screen.getByRole('dialog')).getByLabelText(/status/i);
+      expect((status as HTMLSelectElement).value).toBe('pending');
     });
 
     it('closes the create modal when Cancel is clicked', async () => {

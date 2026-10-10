@@ -285,4 +285,56 @@ describe('SourceUtilizationCard', () => {
       expect(text).not.toContain('%%');
     });
   });
+
+  // ── #2194 D-05: over-allocation is drawn and stated ──────────────────────
+
+  describe('over-allocation (#2194)', () => {
+    it('states the formatted difference used - total and draws the overflow segment', () => {
+      const source: BudgetSource = {
+        ...baseSource,
+        id: 'bs-over',
+        totalAmount: 1000,
+        usedAmount: 1250,
+      };
+      const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+
+      expect(screen.getByTestId('budget-bar-overflow-note')).toHaveTextContent(
+        /Over-allocated by .*250\.00/,
+      );
+      expect(container.querySelector('.overflow')).toBeInTheDocument();
+      expect(screen.getByRole('img').getAttribute('aria-label')).toContain('Over-allocated');
+    });
+
+    it('shows no note and no overflow when used equals total', () => {
+      const source: BudgetSource = {
+        ...baseSource,
+        id: 'bs-exact',
+        totalAmount: 1000,
+        usedAmount: 1000,
+      };
+      const { container } = renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+
+      expect(screen.queryByTestId('budget-bar-overflow-note')).not.toBeInTheDocument();
+      expect(container.querySelector('.overflow')).not.toBeInTheDocument();
+    });
+
+    it('shows no note when used is below total', () => {
+      renderWithRouter(<SourceUtilizationCard sources={[baseSource]} />);
+
+      expect(screen.queryByTestId('budget-bar-overflow-note')).not.toBeInTheDocument();
+    });
+
+    it('does not paint the used / total text with a danger class', () => {
+      const source: BudgetSource = {
+        ...baseSource,
+        id: 'bs-over2',
+        totalAmount: 1000,
+        usedAmount: 1250,
+      };
+      renderWithRouter(<SourceUtilizationCard sources={[source]} />);
+
+      expect(screen.getByTestId('source-used').className).not.toMatch(/danger|over/i);
+      expect(screen.getByTestId('source-total').className).not.toMatch(/danger|over/i);
+    });
+  });
 });

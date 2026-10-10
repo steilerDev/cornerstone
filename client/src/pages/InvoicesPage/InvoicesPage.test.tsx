@@ -1170,6 +1170,27 @@ describe('InvoicesPage', () => {
       ).not.toBeInTheDocument();
     });
 
+    // #2194 D-17: the manual create modal opens on Pending, never Quotation
+    it('manual create modal opens with the status preset to Pending', async () => {
+      mockGetPaperlessStatus.mockResolvedValue({
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      });
+      mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(emptyVendorsResponse);
+
+      renderPageWithCreate();
+
+      const dialog = await screen.findByRole('dialog');
+      const status = dialog.querySelector('#invoice-status') as HTMLSelectElement;
+      expect(status).not.toBeNull();
+      expect(status.value).toBe('pending');
+    });
+
     // (D) ?create=1 + Paperless configured + reachable + autoItemizeEnabled=true → Paperless picker
     it('(D) auto-opens Paperless picker when Paperless configured and autoItemizeEnabled=true', async () => {
       mockGetPaperlessStatus.mockResolvedValue({

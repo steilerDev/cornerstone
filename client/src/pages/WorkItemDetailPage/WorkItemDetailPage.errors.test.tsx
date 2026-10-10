@@ -80,6 +80,22 @@ const mockEditAndMoveBudgetLine = jest.fn<(...args: unknown[]) => Promise<unknow
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let capturedBudgetSectionProps: any = null;
 
+// useLocale throws outside a LocaleProvider; the page reads vatRate from it (#2194).
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
+  const localeValue = {
+    locale: 'en',
+    resolvedLocale: 'en',
+    currency: 'EUR',
+    vatRate: 0.19,
+    setLocale: jest.fn(),
+    syncWithServer: jest.fn(),
+  };
+  return {
+    LocaleProvider: ({ children }: { children: unknown }) => children,
+    useLocale: () => localeValue,
+  };
+});
+
 // Keep the linked-documents section from failing on mount: its network-error banner would reuse
 // the common network copy and collide with the copy these tests count.
 jest.unstable_mockModule('../../lib/documentLinksApi.js', () => ({

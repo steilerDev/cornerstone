@@ -1045,3 +1045,13 @@ Also filed #2113: four forked `isValidIsoDate` copies, and only the new one roun
 
 - All round-2 findings fixed in dd1abf4: the lazy-load comments now state the real invariant (dynamic `import()` only, so the partial `index.js`/`paperlessApi.js` mocks in the page tests never see `parts.ts` → `attachments.ts` → `getDocumentPreviewUrl`); ADR-034 now covers `docDefinition.ts` (wiki f606537); and the included-invoice path is `ReadonlySet` from end to end.
 - Lesson: a lazy-load comment that gives "chunk splitting/perf" as its reason usually hides the real constraint, which is test-mock isolation. To verify such a claim, trace the transitive static edge to a partially mocked export.
+
+## PR #2269 (#2194 P0.3 Money truth, EPIC-21) — 2026-10-09, REQUEST_CHANGES (comment verdict, own token)
+
+- The vendor `outstandingBalance` is ADR-039 "Still to pay": `computeOpenAmounts(rows).openPayable.totalAmount`, with `rows` from `invoices LEFT JOIN invoice_deposits`. This is the same helper and row shape as `invoiceService.listAllInvoices`. Verified correct.
+- Findings:
+  - the local `toCents` in InvoiceLinkModal returns major units, but `client/src/lib/quotationConversion.ts` already exports a `toCents` that returns integer cents;
+  - the Over-allocated derivation is forked into two components;
+  - the wiki gitlink needs a bump.
+- I fixed API-Contract §8's planned `stillToPay` myself (wiki `a3b0486`): D-06 was fixed by #2194, and `outstandingBalance` is an alias of `stillToPay`. The PR gitlink must record `a3b0486`; verify that in round 2.
+- Lesson: before accepting a local money helper, grep for an existing helper with the SAME NAME. Identical names can hide a 100x unit mismatch.

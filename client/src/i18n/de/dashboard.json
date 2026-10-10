@@ -42,6 +42,7 @@
     },
     "sourceUtilization": {
       "title": "Quellenauslastung",
+      "overAllocated": "Überzogen um {{amount}}",
       "emptyMessage": "Keine Budgetquellen konfiguriert",
       "emptyAction": "Budgetquelle hinzufügen",
       "utilized": "{{percent}} genutzt",

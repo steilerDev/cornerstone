@@ -7,6 +7,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, jest } from '@jest/globals';
 import type { TFunction } from 'i18next';
 import { Step1UseCase } from './Step1UseCase.js';
+import enBudget from '../../i18n/en/budget.json';
 
 const t = ((key: string) => key) as unknown as TFunction;
 
@@ -61,5 +62,24 @@ describe('Step1UseCase', () => {
     render(<Step1UseCase value={null} onChange={jest.fn()} t={t} />);
     const radios = screen.getAllByRole('radio') as HTMLInputElement[];
     expect(radios.map((r) => r.value)).toEqual(['budget-overview', 'claim', 'proof-of-funds']);
+  });
+
+  // #2194 D-18: the Claim helper describes the server set (to pay or paid, not yet submitted),
+  // resolved from the real English catalogue rather than a literal copy.
+  it('renders the Claim helper from the real en catalogue: to pay or paid, not yet submitted', () => {
+    const resolve = ((key: string) => {
+      const path = key.replace(/^sourceReports\./, '').split('.');
+      let node: unknown = enBudget.sourceReports;
+      for (const part of path) node = (node as Record<string, unknown>)[part];
+      return node as string;
+    }) as unknown as TFunction;
+    render(<Step1UseCase value={null} onChange={jest.fn()} t={resolve} />);
+
+    const helper = screen.getByText(enBudget.sourceReports.useCaseHelper.claim);
+    expect(helper.textContent).toMatch(/to pay or paid/i);
+    expect(helper.textContent).toMatch(/not yet submitted/i);
+    expect(helper.textContent).not.toMatch(/claimed/i);
+    expect(enBudget.sourceReports.amountLabel.claim).toMatch(/to pay or paid/i);
+    expect(enBudget.sourceReports.amountLabel.claim).not.toMatch(/claimed/i);
   });
 });

@@ -1,4 +1,5 @@
 .bar {
+  position: relative;
   display: flex;
   width: 100%;
   border-radius: var(--radius-full);
@@ -34,5 +35,33 @@
 }
 
 .overflow {
-  background: var(--color-budget-overflow);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  border-left: 2px solid var(--color-bg-primary);
+  background-color: var(--color-budget-overflow);
+  background-image: repeating-linear-gradient(
+    45deg,
+    transparent 0 4px,
+    color-mix(in srgb, var(--color-bg-primary) 40%, transparent) 4px 8px
+  );
+}
+
+.overflowNote {
+  margin: var(--spacing-1) 0 0;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  flex-wrap: wrap;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-danger-text-on-light);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .segment {
+    transition: none;
+  }
 }

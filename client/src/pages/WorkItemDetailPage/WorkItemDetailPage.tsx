@@ -82,6 +82,9 @@ import {
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
+import { roundMoney } from '../../lib/money.js';
+import { useLocale } from '../../contexts/LocaleContext.js';
+import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { AutosaveIndicator } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveIndicator.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
@@ -100,6 +103,7 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
+  const { vatRate } = useLocale();
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -629,7 +633,7 @@ export default function WorkItemDetailPage() {
     } else {
       const qty = parseFloat(form.quantity);
       const price = parseFloat(form.unitPrice);
-      plannedAmount = Math.round(qty * price * 100) / 100;
+      plannedAmount = roundMoney(qty * price);
     }
 
     const payload = {
@@ -2312,9 +2316,10 @@ export default function WorkItemDetailPage() {
         <InvoiceLinkModal
           budgetLineId={invoiceLinkingBudgetId}
           budgetLineType="work_item"
-          defaultAmount={
-            budgetLines.find((line) => line.id === invoiceLinkingBudgetId)?.plannedAmount || 0
-          }
+          defaultAmount={(() => {
+            const linkLine = budgetLines.find((line) => line.id === invoiceLinkingBudgetId);
+            return linkLine ? effectivePlannedAmount(linkLine, vatRate) : 0;
+          })()}
           onSuccess={handleInvoiceLinkSuccess}
           onClose={() => {
             setShowInvoiceLinkModal(false);

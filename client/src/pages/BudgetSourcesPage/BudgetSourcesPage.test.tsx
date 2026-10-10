@@ -2392,6 +2392,74 @@ describe('BudgetSourcesPage', () => {
     });
   });
 
+  // ─── over-allocation (#2194 D-05) ─────────────────────────────────────────
+
+  describe('SourceBarChart — over-allocation (#2194)', () => {
+    // projectedMaxAmount (1,400) differs from usedAmount (1,250): a projection-based
+    // implementation would state 400, not 250.
+    const overSource: BudgetSource = {
+      ...sampleSource1,
+      totalAmount: 1000,
+      usedAmount: 1250,
+      claimedAmount: 0,
+      paidAmount: 0,
+      projectedMinAmount: 1100,
+      projectedMaxAmount: 1400,
+    };
+
+    it('states Over-allocated by used minus amount, not the projection overrun', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overSource] });
+
+      renderPage();
+
+      const note = await screen.findByTestId('budget-bar-overflow-note');
+      expect(note).toHaveTextContent(/Over-allocated by .*250\.00/);
+      expect(note).not.toHaveTextContent('400');
+    });
+
+    it('draws the overflow segment from the used difference (20% of the scaled bar)', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overSource] });
+
+      const { container } = renderPage();
+
+      await screen.findByTestId('budget-bar-overflow-note');
+      const overflow = container.querySelector('[class*="overflow"][style]') as HTMLElement;
+      expect(overflow).not.toBeNull();
+      expect(overflow.style.left).toBe('80%');
+      expect(overflow.style.width).toBe('20%');
+    });
+
+    it('shows no note when used does not exceed the amount, even if the projection does', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({
+        budgetSources: [{ ...overSource, usedAmount: 900 }],
+      });
+
+      renderPage();
+
+      await screen.findByText('Home Loan');
+      expect(screen.queryByTestId('budget-bar-overflow-note')).not.toBeInTheDocument();
+    });
+
+    it('hovering the overflow segment shows only label and value, no percent or Remaining', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [overSource] });
+
+      const { container } = renderPage();
+
+      await screen.findByTestId('budget-bar-overflow-note');
+      const overflow = container.querySelector('[class*="overflow"][style]') as HTMLElement;
+      fireEvent.mouseEnter(overflow);
+
+      await waitFor(() => {
+        expect(container.querySelector('[class*="segmentTooltip"]')).not.toBeNull();
+      });
+      const tooltip = container.querySelector('[class*="segmentTooltip"]') as HTMLElement;
+      expect(tooltip).toHaveTextContent('Over-allocated');
+      expect(tooltip).toHaveTextContent('250.00');
+      expect(tooltip).not.toHaveTextContent(/Remaining/i);
+      expect(tooltip).not.toHaveTextContent(/of total/i);
+    });
+  });
+
   // ─── source actions layout (Issues #1335 + #1336) ────────────────────────────
 
   describe('source actions layout', () => {

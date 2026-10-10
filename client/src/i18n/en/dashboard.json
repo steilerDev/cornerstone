@@ -42,6 +42,7 @@
     },
     "sourceUtilization": {
       "title": "Source Utilization",
+      "overAllocated": "Over-allocated by {{amount}}",
       "emptyMessage": "No budget sources configured",
       "emptyAction": "Add a budget source",
       "utilized": "{{percent}} utilized",
