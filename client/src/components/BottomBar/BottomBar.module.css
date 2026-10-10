@@ -29,10 +29,11 @@
   list-style: none;
 }
 
+/* Equal slots, but never narrower than the label (German labels must fit untruncated) */
 .item {
   display: flex;
   flex: 1 1 0;
-  min-width: 0;
+  min-width: min-content;
   max-width: calc(var(--spacing-16) * 2);
 }
 
@@ -45,6 +46,7 @@
   gap: var(--spacing-0-5);
   box-sizing: border-box;
   width: 100%;
+  min-width: var(--touch-target-min);
   height: 100%;
   padding: 0;
   border: 0;

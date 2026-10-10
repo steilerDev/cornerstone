@@ -734,6 +734,20 @@ describe('phone and tablet shell rule pins (#2207)', () => {
     );
   });
 
+  // Mutation: restoring `.item` `min-width: 0` fails this test (a long German label such as
+  // "Bautagebuch" then overflows its slot at 390px instead of widening it).
+  it('a bar slot never shrinks below its label: .item min-width is min-content, still flex 1 1 0', () => {
+    const item = ruleFor(bottomBar, '.item');
+    expect(item.get('min-width')).toBe('min-content');
+    expect(item.get('min-width')).not.toBe('0');
+    expect(item.get('flex')).toBe('1 1 0');
+    expect(item.get('max-width')).toBe('calc(var(--spacing-16) * 2)');
+  });
+
+  it('every slot keeps at least the 44px touch target width', () => {
+    expect(ruleFor(bottomBar, '.slot').get('min-width')).toBe('var(--touch-target-min)');
+  });
+
   it('the bar border sits on the 64px list, not on the bar (it must not add height under the row)', () => {
     expect(ruleFor(bottomBar, '.list').get('border-top')).toBe('1px solid var(--color-border)');
     expect(ruleFor(bottomBar, '.bar').has('border-top')).toBe(false);

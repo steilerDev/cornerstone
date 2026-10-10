@@ -118,7 +118,9 @@ function i18nValue(lang: 'en' | 'de', namespace: string, key: string): string {
 async function setLanguage(page: Page, lang: 'en' | 'de'): Promise<void> {
   await page.request.patch('/api/users/me/preferences', { data: { key: 'locale', value: lang } });
   await page.goto('/');
-  await page.waitForLoadState('domcontentloaded');
+  // '/' redirects client-side; wait for the landing page to render so that redirect cannot
+  // interrupt the caller's next goto
+  await page.getByRole('heading', { level: 1 }).first().waitFor({ state: 'visible' });
   await page.evaluate((locale) => localStorage.setItem('locale', locale), lang);
 }
 

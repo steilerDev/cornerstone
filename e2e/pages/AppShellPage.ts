@@ -87,6 +87,10 @@ export class AppShellPage {
     }
     await this.page.locator('[data-testid="more-sheet"][data-open="true"]').waitFor();
     await this.moreSheet.waitFor({ state: 'visible' });
+    // Let the slide-in finish so position and size measurements are of the settled sheet
+    await this.moreSheet.evaluate((el) =>
+      Promise.all(el.getAnimations().map((animation) => animation.finished)),
+    );
   }
 
   /** Close the More sheet with Escape and wait until it is closed (no-op when closed). */
