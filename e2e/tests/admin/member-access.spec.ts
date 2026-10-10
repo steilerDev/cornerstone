@@ -102,6 +102,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     await page.goto(ROUTES.userManagement);
     await expect(noAccess.heading).toBeVisible();
 
+    await expect(noAccess.backLink).toHaveAttribute('href', '/');
     await noAccess.backLink.click();
     await expect(page).toHaveURL(/\/project\/overview/);
     await expect(dashboard.heading).toBeVisible();

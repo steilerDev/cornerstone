@@ -34,7 +34,7 @@ export function NoAccessPage() {
         messageAs="h1"
         message={t('noAccess.title')}
         description={t('noAccess.description')}
-        action={{ label: t('noAccess.backLink'), href: routeUrl('project') }}
+        action={{ label: t('noAccess.backLink'), href: routeUrl('home') }}
       />
     </div>
   );

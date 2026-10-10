@@ -27,11 +27,11 @@ describe('NotFoundPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('offers "Go to Home" (not "Back to", a 404 has no back) pointing at /project', () => {
+  it('offers "Go to Home" (not "Back to", a 404 has no back) pointing at the home route (/)', () => {
     renderWithRouter(<NotFoundPage />);
 
     const homeLink = screen.getByRole('link', { name: 'Go to Home' });
-    expect(homeLink).toHaveAttribute('href', '/project');
+    expect(homeLink).toHaveAttribute('href', '/');
     expect(screen.queryByText(/Back to/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Project Overview/)).not.toBeInTheDocument();
   });

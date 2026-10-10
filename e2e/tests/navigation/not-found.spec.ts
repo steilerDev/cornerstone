@@ -38,6 +38,9 @@ test.describe('404 Not Found Page', () => {
     await page.goto('/invalid-route');
     await expect(notFoundPage.heading).toBeVisible();
 
+    // The link points at the root URL itself (no /project hop in the href)
+    await expect(notFoundPage.dashboardLink).toHaveAttribute('href', '/');
+
     // When: User clicks the "Go to Home" link
     await notFoundPage.clickDashboardLink();
 

@@ -26,10 +26,10 @@ describe('NoAccessPage', () => {
     expect(screen.getByText('Ask an administrator if you need it')).toBeInTheDocument();
   });
 
-  it('links back to Home (/project)', () => {
+  it('links back to Home (/)', () => {
     renderWithRouter(<NoAccessPage />);
 
-    expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/project');
+    expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/');
   });
 
   it('hides the lock icon from assistive technology', () => {

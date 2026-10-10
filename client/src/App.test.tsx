@@ -530,7 +530,7 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute('href', '/project');
+    expect(screen.getByRole('link', { name: 'Go to Home' })).toHaveAttribute('href', '/');
   });
 
   it('navigates to VendorsPage at /settings/vendors', async () => {
@@ -617,10 +617,7 @@ describe('App', () => {
       render(<App />);
 
       await screen.findByRole('heading', { level: 1, name: noAccessHeading }, { timeout: 5000 });
-      expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute(
-        'href',
-        '/project',
-      );
+      expect(screen.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/');
       expect(screen.getByRole('button', { name: /^settings$/i })).toHaveAttribute(
         'aria-current',
         'page',

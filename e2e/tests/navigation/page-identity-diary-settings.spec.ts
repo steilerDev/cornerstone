@@ -406,6 +406,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expectOneH1(page, 'Page not found');
       await expect(page).toHaveTitle(`Page not found · ${HOUSE}`);
       await expect(notFound.dashboardLink).toBeVisible();
+      await expect(notFound.dashboardLink).toHaveAttribute('href', '/');
 
       await notFound.clickDashboardLink();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('dashboard'));
