@@ -386,7 +386,10 @@ export function StatusMenu<S extends string>({
           type="button"
           className={styles.dateChip}
           aria-expanded={pickOpen}
-          onClick={() => setPickOpen(true)}
+          onClick={() => {
+            setPickOpen((v) => !v);
+            setPickError(null);
+          }}
           data-testid={`${testId}-date-pick`}
         >
           {t('statusMenu.pickDate')}
@@ -467,7 +470,9 @@ export function StatusMenu<S extends string>({
         ref={triggerRef}
         type="button"
         className={triggerClassName}
-        aria-haspopup={appearance === 'action' && !actionTransition?.date ? undefined : 'menu'}
+        aria-haspopup={
+          appearance === 'action' ? (actionTransition?.date ? 'dialog' : undefined) : 'menu'
+        }
         aria-expanded={open}
         aria-controls={open ? (step === 'list' ? menuId : panelId) : undefined}
         aria-describedby={describeId}
@@ -506,20 +511,17 @@ export function StatusMenu<S extends string>({
           {surfaceBody}
         </AnchoredPanel>
       ) : (
-        open && (
-          <Sheet
-            id={panelId}
-            open
-            onClose={closeToTrigger}
-            title={
-              step === 'list' ? t('statusMenu.changeStatusTitle') : (dateConfig?.question ?? '')
-            }
-            returnFocusRef={triggerRef}
-            testId={`${testId}-panel`}
-          >
-            {surfaceBody}
-          </Sheet>
-        )
+        // Stays mounted (inert and hidden while closed) so it slides in and out like MoreSheet.
+        <Sheet
+          id={panelId}
+          open={open}
+          onClose={closeToTrigger}
+          title={step === 'list' ? t('statusMenu.changeStatusTitle') : (dateConfig?.question ?? '')}
+          returnFocusRef={triggerRef}
+          testId={`${testId}-panel`}
+        >
+          {surfaceBody}
+        </Sheet>
       )}
     </>
   );

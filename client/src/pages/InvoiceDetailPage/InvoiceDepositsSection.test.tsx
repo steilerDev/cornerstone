@@ -452,7 +452,10 @@ describe('InvoiceDepositsSection', () => {
         const menuBtn = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
         fireEvent.click(menuBtn);
 
-        const labels = screen.getAllByRole('menuitem').map((m) => m.textContent?.toLowerCase());
+        const labels = screen
+          .getAllByRole('menuitem')
+          .filter((m) => !m.closest('[inert]'))
+          .map((m) => m.textContent?.toLowerCase());
         expect(labels.some((l) => l?.includes('edit'))).toBe(true);
         expect(labels.some((l) => l?.includes('delete'))).toBe(true);
         expect(labels.some((l) => l?.includes('mark') || l?.includes('revert'))).toBe(false);
@@ -1330,7 +1333,11 @@ describe('InvoiceDepositsSection', () => {
     function openMenu(testId = 'deposit-status-dep-1') {
       fireEvent.click(screen.getByTestId(testId));
     }
-    const rowLabels = () => screen.getAllByRole('menuitem').map((r) => r.textContent);
+    const rowLabels = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
 
     beforeEach(() => {
       mockPatch.mockReset();

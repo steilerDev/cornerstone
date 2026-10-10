@@ -166,7 +166,6 @@ export function InvoiceDepositFormModal({
           await updateDeposit(invoiceId, deposit.id, {
             amount,
             dueDate: form.dueDate,
-            status: form.status as InvoiceDepositStatus,
             description: form.description.trim() || null,
             budgetSourceId: form.budgetSourceId ?? null,
             ...dateFields,
@@ -385,25 +384,27 @@ export function InvoiceDepositFormModal({
           </div>
         </div>
 
-        {/* Row 2: status */}
-        <div className={styles.formField}>
-          <label htmlFor="deposit-status" className={styles.label}>
-            {t('budget:invoiceDetail.deposits.form.status')}
-          </label>
-          <select
-            id="deposit-status"
-            value={form.status}
-            onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceDepositStatus })}
-            className={sharedStyles.select}
-            disabled={isMutating}
-          >
-            {INVOICE_DEPOSIT_STATUSES.map((status) => (
-              <option key={status} value={status}>
-                {statusVariants.progressPayment[status].label}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Row 2: status (add only; existing entries change status from the status menu) */}
+        {!isEdit && (
+          <div className={styles.formField}>
+            <label htmlFor="deposit-status" className={styles.label}>
+              {t('budget:invoiceDetail.deposits.form.status')}
+            </label>
+            <select
+              id="deposit-status"
+              value={form.status}
+              onChange={(e) => setForm({ ...form, status: e.target.value as InvoiceDepositStatus })}
+              className={sharedStyles.select}
+              disabled={isMutating}
+            >
+              {INVOICE_DEPOSIT_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {statusVariants.progressPayment[status].label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {/* Row 3: paidDate (conditional) */}
         <div

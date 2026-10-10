@@ -87,3 +87,11 @@ button.cancelButton[aria-disabled='true']:hover {
     min-height: var(--touch-target-min);
   }
 }
+
+@media (max-width: 1023px) {
+  .cancelButton,
+  .confirmButton,
+  .retryButton {
+    min-height: var(--touch-target-min);
+  }
+}

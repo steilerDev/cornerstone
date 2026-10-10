@@ -13,11 +13,14 @@ import type {
 import { Badge, type BadgeVariant } from '../../Badge/Badge.js';
 import badgeStyles from '../../Badge/Badge.module.css';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
+import { useStatusBadgeVariants } from '../../../hooks/useStatusBadgeVariants.js';
 import styles from './DiaryMetadataSummary.module.css';
 
 interface DiaryMetadataSummaryProps {
   entryType: DiaryEntryType;
   metadata: unknown;
+  /** Hide the defect resolution chip (the detail page shows it as a status menu instead). */
+  hideResolution?: boolean;
 }
 
 const WEATHER_EMOJI: Record<string, string> = {
@@ -29,8 +32,13 @@ const WEATHER_EMOJI: Record<string, string> = {
   other: '🌡️',
 };
 
-export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSummaryProps) {
+export function DiaryMetadataSummary({
+  entryType,
+  metadata,
+  hideResolution = false,
+}: DiaryMetadataSummaryProps) {
   const { t } = useTranslation('diary');
+  const statusVariants = useStatusBadgeVariants();
   const { formatHours } = useFormatters();
   const outcomeVariants = useMemo<Record<DiaryInspectionOutcome, BadgeVariant>>(
     () => ({
@@ -160,14 +168,12 @@ export function DiaryMetadataSummary({ entryType, metadata }: DiaryMetadataSumma
             testId={`severity-${m.severity}`}
           />
         )}
-        {m.resolutionStatus && (
-          <span className={styles.item}>
-            {m.resolutionStatus === 'open'
-              ? t('metadata.resolutionStatusOpen')
-              : m.resolutionStatus === 'in_progress'
-                ? t('metadata.resolutionStatusInProgress')
-                : t('metadata.resolutionStatusResolved')}
-          </span>
+        {m.resolutionStatus && !hideResolution && (
+          <Badge
+            variants={statusVariants.defect}
+            value={m.resolutionStatus}
+            testId="defect-status-badge"
+          />
         )}
       </div>
     );

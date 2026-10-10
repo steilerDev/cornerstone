@@ -4,6 +4,9 @@
 import { describe, it, expect } from '@jest/globals';
 import { render, screen } from '@testing-library/react';
 import {
+  BUDGET_SOURCE_STATUSES,
+  DIARY_ISSUE_RESOLUTIONS,
+  SUBSIDY_APPLICATION_STATUSES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
@@ -17,6 +20,9 @@ import { Badge } from './Badge.js';
 import badgeStyles from './Badge.module.css';
 import {
   CheckIcon,
+  buildDefectStatusVariants,
+  buildFundingSourceStatusVariants,
+  buildGrantStatusVariants,
   buildInvoiceStatusVariants,
   buildMilestoneStatusVariants,
   buildProgressPaymentStatusVariants,
@@ -266,5 +272,83 @@ describe('scheduleSignalBadgeProps', () => {
     const props = scheduleSignalBadgeProps({ signal: 'held_up' }, variantsFor);
     expect(props.value).toBe('held_up');
     expect(props.variants.held_up.label).toBe('Held up');
+  });
+});
+
+describe.each([
+  [
+    'buildGrantStatusVariants',
+    buildGrantStatusVariants,
+    SUBSIDY_APPLICATION_STATUSES,
+    'grant',
+    {
+      eligible: 'Eligible',
+      applied: 'Applied',
+      approved: 'Approved',
+      received: 'Received',
+      rejected: 'Rejected',
+    },
+    {
+      eligible: 'grantEligible',
+      applied: 'grantApplied',
+      approved: 'grantApproved',
+      received: 'grantReceived',
+      rejected: 'grantRejected',
+    },
+  ],
+  [
+    'buildFundingSourceStatusVariants',
+    buildFundingSourceStatusVariants,
+    BUDGET_SOURCE_STATUSES,
+    'fundingSource',
+    { active: 'Active', exhausted: 'Used up', closed: 'Closed' },
+    { active: 'fundingActive', exhausted: 'fundingExhausted', closed: 'fundingClosed' },
+  ],
+  [
+    'buildDefectStatusVariants',
+    buildDefectStatusVariants,
+    DIARY_ISSUE_RESOLUTIONS,
+    'defect',
+    { open: 'Open', in_progress: 'Being fixed', resolved: 'Fixed' },
+    { open: 'defectOpen', in_progress: 'defectInProgress', resolved: 'defectFixed' },
+  ],
+] as const)('%s (#2209 round 2)', (_name, build, members, vocabKey, labels, classes) => {
+  const variants = build(realT) as Record<string, { label: string; className?: string }>;
+
+  it('has exactly one entry per member of the shared tuple', () => {
+    expect(Object.keys(variants).sort()).toEqual([...members].sort());
+  });
+
+  it('labels come from the canonical en vocabulary', () => {
+    for (const member of members) {
+      expect(variants[member]!.label).toBe(
+        (vocab as Record<string, Record<string, string>>)[vocabKey]![member],
+      );
+      expect(variants[member]!.label).toBe((labels as Record<string, string>)[member]);
+    }
+  });
+
+  it('maps each status to its own Badge class', () => {
+    for (const member of members) {
+      expect(variants[member]!.className).toBe((classes as Record<string, string>)[member]);
+      expect(variants[member]!.className).toBe(
+        (badgeStyles as Record<string, string>)[(classes as Record<string, string>)[member]!],
+      );
+    }
+  });
+
+  it('renders through Badge with the variant label and class', () => {
+    const member = members[0]!;
+    render(<Badge variants={variants} value={member} testId="chip" />);
+    expect(screen.getByTestId('chip')).toHaveTextContent(variants[member]!.label);
+    expect(screen.getByTestId('chip')).toHaveClass(variants[member]!.className!);
+  });
+
+  it('uses the German vocabulary for its labels', () => {
+    const de = build(realTFor(deCommon)) as Record<string, { label: string }>;
+    for (const member of members) {
+      expect(de[member]!.label).not.toBe(variants[member]!.label);
+      expect(de[member]!.label.length).toBeGreaterThan(0);
+    }
   });
 });

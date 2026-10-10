@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
@@ -15,6 +15,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import enErrors from '../../i18n/en/errors.json';
+import enBudget from '../../i18n/en/budget.json';
 import type {
   SubsidyProgram,
   SubsidyProgramListResponse,
@@ -35,6 +36,19 @@ jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
 }));
 
 const mockFetchBudgetOverview = jest.fn<typeof BudgetOverviewApiTypes.fetchBudgetOverview>();
+
+// The status hook toasts (#2209).
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: React.ReactNode }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
+}));
 
 const mockFetchBudgetCategories = jest.fn<typeof BudgetCategoriesApiTypes.fetchBudgetCategories>();
 const mockCreateBudgetCategory = jest.fn<typeof BudgetCategoriesApiTypes.createBudgetCategory>();
@@ -118,6 +132,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -275,6 +290,8 @@ describe('SubsidyProgramsPage', () => {
     mockUpdateBudgetCategory.mockReset();
     mockDeleteBudgetCategory.mockReset();
     mockFetchBudgetOverview.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
 
     // Default: categories return empty list unless overridden
     mockFetchBudgetCategories.mockResolvedValue(emptyCategoriesResponse);
@@ -628,6 +645,127 @@ describe('SubsidyProgramsPage', () => {
     });
   });
 
+  // ─── Row StatusMenu (#2209 round 2) ────────────────────────────────────────
+
+  describe('grant status menu', () => {
+    const TOKEN = { token: `u_${'7'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockFetchSubsidyPrograms.mockResolvedValue(listResponse);
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    function respond(body: unknown) {
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    }
+
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+
+    it('each row renders a StatusMenu chip with its own test id and canonical label', async () => {
+      renderPage();
+      const chip = await screen.findByTestId(`grant-status-${sampleProgram1.id}`);
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Eligible');
+      expect(chip).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('lists only the allowed transitions for the current status', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue({
+        subsidyPrograms: [{ ...sampleProgram1, applicationStatus: 'applied' }],
+      });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      expect(rows()).toEqual(['Mark approved', 'Mark rejected', 'Back to “Eligible”']);
+    });
+
+    it('Mark applied PATCHes applicationStatus (no date step), reloads quietly and offers Undo', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1, applicationStatus: 'applied' }, undo: TOKEN });
+      renderPage();
+      const id = sampleProgram1.id;
+      fireEvent.click(await screen.findByTestId(`grant-status-${id}`));
+      const loadsBefore = mockFetchSubsidyPrograms.mock.calls.length;
+      fireEvent.click(screen.getByTestId(`grant-status-${id}-option-applied`));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(screen.queryByRole('dialog', { name: /when/i })).toBeNull();
+      expect(lastWrite()).toEqual({
+        url: `/api/subsidy-programs/${id}`,
+        method: 'PATCH',
+        body: { applicationStatus: 'applied' },
+      });
+      await waitFor(() =>
+        expect(mockFetchSubsidyPrograms.mock.calls.length).toBeGreaterThan(loadsBefore),
+      );
+      // quiet reload: no loading skeleton replaces the list
+      expect(screen.getByTestId(`grant-status-${id}`)).toBeInTheDocument();
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: `${sampleProgram1.name} is now “Applied”.`,
+        dedupeKey: `subsidy_program:${id}`,
+      });
+    });
+
+    it('Undo posts the token and reloads the list', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockFetchSubsidyPrograms.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockFetchSubsidyPrograms.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('a reload failure after a change keeps the last list', async () => {
+      respond({ subsidyProgram: { ...sampleProgram1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`grant-status-${sampleProgram1.id}`));
+      mockFetchSubsidyPrograms.mockRejectedValue(new Error('offline'));
+      fireEvent.click(screen.getByTestId(`grant-status-${sampleProgram1.id}-option-applied`));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+      expect(screen.getByTestId(`grant-status-${sampleProgram1.id}`)).toBeInTheDocument();
+      expect(screen.queryByRole('alert')).toBeNull();
+    });
+  });
+
   // ─── Create form ───────────────────────────────────────────────────────────
 
   describe('create form', () => {
@@ -662,22 +800,39 @@ describe('SubsidyProgramsPage', () => {
       );
     });
 
-    it('edit form status select lists SUBSIDY_APPLICATION_STATUSES in order with labels', async () => {
+    it('the edit form has no status select (status changes use the row menu)', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
       const user = userEvent.setup();
       renderPage();
       await user.click(await screen.findByRole('button', { name: /edit energy rebate/i }));
 
-      const select = document.getElementById(
-        `edit-status-${sampleProgram1.id}`,
-      ) as HTMLSelectElement;
+      expect(document.getElementById(`edit-status-${sampleProgram1.id}`)).toBeNull();
+      expect(screen.getByLabelText(/^name/i)).toBeInTheDocument();
+    });
 
-      expect(Array.from(select.options).map((o) => [o.value, o.textContent])).toEqual(
-        SUBSIDY_APPLICATION_STATUSES.map((status) => [
-          status,
-          enCommon.statusVocabulary.grant[status],
-        ]),
-      );
+    it('saving an edit does not send applicationStatus', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(listResponse);
+      mockUpdateSubsidyProgram.mockResolvedValueOnce({ ...sampleProgram1 });
+      mockFetchSubsidyPrograms.mockResolvedValue(listResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /edit energy rebate/i }));
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateSubsidyProgram).toHaveBeenCalledTimes(1));
+      const body = mockUpdateSubsidyProgram.mock.calls[0]![1] as Record<string, unknown>;
+      expect('applicationStatus' in body).toBe(false);
+    });
+
+    it('the create form keeps the initial status select and the translated Deadline label', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /add program/i }));
+
+      expect(document.getElementById('applicationStatus')).not.toBeNull();
+      const deadlineLabel = document.querySelector('label[for="applicationDeadline"]');
+      expect(deadlineLabel).toHaveTextContent(enBudget.subsidies.form.deadline);
     });
 
     it('disables "Add Program" button when create form is open', async () => {

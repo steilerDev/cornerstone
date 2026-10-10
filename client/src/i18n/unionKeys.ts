@@ -19,9 +19,12 @@ import {
   BUDGET_SOURCE_TYPES,
   BUDGET_VERDICTS,
   CONFIDENCE_LEVELS,
+  DEFECT_STATUS_ACTIONS,
   DELETE_IMPACT_KINDS,
   DIARY_ISSUE_RESOLUTIONS,
   DIARY_SOURCE_ENTITY_TYPES,
+  FUNDING_SOURCE_STATUS_ACTIONS,
+  GRANT_STATUS_ACTIONS,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_ENTRY_TYPES,
   INVOICE_DEPOSIT_STATUSES,
@@ -181,6 +184,16 @@ export const I18N_UNION_KEYS = {
     'statusAction.progressPayment',
     PROGRESS_PAYMENT_STATUS_ACTIONS,
   ),
+  /** common — StatusMenu forward-row label per grant transition. */
+  statusActionGrant: unionKeySet('common', 'statusAction.grant', GRANT_STATUS_ACTIONS),
+  /** common — StatusMenu forward-row label per funding-source transition. */
+  statusActionFundingSource: unionKeySet(
+    'common',
+    'statusAction.fundingSource',
+    FUNDING_SOURCE_STATUS_ACTIONS,
+  ),
+  /** common — StatusMenu forward-row label per defect transition. */
+  statusActionDefect: unionKeySet('common', 'statusAction.defect', DEFECT_STATUS_ACTIONS),
   /** common — ConfirmDialog consequence label per delete-impact kind. */
   deleteImpactKind: unionKeySet('common', 'confirmDialog.impact', DELETE_IMPACT_KINDS),
   /** diary — automatic (system) entry type label. Manual types use statusVocabularyDiaryType. */

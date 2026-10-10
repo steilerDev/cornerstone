@@ -21,6 +21,11 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { fundingSourceTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeFundingSourceStatus } from '../../lib/statusChangeApi.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
@@ -34,7 +39,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './BudgetSourcesPage.module.css';
-import { routeUrl } from '@cornerstone/shared';
+import { BUDGET_SOURCE_STATUSES, routeUrl } from '@cornerstone/shared';
 
 // ---- Display helpers ----
 
@@ -49,15 +54,6 @@ function getSourceTypeClass(styles: Record<string, string>, sourceType: BudgetSo
   return map[sourceType] ?? '';
 }
 
-function getStatusClass(styles: Record<string, string>, status: BudgetSourceStatus): string {
-  const map: Record<BudgetSourceStatus, string> = {
-    active: styles.statusActive ?? '',
-    exhausted: styles.statusExhausted ?? '',
-    closed: styles.statusClosed ?? '',
-  };
-  return map[status] ?? '';
-}
-
 // ---- Editing state shape ----
 
 type EditingSource = {
@@ -70,7 +66,6 @@ type EditingSource = {
   reference: string;
   contactAddress: string;
   notes: string;
-  status: BudgetSourceStatus;
 };
 
 function sourceToEditState(source: BudgetSource): EditingSource {
@@ -84,7 +79,6 @@ function sourceToEditState(source: BudgetSource): EditingSource {
     reference: source.reference ?? '',
     contactAddress: source.contactAddress ?? '',
     notes: source.notes ?? '',
-    status: source.status,
   };
 }
 
@@ -294,6 +288,8 @@ export function BudgetSourcesPage() {
   const originState = useOriginState();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -352,12 +348,6 @@ export function BudgetSourcesPage() {
     discretionary: t('sources.sourceTypes.discretionary'),
   };
 
-  const STATUS_LABELS: Record<BudgetSourceStatus, string> = {
-    active: t('sources.sourceStatus.active'),
-    exhausted: t('sources.sourceStatus.exhausted'),
-    closed: t('sources.sourceStatus.closed'),
-  };
-
   useEffect(() => {
     void loadSources();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadSources is defined in component body; effect runs only once on mount
@@ -378,6 +368,16 @@ export function BudgetSourcesPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Quiet reload after an Undo (no loading skeleton). */
+  const refreshSources = async () => {
+    try {
+      const response = await fetchBudgetSources();
+      setSources(response.budgetSources);
+    } catch {
+      // The list keeps its last state.
     }
   };
 
@@ -502,7 +502,6 @@ export function BudgetSourcesPage() {
         reference: editingSource.reference.trim() || null,
         contactAddress: editingSource.contactAddress.trim() || null,
         notes: editingSource.notes.trim() || null,
-        status: editingSource.status,
       });
       setSources(sources.map((s) => (s.id === updated.id ? updated : s)));
       setEditingSource(null);
@@ -855,9 +854,9 @@ export function BudgetSourcesPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  {BUDGET_SOURCE_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {label}
+                      {statusVariants.fundingSource[value].label}
                     </option>
                   ))}
                 </select>
@@ -1057,30 +1056,6 @@ export function BudgetSourcesPage() {
                           ))}
                         </select>
                       </div>
-
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                          {t('sources.form.status')}
-                        </label>
-                        <select
-                          id={`edit-status-${source.id}`}
-                          value={editingSource.status}
-                          onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              status: e.target.value as BudgetSourceStatus,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating}
-                        >
-                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
                     </div>
 
                     <div className={styles.editFormRow}>
@@ -1229,11 +1204,26 @@ export function BudgetSourcesPage() {
                           >
                             {SOURCE_TYPE_LABELS[source.sourceType]}
                           </span>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
-                          >
-                            {STATUS_LABELS[source.status]}
-                          </span>
+                          <StatusMenu
+                            transitions={fundingSourceTransitions(tCommon, source)}
+                            badge={{ variants: statusVariants.fundingSource, value: source.status }}
+                            currentLabel={statusVariants.fundingSource[source.status].label}
+                            focusFallbackRef={createButtonRef}
+                            testId={`funding-source-status-${source.id}`}
+                            onApply={(to) =>
+                              runStatusChange({
+                                request: () => changeFundingSourceStatus(source.id, to),
+                                recordName: source.name,
+                                statusLabel: statusVariants.fundingSource[to].label,
+                                dedupeKey: `budget_source:${source.id}`,
+                                onChanged: (record) =>
+                                  setSources((prev) =>
+                                    prev.map((x) => (x.id === record.id ? record : x)),
+                                  ),
+                                onUndone: () => refreshSources(),
+                              })
+                            }
+                          />
                           {source.isDiscretionary && (
                             <span className={styles.systemBadge}>
                               {t('sources.sourcesList.system')}

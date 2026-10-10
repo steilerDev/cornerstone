@@ -10,6 +10,12 @@ import {
   MILESTONE_COMPLETION_STATES,
   MILESTONE_STATUS_ACTIONS,
   MILESTONE_TRANSITIONS,
+  DEFECT_STATUS_ACTIONS,
+  DEFECT_TRANSITIONS,
+  FUNDING_SOURCE_STATUS_ACTIONS,
+  FUNDING_SOURCE_TRANSITIONS,
+  GRANT_STATUS_ACTIONS,
+  GRANT_TRANSITIONS,
   PROGRESS_PAYMENT_STATUS_ACTIONS,
   PROGRESS_PAYMENT_TRANSITIONS,
   PURCHASE_STATUS_ACTIONS,
@@ -44,6 +50,14 @@ describe('action and state tuples', () => {
     expect(MILESTONE_STATUS_ACTIONS).toEqual(['markReached']);
     expect(INVOICE_STATUS_ACTIONS).toEqual(['markPaid']);
     expect(PROGRESS_PAYMENT_STATUS_ACTIONS).toEqual(['markPaid', 'markSubmitted']);
+    expect(GRANT_STATUS_ACTIONS).toEqual([
+      'markApplied',
+      'markApproved',
+      'markReceived',
+      'markRejected',
+    ]);
+    expect(FUNDING_SOURCE_STATUS_ACTIONS).toEqual(['markUsedUp', 'markClosed']);
+    expect(DEFECT_STATUS_ACTIONS).toEqual(['markBeingFixed', 'markFixed']);
   });
 });
 
@@ -61,7 +75,9 @@ describe('undo and delete-impact constants', () => {
       'invoice_deposit',
       'subsidy_program',
       'diary_entry',
+      'budget_source',
     ]);
+    expect(UNDO_SUBJECT_TYPES).toHaveLength(8);
   });
 
   it('lists the delete-impact entity types (the route whitelist)', () => {
@@ -130,6 +146,35 @@ describe.each<[string, AnyMap, [string, string[]][]]>([
       ['pending', ['paid', 'claimed']],
       ['paid', ['claimed', 'pending']],
       ['claimed', ['paid']],
+    ],
+  ],
+  [
+    'GRANT_TRANSITIONS',
+    GRANT_TRANSITIONS,
+    [
+      ['eligible', ['applied']],
+      ['applied', ['approved', 'rejected', 'eligible']],
+      ['approved', ['received', 'applied']],
+      ['received', ['approved']],
+      ['rejected', ['applied']],
+    ],
+  ],
+  [
+    'FUNDING_SOURCE_TRANSITIONS',
+    FUNDING_SOURCE_TRANSITIONS,
+    [
+      ['active', ['exhausted', 'closed']],
+      ['exhausted', ['closed', 'active']],
+      ['closed', ['active']],
+    ],
+  ],
+  [
+    'DEFECT_TRANSITIONS',
+    DEFECT_TRANSITIONS,
+    [
+      ['open', ['in_progress', 'resolved']],
+      ['in_progress', ['resolved', 'open']],
+      ['resolved', ['in_progress']],
     ],
   ],
 ])('%s', (_name, map, rows) => {

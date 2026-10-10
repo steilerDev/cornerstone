@@ -28,7 +28,11 @@ import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './SubsidyProgramsPage.module.css';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { grantTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeGrantStatus } from '../../lib/statusChangeApi.js';
 
 // ---- Display helpers ----
 
@@ -45,20 +49,6 @@ function formatReduction(
   return formatCurrency(reductionValue);
 }
 
-function getStatusClassName(
-  cssStyles: Record<string, string>,
-  status: SubsidyApplicationStatus,
-): string {
-  const map: Record<SubsidyApplicationStatus, string> = {
-    eligible: cssStyles.statusEligible ?? '',
-    applied: cssStyles.statusApplied ?? '',
-    approved: cssStyles.statusApproved ?? '',
-    received: cssStyles.statusReceived ?? '',
-    rejected: cssStyles.statusRejected ?? '',
-  };
-  return map[status] ?? '';
-}
-
 // ---- Editing state shape ----
 
 type EditingProgram = {
@@ -68,7 +58,6 @@ type EditingProgram = {
   eligibility: string;
   reductionType: SubsidyReductionType;
   reductionValue: string;
-  applicationStatus: SubsidyApplicationStatus;
   applicationDeadline: string;
   notes: string;
   categoryIds: string[];
@@ -84,7 +73,6 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
     eligibility: program.eligibility ?? '',
     reductionType: program.reductionType,
     reductionValue: String(program.reductionValue),
-    applicationStatus: program.applicationStatus,
     applicationDeadline: program.applicationDeadline
       ? program.applicationDeadline.substring(0, 10)
       : '',
@@ -105,6 +93,8 @@ export function SubsidyProgramsPage() {
   useDocumentTitle(pageTitle);
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
   const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(() => new Set());
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
@@ -176,6 +166,26 @@ export function SubsidyProgramsPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Quiet reload after a status change or its Undo (no loading skeleton). */
+  const refreshPrograms = async () => {
+    try {
+      const [programsResponse, overviewData] = await Promise.all([
+        fetchSubsidyPrograms(),
+        fetchBudgetOverview(),
+      ]);
+      setPrograms(programsResponse.subsidyPrograms);
+      setOversubscribedIds(
+        new Set<string>(
+          (overviewData.subsidySummary.oversubscribedSubsidies ?? []).map(
+            (o: OversubscribedSubsidy) => o.subsidyProgramId,
+          ),
+        ),
+      );
+    } catch {
+      // The list keeps its last state; the next full load corrects it.
     }
   };
 
@@ -336,7 +346,6 @@ export function SubsidyProgramsPage() {
         eligibility: editingProgram.eligibility.trim() || null,
         reductionType: editingProgram.reductionType,
         reductionValue: reductionValueNum,
-        applicationStatus: editingProgram.applicationStatus,
         applicationDeadline: editingProgram.applicationDeadline || null,
         notes: editingProgram.notes.trim() || null,
         maximumAmount: editingProgram.maximumAmount.trim()
@@ -560,7 +569,7 @@ export function SubsidyProgramsPage() {
                 >
                   {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
+                      {statusVariants.grant[value].label}
                     </option>
                   ))}
                 </select>
@@ -843,33 +852,9 @@ export function SubsidyProgramsPage() {
                         />
                       </div>
 
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${program.id}`} className={styles.label}>
-                          Status
-                        </label>
-                        <select
-                          id={`edit-status-${program.id}`}
-                          value={editingProgram.applicationStatus}
-                          onChange={(e) =>
-                            setEditingProgram({
-                              ...editingProgram,
-                              applicationStatus: e.target.value as SubsidyApplicationStatus,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating}
-                        >
-                          {SUBSIDY_APPLICATION_STATUSES.map((value) => (
-                            <option key={value} value={value}>
-                              {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
                       <div className={styles.fieldNarrow}>
                         <label htmlFor={`edit-deadline-${program.id}`} className={styles.label}>
-                          Deadline
+                          {t('subsidies.form.deadline')}
                         </label>
                         <input
                           type="date"
@@ -1067,13 +1052,26 @@ export function SubsidyProgramsPage() {
                       <div className={styles.programMain}>
                         <span className={styles.programName}>{program.name}</span>
                         <div className={styles.programBadges}>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
-                          >
-                            {tCommon(
-                              I18N_UNION_KEYS.statusVocabularyGrant.key(program.applicationStatus),
-                            )}
-                          </span>
+                          <StatusMenu
+                            transitions={grantTransitions(tCommon, program)}
+                            badge={{
+                              variants: statusVariants.grant,
+                              value: program.applicationStatus,
+                            }}
+                            currentLabel={statusVariants.grant[program.applicationStatus].label}
+                            focusFallbackRef={createButtonRef}
+                            testId={`grant-status-${program.id}`}
+                            onApply={(to) =>
+                              runStatusChange({
+                                request: () => changeGrantStatus(program.id, to),
+                                recordName: program.name,
+                                statusLabel: statusVariants.grant[to].label,
+                                dedupeKey: `subsidy_program:${program.id}`,
+                                onChanged: () => void refreshPrograms(),
+                                onUndone: () => refreshPrograms(),
+                              })
+                            }
+                          />
                           <span className={styles.reductionBadge}>
                             {formatReduction(
                               program.reductionType,
@@ -1096,7 +1094,9 @@ export function SubsidyProgramsPage() {
 
                       {program.applicationDeadline && (
                         <div className={styles.programDeadline}>
-                          <span className={styles.deadlineLabel}>Deadline:</span>{' '}
+                          <span className={styles.deadlineLabel}>
+                            {t('subsidies.form.deadline')}:
+                          </span>{' '}
                           <span className={styles.deadlineValue}>
                             {formatDate(program.applicationDeadline)}
                           </span>

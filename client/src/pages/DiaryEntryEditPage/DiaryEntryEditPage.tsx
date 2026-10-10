@@ -332,7 +332,8 @@ export default function DiaryEntryEditPage() {
       if (!issueSeverity) {
         errors.issueSeverity = t('edit.issueSeverityRequired');
       }
-      if (!issueResolutionStatus) {
+      // The defect status is edited here only while the entry is a draft (R2-D1).
+      if (entry.status === 'draft' && !issueResolutionStatus) {
         errors.issueResolutionStatus = t('edit.issueResolutionStatusRequired');
       }
       if ((issueSignatures ?? []).some((sig) => !isSignatureComplete(sig))) {
@@ -688,6 +689,7 @@ export default function DiaryEntryEditPage() {
           onIssueSeverityChange={setIssueSeverity}
           issueResolutionStatus={issueResolutionStatus}
           onIssueResolutionStatusChange={setIssueResolutionStatus}
+          showResolutionStatus={isDraft}
           issueSignatures={issueSignatures}
           onIssueSignaturesChange={setIssueSignatures}
           // signature enhancements

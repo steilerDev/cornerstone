@@ -581,37 +581,9 @@
   color: var(--color-text-secondary);
 }
 
-/* ---- Source status badge ---- */
-
-.statusBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
 /* Active — green */
-.statusActive {
-  background-color: var(--color-success-badge-bg-alt);
-  color: var(--color-success-badge-text);
-}
-
 /* Exhausted — yellow/warning: primary bg (light blue) looks too positive; use gray-200 */
-.statusExhausted {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-text-secondary);
-}
-
 /* Closed — gray */
-.statusClosed {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-secondary);
-}
-
 /* ---- System badge (for discretionary sources) ---- */
 
 .systemBadge {

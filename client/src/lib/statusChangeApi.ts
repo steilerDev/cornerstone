@@ -1,5 +1,9 @@
 import { patch } from './apiClient.js';
 import type {
+  BudgetSource,
+  BudgetSourceStatus,
+  DiaryEntryDetail,
+  DiaryIssueResolution,
   HouseholdItemDetail,
   HouseholdItemStatus,
   Invoice,
@@ -8,6 +12,8 @@ import type {
   InvoiceStatus,
   MilestoneCompletionState,
   MilestoneSummary,
+  SubsidyApplicationStatus,
+  SubsidyProgram,
   UndoToken,
   UpdateDepositRequest,
   UpdateHouseholdItemRequest,
@@ -122,4 +128,37 @@ export async function changeDepositStatus(
     body,
   );
   return { record: r.deposit, undo: r.undo ?? null };
+}
+
+export async function changeGrantStatus(
+  id: string,
+  to: SubsidyApplicationStatus,
+): Promise<StatusChangeResult<SubsidyProgram>> {
+  const r = await patch<{ subsidyProgram: SubsidyProgram; undo?: UndoToken }>(
+    `/subsidy-programs/${id}`,
+    { applicationStatus: to },
+  );
+  return { record: r.subsidyProgram, undo: r.undo ?? null };
+}
+
+export async function changeFundingSourceStatus(
+  id: string,
+  to: BudgetSourceStatus,
+): Promise<StatusChangeResult<BudgetSource>> {
+  const r = await patch<{ budgetSource: BudgetSource; undo?: UndoToken }>(`/budget-sources/${id}`, {
+    status: to,
+  });
+  return { record: r.budgetSource, undo: r.undo ?? null };
+}
+
+/** Defect status lives in the entry's metadata: the PATCH sends the whole metadata back. */
+export async function changeDefectStatus(
+  entry: Pick<DiaryEntryDetail, 'id' | 'metadata'>,
+  to: DiaryIssueResolution,
+): Promise<StatusChangeResult<DiaryEntryDetail>> {
+  return splitBare(
+    await patch<DiaryEntryDetail & { undo?: UndoToken }>(`/diary-entries/${entry.id}`, {
+      metadata: { ...entry.metadata, resolutionStatus: to },
+    }),
+  );
 }

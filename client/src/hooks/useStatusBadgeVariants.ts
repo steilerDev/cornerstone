@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
+  buildDefectStatusVariants,
+  buildFundingSourceStatusVariants,
+  buildGrantStatusVariants,
   buildInvoiceStatusVariants,
   buildMilestoneStatusVariants,
   buildProgressPaymentStatusVariants,
@@ -21,6 +24,9 @@ export function useStatusBadgeVariants() {
       purchase: buildPurchaseStatusVariants(t),
       milestone: buildMilestoneStatusVariants(t),
       refund: buildRefundVariants(t),
+      grant: buildGrantStatusVariants(t),
+      fundingSource: buildFundingSourceStatusVariants(t),
+      defect: buildDefectStatusVariants(t),
       scheduleSignal: (lateDays: number) => buildScheduleSignalVariants(t, lateDays),
     }),
     [t],

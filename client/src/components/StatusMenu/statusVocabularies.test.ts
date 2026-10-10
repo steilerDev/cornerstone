@@ -1,5 +1,11 @@
 import { describe, it, expect } from '@jest/globals';
 import {
+  BUDGET_SOURCE_STATUSES,
+  DEFECT_TRANSITIONS,
+  DIARY_ISSUE_RESOLUTIONS,
+  FUNDING_SOURCE_TRANSITIONS,
+  GRANT_TRANSITIONS,
+  SUBSIDY_APPLICATION_STATUSES,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
@@ -14,6 +20,9 @@ import {
 } from '@cornerstone/shared';
 import i18n from '../../i18n/index.js';
 import {
+  defectTransitions,
+  fundingSourceTransitions,
+  grantTransitions,
   invoiceTransitions,
   milestoneCompletionState,
   milestoneTransitions,
@@ -236,5 +245,90 @@ describe('progressPaymentTransitions', () => {
         label: 'statusMenu.backTo(statusVocabulary.progressPayment.paid)',
       },
     ]);
+  });
+});
+
+describe('grantTransitions', () => {
+  it.each(SUBSIDY_APPLICATION_STATUSES)(
+    'from %s lists exactly the map targets, forward first',
+    (status) => {
+      const rows = grantTransitions(echoT, { applicationStatus: status });
+      expect(rows.map((r) => r.to)).toEqual(allowedTargets(GRANT_TRANSITIONS, status));
+      const dirs = rows.map((r) => r.direction);
+      expect(dirs).toEqual([...dirs].sort((a, b) => (a === b ? 0 : a === 'forward' ? -1 : 1)));
+    },
+  );
+
+  it('has no date step on any row', () => {
+    for (const status of SUBSIDY_APPLICATION_STATUSES) {
+      for (const row of grantTransitions(echoT, { applicationStatus: status })) {
+        expect(row.date).toBeUndefined();
+      }
+    }
+  });
+
+  it('applied offers approved and rejected forward, eligible back', () => {
+    expect(grantTransitions(echoT, { applicationStatus: 'applied' })).toEqual([
+      { to: 'approved', direction: 'forward', label: 'statusAction.grant.markApproved' },
+      { to: 'rejected', direction: 'forward', label: 'statusAction.grant.markRejected' },
+      {
+        to: 'eligible',
+        direction: 'backward',
+        label: 'statusMenu.backTo(statusVocabulary.grant.eligible)',
+      },
+    ]);
+  });
+});
+
+describe('fundingSourceTransitions', () => {
+  it.each(BUDGET_SOURCE_STATUSES)('from %s lists exactly the map targets', (status) => {
+    const rows = fundingSourceTransitions(echoT, { status });
+    expect(rows.map((r) => r.to)).toEqual(allowedTargets(FUNDING_SOURCE_TRANSITIONS, status));
+    for (const row of rows) expect(row.date).toBeUndefined();
+  });
+
+  it('active offers used up and closed; closed only goes back to active', () => {
+    expect(fundingSourceTransitions(echoT, { status: 'active' }).map((r) => r.label)).toEqual([
+      'statusAction.fundingSource.markUsedUp',
+      'statusAction.fundingSource.markClosed',
+    ]);
+    expect(fundingSourceTransitions(echoT, { status: 'closed' })).toEqual([
+      {
+        to: 'active',
+        direction: 'backward',
+        label: 'statusMenu.backTo(statusVocabulary.fundingSource.active)',
+      },
+    ]);
+  });
+});
+
+describe('defectTransitions', () => {
+  it.each(DIARY_ISSUE_RESOLUTIONS)('unlocked from %s lists exactly the map targets', (status) => {
+    const rows = defectTransitions(echoT, { resolutionStatus: status, locked: false });
+    expect(rows.map((r) => r.to)).toEqual(allowedTargets(DEFECT_TRANSITIONS, status));
+    for (const row of rows) expect(row.date).toBeUndefined();
+  });
+
+  it.each(DIARY_ISSUE_RESOLUTIONS)(
+    'locked from %s has no transitions (a plain Badge)',
+    (status) => {
+      expect(defectTransitions(echoT, { resolutionStatus: status, locked: true })).toEqual([]);
+    },
+  );
+
+  it('labels the forward rows with the defect actions and the back row with the canonical label', () => {
+    expect(defectTransitions(echoT, { resolutionStatus: 'in_progress', locked: false })).toEqual([
+      { to: 'resolved', direction: 'forward', label: 'statusAction.defect.markFixed' },
+      {
+        to: 'open',
+        direction: 'backward',
+        label: 'statusMenu.backTo(statusVocabulary.defect.open)',
+      },
+    ]);
+  });
+
+  it('renders the real English labels', () => {
+    const rows = defectTransitions(realT, { resolutionStatus: 'open', locked: false });
+    expect(rows.map((r) => r.label)).toEqual(['Mark being fixed', 'Mark fixed']);
   });
 });

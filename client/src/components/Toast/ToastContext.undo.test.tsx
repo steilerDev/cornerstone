@@ -331,26 +331,142 @@ describe('Undo button', () => {
     expect(screen.getByTestId('toast-error')).toHaveTextContent(message);
   });
 
-  it('another API error shows its translated message', async () => {
-    renderToasts();
-    showUndo({
-      onUndo: jest
-        .fn<() => Promise<void>>()
-        .mockRejectedValue(new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' })),
+  describe('a failed Undo that is not a 404 / 409 keeps the toast for a retry', () => {
+    it.each([
+      ['an API error', () => new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' })],
+      ['a non-API failure', () => new Error('network')],
+    ])('%s: toast stays, busy clears, an error toast shows', async (_n, make) => {
+      renderToasts();
+      const onUndo = jest.fn<() => Promise<void>>().mockRejectedValue(make());
+      showUndo({ onUndo });
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+
+      expect(onUndo).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+      const button = screen.getByTestId('toast-undo-button');
+      expect(button).toHaveTextContent('Undo');
+      expect(button).not.toHaveAttribute('aria-disabled');
+      expect(screen.getByTestId('toast-error')).toBeInTheDocument();
+      expect(screen.queryByTestId('toast-info')).toBeNull();
     });
-    fireEvent.click(screen.getByTestId('toast-undo-button'));
-    await act(async () => {});
-    expect(screen.queryByTestId('toast-undo')).toBeNull();
-    expect(screen.getByTestId('toast-error')).toBeInTheDocument();
-    expect(screen.getByTestId('toast-error')).not.toHaveTextContent('Change undone.');
+
+    it('the API error toast shows the translated copy, the plain one the generic copy', async () => {
+      renderToasts();
+      showUndo({
+        message: 'A',
+        dedupeKey: 'a',
+        onUndo: jest
+          .fn<() => Promise<void>>()
+          .mockRejectedValue(new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' })),
+      });
+      fireEvent.click(screen.getAllByTestId('toast-undo-button')[0]!);
+      await act(async () => {});
+      expect(screen.getByTestId('toast-error')).not.toHaveTextContent('could not be undone');
+
+      showUndo({
+        message: 'B',
+        dedupeKey: 'b',
+        onUndo: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('network')),
+      });
+      fireEvent.click(screen.getAllByTestId('toast-undo-button')[1]!);
+      await act(async () => {});
+      expect(screen.getAllByTestId('toast-error').at(-1)).toHaveTextContent(
+        'The change could not be undone.',
+      );
+    });
+
+    it('releases the clock hold: the toast still auto-dismisses after the failure', async () => {
+      renderToasts();
+      showUndo({
+        onUndo: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('network')),
+      });
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+      expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+      advance(UNDO_TOAST_MS);
+      expect(screen.queryByTestId('toast-undo')).toBeNull();
+    });
+
+    it('keeps the hold while the pointer is over the toast (hover hold survives the release)', async () => {
+      renderToasts();
+      showUndo({
+        onUndo: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('network')),
+      });
+      const toast = screen.getByTestId('toast-undo');
+      fireEvent.mouseEnter(toast);
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+      advance(60_000);
+      expect(screen.getByTestId('toast-undo')).toBeInTheDocument();
+      fireEvent.mouseLeave(toast);
+      advance(UNDO_TOAST_MS);
+      expect(screen.queryByTestId('toast-undo')).toBeNull();
+    });
+
+    it('the user can retry and the second attempt can succeed', async () => {
+      renderToasts();
+      const onUndo = jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValueOnce(new Error('network'))
+        .mockResolvedValueOnce(undefined);
+      showUndo({ onUndo });
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+      expect(onUndo).toHaveBeenCalledTimes(2);
+      expect(screen.queryByTestId('toast-undo')).toBeNull();
+      expect(screen.getByTestId('toast-info')).toHaveTextContent('Change undone.');
+    });
+
+    it('a 404 / 409 still dismisses the toast (the token can never work again)', async () => {
+      renderToasts();
+      showUndo({
+        onUndo: jest
+          .fn<() => Promise<void>>()
+          .mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' })),
+      });
+      fireEvent.click(screen.getByTestId('toast-undo-button'));
+      await act(async () => {});
+      expect(screen.queryByTestId('toast-undo')).toBeNull();
+      expect(screen.getByTestId('toast-error')).toBeInTheDocument();
+    });
   });
 
-  it('a non-API failure shows the generic undo failure', async () => {
-    renderToasts();
-    showUndo({ onUndo: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('network')) });
-    fireEvent.click(screen.getByTestId('toast-undo-button'));
-    await act(async () => {});
-    expect(screen.getByTestId('toast-error')).toHaveTextContent('The change could not be undone.');
+  describe('replacing a toast through its dedupeKey hands focus off', () => {
+    it("moves focus from the replaced toast to the new toast's fallback", () => {
+      renderToasts(
+        <button type="button" data-testid="fallback">
+          fallback
+        </button>,
+      );
+      showUndo({ message: 'First', dedupeKey: 'k' });
+      screen.getByTestId('toast-undo-button').focus();
+      showUndo({
+        message: 'Second',
+        dedupeKey: 'k',
+        focusFallback: () => screen.getByTestId('fallback'),
+      });
+      expect(screen.getByTestId('fallback')).toHaveFocus();
+      expect(document.body).not.toHaveFocus();
+    });
+
+    it('falls back to the page heading when the replacement has no fallback', () => {
+      renderToasts();
+      showUndo({ message: 'First', dedupeKey: 'k' });
+      screen.getByTestId('toast-undo-button').focus();
+      showUndo({ message: 'Second', dedupeKey: 'k' });
+      expect(screen.getByRole('heading', { name: 'Page heading' })).toHaveFocus();
+    });
+
+    it('leaves focus alone when it was not inside the replaced toast', () => {
+      renderToasts();
+      showUndo({ message: 'First', dedupeKey: 'k' });
+      screen.getByTestId('outside').focus();
+      showUndo({ message: 'Second', dedupeKey: 'k' });
+      expect(screen.getByTestId('outside')).toHaveFocus();
+    });
   });
 
   it('undoToast on an unknown id is a no-op', async () => {

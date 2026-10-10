@@ -22,6 +22,7 @@ import * as invoiceService from './invoiceService.js';
 import * as invoiceDepositService from './invoiceDepositService.js';
 import * as subsidyProgramService from './subsidyProgramService.js';
 import * as diaryService from './diaryService.js';
+import * as budgetSourceService from './budgetSourceService.js';
 import { __resetLedgerForTests, activeCollection } from './statusEventLedger.js';
 import { applyUndo, createUndoStore, runUndoable, undoStore } from './undoService.js';
 import type { UndoStore } from './undoService.js';
@@ -830,6 +831,147 @@ describe('undoService', () => {
           .get()!;
         expect(JSON.parse(row.metadata!).resolutionStatus).toBe('open');
       });
+    });
+  });
+
+  describe('budget_source (R2)', () => {
+    function newSource() {
+      return budgetSourceService.createBudgetSource(
+        db,
+        { name: 'Bank loan', sourceType: 'bank_loan', totalAmount: 1000 },
+        userA,
+        0.19,
+      );
+    }
+
+    function patchSource(
+      id: string,
+      data: Parameters<typeof budgetSourceService.updateBudgetSource>[2],
+      actor = userA,
+    ) {
+      return runUndoable(
+        db,
+        store,
+        { userId: actor, subject: { type: 'budget_source', id }, reschedules: false },
+        () => budgetSourceService.updateBudgetSource(db, id, data, 0.19),
+      );
+    }
+
+    function statusOf(id: string): string {
+      return db.select().from(schema.budgetSources).where(eq(schema.budgetSources.id, id)).get()!
+        .status;
+    }
+
+    it('issues a token only when the status changes', () => {
+      const src = newSource();
+      expect(patchSource(src.id, { name: 'Renamed' }).undo).toBeNull();
+      expect(store.snapshots.size).toBe(0);
+      const loud = patchSource(src.id, { status: 'exhausted' });
+      expect(loud.undo?.token).toMatch(TOKEN_SHAPE);
+      expect(store.snapshots.get(loud.undo!.token)!.userId).toBe(userA);
+    });
+
+    it('restores the previous status and returns the restored row', () => {
+      const src = newSource();
+      const { undo } = patchSource(src.id, { status: 'closed' });
+      expect(statusOf(src.id)).toBe('closed');
+      const response = applyUndo(db, store, undo!.token, userA);
+      expect(statusOf(src.id)).toBe('active');
+      expect(response.restored).toEqual([{ type: 'budget_source', id: src.id }]);
+      expect(response.retractedEventIds).toEqual([]);
+    });
+
+    it('409 with details.changed when the row changed since, restoring nothing', () => {
+      const src = newSource();
+      const { undo } = patchSource(src.id, { status: 'exhausted' });
+      sqlite.prepare("UPDATE budget_sources SET status = 'closed' WHERE id = ?").run(src.id);
+      let error: unknown;
+      try {
+        applyUndo(db, store, undo!.token, userA);
+      } catch (e) {
+        error = e;
+      }
+      expect(error).toBeInstanceOf(ConflictError);
+      expect((error as ConflictError).details).toEqual({
+        changed: [{ type: 'budget_source', id: src.id }],
+      });
+      expect(statusOf(src.id)).toBe('closed');
+      expect(() => applyUndo(db, store, undo!.token, userA)).toThrow(NotFoundError);
+    });
+
+    it('409 when only updatedAt moved (a later edit of another field)', () => {
+      const src = newSource();
+      const { undo } = patchSource(src.id, { status: 'exhausted' });
+      jest.setSystemTime(new Date(START.getTime() + 2000));
+      budgetSourceService.updateBudgetSource(db, src.id, { name: 'Edited later' }, 0.19);
+      expect(() => applyUndo(db, store, undo!.token, userA)).toThrow(ConflictError);
+      expect(statusOf(src.id)).toBe('exhausted');
+    });
+
+    it('is bound to the user and single use', () => {
+      const src = newSource();
+      const { undo } = patchSource(src.id, { status: 'exhausted' });
+      expect(() => applyUndo(db, store, undo!.token, userB)).toThrow(NotFoundError);
+      expect(statusOf(src.id)).toBe('exhausted');
+      applyUndo(db, store, undo!.token, userA);
+      expect(() => applyUndo(db, store, undo!.token, userA)).toThrow(NotFoundError);
+    });
+
+    it('expires after 30 s', () => {
+      const src = newSource();
+      const { undo } = patchSource(src.id, { status: 'exhausted' });
+      jest.setSystemTime(new Date(START.getTime() + UNDO_WINDOW_MS));
+      expect(() => applyUndo(db, store, undo!.token, userA)).toThrow(NotFoundError);
+      expect(statusOf(src.id)).toBe('exhausted');
+    });
+  });
+
+  describe('diary_entry metadata restore (A3)', () => {
+    it('reverts the whole metadata JSON, including other fields edited in the same PATCH', () => {
+      const entry = diaryService.createDiaryEntry(db, userA, {
+        entryType: 'issue',
+        entryDate: '2026-08-01',
+        body: 'Leak',
+        metadata: { severity: 'low', resolutionStatus: 'open' },
+      });
+      const { undo } = runUndoable(
+        db,
+        store,
+        { userId: userA, subject: { type: 'diary_entry', id: entry.id }, reschedules: false },
+        () =>
+          diaryService.updateDiaryEntry(db, entry.id, {
+            metadata: { severity: 'high', resolutionStatus: 'resolved' },
+          }),
+      );
+      const row = () =>
+        db.select().from(schema.diaryEntries).where(eq(schema.diaryEntries.id, entry.id)).get()!;
+      expect(JSON.parse(row().metadata!)).toEqual({
+        severity: 'high',
+        resolutionStatus: 'resolved',
+      });
+
+      applyUndo(db, store, undo!.token, userA);
+
+      expect(JSON.parse(row().metadata!)).toEqual({ severity: 'low', resolutionStatus: 'open' });
+    });
+
+    it('a severity-only edit issues no token (resolution status unchanged)', () => {
+      const entry = diaryService.createDiaryEntry(db, userA, {
+        entryType: 'issue',
+        entryDate: '2026-08-01',
+        body: 'Leak',
+        metadata: { severity: 'low', resolutionStatus: 'open' },
+      });
+      const { undo } = runUndoable(
+        db,
+        store,
+        { userId: userA, subject: { type: 'diary_entry', id: entry.id }, reschedules: false },
+        () =>
+          diaryService.updateDiaryEntry(db, entry.id, {
+            metadata: { severity: 'high', resolutionStatus: 'open' },
+          }),
+      );
+      expect(undo).toBeNull();
     });
   });
 

@@ -1013,7 +1013,7 @@
     "to": "Money > Financing > Loans & own funds cards (type, status, amount, rate)",
     "change": "same",
     "gate": "none",
-    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served."
+    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\". #2205: interim sidebar view under Money (interimUntil financing) until Financing (#2242) is served. #2209: Money › Financing › Funding sources › row StatusMenu chip; \"Exhausted\" reads \"Used up\"."
   },
   "MNY-023": {
     "name": "See each source's utilization bar with segment tooltips",
@@ -1047,7 +1047,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Funding source page); every old URL redirects there in one hop.",
-    "note": "New detail page for the object (today an inline card)."
+    "note": "New detail page for the object (today an inline card). #2209: Money › Financing › Funding sources › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it."
   },
   "MNY-027": {
     "name": "Mark a financing source active, exhausted or closed",
@@ -1143,7 +1143,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Grant page); every old URL redirects there in one hop.",
-    "note": "New detail page for grants."
+    "note": "New detail page for grants. #2209: Money › Financing › Grants › row StatusMenu chip; the inline edit loses Status."
   },
   "MNY-039": {
     "name": "Track a subsidy application status (eligible, applied, approved, received, rejected)",
@@ -1151,7 +1151,7 @@
     "to": "Money > Grant page > StatusMenu (Eligible / Applied / Approved / Received / Rejected)",
     "change": "promoted",
     "gate": "none",
-    "note": "Status change without opening the edit form. #2195: grant status words read the canonical grant key set (AC3)."
+    "note": "Status change without opening the edit form. #2195: grant status words read the canonical grant key set (AC3). #2209: Money › Financing › Grants › row StatusMenu chip (with Undo); the inline edit loses Status; create keeps it."
   },
   "MNY-040": {
     "name": "Delete a subsidy program",
@@ -1586,7 +1586,7 @@
     "to": "Money > Invoice / Offer page > Payments tab > row ⋯ > Edit / Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › Progress payments › row ⋯ › Delete (ConfirmDialog)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2209: Money › Invoice page › Progress payments › row ⋯ › Delete (ConfirmDialog). #2209: Money › Invoice page › Progress payments › edit form loses Status (row StatusMenu instead); add keeps it."
   },
   "MNY-096": {
     "name": "See an invoice's itemized budget lines and the unallocated remainder",
@@ -2648,7 +2648,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Capture > Type 'Other ▾' (1) > Defect (2)",
-    "note": "Made more visible in Site diary because it serves a frequent job (rare use)."
+    "note": "Made more visible in Site diary because it serves a frequent job (rare use). #2209: Site diary › entry page › Defect StatusMenu (Open / Being fixed / Fixed, with Undo); the saved-entry edit loses Status; capture and drafts keep it; signed or automatic defects show a plain badge."
   },
   "JRN-025": {
     "name": "Write a general note",
@@ -2722,7 +2722,7 @@
     "to": "Site diary > Entry page > Edit -> Site diary > Capture (/diary/new, /diary/:id/edit)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step. #2209: Site diary › entry edit (saved entry) has no defect Status field (Defect StatusMenu on the entry page); drafts keep it."
   },
   "JRN-033": {
     "name": "Delete a diary entry and its photos",

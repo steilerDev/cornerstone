@@ -315,6 +315,20 @@
     "progressPayment": {
       "markPaid": "Als bezahlt markieren",
       "markSubmitted": "Als eingereicht markieren"
+    },
+    "grant": {
+      "markApplied": "Als beantragt markieren",
+      "markApproved": "Als genehmigt markieren",
+      "markReceived": "Als erhalten markieren",
+      "markRejected": "Als abgelehnt markieren"
+    },
+    "fundingSource": {
+      "markUsedUp": "Als ausgeschöpft markieren",
+      "markClosed": "Als geschlossen markieren"
+    },
+    "defect": {
+      "markBeingFixed": "Als „Wird behoben“ markieren",
+      "markFixed": "Als behoben markieren"
     }
   },
   "statusMenu": {

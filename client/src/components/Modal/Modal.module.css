@@ -42,6 +42,16 @@
   color: var(--color-text-primary);
 }
 
+.closeButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.closeButton[aria-disabled='true']:hover {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+
 .closeButton:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);

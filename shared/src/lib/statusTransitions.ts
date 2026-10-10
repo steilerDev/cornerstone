@@ -8,6 +8,9 @@
 import type { WorkItemStatus } from '../types/workItem.js';
 import type { HouseholdItemStatus } from '../types/householdItem.js';
 import type { InvoiceStatus, InvoiceDepositStatus } from '../types/invoice.js';
+import type { SubsidyApplicationStatus } from '../types/subsidyProgram.js';
+import type { BudgetSourceStatus } from '../types/budgetSource.js';
+import type { DiaryIssueResolution } from '../types/diary.js';
 
 export const TASK_STATUS_ACTIONS = ['start', 'markDone'] as const;
 export type TaskStatusAction = (typeof TASK_STATUS_ACTIONS)[number];
@@ -30,6 +33,20 @@ export type InvoiceStatusAction = (typeof INVOICE_STATUS_ACTIONS)[number];
 
 export const PROGRESS_PAYMENT_STATUS_ACTIONS = ['markPaid', 'markSubmitted'] as const;
 export type ProgressPaymentStatusAction = (typeof PROGRESS_PAYMENT_STATUS_ACTIONS)[number];
+
+export const GRANT_STATUS_ACTIONS = [
+  'markApplied',
+  'markApproved',
+  'markReceived',
+  'markRejected',
+] as const;
+export type GrantStatusAction = (typeof GRANT_STATUS_ACTIONS)[number];
+
+export const FUNDING_SOURCE_STATUS_ACTIONS = ['markUsedUp', 'markClosed'] as const;
+export type FundingSourceStatusAction = (typeof FUNDING_SOURCE_STATUS_ACTIONS)[number];
+
+export const DEFECT_STATUS_ACTIONS = ['markBeingFixed', 'markFixed'] as const;
+export type DefectStatusAction = (typeof DEFECT_STATUS_ACTIONS)[number];
 
 export type StatusTransition<S extends string, A extends string> =
   | { readonly to: S; readonly direction: 'forward'; readonly action: A }
@@ -93,6 +110,29 @@ export const PROGRESS_PAYMENT_TRANSITIONS: StatusTransitionMap<
   pending: [fwd('paid', 'markPaid'), fwd('claimed', 'markSubmitted')],
   paid: [fwd('claimed', 'markSubmitted'), back('pending')],
   claimed: [back('paid')],
+};
+
+export const GRANT_TRANSITIONS: StatusTransitionMap<SubsidyApplicationStatus, GrantStatusAction> = {
+  eligible: [fwd('applied', 'markApplied')],
+  applied: [fwd('approved', 'markApproved'), fwd('rejected', 'markRejected'), back('eligible')],
+  approved: [fwd('received', 'markReceived'), back('applied')],
+  received: [back('approved')],
+  rejected: [back('applied')],
+};
+
+export const FUNDING_SOURCE_TRANSITIONS: StatusTransitionMap<
+  BudgetSourceStatus,
+  FundingSourceStatusAction
+> = {
+  active: [fwd('exhausted', 'markUsedUp'), fwd('closed', 'markClosed')],
+  exhausted: [fwd('closed', 'markClosed'), back('active')],
+  closed: [back('active')],
+};
+
+export const DEFECT_TRANSITIONS: StatusTransitionMap<DiaryIssueResolution, DefectStatusAction> = {
+  open: [fwd('in_progress', 'markBeingFixed'), fwd('resolved', 'markFixed')],
+  in_progress: [fwd('resolved', 'markFixed'), back('open')],
+  resolved: [back('in_progress')],
 };
 
 /** Transitions available from `from`, in map order (empty for an unknown status). */

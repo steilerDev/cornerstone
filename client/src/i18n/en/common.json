@@ -282,7 +282,15 @@
     },
     "milestone": { "markReached": "Mark reached" },
     "invoice": { "markPaid": "Mark paid" },
-    "progressPayment": { "markPaid": "Mark paid", "markSubmitted": "Mark submitted" }
+    "progressPayment": { "markPaid": "Mark paid", "markSubmitted": "Mark submitted" },
+    "grant": {
+      "markApplied": "Mark applied",
+      "markApproved": "Mark approved",
+      "markReceived": "Mark received",
+      "markRejected": "Mark rejected"
+    },
+    "fundingSource": { "markUsedUp": "Mark used up", "markClosed": "Mark closed" },
+    "defect": { "markBeingFixed": "Mark being fixed", "markFixed": "Mark fixed" }
   },
   "statusMenu": {
     "nowLabel": "Now: {{status}}",

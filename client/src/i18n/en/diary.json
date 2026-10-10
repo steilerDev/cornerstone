@@ -177,11 +177,6 @@
     },
     "resolutionStatus": "Resolution Status",
     "resolutionStatusRequired": "Resolution status is required",
-    "resolutionOptions": {
-      "open": "Open",
-      "in_progress": "In Progress",
-      "resolved": "Resolved"
-    },
     "signatures": "Signatures",
     "addSignatureButton": "Add Signature",
     "photos": "Photos",
@@ -207,11 +202,7 @@
     "inspector": "Inspector",
     "outcome": "Outcome",
     "materials": "Materials",
-    "severity": "Severity",
-    "resolutionStatus": "Resolution Status",
-    "resolutionStatusOpen": "🔴 Open",
-    "resolutionStatusInProgress": "🟡 In Progress",
-    "resolutionStatusResolved": "✅ Resolved"
+    "severity": "Severity"
   },
   "typeBadge": {
     "dailyLog": "Daily Log",

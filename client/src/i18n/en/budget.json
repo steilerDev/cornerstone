@@ -144,11 +144,6 @@
       "other": "Other",
       "discretionary": "Discretionary"
     },
-    "sourceStatus": {
-      "active": "Active",
-      "exhausted": "Exhausted",
-      "closed": "Closed"
-    },
     "barChart": {
       "overAllocated": "Over-allocated by {{amount}}",
       "claimed": "Submitted",

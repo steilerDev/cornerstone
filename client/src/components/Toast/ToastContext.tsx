@@ -118,18 +118,22 @@ export function ToastProvider({ children }: ToastProviderProps) {
     clocksRef.current.delete(id);
   }, []);
 
+  // Focus inside a toast that goes away must not fall to <body>.
+  const handOffFocus = useCallback((id: number, fallbackOwner?: Toast) => {
+    const el = toastElement(id);
+    if (!el?.contains(document.activeElement)) return;
+    const owner = fallbackOwner ?? toastsRef.current.find((toast) => toast.id === id);
+    const fallback = owner?.focusFallback?.();
+    if (fallback?.isConnected) fallback.focus();
+    else focusPageHeading();
+  }, []);
+
   const dismissToast = useCallback(
     (id: number) => {
-      // Focus inside a toast that goes away must not fall to <body>.
-      const el = toastElement(id);
-      if (el?.contains(document.activeElement)) {
-        const fallback = toastsRef.current.find((toast) => toast.id === id)?.focusFallback?.();
-        if (fallback?.isConnected) fallback.focus();
-        else focusPageHeading();
-      }
+      handOffFocus(id);
       removeToast(id);
     },
-    [removeToast],
+    [handOffFocus, removeToast],
   );
 
   const runClock = useCallback(
@@ -166,6 +170,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
         return updated.length > MAX_TOASTS ? updated.slice(updated.length - MAX_TOASTS) : updated;
       });
       for (const staleId of stale) {
+        handOffFocus(staleId, { ...toast, id });
         const clock = clocksRef.current.get(staleId);
         if (clock?.timer) clearTimeout(clock.timer);
         clocksRef.current.delete(staleId);
@@ -179,7 +184,7 @@ export function ToastProvider({ children }: ToastProviderProps) {
       });
       if (!(toast.variant === 'undo' && hiddenRef.current)) runClock(id);
     },
-    [runClock],
+    [handOffFocus, runClock],
   );
 
   const showToast = useCallback(
@@ -249,21 +254,35 @@ export function ToastProvider({ children }: ToastProviderProps) {
         dismissToast(id);
         showToast('info', t('undoToast.undone'));
       } catch (err) {
-        dismissToast(id);
         if (err instanceof ApiClientError && err.statusCode === 404) {
+          // The token can never work again: the toast goes away.
+          dismissToast(id);
           showToast('error', t('undoToast.tooLate'));
         } else if (err instanceof ApiClientError && err.statusCode === 409) {
+          dismissToast(id);
           showToast('error', t('undoToast.changedSince'));
-        } else if (err instanceof ApiClientError) {
-          showToast('error', translateApiError(err.error.code, tErrors));
         } else {
-          showToast('error', t('undoToast.failed'));
+          // Network / server error: keep the toast so the user can retry within the window.
+          setToasts((prev) =>
+            prev.map((item) => (item.id === id ? { ...item, busy: false } : item)),
+          );
+          const held = clocksRef.current.get(id);
+          if (held) {
+            held.holds = Math.max(0, held.holds - 1);
+            if (held.holds === 0 && !hiddenRef.current) runClock(id);
+          }
+          showToast(
+            'error',
+            err instanceof ApiClientError
+              ? translateApiError(err.error.code, tErrors)
+              : t('undoToast.failed'),
+          );
         }
       } finally {
         runningUndoRef.current.delete(id);
       }
     },
-    [dismissToast, haltClock, showToast, t, tErrors],
+    [dismissToast, haltClock, runClock, showToast, t, tErrors],
   );
 
   // Ctrl/⌘ Z undoes the newest undo toast (outside editable fields).

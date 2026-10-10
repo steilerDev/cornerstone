@@ -516,13 +516,21 @@ describe('DiaryEntryEditPage', () => {
       });
     });
 
-    it('pre-populates issue resolution status from metadata', async () => {
-      mockGetDiaryEntry.mockResolvedValueOnce(issueEntry);
+    it('pre-populates the resolution status of a DRAFT defect from metadata', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({ ...issueEntry, status: 'draft' });
       renderEditPage('de-iss');
       await waitFor(() => {
         const select = screen.getByLabelText(/resolution status/i) as HTMLSelectElement;
         expect(select.value).toBe('open');
       });
+    });
+
+    it('a SAVED defect has no resolution status select (status changes use the detail page menu)', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({ ...issueEntry, status: 'saved' });
+      renderEditPage('de-iss');
+      await screen.findByLabelText(/severity/i);
+      expect(document.getElementById('resolution-status')).toBeNull();
+      expect(screen.queryByLabelText(/resolution status/i)).toBeNull();
     });
   });
 
@@ -2037,6 +2045,16 @@ describe('DiaryEntryEditPage', () => {
       expect(payload.metadata).toEqual({ vendor: 'TimberCo' });
     });
 
+    it('a saved issue resends its STORED resolution status unchanged', async () => {
+      const payload = await saveAndGetPayload({
+        ...issueEntry,
+        id: 'rt-iss-ip',
+        status: 'saved',
+        metadata: { severity: 'low', resolutionStatus: 'in_progress' },
+      });
+      expect(payload.metadata).toEqual({ severity: 'low', resolutionStatus: 'in_progress' });
+    });
+
     it('issue: sends severity and resolution status', async () => {
       const payload = await saveAndGetPayload({ ...issueEntry, id: 'rt-iss' });
       expect(payload.metadata).toEqual({ severity: 'high', resolutionStatus: 'open' });
@@ -2070,11 +2088,42 @@ describe('DiaryEntryEditPage', () => {
       expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
     });
 
-    it('issue requires severity and resolution status', async () => {
-      await trySave({ ...issueEntry, id: 'v-iss', metadata: {} });
+    it('a DRAFT issue requires severity and resolution status', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce({
+        ...issueEntry,
+        id: 'v-iss',
+        status: 'draft',
+        metadata: {},
+      });
+      renderEditPage('v-iss');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /^save$/i }));
       expect(await screen.findByText('Severity is required')).toBeInTheDocument();
       expect(screen.getByText('Resolution status is required')).toBeInTheDocument();
+      // (the draft autosave may have PATCHed; the entry is not promoted to a saved entry)
+      expect(
+        mockUpdateDiaryEntry.mock.calls.some(
+          ([, body]) => (body as { status?: string } | undefined)?.status === 'saved',
+        ),
+      ).toBe(false);
+    });
+
+    it('a SAVED issue requires only the severity: resolution status is not validated', async () => {
+      await trySave({ ...issueEntry, id: 'v-iss2', status: 'saved', metadata: {} });
+      expect(await screen.findByText('Severity is required')).toBeInTheDocument();
+      expect(screen.queryByText('Resolution status is required')).toBeNull();
       expect(mockUpdateDiaryEntry).not.toHaveBeenCalled();
+    });
+
+    it('a SAVED issue without a stored resolution status still saves (no required-field block)', async () => {
+      mockUpdateDiaryEntry.mockResolvedValue(issueEntry);
+      await trySave({
+        ...issueEntry,
+        id: 'v-iss3',
+        status: 'saved',
+        metadata: { severity: 'high' },
+      });
+      await waitFor(() => expect(mockUpdateDiaryEntry).toHaveBeenCalled());
+      expect(screen.queryByText('Resolution status is required')).toBeNull();
     });
 
     it('daily_log rejects a work end that is not after the work start', async () => {

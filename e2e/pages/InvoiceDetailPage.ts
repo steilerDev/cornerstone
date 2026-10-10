@@ -1221,7 +1221,7 @@ export class InvoiceDetailPage {
 
   /**
    * Fills the add/edit deposit form. Only provided fields are updated.
-   * For status values other than 'pending', paidDate is required by the submit button.
+   * `status` is add-mode only (#2209). For values other than 'pending', paidDate is required by the submit button.
    */
   async fillDepositForm(data: {
     amount?: string;
@@ -1243,6 +1243,13 @@ export class InvoiceDetailPage {
       await this.depositDueDateInput.fill(data.dueDate);
     }
     if (data.status !== undefined) {
+      // #2209 round 2: the status select exists in ADD mode only. Editing a progress payment
+      // never changes its status; use changeDepositStatus() (the row StatusMenu) instead.
+      if ((await this.depositStatusSelect.count()) === 0) {
+        throw new Error(
+          'fillDepositForm({ status }) is add-only; use changeDepositStatus() for existing payments',
+        );
+      }
       await this.depositStatusSelect.selectOption(data.status);
     }
     if (data.paidDate !== undefined) {
@@ -1286,7 +1293,12 @@ export class InvoiceDetailPage {
       'tbody tr, [class*="mobileCard"]:not([class*="mobileCardList"])',
     );
     const scoped = description === undefined ? rows : rows.filter({ hasText: description });
-    const trigger = scoped.locator('[data-testid^="deposit-status-"]').visible().first();
+    // The Sheet keeps -panel / -option-* / -date-* test ids mounted (hidden) on compact
+    // viewports, so match only the trigger ids.
+    const trigger = scoped
+      .getByTestId(/^deposit-status-(?!.*-(?:panel|backdrop|close|back)$)(?!.*-(?:option|date)-)/)
+      .visible()
+      .first();
     await trigger.waitFor({ state: 'visible' });
     const testId = await trigger.getAttribute('data-testid');
     if (!testId) throw new Error('Deposit status control has no data-testid');

@@ -1,8 +1,12 @@
 /* ---- Chip trigger: the status badge look on a real button ---- */
 
-button.chip {
+.chip {
   composes: badge from '../Badge/Badge.module.css';
   position: relative;
+}
+
+/* Raised specificity so these beat the composed .badge rules (cursor: default, ...). */
+button.chip {
   font-family: inherit;
   cursor: pointer;
 }
@@ -118,6 +122,10 @@ button.plainButton[aria-disabled='true']:hover {
 
 .dateChip {
   composes: chip from '../FilterChipGroup/FilterChipGroup.module.css';
+}
+
+button.dateChip:focus-visible {
+  border-color: var(--color-border-focus);
 }
 
 .chipDate {

@@ -13,6 +13,7 @@ import * as userService from '../services/userService.js';
 import * as sessionService from '../services/sessionService.js';
 import { __resetLedgerForTests } from '../services/statusEventLedger.js';
 import { undoStore } from '../services/undoService.js';
+import { createAutomaticDiaryEntry } from '../services/diaryService.js';
 import type { FastifyInstance } from 'fastify';
 import type { UndoToken } from '@cornerstone/shared';
 
@@ -310,5 +311,100 @@ describe('Undo token on PATCH routes', () => {
       `/api/diary-entries/${created.id}`,
     );
     expect(after.body.metadata.resolutionStatus).toBe('open');
+  });
+
+  it('budget sources: { budgetSource, undo } only when the status changes', async () => {
+    const created = await call<{ budgetSource: { id: string } }>('POST', '/api/budget-sources', {
+      name: 'Bank loan',
+      sourceType: 'bank_loan',
+      totalAmount: 1000,
+    });
+    expect(created.status).toBe(201);
+    const id = created.body.budgetSource.id;
+
+    const quiet = await call<Record<string, unknown>>('PATCH', `/api/budget-sources/${id}`, {
+      name: 'Bank loan 2',
+    });
+    expect(quiet.status).toBe(200);
+    expect(Object.keys(quiet.body)).toEqual(['budgetSource']);
+
+    const loud = await call<Record<string, unknown> & { budgetSource: { status: string } }>(
+      'PATCH',
+      `/api/budget-sources/${id}`,
+      { status: 'exhausted' },
+    );
+    expect(loud.status).toBe(200);
+    expect(Object.keys(loud.body).sort()).toEqual(['budgetSource', 'undo']);
+    expect(loud.body.budgetSource.status).toBe('exhausted');
+    await redeem(expectToken(loud.body.undo));
+    const after = await call<{ budgetSources: { id: string; status: string }[] }>(
+      'GET',
+      '/api/budget-sources',
+    );
+    expect(after.body.budgetSources.find((b) => b.id === id)?.status).toBe('active');
+  });
+
+  it('budget sources: a token cannot be redeemed after the row changed (409), and is then spent', async () => {
+    const created = await call<{ budgetSource: { id: string } }>('POST', '/api/budget-sources', {
+      name: 'Savings',
+      sourceType: 'savings',
+      totalAmount: 500,
+    });
+    const id = created.body.budgetSource.id;
+    const loud = await call<{ undo: UndoToken }>('PATCH', `/api/budget-sources/${id}`, {
+      status: 'exhausted',
+    });
+    await call('PATCH', `/api/budget-sources/${id}`, { status: 'closed' });
+    const res = await call<{ error: { code: string; details: unknown } }>(
+      'POST',
+      `/api/undo/${loud.body.undo.token}`,
+    );
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe('CONFLICT');
+    expect(res.body.error.details).toEqual({ changed: [{ type: 'budget_source', id }] });
+    expect((await call('POST', `/api/undo/${loud.body.undo.token}`)).status).toBe(404);
+  });
+
+  it('diary entries: an automatic entry stays immutable (403) and issues no token', async () => {
+    const autoId = createAutomaticDiaryEntry(
+      app.db,
+      'work_item_status',
+      '2026-08-01',
+      't',
+      'b',
+      null,
+      null,
+    );
+    const res = await call<{ error: { code: string } }>('PATCH', `/api/diary-entries/${autoId}`, {
+      body: 'edited',
+    });
+    expect(res.status).toBe(403);
+    expect(undoStore.snapshots.size).toBe(0);
+  });
+
+  it('diary entries: a signed defect stays immutable (403) and issues no token', async () => {
+    const created = await call<{ id: string }>('POST', '/api/diary-entries', {
+      entryType: 'issue',
+      entryDate: '2026-08-01',
+      body: 'Leak',
+      metadata: {
+        severity: 'low',
+        resolutionStatus: 'open',
+        signatures: [
+          {
+            signerName: 'Signer',
+            signerType: 'self',
+            signatureDataUrl: 'data:image/png;base64,AAAA',
+            signedAt: '2026-08-01T10:00:00.000Z',
+          },
+        ],
+      },
+    });
+    expect(created.status).toBe(201);
+    const res = await call('PATCH', `/api/diary-entries/${created.body.id}`, {
+      metadata: { severity: 'low', resolutionStatus: 'resolved' },
+    });
+    expect(res.status).toBe(403);
+    expect(undoStore.snapshots.size).toBe(0);
   });
 });

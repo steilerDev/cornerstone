@@ -613,7 +613,7 @@ describe('StatusMenu', () => {
         transitions: withDate({ question: 'When did it arrive?' }),
       });
       const trigger = screen.getByTestId('sm');
-      expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+      expect(trigger).toHaveAttribute('aria-haspopup', 'dialog');
       fireEvent.click(trigger);
       expect(screen.getByRole('dialog', { name: 'When did it arrive?' })).toBeInTheDocument();
       expect(screen.queryByTestId('sm-back')).toBeNull();
@@ -727,6 +727,98 @@ describe('StatusMenu', () => {
     it('has no aria-controls while closed', () => {
       renderMenu();
       expect(screen.getByTestId('sm')).not.toHaveAttribute('aria-controls');
+    });
+  });
+
+  describe('aria-haspopup per appearance', () => {
+    it.each(['chip', 'button'] as const)('%s opens a menu', (appearance) => {
+      renderMenu({ appearance });
+      expect(screen.getByTestId('sm')).toHaveAttribute('aria-haspopup', 'menu');
+    });
+
+    it('action that opens the date step announces a dialog', () => {
+      renderMenu({
+        appearance: 'action',
+        actionTo: 'b',
+        transitions: withDate({ question: 'When?' }),
+      });
+      expect(screen.getByTestId('sm')).toHaveAttribute('aria-haspopup', 'dialog');
+    });
+
+    it('action that applies at once has no popup', () => {
+      renderMenu({ appearance: 'action', actionTo: 'b' });
+      expect(screen.getByTestId('sm')).not.toHaveAttribute('aria-haspopup');
+    });
+  });
+
+  describe('Pick a date chip toggles (#2209 UX)', () => {
+    function openStep() {
+      renderMenu({ transitions: withDate({ question: 'When?' }) });
+      open();
+      fireEvent.click(screen.getByTestId('sm-option-b'));
+    }
+
+    it('a second press collapses the field', () => {
+      openStep();
+      const pick = screen.getByTestId('sm-date-pick');
+      fireEvent.click(pick);
+      expect(screen.getByTestId('sm-date-input')).toBeInTheDocument();
+      expect(pick).toHaveAttribute('aria-expanded', 'true');
+      fireEvent.click(pick);
+      expect(screen.queryByTestId('sm-date-input')).toBeNull();
+      expect(pick).toHaveAttribute('aria-expanded', 'false');
+    });
+
+    it('collapsing clears a field error so reopening starts clean', () => {
+      openStep();
+      const pick = screen.getByTestId('sm-date-pick');
+      fireEvent.click(pick);
+      fireEvent.change(screen.getByTestId('sm-date-input'), { target: { value: '2026-08-08' } });
+      fireEvent.click(screen.getByTestId('sm-date-set'));
+      expect(screen.getByText('Pick a date on or before today.')).toBeInTheDocument();
+
+      fireEvent.click(pick);
+      fireEvent.click(pick);
+      expect(screen.queryByText('Pick a date on or before today.')).toBeNull();
+      expect(screen.getByTestId('sm-date-input')).not.toHaveAttribute('aria-invalid');
+    });
+  });
+
+  describe('phone sheet stays mounted (#2209 UX)', () => {
+    beforeEach(() => {
+      desktop = false;
+      installMatchMedia();
+    });
+
+    it('closed: the sheet is inert with no dialog role, but its rows keep their test ids', () => {
+      renderMenu();
+      const panel = screen.getByTestId('sm-panel');
+      expect(panel).toHaveAttribute('inert');
+      expect(panel).not.toHaveAttribute('role');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      // The content is mounted but sits inside the inert panel, so it is not reachable.
+      expect(screen.getByTestId('sm-option-b').closest('[inert]')).toBe(panel);
+    });
+
+    it('open: a dialog while open, and inert again after closing', () => {
+      renderMenu();
+      open();
+      const panel = screen.getByTestId('sm-panel');
+      expect(panel).not.toHaveAttribute('inert');
+      expect(panel).toHaveAttribute('role', 'dialog');
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('sm-panel-close'));
+      expect(screen.getByTestId('sm-panel')).toHaveAttribute('inert');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('sm-option-b')).toBeInTheDocument();
+    });
+
+    it('the desktop popover, in contrast, is not mounted while closed', () => {
+      desktop = true;
+      installMatchMedia();
+      renderMenu();
+      expect(screen.queryByTestId('sm-panel')).toBeNull();
+      expect(screen.queryByTestId('sm-option-b')).toBeNull();
     });
   });
 

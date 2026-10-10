@@ -144,11 +144,6 @@
       "other": "Sonstiges",
       "discretionary": "Diskretionär"
     },
-    "sourceStatus": {
-      "active": "Aktiv",
-      "exhausted": "Erschöpft",
-      "closed": "Geschlossen"
-    },
     "barChart": {
       "claimed": "Eingereicht",
       "paidUnclaimed": "Bezahlt",

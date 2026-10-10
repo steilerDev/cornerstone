@@ -43,8 +43,15 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
 }));
 
 // Mock ToastContext to avoid dual-React instance issues
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
   ToastProvider: ({ children }: { children: unknown }) => children,
 }));
 
@@ -255,6 +262,8 @@ describe('DiaryEntryDetailPage', () => {
     }
     mockGetDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
     mockFetchDeleteImpact.mockReset();
     mockFetchDeleteImpact.mockResolvedValue({ entityType: 'diary_entry', id: 'de-1', effects: [] });
     photosState.photos = [];
@@ -1208,5 +1217,152 @@ describe('DiaryEntryDetailPage', () => {
     // Mutation: navigate(...) without replace logs PUSH and keeps the deleted entry in history.
     await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
     expect(log.entries).toEqual(['/diary', '/diary']);
+  });
+
+  // ─── Defect status menu (#2209 round 2) ──────────────────────────────────────
+
+  describe('defect status menu', () => {
+    const TOKEN = { token: `u_${'9'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    const defect = (over: Partial<DiaryEntryDetail> = {}): DiaryEntryDetail => ({
+      ...baseDetail,
+      entryType: 'issue',
+      title: 'Crack in wall',
+      metadata: { severity: 'high', resolutionStatus: 'open', location: 'East wall' },
+      ...over,
+    });
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+    const respond = (body: unknown) =>
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    async function load(entry: DiaryEntryDetail) {
+      mockGetDiaryEntry.mockResolvedValue(entry);
+      renderDetailPage();
+      await screen.findByText(entry.title ?? entry.body);
+    }
+
+    it('an open defect shows the defect-status menu chip, once (the summary badge is hidden)', async () => {
+      await load(defect());
+      const chip = screen.getByTestId('defect-status');
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Open');
+      expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+      expect(screen.getByTestId('severity-high')).toBeInTheDocument();
+    });
+
+    it('lists only the allowed transitions', async () => {
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      expect(rows()).toEqual(['Mark being fixed', 'Mark fixed']);
+    });
+
+    it('Mark fixed PATCHes the whole metadata with only resolutionStatus changed, and offers Undo', async () => {
+      respond({
+        ...defect({
+          metadata: { severity: 'high', resolutionStatus: 'resolved', location: 'East wall' },
+        }),
+        undo: TOKEN,
+      });
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite()).toEqual({
+        url: '/api/diary-entries/de-1',
+        method: 'PATCH',
+        body: {
+          metadata: { severity: 'high', resolutionStatus: 'resolved', location: 'East wall' },
+        },
+      });
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: 'Crack in wall is now “Fixed”.',
+        dedupeKey: 'diary_entry:de-1',
+      });
+      await waitFor(() => expect(screen.getByTestId('defect-status')).toHaveTextContent('Fixed'));
+    });
+
+    it('Undo posts the token and reloads the entry', async () => {
+      respond({ ...defect(), undo: TOKEN });
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockGetDiaryEntry.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockGetDiaryEntry.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('defect-status')).toHaveTextContent('Open');
+    });
+
+    it('a signed, saved defect is locked: a plain Badge, no menu', async () => {
+      await load(defect({ isSigned: true, status: 'saved' }));
+      const chip = screen.getByTestId('defect-status');
+      expect(chip.tagName).toBe('SPAN');
+      expect(chip).toHaveTextContent('Open');
+      expect(screen.queryByRole('menuitem')).toBeNull();
+    });
+
+    it('an automatic defect is locked: a plain Badge, no menu', async () => {
+      await load(defect({ isAutomatic: true }));
+      expect(screen.getByTestId('defect-status').tagName).toBe('SPAN');
+      expect(screen.queryByRole('menuitem')).toBeNull();
+    });
+
+    it('a signed DRAFT is not locked (the signature lock applies to saved entries)', async () => {
+      await load(defect({ isSigned: true, status: 'draft' }));
+      expect(screen.getByTestId('defect-status').tagName).toBe('BUTTON');
+    });
+
+    it('non-issue entries render no defect menu', async () => {
+      await load({ ...baseDetail, entryType: 'daily_log', metadata: { weather: 'sunny' } });
+      expect(screen.queryByTestId('defect-status')).toBeNull();
+      expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+    });
+
+    it('an issue without a stored resolution status renders no defect status', async () => {
+      await load(defect({ metadata: { severity: 'low' } }));
+      expect(screen.queryByTestId('defect-status')).toBeNull();
+    });
   });
 });

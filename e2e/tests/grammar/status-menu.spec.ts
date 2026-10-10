@@ -17,6 +17,8 @@
  *   8. Surface is the Sheet below 1024 px and a popover above; Escape returns focus to the chip
  *   9. Keyboard only: Enter opens, ArrowDown + Enter picks, Today applies, focus never on body
  *  10. Pick rejects a future date (inline error, no request)
+ *  11. Grant Mark approved + Undo; 12. Funding source Mark used up + Undo
+ *  13. Defect Mark fixed + Undo on the detail page; a signed defect is a plain badge
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -26,6 +28,11 @@ import { HouseholdItemDetailPage } from '../../pages/HouseholdItemDetailPage.js'
 import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { ToastRegion } from '../../pages/components/ToastRegion.js';
+import { StatusMenuControl } from '../../pages/components/StatusMenuControl.js';
+import { SubsidyProgramsPage } from '../../pages/SubsidyProgramsPage.js';
+import { BudgetSourcesPage } from '../../pages/BudgetSourcesPage.js';
+import { DiaryEntryDetailPage } from '../../pages/DiaryEntryDetailPage.js';
+import { DiaryEntryEditPage } from '../../pages/DiaryEntryEditPage.js';
 import { API } from '../../fixtures/testData.js';
 import {
   createWorkItemViaApi,
@@ -36,6 +43,12 @@ import {
   deleteMilestoneViaApi,
   createVendorViaApi,
   deleteVendorViaApi,
+  createSubsidyProgramViaApi,
+  deleteSubsidyProgramViaApi,
+  createBudgetSourceViaApi,
+  deleteBudgetSourceViaApi,
+  createDiaryEntryViaApi,
+  deleteDiaryEntryViaApi,
 } from '../../fixtures/apiHelpers.js';
 
 /** Today as YYYY-MM-DD in the browser's local time (what the StatusMenu "Today" chip sends). */
@@ -303,8 +316,8 @@ test.describe('StatusMenu — invoice and progress payment', { tag: '@responsive
       await detail.statusMenu.option('paid').click();
 
       // AC3: there is no date step for an invoice
-      await expect(detail.statusMenu.dateToday).toHaveCount(0);
-      await expect(detail.statusMenu.datePick).toHaveCount(0);
+      await expect(detail.statusMenu.dateToday).toBeHidden();
+      await expect(detail.statusMenu.datePick).toBeHidden();
       await expect(detail.statusMenu.trigger).toHaveText('Paid');
 
       const resp = await page.request.get(`${API.vendors}/${vendorId}/invoices/${invoiceId}`);
@@ -385,8 +398,10 @@ test.describe('StatusMenu — surface, keyboard and validation', { tag: '@respon
         await expect(detail.statusMenu.panel).toHaveAttribute('role', 'dialog');
         await expect(detail.statusMenu.panel).toHaveAttribute('data-open', 'true');
       } else {
-        await expect(detail.statusMenu.panel).toHaveAttribute('role', 'menu');
+        await expect(detail.statusMenu.panel.getByRole('menu')).toBeVisible();
       }
+      // Rows are only reachable inside the open surface (the compact Sheet stays mounted)
+      await expect(detail.statusMenu.panel.getByRole('menu')).toBeVisible();
       await expect(detail.statusMenu.trigger).toHaveAttribute('aria-expanded', 'true');
 
       await page.keyboard.press('Escape');
@@ -481,6 +496,157 @@ test.describe('StatusMenu — surface, keyboard and validation', { tag: '@respon
       expect((await fetchWorkItem(page, id)).status).toBe('not_started');
     } finally {
       await deleteWorkItemViaApi(page, id);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenarios 11-13 (Round 2): grants, funding sources and defects
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('StatusMenu — grant, funding source and defect', { tag: '@responsive' }, () => {
+  test('Grant: Applied > Mark approved shows an Undo toast and Undo restores Applied', async ({
+    page,
+    testPrefix,
+  }) => {
+    const grants = new SubsidyProgramsPage(page);
+    const toasts = new ToastRegion(page);
+    const name = `${testPrefix} Sample Energy Grant`;
+    const id = await createSubsidyProgramViaApi(page, {
+      name,
+      reductionValue: 10,
+      applicationStatus: 'applied',
+    });
+
+    try {
+      await grants.goto();
+      await grants.waitForProgramsLoaded();
+      const menu = new StatusMenuControl(page, `grant-status-${id}`);
+      await expect(menu.trigger).toHaveText('Applied');
+
+      // No date step: the move applies at once
+      await menu.pickRow('approved');
+      await expect(menu.trigger).toHaveText('Approved');
+      await expect(toasts.undoToastWith(`${name} is now “Approved”.`)).toBeVisible();
+
+      await toasts.undoViaButton();
+      await expect(menu.trigger).toHaveText('Applied');
+
+      const resp = await page.request.get(`${API.subsidyPrograms}/${id}`);
+      const body = (await resp.json()) as { subsidyProgram: { applicationStatus: string } };
+      expect(body.subsidyProgram.applicationStatus).toBe('applied');
+    } finally {
+      await deleteSubsidyProgramViaApi(page, id);
+    }
+  });
+
+  test('Funding source: Active > Mark used up shows an Undo toast and Undo restores Active', async ({
+    page,
+    testPrefix,
+  }) => {
+    const sources = new BudgetSourcesPage(page);
+    const toasts = new ToastRegion(page);
+    const name = `${testPrefix} Sample Savings`;
+    const id = await createBudgetSourceViaApi(page, { name, totalAmount: 20000 });
+
+    try {
+      await sources.goto();
+      await sources.waitForSourcesLoaded();
+      const menu = new StatusMenuControl(page, `funding-source-status-${id}`);
+      await expect(menu.trigger).toHaveText('Active');
+
+      await menu.pickRow('exhausted');
+      await expect(menu.trigger).toHaveText('Used up');
+      await expect(toasts.undoToastWith(`${name} is now “Used up”.`)).toBeVisible();
+
+      await toasts.undoViaButton();
+      await expect(menu.trigger).toHaveText('Active');
+
+      const resp = await page.request.get(`${API.budgetSources}/${id}`);
+      const body = (await resp.json()) as { budgetSource: { status: string } };
+      expect(body.budgetSource.status).toBe('active');
+    } finally {
+      await deleteBudgetSourceViaApi(page, id);
+    }
+  });
+
+  test('Defect: a saved defect changes status from the detail page (Mark fixed, Undo); the edit page has no status select', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detail = new DiaryEntryDetailPage(page);
+    const edit = new DiaryEntryEditPage(page);
+    const toasts = new ToastRegion(page);
+    const id = await createDiaryEntryViaApi(page, {
+      entryType: 'issue',
+      entryDate: '2026-03-14',
+      title: `${testPrefix} Sample Leaking Pipe`,
+      body: 'Synthetic defect',
+      metadata: { severity: 'medium', resolutionStatus: 'open' },
+    });
+
+    try {
+      await detail.goto(id);
+      await expect(detail.loaded).toBeVisible();
+      const menu = new StatusMenuControl(page, 'defect-status');
+      await expect(menu.trigger).toHaveText('Open');
+
+      await menu.pickRow('resolved');
+      await expect(menu.trigger).toHaveText('Fixed');
+      await expect(toasts.undoToastWith('is now “Fixed”.')).toBeVisible();
+
+      await toasts.undoViaButton();
+      await expect(menu.trigger).toHaveText('Open');
+
+      // The saved-entry edit form no longer carries a status select
+      await edit.goto(id);
+      await expect(edit.heading).toBeVisible();
+      await expect(edit.resolutionStatusSelect).toHaveCount(0);
+    } finally {
+      await deleteDiaryEntryViaApi(page, id);
+    }
+  });
+
+  test('Defect: a signed (locked) defect shows a plain badge, not a menu', async ({
+    page,
+    testPrefix,
+  }) => {
+    const detail = new DiaryEntryDetailPage(page);
+    const id = await createDiaryEntryViaApi(page, {
+      entryType: 'issue',
+      entryDate: '2026-03-14',
+      title: `${testPrefix} Sample Signed Defect`,
+      body: 'Synthetic signed defect',
+      metadata: { severity: 'low', resolutionStatus: 'open' },
+    });
+
+    try {
+      // Serve the real entry as signed, so the page treats it as locked
+      const real = await page.request.get(`${API.diaryEntries}/${id}`);
+      const entry = (await real.json()) as Record<string, unknown>;
+      await page.route(`${API.diaryEntries}/${id}`, async (route) => {
+        if (route.request().method() === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({ ...entry, isSigned: true, status: 'saved' }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      await detail.goto(id);
+      await expect(detail.loaded).toBeVisible();
+
+      const badge = page.getByTestId('defect-status');
+      await expect(badge).toHaveText('Open');
+      await expect(badge).not.toHaveAttribute('aria-haspopup', /.+/);
+      expect(await badge.evaluate((el) => el.tagName)).not.toBe('BUTTON');
+      await expect(page.getByTestId('defect-status-option-resolved')).toBeHidden();
+    } finally {
+      await page.unroute(`${API.diaryEntries}/${id}`);
+      await deleteDiaryEntryViaApi(page, id);
     }
   });
 });

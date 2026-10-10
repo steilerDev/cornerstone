@@ -17,6 +17,7 @@ import { UNDO_WINDOW_MS } from '@cornerstone/shared';
 import type { UndoResponse, UndoRow, UndoSubjectType, UndoToken } from '@cornerstone/shared';
 import type * as schemaTypes from '../db/schema.js';
 import {
+  budgetSources,
   diaryEntries,
   householdItems,
   invoiceDeposits,
@@ -85,6 +86,12 @@ const SUBJECTS: Record<UndoSubjectType, SubjectConfig> = {
     idColumn: subsidyPrograms.id,
     tracked: ['applicationStatus', 'updatedAt'],
     statusColumns: ['applicationStatus'],
+  },
+  budget_source: {
+    table: budgetSources,
+    idColumn: budgetSources.id,
+    tracked: ['status', 'updatedAt'],
+    statusColumns: ['status'],
   },
   diary_entry: {
     table: diaryEntries,

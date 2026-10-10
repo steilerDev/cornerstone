@@ -174,11 +174,6 @@
     },
     "resolutionStatus": "Lösungsstatus",
     "resolutionStatusRequired": "Lösungsstatus ist erforderlich",
-    "resolutionOptions": {
-      "open": "Offen",
-      "in_progress": "In Bearbeitung",
-      "resolved": "Gelöst"
-    },
     "signatures": "Unterschriften",
     "addSignatureButton": "Unterschrift hinzufügen",
     "photos": "Fotos",
@@ -204,11 +199,7 @@
     "workStart": "Beginn:",
     "workEnd": "Ende:",
     "materials": "Materialien",
-    "severity": "Schweregrad",
-    "resolutionStatus": "Lösungsstatus",
-    "resolutionStatusOpen": "🔴 Offen",
-    "resolutionStatusInProgress": "🟡 In Bearbeitung",
-    "resolutionStatusResolved": "✅ Gelöst"
+    "severity": "Schweregrad"
   },
   "entryTypeBadge": {
     "ariaLabel": "Eintragstyp: {{type}}"

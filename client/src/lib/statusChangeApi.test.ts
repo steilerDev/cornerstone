@@ -5,6 +5,9 @@ import {
   milestoneStatusBody,
   invoiceStatusBody,
   depositStatusBody,
+  changeDefectStatus,
+  changeFundingSourceStatus,
+  changeGrantStatus,
   changeWorkItemStatus,
   changeHouseholdItemStatus,
   changeMilestoneStatus,
@@ -197,5 +200,63 @@ describe('status change requests', () => {
   it('changeDepositStatus reports undo null when absent', async () => {
     respond({ deposit: { id: 'd1' } });
     expect((await changeDepositStatus('i1', 'd1', { status: 'pending' })).undo).toBeNull();
+  });
+
+  it('changeGrantStatus PATCHes applicationStatus and unwraps subsidyProgram + undo', async () => {
+    respond({ subsidyProgram: { id: 'g1', applicationStatus: 'approved' }, undo: TOKEN });
+    const result = await changeGrantStatus('g1', 'approved');
+    expect(lastCall()).toEqual({
+      url: '/api/subsidy-programs/g1',
+      method: 'PATCH',
+      body: { applicationStatus: 'approved' },
+    });
+    expect(result).toEqual({ record: { id: 'g1', applicationStatus: 'approved' }, undo: TOKEN });
+  });
+
+  it('changeGrantStatus reports undo null when absent', async () => {
+    respond({ subsidyProgram: { id: 'g1' } });
+    expect((await changeGrantStatus('g1', 'applied')).undo).toBeNull();
+  });
+
+  it('changeFundingSourceStatus PATCHes status and unwraps budgetSource + undo', async () => {
+    respond({ budgetSource: { id: 'b1', status: 'exhausted' }, undo: TOKEN });
+    const result = await changeFundingSourceStatus('b1', 'exhausted');
+    expect(lastCall()).toEqual({
+      url: '/api/budget-sources/b1',
+      method: 'PATCH',
+      body: { status: 'exhausted' },
+    });
+    expect(result).toEqual({ record: { id: 'b1', status: 'exhausted' }, undo: TOKEN });
+  });
+
+  it('changeFundingSourceStatus reports undo null when absent', async () => {
+    respond({ budgetSource: { id: 'b1' } });
+    expect((await changeFundingSourceStatus('b1', 'closed')).undo).toBeNull();
+  });
+
+  it('changeDefectStatus sends the whole metadata back with only resolutionStatus changed', async () => {
+    respond({
+      id: 'e1',
+      metadata: { severity: 'high', resolutionStatus: 'resolved' },
+      undo: TOKEN,
+    });
+    const result = await changeDefectStatus(
+      { id: 'e1', metadata: { severity: 'high', resolutionStatus: 'open', location: 'Roof' } },
+      'resolved',
+    );
+    expect(lastCall()).toEqual({
+      url: '/api/diary-entries/e1',
+      method: 'PATCH',
+      body: { metadata: { severity: 'high', resolutionStatus: 'resolved', location: 'Roof' } },
+    });
+    expect(result.undo).toEqual(TOKEN);
+    expect('undo' in result.record).toBe(false);
+  });
+
+  it('changeDefectStatus works for an entry whose metadata is null', async () => {
+    respond({ id: 'e1', metadata: { resolutionStatus: 'open' } });
+    const result = await changeDefectStatus({ id: 'e1', metadata: null }, 'open');
+    expect(lastCall().body).toEqual({ metadata: { resolutionStatus: 'open' } });
+    expect(result.undo).toBeNull();
   });
 });

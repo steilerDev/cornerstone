@@ -952,6 +952,86 @@ describe('grammar foundations contrast (#2209)', () => {
   );
 });
 
+describe('grant, funding-source and defect badge classes (#2209 round 2)', () => {
+  const badge = readCss('components', 'Badge', 'Badge.module.css');
+  const CLASSES = [
+    '.grantEligible',
+    '.grantApplied',
+    '.grantApproved',
+    '.grantReceived',
+    '.grantRejected',
+    '.fundingActive',
+    '.fundingExhausted',
+    '.fundingClosed',
+    '.defectOpen',
+    '.defectInProgress',
+    '.defectFixed',
+  ];
+  const TOKEN = /^var\((--[\w-]+)\)$/;
+
+  /** Opaque hex of a background token; translucent ones are composited over the card surface. */
+  function backgroundHex(theme: Theme, token: string): string {
+    const raw = tokens[theme].get(token) ?? '';
+    return raw.startsWith('rgba(')
+      ? compositeOver(theme, token, '--color-bg-primary')
+      : resolve(theme, token);
+  }
+
+  it('defines exactly the 11 classes the spec lists, each with a token-only colour pair', () => {
+    for (const selector of CLASSES) {
+      const decls = ruleFor(badge, selector);
+      expect(decls.get('background-color')).toMatch(TOKEN);
+      expect(decls.get('color')).toMatch(TOKEN);
+    }
+  });
+
+  it.each(CLASSES.flatMap((c) => (['light', 'dark'] as const).map((t) => [c, t] as const)))(
+    '%s text on its background is at least 4.5:1 in %s',
+    (selector, theme) => {
+      const decls = ruleFor(badge, selector);
+      const bg = TOKEN.exec(decls.get('background-color') ?? '')![1]!;
+      const fg = TOKEN.exec(decls.get('color') ?? '')![1]!;
+      expect(ratio(resolve(theme, fg), backgroundHex(theme, bg))).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it('keeps the moved pairs unchanged (no visual change)', () => {
+    const pair = (selector: string) => {
+      const d = ruleFor(badge, selector);
+      return [d.get('background-color'), d.get('color')];
+    };
+    expect(pair('.grantEligible')).toEqual([
+      'var(--color-status-in-progress-bg)',
+      'var(--color-status-in-progress-text)',
+    ]);
+    expect(pair('.grantRejected')).toEqual([
+      'var(--color-status-blocked-bg)',
+      'var(--color-status-blocked-text)',
+    ]);
+    expect(pair('.grantApproved')).toEqual([
+      'var(--color-success-badge-bg)',
+      'var(--color-success-badge-text)',
+    ]);
+    expect(pair('.fundingActive')).toEqual([
+      'var(--color-success-badge-bg-alt)',
+      'var(--color-success-badge-text)',
+    ]);
+  });
+
+  it('defect colours reuse the blocked / in-progress / completed pairs (R2-D4)', () => {
+    const pair = (selector: string) => {
+      const d = ruleFor(badge, selector);
+      return [d.get('background-color'), d.get('color')];
+    };
+    expect(pair('.defectOpen')).toEqual(pair('.grantRejected'));
+    expect(pair('.defectInProgress')).toEqual(pair('.grantEligible'));
+    expect(pair('.defectFixed')).toEqual([
+      'var(--color-status-completed-bg)',
+      'var(--color-status-completed-text)',
+    ]);
+  });
+});
+
 describe('grammar foundations rule pins (#2209)', () => {
   const statusMenu = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
 
@@ -1064,6 +1144,61 @@ describe('grammar foundations rule pins (#2209)', () => {
         expect(tokens[theme].has('--color-danger-bg')).toBe(true);
         expect(tokens[theme].has('--color-bg-tertiary')).toBe(true);
       }
+    });
+  });
+
+  describe('#2209 UX review pins', () => {
+    const cssText = (...segments: string[]) =>
+      stripComments(fs.readFileSync(path.join(srcDir, ...segments), 'utf8'));
+
+    it('StatusMenu .chip composes the plain badge class; button.chip composes nothing (build fix)', () => {
+      const rules = readCss('components', 'StatusMenu', 'StatusMenu.module.css');
+      expect(ruleFor(rules, '.chip').get('composes')).toBe(
+        "badge from '../Badge/Badge.module.css'",
+      );
+      const raised = ruleFor(rules, 'button.chip');
+      expect(raised.has('composes')).toBe(false);
+      expect(raised.get('cursor')).toBe('pointer');
+      expect(raised.get('font-family')).toBe('inherit');
+    });
+
+    it('ConfirmDialog buttons are at least --touch-target-min high at <=1023px', () => {
+      const css = cssText('components', 'ConfirmDialog', 'ConfirmDialog.module.css');
+      const media = /@media\s*\(max-width:\s*1023px\)\s*\{([\s\S]*?)\n\}/.exec(css);
+      expect(media).not.toBeNull();
+      const rule = parseRules(media?.[1] ?? '').find((r) =>
+        ['.cancelButton', '.confirmButton', '.retryButton'].every((sel) =>
+          r.selectors.includes(sel),
+        ),
+      );
+      expect(rule?.decls.get('min-height')).toBe('var(--touch-target-min)');
+    });
+
+    it('the date chip gets the focus border colour on :focus-visible', () => {
+      const decls = ruleFor(
+        readCss('components', 'StatusMenu', 'StatusMenu.module.css'),
+        'button.dateChip:focus-visible',
+      );
+      expect(decls.get('border-color')).toBe('var(--color-border-focus)');
+    });
+
+    it('the Toast container has no gap; the regions are spaced only when both have content', () => {
+      const rules = readCss('components', 'Toast', 'Toast.module.css');
+      expect(ruleFor(rules, '.container').has('gap')).toBe(false);
+      expect(ruleFor(rules, '.region:not(:empty) + .region:not(:empty)').get('margin-top')).toBe(
+        'var(--spacing-3)',
+      );
+      expect(ruleFor(rules, '.region').get('gap')).toBe('var(--spacing-3)');
+    });
+
+    it('a busy (aria-disabled) Modal close button is dimmed, not-allowed and has no hover wash', () => {
+      const rules = readCss('components', 'Modal', 'Modal.module.css');
+      const busy = ruleFor(rules, ".closeButton[aria-disabled='true']");
+      expect(busy.get('opacity')).toBe('0.5');
+      expect(busy.get('cursor')).toBe('not-allowed');
+      const hover = ruleFor(rules, ".closeButton[aria-disabled='true']:hover");
+      expect(hover.get('background')).toBe('transparent');
+      expect(hover.get('color')).toBe('var(--color-text-muted)');
     });
   });
 

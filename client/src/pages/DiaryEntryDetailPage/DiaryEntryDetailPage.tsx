@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type {
   DiaryEntryDetail,
+  DiaryIssueResolution,
   DiarySignatureEntry,
   DiarySourceEntityType,
 } from '@cornerstone/shared';
@@ -24,6 +25,11 @@ import { PhotoViewer } from '../../components/photos/PhotoViewer.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { defectTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeDefectStatus } from '../../lib/statusChangeApi.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
@@ -46,6 +52,8 @@ export default function DiaryEntryDetailPage() {
   const { t: tErrors } = useTranslation('errors');
   const { t: tc } = useTranslation('common');
   const { showToast } = useToast();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const { user: _user } = useAuth();
   const [_vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
 
@@ -112,6 +120,9 @@ export default function DiaryEntryDetailPage() {
   }, [id, t, tErrors]);
 
   const displayTitle = useDiaryEntryTitle(entry);
+  const resolutionStatus =
+    (entry?.metadata as { resolutionStatus?: DiaryIssueResolution | null } | null)
+      ?.resolutionStatus ?? null;
   const originState = useOriginState(displayTitle);
   const backToDiary = tc('navigation.backTo', { origin: tc('navigation.siteDiary') });
   const h1Text = isLoading
@@ -245,7 +256,34 @@ export default function DiaryEntryDetailPage() {
 
         {entry.metadata && Object.keys(entry.metadata).length > 0 && (
           <div className={styles.metadataSection}>
-            <DiaryMetadataSummary entryType={entry.entryType} metadata={entry.metadata} />
+            <DiaryMetadataSummary
+              entryType={entry.entryType}
+              metadata={entry.metadata}
+              hideResolution={entry.entryType === 'issue'}
+            />
+            {entry.entryType === 'issue' && resolutionStatus && (
+              <StatusMenu
+                transitions={defectTransitions(tc, {
+                  resolutionStatus,
+                  locked: isDiaryEntrySignatureLocked(entry) || entry.isAutomatic,
+                })}
+                badge={{ variants: statusVariants.defect, value: resolutionStatus }}
+                currentLabel={statusVariants.defect[resolutionStatus].label}
+                testId="defect-status"
+                onApply={(to) =>
+                  runStatusChange({
+                    request: () => changeDefectStatus(entry, to),
+                    recordName: displayTitle ?? '',
+                    statusLabel: statusVariants.defect[to].label,
+                    dedupeKey: `diary_entry:${entry.id}`,
+                    onChanged: (record) => setEntry(record),
+                    onUndone: async () => {
+                      if (id) setEntry(await getDiaryEntry(id));
+                    },
+                  })
+                }
+              />
+            )}
           </div>
         )}
 

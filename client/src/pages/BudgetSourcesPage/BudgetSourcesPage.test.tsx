@@ -1,8 +1,8 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { screen, waitFor, render, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
@@ -67,8 +67,16 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
 
 // ─── Mock: ToastContext — provides useToast() hook without a real ToastProvider ───
 
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -160,6 +168,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -249,6 +258,8 @@ describe('BudgetSourcesPage', () => {
     mockFetchBudgetSource.mockReset();
     mockCreateBudgetSource.mockReset();
     mockUpdateBudgetSource.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
     mockDeleteBudgetSource.mockReset();
     mockFetchDeleteImpact.mockReset();
     mockFetchDeleteImpact.mockResolvedValue({
@@ -527,7 +538,8 @@ describe('BudgetSourcesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Active')).toBeInTheDocument();
-        expect(screen.getByText('Exhausted')).toBeInTheDocument();
+        expect(screen.getByText('Used up')).toBeInTheDocument();
+        expect(screen.queryByText('Exhausted')).toBeNull();
         expect(screen.getByText('Closed')).toBeInTheDocument();
       });
     });
@@ -971,6 +983,139 @@ describe('BudgetSourcesPage', () => {
       expect(optionValues).toContain('active');
       expect(optionValues).toContain('exhausted');
       expect(optionValues).toContain('closed');
+      // Labels come from the canonical vocabulary
+      expect(Array.from(options).map((o) => o.textContent)).toEqual([
+        'Active',
+        'Used up',
+        'Closed',
+      ]);
+    });
+  });
+
+  // ─── Row StatusMenu (#2209 round 2) ────────────────────────────────────────────
+
+  describe('funding source status menu', () => {
+    const TOKEN = { token: `u_${'8'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+    const respond = (body: unknown) =>
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockFetchBudgetSources.mockResolvedValue(listResponse);
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    it('each row renders a StatusMenu chip with its own test id and canonical label', async () => {
+      renderPage();
+      const chip = await screen.findByTestId(`funding-source-status-${sampleSource1.id}`);
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Active');
+    });
+
+    it('an active source offers Mark used up and Mark closed; a closed one only the way back', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [
+          { ...sampleSource1, id: 'a1', name: 'A', status: 'active' },
+          { ...sampleSource1, id: 'c1', name: 'C', status: 'closed' },
+        ],
+      });
+      renderPage();
+      fireEvent.click(await screen.findByTestId('funding-source-status-a1'));
+      expect(rows()).toEqual(['Mark used up', 'Mark closed']);
+      fireEvent.click(screen.getByTestId('funding-source-status-a1'));
+      fireEvent.click(screen.getByTestId('funding-source-status-c1'));
+      expect(rows()).toEqual(['Back to “Active”']);
+    });
+
+    it('Mark used up PATCHes status, updates the row in place and offers Undo', async () => {
+      respond({ budgetSource: { ...sampleSource1, status: 'exhausted' }, undo: TOKEN });
+      renderPage();
+      const id = sampleSource1.id;
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${id}`));
+      const loadsBefore = mockFetchBudgetSources.mock.calls.length;
+      fireEvent.click(screen.getByTestId(`funding-source-status-${id}-option-exhausted`));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite()).toEqual({
+        url: `/api/budget-sources/${id}`,
+        method: 'PATCH',
+        body: { status: 'exhausted' },
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId(`funding-source-status-${id}`)).toHaveTextContent('Used up'),
+      );
+      // the PATCH response replaces the row: no list reload on change
+      expect(mockFetchBudgetSources.mock.calls.length).toBe(loadsBefore);
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: `${sampleSource1.name} is now “Used up”.`,
+        dedupeKey: `budget_source:${id}`,
+      });
+    });
+
+    it('Undo posts the token and reloads the list', async () => {
+      respond({ budgetSource: { ...sampleSource1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${sampleSource1.id}`));
+      fireEvent.click(
+        screen.getByTestId(`funding-source-status-${sampleSource1.id}-option-closed`),
+      );
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockFetchBudgetSources.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockFetchBudgetSources.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${sampleSource1.id}`));
+      fireEvent.click(
+        screen.getByTestId(`funding-source-status-${sampleSource1.id}-option-closed`),
+      );
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+    });
+
+    it('the inline edit form has no status select and its payload carries no status', async () => {
+      mockUpdateBudgetSource.mockResolvedValueOnce({ ...sampleSource1 });
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /edit home loan/i }));
+      expect(screen.queryByLabelText(/^status/i)).toBeNull();
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateBudgetSource).toHaveBeenCalledTimes(1));
+      const body = mockUpdateBudgetSource.mock.calls[0]![1] as Record<string, unknown>;
+      expect('status' in body).toBe(false);
     });
   });
 

@@ -170,7 +170,8 @@ describe('InvoiceDepositFormModal', () => {
       expect(document.getElementById('deposit-dueDate')).toHaveValue('2026-02-01');
       expect(document.getElementById('deposit-paidDate')).toHaveValue('2026-02-10');
       expect(document.getElementById('deposit-claimedDate')).toHaveValue('2026-02-11');
-      expect(document.getElementById('deposit-status')).toHaveValue('claimed');
+      // Status is add-only: existing entries change status from the status menu.
+      expect(document.getElementById('deposit-status')).toBeNull();
       expect(document.getElementById('deposit-budgetSource')).toHaveValue('src-1');
       expect(document.getElementById('deposit-description')).toHaveValue('Initial');
       expect(screen.getAllByRole('radio').every((r) => (r as HTMLInputElement).disabled)).toBe(
@@ -337,11 +338,95 @@ describe('InvoiceDepositFormModal', () => {
       expect(mockUpdateDeposit).toHaveBeenCalledWith('inv-1', 'dep-1', {
         amount: 600,
         dueDate: '2026-02-01',
-        status: 'pending',
         description: 'Initial',
         budgetSourceId: 'src-1',
       });
+      const body = mockUpdateDeposit.mock.calls[0]![2] as Record<string, unknown>;
+      expect('status' in body).toBe(false);
       expect(mockCreateDeposit).not.toHaveBeenCalled();
+    });
+
+    describe('edit payload follows the current status (A1)', () => {
+      async function saveEdit(deposit: InvoiceDeposit) {
+        mockUpdateDeposit.mockResolvedValue({ deposit });
+        const { onSaved } = renderModal({ mode: 'edit', deposit });
+        submitForm();
+        await waitFor(() => expect(onSaved).toHaveBeenCalled());
+        return mockUpdateDeposit.mock.calls[0]![2] as Record<string, unknown>;
+      }
+
+      it('a pending deposit sends no dates and no status', async () => {
+        const body = await saveEdit(makeDeposit({ status: 'pending' }));
+        expect('status' in body).toBe(false);
+        expect('paidDate' in body).toBe(false);
+        expect('claimedDate' in body).toBe(false);
+      });
+
+      it('a paid deposit sends only paidDate (a date correction, no status)', async () => {
+        const body = await saveEdit(makeDeposit({ status: 'paid', paidDate: '2026-02-10' }));
+        expect('status' in body).toBe(false);
+        expect(body.paidDate).toBe('2026-02-10');
+        expect('claimedDate' in body).toBe(false);
+      });
+
+      it('a claimed deposit sends paidDate and claimedDate, still no status', async () => {
+        const body = await saveEdit(
+          makeDeposit({ status: 'claimed', paidDate: '2026-02-10', claimedDate: '2026-02-11' }),
+        );
+        expect('status' in body).toBe(false);
+        expect(body.paidDate).toBe('2026-02-10');
+        expect(body.claimedDate).toBe('2026-02-11');
+      });
+
+      it('a corrected paid date is what gets sent', async () => {
+        mockUpdateDeposit.mockResolvedValue({ deposit: makeDeposit({ status: 'paid' }) });
+        const { onSaved } = renderModal({
+          mode: 'edit',
+          deposit: makeDeposit({ status: 'paid', paidDate: '2026-02-10' }),
+        });
+        fireEvent.change(document.getElementById('deposit-paidDate')!, {
+          target: { value: '2026-02-12' },
+        });
+        submitForm();
+        await waitFor(() => expect(onSaved).toHaveBeenCalled());
+        expect((mockUpdateDeposit.mock.calls[0]![2] as { paidDate: string }).paidDate).toBe(
+          '2026-02-12',
+        );
+      });
+
+      it('shows the date fields that match the stored status', () => {
+        const { unmount } = renderModal({
+          mode: 'edit',
+          deposit: makeDeposit({ status: 'pending' }),
+        });
+        expect(
+          document.getElementById('deposit-paidDate')!.closest('[class*="Hidden"]'),
+        ).not.toBeNull();
+        unmount();
+        renderModal({
+          mode: 'edit',
+          deposit: makeDeposit({ status: 'paid', paidDate: '2026-02-10' }),
+        });
+        expect(
+          document.getElementById('deposit-paidDate')!.closest('[class*="Hidden"]'),
+        ).toBeNull();
+        expect(
+          document.getElementById('deposit-claimedDate')!.closest('[class*="Hidden"]'),
+        ).not.toBeNull();
+      });
+
+      it('add mode keeps the status select (an initial status may be set on create)', () => {
+        renderModal();
+        expect(document.getElementById('deposit-status')).not.toBeNull();
+      });
+
+      it('add mode still sends the chosen status', async () => {
+        mockCreateDeposit.mockResolvedValue({ deposit: makeDeposit() });
+        const { onSaved } = renderModal({ initialValues: { amount: '10', dueDate: '2026-01-01' } });
+        submitForm();
+        await waitFor(() => expect(onSaved).toHaveBeenCalled());
+        expect(mockCreateDeposit.mock.calls[0]![1]).toMatchObject({ status: 'pending' });
+      });
     });
 
     it('edit mode without a deposit submits nothing', async () => {

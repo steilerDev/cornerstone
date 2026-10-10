@@ -1,4 +1,7 @@
 import {
+  DEFECT_TRANSITIONS,
+  FUNDING_SOURCE_TRANSITIONS,
+  GRANT_TRANSITIONS,
   INVOICE_TRANSITIONS,
   MILESTONE_TRANSITIONS,
   PROGRESS_PAYMENT_TRANSITIONS,
@@ -7,12 +10,15 @@ import {
   transitionsFrom,
 } from '@cornerstone/shared';
 import type {
+  BudgetSourceStatus,
+  DiaryIssueResolution,
   HouseholdItemStatus,
   InvoiceDepositStatus,
   InvoiceStatus,
   MilestoneCompletionState,
   StatusTransition,
   StatusTransitionMap,
+  SubsidyApplicationStatus,
   WorkItemStatus,
 } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -162,5 +168,40 @@ export function progressPaymentTransitions(
       // Progress payments offer Today · Pick only; no planned chip.
       plannedDate: null,
     }),
+  });
+}
+
+export function grantTransitions(
+  t: StatusMenuT,
+  g: { readonly applicationStatus: SubsidyApplicationStatus },
+): StatusMenuTransition<SubsidyApplicationStatus>[] {
+  return build(t, g.applicationStatus, {
+    map: GRANT_TRANSITIONS,
+    actionKeys: I18N_UNION_KEYS.statusActionGrant,
+    backLabel: (to) => I18N_UNION_KEYS.statusVocabularyGrant.key(to),
+  });
+}
+
+export function fundingSourceTransitions(
+  t: StatusMenuT,
+  s: { readonly status: BudgetSourceStatus },
+): StatusMenuTransition<BudgetSourceStatus>[] {
+  return build(t, s.status, {
+    map: FUNDING_SOURCE_TRANSITIONS,
+    actionKeys: I18N_UNION_KEYS.statusActionFundingSource,
+    backLabel: (to) => I18N_UNION_KEYS.statusVocabularyFundingSource.key(to),
+  });
+}
+
+/** A signed or automatic defect cannot change: `locked` yields no transitions (a plain Badge). */
+export function defectTransitions(
+  t: StatusMenuT,
+  d: { readonly resolutionStatus: DiaryIssueResolution; readonly locked: boolean },
+): StatusMenuTransition<DiaryIssueResolution>[] {
+  if (d.locked) return [];
+  return build(t, d.resolutionStatus, {
+    map: DEFECT_TRANSITIONS,
+    actionKeys: I18N_UNION_KEYS.statusActionDefect,
+    backLabel: (to) => I18N_UNION_KEYS.statusVocabularyDefect.key(to),
   });
 }

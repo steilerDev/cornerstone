@@ -308,50 +308,11 @@
   flex-wrap: wrap;
 }
 
-/* ---- Application status badges ---- */
-
-.statusBadge {
-  display: inline-flex;
-  align-items: center;
-  padding: var(--spacing-0-5) var(--spacing-2);
-  border-radius: var(--radius-full);
-  font-size: var(--font-size-xs);
-  font-weight: var(--font-weight-medium);
-  line-height: 1.4;
-  white-space: nowrap;
-}
-
 /* Eligible — blue (in-progress palette) */
-.statusEligible {
-  background-color: var(--color-status-in-progress-bg);
-  color: var(--color-status-in-progress-text);
-}
-
 /* Applied — yellow/neutral */
-.statusApplied {
-  background-color: var(--color-status-not-started-bg);
-  color: var(--color-text-secondary);
-}
-
 /* Approved — green */
-.statusApproved {
-  background-color: var(--color-success-badge-bg);
-  color: var(--color-success-badge-text);
-}
-
 /* Received — green/bold */
-.statusReceived {
-  background-color: var(--color-success-badge-bg-alt);
-  color: var(--color-success-badge-text);
-  font-weight: var(--font-weight-semibold);
-}
-
 /* Rejected — red */
-.statusRejected {
-  background-color: var(--color-status-blocked-bg);
-  color: var(--color-status-blocked-text);
-}
-
 /* ---- Reduction badge ---- */
 
 .reductionBadge {
