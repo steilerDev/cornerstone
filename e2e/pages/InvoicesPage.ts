@@ -363,26 +363,18 @@ export class InvoicesPage {
     const tableVisible = await this.tableContainer.isVisible();
     const linkClass = '[class*="invoiceLink"]';
 
+    // One atomic read: the list re-renders while shared data changes, so no .all() snapshots.
     if (tableVisible) {
-      const links = await this.tableBody.locator(linkClass).all();
-      if (links.length > 0) {
-        const numbers: string[] = [];
-        for (const link of links) {
-          const text = await link.textContent();
-          if (text) numbers.push(text.trim());
-        }
-        return numbers;
-      }
+      const numbers = (await this.tableBody.locator(linkClass).allTextContents())
+        .map((s) => s.trim())
+        .filter(Boolean);
+      if (numbers.length > 0) return numbers;
     }
 
     // Mobile fallback: same invoiceLink class inside cardsContainer
-    const cardLinks = await this.cardsContainer.locator(linkClass).all();
-    const numbers: string[] = [];
-    for (const link of cardLinks) {
-      const text = await link.textContent();
-      if (text) numbers.push(text.trim());
-    }
-    return numbers;
+    return (await this.cardsContainer.locator(linkClass).allTextContents())
+      .map((s) => s.trim())
+      .filter(Boolean);
   }
 
   /**

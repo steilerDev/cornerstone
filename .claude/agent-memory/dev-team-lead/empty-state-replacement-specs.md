@@ -23,4 +23,6 @@ When an empty state _replaces_ a component that used to render with no data (the
 
 **Overflow:** when absolutely positioned stacks size a container in JS, check that **every** stacked kind is counted. Purchases were missing from the height in both grids. Also check that the row can actually grow (`flex: 1; min-height: 0` cannot).
 
+**An inline `height` on a column-flex child with `flex: 1` (basis 0%) is ignored for intrinsic sizing.** The parent grid row sized the cell as if the container were 0px tall (#2198 CI failure: content 35px past the row). Use `flex: 1 0 auto`, so the basis is the inline height. jsdom cannot see this; only the E2E geometry assertion caught it. Spec it up front whenever JS sizes a flex child.
+
 Related: [[global-aggregate-page-specs]], [[unmodified-tests-constraint]], [[restructure-baseline-hazards]]

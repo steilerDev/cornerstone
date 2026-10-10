@@ -115,7 +115,7 @@
 
 .itemsContainer {
   position: relative;
-  flex: 1;
+  flex: 1 0 auto;
   min-height: 0;
   overflow: visible;
   /* Extend items to full cell width so continuation bars can bridge cell gaps */
