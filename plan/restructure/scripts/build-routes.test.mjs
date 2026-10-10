@@ -577,6 +577,8 @@ const BASE_MAP = [
 const clone = (v) => JSON.parse(JSON.stringify(v));
 const mutate = (map, from, over) => map.map((e) => (e.from === from ? { ...e, ...over } : e));
 const curated = (map) => map.map((e) => ({ ...e, note: 'A note' }));
+const GENERATOR_ERROR =
+  'App.tsx:1: unrecognised route generator: the callback must render <Route path={r.from} element={<RouteRedirect rule={r} />} />';
 const ROUTES_APP_SRC = readFileSync(FIXTURE_ROUTES_APP, 'utf8');
 const ADMIN_GUARD_BLOCK =
   /<Route element=\{<RoleGuard allow=\{\['admin'\]\} \/>\}>\s*(<Route path=\{routePattern\('admin'\)\}.*\/>)\s*<\/Route>/;
@@ -609,7 +611,7 @@ describe('loadRouteModule', () => {
     const mod = await loadRouteModule(root);
     assert.equal(mod.routePattern('task'), '/tasks/:id');
     assert.deepEqual(
-      mod.LIVE_REDIRECT_ROUTES.map((r) => [r.path, r.target]),
+      mod.LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target]),
       [['/old/:id', '/tasks/:id']],
     );
   });
@@ -771,26 +773,55 @@ describe('extractRouterRoutes with a route module', () => {
 
   it('reports a generator whose callback does not render a RouteRedirect route', () => {
     const shapes = [
-      '(r) => <Route path={r.path} element={<div />} />',
+      '(r) => <Route path={r.from} element={<div />} />',
       '(r) => <div />',
-      '(r) => { return <Route path={r.path} element={<Other />} />; }',
+      '(r) => { return <Route path={r.from} element={<Other />} />; }',
       '(r) => { log(r); }',
       'makeRoutes',
-      '(r) => <Route path={r.path} />',
+      '(r) => <Route path={r.from} />',
     ];
     for (const shape of shapes) {
       const src = `<Routes><Route element={<AuthGuard />}>{LIVE_REDIRECT_ROUTES.map(${shape})}</Route></Routes>`;
-      assert.deepEqual(
-        extractRouterRoutesChecked(src, mod).errors,
-        ['App.tsx:1: unrecognised route generator'],
-        shape,
-      );
+      assert.deepEqual(extractRouterRoutesChecked(src, mod).errors, [GENERATOR_ERROR], shape);
     }
+  });
+
+  it('rejects a generator whose Route path is not the item from', () => {
+    const wrongPaths = ['{r.path}', '{r.target}', '{r}', '"/fixed"', '{other.from}', '{r.from.x}'];
+    for (const path of wrongPaths) {
+      const src = `<Routes>{LIVE_REDIRECT_ROUTES.map((r) => <Route path=${path} element={<RouteRedirect rule={r} />} />)}</Routes>`;
+      assert.deepEqual(extractRouterRoutesChecked(src, mod).errors, [GENERATOR_ERROR], path);
+    }
+  });
+
+  it('rejects a generator whose RouteRedirect rule is not the item', () => {
+    const wrongRules = ['{r.target}', '{other}', '{{ ...r }}', '"r"'];
+    for (const rule of wrongRules) {
+      const src = `<Routes>{LIVE_REDIRECT_ROUTES.map((r) => <Route path={r.from} element={<RouteRedirect rule=${rule} />} />)}</Routes>`;
+      assert.deepEqual(extractRouterRoutesChecked(src, mod).errors, [GENERATOR_ERROR], rule);
+    }
+  });
+
+  it('rejects a generator whose callback parameter is destructured or missing', () => {
+    for (const callback of [
+      '({ from }) => <Route path={from} element={<RouteRedirect rule={from} />} />',
+      '() => <Route path={r.from} element={<RouteRedirect rule={r} />} />',
+    ]) {
+      const src = `<Routes>{LIVE_REDIRECT_ROUTES.map(${callback})}</Routes>`;
+      assert.deepEqual(extractRouterRoutesChecked(src, mod).errors, [GENERATOR_ERROR], callback);
+    }
+  });
+
+  it('follows a renamed callback parameter', () => {
+    const src = `<Routes>{LIVE_REDIRECT_ROUTES.map((item) => <Route path={item.from} element={<RouteRedirect rule={item} />} />)}</Routes>`;
+    const out = extractRouterRoutesChecked(src, mod);
+    assert.deepEqual(out.errors, []);
+    assert.equal(out.routes.length, 1);
   });
 
   it('accepts block-bodied and parenthesised generator callbacks', () => {
     const src = `<Routes>{LIVE_REDIRECT_ROUTES.map(function (r) {
-      return (<Route path={r.path} element={(<RouteRedirect rule={r} />)} />);
+      return (<Route path={r.from} element={(<RouteRedirect rule={r} />)} />);
     })}</Routes>`;
     const out = extractRouterRoutesChecked(src, mod);
     assert.deepEqual(out.errors, []);
@@ -798,7 +829,7 @@ describe('extractRouterRoutes with a route module', () => {
   });
 
   it('reports a generator when no route module is loaded', () => {
-    const src = `<Routes>{LIVE_REDIRECT_ROUTES.map((r) => <Route path={r.path} element={<RouteRedirect rule={r} />} />)}</Routes>`;
+    const src = `<Routes>{LIVE_REDIRECT_ROUTES.map((r) => <Route path={r.from} element={<RouteRedirect rule={r} />} />)}</Routes>`;
     assert.deepEqual(extractRouterRoutesChecked(src).errors, [
       'App.tsx:1: unrecognised route generator (route module not loaded)',
     ]);

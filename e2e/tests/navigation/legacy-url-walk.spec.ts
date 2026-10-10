@@ -321,12 +321,12 @@ test.describe('Legacy URL walk (route map)', () => {
   test('E0: the live redirects of the route map are exactly the 26 frozen below', () => {
     expect(LIVE_REDIRECTS).toHaveLength(26);
     // Same set of source paths, same count: an unmapped (or newly mapped) route fails here.
-    expect(LIVE_REDIRECT_ROUTES.map((rule) => rule.path).sort()).toEqual(
+    expect(LIVE_REDIRECT_ROUTES.map((rule) => rule.from).sort()).toEqual(
       LIVE_REDIRECTS.map(([from]) => from).sort(),
     );
     // Same landing path for every one of them (query part of a target is ignored here).
     for (const [from, landing] of LIVE_REDIRECTS) {
-      const rule = LIVE_REDIRECT_ROUTES.find((candidate) => candidate.path === from);
+      const rule = LIVE_REDIRECT_ROUTES.find((candidate) => candidate.from === from);
       expect(rule, `${from} must be a live redirect in the route map`).toBeDefined();
       expect(rule?.target.split(/[?#]/)[0], `target of ${from}`).toBe(landing);
     }

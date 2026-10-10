@@ -12,11 +12,11 @@ function Where() {
   return <div data-testid="where">{`${pathname}${search}${hash}`}</div>;
 }
 
-function renderAt(url: string, rule: { from: string; path: string; target: string }) {
+function renderAt(url: string, rule: { from: string; target: string }) {
   return render(
     <MemoryRouter initialEntries={[url]}>
       <Routes>
-        <Route path={rule.path} element={<RouteRedirect rule={rule} />} />
+        <Route path={rule.from} element={<RouteRedirect rule={rule} />} />
         <Route path="*" element={<Where />} />
       </Routes>
     </MemoryRouter>,
@@ -25,7 +25,6 @@ function renderAt(url: string, rule: { from: string; path: string; target: strin
 
 const WORK_ITEM_RULE = {
   from: '/work-items/:id',
-  path: '/work-items/:id',
   target: '/project/work-items/:id',
 };
 
@@ -45,7 +44,6 @@ describe('RouteRedirect', () => {
   it('lets target-defined query keys win over incoming ones', () => {
     renderAt('/budget/categories?tab=old&q=x', {
       from: '/budget/categories',
-      path: '/budget/categories',
       target: '/settings/manage?tab=budget-categories',
     });
 
@@ -71,7 +69,7 @@ describe('RouteRedirect', () => {
 
   it('serves every generated live redirect in one hop', () => {
     for (const rule of LIVE_REDIRECT_ROUTES) {
-      const url = rule.path.replace(/:[A-Za-z0-9_]+/g, 'x') + '?keep=1#frag';
+      const url = rule.from.replace(/:[A-Za-z0-9_]+/g, 'x') + '?keep=1#frag';
       const { unmount } = renderAt(url, rule);
       const text = screen.getByTestId('where').textContent ?? '';
       expect(text).toContain('keep=1');

@@ -130,7 +130,22 @@ function generatorRoute(node) {
   let inner =
     el?.initializer && ts.isJsxExpression(el.initializer) ? el.initializer.expression : null;
   while (inner && ts.isParenthesizedExpression(inner)) inner = inner.expression;
-  return inner && isJsx(inner) && tagNameOf(inner) === 'RouteRedirect' ? body : null;
+  if (!inner || !isJsx(inner) || tagNameOf(inner) !== 'RouteRedirect') return null;
+  // The generated route must be driven by the item: path={r.from} and rule={r}.
+  const param = callback.parameters[0]?.name;
+  if (!param || !ts.isIdentifier(param)) return null;
+  const exprOf = (a) =>
+    a?.initializer && ts.isJsxExpression(a.initializer) ? a.initializer.expression : undefined;
+  const pathExpr = exprOf(attr(body, 'path'));
+  const ruleExpr = exprOf(attr(inner, 'rule'));
+  const pathOk =
+    pathExpr &&
+    ts.isPropertyAccessExpression(pathExpr) &&
+    ts.isIdentifier(pathExpr.expression) &&
+    pathExpr.expression.text === param.text &&
+    pathExpr.name.text === 'from';
+  const ruleOk = ruleExpr && ts.isIdentifier(ruleExpr) && ruleExpr.text === param.text;
+  return pathOk && ruleOk ? body : null;
 }
 
 /** @returns {{ kind: 'page', element: string } | { kind: 'redirect', target: string } | null} */
@@ -201,12 +216,15 @@ export function extractRouterRoutesChecked(tsxSource, routeModule) {
       return;
     }
     if (!generatorRoute(node)) {
-      onError(node, 'unrecognised route generator');
+      onError(
+        node,
+        'unrecognised route generator: the callback must render <Route path={r.from} element={<RouteRedirect rule={r} />} />',
+      );
       return;
     }
     for (const r of routeModule.LIVE_REDIRECT_ROUTES) {
       out.push({
-        path: r.path,
+        path: r.from,
         guard,
         ...(gated ? { gated: true } : {}),
         kind: 'redirect',

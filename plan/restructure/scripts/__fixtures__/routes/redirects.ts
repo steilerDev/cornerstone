@@ -16,5 +16,5 @@ export function effectiveTarget(entry: {
 export const LIVE_REDIRECT_ROUTES = ROUTE_MAP.flatMap((entry) => {
   if (entry.stage === 'planned' || 'match' in entry) return [];
   const target = effectiveTarget(entry);
-  return target === null ? [] : [{ from: entry.from, path: entry.from, target }];
+  return target === null ? [] : [{ from: entry.from, target }];
 });

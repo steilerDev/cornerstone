@@ -251,7 +251,7 @@ export function App() {
                       </Route>
                       {/* Redirects generated from the shared route map (legacy URLs, section roots) */}
                       {LIVE_REDIRECT_ROUTES.map((r) => (
-                        <Route key={r.from} path={r.path} element={<RouteRedirect rule={r} />} />
+                        <Route key={r.from} path={r.from} element={<RouteRedirect rule={r} />} />
                       ))}
                       <Route path={routePattern('notFound')} element={<NotFoundPage />} />
                     </Route>

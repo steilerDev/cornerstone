@@ -13,7 +13,7 @@ export function App() {
             <Route path={routePattern('review')} element={<ReviewPage />} />
           </Route>
           {LIVE_REDIRECT_ROUTES.map((r) => (
-            <Route key={r.path} path={r.path} element={<RouteRedirect rule={r} />} />
+            <Route key={r.from} path={r.from} element={<RouteRedirect rule={r} />} />
           ))}
         </Route>
       </Route>

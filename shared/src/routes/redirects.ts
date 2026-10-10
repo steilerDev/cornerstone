@@ -21,7 +21,6 @@ export function effectiveTarget(entry: RouteMapEntry): string | null {
 
 export interface LiveRedirectRoute {
   readonly from: string;
-  readonly path: string;
   readonly target: string;
 }
 
@@ -29,7 +28,7 @@ export interface LiveRedirectRoute {
 export const LIVE_REDIRECT_ROUTES: readonly LiveRedirectRoute[] = ENTRIES.flatMap((entry) => {
   if (entry.stage === 'planned' || entry.match) return [];
   const target = effectiveTarget(entry);
-  return target === null ? [] : [{ from: entry.from, path: entry.from, target }];
+  return target === null ? [] : [{ from: entry.from, target }];
 });
 
 /**

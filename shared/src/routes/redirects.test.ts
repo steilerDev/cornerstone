@@ -59,11 +59,13 @@ function base(over: Partial<RouteMapEntry>): RouteMapEntry {
 describe('LIVE_REDIRECT_ROUTES', () => {
   it('equals the frozen 26-row table of today redirects', () => {
     expect(FROZEN_LIVE_REDIRECTS).toHaveLength(26);
-    expect(LIVE_REDIRECT_ROUTES.map((r) => [r.path, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
+    expect(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
   });
 
-  it('uses the from as the router path', () => {
-    for (const route of LIVE_REDIRECT_ROUTES) expect(route.path).toBe(route.from);
+  it('carries only from and target', () => {
+    for (const route of LIVE_REDIRECT_ROUTES) {
+      expect(Object.keys(route).sort()).toEqual(['from', 'target']);
+    }
   });
 });
 
