@@ -225,19 +225,25 @@ describe('useTrades', () => {
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when createTrade throws', async () => {
-      mockCreateTrade.mockRejectedValueOnce(new Error('Conflict'));
+    it('rejects with the original error and does not refetch when createTrade throws', async () => {
+      const failure = new Error('Conflict');
+      mockCreateTrade.mockRejectedValueOnce(failure);
       mockFetchTrades.mockResolvedValue({ trades: [] });
 
       const { result } = renderHook(() => useTrades());
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.createTrade({ name: 'Plumbing' });
+        try {
+          await result.current.createTrade({ name: 'Plumbing' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -287,19 +293,25 @@ describe('useTrades', () => {
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when updateTrade throws', async () => {
-      mockUpdateTrade.mockRejectedValueOnce(new Error('Not found'));
+    it('rejects with the original error and does not refetch when updateTrade throws', async () => {
+      const failure = new Error('Not found');
+      mockUpdateTrade.mockRejectedValueOnce(failure);
       mockFetchTrades.mockResolvedValue({ trades: [] });
 
       const { result } = renderHook(() => useTrades());
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.updateTrade('nonexistent', { name: 'Updated' });
+        try {
+          await result.current.updateTrade('nonexistent', { name: 'Updated' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -347,19 +359,25 @@ describe('useTrades', () => {
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
     });
 
-    it('returns false when deleteTrade throws', async () => {
-      mockDeleteTrade.mockRejectedValueOnce(new Error('In use'));
+    it('rejects with the original error and does not refetch when deleteTrade throws', async () => {
+      const failure = new Error('In use');
+      mockDeleteTrade.mockRejectedValueOnce(failure);
       mockFetchTrades.mockResolvedValue({ trades: [] });
 
       const { result } = renderHook(() => useTrades());
       await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.deleteTrade('t1');
+        try {
+          await result.current.deleteTrade('t1');
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBe(false);
+      expect(thrown).toBe(failure);
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
     });
   });
 });

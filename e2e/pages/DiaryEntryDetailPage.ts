@@ -172,7 +172,8 @@ export class DiaryEntryDetailPage {
   async goto(id: string): Promise<void> {
     await this.page.goto(`${DIARY_ENTRY_DETAIL_ROUTE}/${id}`);
     await Promise.race([
-      this.backButton.waitFor({ state: 'visible' }),
+      // Locale-independent: the top bar's back button (its aria-label is translated)
+      this.page.locator('[class*="topBar"] button').first().waitFor({ state: 'visible' }),
       this.errorBanner.waitFor({ state: 'visible' }),
     ]);
   }

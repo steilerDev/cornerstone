@@ -376,6 +376,13 @@ function AreasTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingAreaId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteArea = async (areaId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -414,12 +421,6 @@ function AreasTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -705,7 +706,10 @@ function AreasTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingAreaId(area.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingAreaId(area.id);
+                        }}
                         disabled={!!editingArea}
                       >
                         {t('manage.areas.delete')}
@@ -722,10 +726,7 @@ function AreasTab() {
       {/* Delete confirmation modal */}
       {deletingAreaId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingAreaId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.areas.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -733,24 +734,32 @@ function AreasTab() {
                 name: areas.find((a) => a.id === deletingAreaId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingAreaId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.areas.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteArea(deletingAreaId)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteArea(deletingAreaId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -912,6 +921,13 @@ function TradesTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingTradeId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteTrade = async (tradeId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -950,12 +966,6 @@ function TradesTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -1209,7 +1219,10 @@ function TradesTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingTradeId(trade.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingTradeId(trade.id);
+                        }}
                         disabled={!!editingTrade}
                       >
                         {t('manage.trades.delete')}
@@ -1226,10 +1239,7 @@ function TradesTab() {
       {/* Delete confirmation modal */}
       {deletingTradeId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingTradeId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.trades.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -1237,24 +1247,32 @@ function TradesTab() {
                 name: trades.find((t) => t.id === deletingTradeId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingTradeId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.trades.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteTrade(deletingTradeId)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteTrade(deletingTradeId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1410,6 +1428,13 @@ function OrientationsTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingOrientationId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteOrientation = async (orientationId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -1446,12 +1471,6 @@ function OrientationsTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -1664,7 +1683,10 @@ function OrientationsTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingOrientationId(orientation.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingOrientationId(orientation.id);
+                        }}
                         disabled={!!editingOrientation}
                         aria-label={`${t('manage.orientations.delete')} ${orientation.name}`}
                       >
@@ -1682,10 +1704,7 @@ function OrientationsTab() {
       {/* Delete confirmation modal */}
       {deletingOrientationId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingOrientationId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.orientations.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -1693,26 +1712,34 @@ function OrientationsTab() {
                 name: orientations.find((o) => o.id === deletingOrientationId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingOrientationId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.orientations.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteOrientation(deletingOrientationId)}
-                disabled={isDeleting}
-              >
-                {isDeleting
-                  ? t('manage.orientations.deleting')
-                  : t('manage.orientations.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteOrientation(deletingOrientationId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting
+                    ? t('manage.orientations.deleting')
+                    : t('manage.orientations.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>

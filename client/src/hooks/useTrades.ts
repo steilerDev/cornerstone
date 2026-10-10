@@ -18,7 +18,7 @@ export interface UseTradesResult {
 /**
  * Manages the full CRUD lifecycle for trades.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useTrades(): UseTradesResult {
   const { t } = useTranslation('settings');
@@ -70,33 +70,21 @@ export function useTrades(): UseTradesResult {
   }
 
   async function handleCreate(data: CreateTradeRequest): Promise<TradeResponse | null> {
-    try {
-      const trade = await createTrade(data);
-      refetch();
-      return trade;
-    } catch {
-      return null;
-    }
+    const trade = await createTrade(data);
+    refetch();
+    return trade;
   }
 
   async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse | null> {
-    try {
-      const trade = await updateTrade(id, data);
-      refetch();
-      return trade;
-    } catch {
-      return null;
-    }
+    const trade = await updateTrade(id, data);
+    refetch();
+    return trade;
   }
 
   async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteTrade(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+    await deleteTrade(id);
+    refetch();
+    return true;
   }
 
   return {

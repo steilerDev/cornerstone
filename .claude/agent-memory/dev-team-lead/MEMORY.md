@@ -36,7 +36,7 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Restructure i18n specs](restructure-i18n-specs.md) — new en money-word values fail plan:check baseline; canonical statusVocabulary sets; transition rule; §2.0 supersedes
 - [Invariant removal specs](invariant-removal-specs.md) — grep every guard under the error code incl. inverse paths; lock-step ERROR_CODES/en/de; advisory client mirrors; docs
 - [Status vocabulary switch specs](status-vocabulary-switch-specs.md) — hidden parallel colour maps/literal label maps, partial canonical sets, PDF getFixedT ns, banned-word test scope
-- [UX visual spec verification](ux-visual-spec-verification.md) — check named tokens exist, new short money labels vs baseline, confirm "can't find" claims from CSS
+- [UX visual spec verification](ux-visual-spec-verification.md) — named tokens exist, money labels vs baseline, token-remap pair scan + ratchet, "already done" premises
 - [Restructure baseline hazards](restructure-baseline-hazards.md) — closure-wide counts: `<a>`→`<Link>` in a shared component raises destinations; use useHref+useLinkClickHandler
 - [Empty-state replacement & calendar segments](empty-state-replacement-specs.md) — unmocked E2E break when EmptyState replaces a grid; unfiltered emptiness; segments in gridcells; count every stacked kind
 - [Read-time projection specs](read-time-projection-specs.md) — stale updated_at ETags, partial module mocks, stored-vs-two-run fallback, E2E timeline mocks, client second sources

@@ -18,7 +18,7 @@ export interface UseAreasResult {
 /**
  * Manages the full CRUD lifecycle for areas.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useAreas(): UseAreasResult {
   const { t } = useTranslation('settings');
@@ -70,33 +70,21 @@ export function useAreas(): UseAreasResult {
   }
 
   async function handleCreate(data: CreateAreaRequest): Promise<AreaResponse | null> {
-    try {
-      const area = await createArea(data);
-      refetch();
-      return area;
-    } catch {
-      return null;
-    }
+    const area = await createArea(data);
+    refetch();
+    return area;
   }
 
   async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse | null> {
-    try {
-      const area = await updateArea(id, data);
-      refetch();
-      return area;
-    } catch {
-      return null;
-    }
+    const area = await updateArea(id, data);
+    refetch();
+    return area;
   }
 
   async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteArea(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+    await deleteArea(id);
+    refetch();
+    return true;
   }
 
   return {

@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -2420,6 +2420,81 @@ describe('ManagePage', () => {
         await screen.findAllByText(text);
         expectErrorBanner(text);
       });
+    });
+
+    describe('delete failures render inside the dialog (#2271)', () => {
+      const cases = [
+        {
+          label: 'areas',
+          tab: 'areas',
+          open: 'Delete',
+          confirm: 'Delete Area',
+          cancel: 'Cancel',
+          expected: () => enSettings.manage.areas.messages.deleteConflict,
+          successPrefix: 'Area "',
+          arrange: (err: unknown) =>
+            mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: rejecting(err) })),
+          error: () => new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
+        },
+        {
+          label: 'trades',
+          tab: 'trades',
+          open: 'Delete',
+          confirm: 'Delete Trade',
+          cancel: 'Cancel',
+          expected: () => enSettings.manage.trades.messages.deleteConflict,
+          successPrefix: 'Trade "',
+          arrange: (err: unknown) =>
+            mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: rejecting(err) })),
+          error: () => new ApiClientError(409, { code: 'TRADE_IN_USE', message: SENTINEL }),
+        },
+        {
+          label: 'orientations',
+          tab: 'orientations',
+          open: 'Delete North',
+          confirm: 'Delete',
+          cancel: 'Cancel',
+          expected: () => enErrors.CONFLICT,
+          successPrefix: 'Orientation "',
+          arrange: (err: unknown) =>
+            mockUseOrientations.mockReturnValue(
+              makeOrientationsHookResult({ deleteOrientation: rejecting(err) }),
+            ),
+          error: () => new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL }),
+        },
+      ];
+
+      for (const c of cases) {
+        it(`${c.label}: keeps the dialog open with the error inside, hides confirm, shows no success message, and reopening is clean`, async () => {
+          c.arrange(c.error());
+          const user = userEvent.setup();
+          renderManagePage(`/settings/manage?tab=${c.tab}`);
+          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
+          const dialog = await screen.findByRole('dialog');
+          await user.click(within(dialog).getByRole('button', { name: c.confirm }));
+
+          // Error text is inside the still-open dialog, replacing the warning
+          await waitFor(() => {
+            expect(within(screen.getByRole('dialog')).getByText(c.expected())).toBeInTheDocument();
+          });
+          const open = screen.getByRole('dialog');
+          expect(within(open).queryByRole('button', { name: c.confirm })).not.toBeInTheDocument();
+          expect(screen.queryByText(new RegExp(`^${c.successPrefix}`))).not.toBeInTheDocument();
+          expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
+          // No page-level duplicate of the error outside the dialog
+          expect(screen.getAllByText(c.expected())).toHaveLength(1);
+
+          // Close and reopen: no stale error, confirm is back
+          await user.click(within(open).getByRole('button', { name: c.cancel }));
+          await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+          });
+          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
+          const reopened = await screen.findByRole('dialog');
+          expect(within(reopened).queryByText(c.expected())).not.toBeInTheDocument();
+          expect(within(reopened).getByRole('button', { name: c.confirm })).toBeInTheDocument();
+        });
+      }
     });
 
     it('budget categories: plain Error on create shows the createError fallback', async () => {

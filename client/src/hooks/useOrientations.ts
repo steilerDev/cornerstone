@@ -30,7 +30,7 @@ export interface UseOrientationsResult {
 /**
  * Manages the full CRUD lifecycle for orientations.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useOrientations(): UseOrientationsResult {
   const { t } = useTranslation('settings');
@@ -82,36 +82,24 @@ export function useOrientations(): UseOrientationsResult {
   }
 
   async function handleCreate(data: CreateOrientationRequest): Promise<OrientationResponse | null> {
-    try {
-      const orientation = await createOrientation(data);
-      refetch();
-      return orientation;
-    } catch {
-      return null;
-    }
+    const orientation = await createOrientation(data);
+    refetch();
+    return orientation;
   }
 
   async function handleUpdate(
     id: string,
     data: UpdateOrientationRequest,
   ): Promise<OrientationResponse | null> {
-    try {
-      const orientation = await updateOrientation(id, data);
-      refetch();
-      return orientation;
-    } catch {
-      return null;
-    }
+    const orientation = await updateOrientation(id, data);
+    refetch();
+    return orientation;
   }
 
   async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteOrientation(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+    await deleteOrientation(id);
+    refetch();
+    return true;
   }
 
   return {

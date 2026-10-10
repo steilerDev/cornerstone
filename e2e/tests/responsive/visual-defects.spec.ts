@@ -472,9 +472,10 @@ test.describe(
       await vendorPage.goto(vendor.id);
       await vendorPage.startEdit();
 
-      const tradeInput = page.locator('#edit-tradeId');
-      await expect(tradeInput).toBeVisible();
-      await expect(tradeInput).toHaveValue(tradeName);
+      // SearchPicker with a current selection renders its title as text (not an input)
+      const tradeField = page.locator('label[for="edit-tradeId"]').locator('..');
+      await expect(tradeField).toContainText(tradeName);
+      await expect(tradeField.getByRole('button', { name: 'Clear selection' })).toBeVisible();
     });
 
     test('Diary workers use a plural-aware label in English and German', async ({
@@ -919,9 +920,11 @@ test.describe('Visual defects — "To Schedule" buttons are not dimmed (AC11)', 
     const title = `${testPrefix} Test Scheduled Task`;
     await makeWorkItem(page, title, { startDate: today, endDate: today });
 
-    await page.goto('/schedule?view=calendar');
+    await page.goto('/schedule/calendar');
     // Router state { from: 'schedule' } is set by clicking the calendar item
-    await page.getByTestId('calendar-item').filter({ hasText: title }).first().click();
+    const item = page.getByTestId('calendar-item').filter({ hasText: title }).first();
+    await expect(item).toBeVisible();
+    await item.click();
     await page.waitForURL(/\/project\/work-items\/[^/]+$/);
     await expectFullOpacity(page.getByRole('button', { name: 'To Work Items', exact: true }));
   });
