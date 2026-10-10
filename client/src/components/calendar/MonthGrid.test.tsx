@@ -15,7 +15,6 @@ import type {
   TimelineMilestone,
   TimelineHouseholdItem,
 } from '@cornerstone/shared';
-import { DAY_NAMES } from './calendarUtils.js';
 import type * as MonthGridTypes from './MonthGrid.js';
 
 // Mock LocaleContext so the component can call useLocale() without a provider.
@@ -86,11 +85,15 @@ function makeMilestone(id: number, targetDate: string, title = `M${id}`): Timeli
 // ---------------------------------------------------------------------------
 
 let MonthGrid: typeof MonthGridTypes.MonthGrid;
+// calendarUtils pulls in lib/formatters (real LocaleContext) via scheduleDates, so it must be
+// imported after the LocaleContext mock above, not statically.
+let DAY_NAMES: readonly string[];
 
 beforeEach(async () => {
   if (!MonthGrid) {
     const module = await import('./MonthGrid.js');
     MonthGrid = module.MonthGrid;
+    DAY_NAMES = (await import('./calendarUtils.js')).DAY_NAMES;
   }
 });
 

@@ -18,6 +18,7 @@ import {
   projectSchedule,
   computeScheduleProjection,
   workItemProjectionOf,
+  shownWorkItemDates,
   autoReschedule,
 } from './schedulingEngine.js';
 import type {
@@ -455,6 +456,43 @@ describe('workItemProjectionOf', () => {
       lateDays: null,
       isHeldUp: false,
     });
+  });
+});
+
+// ─── shownWorkItemDates ───────────────────────────────────────────────────────
+
+describe('shownWorkItemDates', () => {
+  const fields = { projectedStartDate: '2026-03-10', projectedEndDate: '2026-03-13' };
+
+  it('falls back to the forecast when there are no actual dates', () => {
+    expect(shownWorkItemDates({ actualStartDate: null, actualEndDate: null }, fields)).toEqual({
+      start: '2026-03-10',
+      end: '2026-03-13',
+    });
+  });
+
+  it('lets actual dates win', () => {
+    expect(
+      shownWorkItemDates({ actualStartDate: '2026-03-01', actualEndDate: '2026-03-04' }, fields),
+    ).toEqual({ start: '2026-03-01', end: '2026-03-04' });
+  });
+
+  it('mixes an actual start with a forecast end', () => {
+    expect(
+      shownWorkItemDates({ actualStartDate: '2026-03-01', actualEndDate: null }, fields),
+    ).toEqual({
+      start: '2026-03-01',
+      end: '2026-03-13',
+    });
+  });
+
+  it('returns nulls when nothing is known', () => {
+    expect(
+      shownWorkItemDates(
+        { actualStartDate: null, actualEndDate: null },
+        { projectedStartDate: null, projectedEndDate: null },
+      ),
+    ).toEqual({ start: null, end: null });
   });
 });
 

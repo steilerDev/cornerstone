@@ -92,8 +92,9 @@ export function MilestoneDetailPage() {
     if (!milestone) return null;
     let latest: string | null = null;
     for (const wi of milestone.workItems) {
-      if (wi.endDate && (!latest || wi.endDate > latest)) {
-        latest = wi.endDate;
+      const end = wi.projectedEndDate ?? wi.endDate;
+      if (end && (!latest || end > latest)) {
+        latest = end;
       }
     }
     return latest;

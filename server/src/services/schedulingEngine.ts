@@ -1001,6 +1001,17 @@ export function workItemProjectionOf(
   );
 }
 
+/** Dates every surface shows for a work item: actual dates win, else the forecast (contract 4). */
+export function shownWorkItemDates(
+  row: { actualStartDate: string | null; actualEndDate: string | null },
+  fields: Pick<WorkItemScheduleFields, 'projectedStartDate' | 'projectedEndDate'>,
+): { start: string | null; end: string | null } {
+  return {
+    start: row.actualStartDate ?? fields.projectedStartDate,
+    end: row.actualEndDate ?? fields.projectedEndDate,
+  };
+}
+
 // ─── Auto-reschedule ──────────────────────────────────────────────────────────
 
 /**

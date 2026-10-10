@@ -260,6 +260,9 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
+    toBcp47Locale: (locale: string) => (locale === 'de' ? 'de-DE' : 'en-US'),
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
     formatTime: fmtTime,
@@ -521,6 +524,63 @@ describe('WorkItemDetailPage', () => {
       expect(screen.queryByTestId('work-item-schedule-signal')).not.toBeInTheDocument();
     });
 
+    describe('forecast dates and the planned line', () => {
+      it('shows the forecast in Start/End and the planned range on a second line for a late task', async () => {
+        mockGetWorkItem.mockResolvedValue(lateItem);
+        renderPage();
+
+        const planned = await screen.findByTestId('work-item-planned-dates');
+        expect(planned).toHaveTextContent('Planned:');
+        expect(planned).toHaveTextContent('2024');
+        // Start/End show the forecast (Jan 6 / Feb 5), not the planned Jan 1 / Jan 31
+        expect(screen.getByText('Jan 6, 2024')).toBeInTheDocument();
+        expect(screen.getByText('Feb 5, 2024')).toBeInTheDocument();
+        expect(screen.queryByText('Jan 1, 2024')).not.toBeInTheDocument();
+      });
+
+      it('shows no planned line for an on-time task', async () => {
+        mockGetWorkItem.mockResolvedValue({ ...mockWorkItem, status: 'not_started' });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+      });
+
+      it('shows the forecast and no planned line for an undated task', async () => {
+        mockGetWorkItem.mockResolvedValue({
+          ...mockWorkItem,
+          status: 'not_started',
+          startDate: null,
+          endDate: null,
+          projectedStartDate: '2024-01-10',
+          projectedEndDate: '2024-01-12',
+        });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.getByText('Jan 10, 2024')).toBeInTheDocument();
+        expect(screen.getByText('Jan 12, 2024')).toBeInTheDocument();
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+      });
+
+      it('shows "Not scheduled" when neither actual nor forecast dates exist', async () => {
+        mockGetWorkItem.mockResolvedValue({
+          ...mockWorkItem,
+          status: 'completed',
+          startDate: null,
+          endDate: null,
+          projectedStartDate: null,
+          projectedEndDate: null,
+        });
+        renderPage();
+
+        await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
+        expect(screen.queryByTestId('work-item-planned-dates')).not.toBeInTheDocument();
+        expect(screen.getAllByText(enWorkItems.detail.schedule.notScheduled).length).toBe(2);
+      });
+    });
+
     describe('title edit buttons', () => {
       afterEach(async () => {
         await act(async () => {
@@ -692,7 +752,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for null startDate', async () => {
-      const workItemNoStart = { ...mockWorkItem, startDate: null };
+      const workItemNoStart = { ...mockWorkItem, startDate: null, projectedStartDate: null };
       mockGetWorkItem.mockResolvedValue(workItemNoStart);
 
       renderPage();
@@ -704,7 +764,7 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for null endDate', async () => {
-      const workItemNoEnd = { ...mockWorkItem, endDate: null };
+      const workItemNoEnd = { ...mockWorkItem, endDate: null, projectedEndDate: null };
       mockGetWorkItem.mockResolvedValue(workItemNoEnd);
 
       renderPage();
@@ -715,7 +775,13 @@ describe('WorkItemDetailPage', () => {
     });
 
     it('renders "Not scheduled" for both dates when both are null', async () => {
-      const workItemNoDates = { ...mockWorkItem, startDate: null, endDate: null };
+      const workItemNoDates = {
+        ...mockWorkItem,
+        startDate: null,
+        endDate: null,
+        projectedStartDate: null,
+        projectedEndDate: null,
+      };
       mockGetWorkItem.mockResolvedValue(workItemNoDates);
 
       renderPage();

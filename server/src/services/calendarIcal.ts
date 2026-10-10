@@ -4,6 +4,7 @@ import type Database from 'better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import ical from 'ical-generator';
 import type { TimelineResponse } from '@cornerstone/shared';
+import { shownWorkItemDates } from './schedulingEngine.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes> & { $client: Database.Database };
 
@@ -70,8 +71,7 @@ export function buildCalendar(
 
   // Add work items as events
   for (const wi of timeline.workItems) {
-    const startDate = wi.actualStartDate ?? wi.projectedStartDate;
-    const endDate = wi.actualEndDate ?? wi.projectedEndDate;
+    const { start: startDate, end: endDate } = shownWorkItemDates(wi, wi);
 
     // Skip if neither resolved date is available
     if (!startDate || !endDate) continue;

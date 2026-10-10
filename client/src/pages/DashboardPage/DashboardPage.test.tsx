@@ -107,6 +107,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatCurrency: fmtCurrency,
     formatDate: fmtDate,
     formatTime: fmtTime,

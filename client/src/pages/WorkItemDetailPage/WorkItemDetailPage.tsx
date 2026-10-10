@@ -82,7 +82,7 @@ import {
   DependencySentenceDisplay,
 } from '../../components/DependencySentenceBuilder/index.js';
 import type { DependencyType } from '@cornerstone/shared';
-import { useFormatters } from '../../lib/formatters.js';
+import { useFormatters, toBcp47Locale } from '../../lib/formatters.js';
 import { roundMoney } from '../../lib/money.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
@@ -92,7 +92,12 @@ import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumen
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
-import { scheduleSignalOf } from '../../lib/scheduleDates.js';
+import {
+  barDates,
+  plannedRangeText,
+  scheduleSignalOf,
+  showsPlannedRow,
+} from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import styles from './WorkItemDetailPage.module.css';
 
@@ -108,7 +113,7 @@ interface DeletingDependency {
 }
 
 export default function WorkItemDetailPage() {
-  const { vatRate } = useLocale();
+  const { vatRate, resolvedLocale } = useLocale();
   const {
     formatCurrency: _formatCurrency,
     formatDate,
@@ -1274,6 +1279,7 @@ export default function WorkItemDetailPage() {
   const availableSubsidies = allSubsidyPrograms.filter((s) => !linkedSubsidyIds.has(s.id));
 
   const scheduleSignal = scheduleSignalOf(workItem);
+  const shownDates = barDates(workItem);
 
   // Available milestones for 'required' and 'linked' milestone pickers
   const requiredMilestoneIds = new Set(workItemMilestones.required.map((m) => m.id));
@@ -1497,8 +1503,8 @@ export default function WorkItemDetailPage() {
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.startDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.startDate
-                    ? formatDate(workItem.startDate)
+                  {shownDates.start
+                    ? formatDate(shownDates.start)
                     : t('detail.schedule.notScheduled')}
                 </span>
               </div>
@@ -1506,12 +1512,27 @@ export default function WorkItemDetailPage() {
               <div className={styles.property}>
                 <span className={styles.propertyLabel}>{t('detail.schedule.endDate')}</span>
                 <span className={styles.propertyValue}>
-                  {workItem.endDate
-                    ? formatDate(workItem.endDate)
-                    : t('detail.schedule.notScheduled')}
+                  {shownDates.end ? formatDate(shownDates.end) : t('detail.schedule.notScheduled')}
                 </span>
               </div>
             </div>
+            {showsPlannedRow({
+              startDate: shownDates.start,
+              endDate: shownDates.end,
+              plannedStartDate: workItem.startDate,
+              plannedEndDate: workItem.endDate,
+            }) && (
+              <p className={styles.plannedDates} data-testid="work-item-planned-dates">
+                {t('detail.schedule.plannedRange', {
+                  range: plannedRangeText(
+                    workItem.startDate,
+                    workItem.endDate,
+                    toBcp47Locale(resolvedLocale),
+                    formatDate,
+                  ),
+                })}
+              </p>
+            )}
           </section>
 
           {/* Area */}

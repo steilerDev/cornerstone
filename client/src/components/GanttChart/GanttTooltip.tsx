@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import type { WorkItemStatus, DependencyType, HouseholdItemStatus } from '@cornerstone/shared';
 import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { useFormatters, formatDayRange, toBcp47Locale } from '../../lib/formatters.js';
+import { useFormatters, toBcp47Locale } from '../../lib/formatters.js';
 import type { ScheduleSignalState } from '../../lib/scheduleDates.js';
+import { plannedRangeText, showsPlannedRow } from '../../lib/scheduleDates.js';
 import { Badge } from '../Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../Badge/statusBadgeVariants.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
-import { estimateWorkItemTooltipHeight, showsPlannedRow } from './tooltipData.js';
+import { estimateWorkItemTooltipHeight } from './tooltipData.js';
 import styles from './GanttTooltip.module.css';
 
 // ---------------------------------------------------------------------------
@@ -173,20 +174,14 @@ function WorkItemTooltipContent({
   const { resolvedLocale } = useLocale();
 
   const { task: taskVariants, scheduleSignal: scheduleSignalVariants } = useStatusBadgeVariants();
-  const plannedStart = data.plannedStartDate;
-  const plannedEnd = data.plannedEndDate;
-  let plannedValue: string | null = null;
-  if (!showsPlannedRow(data)) {
-    plannedValue = null;
-  } else if (plannedStart && plannedEnd) {
-    plannedValue = formatDayRange(
-      new Date(`${plannedStart}T00:00:00Z`),
-      new Date(`${plannedEnd}T00:00:00Z`),
-      toBcp47Locale(resolvedLocale),
-    );
-  } else if (plannedStart || plannedEnd) {
-    plannedValue = formatDate(plannedStart ?? plannedEnd);
-  }
+  const plannedValue = showsPlannedRow(data)
+    ? plannedRangeText(
+        data.plannedStartDate,
+        data.plannedEndDate,
+        toBcp47Locale(resolvedLocale),
+        formatDate,
+      )
+    : null;
 
   const dependencyTypeLabels: Record<DependencyType, string> = {
     finish_to_start: t('gantt.tooltip.dependency.finishToStart')!,

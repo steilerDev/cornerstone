@@ -17,6 +17,7 @@ import { listWorkItemBudgets } from './workItemBudgetService.js';
 import {
   autoReschedule,
   computeScheduleProjection,
+  shownWorkItemDates,
   workItemProjectionOf,
 } from './schedulingEngine.js';
 import type { ScheduleProjection } from './schedulingEngine.js';
@@ -719,6 +720,82 @@ export function listWorkItems(
 
   const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
 
+  // Date sort/filter follow the shown date (actual ?? forecast), so they run in memory
+  // before paging (contract 4, #2199). Every other query keeps the SQL path below.
+  const dateFilterActive =
+    query.startDateFrom !== undefined ||
+    query.startDateTo !== undefined ||
+    query.endDateFrom !== undefined ||
+    query.endDateTo !== undefined;
+  if (sortBy === 'start_date' || sortBy === 'end_date' || dateFilterActive) {
+    const filterMeta: FilterMeta = {
+      budgetLines: { min: metaRow?.budgetLinesMin ?? 0, max: metaRow?.budgetLinesMax ?? 0 },
+    };
+    const projection = computeScheduleProjection(db);
+    const areaMap = loadAreaMap(db);
+
+    const shown = db
+      .select()
+      .from(workItems)
+      .where(whereClause)
+      .all()
+      .map((row) => ({
+        row,
+        dates: shownWorkItemDates(row, workItemProjectionOf(projection, row)),
+      }))
+      .filter(({ dates }) => {
+        const inRange = (value: string | null, from?: string, to?: string): boolean => {
+          if (from === undefined && to === undefined) return true;
+          if (value === null) return false;
+          return (from === undefined || value >= from) && (to === undefined || value <= to);
+        };
+        return (
+          inRange(dates.start, query.startDateFrom, query.startDateTo) &&
+          inRange(dates.end, query.endDateFrom, query.endDateTo)
+        );
+      });
+
+    const direction = sortOrder === 'asc' ? 1 : -1;
+    const compareStrings = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+    shown.sort((a, b) => {
+      let primary: number;
+      if (sortBy === 'start_date' || sortBy === 'end_date') {
+        const av = sortBy === 'start_date' ? a.dates.start : a.dates.end;
+        const bv = sortBy === 'start_date' ? b.dates.start : b.dates.end;
+        // Rows without a shown date sort last in both directions.
+        if (av === null && bv === null) primary = 0;
+        else if (av === null) return 1;
+        else if (bv === null) return -1;
+        else primary = compareStrings(av, bv) * direction;
+      } else {
+        const pick = (r: typeof workItems.$inferSelect): string =>
+          sortBy === 'title'
+            ? r.title
+            : sortBy === 'status'
+              ? r.status
+              : sortBy === 'updated_at'
+                ? r.updatedAt
+                : r.createdAt;
+        primary = compareStrings(pick(a.row), pick(b.row)) * direction;
+      }
+      if (primary !== 0) return primary;
+      return compareStrings(a.row.createdAt, b.row.createdAt) || compareStrings(a.row.id, b.row.id);
+    });
+
+    const filteredTotal = shown.length;
+    const pageRows = shown.slice((page - 1) * pageSize, page * pageSize);
+    return {
+      items: pageRows.map(({ row }) => toWorkItemSummary(db, row, areaMap, projection)),
+      pagination: {
+        page,
+        pageSize,
+        totalItems: filteredTotal,
+        totalPages: Math.ceil(filteredTotal / pageSize),
+      },
+      filterMeta,
+    };
+  }
+
   // Count total items
   const countResult = db
     .select({ count: sql<number>`COUNT(*)` })
@@ -734,13 +811,9 @@ export function listWorkItems(
       ? workItems.title
       : sortBy === 'status'
         ? workItems.status
-        : sortBy === 'start_date'
-          ? workItems.startDate
-          : sortBy === 'end_date'
-            ? workItems.endDate
-            : sortBy === 'updated_at'
-              ? workItems.updatedAt
-              : workItems.createdAt;
+        : sortBy === 'updated_at'
+          ? workItems.updatedAt
+          : workItems.createdAt;
 
   const orderBy = sortOrder === 'asc' ? asc(sortColumn) : desc(sortColumn);
 

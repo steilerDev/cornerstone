@@ -105,6 +105,8 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     });
   };
   return {
+    formatDayRange: (start: Date, end: Date) =>
+      `${start.toISOString().slice(0, 10)} – ${end.toISOString().slice(0, 10)}`,
     formatDate: fmtDate,
     useFormatters: () => ({ formatDate: fmtDate }),
   };
@@ -402,18 +404,41 @@ describe('WorkItemsPage', () => {
       expect(screen.queryByTestId('wi-schedule-signal-wi-ok')).not.toBeInTheDocument();
     });
 
-    it('shows the planned dates (not the forecast) in the date columns', async () => {
+    it('shows the forecast dates (not the planned ones) in the date columns', async () => {
       mockListWorkItems.mockResolvedValue(makeListResponse([lateItem]));
       renderPage();
 
       await screen.findByTestId('wi-schedule-signal-wi-late');
-      expect(screen.getAllByText('Mar 5, 2026').length).toBeGreaterThan(0);
-      expect(screen.getAllByText('Mar 8, 2026').length).toBeGreaterThan(0);
-      expect(screen.queryByText('Mar 10, 2026')).not.toBeInTheDocument();
-      expect(screen.queryByText('Mar 13, 2026')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Mar 10, 2026').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Mar 13, 2026').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Mar 5, 2026')).not.toBeInTheDocument();
+      expect(screen.queryByText('Mar 8, 2026')).not.toBeInTheDocument();
     });
 
-    it('renders an undated task with empty date cells and no chip', async () => {
+    it('prefers actual dates over the forecast in the date columns', async () => {
+      mockListWorkItems.mockResolvedValue(
+        makeListResponse([
+          makeWorkItemSummary({
+            id: 'wi-act',
+            title: 'Started task',
+            status: 'in_progress',
+            startDate: '2026-03-01',
+            endDate: '2026-03-04',
+            actualStartDate: '2026-03-02',
+            projectedStartDate: '2026-03-02',
+            projectedEndDate: '2026-03-12',
+          }),
+        ]),
+      );
+      renderPage();
+
+      await screen.findAllByText('Started task');
+      expect(screen.getAllByText('Mar 2, 2026').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Mar 12, 2026').length).toBeGreaterThan(0);
+      expect(screen.queryByText('Mar 1, 2026')).not.toBeInTheDocument();
+    });
+
+    it('shows an undated task at its forecast dates, without a chip', async () => {
       mockListWorkItems.mockResolvedValue(
         makeListResponse([
           makeWorkItemSummary({
@@ -428,6 +453,8 @@ describe('WorkItemsPage', () => {
 
       await screen.findAllByText('Undated task');
       expect(screen.queryByTestId('wi-schedule-signal-wi-undated')).not.toBeInTheDocument();
+      expect(screen.getAllByText('Mar 10, 2026').length).toBeGreaterThan(0);
+      expect(screen.getAllByText('Mar 12, 2026').length).toBeGreaterThan(0);
     });
 
     it('keeps every data-testid unique with all chip surfaces mounted', async () => {

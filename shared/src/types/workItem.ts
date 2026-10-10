@@ -203,6 +203,14 @@ export interface WorkItemListQuery {
   q?: string;
   budgetLinesMin?: number;
   budgetLinesMax?: number;
+  /** YYYY-MM-DD, inclusive, applied to the shown start date (actual ?? forecast). */
+  startDateFrom?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown start date (actual ?? forecast). */
+  startDateTo?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown end date (actual ?? forecast). */
+  endDateFrom?: string;
+  /** YYYY-MM-DD, inclusive, applied to the shown end date (actual ?? forecast). */
+  endDateTo?: string;
   sortBy?: 'title' | 'status' | 'start_date' | 'end_date' | 'created_at' | 'updated_at';
   sortOrder?: 'asc' | 'desc';
 }

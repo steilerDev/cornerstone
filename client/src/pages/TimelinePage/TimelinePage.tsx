@@ -12,6 +12,7 @@ import {
   COLUMN_WIDTH_MAX,
   SIDEBAR_WIDTH,
 } from '../../components/GanttChart/ganttUtils.js';
+import { barDates } from '../../lib/scheduleDates.js';
 import styles from './TimelinePage.module.css';
 
 // ---------------------------------------------------------------------------
@@ -315,7 +316,10 @@ export function TimelinePage() {
 
   const hasWorkItemsWithDates =
     data !== null &&
-    data.workItems.some((item) => item.startDate !== null || item.endDate !== null);
+    data.workItems.some((item) => {
+      const d = barDates(item);
+      return d.start !== null || d.end !== null;
+    });
 
   const isEmpty = data !== null && data.workItems.length === 0;
   const calendarIsEmpty =

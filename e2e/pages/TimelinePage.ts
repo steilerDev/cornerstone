@@ -225,6 +225,11 @@ export class TimelinePage {
     return this.page.getByTestId(`gantt-bar-${workItemId}`);
   }
 
+  /** Calendar task segments whose accessible name (title, status, dates) mentions the title. */
+  calendarItemByTitle(title: string): Locator {
+    return this.calendarItems.and(this.page.locator(`[aria-label*="${title}"]`));
+  }
+
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   /** Navigate to the Schedule page and wait for the heading. */

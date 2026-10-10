@@ -13,7 +13,7 @@ import {
   MILESTONE_DISPLAY_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
-import type { ScheduleSignalState } from '../../lib/scheduleDates.js';
+import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import type { BadgeVariant } from './Badge.js';
 import badgeStyles from './Badge.module.css';
@@ -154,7 +154,7 @@ export function buildMilestoneStatusVariants(
 export function buildScheduleSignalVariants(
   t: StatusLabelT,
   lateDays: number,
-): Record<'late' | 'held_up', BadgeVariant> {
+): Record<ShownScheduleSignal, BadgeVariant> {
   const set = I18N_UNION_KEYS.statusVocabularyScheduleSignal;
   return {
     late: {
@@ -171,8 +171,8 @@ export function buildScheduleSignalVariants(
 /** Props that make every surface render the same signal chip. */
 export function scheduleSignalBadgeProps(
   state: ScheduleSignalState,
-  variantsFor: (days: number) => Record<'late' | 'held_up', BadgeVariant>,
-): { variants: Record<'late' | 'held_up', BadgeVariant>; value: 'late' | 'held_up' } {
+  variantsFor: (days: number) => Record<ShownScheduleSignal, BadgeVariant>,
+): { variants: Record<ShownScheduleSignal, BadgeVariant>; value: ShownScheduleSignal } {
   return {
     variants: variantsFor(state.signal === 'late' ? state.days : 0),
     value: state.signal,

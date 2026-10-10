@@ -185,7 +185,8 @@
     "schedule": {
       "startDate": "Start Date",
       "endDate": "End Date",
-      "notScheduled": "Not scheduled"
+      "notScheduled": "Not scheduled",
+      "plannedRange": "Planned: {{range}}"
     },
     "assignment": {
       "assignedTo": "Assigned To",

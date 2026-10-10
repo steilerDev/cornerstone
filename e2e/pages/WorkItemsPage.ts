@@ -424,7 +424,10 @@ export class WorkItemsPage {
     return this.tableBody
       .locator('tr')
       .filter({ hasText: title })
-      .or(this.cardsContainer.locator('[class*="card"]').filter({ hasText: title }))
+      .or(
+        // Card root only: `card_` does not match cardHeader_/cardContent_/cardRow_/cardValue_
+        this.cardsContainer.locator('[class*="card_"]').filter({ hasText: title }),
+      )
       .locator('visible=true');
   }
 

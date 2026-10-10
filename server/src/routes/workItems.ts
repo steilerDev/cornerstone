@@ -53,6 +53,10 @@ const listWorkItemsSchema = {
       q: { type: 'string' },
       budgetLinesMin: { type: 'number' },
       budgetLinesMax: { type: 'number' },
+      startDateFrom: { type: 'string', format: 'date' },
+      startDateTo: { type: 'string', format: 'date' },
+      endDateFrom: { type: 'string', format: 'date' },
+      endDateTo: { type: 'string', format: 'date' },
       sortBy: {
         type: 'string',
         enum: ['title', 'status', 'start_date', 'end_date', 'created_at', 'updated_at'],

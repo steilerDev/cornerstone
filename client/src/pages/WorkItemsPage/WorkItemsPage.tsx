@@ -10,7 +10,7 @@ import type { DataTableSurface } from '../../components/DataTable/dataTableTestI
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
-import { scheduleSignalOf } from '../../lib/scheduleDates.js';
+import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
@@ -301,7 +301,7 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'date',
         filterParamKey: 'startDate',
-        render: (item) => formatDate(item.startDate),
+        render: (item) => formatDate(barDates(item).start),
       },
       {
         key: 'endDate',
@@ -312,7 +312,7 @@ export function WorkItemsPage() {
         filterable: true,
         filterType: 'date',
         filterParamKey: 'endDate',
-        render: (item) => formatDate(item.endDate),
+        render: (item) => formatDate(barDates(item).end),
       },
       {
         key: 'budgetLines',

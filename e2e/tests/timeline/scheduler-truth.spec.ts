@@ -9,9 +9,10 @@
  * 1+2. Late task and held-up successor: API (task + timeline) and UI (list chip, planned start,
  *      task page chip, no "Delayed by")
  * 3. Schedule tooltip: Late chip, "Planned" row, forecast start
- * 4. One date source: list, task page and tooltip show identical dates; no chip for an on-time task
+ * 4. One date source: a late task shows the same forecast dates on the list, task page, tooltip,
+ *    calendar and in the timeline response Home loads; an on-time task has no chip or planned line
  * 5. Phone (@responsive): the list chip is visible on the visible list surface
- * 6. Undated task (architect decision): no chip, empty planned dates, still has a Schedule bar
+ * 6. Undated task (architect decision): no chip, forecast start shown, no planned line, still has a Schedule bar
  */
 
 import { test, expect } from '../../fixtures/auth.js';
@@ -37,6 +38,19 @@ function fmt(isoDate: string): string {
     month: 'short',
     day: 'numeric',
   });
+}
+
+/** Planned range as the tooltip renders it (formatDayRange: "October 5 – 8, 2026"), else one date. */
+function plannedRange(start: string | null, end: string | null): string {
+  if (start && end) {
+    return new Intl.DateTimeFormat('en-US', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    }).formatRange(new Date(`${start}T00:00:00Z`), new Date(`${end}T00:00:00Z`));
+  }
+  return fmt((start ?? end)!);
 }
 
 interface ScheduleView {
@@ -94,7 +108,7 @@ async function openListFor(page: Page, title: string): Promise<WorkItemsPage> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
-  test('A late task keeps its planned start and shows Late; its successor shows Held up', async ({
+  test('A late task shows its forecast start, keeps its plan and shows Late; its successor shows Held up', async ({
     page,
     testPrefix,
   }) => {
@@ -127,10 +141,12 @@ test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
       expect(taskB.isHeldUp).toBe(true);
       expect(taskB.isLate).toBe(false);
 
-      // List: A shows the chip and its planned start; B shows Held up
+      // List: A shows the chip and its forecast start; B shows Held up
       const list = await openListFor(page, titleA);
       await expect(list.scheduleSignal(a)).toHaveText('Late · 5 d');
-      await expect(list.workItemRow(titleA)).toContainText(fmt(utcDay(-5)));
+      // The list shows the forecast start, not the planned one
+      await expect(list.workItemRow(titleA)).toContainText(fmt(utcDay(0)));
+      await expect(list.workItemRow(titleA)).not.toContainText(fmt(utcDay(-5)));
 
       const listB = await openListFor(page, titleB);
       await expect(listB.scheduleSignal(b)).toHaveText('Held up');
@@ -140,6 +156,12 @@ test.describe('Late task and held-up successor (Scenarios 1 + 2)', () => {
       await detailA.goto(a);
       await expect(detailA.headerScheduleSignal).toHaveText('Late · 5 d');
       await expect(page.getByText('Delayed by')).toHaveCount(0);
+      // Start is the forecast; the planned range is secondary text
+      await expect(detailA.scheduleSection).toContainText(fmt(utcDay(0)));
+      await expect(detailA.plannedDates).toContainText('Planned');
+      await expect(detailA.plannedDates).toContainText(
+        new RegExp(`\\b${Number(utcDay(-5).slice(8))}\\b`),
+      );
 
       // Task page B: header chip says Held up
       const detailB = new WorkItemDetailPage(page);
@@ -184,7 +206,10 @@ test.describe('Schedule tooltip shows the schedule signal (Scenario 3)', () => {
       await expect(timelinePage.tooltip).toBeVisible();
       await expect(timelinePage.tooltipScheduleSignal).toHaveText('Late · 5 d');
       await expect(timelinePage.tooltipPlanned).toContainText('Planned');
-      await expect(timelinePage.tooltipPlanned).toContainText(fmt(utcDay(-5)));
+      const planned = await getWorkItem(page, id);
+      await expect(timelinePage.tooltipPlanned).toContainText(
+        plannedRange(planned.startDate, planned.endDate),
+      );
       // Start is the forecast (today), not the planned date
       await expect(timelinePage.tooltip).toContainText(new RegExp(`Start\\s*${fmt(utcDay(0))}`));
     } finally {
@@ -197,43 +222,35 @@ test.describe('Schedule tooltip shows the schedule signal (Scenario 3)', () => {
 // Scenario 4: one date source
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('One date source for an on-time task (Scenario 4)', () => {
-  test('The list, the task page and the Schedule tooltip show identical dates and no chip', async ({
+test.describe('One date source for a late task (Scenario 4)', () => {
+  test('List, task page, Schedule tooltip, calendar and Home all use the same forecast dates', async ({
     page,
     testPrefix,
   }) => {
-    const title = `${testPrefix} On Time ${Date.now()}`;
+    const title = `${testPrefix} One Source ${Date.now()}`;
     let id: string | null = null;
 
     try {
-      id = await createWorkItemViaApi(page, {
-        title,
-        status: 'not_started',
-        startDate: utcDay(10),
-        durationDays: 2,
-      });
+      id = await createLateTask(page, title);
 
+      // The forecast: starts today, runs for the 3-day duration
       const task = await getWorkItem(page, id);
-      expect(task.startDate).toBe(utcDay(10));
-      expect(task.isLate).toBe(false);
-      expect(task.isHeldUp).toBe(false);
-      expect(task.projectedStartDate).toBe(task.startDate);
-      expect(task.projectedEndDate).toBe(task.endDate);
-      const start = fmt(task.startDate!);
-      const end = fmt(task.endDate!);
+      expect(task.isLate).toBe(true);
+      expect(task.projectedStartDate).toBe(utcDay(0));
+      expect(task.projectedEndDate).toBe(utcDay(3));
+      const start = fmt(utcDay(0));
+      const end = fmt(utcDay(3));
 
       // List row
       const list = await openListFor(page, title);
       await expect(list.workItemRow(title)).toContainText(start);
       await expect(list.workItemRow(title)).toContainText(end);
-      await expect(list.scheduleSignal(id)).toHaveCount(0);
 
       // Task page Schedule section
       const detail = new WorkItemDetailPage(page);
       await detail.goto(id);
       await expect(detail.scheduleSection).toContainText(start);
       await expect(detail.scheduleSection).toContainText(end);
-      await expect(detail.headerScheduleSignal).toHaveCount(0);
 
       // Schedule tooltip (desktop only: hover is not a phone/tablet interaction)
       if ((page.viewportSize()?.width ?? 1440) >= 1200) {
@@ -246,9 +263,52 @@ test.describe('One date source for an on-time task (Scenario 4)', () => {
         await expect(timelinePage.tooltip).toBeVisible();
         await expect(timelinePage.tooltip).toContainText(new RegExp(`Start\\s*${start}`));
         await expect(timelinePage.tooltip).toContainText(new RegExp(`End\\s*${end}`));
-        await expect(timelinePage.tooltipScheduleSignal).toHaveCount(0);
-        await expect(timelinePage.tooltipPlanned).toHaveCount(0);
       }
+
+      // Calendar (month view, all viewports): the item is drawn from the forecast dates
+      const calendarPage = new TimelinePage(page);
+      await calendarPage.gotoCalendar();
+      await expect(calendarPage.calendarItemByTitle(title).first()).toHaveAttribute(
+        'aria-label',
+        new RegExp(start),
+      );
+
+      // Home: the timeline response the dashboard loads carries the same forecast dates
+      const timelineResponse = page.waitForResponse(
+        (r) => r.url().endsWith('/api/timeline') && r.request().method() === 'GET',
+      );
+      await page.goto('/');
+      const body = (await (await timelineResponse).json()) as {
+        workItems: Array<{ id: string; projectedStartDate: string; projectedEndDate: string }>;
+      };
+      const homeItem = body.workItems.find((w) => w.id === id);
+      expect(homeItem).toBeDefined();
+      expect(homeItem!.projectedStartDate).toBe(utcDay(0));
+      expect(homeItem!.projectedEndDate).toBe(utcDay(3));
+    } finally {
+      if (id) await deleteWorkItemViaApi(page, id);
+    }
+  });
+
+  test('An on-time task shows no chip and no planned line', async ({ page, testPrefix }) => {
+    const title = `${testPrefix} On Time ${Date.now()}`;
+    let id: string | null = null;
+
+    try {
+      id = await createWorkItemViaApi(page, {
+        title,
+        status: 'not_started',
+        startDate: utcDay(10),
+        durationDays: 2,
+      });
+
+      const list = await openListFor(page, title);
+      await expect(list.scheduleSignal(id)).toHaveCount(0);
+
+      const detail = new WorkItemDetailPage(page);
+      await detail.goto(id);
+      await expect(detail.headerScheduleSignal).toHaveCount(0);
+      await expect(detail.plannedDates).toHaveCount(0);
     } finally {
       if (id) await deleteWorkItemViaApi(page, id);
     }
@@ -283,7 +343,7 @@ test.describe('Late chip on the list (Scenario 5)', { tag: '@responsive' }, () =
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Undated task (Scenario 6)', () => {
-  test('A task without dates is never Late, has empty planned dates and still has a bar', async ({
+  test('A task without dates is never Late, shows its forecast start with no planned line, and still has a bar', async ({
     page,
     testPrefix,
   }) => {
@@ -301,14 +361,16 @@ test.describe('Undated task (Scenario 6)', () => {
       expect(task.lateDays).toBeNull();
       expect(task.projectedStartDate).toBe(utcDay(0));
 
-      // List: no chip
+      // List: no chip, shows the forecast start (today)
       const list = await openListFor(page, title);
       await expect(list.scheduleSignal(id)).toHaveCount(0);
+      await expect(list.workItemRow(title)).toContainText(fmt(utcDay(0)));
 
-      // Task page: planned dates empty, no chip
+      // Task page: shows the forecast start, no planned line, no chip
       const detail = new WorkItemDetailPage(page);
       await detail.goto(id);
-      await expect(detail.scheduleSection).toContainText('Not scheduled');
+      await expect(detail.scheduleSection).toContainText(fmt(utcDay(0)));
+      await expect(detail.plannedDates).toHaveCount(0);
       await expect(detail.headerScheduleSignal).toHaveCount(0);
 
       // Schedule: the task still has a bar (desktop only; the bar is a chart element)

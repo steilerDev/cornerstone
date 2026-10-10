@@ -1322,11 +1322,11 @@ describe('Work Item Service', () => {
     });
 
     it('supports sorting by start_date descending', () => {
-      // Given: Work items with various start dates
+      // Given: Work items with various start dates (far future: shown date = planned date)
       const userId = createTestUser('user@example.com', 'Test User');
-      workItemService.createWorkItem(db, userId, { title: 'A', startDate: '2026-03-01' });
-      workItemService.createWorkItem(db, userId, { title: 'B', startDate: '2026-03-15' });
-      workItemService.createWorkItem(db, userId, { title: 'C', startDate: '2026-03-10' });
+      workItemService.createWorkItem(db, userId, { title: 'A', startDate: '2099-03-01' });
+      workItemService.createWorkItem(db, userId, { title: 'B', startDate: '2099-03-15' });
+      workItemService.createWorkItem(db, userId, { title: 'C', startDate: '2099-03-10' });
       workItemService.createWorkItem(db, userId, { title: 'D' }); // null start date
 
       // When: Sorting by start_date descending
@@ -1336,9 +1336,9 @@ describe('Work Item Service', () => {
       });
 
       // Then: Items sorted by date (null last)
-      expect(result.items[0]!.startDate).toBe('2026-03-15');
-      expect(result.items[1]!.startDate).toBe('2026-03-10');
-      expect(result.items[2]!.startDate).toBe('2026-03-01');
+      expect(result.items[0]!.startDate).toBe('2099-03-15');
+      expect(result.items[1]!.startDate).toBe('2099-03-10');
+      expect(result.items[2]!.startDate).toBe('2099-03-01');
       expect(result.items[3]!.startDate).toBeNull();
     });
 
@@ -1970,6 +1970,193 @@ describe('Work Item Service', () => {
       expect(created.isLate).toBe(true);
       expect(created.lateDays).toBe(3);
       expect(created.projectedStartDate).toBe('2026-03-10');
+    });
+  });
+
+  describe('listWorkItems() — shown-date sort and filter (contract 4, #2199)', () => {
+    // today = 2026-03-10. Shown dates (actual ?? forecast):
+    //   onTime   in progress, actual start 03-07 -> 03-07 .. 03-12
+    //   late     not started, planned 03-05 .. 03-08 -> forecast 03-10 .. 03-13
+    //   undated  no dates -> forecast starts today, 03-10 .. 03-10
+    //   done     completed without dates -> no shown date (null)
+    function insertListed(
+      id: string,
+      createdAt: string,
+      o: Partial<typeof schema.workItems.$inferInsert>,
+    ) {
+      db.insert(schema.workItems)
+        .values({
+          id,
+          title: `Item ${id}`,
+          status: 'not_started',
+          createdAt,
+          updatedAt: createdAt,
+          ...o,
+        })
+        .run();
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers({ now: new Date('2026-03-10T12:00:00.000Z') });
+      insertListed('onTime', '2026-03-01T00:00:00.000Z', {
+        title: 'Charlie',
+        status: 'in_progress',
+        startDate: '2026-03-07',
+        endDate: '2026-03-12',
+        actualStartDate: '2026-03-07',
+        durationDays: 5,
+      });
+      insertListed('late', '2026-03-02T00:00:00.000Z', {
+        title: 'Alpha',
+        startDate: '2026-03-05',
+        endDate: '2026-03-08',
+        durationDays: 3,
+      });
+      insertListed('undated', '2026-03-03T00:00:00.000Z', { title: 'Bravo' });
+      insertListed('done', '2026-03-04T00:00:00.000Z', { title: 'Delta', status: 'completed' });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const ids = (r: { items: Array<{ id: string }> }) => r.items.map((i) => i.id);
+
+    it('sorts ascending by the shown start, not the planned start, with null dates last', () => {
+      const result = workItemService.listWorkItems(db, { sortBy: 'start_date', sortOrder: 'asc' });
+      // Planned order would put "late" (03-05) first.
+      expect(ids(result)).toEqual(['onTime', 'late', 'undated', 'done']);
+    });
+
+    it('keeps rows without a shown date last when sorting descending', () => {
+      const result = workItemService.listWorkItems(db, { sortBy: 'start_date', sortOrder: 'desc' });
+      // late and undated tie on 03-10: createdAt ascending decides, in both directions.
+      expect(ids(result)).toEqual(['late', 'undated', 'onTime', 'done']);
+    });
+
+    it('sorts by the shown end', () => {
+      const asc = workItemService.listWorkItems(db, { sortBy: 'end_date', sortOrder: 'asc' });
+      expect(ids(asc)).toEqual(['undated', 'onTime', 'late', 'done']);
+      const desc = workItemService.listWorkItems(db, { sortBy: 'end_date', sortOrder: 'desc' });
+      expect(ids(desc)).toEqual(['late', 'onTime', 'undated', 'done']);
+    });
+
+    it('breaks a createdAt tie by id, so the order is total', () => {
+      insertListed('tie-b', '2026-03-03T00:00:00.000Z', { title: 'Zulu' });
+      insertListed('tie-a', '2026-03-03T00:00:00.000Z', { title: 'Zulu 2' });
+      const result = workItemService.listWorkItems(db, { sortBy: 'start_date', sortOrder: 'asc' });
+      const order = ids(result);
+      // undated, tie-a, tie-b all start today (03-10) and share createdAt: id decides
+      expect(order.slice(2, 5)).toEqual(['tie-a', 'tie-b', 'undated']);
+    });
+
+    it('pages through a date sort without repeating or skipping a row', () => {
+      const seen: string[] = [];
+      for (let page = 1; page <= 4; page++) {
+        const r = workItemService.listWorkItems(db, {
+          sortBy: 'start_date',
+          sortOrder: 'asc',
+          page,
+          pageSize: 1,
+        });
+        expect(r.pagination.totalItems).toBe(4);
+        expect(r.pagination.totalPages).toBe(4);
+        seen.push(...ids(r));
+      }
+      expect(seen).toEqual(['onTime', 'late', 'undated', 'done']);
+      expect(
+        workItemService.listWorkItems(db, { sortBy: 'start_date', page: 5, pageSize: 1 }).items,
+      ).toEqual([]);
+    });
+
+    it('filters startDateFrom on the shown start: includes the late task, excludes the earlier one', () => {
+      const result = workItemService.listWorkItems(db, { startDateFrom: '2026-03-09' });
+      expect(ids(result).sort()).toEqual(['late', 'undated']);
+      expect(result.pagination.totalItems).toBe(2);
+      expect(result.pagination.totalPages).toBe(1);
+    });
+
+    it('filters startDateTo on the shown start and excludes rows without one', () => {
+      const result = workItemService.listWorkItems(db, { startDateTo: '2026-03-08' });
+      expect(ids(result)).toEqual(['onTime']);
+    });
+
+    it('filters endDateFrom/endDateTo on the shown end', () => {
+      expect(ids(workItemService.listWorkItems(db, { endDateTo: '2026-03-12' })).sort()).toEqual([
+        'onTime',
+        'undated',
+      ]);
+      expect(ids(workItemService.listWorkItems(db, { endDateFrom: '2026-03-13' }))).toEqual([
+        'late',
+      ]);
+    });
+
+    it('combines the date filters with the other filters and reports the filtered total', () => {
+      const result = workItemService.listWorkItems(db, {
+        startDateFrom: '2026-03-09',
+        status: 'not_started',
+        q: 'Alpha',
+      });
+      expect(ids(result)).toEqual(['late']);
+      expect(result.pagination.totalItems).toBe(1);
+    });
+
+    it('applies both bounds of a range inclusively', () => {
+      const result = workItemService.listWorkItems(db, {
+        startDateFrom: '2026-03-07',
+        startDateTo: '2026-03-10',
+      });
+      expect(ids(result).sort()).toEqual(['late', 'onTime', 'undated']);
+    });
+
+    it('uses the in-memory path for a non-date sort when a date filter is active', () => {
+      const asc = workItemService.listWorkItems(db, {
+        startDateFrom: '2026-03-01',
+        sortBy: 'title',
+        sortOrder: 'asc',
+      });
+      expect(ids(asc)).toEqual(['late', 'undated', 'onTime']);
+      expect(
+        ids(
+          workItemService.listWorkItems(db, {
+            startDateFrom: '2026-03-01',
+            sortBy: 'status',
+            sortOrder: 'asc',
+          }),
+        ),
+      ).toEqual(['onTime', 'late', 'undated']);
+      expect(
+        ids(
+          workItemService.listWorkItems(db, {
+            startDateFrom: '2026-03-01',
+            sortBy: 'updated_at',
+            sortOrder: 'desc',
+          }),
+        ),
+      ).toEqual(['undated', 'late', 'onTime']);
+      expect(
+        ids(
+          workItemService.listWorkItems(db, {
+            startDateFrom: '2026-03-01',
+            sortBy: 'created_at',
+            sortOrder: 'asc',
+          }),
+        ),
+      ).toEqual(['onTime', 'late', 'undated']);
+    });
+
+    it('leaves the SQL path untouched for sortBy=title without a date filter', () => {
+      const result = workItemService.listWorkItems(db, { sortBy: 'title', sortOrder: 'asc' });
+      expect(ids(result)).toEqual(['late', 'undated', 'onTime', 'done']);
+      expect(result.pagination.totalItems).toBe(4);
+    });
+
+    it('returns the filter meta and projection fields on the in-memory path', () => {
+      const result = workItemService.listWorkItems(db, { sortBy: 'start_date' });
+      expect(result.filterMeta.budgetLines).toEqual({ min: 0, max: 0 });
+      const late = result.items.find((i) => i.id === 'late')!;
+      expect(late.isLate).toBe(true);
+      expect(late.projectedStartDate).toBe('2026-03-10');
     });
   });
 });

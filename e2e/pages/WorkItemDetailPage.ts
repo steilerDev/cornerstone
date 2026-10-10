@@ -63,6 +63,8 @@ export class WorkItemDetailPage {
   readonly scheduleSection: Locator;
   /** Late / Held up chip in the page header (#2199); absent when neither applies. */
   readonly headerScheduleSignal: Locator;
+  /** Secondary "Planned: …" line, rendered only when the plan differs from the forecast. */
+  readonly plannedDates: Locator;
   readonly assignmentSection: Locator;
   readonly tagsSection: Locator;
   readonly budgetSection: Locator;
@@ -125,6 +127,7 @@ export class WorkItemDetailPage {
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Schedule', exact: true }) });
     this.headerScheduleSignal = page.getByTestId('work-item-schedule-signal');
+    this.plannedDates = page.getByTestId('work-item-planned-dates');
     this.assignmentSection = page
       .locator('section')
       .filter({ has: page.getByRole('heading', { level: 2, name: 'Assignment', exact: true }) });

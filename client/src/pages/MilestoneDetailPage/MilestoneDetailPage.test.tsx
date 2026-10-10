@@ -395,6 +395,50 @@ describe('MilestoneDetailPage', () => {
       });
     });
 
+    it('computes the projected date from the forecast end of a late contributor, not its planned end', async () => {
+      mockGetMilestone.mockResolvedValueOnce({
+        ...sampleMilestoneDetail,
+        targetDate: '2026-03-10',
+        workItems: [
+          {
+            ...sampleWorkItemSummary,
+            status: 'not_started',
+            startDate: '2026-03-05',
+            endDate: '2026-03-08',
+            projectedStartDate: '2026-03-10',
+            projectedEndDate: '2026-03-13',
+            isLate: true,
+            lateDays: 5,
+          },
+        ],
+      });
+
+      renderPage();
+
+      await screen.findByText('Mar 13, 2026');
+      expect(screen.getByText(/3\s+days\s+late/)).toBeInTheDocument();
+      expect(screen.queryByText(/ahead/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to the planned end when a contributor has no forecast end', async () => {
+      mockGetMilestone.mockResolvedValueOnce({
+        ...sampleMilestoneDetail,
+        targetDate: '2026-03-10',
+        workItems: [
+          {
+            ...sampleWorkItemSummary,
+            endDate: '2026-03-08',
+            projectedEndDate: null,
+          },
+        ],
+      });
+
+      renderPage();
+
+      await screen.findByText('Mar 8, 2026');
+      expect(screen.getByText(/2\s+days\s+ahead/)).toBeInTheDocument();
+    });
+
     it('renders "back to milestones" button', async () => {
       mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
 

@@ -36,6 +36,10 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   if (params?.q) {
     queryParams.set('q', params.q);
   }
+  if (params?.startDateFrom) queryParams.set('startDateFrom', params.startDateFrom);
+  if (params?.startDateTo) queryParams.set('startDateTo', params.startDateTo);
+  if (params?.endDateFrom) queryParams.set('endDateFrom', params.endDateFrom);
+  if (params?.endDateTo) queryParams.set('endDateTo', params.endDateTo);
   if (params?.budgetLinesMin !== undefined) {
     queryParams.set('budgetLinesMin', params.budgetLinesMin.toString());
   }

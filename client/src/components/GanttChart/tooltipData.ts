@@ -7,7 +7,7 @@
 
 import type { AreaSummary, TimelineHouseholdItem, TimelineWorkItem } from '@cornerstone/shared';
 import { computeActualDuration } from '../../lib/formatters.js';
-import { barDates, scheduleSignalOf } from '../../lib/scheduleDates.js';
+import { barDates, scheduleSignalOf, showsPlannedRow } from '../../lib/scheduleDates.js';
 import type {
   GanttTooltipDependencyEntry,
   GanttTooltipHouseholdItemData,
@@ -70,19 +70,6 @@ export function buildHouseholdItemTooltipData(
     areaName: formatAreaPath(hi.area),
     linkedItems,
   };
-}
-
-/** True when the Planned row adds information: planned dates exist and differ from the shown ones. */
-export function showsPlannedRow(
-  data: Pick<
-    GanttTooltipWorkItemData,
-    'startDate' | 'endDate' | 'plannedStartDate' | 'plannedEndDate'
-  >,
-): boolean {
-  return (
-    (data.plannedStartDate !== null || data.plannedEndDate !== null) &&
-    (data.plannedStartDate !== data.startDate || data.plannedEndDate !== data.endDate)
-  );
 }
 
 /** Height used by the tooltip's flip logic (px). */

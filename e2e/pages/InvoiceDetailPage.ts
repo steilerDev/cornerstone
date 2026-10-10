@@ -90,6 +90,7 @@
  * - Desktop table (>767px): [class*="tableWrapper"] > table
  */
 
+import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 
 export class InvoiceDetailPage {
@@ -1089,21 +1090,20 @@ export class InvoiceDetailPage {
       await this.editVendorInput.waitFor({ state: 'visible' });
     }
 
-    // Type into the vendor search input to trigger the dropdown
-    await this.editVendorInput.fill(vendorName);
-
-    // The SearchPicker portals its dropdown to [data-search-picker-dropdown] on document.body
+    // The SearchPicker portals its dropdown to [data-search-picker-dropdown] on document.body.
+    // On the phone the option list can re-render under the pointer (the first click is lost and
+    // the list stays open), so retry the whole type-and-pick until the picker shows its value.
     const dropdown = this.page.locator('[data-search-picker-dropdown]');
-    await dropdown.waitFor({ state: 'visible' });
+    await expect(async () => {
+      if (await this.editVendorSelectedDisplay.isVisible()) return;
+      await this.editVendorInput.fill(vendorName);
+      await dropdown.waitFor({ state: 'visible' });
+      await dropdown.getByRole('option', { name: vendorName, exact: true }).click();
+      await this.editVendorSelectedDisplay.waitFor({ state: 'visible', timeout: 3000 });
+    }).toPass({ timeout: 20000 });
 
-    // Click the option whose text exactly matches the vendor name
-    await dropdown.getByRole('option', { name: vendorName, exact: true }).click();
-
-    // The portalled option list must detach before the picker can show its selected value
+    // The portalled option list must detach once the selection is made
     await dropdown.waitFor({ state: 'detached' });
-
-    // After selection, picker should switch back to selectedDisplay mode
-    await this.editVendorSelectedDisplay.waitFor({ state: 'visible' });
   }
 
   /**

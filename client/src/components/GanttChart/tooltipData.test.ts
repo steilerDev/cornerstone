@@ -8,7 +8,6 @@ import {
   buildWorkItemTooltipData,
   estimateWorkItemTooltipHeight,
   formatAreaPath,
-  showsPlannedRow,
 } from './tooltipData.js';
 import type { GanttTooltipDependencyEntry, GanttTooltipWorkItemData } from './GanttTooltip.js';
 
@@ -359,48 +358,5 @@ describe('estimateWorkItemTooltipHeight', () => {
     expect(estimateWorkItemTooltipHeight({ ...base(), dependencies: deps }, max)).toBe(
       TOOLTIP_HEIGHT_BASE + ROW_HEIGHT * 6,
     );
-  });
-});
-
-describe('showsPlannedRow', () => {
-  const shown = { startDate: '2026-03-05', endDate: '2026-03-15' };
-
-  it('is false when the planned dates equal the shown dates', () => {
-    expect(
-      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-05', plannedEndDate: '2026-03-15' }),
-    ).toBe(false);
-  });
-
-  it('is true when the start differs', () => {
-    expect(
-      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-01', plannedEndDate: '2026-03-15' }),
-    ).toBe(true);
-  });
-
-  it('is true when the end differs', () => {
-    expect(
-      showsPlannedRow({ ...shown, plannedStartDate: '2026-03-05', plannedEndDate: '2026-03-12' }),
-    ).toBe(true);
-  });
-
-  it('is false when both planned dates are null (undated task)', () => {
-    expect(showsPlannedRow({ ...shown, plannedStartDate: null, plannedEndDate: null })).toBe(false);
-  });
-
-  it('is true when the planned start is null but the shown start is set and the end differs', () => {
-    expect(
-      showsPlannedRow({ ...shown, plannedStartDate: null, plannedEndDate: '2026-03-12' }),
-    ).toBe(true);
-  });
-
-  it('is false when the planned start is null, the shown start is null too, and the end equals', () => {
-    expect(
-      showsPlannedRow({
-        startDate: null,
-        endDate: '2026-03-15',
-        plannedStartDate: null,
-        plannedEndDate: '2026-03-15',
-      }),
-    ).toBe(false);
   });
 });
