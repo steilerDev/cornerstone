@@ -265,7 +265,9 @@ const ROWS: SweepRow[] = [
     id: 'photoSpot',
     path: () => routeUrl('photoSpot', { areaKey: seed.areaId, orientationKey: seed.orientationId }),
     h1: SPOT_H1,
-    crumbs: true,
+    // The spot viewer owns its "Back to Photos" link (page-identity-diary-settings E3); it
+    // renders no shared breadcrumb row unless opened from elsewhere
+    crumbs: false,
     active: PHOTOS,
   },
   // Settings

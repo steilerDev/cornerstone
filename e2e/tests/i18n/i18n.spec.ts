@@ -436,13 +436,11 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
       .getByRole('heading', { level: 1, name: 'Auftragnehmer' })
       .waitFor({ state: 'visible' });
 
-    // Then: The Settings sub-nav shows "Auftragnehmer" (German for Vendors/Contractors)
-    // Vendors moved from Budget section to Settings section (Story #1283).
-    // The Settings sub-nav link is the reliable indicator that the page is in German and loaded.
-    const subNav = page.getByRole('navigation', {
-      name: 'Navigation im Bereich Einstellungen',
-    });
-    await expect(subNav.getByRole('link', { name: 'Auftragnehmer' })).toBeVisible();
+    // Then: the sidebar's Companies entry ("Firmen") is the highlighted one (#2205: the Settings
+    // tab row is gone). It is the reliable indicator that the shell is in German and loaded.
+    const companies = page.getByTestId('sidebar-section-companies');
+    await expect(companies).toHaveText('Firmen');
+    await expect(companies).toHaveAttribute('aria-current', 'page');
   });
 
   test('German text renders on work items page', async ({ page }) => {
@@ -454,11 +452,13 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     await page.getByRole('heading', { level: 1, name: 'Aufgaben' }).waitFor({ state: 'visible' });
 
     // Then: The page renders with the German h1 heading (#2202: "Aufgaben", the page's own name)
-    // and the translated Project sub-nav name
+    // and the translated Tasks views nested in the sidebar (#2205: the Project tab row is gone)
     await expect(page.getByRole('heading', { level: 1, name: 'Aufgaben' })).toBeVisible();
-    await expect(
-      page.getByRole('navigation', { name: 'Navigation im Bereich Projekt' }),
-    ).toBeVisible();
+    await expect(page.locator('[data-testid^="sidebar-view-"]')).toHaveText([
+      'Zeitplan',
+      'Kalender',
+      'Meilensteine',
+    ]);
   });
 });
 

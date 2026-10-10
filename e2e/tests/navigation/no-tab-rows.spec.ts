@@ -6,7 +6,8 @@
  * the page's `main` area holds no navigation landmark, except
  *  - the breadcrumb trail on non-view pages (Funding sources, Grants and Bank report show a
  *    "Money" trail), which is excluded by its row's test id, not by text, and
- *  - the "Area path" trail inside list rows/cards (an object's data, not page navigation).
+ *  - the "Area path" trail inside list rows/cards (an object's data, not page navigation),
+ *  - the report wizard's step indicator on Bank report ("Report wizard steps").
  *
  * Desktop and mobile run; tablet is skipped (the markup does not differ between them).
  * Only read-only navigation to list/settings pages, so the shared database is untouched.
@@ -45,7 +46,11 @@ test.describe('No in-page tab rows (#2205)', () => {
       // Settled: the page's own heading (Home's h1 is not asserted by text, only its presence)
       await expect(page.locator('main').getByRole('heading', { level: 1 }).first()).toBeVisible();
 
-      const pageNavs = page.locator('main').locator('nav:not([aria-label="Area path"])');
+      // Also not tab rows: the "Area path" trail inside list rows and the report wizard's step
+      // indicator (a progress list, not navigation between views)
+      const pageNavs = page
+        .locator('main')
+        .locator('nav:not([aria-label="Area path"]):not([aria-label="Report wizard steps"])');
       const breadcrumbNavs = page.getByTestId('breadcrumbs').locator('nav');
       await expect
         .poll(async () => (await pageNavs.count()) - (await breadcrumbNavs.count()))
