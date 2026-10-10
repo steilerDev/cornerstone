@@ -10,9 +10,9 @@ export interface UseAreasResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createArea: (data: CreateAreaRequest) => Promise<AreaResponse | null>;
-  updateArea: (id: string, data: UpdateAreaRequest) => Promise<AreaResponse | null>;
-  deleteArea: (id: string) => Promise<boolean>;
+  createArea: (data: CreateAreaRequest) => Promise<AreaResponse>;
+  updateArea: (id: string, data: UpdateAreaRequest) => Promise<AreaResponse>;
+  deleteArea: (id: string) => Promise<void>;
 }
 
 /**
@@ -69,22 +69,21 @@ export function useAreas(): UseAreasResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateAreaRequest): Promise<AreaResponse | null> {
+  async function handleCreate(data: CreateAreaRequest): Promise<AreaResponse> {
     const area = await createArea(data);
     refetch();
     return area;
   }
 
-  async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse | null> {
+  async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse> {
     const area = await updateArea(id, data);
     refetch();
     return area;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
+  async function handleDelete(id: string): Promise<void> {
     await deleteArea(id);
     refetch();
-    return true;
   }
 
   return {

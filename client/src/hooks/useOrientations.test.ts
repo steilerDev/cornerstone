@@ -273,7 +273,7 @@ describe('useOrientations', () => {
   });
 
   describe('deleteOrientation()', () => {
-    it('calls deleteOrientation with the correct id and returns true', async () => {
+    it('calls deleteOrientation with the correct id and resolves to undefined', async () => {
       mockDeleteOrientation.mockResolvedValueOnce(undefined);
       mockFetchOrientations.mockResolvedValue({ orientations: [] });
 
@@ -286,7 +286,7 @@ describe('useOrientations', () => {
       });
 
       expect(mockDeleteOrientation).toHaveBeenCalledWith('o1');
-      expect(returned).toBe(true);
+      expect(returned).toBeUndefined();
     });
 
     it('triggers a refetch after successful delete', async () => {

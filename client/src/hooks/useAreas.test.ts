@@ -330,7 +330,7 @@ describe('useAreas', () => {
       expect(mockDeleteArea).toHaveBeenCalledWith('a1');
     });
 
-    it('returns true on successful delete', async () => {
+    it('resolves to undefined on successful delete', async () => {
       mockDeleteArea.mockResolvedValueOnce(undefined);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
@@ -342,7 +342,7 @@ describe('useAreas', () => {
         returned = await result.current.deleteArea('a1');
       });
 
-      expect(returned).toBe(true);
+      expect(returned).toBeUndefined();
     });
 
     it('triggers a refetch after successful delete', async () => {

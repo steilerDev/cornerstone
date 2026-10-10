@@ -330,7 +330,7 @@ describe('useTrades', () => {
       expect(mockDeleteTrade).toHaveBeenCalledWith('t1');
     });
 
-    it('returns true on successful delete', async () => {
+    it('resolves to undefined on successful delete', async () => {
       mockDeleteTrade.mockResolvedValueOnce(undefined);
       mockFetchTrades.mockResolvedValue({ trades: [] });
 
@@ -342,7 +342,7 @@ describe('useTrades', () => {
         returned = await result.current.deleteTrade('t1');
       });
 
-      expect(returned).toBe(true);
+      expect(returned).toBeUndefined();
     });
 
     it('triggers a refetch after successful delete', async () => {

@@ -19,12 +19,9 @@ export interface UseOrientationsResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createOrientation: (data: CreateOrientationRequest) => Promise<OrientationResponse | null>;
-  updateOrientation: (
-    id: string,
-    data: UpdateOrientationRequest,
-  ) => Promise<OrientationResponse | null>;
-  deleteOrientation: (id: string) => Promise<boolean>;
+  createOrientation: (data: CreateOrientationRequest) => Promise<OrientationResponse>;
+  updateOrientation: (id: string, data: UpdateOrientationRequest) => Promise<OrientationResponse>;
+  deleteOrientation: (id: string) => Promise<void>;
 }
 
 /**
@@ -81,7 +78,7 @@ export function useOrientations(): UseOrientationsResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateOrientationRequest): Promise<OrientationResponse | null> {
+  async function handleCreate(data: CreateOrientationRequest): Promise<OrientationResponse> {
     const orientation = await createOrientation(data);
     refetch();
     return orientation;
@@ -90,16 +87,15 @@ export function useOrientations(): UseOrientationsResult {
   async function handleUpdate(
     id: string,
     data: UpdateOrientationRequest,
-  ): Promise<OrientationResponse | null> {
+  ): Promise<OrientationResponse> {
     const orientation = await updateOrientation(id, data);
     refetch();
     return orientation;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
+  async function handleDelete(id: string): Promise<void> {
     await deleteOrientation(id);
     refetch();
-    return true;
   }
 
   return {

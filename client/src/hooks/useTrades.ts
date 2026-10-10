@@ -10,9 +10,9 @@ export interface UseTradesResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createTrade: (data: CreateTradeRequest) => Promise<TradeResponse | null>;
-  updateTrade: (id: string, data: UpdateTradeRequest) => Promise<TradeResponse | null>;
-  deleteTrade: (id: string) => Promise<boolean>;
+  createTrade: (data: CreateTradeRequest) => Promise<TradeResponse>;
+  updateTrade: (id: string, data: UpdateTradeRequest) => Promise<TradeResponse>;
+  deleteTrade: (id: string) => Promise<void>;
 }
 
 /**
@@ -69,22 +69,21 @@ export function useTrades(): UseTradesResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateTradeRequest): Promise<TradeResponse | null> {
+  async function handleCreate(data: CreateTradeRequest): Promise<TradeResponse> {
     const trade = await createTrade(data);
     refetch();
     return trade;
   }
 
-  async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse | null> {
+  async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse> {
     const trade = await updateTrade(id, data);
     refetch();
     return trade;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
+  async function handleDelete(id: string): Promise<void> {
     await deleteTrade(id);
     refetch();
-    return true;
   }
 
   return {

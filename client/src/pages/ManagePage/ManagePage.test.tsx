@@ -221,7 +221,7 @@ function makeAreasHookResult(
     updateArea: jest
       .fn<UseAreasTypes.UseAreasResult['updateArea']>()
       .mockResolvedValue(sampleArea1),
-    deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(true),
+    deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -240,7 +240,9 @@ function makeTradesHookResult(
     updateTrade: jest
       .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
       .mockResolvedValue(sampleTrade1),
-    deleteTrade: jest.fn<UseTradesTypes.UseTradesResult['deleteTrade']>().mockResolvedValue(true),
+    deleteTrade: jest
+      .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
+      .mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -261,7 +263,7 @@ function makeOrientationsHookResult(
       .mockResolvedValue(sampleOrientation1),
     deleteOrientation: jest
       .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-      .mockResolvedValue(true),
+      .mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -788,7 +790,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       const mockDeleteArea = jest
         .fn<UseAreasTypes.UseAreasResult['deleteArea']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: mockDeleteArea }));
 
       renderManagePage('/settings/manage');
@@ -979,7 +981,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       const mockDeleteTrade = jest
         .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: mockDeleteTrade }));
 
       renderManagePage('/settings/manage?tab=trades');
@@ -1691,7 +1693,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       const mockDeleteOrientation = jest
         .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseOrientations.mockReturnValue(
         makeOrientationsHookResult({ deleteOrientation: mockDeleteOrientation }),
       );
