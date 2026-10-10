@@ -198,6 +198,7 @@ describe('PhotoMetadataSidepanel', () => {
     photo: Photo;
     onPhotoUpdated?: (photo: Photo) => void;
     isAnnotating?: boolean;
+    onMobileOpenChange?: (open: boolean) => void;
   }) {
     return render(
       React.createElement(LocaleProvider, null, React.createElement(PhotoMetadataSidepanel, props)),
@@ -450,6 +451,33 @@ describe('PhotoMetadataSidepanel', () => {
 
     const sidepanel = document.getElementById('photo-metadata-sidepanel');
     expect(sidepanel!.contains(closedToggle)).toBe(false);
+  });
+
+  it('reports the sheet state via onMobileOpenChange: true on open, then false on close', async () => {
+    const onMobileOpenChange = jest.fn<(open: boolean) => void>();
+    renderSidepanel({ photo: mockPhoto, onMobileOpenChange });
+    expect(onMobileOpenChange).not.toHaveBeenCalled();
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('photo-metadata-toggle'));
+    });
+    expect(onMobileOpenChange).toHaveBeenLastCalledWith(true);
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('photo-metadata-toggle'));
+    });
+    expect(onMobileOpenChange).toHaveBeenLastCalledWith(false);
+    expect(onMobileOpenChange).toHaveBeenCalledTimes(2);
+  });
+
+  it('toggles without error when onMobileOpenChange is not provided', async () => {
+    renderSidepanel({ photo: mockPhoto });
+
+    await act(async () => {
+      fireEvent.click(screen.getByTestId('photo-metadata-toggle'));
+    });
+
+    expect(screen.getByTestId('photo-metadata-toggle')).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('single instance invariant: getAllByTestId returns exactly 1 element in both closed and open state', async () => {

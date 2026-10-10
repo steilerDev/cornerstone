@@ -110,7 +110,9 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
             </div>
             <div className={styles.amountGroup}>
               <span className={styles.amountValueMuted}>{formatCurrency(plannedTotal)}</span>
-              <span className={`${styles.amountLabel} ${styles.amountLabelMuted}`}>Planned</span>
+              <span className={`${styles.amountLabel} ${styles.amountLabelMuted}`}>
+                {t('invoiceGroup.planned')}
+              </span>
             </div>
           </div>
         </div>

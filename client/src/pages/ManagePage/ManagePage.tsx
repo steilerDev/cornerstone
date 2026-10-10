@@ -1,4 +1,4 @@
-import { useState, useEffect, type FormEvent } from 'react';
+import { useState, useEffect, type FormEvent, type KeyboardEvent } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
   BudgetCategory,
@@ -49,8 +49,20 @@ import styles from './ManagePage.module.css';
 
 const DEFAULT_COLOR = '#3b82f6';
 
-type Tab =
-  'household' | 'areas' | 'trades' | 'orientations' | 'budget-categories' | 'hi-categories';
+const MANAGE_TABS = [
+  'household',
+  'areas',
+  'trades',
+  'orientations',
+  'budget-categories',
+  'hi-categories',
+] as const;
+
+type Tab = (typeof MANAGE_TABS)[number];
+
+function parseTab(value: string | null): Tab {
+  return MANAGE_TABS.find((tab) => tab === value) ?? 'areas';
+}
 
 // ============================================================
 // HOUSEHOLD TAB
@@ -364,6 +376,13 @@ function AreasTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingAreaId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteArea = async (areaId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -402,12 +421,6 @@ function AreasTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -693,7 +706,10 @@ function AreasTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingAreaId(area.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingAreaId(area.id);
+                        }}
                         disabled={!!editingArea}
                       >
                         {t('manage.areas.delete')}
@@ -710,10 +726,7 @@ function AreasTab() {
       {/* Delete confirmation modal */}
       {deletingAreaId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingAreaId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.areas.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -721,24 +734,32 @@ function AreasTab() {
                 name: areas.find((a) => a.id === deletingAreaId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingAreaId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.areas.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteArea(deletingAreaId)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteArea(deletingAreaId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -900,6 +921,13 @@ function TradesTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingTradeId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteTrade = async (tradeId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -938,12 +966,6 @@ function TradesTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -1197,7 +1219,10 @@ function TradesTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingTradeId(trade.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingTradeId(trade.id);
+                        }}
                         disabled={!!editingTrade}
                       >
                         {t('manage.trades.delete')}
@@ -1214,10 +1239,7 @@ function TradesTab() {
       {/* Delete confirmation modal */}
       {deletingTradeId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingTradeId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.trades.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -1225,24 +1247,32 @@ function TradesTab() {
                 name: trades.find((t) => t.id === deletingTradeId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingTradeId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.trades.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteTrade(deletingTradeId)}
-                disabled={isDeleting}
-              >
-                {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteTrade(deletingTradeId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1398,6 +1428,13 @@ function OrientationsTab() {
     }
   };
 
+  const closeDeleteDialog = () => {
+    if (!isDeleting) {
+      setDeletingOrientationId(null);
+      setDeleteError('');
+    }
+  };
+
   const handleDeleteOrientation = async (orientationId: string) => {
     setIsDeleting(true);
     setSuccessMessage('');
@@ -1434,12 +1471,6 @@ function OrientationsTab() {
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">
           {successMessage}
-        </div>
-      )}
-
-      {deleteError && (
-        <div className={styles.errorBanner} role="alert">
-          {deleteError}
         </div>
       )}
 
@@ -1652,7 +1683,10 @@ function OrientationsTab() {
                       <button
                         type="button"
                         className={styles.deleteButton}
-                        onClick={() => setDeletingOrientationId(orientation.id)}
+                        onClick={() => {
+                          setDeleteError('');
+                          setDeletingOrientationId(orientation.id);
+                        }}
                         disabled={!!editingOrientation}
                         aria-label={`${t('manage.orientations.delete')} ${orientation.name}`}
                       >
@@ -1670,10 +1704,7 @@ function OrientationsTab() {
       {/* Delete confirmation modal */}
       {deletingOrientationId && (
         <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setDeletingOrientationId(null)}
-          />
+          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
           <div className={styles.modalContent}>
             <h2 className={styles.modalTitle}>{t('manage.orientations.deleteTitle')}</h2>
             <p className={styles.modalText}>
@@ -1681,26 +1712,34 @@ function OrientationsTab() {
                 name: orientations.find((o) => o.id === deletingOrientationId)?.name,
               })}
             </p>
-            <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
+            {deleteError ? (
+              <div className={styles.errorBanner} role="alert">
+                {deleteError}
+              </div>
+            ) : (
+              <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
+            )}
             <div className={styles.modalActions}>
               <button
                 type="button"
                 className={styles.cancelButton}
-                onClick={() => setDeletingOrientationId(null)}
+                onClick={closeDeleteDialog}
                 disabled={isDeleting}
               >
                 {t('manage.orientations.cancel')}
               </button>
-              <button
-                type="button"
-                className={styles.confirmDeleteButton}
-                onClick={() => void handleDeleteOrientation(deletingOrientationId)}
-                disabled={isDeleting}
-              >
-                {isDeleting
-                  ? t('manage.orientations.deleting')
-                  : t('manage.orientations.deleteButton')}
-              </button>
+              {!deleteError && (
+                <button
+                  type="button"
+                  className={styles.confirmDeleteButton}
+                  onClick={() => void handleDeleteOrientation(deletingOrientationId)}
+                  disabled={isDeleting}
+                >
+                  {isDeleting
+                    ? t('manage.orientations.deleting')
+                    : t('manage.orientations.deleteButton')}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1968,7 +2007,6 @@ function BudgetCategoriesTab() {
                 placeholder={t('manage.budgetCategories.namePlaceholder')}
                 maxLength={100}
                 disabled={isCreating}
-                autoFocus
               />
             </div>
 
@@ -2539,7 +2577,6 @@ function HouseholdItemCategoriesTab() {
                 placeholder={t('manage.householdItemCategories.namePlaceholder')}
                 maxLength={100}
                 disabled={isCreating}
-                autoFocus
               />
             </div>
 
@@ -2819,9 +2856,36 @@ export function ManagePage() {
   const { t: tCommon } = useTranslation('common');
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'areas');
+  const [activeTab, setActiveTab] = useState<Tab>(() => parseTab(searchParams.get('tab')));
 
   const isAdmin = user?.role === 'admin';
+
+  const tabLabels: Record<Tab, string> = {
+    household: t('manage.tabs.household'),
+    areas: t('manage.tabs.areas'),
+    trades: t('manage.tabs.trades'),
+    orientations: t('manage.tabs.orientations'),
+    'budget-categories': t('manage.tabs.budgetCategories'),
+    'hi-categories': t('manage.tabs.householdItemCategories'),
+  };
+
+  // WAI-ARIA tabs: arrow keys / Home / End move between tabs (automatic activation).
+  const handleTabKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const last = MANAGE_TABS.length - 1;
+    const current = MANAGE_TABS.indexOf(activeTab);
+    let next: number;
+    if (e.key === 'ArrowRight') next = current >= last ? 0 : current + 1;
+    else if (e.key === 'ArrowLeft') next = current <= 0 ? last : current - 1;
+    else if (e.key === 'Home') next = 0;
+    else if (e.key === 'End') next = last;
+    else return;
+    e.preventDefault();
+    const nextTab = MANAGE_TABS[next]!;
+    setActiveTab(nextTab);
+    const el = document.getElementById(`manage-tab-${nextTab}`);
+    el?.focus();
+    el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+  };
 
   const settingsTabs: SubNavTab[] = [
     { labelKey: 'subnav.settings.profile', to: '/settings/profile', ns: 'common' },
@@ -2851,58 +2915,30 @@ export function ManagePage() {
       title={t('manage.pageTitle')}
       subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
     >
-      <div className={styles.tabList} role="tablist">
-        <button
-          role="tab"
-          aria-selected={activeTab === 'household'}
-          className={`${styles.tab} ${activeTab === 'household' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('household')}
-        >
-          {t('manage.tabs.household')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'areas'}
-          className={`${styles.tab} ${activeTab === 'areas' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('areas')}
-        >
-          {t('manage.tabs.areas')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'trades'}
-          className={`${styles.tab} ${activeTab === 'trades' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('trades')}
-        >
-          {t('manage.tabs.trades')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'orientations'}
-          className={`${styles.tab} ${activeTab === 'orientations' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('orientations')}
-        >
-          {t('manage.tabs.orientations')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'budget-categories'}
-          className={`${styles.tab} ${activeTab === 'budget-categories' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('budget-categories')}
-        >
-          {t('manage.tabs.budgetCategories')}
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'hi-categories'}
-          className={`${styles.tab} ${activeTab === 'hi-categories' ? styles.tabActive : ''}`}
-          onClick={() => setActiveTab('hi-categories')}
-        >
-          {t('manage.tabs.householdItemCategories')}
-        </button>
+      <div className={styles.tabList} role="tablist" onKeyDown={handleTabKeyDown}>
+        {MANAGE_TABS.map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            id={`manage-tab-${tab}`}
+            aria-selected={activeTab === tab}
+            aria-controls={activeTab === tab ? `${tab}-panel` : undefined}
+            tabIndex={activeTab === tab ? 0 : -1}
+            className={`${styles.tab} ${activeTab === tab ? styles.tabActive : ''}`}
+            onClick={() => setActiveTab(tab)}
+          >
+            {tabLabels[tab]}
+          </button>
+        ))}
       </div>
 
-      <div className={styles.tabPanel} role="tabpanel" id={`${activeTab}-panel`}>
+      <div
+        className={styles.tabPanel}
+        role="tabpanel"
+        id={`${activeTab}-panel`}
+        aria-labelledby={`manage-tab-${activeTab}`}
+      >
         {activeTab === 'household' && <HouseholdTab />}
         {activeTab === 'areas' && <AreasTab />}
         {activeTab === 'trades' && <TradesTab />}

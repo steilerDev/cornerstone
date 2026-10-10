@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { useHref, useLinkClickHandler } from 'react-router-dom';
 import styles from './EmptyState.module.css';
 
 export interface EmptyStateAction {
@@ -20,6 +21,17 @@ export interface EmptyStateProps {
   className?: string;
 }
 
+/** Real anchor (middle-click works) that navigates in-app on a plain click. */
+function EmptyStateLink({ href, label }: { href: string; label: string }) {
+  const resolvedHref = useHref(href);
+  const handleClick = useLinkClickHandler<HTMLAnchorElement>(href);
+  return (
+    <a href={resolvedHref} onClick={handleClick} className={styles.action}>
+      {label}
+    </a>
+  );
+}
+
 export function EmptyState({ icon, message, description, action, className }: EmptyStateProps) {
   if (action?.href) {
     return (
@@ -34,11 +46,7 @@ export function EmptyState({ icon, message, description, action, className }: Em
 
         {description && <p className={styles.description}>{description}</p>}
 
-        {action && (
-          <a href={action.href} className={styles.action}>
-            {action.label}
-          </a>
-        )}
+        <EmptyStateLink href={action.href} label={action.label} />
       </div>
     );
   }

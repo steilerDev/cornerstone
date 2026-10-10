@@ -19,18 +19,15 @@ export interface UseOrientationsResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createOrientation: (data: CreateOrientationRequest) => Promise<OrientationResponse | null>;
-  updateOrientation: (
-    id: string,
-    data: UpdateOrientationRequest,
-  ) => Promise<OrientationResponse | null>;
-  deleteOrientation: (id: string) => Promise<boolean>;
+  createOrientation: (data: CreateOrientationRequest) => Promise<OrientationResponse>;
+  updateOrientation: (id: string, data: UpdateOrientationRequest) => Promise<OrientationResponse>;
+  deleteOrientation: (id: string) => Promise<void>;
 }
 
 /**
  * Manages the full CRUD lifecycle for orientations.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useOrientations(): UseOrientationsResult {
   const { t } = useTranslation('settings');
@@ -81,37 +78,24 @@ export function useOrientations(): UseOrientationsResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateOrientationRequest): Promise<OrientationResponse | null> {
-    try {
-      const orientation = await createOrientation(data);
-      refetch();
-      return orientation;
-    } catch {
-      return null;
-    }
+  async function handleCreate(data: CreateOrientationRequest): Promise<OrientationResponse> {
+    const orientation = await createOrientation(data);
+    refetch();
+    return orientation;
   }
 
   async function handleUpdate(
     id: string,
     data: UpdateOrientationRequest,
-  ): Promise<OrientationResponse | null> {
-    try {
-      const orientation = await updateOrientation(id, data);
-      refetch();
-      return orientation;
-    } catch {
-      return null;
-    }
+  ): Promise<OrientationResponse> {
+    const orientation = await updateOrientation(id, data);
+    refetch();
+    return orientation;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteOrientation(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+  async function handleDelete(id: string): Promise<void> {
+    await deleteOrientation(id);
+    refetch();
   }
 
   return {

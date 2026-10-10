@@ -196,19 +196,25 @@ describe('useOrientations', () => {
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when createOrientation throws', async () => {
-      mockCreateOrientation.mockRejectedValueOnce(new Error('Conflict'));
+    it('rejects with the original error and does not refetch when createOrientation throws', async () => {
+      const failure = new Error('Conflict');
+      mockCreateOrientation.mockRejectedValueOnce(failure);
       mockFetchOrientations.mockResolvedValue({ orientations: [] });
 
       const { result } = renderHook(() => useOrientations());
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.createOrientation({ name: 'South' });
+        try {
+          await result.current.createOrientation({ name: 'South' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchOrientations).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -244,24 +250,30 @@ describe('useOrientations', () => {
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when updateOrientation throws', async () => {
-      mockUpdateOrientation.mockRejectedValueOnce(new Error('Not found'));
+    it('rejects with the original error and does not refetch when updateOrientation throws', async () => {
+      const failure = new Error('Not found');
+      mockUpdateOrientation.mockRejectedValueOnce(failure);
       mockFetchOrientations.mockResolvedValue({ orientations: [] });
 
       const { result } = renderHook(() => useOrientations());
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.updateOrientation('nonexistent', { name: 'Updated' });
+        try {
+          await result.current.updateOrientation('nonexistent', { name: 'Updated' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchOrientations).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('deleteOrientation()', () => {
-    it('calls deleteOrientation with the correct id and returns true', async () => {
+    it('calls deleteOrientation with the correct id and resolves to undefined', async () => {
       mockDeleteOrientation.mockResolvedValueOnce(undefined);
       mockFetchOrientations.mockResolvedValue({ orientations: [] });
 
@@ -274,7 +286,7 @@ describe('useOrientations', () => {
       });
 
       expect(mockDeleteOrientation).toHaveBeenCalledWith('o1');
-      expect(returned).toBe(true);
+      expect(returned).toBeUndefined();
     });
 
     it('triggers a refetch after successful delete', async () => {
@@ -291,19 +303,25 @@ describe('useOrientations', () => {
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(2));
     });
 
-    it('returns false when deleteOrientation throws', async () => {
-      mockDeleteOrientation.mockRejectedValueOnce(new Error('In use'));
+    it('rejects with the original error and does not refetch when deleteOrientation throws', async () => {
+      const failure = new Error('In use');
+      mockDeleteOrientation.mockRejectedValueOnce(failure);
       mockFetchOrientations.mockResolvedValue({ orientations: [] });
 
       const { result } = renderHook(() => useOrientations());
       await waitFor(() => expect(mockFetchOrientations).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.deleteOrientation('o1');
+        try {
+          await result.current.deleteOrientation('o1');
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBe(false);
+      expect(thrown).toBe(failure);
+      expect(mockFetchOrientations).toHaveBeenCalledTimes(1);
     });
   });
 });

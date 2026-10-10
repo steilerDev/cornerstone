@@ -55,12 +55,14 @@
   align-items: flex-start;
   gap: var(--spacing-2);
   flex: 0 1 auto;
+  min-width: 0;
 }
 
 .invoiceIdentity {
   display: flex;
   flex-direction: column;
   gap: var(--spacing-0-5);
+  min-width: 0;
 }
 
 .invoiceNumber {
@@ -91,7 +93,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  max-width: 12rem;
+  max-width: 100%;
 }
 
 /* ─── Amounts Display ────────────────────────────────────────────────────── */
@@ -168,6 +170,7 @@
 .lineWrapper {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 /* ─── Unlink Section ─────────────────────────────────────────────────────── */
@@ -238,6 +241,18 @@
     flex-direction: column;
     align-items: flex-start;
     gap: var(--spacing-2);
+    width: 100%;
+  }
+
+  .invoiceLink,
+  .invoiceNumber {
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .amountValue,
+  .amountValueMuted {
+    white-space: nowrap;
   }
 
   .amounts {

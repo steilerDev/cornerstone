@@ -38,7 +38,7 @@ export function DashboardCard({
   error = null,
   onRetry,
   isEmpty = false,
-  emptyMessage = 'No data available',
+  emptyMessage,
   emptyAction,
   children,
 }: DashboardCardProps) {
@@ -65,7 +65,7 @@ export function DashboardCard({
       {/* Content area */}
       <div className={styles.cardContent}>
         {/* Loading state */}
-        {isLoading && <Skeleton loadingLabel={`Loading ${title} data`} />}
+        {isLoading && <Skeleton />}
 
         {/* Error state */}
         {!isLoading && error && (
@@ -82,7 +82,7 @@ export function DashboardCard({
         {/* Empty state */}
         {!isLoading && !error && isEmpty && (
           <EmptyState
-            message={emptyMessage || 'No data available'}
+            message={emptyMessage ?? t('cards.common.emptyDefault')}
             action={emptyAction ? { label: emptyAction.label, href: emptyAction.href } : undefined}
           />
         )}

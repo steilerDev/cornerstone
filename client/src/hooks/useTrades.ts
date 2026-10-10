@@ -10,15 +10,15 @@ export interface UseTradesResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createTrade: (data: CreateTradeRequest) => Promise<TradeResponse | null>;
-  updateTrade: (id: string, data: UpdateTradeRequest) => Promise<TradeResponse | null>;
-  deleteTrade: (id: string) => Promise<boolean>;
+  createTrade: (data: CreateTradeRequest) => Promise<TradeResponse>;
+  updateTrade: (id: string, data: UpdateTradeRequest) => Promise<TradeResponse>;
+  deleteTrade: (id: string) => Promise<void>;
 }
 
 /**
  * Manages the full CRUD lifecycle for trades.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useTrades(): UseTradesResult {
   const { t } = useTranslation('settings');
@@ -69,34 +69,21 @@ export function useTrades(): UseTradesResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateTradeRequest): Promise<TradeResponse | null> {
-    try {
-      const trade = await createTrade(data);
-      refetch();
-      return trade;
-    } catch {
-      return null;
-    }
+  async function handleCreate(data: CreateTradeRequest): Promise<TradeResponse> {
+    const trade = await createTrade(data);
+    refetch();
+    return trade;
   }
 
-  async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse | null> {
-    try {
-      const trade = await updateTrade(id, data);
-      refetch();
-      return trade;
-    } catch {
-      return null;
-    }
+  async function handleUpdate(id: string, data: UpdateTradeRequest): Promise<TradeResponse> {
+    const trade = await updateTrade(id, data);
+    refetch();
+    return trade;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteTrade(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+  async function handleDelete(id: string): Promise<void> {
+    await deleteTrade(id);
+    refetch();
   }
 
   return {

@@ -1,10 +1,18 @@
 .tabList {
   display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
   gap: var(--spacing-2);
   margin-bottom: var(--spacing-4);
+  max-width: 100%;
+  padding: var(--spacing-1); /* room for the focus ring inside the scroll area */
+  scrollbar-width: thin;
 }
 
 .tab {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  min-height: 44px;
   padding: var(--spacing-3) var(--spacing-4);
   background: none;
   border: none;
@@ -22,6 +30,11 @@
   .tab {
     transition: none;
   }
+}
+
+.tab:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
 }
 
 .tab:hover {

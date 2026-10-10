@@ -178,7 +178,7 @@
       "delete": "Löschen",
       "deleteTitle": "Bereich löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie den Bereich „{{name}}“ löschen möchten?",
-      "deleteWarning": "Dieser Bereich wird von allen Arbeitspaketen und Haushaltsartikeln entfernt, die ihn verwenden.",
+      "deleteWarning": "Seine Unterbereiche werden mit ihm gelöscht, und Fotos in diesen Bereichen verlieren ihre Bereichszuordnung. Ein Bereich, den eine Aufgabe oder Anschaffung direkt oder über einen Unterbereich verwendet, kann nicht gelöscht werden.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Bereich löschen",
       "validation": {
@@ -192,7 +192,7 @@
         "createError": "Bereich konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Bereich konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Bereich konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da er derzeit verwendet wird.",
+        "deleteConflict": "Dieser Bereich kann nicht gelöscht werden, da eine Aufgabe oder Anschaffung ihn oder einen seiner Unterbereiche verwendet.",
         "duplicateName": "Ein Bereich mit diesem Namen existiert bereits auf dieser Ebene."
       }
     },
@@ -220,7 +220,7 @@
       "delete": "Löschen",
       "deleteTitle": "Gewerk löschen",
       "deleteConfirm": "Sind Sie sicher, dass Sie das Gewerk „{{name}}“ löschen möchten?",
-      "deleteWarning": "Dieses Gewerk wird von allen Auftragnehmern und Arbeitspaketen entfernt, die es verwenden.",
+      "deleteWarning": "Ein Gewerk, das eine Firma verwendet, kann nicht gelöscht werden. Ändern Sie zuerst das Gewerk dieser Firmen.",
       "deleting": "Wird gelöscht...",
       "deleteButton": "Gewerk löschen",
       "validation": {
@@ -234,7 +234,7 @@
         "createError": "Gewerk konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da es derzeit verwendet wird.",
+        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da eine Firma es verwendet.",
         "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits."
       }
     },

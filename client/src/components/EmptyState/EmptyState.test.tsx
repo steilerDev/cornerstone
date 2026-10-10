@@ -3,9 +3,14 @@
  */
 import { describe, it, expect, jest } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { EmptyState } from './EmptyState.js';
 
 // CSS modules are mocked via identity-obj-proxy (classNames returned as-is)
+
+function renderInRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 describe('EmptyState', () => {
   // ── message prop ──────────────────────────────────────────────────────────
@@ -64,7 +69,7 @@ describe('EmptyState', () => {
   // ── action — link variant ─────────────────────────────────────────────────
 
   it('renders an anchor tag when action.href is provided', () => {
-    render(
+    renderInRouter(
       <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
@@ -73,7 +78,7 @@ describe('EmptyState', () => {
   });
 
   it('sets the correct href on the action link', () => {
-    render(
+    renderInRouter(
       <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
@@ -84,11 +89,65 @@ describe('EmptyState', () => {
   });
 
   it('does not render a button when action.href is provided', () => {
-    render(
+    renderInRouter(
       <EmptyState message="No items" action={{ label: 'Add item', href: '/work-items/new' }} />,
     );
 
     expect(screen.queryByRole('button')).toBeNull();
+  });
+
+  it('navigates in-app on a plain click (no full page load)', () => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <EmptyState message="No items" action={{ label: 'Add entry', href: '/diary/new' }} />
+            }
+          />
+          <Route path="/diary/new" element={<h1>Diary form page</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const link = screen.getByRole('link', { name: 'Add entry' });
+    expect(link).toHaveAttribute('href', '/diary/new');
+
+    // fireEvent.click returns false when the default action was prevented
+    const notPrevented = fireEvent.click(link);
+    expect(notPrevented).toBe(false);
+    expect(screen.getByRole('heading', { name: 'Diary form page' })).toBeInTheDocument();
+  });
+
+  it.each([
+    ['ctrlKey', { ctrlKey: true }],
+    ['metaKey', { metaKey: true }],
+  ])('does not intercept a %s click (browser opens a new tab)', (_name, init) => {
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <EmptyState message="No items" action={{ label: 'Add entry', href: '/diary/new' }} />
+            }
+          />
+          <Route path="/diary/new" element={<h1>Diary form page</h1>} />
+        </Routes>
+      </MemoryRouter>,
+    );
+
+    const notPrevented = fireEvent.click(screen.getByRole('link', { name: 'Add entry' }), init);
+
+    expect(notPrevented).toBe(true);
+    expect(screen.queryByRole('heading', { name: 'Diary form page' })).toBeNull();
+  });
+
+  it('renders the button variant without any Router in the tree', () => {
+    render(<EmptyState message="No items" action={{ label: 'Create one', onClick: jest.fn() }} />);
+
+    expect(screen.getByRole('button', { name: 'Create one' })).toBeInTheDocument();
   });
 
   // ── action — button variant ───────────────────────────────────────────────

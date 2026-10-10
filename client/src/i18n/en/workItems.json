@@ -259,17 +259,7 @@
       "removeLinkedMilestoneAriaLabel": "Remove linked milestone: {{name}}"
     },
     "householdItems": {
-      "noItems": "No household items depend on this work item.",
-      "categories": {
-        "furniture": "Furniture",
-        "appliances": "Appliances",
-        "fixtures": "Fixtures",
-        "decor": "Decor",
-        "electronics": "Electronics",
-        "outdoor": "Outdoor",
-        "storage": "Storage",
-        "other": "Other"
-      }
+      "noItems": "No household items depend on this work item."
     },
     "footer": {
       "createdBy": "Created by {{name}} on {{date}}",

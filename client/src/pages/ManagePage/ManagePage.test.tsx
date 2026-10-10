@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render } from '@testing-library/react';
+import { screen, waitFor, render, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -221,7 +221,7 @@ function makeAreasHookResult(
     updateArea: jest
       .fn<UseAreasTypes.UseAreasResult['updateArea']>()
       .mockResolvedValue(sampleArea1),
-    deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(true),
+    deleteArea: jest.fn<UseAreasTypes.UseAreasResult['deleteArea']>().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -240,7 +240,9 @@ function makeTradesHookResult(
     updateTrade: jest
       .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
       .mockResolvedValue(sampleTrade1),
-    deleteTrade: jest.fn<UseTradesTypes.UseTradesResult['deleteTrade']>().mockResolvedValue(true),
+    deleteTrade: jest
+      .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
+      .mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -261,7 +263,7 @@ function makeOrientationsHookResult(
       .mockResolvedValue(sampleOrientation1),
     deleteOrientation: jest
       .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-      .mockResolvedValue(true),
+      .mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -463,6 +465,167 @@ describe('ManagePage', () => {
 
   // ─── Areas tab content ─────────────────────────────────────────────────────
 
+  // ── Tablist keyboard (#2196 AC2) ─────────────────────────────────────────
+  // Layout (single scrolling row on phones) is CSS and is covered by the E2E
+  // visual-defects spec: jsdom applies no CSS-module rules.
+
+  describe('Tablist keyboard navigation', () => {
+    const TAB_NAMES = [
+      'Household',
+      'Areas',
+      'Trades',
+      'Orientations',
+      'Budget Categories',
+      'Household Item Categories',
+    ];
+
+    beforeEach(() => {
+      // jsdom lacks scrollIntoView
+      Element.prototype.scrollIntoView = jest.fn();
+    });
+
+    it('ArrowRight from Areas activates and focuses Trades', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{ArrowRight}');
+
+      const trades = screen.getByRole('tab', { name: 'Trades' });
+      expect(trades).toHaveAttribute('aria-selected', 'true');
+      expect(trades).toHaveFocus();
+      expect(Element.prototype.scrollIntoView).toHaveBeenCalled();
+    });
+
+    it('ArrowLeft from the first tab wraps to the last tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      screen.getByRole('tab', { name: 'Household' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      const last = screen.getByRole('tab', { name: 'Household Item Categories' });
+      expect(last).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('keeps focus on the tab after arrowing onto the last tab (no autoFocus in its panel)', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=household');
+
+      screen.getByRole('tab', { name: 'Household' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveFocus();
+    });
+
+    it('ArrowLeft from Trades moves back to Areas', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=trades');
+
+      screen.getByRole('tab', { name: 'Trades' }).focus();
+      await user.keyboard('{ArrowLeft}');
+
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('ArrowRight from the last tab wraps to the first tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=hi-categories');
+
+      screen.getByRole('tab', { name: 'Household Item Categories' }).focus();
+      await user.keyboard('{ArrowRight}');
+
+      const first = screen.getByRole('tab', { name: 'Household' });
+      expect(first).toHaveAttribute('aria-selected', 'true');
+      expect(first).toHaveFocus();
+    });
+
+    it('End jumps to the last tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{End}');
+      expect(screen.getByRole('tab', { name: 'Household Item Categories' })).toHaveAttribute(
+        'aria-selected',
+        'true',
+      );
+    });
+
+    it('Home jumps from Areas to the first tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('{Home}');
+
+      const first = screen.getByRole('tab', { name: 'Household' });
+      expect(first).toHaveAttribute('aria-selected', 'true');
+      expect(first).toHaveFocus();
+    });
+
+    it('ignores unrelated keys', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      screen.getByRole('tab', { name: 'Areas' }).focus();
+      await user.keyboard('a');
+
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('only the active tab is in the tab order (roving tabIndex)', () => {
+      renderManagePage('/settings/manage?tab=trades');
+
+      for (const name of TAB_NAMES) {
+        expect(screen.getByRole('tab', { name })).toHaveAttribute(
+          'tabindex',
+          name === 'Trades' ? '0' : '-1',
+        );
+      }
+    });
+
+    it('an unknown ?tab= value falls back to Areas with a single tab stop on Areas', () => {
+      renderManagePage('/settings/manage?tab=bogus');
+
+      for (const name of TAB_NAMES) {
+        const tab = screen.getByRole('tab', { name });
+        expect(tab).toHaveAttribute('aria-selected', name === 'Areas' ? 'true' : 'false');
+        expect(tab).toHaveAttribute('tabindex', name === 'Areas' ? '0' : '-1');
+      }
+    });
+
+    it('only the selected tab has aria-controls, pointing at the rendered panel', () => {
+      renderManagePage('/settings/manage?tab=trades');
+
+      const panel = screen.getByRole('tabpanel');
+      for (const name of TAB_NAMES) {
+        const tab = screen.getByRole('tab', { name });
+        if (name === 'Trades') {
+          expect(tab).toHaveAttribute('aria-controls', panel.id);
+        } else {
+          expect(tab).not.toHaveAttribute('aria-controls');
+        }
+      }
+    });
+
+    it('the tab panel is labelled by the active tab', async () => {
+      const user = userEvent.setup();
+      renderManagePage('/settings/manage?tab=areas');
+
+      const panel = screen.getByRole('tabpanel');
+      expect(panel).toHaveAttribute('aria-labelledby', 'manage-tab-areas');
+      expect(screen.getByRole('tab', { name: 'Areas' })).toHaveAttribute('id', 'manage-tab-areas');
+
+      await user.click(screen.getByRole('tab', { name: 'Trades' }));
+      expect(screen.getByRole('tabpanel')).toHaveAttribute('aria-labelledby', 'manage-tab-trades');
+      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute(
+        'aria-controls',
+        'trades-panel',
+      );
+    });
+  });
+
   describe('Areas tab', () => {
     it('shows loading state while fetching areas', () => {
       mockUseAreas.mockReturnValue(makeAreasHookResult({ isLoading: true, areas: [] }));
@@ -619,13 +782,15 @@ describe('ManagePage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.getByRole('heading', { name: 'Delete Area' })).toBeInTheDocument();
+      // #2196 AC6: the warning states what is really deleted / blocked
+      expect(screen.getByText(enSettings.manage.areas.deleteWarning)).toBeInTheDocument();
     });
 
     it('successfully deletes an area after confirming in modal', async () => {
       const user = userEvent.setup();
       const mockDeleteArea = jest
         .fn<UseAreasTypes.UseAreasResult['deleteArea']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: mockDeleteArea }));
 
       renderManagePage('/settings/manage');
@@ -809,13 +974,14 @@ describe('ManagePage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
       expect(screen.getByRole('heading', { name: 'Delete Trade' })).toBeInTheDocument();
+      expect(screen.getByText(enSettings.manage.trades.deleteWarning)).toBeInTheDocument();
     });
 
     it('successfully deletes a trade after confirming in modal', async () => {
       const user = userEvent.setup();
       const mockDeleteTrade = jest
         .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: mockDeleteTrade }));
 
       renderManagePage('/settings/manage?tab=trades');
@@ -1527,7 +1693,7 @@ describe('ManagePage', () => {
       const user = userEvent.setup();
       const mockDeleteOrientation = jest
         .fn<UseOrientationsTypes.UseOrientationsResult['deleteOrientation']>()
-        .mockResolvedValue(true);
+        .mockResolvedValue(undefined);
       mockUseOrientations.mockReturnValue(
         makeOrientationsHookResult({ deleteOrientation: mockDeleteOrientation }),
       );
@@ -2256,6 +2422,81 @@ describe('ManagePage', () => {
         await screen.findAllByText(text);
         expectErrorBanner(text);
       });
+    });
+
+    describe('delete failures render inside the dialog (#2271)', () => {
+      const cases = [
+        {
+          label: 'areas',
+          tab: 'areas',
+          open: 'Delete',
+          confirm: 'Delete Area',
+          cancel: 'Cancel',
+          expected: () => enSettings.manage.areas.messages.deleteConflict,
+          successPrefix: 'Area "',
+          arrange: (err: unknown) =>
+            mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: rejecting(err) })),
+          error: () => new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
+        },
+        {
+          label: 'trades',
+          tab: 'trades',
+          open: 'Delete',
+          confirm: 'Delete Trade',
+          cancel: 'Cancel',
+          expected: () => enSettings.manage.trades.messages.deleteConflict,
+          successPrefix: 'Trade "',
+          arrange: (err: unknown) =>
+            mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: rejecting(err) })),
+          error: () => new ApiClientError(409, { code: 'TRADE_IN_USE', message: SENTINEL }),
+        },
+        {
+          label: 'orientations',
+          tab: 'orientations',
+          open: 'Delete North',
+          confirm: 'Delete',
+          cancel: 'Cancel',
+          expected: () => enErrors.CONFLICT,
+          successPrefix: 'Orientation "',
+          arrange: (err: unknown) =>
+            mockUseOrientations.mockReturnValue(
+              makeOrientationsHookResult({ deleteOrientation: rejecting(err) }),
+            ),
+          error: () => new ApiClientError(409, { code: 'CONFLICT', message: SENTINEL }),
+        },
+      ];
+
+      for (const c of cases) {
+        it(`${c.label}: keeps the dialog open with the error inside, hides confirm, shows no success message, and reopening is clean`, async () => {
+          c.arrange(c.error());
+          const user = userEvent.setup();
+          renderManagePage(`/settings/manage?tab=${c.tab}`);
+          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
+          const dialog = await screen.findByRole('dialog');
+          await user.click(within(dialog).getByRole('button', { name: c.confirm }));
+
+          // Error text is inside the still-open dialog, replacing the warning
+          await waitFor(() => {
+            expect(within(screen.getByRole('dialog')).getByText(c.expected())).toBeInTheDocument();
+          });
+          const open = screen.getByRole('dialog');
+          expect(within(open).queryByRole('button', { name: c.confirm })).not.toBeInTheDocument();
+          expect(screen.queryByText(new RegExp(`^${c.successPrefix}`))).not.toBeInTheDocument();
+          expect(screen.queryByText(new RegExp(SENTINEL))).not.toBeInTheDocument();
+          // No page-level duplicate of the error outside the dialog
+          expect(screen.getAllByText(c.expected())).toHaveLength(1);
+
+          // Close and reopen: no stale error, confirm is back
+          await user.click(within(open).getByRole('button', { name: c.cancel }));
+          await waitFor(() => {
+            expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+          });
+          await user.click((await screen.findAllByRole('button', { name: c.open }))[0]!);
+          const reopened = await screen.findByRole('dialog');
+          expect(within(reopened).queryByText(c.expected())).not.toBeInTheDocument();
+          expect(within(reopened).getByRole('button', { name: c.confirm })).toBeInTheDocument();
+        });
+      }
     });
 
     it('budget categories: plain Error on create shows the createError fallback', async () => {

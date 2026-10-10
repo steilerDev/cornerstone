@@ -178,7 +178,7 @@
       "delete": "Delete",
       "deleteTitle": "Delete Area",
       "deleteConfirm": "Are you sure you want to delete the area \"{{name}}\"?",
-      "deleteWarning": "This area will be removed from all work items and household items that reference it.",
+      "deleteWarning": "Its sub-areas are deleted with it, and photos in these areas lose their area. An area that a task or purchase uses, directly or through a sub-area, cannot be deleted.",
       "deleting": "Deleting...",
       "deleteButton": "Delete Area",
       "validation": {
@@ -192,7 +192,7 @@
         "createError": "Failed to create area. Please try again.",
         "updateError": "Failed to update area. Please try again.",
         "deleteError": "Failed to delete area. Please try again.",
-        "deleteConflict": "This area cannot be deleted because it is currently in use.",
+        "deleteConflict": "This area cannot be deleted because a task or purchase uses it or one of its sub-areas.",
         "duplicateName": "An area with this name already exists at this level."
       }
     },
@@ -220,7 +220,7 @@
       "delete": "Delete",
       "deleteTitle": "Delete Trade",
       "deleteConfirm": "Are you sure you want to delete the trade \"{{name}}\"?",
-      "deleteWarning": "This trade will be removed from all vendors and work items that reference it.",
+      "deleteWarning": "A trade that a company uses cannot be deleted. Change those companies' trade first.",
       "deleting": "Deleting...",
       "deleteButton": "Delete Trade",
       "validation": {
@@ -234,7 +234,7 @@
         "createError": "Failed to create trade. Please try again.",
         "updateError": "Failed to update trade. Please try again.",
         "deleteError": "Failed to delete trade. Please try again.",
-        "deleteConflict": "This trade cannot be deleted because it is currently in use.",
+        "deleteConflict": "This trade cannot be deleted because a company uses it.",
         "duplicateName": "A trade with this name already exists."
       }
     },

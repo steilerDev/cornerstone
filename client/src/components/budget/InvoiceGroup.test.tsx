@@ -6,6 +6,7 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { InvoiceGroupProps } from './InvoiceGroup.js';
+import enBudget from '../../i18n/en/budget.json';
 
 // ─── Mock: formatters — provides useFormatters() hook used by InvoiceGroup ───
 
@@ -206,6 +207,12 @@ describe('InvoiceGroup', () => {
     }: {
       children: React.ReactNode;
     }) => React.ReactNode;
+  });
+
+  it('renders the planned-total label through budget:invoiceGroup.planned', () => {
+    renderGroup(<InvoiceGroup {...buildProps()} />);
+
+    expect(screen.getByText(enBudget.invoiceGroup.planned)).toBeInTheDocument();
   });
 
   it('defaults to collapsed — lines not visible', () => {

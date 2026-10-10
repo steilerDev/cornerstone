@@ -63,6 +63,8 @@ import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
+import { Modal } from '../../components/Modal/Modal.js';
+import sharedStyles from '../../styles/shared.module.css';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
@@ -115,7 +117,7 @@ export function HouseholdItemDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const modalRef = useRef<HTMLDivElement>(null);
+  const deleteCancelRef = useRef<HTMLButtonElement>(null);
 
   // Add Dependency inline search
   const depDropdownRef = useRef<HTMLDivElement>(null);
@@ -266,39 +268,6 @@ export function HouseholdItemDetailPage() {
     }
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- item identity changes on fetch; [item?.id] captures when the item object itself changes
   }, [item?.id]);
-
-  useEffect(() => {
-    if (!showDeleteModal) return;
-    function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') {
-        closeDeleteModal();
-        return;
-      }
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
-        );
-        const focusableArray = Array.from(focusable);
-        if (focusableArray.length === 0) return;
-        const firstEl = focusableArray[0]!; // guarded by length check at line 259
-        const lastEl = focusableArray[focusableArray.length - 1]!; // guarded by length check at line 259
-        if (e.shiftKey) {
-          if (document.activeElement === firstEl) {
-            e.preventDefault();
-            lastEl.focus();
-          }
-        } else {
-          if (document.activeElement === lastEl) {
-            e.preventDefault();
-            firstEl.focus();
-          }
-        }
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- closeDeleteModal is defined in component body; effect re-runs on intended trigger only
-  }, [showDeleteModal, isDeleting, deleteError]);
 
   // Add Dependency modal: focus trap and Escape key handler
   // Load work items and milestones on component mount (not just when opening modal)
@@ -825,7 +794,7 @@ export function HouseholdItemDetailPage() {
   const itemCategory = categories.find((c) => c.id === item.category);
   const categoryDisplayName = itemCategory
     ? getCategoryDisplayName(tSettings, itemCategory.name, itemCategory.translationKey)
-    : item.category;
+    : null;
 
   return (
     <div className={styles.container}>
@@ -874,7 +843,9 @@ export function HouseholdItemDetailPage() {
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle}>{item.name}</h1>
             <div className={styles.headerBadges}>
-              <span className={styles.categoryBadge}>{categoryDisplayName}</span>
+              {categoryDisplayName && (
+                <span className={styles.categoryBadge}>{categoryDisplayName}</span>
+              )}
               <Badge variants={statusVariants.purchase} value={item.status} />
             </div>
           </div>
@@ -1450,31 +1421,16 @@ export function HouseholdItemDetailPage() {
 
       {/* Delete confirmation modal */}
       {showDeleteModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteModal} />
-          <div className={styles.modalContent} ref={modalRef}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('detail.delete.confirm')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('detail.delete.message')} <strong>{item.name}</strong>?
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('detail.delete.warning')}</p>
-            )}
-            <div className={styles.modalActions}>
+        <Modal
+          title={t('detail.delete.confirm')}
+          onClose={closeDeleteModal}
+          initialFocusRef={deleteCancelRef}
+          footer={
+            <>
               <button
+                ref={deleteCancelRef}
                 type="button"
-                className={styles.cancelButton}
+                className={sharedStyles.btnSecondary}
                 onClick={closeDeleteModal}
                 disabled={isDeleting}
               >
@@ -1483,16 +1439,27 @@ export function HouseholdItemDetailPage() {
               {!deleteError && (
                 <button
                   type="button"
-                  className={styles.confirmDeleteButton}
+                  className={sharedStyles.btnConfirmDelete}
                   onClick={() => void handleDelete()}
                   disabled={isDeleting}
                 >
                   {isDeleting ? t('detail.delete.deleting') : t('detail.delete.delete')}
                 </button>
               )}
+            </>
+          }
+        >
+          <p className={styles.modalText}>
+            {t('detail.delete.message')} <strong>{item.name}</strong>?
+          </p>
+          {deleteError ? (
+            <div className={sharedStyles.bannerError} role="alert">
+              {deleteError}
             </div>
-          </div>
-        </div>
+          ) : (
+            <p className={styles.modalWarning}>{t('detail.delete.warning')}</p>
+          )}
+        </Modal>
       )}
 
       {/* Invoice link modal */}

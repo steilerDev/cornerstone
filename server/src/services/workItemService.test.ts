@@ -376,8 +376,14 @@ describe('Work Item Service', () => {
         assignedVendorId: vendorId,
       };
 
-      // When/Then: The DB trigger fires and raises an error
-      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow();
+      // When/Then: The service rejects with a ValidationError (not a raw DB trigger error)
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(ValidationError);
+      expect(() => workItemService.createWorkItem(db, userId, data)).toThrow(
+        'A work item can be assigned to a user or a vendor, not both',
+      );
+
+      // And: no row was inserted
+      expect(db.select().from(schema.workItems).all()).toHaveLength(0);
     });
 
     it('throws ValidationError for non-existent assignedVendorId', () => {
@@ -724,7 +730,7 @@ describe('Work Item Service', () => {
       expect(updated.area!.color).toBe('#3498DB');
     });
 
-    it('mutual exclusivity check: setting vendor on item that has a user throws', () => {
+    it('mutual exclusivity check: setting vendor on item that has a user throws ValidationError', () => {
       // Given: A work item assigned to a user
       const userId = createTestUser('user@example.com', 'Test User');
       const vendorId = insertTestVendor('Fix-It Inc');
@@ -733,12 +739,64 @@ describe('Work Item Service', () => {
         assignedUserId: userId,
       });
 
-      // When/Then: Trying to also set a vendor triggers the DB trigger
+      // When/Then: Trying to also set a vendor is rejected by the service
       expect(() =>
         workItemService.updateWorkItem(db, workItem.id, {
           assignedVendorId: vendorId,
         }),
-      ).toThrow();
+      ).toThrow(ValidationError);
+
+      // And: the row is unchanged
+      const after = workItemService.getWorkItemDetail(db, workItem.id);
+      expect(after.assignedUser?.id).toBe(userId);
+      expect(after.assignedVendor).toBeNull();
+    });
+
+    it('swapping user for vendor in one update ({ assignedUserId: null, assignedVendorId }) succeeds', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Fix-It Inc');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Test',
+        assignedUserId: userId,
+      });
+
+      const result = workItemService.updateWorkItem(db, workItem.id, {
+        assignedUserId: null,
+        assignedVendorId: vendorId,
+      });
+
+      expect(result.assignedUser).toBeNull();
+      expect(result.assignedVendor?.id).toBe(vendorId);
+    });
+
+    it('swapping vendor for user in one update ({ assignedUserId, assignedVendorId: null }) succeeds', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const vendorId = insertTestVendor('Fix-It Inc');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Test',
+        assignedVendorId: vendorId,
+      });
+
+      const result = workItemService.updateWorkItem(db, workItem.id, {
+        assignedUserId: userId,
+        assignedVendorId: null,
+      });
+
+      expect(result.assignedUser?.id).toBe(userId);
+      expect(result.assignedVendor).toBeNull();
+    });
+
+    it('updating only the title on an item with one assignee succeeds', () => {
+      const userId = createTestUser('user@example.com', 'Test User');
+      const workItem = workItemService.createWorkItem(db, userId, {
+        title: 'Test',
+        assignedUserId: userId,
+      });
+
+      const result = workItemService.updateWorkItem(db, workItem.id, { title: 'Renamed' });
+
+      expect(result.title).toBe('Renamed');
+      expect(result.assignedUser?.id).toBe(userId);
     });
 
     it('throws NotFoundError when work item does not exist', () => {

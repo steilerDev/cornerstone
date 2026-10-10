@@ -9,7 +9,7 @@
 
 .listHeader {
   display: grid;
-  grid-template-columns: 1.5rem auto 1fr auto auto auto auto;
+  grid-template-columns: 2.75rem auto minmax(0, 1fr) auto auto auto auto;
   gap: var(--spacing-3);
   align-items: center;
   padding: var(--spacing-3) var(--spacing-4);
@@ -36,7 +36,7 @@
 
 .invoiceRow {
   display: grid;
-  grid-template-columns: 1.5rem auto 1fr auto auto auto auto;
+  grid-template-columns: 2.75rem auto minmax(0, 1fr) auto auto auto auto;
   gap: var(--spacing-3);
   align-items: center;
   padding: var(--spacing-3) var(--spacing-4);
@@ -68,17 +68,20 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-0-5);
+  min-width: 0;
 }
 
 .vendorName {
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
 }
 
 .invoiceDate {
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
+  overflow-wrap: anywhere;
 }
 
 .amountColumn {
@@ -89,6 +92,7 @@
 }
 
 .amount {
+  white-space: nowrap;
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
@@ -124,7 +128,6 @@
   display: flex;
   flex-direction: column;
   border-top: 1px solid var(--color-border-strong);
-  opacity: 0.85;
 }
 
 .unallocatedHeader {
@@ -177,6 +180,12 @@
   border-bottom: 1px solid var(--color-border);
 }
 
+.unallocatedRow .vendorName {
+  color: var(--color-text-secondary);
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .unallocatedRow:last-child {
   border-bottom: none;
 }
@@ -204,8 +213,9 @@
   background-color: transparent;
   border: none;
   cursor: pointer;
-  padding: 10px;
-  margin: -10px;
+  padding: 0;
+  margin: 0;
+  min-width: 44px;
   transition: background-color var(--transition-fast);
   color: var(--color-text-primary);
   min-height: 44px;
@@ -338,6 +348,48 @@
 /* ---- Mobile Responsive ---- */
 
 @media (max-width: 767px) {
+  .listHeader,
+  .invoiceRow {
+    grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+    column-gap: var(--spacing-2);
+    row-gap: var(--spacing-1);
+    padding: var(--spacing-3);
+  }
+
+  .checkboxWithContent {
+    grid-column: 2 / -1;
+    min-width: 0;
+  }
+
+  .headerTitle {
+    grid-column: 2 / -1;
+  }
+
+  .statusChip {
+    grid-column: 2;
+  }
+
+  .amountColumn {
+    grid-column: 3;
+  }
+
+  .attachmentColumn {
+    grid-column: 2;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  /* The open-invoice IconLinkButton is the 7th DOM child of the row. */
+  .invoiceRow > :last-child {
+    grid-column: 3;
+    justify-self: end;
+  }
+
+  .unallocatedRow {
+    flex-wrap: wrap;
+  }
+
   .tableWrapper {
     display: none;
   }

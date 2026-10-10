@@ -25,6 +25,7 @@
 }
 
 .mainViewer {
+  position: relative;
   flex: 1;
   display: flex;
   align-items: center;
@@ -70,14 +71,6 @@
   justify-content: center;
 }
 
-/* Desktop sidebar mode: align close button with metadata header */
-@media (min-width: 768px) {
-  .closeButton {
-    top: calc(var(--spacing-4) + 1.5rem); /* Align with h3 baseline */
-    right: 320px; /* Width of sidepanel */
-  }
-}
-
 .closeButton:hover {
   transform: scale(1.1);
 }
@@ -98,7 +91,7 @@
   cursor: pointer;
   padding: var(--spacing-3);
   transition: background var(--transition-fast);
-  z-index: calc(var(--z-dropdown) - 1);
+  z-index: var(--z-dropdown);
   min-width: 44px;
   min-height: 44px;
   display: flex;
@@ -294,6 +287,11 @@
 
   .navButtonRight {
     right: var(--spacing-2);
+  }
+
+  /* The open details sheet covers the bottom 60vh; keep arrows in the visible part above it. */
+  .mainViewer[data-sheet-open='true'] .navButton {
+    top: 20vh;
   }
 
   .infoBar {

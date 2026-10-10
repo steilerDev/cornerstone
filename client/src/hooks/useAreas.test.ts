@@ -225,19 +225,25 @@ describe('useAreas', () => {
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when createArea throws', async () => {
-      mockCreateArea.mockRejectedValueOnce(new Error('Failed to create'));
+    it('rejects with the original error and does not refetch when createArea throws', async () => {
+      const failure = new Error('Failed to create');
+      mockCreateArea.mockRejectedValueOnce(failure);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
       const { result } = renderHook(() => useAreas());
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(1));
 
-      let returnedValue: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returnedValue = await result.current.createArea({ name: 'Garage' });
+        try {
+          await result.current.createArea({ name: 'Garage' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returnedValue).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchAreas).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -287,19 +293,25 @@ describe('useAreas', () => {
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
     });
 
-    it('returns null when updateArea throws', async () => {
-      mockUpdateArea.mockRejectedValueOnce(new Error('Not found'));
+    it('rejects with the original error and does not refetch when updateArea throws', async () => {
+      const failure = new Error('Not found');
+      mockUpdateArea.mockRejectedValueOnce(failure);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
       const { result } = renderHook(() => useAreas());
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.updateArea('nonexistent', { name: 'Updated' });
+        try {
+          await result.current.updateArea('nonexistent', { name: 'Updated' });
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBeNull();
+      expect(thrown).toBe(failure);
+      expect(mockFetchAreas).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -318,7 +330,7 @@ describe('useAreas', () => {
       expect(mockDeleteArea).toHaveBeenCalledWith('a1');
     });
 
-    it('returns true on successful delete', async () => {
+    it('resolves to undefined on successful delete', async () => {
       mockDeleteArea.mockResolvedValueOnce(undefined);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
@@ -330,7 +342,7 @@ describe('useAreas', () => {
         returned = await result.current.deleteArea('a1');
       });
 
-      expect(returned).toBe(true);
+      expect(returned).toBeUndefined();
     });
 
     it('triggers a refetch after successful delete', async () => {
@@ -347,19 +359,25 @@ describe('useAreas', () => {
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(2));
     });
 
-    it('returns false when deleteArea throws', async () => {
-      mockDeleteArea.mockRejectedValueOnce(new Error('In use'));
+    it('rejects with the original error and does not refetch when deleteArea throws', async () => {
+      const failure = new Error('In use');
+      mockDeleteArea.mockRejectedValueOnce(failure);
       mockFetchAreas.mockResolvedValue({ areas: [] });
 
       const { result } = renderHook(() => useAreas());
       await waitFor(() => expect(mockFetchAreas).toHaveBeenCalledTimes(1));
 
-      let returned: unknown;
+      let thrown: unknown;
       await act(async () => {
-        returned = await result.current.deleteArea('a1');
+        try {
+          await result.current.deleteArea('a1');
+        } catch (err) {
+          thrown = err;
+        }
       });
 
-      expect(returned).toBe(false);
+      expect(thrown).toBe(failure);
+      expect(mockFetchAreas).toHaveBeenCalledTimes(1);
     });
   });
 });

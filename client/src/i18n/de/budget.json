@@ -1512,5 +1512,8 @@
     "submit": "Absenden",
     "required": "*",
     "budgetSectionTitle": "Budget"
+  },
+  "invoiceGroup": {
+    "planned": "Geplant"
   }
 }

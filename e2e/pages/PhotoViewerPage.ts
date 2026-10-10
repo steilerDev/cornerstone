@@ -205,6 +205,13 @@ export class PhotoViewerPage {
    */
   readonly metadataToggle: Locator;
 
+  /**
+   * The metadata sidepanel (desktop/tablet: fixed 320px side column; phone: bottom sheet that is
+   * only on screen while the toggle has opened it). id="photo-metadata-sidepanel". Used by
+   * Story #2196 to prove the nav arrows never sit under the panel / sheet.
+   */
+  readonly sidepanel: Locator;
+
   // ── Info bar actions (only visible when NOT annotating) ──────────────────────
 
   /** Pencil icon button — opens the PhotoAnnotator */
@@ -357,6 +364,7 @@ export class PhotoViewerPage {
 
     // Metadata toggle (one element in DOM at a time — floats when closed, in header when open)
     this.metadataToggle = page.getByTestId('photo-metadata-toggle');
+    this.sidepanel = page.locator('#photo-metadata-sidepanel');
 
     // The viewer shows an <img> for the photo when NOT annotating.
     // The PhotoAnnotator also has an <img> (base image) inside the SVG area when annotating.

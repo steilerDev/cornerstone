@@ -12,6 +12,7 @@ import { render as rtlRender, screen } from '@testing-library/react';
 import type React from 'react';
 import type { ReactElement } from 'react';
 import type { DiaryEntryType } from '@cornerstone/shared';
+import enDiary from '../../../i18n/en/diary.json';
 import { LocaleProvider } from '../../../contexts/LocaleContext.js';
 
 /**
@@ -144,7 +145,27 @@ describe('DiaryMetadataSummary', () => {
   describe('daily_log pre-existing fields', () => {
     it('renders weather emoji + label when weather is present', () => {
       render(<DiaryMetadataSummary entryType="daily_log" metadata={{ weather: 'sunny' }} />);
-      expect(screen.getByText(/sunny/)).toBeInTheDocument();
+      expect(screen.getByText(new RegExp(enDiary.form.weatherOptions.sunny))).toBeInTheDocument();
+    });
+
+    it('shows the translated weather label, not the raw enum value', () => {
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ weather: 'rainy' }} />);
+      expect(screen.getByText(new RegExp(enDiary.form.weatherOptions.rainy))).toBeInTheDocument();
+      expect(screen.queryByText(/rainy/)).not.toBeInTheDocument();
+    });
+
+    it('falls back to the raw value when the weather is not a known option', () => {
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ weather: 'hailing' }} />);
+      expect(screen.getByText(/hailing/)).toBeInTheDocument();
+    });
+
+    it.each([
+      [1, enDiary.metadata.workerCount_one],
+      [3, enDiary.metadata.workerCount_other],
+      [0, enDiary.metadata.workerCount_other],
+    ])('renders the correct plural form for %i workers on site', (count, template) => {
+      render(<DiaryMetadataSummary entryType="daily_log" metadata={{ workersOnSite: count }} />);
+      expect(screen.getByText(template.replace('{{count}}', String(count)))).toBeInTheDocument();
     });
 
     it('renders temperature when temperatureCelsius is present', () => {
@@ -172,6 +193,16 @@ describe('DiaryMetadataSummary', () => {
       ).not.toThrow();
       const container = document.querySelector('[data-testid="site-visit-metadata"]');
       expect(container).toBeInTheDocument();
+    });
+
+    it('shows the translated outcome label and aria-label', () => {
+      render(<DiaryMetadataSummary entryType="site_visit" metadata={{ outcome: 'pass' }} />);
+      const badge = screen.getByTestId('outcome-pass');
+      expect(badge).toHaveTextContent(enDiary.outcomeBadge.pass);
+      expect(badge).toHaveAttribute(
+        'aria-label',
+        enDiary.metadata.outcomeAriaLabel.replace('{{label}}', enDiary.outcomeBadge.pass),
+      );
     });
 
     it('site_visit does not render daily-log-metadata testid', () => {
@@ -207,6 +238,16 @@ describe('DiaryMetadataSummary', () => {
         />,
       );
       expect(document.querySelector('[data-testid="issue-metadata"]')).toBeInTheDocument();
+    });
+
+    it('shows the translated severity label and aria-label', () => {
+      render(<DiaryMetadataSummary entryType="issue" metadata={{ severity: 'critical' }} />);
+      const badge = screen.getByTestId('severity-critical');
+      expect(badge).toHaveTextContent(enDiary.severityBadge.critical);
+      expect(badge).toHaveAttribute(
+        'aria-label',
+        enDiary.metadata.severityAriaLabel.replace('{{label}}', enDiary.severityBadge.critical),
+      );
     });
   });
 

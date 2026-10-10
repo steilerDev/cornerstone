@@ -47,7 +47,7 @@ jest.unstable_mockModule('../../../lib/formatters.js', () => {
       const d = new Date(ts);
       return (
         d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) +
-        ' at ' +
+        ', ' +
         d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
       );
     } catch {

@@ -441,6 +441,14 @@ export class BudgetSourcesPage {
   }
 
   /**
+   * All budget-line rows (`<li class*="lineRow">`) inside a source's lines panel, in both the
+   * read-only and the selectable (checkbox) variants. Added for Story #2196 geometry checks.
+   */
+  getLineRows(sourceId: string): Locator {
+    return this.getLinesPanelById(sourceId).locator('li[class*="lineRow"]');
+  }
+
+  /**
    * Click the expand toggle for the named source and wait for the panel to appear.
    * No explicit timeout — uses project-level actionTimeout (15s for WebKit).
    */

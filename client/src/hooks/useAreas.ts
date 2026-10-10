@@ -10,15 +10,15 @@ export interface UseAreasResult {
   isLoading: boolean;
   error: string | null;
   refetch: () => void;
-  createArea: (data: CreateAreaRequest) => Promise<AreaResponse | null>;
-  updateArea: (id: string, data: UpdateAreaRequest) => Promise<AreaResponse | null>;
-  deleteArea: (id: string) => Promise<boolean>;
+  createArea: (data: CreateAreaRequest) => Promise<AreaResponse>;
+  updateArea: (id: string, data: UpdateAreaRequest) => Promise<AreaResponse>;
+  deleteArea: (id: string) => Promise<void>;
 }
 
 /**
  * Manages the full CRUD lifecycle for areas.
  * Returns loading, error, and data states following the project's hook conventions.
- * Mutation methods refetch the list after success.
+ * Mutation methods refetch the list after success and throw ApiClientError on failure.
  */
 export function useAreas(): UseAreasResult {
   const { t } = useTranslation('settings');
@@ -69,34 +69,21 @@ export function useAreas(): UseAreasResult {
     setFetchCount((c) => c + 1);
   }
 
-  async function handleCreate(data: CreateAreaRequest): Promise<AreaResponse | null> {
-    try {
-      const area = await createArea(data);
-      refetch();
-      return area;
-    } catch {
-      return null;
-    }
+  async function handleCreate(data: CreateAreaRequest): Promise<AreaResponse> {
+    const area = await createArea(data);
+    refetch();
+    return area;
   }
 
-  async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse | null> {
-    try {
-      const area = await updateArea(id, data);
-      refetch();
-      return area;
-    } catch {
-      return null;
-    }
+  async function handleUpdate(id: string, data: UpdateAreaRequest): Promise<AreaResponse> {
+    const area = await updateArea(id, data);
+    refetch();
+    return area;
   }
 
-  async function handleDelete(id: string): Promise<boolean> {
-    try {
-      await deleteArea(id);
-      refetch();
-      return true;
-    } catch {
-      return false;
-    }
+  async function handleDelete(id: string): Promise<void> {
+    await deleteArea(id);
+    refetch();
   }
 
   return {

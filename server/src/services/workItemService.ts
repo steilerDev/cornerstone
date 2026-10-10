@@ -285,6 +285,16 @@ function validateAssignedUser(db: DbType, userId: string): void {
   }
 }
 
+/** A work item has one assignee: a user or a vendor, never both (DB triggers enforce it too). */
+function assertSingleAssignee(
+  userId: string | null | undefined,
+  vendorId: string | null | undefined,
+): void {
+  if (userId && vendorId) {
+    throw new ValidationError('A work item can be assigned to a user or a vendor, not both');
+  }
+}
+
 /**
  * Replace all tags for a work item (set-semantics).
  * Deletes existing associations not in the new set, inserts new ones.
@@ -304,6 +314,7 @@ export function createWorkItem(
 
   // Validate date constraints
   validateDateConstraints(data);
+  assertSingleAssignee(data.assignedUserId, data.assignedVendorId);
 
   // Validate assignedUserId if provided
   if (data.assignedUserId) {
@@ -475,6 +486,11 @@ export function updateWorkItem(
     }
     updateData.assignedVendorId = data.assignedVendorId ?? null;
   }
+
+  assertSingleAssignee(
+    'assignedUserId' in data ? data.assignedUserId : workItem.assignedUserId,
+    'assignedVendorId' in data ? data.assignedVendorId : workItem.assignedVendorId,
+  );
 
   if ('actualStartDate' in data) {
     updateData.actualStartDate = data.actualStartDate ?? null;
