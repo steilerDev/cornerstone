@@ -9,6 +9,7 @@ import ts from 'typescript';
  * module keeps a copied tab array, and `ScheduleSubNav` / `budgetTabs` are gone. `SubNav` itself
  * stays as a component without consumers (it becomes ObjectTabs in Phase 4/5); until that story
  * deliberately relaxes rule 2, nothing outside `components/SubNav/` may import it.
+ * OverflowMenu link entries (`kind: 'link'`, #2206) are menu actions, not views.
  */
 
 const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -33,11 +34,24 @@ const hasProperty = (obj: ts.ObjectLiteralExpression, ...names: string[]): boole
       names.includes(p.name.text),
   );
 
+/** An OverflowMenu link entry: a `kind` property initialised with the string literal 'link'. */
+function isMenuLinkEntry(obj: ts.ObjectLiteralExpression): boolean {
+  return obj.properties.some(
+    (p) =>
+      ts.isPropertyAssignment(p) &&
+      (ts.isIdentifier(p.name) || ts.isStringLiteral(p.name)) &&
+      p.name.text === 'kind' &&
+      ts.isStringLiteral(p.initializer) &&
+      p.initializer.text === 'link',
+  );
+}
+
 /** The copied-tab-array shape: an array with >= 2 objects that each carry a target and a label. */
 function isTabArray(node: ts.ArrayLiteralExpression): boolean {
   const tabs = node.elements.filter(
     (el): el is ts.ObjectLiteralExpression =>
       ts.isObjectLiteralExpression(el) &&
+      !isMenuLinkEntry(el) &&
       hasProperty(el, 'to', 'href') &&
       hasProperty(el, 'labelKey', 'label'),
   );
@@ -130,6 +144,25 @@ describe('the detector (self-test: each rule can fail)', () => {
       run(`const rows = [{ label: 'a' }, { label: 'b' }, { href: '/x' }, { href: '/y' }];`),
     ).toEqual([]);
     expect(run(`const x = [{ ...spread }, 5];`)).toEqual([]);
+  });
+
+  it('does not flag OverflowMenu link entries (kind: link) but still flags other kinds', () => {
+    const link = (label: string, href: string) =>
+      `{ kind: 'link', label: '${label}', href: '${href}' }`;
+    const tab = (label: string, href: string) =>
+      `{ kind: 'tab', label: '${label}', href: '${href}' }`;
+    const flagged = ['client/src/pages/XPage/XPage.tsx:1 copied tab array'];
+    expect(run(`const m = [${link('a', '/x')}, ${link('b', '/y')}];`)).toEqual([]);
+    expect(
+      run(`const m = [{ 'kind': 'link', label: 'a', href: '/x' }, ${link('b', '/y')}];`),
+    ).toEqual([]);
+    expect(run(`const m = [${tab('a', '/x')}, ${tab('b', '/y')}];`)).toEqual(flagged);
+    expect(run(`const m = [${link('a', '/x')}, ${tab('b', '/y')}, ${tab('c', '/z')}];`)).toEqual(
+      flagged,
+    );
+    expect(
+      run(`const m = [{ kind: k, label: 'a', href: '/x' }, { kind: k, label: 'b', href: '/y' }];`),
+    ).toEqual(flagged);
   });
 
   it('flags an import of SubNav from outside its folder, but not from inside it', () => {

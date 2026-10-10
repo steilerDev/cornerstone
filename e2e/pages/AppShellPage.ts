@@ -1,5 +1,5 @@
 /**
- * Page Object Model for the AppShell layout (sidebar + header)
+ * Page Object Model for the AppShell layout (sidebar + desktop top bar, #2206)
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -17,11 +17,18 @@ export class AppShellPage {
   readonly activeEntries: Locator;
   /** The nested view links currently rendered (only the active section shows its views). */
   readonly viewLinks: Locator;
+  /** Desktop top bar (`<header>` landmark "banner"); `display: none` below 1024px (#2206). */
+  readonly topBar: Locator;
+  /** Avatar trigger of the user menu (top bar, >= 1024px only). */
+  readonly userMenuTrigger: Locator;
+  /** The open user-menu panel. */
+  readonly userMenu: Locator;
 
   constructor(page: Page) {
     this.page = page;
     this.sidebar = page.locator('aside');
-    // AppShell renders a floating action button with data-testid="menu-fab" — no <header> element.
+    // AppShell renders a floating action button with data-testid="menu-fab". The only <header>
+    // is the desktop top bar (>= 1024px, #2206); it is display:none below 1024px.
     // The FAB is the only menu toggle button; it is outside the sidebar (aside).
     // When sidebar is open, the FAB aria-label becomes "Close menu" (from t('aria.closeMenu')).
     // There is NO close button inside the <aside> — PR #1168 removed it.
@@ -35,6 +42,25 @@ export class AppShellPage {
     this.settingsNav = page.getByRole('navigation', { name: /^(Settings|Einstellungen)$/ });
     this.activeEntries = this.sidebar.locator('[aria-current="page"]');
     this.viewLinks = this.sidebar.locator('[data-testid^="sidebar-view-"]');
+    this.topBar = page.getByTestId('top-bar');
+    this.userMenuTrigger = page.getByTestId('user-menu-trigger');
+    this.userMenu = page.getByTestId('user-menu');
+  }
+
+  /** Theme choice in the open user menu (`light` | `dark` | `system`). */
+  themeOption(value: 'light' | 'dark' | 'system'): Locator {
+    return this.page.getByTestId(`user-menu-theme-${value}`);
+  }
+
+  /** Language choice in the open user menu (`en` | `de`). */
+  languageOption(value: 'en' | 'de'): Locator {
+    return this.page.getByTestId(`user-menu-language-${value}`);
+  }
+
+  /** Open the user menu from the avatar (desktop only) and wait for the panel. */
+  async openUserMenu(): Promise<void> {
+    await this.userMenuTrigger.click();
+    await this.userMenu.waitFor({ state: 'visible' });
   }
 
   /**
@@ -55,10 +81,10 @@ export class AppShellPage {
     return this.page.getByTestId(`sidebar-view-${route}`);
   }
 
-  /** True when the sidebar is an off-canvas drawer (<= 1024px). */
+  /** True when the sidebar is an off-canvas drawer (< 1024px; the shell breakpoint is 1023/1024). */
   private needsDrawer(): boolean {
     const width = this.page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER;
-    return width <= 1024;
+    return width < 1024;
   }
 
   /** Open the drawer when the viewport needs one (no-op on desktop). */
@@ -66,7 +92,7 @@ export class AppShellPage {
     if (this.needsDrawer()) await this.openSidebar();
   }
 
-  /** Click a section entry (opens the drawer first on <= 1024px; the drawer closes on click). */
+  /** Click a section entry (opens the drawer first below 1024px; the drawer closes on click). */
   async openSection(id: string): Promise<void> {
     await this.openSidebarIfDrawer();
     await this.sectionLink(id).click();
@@ -136,9 +162,19 @@ export class AppShellPage {
     return ariaCurrent === 'page';
   }
 
+  /**
+   * Real UI log-out, viewport-aware, no API fallback. At >= 1024px the sidebar footer is
+   * display:none and Log out is the last row of the user menu; below 1024px the top bar is
+   * hidden and the sidebar drawer's "Log out" button is used. #2207 replaces the sub-1024 path.
+   */
   async logout(): Promise<void> {
-    const logoutButton = this.sidebar.getByRole('button', { name: 'Logout' });
-    await logoutButton.click();
+    if (this.needsDrawer()) {
+      await this.openSidebar();
+      await this.sidebar.getByRole('button', { name: /^(Log out|Abmelden)$/ }).click();
+      return;
+    }
+    await this.openUserMenu();
+    await this.page.getByTestId('user-menu-logout').click();
   }
 
   async getMenuButton(): Promise<Locator> {

@@ -53,7 +53,6 @@
   "noArea": "No Area",
   "noAreaDescription": "No Area — show items without an area assignment",
   "button": {
-    "logout": "Logout",
     "close": "Close",
     "save": "Save",
     "cancel": "Cancel",
@@ -110,6 +109,27 @@
     "switchTo": "Switch to {{mode}} mode",
     "current": "Current: {{current}} — click to switch to {{next}}"
   },
+  "topBar": {
+    "search": "Search",
+    "searchShortcutApple": "⌘K",
+    "searchShortcutOther": "Ctrl K",
+    "new": "New",
+    "attention": "Needs attention",
+    "accountMenu": "Account menu for {{name}}"
+  },
+  "userMenu": {
+    "account": "Account",
+    "theme": "Theme",
+    "language": "Language",
+    "shortcuts": "Keyboard shortcuts",
+    "help": "Help",
+    "about": "About",
+    "version": "v{{version}}",
+    "github": "GitHub",
+    "logOut": "Log out",
+    "loggingOut": "Logging out…",
+    "opensInNewTab": "(opens in a new tab)"
+  },
   "notFound": {
     "title": "Page not found",
     "description": "The page you are looking for does not exist or has been moved.",
@@ -138,7 +158,8 @@
     "title": "Keyboard Shortcuts",
     "closeAriaLabel": "Close",
     "keyColumn": "Key",
-    "actionColumn": "Action"
+    "actionColumn": "Action",
+    "noPageShortcuts": "This page has no shortcuts of its own."
   },
   "toast": {
     "dismissAriaLabel": "Dismiss notification"

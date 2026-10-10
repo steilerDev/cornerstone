@@ -151,4 +151,47 @@ describe('KeyboardShortcutsHelp', () => {
     expect(rows).toHaveLength(4);
     expect(screen.queryByText('x')).not.toBeInTheDocument();
   });
+
+  describe('emptyMessage', () => {
+    it('shows the empty state instead of the table when nothing is listed', () => {
+      render(
+        <KeyboardShortcutsHelp
+          shortcuts={[]}
+          emptyMessage="This page has no shortcuts of its own."
+          onClose={() => {}}
+        />,
+      );
+      expect(screen.getByText('This page has no shortcuts of its own.')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    it('treats shortcuts without a description as empty', () => {
+      render(
+        <KeyboardShortcutsHelp
+          shortcuts={[{ key: 'x', handler: () => {}, description: '' }]}
+          emptyMessage="Nothing here"
+          onClose={() => {}}
+        />,
+      );
+      expect(screen.getByText('Nothing here')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    it('keeps the table when shortcuts exist, ignoring emptyMessage', () => {
+      render(
+        <KeyboardShortcutsHelp
+          shortcuts={mockShortcuts}
+          emptyMessage="Nothing here"
+          onClose={() => {}}
+        />,
+      );
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.queryByText('Nothing here')).not.toBeInTheDocument();
+    });
+
+    it('keeps the empty table when no emptyMessage is given (existing callers)', () => {
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      expect(screen.getByRole('table')).toBeInTheDocument();
+    });
+  });
 });

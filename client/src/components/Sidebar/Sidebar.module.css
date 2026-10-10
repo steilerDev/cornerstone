@@ -112,6 +112,17 @@
   flex-shrink: 0;
 }
 
+/* Below 1024 px only, until #2207 (the top bar's user menu owns these from 1024 px) */
+.footerLegacy {
+  display: block;
+}
+
+@media (min-width: 1024px) {
+  .footerLegacy {
+    display: none;
+  }
+}
+
 .projectInfo {
   display: flex;
   flex-direction: column;
@@ -155,7 +166,7 @@
 }
 
 /* Mobile and tablet: fixed position, hidden by default */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .sidebar {
     position: fixed;
     top: 0;
@@ -187,7 +198,7 @@
 }
 
 /* Desktop: static position, always visible */
-@media (min-width: 1025px) {
+@media (min-width: 1024px) {
   .sidebar {
     position: sticky;
     top: 0;

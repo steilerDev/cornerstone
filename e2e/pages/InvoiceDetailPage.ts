@@ -79,7 +79,7 @@
  * - State confirm cancel: data-testid="state-confirm-cancel" (added #1407)
  * - Error banner in form modals: role="alert" (FormError with variant='banner')
  * - Warning banner in delete modal: [class*="warningBanner"] (visible for paid/claimed deposits)
- * - Overflow menu trigger: button[aria-haspopup="true"], aria-label includes "deposit"
+ * - Overflow menu trigger: button[aria-haspopup="menu"], aria-label includes "deposit"
  * - Menu: role="menu", items role="menuitem"
  * - Menu items (pending): "Mark paid…", "Edit", "Delete"
  * - Menu items (paid): "Mark claimed…", "Revert to pending", "Edit", "Delete"
@@ -1167,7 +1167,7 @@ export class InvoiceDetailPage {
    * Opens the overflow menu for a deposit.
    *
    * The overflow menu button renders as:
-   *   <button type="button" aria-haspopup="true"
+   *   <button type="button" aria-haspopup="menu"
    *           aria-label="Deposit actions for {description}">⋮</button>
    * When description is null, the aria-label uses "deposit" as fallback.
    *
@@ -1184,12 +1184,12 @@ export class InvoiceDetailPage {
       // the hidden table button instead of the visible mobile-card button.
       menuButton = this.depositsSection
         .locator(
-          `button[aria-haspopup="true"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
+          `button[aria-haspopup="menu"][aria-label*="${depositDescription.replace(/"/g, '\\"')}"]`,
         )
         .visible()
         .first();
     } else {
-      menuButton = this.depositsSection.locator('button[aria-haspopup="true"]').visible().first();
+      menuButton = this.depositsSection.locator('button[aria-haspopup="menu"]').visible().first();
     }
 
     await menuButton.click();
@@ -1341,7 +1341,7 @@ export class InvoiceDetailPage {
    * Opens the OverflowMenu for a budget line row.
    *
    * The OverflowMenu trigger renders as:
-   *   <button type="button" aria-haspopup="true"
+   *   <button type="button" aria-haspopup="menu"
    *           aria-label="Budget line actions for {description}">⋮</button>
    *
    * With usePortal=true the menu is appended to document.body — we wait for
@@ -1355,12 +1355,12 @@ export class InvoiceDetailPage {
     if (descriptionSubstring !== undefined) {
       trigger = this.budgetLinesSection
         .locator(
-          `button[aria-haspopup="true"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
+          `button[aria-haspopup="menu"][aria-label*="${descriptionSubstring.replace(/"/g, '\\"')}"]`,
         )
         .visible()
         .first();
     } else {
-      trigger = this.budgetLinesSection.locator('button[aria-haspopup="true"]').visible().first();
+      trigger = this.budgetLinesSection.locator('button[aria-haspopup="menu"]').visible().first();
     }
     await trigger.click();
     // Portal renders menu at document.body level

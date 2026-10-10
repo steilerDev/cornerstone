@@ -306,8 +306,8 @@ test.describe('Deposit OverflowMenu portal — not clipped (#1423)', () => {
 
       // Click the LAST deposit row's overflow menu trigger.
       // On desktop the table layout renders rows sequentially; the LAST row's
-      // trigger is the last visible button[aria-haspopup="true"] in the section.
-      const triggers = detailPage.depositsSection.locator('button[aria-haspopup="true"]').visible();
+      // trigger is the last visible button[aria-haspopup="menu"] in the section.
+      const triggers = detailPage.depositsSection.locator('button[aria-haspopup="menu"]').visible();
 
       const count = await triggers.count();
       expect(count).toBeGreaterThan(0);

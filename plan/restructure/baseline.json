@@ -30,7 +30,7 @@
       "ProfilePage": { "destinations": 0, "primaryButtons": 5, "searchFields": 0 },
       "ReportWizardPage": { "destinations": 4, "primaryButtons": 13, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
-      "shell": { "destinations": 2, "primaryButtons": 1, "searchFields": 0 },
+      "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },
       "SubsidyProgramsPage": { "destinations": 0, "primaryButtons": 5, "searchFields": 1 },
       "TimelinePage": { "destinations": 3, "primaryButtons": 9, "searchFields": 0 },
       "UserManagementPage": { "destinations": 0, "primaryButtons": 8, "searchFields": 1 },
@@ -41,7 +41,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 108,
+      "count": 110,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -96,8 +96,10 @@
         "ThemeToggle/ThemeToggle",
         "Toast/Toast",
         "Tooltip/Tooltip",
+        "TopBar/TopBar",
         "TradePicker/TradePicker",
         "TriStateCheckbox/TriStateCheckbox",
+        "UserMenu/UserMenu",
         "VendorCreateModal/VendorCreateModal",
         "WizardStepper/WizardStepper",
         "WorkItemPicker/WorkItemPicker",
@@ -348,10 +350,8 @@
   },
   "allowedAdditions": {
     "sharedComponents": [
-      "TopBar",
       "BottomBar",
       "MoreSheet",
-      "UserMenu",
       "CommandSearch",
       "CreateMenu",
       "ObjectForm",

@@ -73,6 +73,12 @@
   object-fit: contain;
 }
 
+@media (min-width: 1024px) {
+  .image {
+    max-height: calc(100dvh - 12rem - var(--topbar-height));
+  }
+}
+
 .imageFallback {
   display: flex;
   align-items: center;
@@ -298,7 +304,8 @@
 @media (min-width: 1024px) {
   .viewer {
     grid-template-columns: minmax(0, 1fr) 25rem;
-    height: 100dvh;
+    height: calc(100dvh - var(--topbar-height));
+    min-height: calc(100dvh - var(--topbar-height));
   }
 
   .details {

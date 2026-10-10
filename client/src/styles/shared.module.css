@@ -123,6 +123,47 @@
 }
 
 /**
+ * Icon button — transparent square control (bell, menu triggers).
+ */
+.btnIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.btnIcon:hover:not(:disabled, [aria-disabled='true']) {
+  background-color: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.btnIcon:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-border-focus);
+}
+
+.btnIcon:disabled,
+.btnIcon[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btnIcon {
+    transition: none;
+  }
+}
+
+/**
  * Compact secondary button — same as btnSecondary but with smaller padding,
  * used for inline cancel / edit buttons inside list rows.
  */

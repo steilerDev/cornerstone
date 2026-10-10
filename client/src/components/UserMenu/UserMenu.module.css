@@ -1,0 +1,57 @@
+.avatar {
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-full);
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  border: 1px solid var(--color-border-strong);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+.avatar:hover,
+.avatar[aria-expanded='true'] {
+  background-color: var(--color-primary-bg-hover);
+  border-color: var(--color-primary);
+}
+
+.avatar:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-border-focus);
+}
+
+.panel {
+  min-width: calc(var(--spacing-16) * 4 + var(--spacing-4));
+  max-width: calc(100vw - var(--spacing-8));
+  max-height: calc(100dvh - var(--topbar-height, var(--spacing-16)) - var(--spacing-4));
+  overflow-y: auto;
+}
+
+.name {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.role {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .avatar {
+    transition: none;
+  }
+}

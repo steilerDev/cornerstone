@@ -11,7 +11,7 @@
  *                    section replace, changing section pushes one entry (ADR-038 rule 8)
  * - E4 (AC4, D-23)   admin sees Settings, Account, Users, Backups; a member sees Settings and
  *                    Account only; /settings lands on Project setup
- * - Logout stays in the sidebar
+ * - Log out stays in the sidebar below 1024px until #2207 (from 1024px it is in the user menu)
  *
  * E2 (the German labels and landmark names) lives in i18n/i18n.spec.ts, which owns the dedicated
  * user whose locale it may change. E5 (no tab rows) is in no-tab-rows.spec.ts and E6 (the
@@ -269,17 +269,18 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
     await expect(appShell.sectionLink('settings')).toHaveAttribute('aria-current', 'page');
   });
 
-  test('Logout button is present', async ({ page }) => {
+  test('Log out button is in the sidebar below 1024px only', async ({ page }) => {
     const appShell = new AppShellPage(page);
-
-    // Given: User is authenticated and on any page
     await page.goto(ROUTES.home);
 
-    // Open sidebar if on mobile/tablet viewport
-    await appShell.openSidebarIfDrawer();
-
-    // Then: Logout button should be visible in the sidebar
-    const logoutButton = appShell.sidebar.getByRole('button', { name: 'Logout' });
-    await expect(logoutButton).toBeVisible();
+    const logoutButton = appShell.sidebar.getByRole('button', { name: /^(Log out|Abmelden)$/ });
+    if ((page.viewportSize()?.width ?? 0) < 1024) {
+      await appShell.openSidebar();
+      await expect(logoutButton).toBeVisible();
+    } else {
+      // The sidebar footer is display:none from 1024px, so the role query finds nothing
+      await expect(appShell.sectionLink('home')).toBeVisible();
+      await expect(logoutButton).toHaveCount(0);
+    }
   });
 });

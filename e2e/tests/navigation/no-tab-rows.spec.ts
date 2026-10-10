@@ -51,7 +51,9 @@ test.describe('No in-page tab rows (#2205)', () => {
       const pageNavs = page
         .locator('main')
         .locator('nav:not([aria-label="Area path"]):not([aria-label="Report wizard steps"])');
-      const breadcrumbNavs = page.getByTestId('breadcrumbs').locator('nav');
+      // Only the trail rendered inside main counts: from 1024px it lives in the top bar (#2206),
+      // outside main, so a page-wide count would be subtracted from navs that are not there.
+      const breadcrumbNavs = page.locator('main').getByTestId('breadcrumbs').locator('nav');
       await expect
         .poll(async () => (await pageNavs.count()) - (await breadcrumbNavs.count()))
         .toBe(0);

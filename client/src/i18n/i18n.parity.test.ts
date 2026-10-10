@@ -394,3 +394,87 @@ describe('#2196 visual-defects keys', () => {
     });
   }
 });
+
+describe('#2206 top bar and user menu keys', () => {
+  type Bundle = {
+    topBar: Record<string, string>;
+    userMenu: Record<string, string>;
+    keyboardShortcuts: Record<string, string>;
+    button: Record<string, string>;
+    theme: Record<string, string>;
+  };
+  const bundles = { en: enCommon, de: deCommon } as unknown as Record<string, Bundle>;
+
+  const TOP_BAR_KEYS = [
+    'search',
+    'searchShortcutApple',
+    'searchShortcutOther',
+    'new',
+    'attention',
+    'accountMenu',
+  ];
+  const USER_MENU_KEYS = [
+    'account',
+    'theme',
+    'language',
+    'shortcuts',
+    'help',
+    'about',
+    'version',
+    'github',
+    'logOut',
+    'loggingOut',
+    'opensInNewTab',
+  ];
+
+  for (const [locale, b] of Object.entries(bundles)) {
+    it(`${locale}: topBar has exactly the specified keys, all non-empty`, () => {
+      expect(Object.keys(b.topBar).sort()).toEqual([...TOP_BAR_KEYS].sort());
+      for (const key of TOP_BAR_KEYS) expect(b.topBar[key]).toMatch(/\S/);
+    });
+
+    it(`${locale}: userMenu has exactly the specified keys, all non-empty`, () => {
+      expect(Object.keys(b.userMenu).sort()).toEqual([...USER_MENU_KEYS].sort());
+      for (const key of USER_MENU_KEYS) expect(b.userMenu[key]).toMatch(/\S/);
+    });
+
+    it(`${locale}: placeholders survive translation`, () => {
+      expect(b.topBar.accountMenu).toContain('{{name}}');
+      expect(b.userMenu.version).toContain('{{version}}');
+    });
+
+    it(`${locale}: keyboardShortcuts.noPageShortcuts exists`, () => {
+      expect(b.keyboardShortcuts.noPageShortcuts).toMatch(/\S/);
+    });
+
+    it(`${locale}: the retired button.logout key is gone, userMenu.logOut replaces it`, () => {
+      expect(b.button).not.toHaveProperty('logout');
+      expect(b.userMenu.logOut).toMatch(/\S/);
+    });
+
+    it(`${locale}: the theme keys the interim sidebar toggle and the user menu share stay`, () => {
+      for (const key of ['light', 'dark', 'system', 'switchTo', 'current']) {
+        expect(b.theme[key]).toMatch(/\S/);
+      }
+    });
+  }
+
+  it('renders the German keyboard hint as Strg K and keeps the Apple hint', () => {
+    expect(bundles.de?.topBar.searchShortcutOther).toBe('Strg K');
+    expect(bundles.de?.topBar.searchShortcutApple).toBe('⌘K');
+    expect(bundles.en?.topBar.searchShortcutOther).toBe('Ctrl K');
+    expect(bundles.en?.topBar.searchShortcutApple).toBe('⌘K');
+  });
+
+  it('uses the same word for the one log-out action in both menus per locale', () => {
+    expect(bundles.en?.userMenu.logOut).toBe('Log out');
+    expect(bundles.de?.userMenu.logOut).toBe('Abmelden');
+  });
+
+  it('uses the glossary words for Account, New and Needs attention in German', () => {
+    expect(bundles.de?.userMenu.account).toBe('Konto');
+    expect(bundles.de?.topBar.new).toBe('Neu');
+    expect(bundles.de?.topBar.attention).toBe('Braucht dich');
+    expect(bundles.de?.userMenu.about).toBe('Info');
+  });
+});

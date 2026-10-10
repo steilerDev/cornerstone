@@ -5,6 +5,12 @@
   flex-direction: column;
 }
 
+@media (min-width: 1024px) {
+  .pageContainer {
+    height: calc(100dvh - var(--topbar-height));
+  }
+}
+
 .pageHeader {
   position: sticky;
   top: 0;

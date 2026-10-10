@@ -128,12 +128,12 @@ describe('Sidebar', () => {
       expect(within(settingsNav()).getAllByRole('list')).toHaveLength(1);
     });
 
-    it('has two landmarks, Main navigation and Settings, with theme toggle and logout outside both', () => {
+    it('has two landmarks, Main navigation and Settings, with theme toggle and log out outside both', () => {
       renderAt('/project/work-items');
 
       const main = mainNav();
       const settings = settingsNav();
-      const logout = screen.getByRole('button', { name: /logout/i });
+      const logout = screen.getByRole('button', { name: /^log out$/i });
       const theme = screen.getByRole('button', { name: /switch to .+ mode/i });
       for (const outside of [logout, theme]) {
         expect(main.contains(outside)).toBe(false);
@@ -419,7 +419,7 @@ describe('Sidebar', () => {
     it('renders a logout button', () => {
       renderAt('/photos');
 
-      expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^log out$/i })).toBeInTheDocument();
     });
 
     it('clicking logout calls logout, then onClose', async () => {
@@ -432,7 +432,7 @@ describe('Sidebar', () => {
       );
       renderAt('/photos');
 
-      await user.click(screen.getByRole('button', { name: /logout/i }));
+      await user.click(screen.getByRole('button', { name: /^log out$/i }));
 
       expect(mockLogout).toHaveBeenCalledTimes(1);
       expect(mockOnClose).not.toHaveBeenCalled();
@@ -452,7 +452,7 @@ describe('Sidebar', () => {
         'aria-label',
         expect.stringMatching(/switch to .+ mode/i),
       );
-      expect(buttons[1]!).toHaveTextContent(/logout/i);
+      expect(buttons[1]!).toHaveTextContent(/^Log out$/);
     });
 
     it('shows the app version and the GitHub link', () => {
@@ -462,6 +462,62 @@ describe('Sidebar', () => {
         'href',
         'https://github.com/steilerDev/cornerstone',
       );
+      expect(screen.getByText(/Cornerstone v0\.0\.0-test/)).toBeInTheDocument();
+    });
+
+    it('labels the button "Log out", the same word as the user menu, never "Logout"', () => {
+      renderAt('/photos');
+
+      expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^logout$/i })).not.toBeInTheDocument();
+    });
+  });
+
+  describe('interim footer (until the user menu replaces it below 1024 px, #2207)', () => {
+    it('keeps exactly one link in the Settings landmark', () => {
+      renderAt('/photos');
+
+      expect(within(settingsNav()).getAllByRole('link')).toHaveLength(1);
+      expect(within(settingsNav()).queryByRole('button')).not.toBeInTheDocument();
+    });
+
+    it('holds the theme toggle, Log out and the project info inside one legacy container', () => {
+      renderAt('/photos');
+
+      const legacy = screen.getByTestId('sidebar-footer-legacy');
+      expect(legacy).toHaveClass('footerLegacy');
+      expect(
+        within(legacy).getByRole('button', { name: /switch to .+ mode/i }),
+      ).toBeInTheDocument();
+      expect(within(legacy).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+      expect(within(legacy).getByRole('link', { name: 'GitHub' })).toBeInTheDocument();
+      expect(within(legacy).getByText(/Cornerstone v/)).toBeInTheDocument();
+    });
+
+    it('renders no footer control outside the legacy container or inside either nav', () => {
+      renderAt('/photos');
+
+      const legacy = screen.getByTestId('sidebar-footer-legacy');
+      const controls = [
+        screen.getByRole('button', { name: /switch to .+ mode/i }),
+        screen.getByRole('button', { name: 'Log out' }),
+        screen.getByRole('link', { name: 'GitHub' }),
+        screen.getByText(/Cornerstone v/),
+      ];
+      for (const control of controls) {
+        expect(legacy.contains(control)).toBe(true);
+        expect(mainNav().contains(control)).toBe(false);
+        expect(settingsNav().contains(control)).toBe(false);
+      }
+      // Every button in the sidebar is one of the two legacy buttons
+      const sidebarButtons = within(screen.getByRole('complementary')).getAllByRole('button');
+      expect(sidebarButtons.every((b) => legacy.contains(b))).toBe(true);
+    });
+
+    it('keeps the legacy container out of the Settings landmark', () => {
+      renderAt('/photos');
+
+      expect(settingsNav().contains(screen.getByTestId('sidebar-footer-legacy'))).toBe(false);
     });
   });
 });

@@ -3,6 +3,7 @@ import type { RouteId } from '@cornerstone/shared';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { GITHUB_URL } from '../../lib/externalLinks.js';
 import { navSections } from '../../navigation/navConfig.js';
 import type { NavGroup, NavLabelKey, NavSection } from '../../navigation/navConfig.js';
 import { navHref, resolveNavActive } from '../../navigation/navActive.js';
@@ -184,28 +185,30 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
             </ul>
           </nav>
         )}
-        <ThemeToggle />
-        <button
-          type="button"
-          className={styles.logoutButton}
-          onClick={() => {
-            void logout().then(() => onClose());
-          }}
-        >
-          {t('button.logout')}
-        </button>
-        <div className={styles.projectInfo}>
-          <span>
-            {t('appName')} v{__APP_VERSION__}
-          </span>
-          <a
-            href="https://github.com/steilerDev/cornerstone"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.githubLink}
+        <div className={styles.footerLegacy} data-testid="sidebar-footer-legacy">
+          <ThemeToggle />
+          <button
+            type="button"
+            className={styles.logoutButton}
+            onClick={() => {
+              void logout().then(() => onClose());
+            }}
           >
-            GitHub
-          </a>
+            {t('userMenu.logOut')}
+          </button>
+          <div className={styles.projectInfo}>
+            <span>
+              {t('appName')} v{__APP_VERSION__}
+            </span>
+            <a
+              href={GITHUB_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.githubLink}
+            >
+              GitHub
+            </a>
+          </div>
         </div>
       </div>
     </aside>

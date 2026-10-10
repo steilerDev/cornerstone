@@ -158,6 +158,15 @@ const rows: Row[] = [
   // Cross-rule: calendar week view "today" header (WeekGrid .dayName on .headerCellToday)
   ['light', '--color-text-muted', '--color-primary-bg', 4.5], // 4.73
   ['dark', '--color-role-member-text', '--color-role-member-bg', 4.5], // 8.40
+  // Top bar and user menu (#2206): focus ring on the menu item hover wash and on the page
+  ['dark', '--color-border-focus', '--color-bg-primary', 3], // 5.75
+  ['both', '--color-border-focus', '--color-bg-secondary', 3], // item focus: ring on bg-secondary
+  // Selected theme/language option border on its fill (light fill is opaque; dark is composited below)
+  ['light', '--color-primary', '--color-primary-bg', 3], // 4.24
+  // Avatar text on the avatar fill (light fill is opaque; dark is composited below)
+  ['light', '--color-primary-badge-text', '--color-primary-bg', 4.5], // 7.15
+  // Role line in the menu header and the muted labels on the secondary surface
+  ['both', '--color-text-muted', '--color-bg-secondary', 4.5],
   ...SURFACES.map((bg): Row => ['both', '--color-text-primary', bg, 4.5]),
 ];
 
@@ -225,6 +234,54 @@ describe('design token contrast (D-26)', () => {
   it('computes the WCAG ratio correctly (black on white is 21:1)', () => {
     expect(ratio('#000000', '#ffffff')).toBeCloseTo(21, 5);
     expect(ratio('#ffffff', '#ffffff')).toBeCloseTo(1, 5);
+  });
+});
+
+/** Composites a translucent token over an opaque base token and returns the resulting hex. */
+function compositeOver(theme: Theme, translucent: string, base: string): string {
+  const raw = tokens[theme].get(translucent) ?? '';
+  const m = /^rgba\((\d+),\s*(\d+),\s*(\d+),\s*([\d.]+)\)$/.exec(raw);
+  if (!m) throw new Error(`${translucent} is not an rgba() token (${theme}): "${raw}"`);
+  const alpha = Number(m[4]);
+  const under = resolve(theme, base);
+  const mix = [1, 2, 3].map((i) => {
+    const top = Number(m[i]);
+    const bottom = parseInt(under.slice(1 + (i - 1) * 2, 3 + (i - 1) * 2), 16);
+    return Math.round(top * alpha + bottom * (1 - alpha))
+      .toString(16)
+      .padStart(2, '0');
+  });
+  return `#${mix.join('')}`;
+}
+
+describe('top bar and user menu composites (#2206)', () => {
+  // Dark --color-primary-bg(-hover) are translucent: measure on the surface the menu paints on.
+  it.each([
+    ['--color-primary-bg', '--color-bg-primary'],
+    ['--color-primary-bg', '--color-bg-page'],
+    ['--color-primary-bg-hover', '--color-bg-primary'],
+    ['--color-primary-bg-hover', '--color-bg-page'],
+  ])('dark: avatar / selected-option text on %s over %s is at least 4.5:1', (fill, base) => {
+    const bg = compositeOver('dark', fill, base);
+    expect(ratio(resolve('dark', '--color-primary-badge-text'), bg)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('dark: the avatar text on the card surface measures 6.72:1 (documented figure)', () => {
+    const bg = compositeOver('dark', '--color-primary-bg', '--color-bg-primary');
+    expect(ratio(resolve('dark', '--color-primary-badge-text'), bg)).toBeCloseTo(6.72, 1);
+  });
+
+  it('dark: the selected-option / avatar border (--color-primary) on its composited fill is at least 3:1', () => {
+    const bg = compositeOver('dark', '--color-primary-bg', '--color-bg-primary');
+    const value = ratio(resolve('dark', '--color-primary'), bg);
+    expect(value).toBeGreaterThanOrEqual(3);
+    expect(value).toBeCloseTo(4.77, 1);
+  });
+
+  it('compositeOver rejects a token that is not translucent', () => {
+    expect(() => compositeOver('light', '--color-primary-bg', '--color-bg-primary')).toThrow(
+      /not an rgba/,
+    );
   });
 });
 
@@ -358,6 +415,167 @@ describe('colour rule pins', () => {
     );
     expect(decls.get('background-color') ?? decls.get('background')).toBe('var(--color-bg-hover)');
     expect(decls.get('border-color')).toBe('var(--color-primary)');
+  });
+});
+
+describe('top bar and user menu rule pins (#2206)', () => {
+  const appShell = readCss('components', 'AppShell', 'AppShell.module.css');
+  const overflow = readCss('components', 'OverflowMenu', 'OverflowMenu.module.css');
+  const sidebarCss = fs.readFileSync(
+    path.join(srcDir, 'components', 'Sidebar', 'Sidebar.module.css'),
+    'utf8',
+  );
+  const sidebarRules = parseRules(sidebarCss);
+  const topBar = readCss('components', 'TopBar', 'TopBar.module.css');
+
+  it('no AppShell rule paints a primary-coloured button background (AC4: the FAB is neutral)', () => {
+    for (const rule of appShell) {
+      const bg = rule.decls.get('background-color') ?? rule.decls.get('background');
+      expect(`${rule.selectors.join(',')}: ${bg ?? ''}`).not.toMatch(/var\(--color-primary\)/);
+    }
+    const fab = ruleFor(appShell, '.menuFab');
+    expect(fab.get('background-color')).toBe('var(--color-bg-primary)');
+    expect(fab.get('color')).toBe('var(--color-text-primary)');
+  });
+
+  it('OverflowMenu items focus with the focus-border token and inset ring, not the old ring token', () => {
+    const decls = ruleFor(overflow, '.item:focus-visible');
+    expect(decls.get('box-shadow')).toContain('var(--color-border-focus)');
+    expect(decls.get('box-shadow')).not.toContain('--color-focus-ring');
+    expect(decls.get('outline')).toBe('none');
+  });
+
+  it('Sidebar .footerLegacy is shown below 1024 px and display: none from 1024 px', () => {
+    const all = sidebarRules.filter((r) => r.selectors.includes('.footerLegacy'));
+    expect(all.map((r) => r.decls.get('display'))).toEqual(['block', 'none']);
+    // The none rule must sit in the min-width: 1024px block, not in a max-width one
+    expect(sidebarCss).toMatch(
+      /@media\s*\(min-width:\s*1024px\)\s*\{\s*\.footerLegacy\s*\{\s*display:\s*none;/,
+    );
+  });
+
+  it('Sidebar still styles the legacy footer controls (they remain below 1024 px)', () => {
+    for (const selector of ['.logoutButton', '.projectInfo', '.githubLink']) {
+      expect(sidebarRules.some((r) => r.selectors.includes(selector))).toBe(true);
+    }
+  });
+
+  it('the shell breakpoints are 1023 / 1024 px (no 1024 / 1025 pair left to leave a gap)', () => {
+    for (const file of [
+      'components/AppShell/AppShell.module.css',
+      'components/Sidebar/Sidebar.module.css',
+      'components/ThemeToggle/ThemeToggle.module.css',
+    ]) {
+      const css = stripComments(fs.readFileSync(path.join(srcDir, file), 'utf8'));
+      expect(css).not.toMatch(/max-width:\s*1024px/);
+      expect(css).not.toMatch(/min-width:\s*1025px/);
+    }
+    const themeToggle = fs.readFileSync(
+      path.join(srcDir, 'components', 'ThemeToggle', 'ThemeToggle.module.css'),
+      'utf8',
+    );
+    expect(themeToggle).toMatch(/max-width:\s*1023px/);
+  });
+
+  it('the top bar is hidden by default, a flex row from 1024 px and hidden in print', () => {
+    const all = topBar.filter((r) => r.selectors.includes('.topBar'));
+    expect(all.map((r) => r.decls.get('display')).filter(Boolean)).toEqual([
+      'none',
+      'flex',
+      'none',
+    ]);
+    const css = fs.readFileSync(
+      path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
+      'utf8',
+    );
+    expect(css).toMatch(/@media\s*\(min-width:\s*1024px\)\s*\{\s*\.topBar\s*\{\s*display:\s*flex;/);
+    expect(css).toMatch(/@media\s+print\s*\{\s*\.topBar\s*\{\s*display:\s*none;/);
+  });
+
+  it('the top bar sticks to the viewport above page dropdowns and defines its height token', () => {
+    const decls = ruleFor(topBar, '.topBar');
+    expect(decls.get('position')).toBe('sticky');
+    expect(decls.get('top')).toBe('0');
+    expect(decls.get('z-index')).toBe('calc(var(--z-dropdown) + 1)');
+    // Exactly the token height: a min-height plus padding made the bar ~61px instead of 56px.
+    // Mutation: restoring `min-height` (or the vertical padding) must fail here.
+    expect(decls.get('height')).toBe('var(--topbar-height)');
+    expect(decls.has('min-height')).toBe(false);
+    expect(decls.get('padding-block')).toBe('0');
+    expect(decls.get('box-sizing')).toBe('border-box');
+    expect(ruleFor(appShell, '.appShell').get('--topbar-height')).toBe(
+      'calc(var(--spacing-12) + var(--spacing-2))',
+    );
+  });
+
+  it.each(['.search', '.newButton'])(
+    '%s is a fixed 40px control with no vertical padding',
+    (sel) => {
+      const decls = ruleFor(topBar, sel);
+      expect(decls.get('height')).toBe('var(--spacing-10)');
+      expect(decls.get('padding-block')).toBe('0');
+      expect(decls.has('min-height')).toBe(false);
+    },
+  );
+
+  it('the column that holds the bar does not scroll, so the bar can stick', () => {
+    const column = ruleFor(appShell, '.shellColumn');
+    expect(column.get('display')).toBe('flex');
+    expect(column.get('flex-direction')).toBe('column');
+    expect(column.get('overflow')).toBeUndefined();
+    expect(column.get('overflow-y')).toBeUndefined();
+  });
+
+  it('OverflowMenu danger items focus with an inset danger ring', () => {
+    const decls = ruleFor(overflow, '.itemDanger:focus-visible');
+    expect(decls.get('box-shadow')).toBe('inset 0 0 0 2px var(--color-danger)');
+    expect(decls.get('outline')).toBe('none');
+  });
+
+  it('the floating menu button hover also changes its border to the primary token', () => {
+    const decls = ruleFor(appShell, '.menuFab:hover');
+    expect(decls.get('border-color')).toBe('var(--color-primary)');
+    expect(decls.get('background-color')).toBe('var(--color-bg-hover)');
+  });
+
+  it('the top bar buttons turn their transition off for reduced motion', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'components', 'TopBar', 'TopBar.module.css'),
+      'utf8',
+    );
+    const block = /@media\s*\(prefers-reduced-motion:\s*reduce\)\s*\{([^@]*?\})\s*\}/.exec(css);
+    expect(block).not.toBeNull();
+    const rules = parseRules(block?.[0] ?? '');
+    const rule = rules.find((r) => r.selectors.includes('.search'));
+    expect(rule?.selectors).toEqual(['.search', '.newButton', '.bell']);
+    expect(rule?.decls.get('transition')).toBe('none');
+  });
+
+  it('the Timeline page is the full dynamic viewport below 1024 px, with no fixed 60px header allowance', () => {
+    const css = fs.readFileSync(
+      path.join(srcDir, 'pages', 'TimelinePage', 'TimelinePage.module.css'),
+      'utf8',
+    );
+    const page = parseRules(css).filter((r) => r.selectors.includes('.page'));
+    expect(page[0]?.decls.get('height')).toBe('100dvh');
+    expect(stripComments(css)).not.toMatch(/-\s*60px/);
+    expect(stripComments(css)).not.toMatch(/100vh/);
+  });
+
+  it.each([
+    ['pages/TimelinePage/TimelinePage.module.css', '.page'],
+    ['pages/AutoItemizePage/AutoItemizePage.module.css', '.pageContainer'],
+    ['pages/PaperlessInvoiceReviewPage/PaperlessInvoiceReviewPage.module.css', '.pageContainer'],
+    ['components/photos/SpotViewer.module.css', '.viewer'],
+    ['components/photos/SpotViewer.module.css', '.image'],
+    ['pages/PhotoSpotViewerPage/PhotoSpotViewerPage.module.css', '.root'],
+  ])('%s %s subtracts the bar height from the viewport from 1024 px', (file, selector) => {
+    const css = fs.readFileSync(path.join(srcDir, file), 'utf8');
+    const rules = parseRules(css).filter((r) => r.selectors.includes(selector));
+    const subtracts = rules.some((r) =>
+      [...r.decls.values()].some((v) => /100dvh[^;]*var\(--topbar-height\)/.test(v)),
+    );
+    expect(subtracts).toBe(true);
   });
 });
 

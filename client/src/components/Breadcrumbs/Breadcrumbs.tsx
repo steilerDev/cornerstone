@@ -19,6 +19,8 @@ export interface BreadcrumbsProps {
   /** An object ancestor is still loading: keep the row height. */
   readonly pending?: boolean;
   readonly testId?: string;
+  /** 'bar' lays the row out on one line inside the top bar. */
+  readonly layout?: 'page' | 'bar';
 }
 
 /** Real anchor (middle-click works) that navigates in-app on a plain click. */
@@ -56,12 +58,17 @@ export function Breadcrumbs({
   origin = null,
   pending = false,
   testId = 'breadcrumbs',
+  layout = 'page',
 }: BreadcrumbsProps) {
   const { t } = useTranslation('common');
   if (parents.length === 0 && !origin && !pending) return null;
 
   return (
-    <div className={styles.row} data-has-back={origin ? 'true' : undefined} data-testid={testId}>
+    <div
+      className={[styles.row, layout === 'bar' && styles.rowBar].filter(Boolean).join(' ')}
+      data-has-back={origin ? 'true' : undefined}
+      data-testid={testId}
+    >
       {origin && (
         <CrumbLink href={origin.href} className={styles.back} testId={`${testId}-back`}>
           <span aria-hidden="true" className={styles.backGlyph}>
