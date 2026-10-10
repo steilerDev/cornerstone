@@ -103,7 +103,7 @@
         "blockedByThis": "Holds up",
         "linkedItems": "Linked Items",
         "none": "None",
-        "contributingAriaLabel": "Work items contributing to this milestone",
+        "contributingAriaLabel": "Tasks contributing to this milestone",
         "blockedByThisAriaLabel": "Tasks this milestone holds up"
       },
       "householdItem": {

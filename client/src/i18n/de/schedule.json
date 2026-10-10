@@ -103,7 +103,7 @@
         "blockedByThis": "Hält auf",
         "linkedItems": "Verknüpfte Elemente",
         "none": "Keine",
-        "contributingAriaLabel": "Arbeitspakete, die zu diesem Meilenstein beitragen",
+        "contributingAriaLabel": "Aufgaben, die zu diesem Meilenstein beitragen",
         "blockedByThisAriaLabel": "Aufgaben, die dieser Meilenstein aufhält"
       },
       "householdItem": {
