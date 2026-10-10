@@ -500,6 +500,7 @@ export type {
 export {
   ROUTE_MAP,
   LIVE_REDIRECT_ROUTES,
+  MAX_APP_PATH_LENGTH,
   applyQueryMap,
   baseFrom,
   conditionHolds,
@@ -516,6 +517,7 @@ export {
   resolveRedirectRule,
   routePattern,
   routeUrl,
+  safeAppPath,
 } from './routes/index.js';
 export type {
   LiveRedirectRoute,

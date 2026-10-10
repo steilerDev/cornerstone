@@ -1182,7 +1182,9 @@ test.describe('Add dropdown — Diary Entry and Invoice shortcuts (Scenario 13, 
       expect(page.url()).toContain('/diary/new');
 
       // The diary create page h1 should confirm we actually landed there
-      await expect(page.getByRole('heading', { level: 1, name: 'New Diary Entry' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { level: 1, name: 'New diary entry', exact: true }),
+      ).toBeVisible();
     } finally {
       await uninterceptDashboardApis(page);
     }

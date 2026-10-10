@@ -157,7 +157,7 @@ test.describe('Auto-draft URL is replace history (Scenario 3)', () => {
     try {
       // Navigate first to /diary so back-stack has an entry
       await page.goto(DIARY_ROUTE);
-      await page.getByRole('heading', { level: 1, name: 'Construction Diary' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Site diary', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -294,7 +294,7 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
       await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
         state: 'visible',
       });
 
@@ -416,7 +416,7 @@ test.describe('Photo attach — happy path (Scenario 6)', { tag: '@responsive' }
       );
 
       await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
         state: 'visible',
       });
 
@@ -463,7 +463,7 @@ test.describe('Photo upload failure and retry (Scenario 8)', () => {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
       await page.goto(`/diary/${draftId}/edit`);
-      await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
         state: 'visible',
       });
 
@@ -599,7 +599,7 @@ test.describe('Promote draft — happy path (Scenario 9)', { tag: '@responsive' 
         expect(page.url()).toMatch(new RegExp(`/diary/${draftId}$`));
 
         // Detail page should load — no Draft badge
-        await detailPage.backButton.waitFor({ state: 'visible' });
+        await detailPage.loaded.waitFor({ state: 'visible' });
         // Draft badge is only on the edit page; on detail page there should be no "Draft" text
         // in the badge region. The entry is now saved, so no draft indicator.
         await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
@@ -1072,7 +1072,7 @@ test.describe(
           draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
 
           await page.goto(`/diary/${draftId}/edit`);
-          await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+          await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
             state: 'visible',
           });
 
@@ -1151,7 +1151,7 @@ test.describe('Editing a saved entry (Scenario 18)', { tag: '@responsive' }, () 
       expect(page.url()).toContain(`/diary/${savedId}`);
 
       // Detail page — no draft badge
-      await detailPage.backButton.waitFor({ state: 'visible' });
+      await detailPage.loaded.waitFor({ state: 'visible' });
       await expect(page.getByTestId('draft-status-badge')).not.toBeVisible();
     } finally {
       if (savedId) await deleteDiaryEntryViaApi(page, savedId);

@@ -41,3 +41,10 @@ export function login(payload: LoginPayload): Promise<LoginResponse> {
 export function logout(): Promise<void> {
   return post<void>('/auth/logout');
 }
+
+/** Start URL of the single sign-on flow; `next` (a validated in-app path) is where the user lands afterwards. */
+export function oidcLoginUrl(next: string | null): string {
+  return next
+    ? `/api/auth/oidc/login?redirect=${encodeURIComponent(next)}`
+    : '/api/auth/oidc/login';
+}

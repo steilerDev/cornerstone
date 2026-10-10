@@ -1,10 +1,10 @@
 /**
- * E2E tests for the Construction Diary list page (/diary)
+ * E2E tests for the Site diary list page (/diary)
  *
  * Story #804: Diary timeline view with filtering and search
  *
  * Scenarios covered:
- * 1.  Page loads with h1 "Construction Diary" (@smoke @responsive)
+ * 1.  Page loads with h1 "Site diary" (@smoke @responsive)
  * 2.  Sidebar navigation to /diary works (@responsive)
  * 3.  Empty state when no entries exist (mock API)
  * 4.  Entry created via API appears in the timeline
@@ -95,21 +95,17 @@ function makePaginatedResponse(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "Construction Diary"
+// Scenario 1: Page loads with h1 "Site diary"
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test(
-    'Diary list page loads with h1 "Construction Diary"',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      const diaryPage = new DiaryPage(page);
+  test('Diary list page loads with h1 "Site diary"', { tag: '@smoke' }, async ({ page }) => {
+    const diaryPage = new DiaryPage(page);
 
-      await diaryPage.goto();
+    await diaryPage.goto();
 
-      await expect(diaryPage.heading).toBeVisible();
-      await expect(diaryPage.heading).toHaveText('Construction Diary');
-    },
-  );
+    await expect(diaryPage.heading).toBeVisible();
+    await expect(diaryPage.heading).toHaveText('Site diary');
+  });
 
   test('Diary page URL is /diary after navigation', async ({ page }) => {
     await page.goto(DIARY_ROUTE);
@@ -122,7 +118,7 @@ test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
 // Scenario 2: Sidebar navigation to /diary
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Sidebar navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Navigating to /diary from sidebar lands on Construction Diary page', async ({ page }) => {
+  test('Navigating to /diary from sidebar lands on Site diary page', async ({ page }) => {
     const diaryPage = new DiaryPage(page);
     const appShell = new AppShellPage(page);
 

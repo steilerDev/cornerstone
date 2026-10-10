@@ -8,6 +8,7 @@ import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -365,6 +366,23 @@ describe('DiaryEntryEditPage', () => {
       </ToastProvider>,
     );
 
+  const renderRecorded = (id: string, state?: unknown) => {
+    const log = createRouterLog();
+    const utils = render(
+      <ToastProvider>
+        <AuthProvider>
+          <RecordingRouter entries={[{ url: `/diary/${id}/edit`, state }]} log={log}>
+            <Routes>
+              <Route path="/diary/:id/edit" element={<DiaryEntryEditPage />} />
+              <Route path="*" element={<div data-testid="elsewhere" />} />
+            </Routes>
+          </RecordingRouter>
+        </AuthProvider>
+      </ToastProvider>,
+    );
+    return { log, ...utils };
+  };
+
   // ─── Loading state ──────────────────────────────────────────────────────────
 
   it('shows loading state initially', () => {
@@ -487,35 +505,69 @@ describe('DiaryEntryEditPage', () => {
   // ─── Header & form controls ─────────────────────────────────────────────────
 
   describe('header and form controls', () => {
-    it('renders the "Edit Diary Entry" h1', async () => {
+    it('saved entry: exactly one h1 "Edit diary entry" and no in-page back button', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage();
-      await waitFor(() => {
-        expect(
-          screen.getByRole('heading', { name: /edit diary entry/i, level: 1 }),
-        ).toBeInTheDocument();
-      });
+      await screen.findByTestId('diary-type-badge-daily_log');
+      // Mutation: restoring editPage.title ("Edit Diary Entry") or the old backButton fails here.
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Edit diary entry$/);
+      expect(screen.queryByRole('button', { name: /back to entry/i })).not.toBeInTheDocument();
+      await waitFor(() => expect(document.title).toMatch(/^Edit diary entry · Site diary/));
     });
 
-    it('renders the "← Back to Entry" button', async () => {
+    it('saved entry: the trail is "Site diary > <entry title>" and there is no Back link', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
       renderEditPage();
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to entry/i })).toBeInTheDocument();
-      });
+      await screen.findByTestId('diary-type-badge-daily_log');
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      const links = within(nav).getAllByRole('link');
+      expect(links.map((l) => (l.textContent ?? '').replace('‹', '').trim())).toEqual([
+        'Site diary',
+        'Foundation Work',
+      ]);
+      expect(links[1]).toHaveAttribute('href', '/diary/de-1');
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
     });
 
-    it('"← Back to Entry" button navigates to /diary/:id', async () => {
-      const user = userEvent.setup();
-      mockGetDiaryEntry.mockResolvedValueOnce(baseDailyLogEntry);
-      renderEditPage('de-1');
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to entry/i })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: /back to entry/i }));
-      await waitFor(() => {
-        expect(screen.getByTestId('detail-page')).toBeInTheDocument();
-      });
+    it('draft: h1 "New diary entry", trail is only "Site diary" (the null object name)', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderEditPage('draft-1');
+      await screen.findByRole('button', { name: /discard draft/i });
+      // Mutation: treating the draft like a saved entry adds the "Draft note" crumb and "Edit" h1.
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^New diary entry$/);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getAllByRole('link')).toHaveLength(1);
+      expect(within(nav).getByRole('link', { name: /Site diary/ })).toHaveAttribute(
+        'href',
+        '/diary',
+      );
+      await waitFor(() => expect(document.title).toMatch(/^New diary entry · Site diary/));
+    });
+
+    it('draft opened from Home shows "Back to Home" (the nearest parent is Site diary)', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderRecorded('draft-1', { origin: { to: '/project/overview' } });
+      expect(await screen.findByRole('link', { name: /Back to Home/ })).toHaveAttribute(
+        'href',
+        '/project/overview',
+      );
+    });
+
+    it('draft opened from the Site diary list shows no Back link', async () => {
+      mockGetDiaryEntry.mockResolvedValueOnce(draftGeneralNoteEntry);
+      renderRecorded('draft-1', { origin: { to: '/diary' } });
+      await screen.findByRole('button', { name: /discard draft/i });
+      // Mutation: treating the null object name like undefined keeps the entry as nearest parent.
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('loading state has exactly one "Diary entry" h1', () => {
+      mockGetDiaryEntry.mockReturnValue(new Promise(() => undefined));
+      renderEditPage();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Diary entry$/);
     });
 
     it('renders "Save Changes" submit button', async () => {
@@ -789,8 +841,11 @@ describe('DiaryEntryEditPage', () => {
       );
       renderEditPage('nonexistent');
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to diary/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to Site diary' })).toBeInTheDocument();
       });
+      expect(screen.queryByText(/Back to Diary/)).not.toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Diary entry not found');
     });
   });
 
@@ -809,8 +864,10 @@ describe('DiaryEntryEditPage', () => {
       mockGetDiaryEntry.mockRejectedValueOnce(new Error('Network failure'));
       renderEditPage();
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to diary/i })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: 'Back to Site diary' })).toBeInTheDocument();
       });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Diary entry$/);
     });
   });
 
@@ -1893,14 +1950,16 @@ describe('DiaryEntryEditPage', () => {
       );
       expect(await screen.findByRole('heading', { name: /entry not found/i })).toBeInTheDocument();
       expect(mockGetDiaryEntry).not.toHaveBeenCalled();
-      await userEvent.setup().click(screen.getByRole('button', { name: /back to diary/i }));
+      await userEvent.setup().click(screen.getByRole('button', { name: 'Back to Site diary' }));
       expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
     });
 
     it('the load-error card "Back to Diary" button navigates to /diary', async () => {
       mockGetDiaryEntry.mockRejectedValueOnce(new Error('Network failure'));
       renderEditPage();
-      await userEvent.setup().click(await screen.findByRole('button', { name: /back to diary/i }));
+      await userEvent
+        .setup()
+        .click(await screen.findByRole('button', { name: 'Back to Site diary' }));
       expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
     });
   });
@@ -2084,29 +2143,113 @@ describe('DiaryEntryEditPage', () => {
     });
   });
 
-  describe('navigation buttons', () => {
-    it('draft: Back and Cancel go to /diary', async () => {
+  describe('navigation (history hygiene)', () => {
+    it('draft Cancel returns to the origin with replace, else to /diary', async () => {
       mockGetDiaryEntry.mockResolvedValue(draftGeneralNoteEntry);
-      const { unmount } = renderEditPage('draft-1');
-      await userEvent.setup().click(await screen.findByRole('button', { name: /back to entry/i }));
-      expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
-      unmount();
-
-      renderEditPage('draft-1');
+      const withOrigin = renderRecorded('draft-1', { origin: { to: '/project/overview' } });
       await userEvent.setup().click(await screen.findByRole('button', { name: /^cancel$/i }));
-      expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
+      // Mutation: PUSH instead of replace, or ignoring the origin, changes this action.
+      expect(withOrigin.log.actions).toEqual(['REPLACE /project/overview']);
+      withOrigin.unmount();
+
+      const plain = renderRecorded('draft-1');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /^cancel$/i }));
+      expect(plain.log.actions).toEqual(['REPLACE /diary']);
     });
 
-    it('saved: Back and Cancel go to the detail page', async () => {
+    it('saved Cancel opened from the entry goes back one step (GO -1)', async () => {
       mockGetDiaryEntry.mockResolvedValue(baseDailyLogEntry);
-      const { unmount } = renderEditPage('de-1');
-      await userEvent.setup().click(await screen.findByRole('button', { name: /back to entry/i }));
-      expect(await screen.findByTestId('detail-page')).toBeInTheDocument();
-      unmount();
-
-      renderEditPage('de-1');
+      const { log } = renderRecorded('de-1', {
+        origin: { to: '/diary/de-1', name: 'Foundation Work' },
+      });
       await userEvent.setup().click(await screen.findByRole('button', { name: /^cancel$/i }));
-      expect(await screen.findByTestId('detail-page')).toBeInTheDocument();
+      expect(log.actions).toEqual(['GO -1']);
+    });
+
+    it('saved Cancel opened without an origin replaces with the entry', async () => {
+      mockGetDiaryEntry.mockResolvedValue(baseDailyLogEntry);
+      const { log } = renderRecorded('de-1');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /^cancel$/i }));
+      expect(log.actions).toEqual(['REPLACE /diary/de-1']);
+    });
+
+    it('saved Cancel opened from a different page replaces (does not go back)', async () => {
+      mockGetDiaryEntry.mockResolvedValue(baseDailyLogEntry);
+      const { log } = renderRecorded('de-1', { origin: { to: '/diary/other-entry' } });
+      await userEvent.setup().click(await screen.findByRole('button', { name: /^cancel$/i }));
+      // Mutation: comparing with startsWith('/diary') instead of the entry path would GO -1.
+      expect(log.actions).toEqual(['REPLACE /diary/de-1']);
+    });
+
+    it('saved Save from the entry goes back one step; without origin it replaces', async () => {
+      mockGetDiaryEntry.mockResolvedValue(baseDailyLogEntry);
+      mockUpdateDiaryEntry.mockResolvedValue(baseDailyLogEntry);
+      const fromEntry = renderRecorded('de-1', { origin: { to: '/diary/de-1' } });
+      await userEvent.setup().click(await screen.findByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(fromEntry.log.actions).toEqual(['GO -1']));
+      fromEntry.unmount();
+
+      const plain = renderRecorded('de-1');
+      await userEvent.setup().click(await screen.findByRole('button', { name: /save changes/i }));
+      await waitFor(() => expect(plain.log.actions).toEqual(['REPLACE /diary/de-1']));
+    });
+
+    it('promoting a draft replaces with the entry and forwards the origin state', async () => {
+      mockGetDiaryEntry.mockResolvedValue(draftGeneralNoteEntry);
+      mockPromoteDiaryEntry.mockResolvedValue({ ...draftGeneralNoteEntry, status: 'saved' });
+      const { log } = renderRecorded('draft-1', { origin: { to: '/project/overview' } });
+      const saveBtn = (await screen.findAllByRole('button')).find((b) =>
+        /^save$/i.test(b.textContent ?? ''),
+      )!;
+      await userEvent.setup().click(saveBtn);
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary/draft-1']));
+      // Mutation: dropping forwardOriginState loses "Back to Home" on the entry page.
+      expect(log.states[0]).toEqual({ origin: { to: '/project/overview' } });
+    });
+
+    it('deleting a saved entry replaces with /diary', async () => {
+      mockGetDiaryEntry.mockResolvedValue(baseDailyLogEntry);
+      mockDeleteDiaryEntry.mockResolvedValue(undefined);
+      const { log } = renderRecorded('de-1');
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /delete entry/i }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(within(dialog).getByRole('button', { name: /delete entry/i }));
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
+    });
+
+    it('discarding a draft replaces with the origin', async () => {
+      mockGetDiaryEntry.mockResolvedValue(draftGeneralNoteEntry);
+      mockDeleteDiaryEntry.mockResolvedValue(undefined);
+      const { log } = renderRecorded('draft-1', { origin: { to: '/project/overview' } });
+      const user = userEvent.setup();
+      await user.click(await screen.findByRole('button', { name: /discard draft/i }));
+      const dialog = await screen.findByRole('dialog', { name: 'Discard Draft' });
+      await user.click(within(dialog).getByRole('button', { name: /^discard draft$/i }));
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /project/overview']));
+    });
+
+    it('the signed-entry redirect on mount replaces and forwards the origin', async () => {
+      mockGetDiaryEntry.mockResolvedValue({
+        ...baseDailyLogEntry,
+        id: 'signed-saved',
+        isSigned: true,
+        metadata: {
+          weather: 'sunny',
+          signatures: [
+            {
+              signerName: 'Alice Builder',
+              signerType: 'self',
+              signatureDataUrl: 'data:image/png;base64,SIGDATA',
+              signedAt: '2026-03-14T10:00:00.000Z',
+            },
+          ],
+        },
+      });
+      const { log } = renderRecorded('signed-saved', { origin: { to: '/project/overview' } });
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary/signed-saved']));
+      // Mutation: a plain navigate() logs PUSH and leaves the edit URL in history (Back trap).
+      expect(log.states[0]).toEqual({ origin: { to: '/project/overview' } });
     });
   });
 

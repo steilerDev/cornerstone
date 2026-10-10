@@ -3,6 +3,7 @@ import { createRef } from 'react';
 import type { RefObject } from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
 import type { AreaSummary, OrientationSummary, PhotoSpotPhoto } from '@cornerstone/shared';
 import type { SpotViewer as SpotViewerType, SpotViewerProps } from './SpotViewer.js';
 import { makeSpotPhoto, makeLocaleContextMock } from '../../test/photoSpotFixtures.js';
@@ -50,6 +51,7 @@ function setup(overrides: Partial<SpotViewerProps> = {}) {
     onBack,
     backTo: '/photos',
     backState: { focusSpotId: 'a:o' },
+    backLabel: 'Photos',
     area: AREA,
     orientation: ORIENTATION,
     headingSlot: (
@@ -63,6 +65,7 @@ function setup(overrides: Partial<SpotViewerProps> = {}) {
   const utils = render(
     <MemoryRouter>
       <SpotViewer {...props} />
+      <OriginProbe />
     </MemoryRouter>,
   );
   const rerenderWith = (next: Partial<SpotViewerProps>) =>
@@ -349,6 +352,27 @@ describe('SpotViewer image and details', () => {
   it('renders the back link with the supplied target', () => {
     setup();
     expect(screen.getByTestId('spot-viewer-back')).toHaveAttribute('href', '/photos');
+  });
+
+  it('renders the supplied back label as the link text', () => {
+    setup({ backLabel: 'Back to Synthetic entry', backTo: '/diary/d-1' });
+    const back = screen.getByTestId('spot-viewer-back');
+    // Mutation: a hardcoded "Photos"/"Back to spots" label fails here.
+    expect(back).toHaveTextContent('Back to Synthetic entry');
+    expect(back).toHaveAttribute('href', '/diary/d-1');
+  });
+
+  it('passes entryLinkState to the Open diary entry link as origin', () => {
+    setup({ entryLinkState: { origin: { to: '/photos/spot/a/o', name: 'Kitchen · Ceiling' } } });
+    fireEvent.click(screen.getByTestId('spot-viewer-diary-link'));
+    // Mutation: omitting state on the link leaves the origin null.
+    expect(probedOrigin()).toEqual({ to: '/photos/spot/a/o', name: 'Kitchen · Ceiling' });
+  });
+
+  it('opens the diary entry without origin when no entryLinkState is given', () => {
+    setup();
+    fireEvent.click(screen.getByTestId('spot-viewer-diary-link'));
+    expect(probedOrigin()).toBeNull();
   });
 
   it('announces the position and date through a status region', () => {

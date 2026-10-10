@@ -372,6 +372,41 @@ describe('BackupsPage', () => {
 
   // ─── Loading state ────────────────────────────────────────────────────────
 
+  describe('page identity (#2204)', () => {
+    it('renders exactly one level-1 heading, "Backups", while loading', () => {
+      mockListBackups.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Backups$/);
+    });
+
+    it('keeps exactly one "Backups" level-1 heading once loaded', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      const h1s = screen.getAllByRole('heading', { level: 1 });
+      expect(h1s).toHaveLength(1);
+      expect(h1s[0]).toHaveTextContent(/^Backups$/);
+    });
+
+    it('sets the tab title to "Backups · Settings · Cornerstone"', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      expect(document.title).toBe('Backups · Settings · Cornerstone');
+    });
+
+    it('shows no "You are here" trail (it is a view-level page)', async () => {
+      renderPage();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
+    });
+  });
+
   describe('while loading', () => {
     it('renders a Skeleton loading indicator', () => {
       // Never resolves — stays in loading state

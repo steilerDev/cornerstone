@@ -22,8 +22,14 @@ beforeAll(async () => {
   ({ RouteTitleFallback } = await import('../navigation/RouteTitleFallback.js'));
 });
 
-function Page({ title }: { title: string | null | undefined }) {
-  useDocumentTitle(title);
+function Page({
+  title,
+  options,
+}: {
+  title: string | null | undefined;
+  options?: UseDocumentTitleTypes.DocumentTitleOptions;
+}) {
+  useDocumentTitle(title, options);
   return <div>page</div>;
 }
 
@@ -151,5 +157,87 @@ describe('useDocumentTitle', () => {
     );
 
     expect(document.title).toBe('Page title · Tasks · Cornerstone');
+  });
+
+  describe('options (#2204)', () => {
+    it('keeps the section by default at a settings route (contrast for section: false)', () => {
+      houseState.name = 'Synthetic House';
+
+      render(
+        <MemoryRouter initialEntries={['/settings/users']}>
+          <Page title="No access" />
+        </MemoryRouter>,
+      );
+
+      expect(document.title).toBe('No access · Settings · Synthetic House');
+    });
+
+    it('section: false drops the section segment but keeps the house', () => {
+      houseState.name = 'Synthetic House';
+
+      render(
+        <MemoryRouter initialEntries={['/settings/users']}>
+          <Page title="No access" options={{ section: false }} />
+        </MemoryRouter>,
+      );
+
+      expect(document.title).toBe('No access · Synthetic House');
+    });
+
+    it('house: false uses the product name even when a house name is known', () => {
+      houseState.name = 'Synthetic House';
+
+      render(
+        <MemoryRouter initialEntries={['/login']}>
+          <Page title="Sign In" options={{ section: false, house: false }} />
+        </MemoryRouter>,
+      );
+
+      expect(document.title).toBe('Sign In · Cornerstone');
+    });
+
+    it('house: false alone keeps the section and swaps the house for the product name', () => {
+      houseState.name = 'Synthetic House';
+
+      render(
+        <MemoryRouter initialEntries={['/settings/users']}>
+          <Page title="Users" options={{ house: false }} />
+        </MemoryRouter>,
+      );
+
+      expect(document.title).toBe('Users · Settings · Cornerstone');
+    });
+
+    it('re-asserts the title when an option toggles (the booleans are effect dependencies)', () => {
+      houseState.name = 'Synthetic House';
+      const tree = (section: boolean) => (
+        <MemoryRouter initialEntries={['/settings/users']}>
+          <Page title="No access" options={{ section }} />
+        </MemoryRouter>
+      );
+      const { rerender } = render(tree(true));
+      expect(document.title).toBe('No access · Settings · Synthetic House');
+
+      rerender(tree(false));
+      expect(document.title).toBe('No access · Synthetic House');
+
+      rerender(tree(true));
+      expect(document.title).toBe('No access · Settings · Synthetic House');
+    });
+
+    it('does not rewrite the title on a rerender with an equal options object', () => {
+      houseState.name = 'Synthetic House';
+      const tree = (
+        <MemoryRouter initialEntries={['/settings/users']}>
+          <Page title="No access" options={{ section: false }} />
+        </MemoryRouter>
+      );
+      const { rerender } = render(tree);
+      document.title = 'changed by someone else';
+
+      rerender(tree);
+
+      expect(document.title).toBe('changed by someone else');
+    });
   });
 });

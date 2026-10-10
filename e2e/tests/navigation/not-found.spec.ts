@@ -16,7 +16,7 @@ test.describe('404 Not Found Page', () => {
     // Then: 404 heading should be visible
     await expect(notFoundPage.heading).toBeVisible();
     const headingText = await notFoundPage.getHeading();
-    expect(headingText).toBe('404 - Page Not Found');
+    expect(headingText).toBe('Page not found');
   });
 
   test('Description text is displayed', async ({ page }) => {
@@ -31,14 +31,17 @@ test.describe('404 Not Found Page', () => {
     expect(descriptionText).toBe('The page you are looking for does not exist or has been moved.');
   });
 
-  test('"Go back to Dashboard" link navigates to /', async ({ page }) => {
+  test('"Go to Home" link navigates to the Home page', async ({ page }) => {
     const notFoundPage = new NotFoundPage(page);
 
     // Given: User is on a 404 page
     await page.goto('/invalid-route');
     await expect(notFoundPage.heading).toBeVisible();
 
-    // When: User clicks "Go back to Project Overview" link
+    // The link points at the root URL itself (no /project hop in the href)
+    await expect(notFoundPage.dashboardLink).toHaveAttribute('href', '/');
+
+    // When: User clicks the "Go to Home" link
     await notFoundPage.clickDashboardLink();
 
     // Then: User should be redirected to project overview

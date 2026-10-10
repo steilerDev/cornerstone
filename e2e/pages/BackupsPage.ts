@@ -37,7 +37,7 @@ export class BackupsPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { level: 1, name: 'Backup & Restore' });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Backups', exact: true });
     this.createBackupButton = page.getByRole('button', { name: /Create Backup|Creating backup/i });
     this.backupTable = page.locator('table');
     this.emptyState = page.getByText('No backups yet', { exact: false });

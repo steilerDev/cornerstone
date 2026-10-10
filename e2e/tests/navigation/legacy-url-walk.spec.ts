@@ -652,7 +652,10 @@ test.describe('Legacy URL walk — unauthenticated', () => {
     try {
       await page.goto('/work-items');
       await expect(new LoginPage(page).heading).toBeVisible();
-      await expect(page).toHaveURL((url) => url.pathname === '/login');
+      // #2204: the sign-in page remembers the legacy URL as the deep link (`next`)
+      await expect(page).toHaveURL(
+        (url) => url.pathname === '/login' && url.searchParams.get('next') === '/work-items',
+      );
       const log = await readRouteLog(page);
       expect(
         log.filter((entry) => new URL(entry.url).pathname.startsWith('/project')),

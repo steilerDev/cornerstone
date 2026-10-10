@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent, within, act } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent, within, act, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
@@ -167,6 +168,16 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
+  const fmtDayMonth = (d: string | null | undefined, fallback = '—') => {
+    if (!d) return fallback;
+    const [year, month, day] = d.slice(0, 10).split('-').map(Number);
+    if (!year || !month || !day) return fallback;
+    return new Date(year, month - 1, day).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      ...(year !== new Date().getFullYear() ? { year: 'numeric' } : {}),
+    });
+  };
   const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
@@ -180,6 +191,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
     useFormatters: () => ({
       formatCurrency: fmtCurrency,
       formatDate: fmtDate,
+      formatDayMonth: fmtDayMonth,
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
@@ -287,31 +299,126 @@ describe('DiaryEntryDetailPage', () => {
     });
   });
 
-  // ─── Back button ────────────────────────────────────────────────────────────
+  // ─── Identity: h1, tab title, trail, Back (#2204) ───────────────────────────
 
-  it('renders the back button (← Back) in the loaded state', async () => {
+  it('renders exactly one h1 with the entry title and no in-page back button', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /go back/i })).toBeInTheDocument();
-    });
+    await screen.findByTestId('diary-type-badge-daily_log');
+    // Mutation: keeping the old title-only-if-set h1 or a second h1 changes this count/text.
+    const h1s = screen.getAllByRole('heading', { level: 1 });
+    expect(h1s).toHaveLength(1);
+    expect(h1s[0]).toHaveTextContent('Foundation Work');
+    expect(screen.queryByRole('button', { name: /go back/i })).not.toBeInTheDocument();
   });
 
-  it('back button navigates to /diary (not -1)', async () => {
-    const user = userEvent.setup();
+  it('shows the trail "Site diary" and sets the tab title "<title> · Site diary · ..."', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
     renderDetailPage();
+    await screen.findByTestId('diary-type-badge-daily_log');
+    const nav = screen.getByRole('navigation', { name: 'You are here' });
+    expect(within(nav).getAllByRole('link')).toHaveLength(1);
+    expect(within(nav).getByRole('link', { name: /Site diary/ })).toHaveAttribute('href', '/diary');
+    await waitFor(() => expect(document.title).toMatch(/^Foundation Work · Site diary/));
+  });
 
-    await waitFor(() => {
-      expect(screen.getByRole('button', { name: /go back/i })).toBeInTheDocument();
+  it.each([
+    ['whitespace title', '   ', 'daily_log', /^Daily log · /],
+    ['null title', null, 'site_visit', /^Site visit · /],
+  ] as const)(
+    'an entry with a %s shows "<Type> · <date>" as its h1',
+    async (_n, title, type, re) => {
+      // Mutation: rendering entry.title directly yields an empty/blank h1.
+      mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, title, entryType: type });
+      renderDetailPage();
+      const h1 = await screen.findByRole('heading', { level: 1, name: re });
+      expect(h1).toHaveTextContent(/Mar 14, 2026|Mar 14/);
+      await waitFor(() => expect(document.title.startsWith(h1.textContent ?? '?')).toBe(true));
+    },
+  );
+
+  it('shows "Back to Home" from a Home origin and "Back to ‹name›" from a named origin', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    render(
+      <MemoryRouter
+        initialEntries={[
+          { pathname: '/diary/de-1', state: { origin: { to: '/project/overview' } } },
+        ]}
+      >
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: /Back to Home/ })).toHaveAttribute(
+      'href',
+      '/project/overview',
+    );
+    cleanup();
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    render(
+      <MemoryRouter
+        initialEntries={[
+          {
+            pathname: '/diary/de-1',
+            state: { origin: { to: '/photos/spots/s1', name: 'Synthetic spot' } },
+          },
+        ]}
+      >
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+        </Routes>
+      </MemoryRouter>,
+    );
+    expect(await screen.findByRole('link', { name: /Back to Synthetic spot/ })).toHaveAttribute(
+      'href',
+      '/photos/spots/s1',
+    );
+  });
+
+  it('the Edit and Add photos links carry the entry URL and display title as origin', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    render(
+      <MemoryRouter initialEntries={['/diary/de-1']}>
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+          <Route path="/diary/:id/edit" element={<div>edit-stub</div>} />
+        </Routes>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+    // Mutation: dropping state={originState} or the name leaves origin null / nameless.
+    fireEvent.click(await screen.findByRole('link', { name: 'Edit' }));
+    expect(probedPath()).toBe('/diary/de-1/edit');
+    expect(probedOrigin()).toEqual({ to: '/diary/de-1', name: 'Foundation Work' });
+  });
+
+  it('an untitled entry passes its generated title as the origin name', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce({ ...baseDetail, title: null });
+    render(
+      <MemoryRouter initialEntries={['/diary/de-1']}>
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+          <Route path="/diary/:id/edit" element={<div>edit-stub</div>} />
+        </Routes>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('link', { name: 'Edit' }));
+    expect(probedOrigin()?.name).toMatch(/^Daily log · Mar 14/);
+  });
+
+  it('hides Edit and Delete for an automatic, unlocked entry (no empty top bar)', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce({
+      ...baseDetail,
+      isAutomatic: true,
+      entryType: 'work_item_status',
+      createdBy: null,
     });
-
-    await user.click(screen.getByRole('button', { name: /go back/i }));
-
-    // After clicking back, we should be on the /diary page (MemoryRouter route)
-    await waitFor(() => {
-      expect(screen.getByTestId('diary-list')).toBeInTheDocument();
-    });
+    renderDetailPage();
+    await screen.findByRole('heading', { level: 1 });
+    expect(screen.queryByRole('link', { name: 'Edit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });
 
   // ─── Print button removed ────────────────────────────────────────────────────
@@ -561,8 +668,11 @@ describe('DiaryEntryDetailPage', () => {
     );
     renderDetailPage('nonexistent');
     await waitFor(() => {
-      expect(screen.getByText('Diary entry not found')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Diary entry not found');
     });
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByText(/doesn't exist/)).toBeInTheDocument();
+    await waitFor(() => expect(document.title).toMatch(/^Diary entry not found/));
   });
 
   it('shows the API error message for non-404 errors', async () => {
@@ -591,9 +701,10 @@ describe('DiaryEntryDetailPage', () => {
       new ApiClientError(404, { code: 'NOT_FOUND', message: 'Not found' }),
     );
     renderDetailPage();
-    await waitFor(() => {
-      expect(screen.getByRole('link', { name: /back to diary/i })).toBeInTheDocument();
-    });
+    // Mutation: the retired "Back to Diary" wording fails here.
+    const link = await screen.findByRole('link', { name: 'Back to Site diary' });
+    expect(link).toHaveAttribute('href', '/diary');
+    expect(screen.queryByText(/Back to Diary/)).not.toBeInTheDocument();
   });
 
   // ─── Timestamps ─────────────────────────────────────────────────────────────
@@ -796,9 +907,12 @@ describe('DiaryEntryDetailPage', () => {
           </Routes>
         </MemoryRouter>,
       );
-      expect(await screen.findByText('Invalid diary entry ID')).toBeInTheDocument();
+      // A missing id renders the same not-found page as a 404.
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Diary entry not found' }),
+      ).toBeInTheDocument();
       expect(mockGetDiaryEntry).not.toHaveBeenCalled();
-      expect(screen.getByRole('link', { name: /back to diary/i })).toHaveAttribute(
+      expect(screen.getByRole('link', { name: 'Back to Site diary' })).toHaveAttribute(
         'href',
         '/diary',
       );
@@ -807,7 +921,10 @@ describe('DiaryEntryDetailPage', () => {
     it('shows the not-found message when the API resolves without an entry', async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(null as never);
       renderDetailPage();
-      expect(await screen.findByText(/doesn't exist|not found/i)).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'Diary entry not found' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Back to Site diary' })).toBeInTheDocument();
       expect(screen.queryByText('Foundation Work')).not.toBeInTheDocument();
     });
   });
@@ -934,7 +1051,7 @@ describe('DiaryEntryDetailPage', () => {
 
   // ─── Origin (#2202): the source entity link carries the entry URL ───────────
 
-  it('opens the source task with the entry URL as origin, no name', async () => {
+  it('opens the source task with the entry URL and display title as origin', async () => {
     mockGetDiaryEntry.mockResolvedValueOnce({
       ...baseDetail,
       id: 'de-origin',
@@ -957,6 +1074,58 @@ describe('DiaryEntryDetailPage', () => {
     fireEvent.click(await screen.findByRole('link', { name: 'Kitchen Renovation' }));
 
     expect(probedPath()).toBe('/project/work-items/wi-kitchen');
-    expect(probedOrigin()).toEqual({ to: '/diary/de-origin' });
+    expect(probedOrigin()).toEqual({ to: '/diary/de-origin', name: 'Foundation Work' });
+  });
+
+  it('shows exactly one "Diary entry" h1 while loading', () => {
+    mockGetDiaryEntry.mockReturnValue(new Promise(() => undefined));
+    renderDetailPage();
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Diary entry$/);
+  });
+
+  it('a non-404 failure keeps an h1 "Diary entry", the banner and Back to Site diary', async () => {
+    mockGetDiaryEntry.mockRejectedValueOnce(new Error('Network failure'));
+    renderDetailPage();
+    await screen.findByText(/failed to load diary entry/i);
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Diary entry$/);
+    expect(screen.getByRole('link', { name: 'Back to Site diary' })).toBeInTheDocument();
+  });
+
+  it('the Add photos link carries the entry origin with its title', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    render(
+      <MemoryRouter initialEntries={['/diary/de-1']}>
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+          <Route path="/diary/:id/edit" element={<div>edit-stub</div>} />
+        </Routes>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+    fireEvent.click(await screen.findByRole('link', { name: 'Add photos' }));
+    expect(probedOrigin()).toEqual({ to: '/diary/de-1', name: 'Foundation Work' });
+  });
+
+  it('deleting the entry replaces the history entry with /diary', async () => {
+    mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
+    mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/diary', '/diary/de-1']} log={log}>
+        <Routes>
+          <Route path="/diary/:id" element={<DiaryEntryDetailPage />} />
+          <Route path="/diary" element={<div>list</div>} />
+        </Routes>
+      </RecordingRouter>,
+    );
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole('button', { name: 'Delete' }));
+    const dialog = await screen.findByRole('dialog', { name: /delete/i });
+    await user.click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+    // Mutation: navigate(...) without replace logs PUSH and keeps the deleted entry in history.
+    await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
+    expect(log.entries).toEqual(['/diary', '/diary']);
   });
 });

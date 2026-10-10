@@ -1,9 +1,12 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import i18n from '../../i18n/index.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { OriginProbe } from '../../test/originProbe.js';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthGuardTypes from './AuthGuard.js';
 
@@ -146,5 +149,84 @@ describe('AuthGuard', () => {
     // Then: Spinner element is present
     const spinner = container.querySelector('.spinner');
     expect(spinner).toBeInTheDocument();
+  });
+
+  describe('deep links (#2204)', () => {
+    const SIGNED_OUT = { user: null, setupRequired: false, oidcEnabled: false };
+
+    function renderRecorded(url: string) {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[url]} log={log}>
+          <Routes>
+            <Route path="/setup" element={<OriginProbe />} />
+            <Route path="/login" element={<OriginProbe />} />
+            <Route element={<AuthGuard />}>
+              <Route path="*" element={<div>Protected Content</div>} />
+            </Route>
+          </Routes>
+        </RecordingRouter>,
+      );
+      return log;
+    }
+
+    it('sends a signed-out visit to the login page with the full requested URL as next, replacing history', async () => {
+      mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+
+      const log = renderRecorded('/settings/users?x=1');
+
+      await waitFor(() => expect(screen.getByTestId('probe-path')).toHaveTextContent('/login'));
+      expect(screen.getByTestId('probe-search')).toHaveTextContent(
+        '?next=%2Fsettings%2Fusers%3Fx%3D1',
+      );
+      // Mutation: navigate without `replace` would record PUSH here.
+      expect(log.actions).toEqual(['REPLACE /login?next=%2Fsettings%2Fusers%3Fx%3D1']);
+    });
+
+    it('keeps the hash in next', async () => {
+      mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+
+      const log = renderRecorded('/diary?q=1#entry');
+
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.actions[0]).toBe('REPLACE /login?next=%2Fdiary%3Fq%3D1%23entry');
+    });
+
+    it('leaves the plain /login URL when the requested URL is the root', async () => {
+      mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+
+      const log = renderRecorded('/');
+
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.actions[0]).toBe('REPLACE /login');
+    });
+
+    it('sends a first-run visit to /setup without a next', async () => {
+      mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: true, oidcEnabled: false });
+
+      const log = renderRecorded('/diary');
+
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.actions[0]).toBe('REPLACE /setup');
+    });
+
+    describe('loading text', () => {
+      afterEach(async () => {
+        cleanup();
+        await i18n.changeLanguage('en');
+      });
+
+      it('is translated, not hardcoded English', async () => {
+        mockGetAuthMe.mockImplementation(() => new Promise(() => {}));
+        await act(async () => {
+          await i18n.changeLanguage('de');
+        });
+
+        renderWithRouter();
+
+        expect(screen.getByText('Wird geladen...')).toBeInTheDocument();
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+      });
+    });
   });
 });

@@ -27,6 +27,10 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import shared from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import type { OriginState } from '../../navigation/origin.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useDiaryEntryTitle } from '../../hooks/useDiaryEntryTitle.js';
 import styles from './DiaryEntryDetailPage.module.css';
 
 export default function DiaryEntryDetailPage() {
@@ -40,6 +44,7 @@ export default function DiaryEntryDetailPage() {
   const navigate = useNavigate();
   const { t } = useTranslation('diary');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
   const { showToast } = useToast();
   const { user: _user } = useAuth();
   const [_vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
@@ -57,6 +62,7 @@ export default function DiaryEntryDetailPage() {
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+  const [notFound, setNotFound] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
@@ -69,7 +75,7 @@ export default function DiaryEntryDetailPage() {
   useEffect(() => {
     if (!id) {
       /* eslint-disable @eslint-react/set-state-in-effect -- initializing error and loading state based on route params */
-      setError(t('detailPage.invalidEntryId'));
+      setNotFound(true);
       setIsLoading(false);
       /* eslint-enable @eslint-react/set-state-in-effect */
       return;
@@ -78,13 +84,14 @@ export default function DiaryEntryDetailPage() {
     const loadEntry = async () => {
       setIsLoading(true);
       setError('');
+      setNotFound(false);
       try {
         const data = await getDiaryEntry(id);
         setEntry(data);
       } catch (err) {
         if (err instanceof ApiClientError) {
           if (err.statusCode === 404) {
-            setError(t('detailPage.entryNotFound'));
+            setNotFound(true);
           } else {
             setError(translateApiError(err.error.code, tErrors));
           }
@@ -99,6 +106,16 @@ export default function DiaryEntryDetailPage() {
     void loadEntry();
   }, [id, t, tErrors]);
 
+  const displayTitle = useDiaryEntryTitle(entry);
+  const originState = useOriginState(displayTitle);
+  const backToDiary = tc('navigation.backTo', { origin: tc('navigation.siteDiary') });
+  const h1Text = isLoading
+    ? tc('navigation.diaryEntry')
+    : notFound || (!error && !entry)
+      ? tc('navigation.diaryEntryNotFound')
+      : (displayTitle ?? tc('navigation.diaryEntry'));
+  useDocumentTitle(h1Text);
+
   const closeDeleteModal = () => {
     setShowDeleteModal(false);
     setDeleteError('');
@@ -112,7 +129,7 @@ export default function DiaryEntryDetailPage() {
     try {
       await deleteDiaryEntry(entry.id);
       showToast('success', t('detailPage.deleteSuccess'));
-      navigate(routeUrl('diary'));
+      navigate(routeUrl('diary'), { replace: true });
     } catch (err) {
       setDeleteError(t('detailPage.deleteError'));
       console.error('Failed to delete diary entry:', err);
@@ -121,29 +138,39 @@ export default function DiaryEntryDetailPage() {
   };
 
   if (isLoading) {
-    return <div className={shared.loading}>{t('detail.loading')}</div>;
-  }
-
-  if (error) {
     return (
       <div className={styles.page}>
-        <div className={shared.bannerError}>{error}</div>
-        <Link to={routeUrl('diary')} className={shared.btnSecondary}>
-          {t('detailPage.backLink')}
-        </Link>
+        <PageBreadcrumbs />
+        <h1 className={styles.title}>{h1Text}</h1>
+        <div className={shared.loading}>{t('detail.loading')}</div>
       </div>
     );
   }
 
-  if (!entry) {
+  if (notFound || (!error && !entry)) {
     return (
       <div className={styles.page}>
+        <PageBreadcrumbs />
+        <h1 className={styles.title}>{h1Text}</h1>
         <div className={shared.emptyState}>
           <p>{t('detail.notFoundMessage')}</p>
           <Link to={routeUrl('diary')} className={shared.btnPrimary}>
-            {t('detailPage.backLink')}
+            {backToDiary}
           </Link>
         </div>
+      </div>
+    );
+  }
+
+  if (error || !entry) {
+    return (
+      <div className={styles.page}>
+        <PageBreadcrumbs />
+        <h1 className={styles.title}>{h1Text}</h1>
+        <div className={shared.bannerError}>{error}</div>
+        <Link to={routeUrl('diary')} className={shared.btnSecondary}>
+          {backToDiary}
+        </Link>
       </div>
     );
   }
@@ -152,21 +179,29 @@ export default function DiaryEntryDetailPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.topBar}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigate(routeUrl('diary'))}
-          aria-label={t('detailPage.backLinkAriaLabel')}
-        >
-          {t('detailPage.backLink')}
-        </button>
-        <div className={styles.actionButtons}>
-          {!entry.isAutomatic && !isLocked && (
-            <>
-              <Link to={routeUrl('diaryEntryEdit', { id: entry.id })} className={styles.editButton}>
-                {t('detailPage.edit')}
-              </Link>
+      <PageBreadcrumbs />
+      {(!entry.isAutomatic || isLocked) && (
+        <div className={styles.topBar}>
+          <div className={styles.actionButtons}>
+            {!entry.isAutomatic && !isLocked && (
+              <>
+                <Link
+                  to={routeUrl('diaryEntryEdit', { id: entry.id })}
+                  state={originState}
+                  className={styles.editButton}
+                >
+                  {t('detailPage.edit')}
+                </Link>
+                <button
+                  type="button"
+                  className={styles.deleteButton}
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  {t('detailPage.delete')}
+                </button>
+              </>
+            )}
+            {isLocked && (
               <button
                 type="button"
                 className={styles.deleteButton}
@@ -174,19 +209,10 @@ export default function DiaryEntryDetailPage() {
               >
                 {t('detailPage.delete')}
               </button>
-            </>
-          )}
-          {isLocked && (
-            <button
-              type="button"
-              className={styles.deleteButton}
-              onClick={() => setShowDeleteModal(true)}
-            >
-              {t('detailPage.delete')}
-            </button>
-          )}
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.card}>
         <header className={styles.header}>
@@ -194,7 +220,7 @@ export default function DiaryEntryDetailPage() {
             <DiaryEntryTypeBadge entryType={entry.entryType} size="lg" />
           </div>
           <div className={styles.headerContent}>
-            {entry.title && <h1 className={styles.title}>{entry.title}</h1>}
+            <h1 className={styles.title}>{h1Text}</h1>
             <div className={styles.meta}>
               <span className={styles.date}>{formatDate(entry.entryDate)}</span>
               {entry.isAutomatic && (
@@ -248,6 +274,7 @@ export default function DiaryEntryDetailPage() {
                 {!entry.isAutomatic && (
                   <Link
                     to={routeUrl('diaryEntryEdit', { id: entry.id })}
+                    state={originState}
                     className={styles.addPhotoLink}
                   >
                     {t('detailPage.addPhotos')}
@@ -302,6 +329,7 @@ export default function DiaryEntryDetailPage() {
               sourceType={entry.sourceEntityType}
               sourceId={entry.sourceEntityId}
               sourceTitle={entry.sourceEntityTitle}
+              originState={originState}
             />
             {entry.sourceEntityType === 'work_item' && (
               <AreaBreadcrumb area={entry.sourceEntityArea ?? null} variant="compact" />
@@ -365,11 +393,16 @@ interface SourceEntityLinkProps {
   sourceType: DiarySourceEntityType;
   sourceId: string;
   sourceTitle?: string | null;
+  originState: OriginState;
 }
 
-function SourceEntityLink({ sourceType, sourceId, sourceTitle }: SourceEntityLinkProps) {
+function SourceEntityLink({
+  sourceType,
+  sourceId,
+  sourceTitle,
+  originState,
+}: SourceEntityLinkProps) {
   const { t } = useTranslation('diary');
-  const originState = useOriginState();
 
   const getRoute = (): string | null => {
     switch (sourceType) {

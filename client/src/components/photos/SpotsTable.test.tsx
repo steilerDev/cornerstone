@@ -1,6 +1,8 @@
 import { jest, describe, it, expect, beforeAll } from '@jest/globals';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import type { OriginState } from '../../navigation/origin.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { SpotsTable as SpotsTableType } from './SpotsTable.js';
 import { buildSpotGroups } from '../../lib/photoSpots.js';
 import {
@@ -24,12 +26,13 @@ const orientations = [makeOrientation('o1', 'Ceiling', 1), makeOrientation('o2',
 function renderTable(
   areas = [makeArea('a1', 'Kitchen')],
   spots = [makeSpot('a1', 'o1', { photoCount: 3, latestPhotoId: 'pX' })],
-  linkState?: unknown,
+  linkState?: OriginState,
 ) {
   const groups = buildSpotGroups(areas, orientations, spots);
   return render(
     <MemoryRouter>
       <SpotsTable groups={groups} orientations={orientations} linkState={linkState} />
+      <OriginProbe />
     </MemoryRouter>,
   );
 }
@@ -145,8 +148,17 @@ describe('SpotsTable', () => {
     expect(depths).toEqual(['0', '1', '2', '3', '3']);
   });
 
-  it('passes linkState to router links', () => {
-    renderTable(undefined, undefined, { fromSearch: '?x=1' });
-    expect(screen.getByTestId('spot-cell-a1:o1')).toBeInTheDocument();
+  it('passes linkState to router links as the origin of the viewer', () => {
+    renderTable(undefined, undefined, { origin: { to: '/photos?x=1' } });
+    fireEvent.click(screen.getByTestId('spot-cell-a1:o1'));
+    expect(probedPath()).toBe('/photos/spot/a1/o1');
+    // Mutation: dropping state={linkState} from the cell link makes the origin null.
+    expect(probedOrigin()).toEqual({ to: '/photos?x=1' });
+  });
+
+  it('carries no origin when no linkState is given', () => {
+    renderTable();
+    fireEvent.click(screen.getByTestId('spot-cell-a1:o1'));
+    expect(probedOrigin()).toBeNull();
   });
 });

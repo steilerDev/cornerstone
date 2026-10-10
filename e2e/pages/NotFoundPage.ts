@@ -12,11 +12,11 @@ export class NotFoundPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { level: 1, name: '404 - Page Not Found' });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Page not found' });
     this.description = page.getByText(
       'The page you are looking for does not exist or has been moved.',
     );
-    this.dashboardLink = page.getByRole('link', { name: 'Go back to Project Overview' });
+    this.dashboardLink = page.getByRole('link', { name: 'Go to Home' });
   }
 
   async getHeading(): Promise<string | null> {

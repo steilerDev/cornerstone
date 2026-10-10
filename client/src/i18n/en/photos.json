@@ -1,6 +1,5 @@
 {
   "page": {
-    "title": "Photos",
     "subtitle": "Every spot, by area and orientation. Open one to step through its photos by diary date.",
     "loading": "Loading photos",
     "loadError": "Photos could not be loaded.",
@@ -23,9 +22,7 @@
     "groupAnnouncement_other": "Showing {{group}}: {{count}} spots"
   },
   "viewer": {
-    "documentTitle": "{{spot}} – Photos",
-    "spotHeading": "{{area}}, {{orientation}}",
-    "backToSpots": "Back to spots",
+    "spotHeading": "{{area}} · {{orientation}}",
     "position": "{{current}} of {{total}}",
     "previous": "Earlier photo",
     "next": "Later photo",

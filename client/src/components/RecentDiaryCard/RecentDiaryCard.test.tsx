@@ -9,6 +9,8 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { DiaryEntrySummary } from '@cornerstone/shared';
 import type { RecentDiaryCard as RecentDiaryCardType } from './RecentDiaryCard.js';
 
@@ -213,5 +215,39 @@ describe('RecentDiaryCard', () => {
     expect(screen.getByTestId('recent-diary-de-1')).toBeInTheDocument();
     expect(screen.getByTestId('recent-diary-de-2')).toBeInTheDocument();
     expect(screen.getByTestId('recent-diary-de-3')).toBeInTheDocument();
+  });
+
+  // ─── Origin (#2204): Home is the origin of entry and new-entry links ───────
+
+  describe('origin state', () => {
+    const renderProbed = () =>
+      render(
+        <MemoryRouter initialEntries={['/project/overview']}>
+          <RecentDiaryCard entries={[makeEntry('de-7')]} isLoading={false} error={null} />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+
+    it('an entry link passes the Home URL as origin, without a name', async () => {
+      renderProbed();
+      await userEvent.click(screen.getByTestId('recent-diary-de-7'));
+      expect(probedPath()).toBe('/diary/de-7');
+      // Mutation: removing state={originState} from the entry Link makes this null.
+      expect(probedOrigin()).toEqual({ to: '/project/overview' });
+    });
+
+    it('the "New entry" link passes the Home URL as origin', async () => {
+      renderProbed();
+      await userEvent.click(screen.getByRole('link', { name: /new entry/i }));
+      expect(probedPath()).toBe('/diary/new');
+      expect(probedOrigin()).toEqual({ to: '/project/overview' });
+    });
+
+    it('the "View all" link passes no origin (the list suppresses it)', async () => {
+      renderProbed();
+      await userEvent.click(screen.getByRole('link', { name: /view all/i }));
+      expect(probedPath()).toBe('/diary');
+      expect(probedOrigin()).toBeNull();
+    });
   });
 });

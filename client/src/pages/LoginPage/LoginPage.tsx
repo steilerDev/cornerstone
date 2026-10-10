@@ -1,11 +1,14 @@
-import { useState, useEffect, type FormEvent } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { OidcLoginErrorCode } from '@cornerstone/shared';
 import { OIDC_LOGIN_ERROR_CODES, routeUrl } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { Logo } from '../../components/Logo/Logo.js';
-import { login, getAuthMe } from '../../lib/authApi.js';
+import { login, getAuthMe, oidcLoginUrl } from '../../lib/authApi.js';
+import { useAuth } from '../../contexts/AuthContext.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { readNextParam } from '../../navigation/nextParam.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import sharedStyles from '../shared/AuthPage.module.css';
@@ -34,6 +37,8 @@ interface FormErrors {
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { refreshAuth } = useAuth();
   const { t } = useTranslation('auth');
   const { t: tErrors } = useTranslation('errors');
   const [email, setEmail] = useState('');
@@ -48,6 +53,11 @@ export function LoginPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [oidcEnabled, setOidcEnabled] = useState(false);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  useDocumentTitle(t('login.title'), { section: false, house: false });
+
+  // Where to land after signing in: the deep link the user asked for, else Home
+  const next = useMemo(() => readNextParam(location.search), [location.search]);
+  const target = next ?? routeUrl('home');
 
   useEffect(() => {
     const loadConfig = async () => {
@@ -55,7 +65,7 @@ export function LoginPage() {
         const authMeResponse = await getAuthMe();
         // If user is already authenticated, redirect to home
         if (authMeResponse.user) {
-          navigate(routeUrl('home'), { replace: true });
+          navigate(target, { replace: true });
           return;
         }
         setOidcEnabled(authMeResponse.oidcEnabled);
@@ -68,7 +78,7 @@ export function LoginPage() {
     };
 
     void loadConfig();
-  }, [navigate]);
+  }, [navigate, target]);
 
   const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
@@ -98,8 +108,9 @@ export function LoginPage() {
 
     try {
       await login({ email, password });
-      // Successful login - redirect to app
-      navigate(routeUrl('home'), { replace: true });
+      // Refresh the auth state first so guards and the house name see the new session
+      await refreshAuth();
+      navigate(target, { replace: true });
     } catch (error) {
       if (error instanceof ApiClientError) {
         setApiError(translateApiError(error.error.code, tErrors));
@@ -111,7 +122,7 @@ export function LoginPage() {
   };
 
   const handleOidcLogin = () => {
-    window.location.href = '/api/auth/oidc/login';
+    window.location.href = oidcLoginUrl(next);
   };
 
   return (

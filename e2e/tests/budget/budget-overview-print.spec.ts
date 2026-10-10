@@ -549,8 +549,8 @@ test.describe('Budget Overview — print behaviour', () => {
       // rather than waitFor() which uses actionTimeout (5000ms).
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-      // The diary heading text should be "Construction Diary"
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Construction Diary');
+      // The diary heading text should be "Site diary"
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
 
       // Switch to print media to simulate print on a non-budget page
       await page.emulateMedia({ media: 'print' });
@@ -560,7 +560,7 @@ test.describe('Budget Overview — print behaviour', () => {
       // Note: the global print.css hides [role=navigation] and aside,
       // but the diary h1 is in a <header> element, not a nav or aside.
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Construction Diary');
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText('Site diary');
     } finally {
       await page.emulateMedia({ media: 'screen' });
       await page.unroute('**/api/diary-entries*').catch(() => {});

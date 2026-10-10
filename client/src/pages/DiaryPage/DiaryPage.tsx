@@ -9,6 +9,7 @@ import type {
   ManualDiaryEntryType,
 } from '@cornerstone/shared';
 import { listDiaryEntries } from '../../lib/diaryApi.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDebounce } from '../../hooks/useDebounce.js';
 import { useInfiniteScroll, type InfiniteScrollPage } from '../../hooks/useInfiniteScroll.js';
 import { useInfiniteScrollAnnouncements } from '../../hooks/useInfiniteScrollAnnouncements.js';
@@ -36,6 +37,9 @@ const PAGE_SIZE = 25;
 
 export default function DiaryPage() {
   const { t } = useTranslation('diary');
+  const { t: tc } = useTranslation('common');
+  const pageTitle = tc('navigation.siteDiary');
+  useDocumentTitle(pageTitle);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [totalItems, setTotalItems] = useState(0);
@@ -65,16 +69,19 @@ export default function DiaryPage() {
       isFirstSearchSyncRef.current = false;
       return;
     }
-    setSearchParams((prev) => {
-      const newParams = new URLSearchParams(prev);
-      if (debouncedSearchInput) {
-        newParams.set('q', debouncedSearchInput);
-      } else {
-        newParams.delete('q');
-      }
-      newParams.delete('page');
-      return newParams;
-    });
+    setSearchParams(
+      (prev) => {
+        const newParams = new URLSearchParams(prev);
+        if (debouncedSearchInput) {
+          newParams.set('q', debouncedSearchInput);
+        } else {
+          newParams.delete('q');
+        }
+        newParams.delete('page');
+        return newParams;
+      },
+      { replace: true },
+    );
   }, [debouncedSearchInput, setSearchParams]);
 
   const fetchDiaryPage = async (
@@ -202,7 +209,7 @@ export default function DiaryPage() {
       newParams.delete('dateFrom');
     }
     newParams.delete('page');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const handleDateToChange = (date: string) => {
@@ -213,7 +220,7 @@ export default function DiaryPage() {
       newParams.delete('dateTo');
     }
     newParams.delete('page');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const handleTypesChange = (types: DiaryEntryType[]) => {
@@ -224,7 +231,7 @@ export default function DiaryPage() {
       newParams.delete('types');
     }
     newParams.delete('page');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const handleFilterModeChange = (mode: FilterMode) => {
@@ -232,7 +239,7 @@ export default function DiaryPage() {
     newParams.set('filterMode', mode);
     newParams.delete('types');
     newParams.delete('page');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const draftsVisible = statusFilter !== 'saved';
@@ -245,14 +252,14 @@ export default function DiaryPage() {
       newParams.set('status', 'saved');
     }
     newParams.delete('page');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const handleClearAll = () => {
     setSearchInput('');
     const newParams = new URLSearchParams();
     newParams.set('filterMode', 'manual');
-    setSearchParams(newParams);
+    setSearchParams(newParams, { replace: true });
   };
 
   const sortedDates = Object.keys(groupedEntries).sort().reverse();
@@ -262,7 +269,7 @@ export default function DiaryPage() {
       <header className={styles.header}>
         <div className={styles.headerTop}>
           <div>
-            <h1 className={styles.title}>{t('page.title')}</h1>
+            <h1 className={styles.title}>{pageTitle}</h1>
             <p className={styles.subtitle}>
               {totalItems}{' '}
               {totalItems === 1 ? t('page.entryCountSingular') : t('page.entryCountPlural')}

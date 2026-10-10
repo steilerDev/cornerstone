@@ -165,7 +165,7 @@ test.describe(
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         if (isMobileOrTablet) {
@@ -197,7 +197,7 @@ test.describe(
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         if (isDesktop) {
@@ -226,7 +226,7 @@ test.describe('PhotoMetadataModal opens after file selection (Scenario 3)', () =
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         // Trigger the library input (works on both mobile and desktop because the
@@ -273,7 +273,7 @@ test.describe('PhotoMetadataModal — fill fields (Scenario 4)', () => {
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       const libraryInput = page.getByTestId('photo-library-input');
@@ -339,7 +339,7 @@ test.describe('PhotoMetadataModal — Save & upload (Scenario 5)', () => {
 
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       // Set file on library input to open modal
@@ -379,7 +379,7 @@ test.describe('PhotoMetadataModal — Cancel discards file (Scenario 6)', () => 
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       const libraryInput = page.getByTestId('photo-library-input');
@@ -423,7 +423,7 @@ test.describe('PhotoMetadataModal — multiple files, save all (Scenario 7)', ()
 
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       // Set 2 files at once on the library input
@@ -477,7 +477,7 @@ test.describe('PhotoMetadataModal — multiple files, cancel first (Scenario 8)'
 
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       const libraryInput = page.getByTestId('photo-library-input');
@@ -681,7 +681,7 @@ test.describe(
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         // The camera input is always in the DOM (even on desktop) but aria-hidden.
@@ -735,7 +735,7 @@ test.describe('OrientationPicker in modal — no orientations (Scenario 11)', ()
       draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
       await page.goto(`/diary/${draftId}/edit`);
       await page
-        .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+        .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
         .waitFor({ state: 'visible' });
 
       const libraryInput = page.getByTestId('photo-library-input');
@@ -1080,7 +1080,7 @@ test.describe('PhotoMetadataModal — photo preview (Scenario 12)', () => {
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         const libraryInput = page.getByTestId('photo-library-input');
@@ -1117,7 +1117,7 @@ test.describe('PhotoMetadataModal — photo preview (Scenario 12)', () => {
         draftId = await createDraftDiaryEntryViaApi(page, { entryType: 'general_note' });
         await page.goto(`/diary/${draftId}/edit`);
         await page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' });
 
         const libraryInput = page.getByTestId('photo-library-input');

@@ -2,7 +2,6 @@
   "profile": {
     "loading": "Profil wird geladen...",
     "error": "Fehler",
-    "pageTitle": "Profil",
     "profileInformation": "Profilinformationen",
     "email": "E-Mail",
     "role": "Rolle",
@@ -41,7 +40,6 @@
     "systemLanguage": "System (automatisch)"
   },
   "userManagement": {
-    "pageTitle": "Benutzerverwaltung",
     "loading": "Benutzer werden geladen...",
     "errorTitle": "Fehler",
     "loadError": "Benutzer konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
@@ -131,7 +129,6 @@
     }
   },
   "manage": {
-    "pageTitle": "Verwalten",
     "tabs": {
       "household": "Haushalt",
       "areas": "Bereiche",
@@ -432,7 +429,6 @@
     "storage": "Aufbewahrung"
   },
   "backups": {
-    "pageTitle": "Sicherung & Wiederherstellung",
     "createButton": "Sicherung erstellen",
     "creating": "Sicherung wird erstellt...",
     "loading": "Sicherungen werden geladen...",

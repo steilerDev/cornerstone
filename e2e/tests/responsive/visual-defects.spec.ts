@@ -376,7 +376,7 @@ test.describe('Visual defects — no sideways scroll at 390 px (AC2)', { tag: '@
 
       await page.goto(ROUTES.manage);
       await page
-        .getByRole('heading', { level: 1, name: 'Manage', exact: true })
+        .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
         .waitFor({ state: 'visible' });
       await setTheme(page, theme);
 
@@ -651,7 +651,7 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
   ): Promise<Locator> {
     await page.goto(`${ROUTES.manage}?tab=${tab}`);
     await page
-      .getByRole('heading', { level: 1, name: 'Manage', exact: true })
+      .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
       .waitFor({ state: 'visible' });
     const panel = page.locator(`#${tab}-panel`);
     const row = panel.locator('[class*="itemRow"]').filter({ hasText: name });

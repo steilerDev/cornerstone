@@ -205,6 +205,12 @@ describe('NAV_LABEL_KEYS', () => {
     'bankReport',
     'fundingSources',
     'grants',
+    // #2204: diary entry words
+    'newDiaryEntry',
+    'editDiaryEntry',
+    'diaryEntry',
+    'diaryEntryNotFound',
+    'diaryEntryUntitled',
   ] as const;
 
   it('has no navigation key in either locale that the tuple or the page-identity words do not declare', () => {

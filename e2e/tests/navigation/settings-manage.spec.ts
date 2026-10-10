@@ -10,7 +10,7 @@
  *   - Household Item Categories (?tab=hi-categories) — household item classification
  *
  * This file covers:
- * - Smoke: Page loads, h1 "Manage" heading, default tab (Areas) renders
+ * - Smoke: Page loads, h1 "Project setup" heading, default tab (Areas) renders
  * - Tab navigation: clicking each tab renders its panel
  * - URL sync: ?tab= query param sets the correct active tab on load
  * - Areas tab: create area happy path, area appears in list, delete area
@@ -115,13 +115,13 @@ async function deleteHICategoryViaApi(page: Page, id: string): Promise<void> {
 
 test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () => {
   test(
-    'Manage page loads with "Manage" heading and Areas tab visible',
+    'Manage page loads with "Project setup" heading and Areas tab visible',
     { tag: '@smoke' },
     async ({ page }) => {
       await page.goto(MANAGE_ROUTE);
 
-      // h1 "Manage" from PageLayout
-      const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+      // h1 "Project setup" from PageLayout
+      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
       await expect(heading).toBeVisible();
 
       // Default tab is Areas — its tab button should be selected
@@ -157,7 +157,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
   test('Clicking Household tab shows the Household Information form', async ({ page }) => {
     // Start on trades tab then navigate to household
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
     await heading.waitFor({ state: 'visible' });
 
     await page.getByRole('tab', { name: 'Household', exact: true }).click();
@@ -174,7 +174,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
   test('Clicking Areas tab shows the Areas create form', async ({ page }) => {
     // Start on trades tab then navigate to areas
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
     await heading.waitFor({ state: 'visible' });
 
     await page.getByRole('tab', { name: 'Areas' }).click();
@@ -190,7 +190,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
 
   test('Clicking Trades tab shows the Trades create form', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
-    const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
     await heading.waitFor({ state: 'visible' });
 
     await page.getByRole('tab', { name: 'Trades' }).click();
@@ -205,7 +205,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
 
   test('Clicking Budget Categories tab shows the create form', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
-    const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
     await heading.waitFor({ state: 'visible' });
 
     await page.getByRole('tab', { name: 'Budget Categories' }).click();
@@ -222,7 +222,7 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
     { tag: '@smoke' },
     async ({ page }) => {
       await page.goto(MANAGE_ROUTE);
-      const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
       await heading.waitFor({ state: 'visible' });
 
       await page.getByRole('tab', { name: 'Household Item Categories' }).click();
@@ -493,7 +493,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
 
     try {
       await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
       await heading.waitFor({ state: 'visible' });
 
       // Wait for the create form
@@ -545,7 +545,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
       areaId = await createAreaViaApi(page, `${testPrefix} Existing Area`);
 
       await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -566,7 +566,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
       areaId = await createAreaViaApi(page, areaName);
 
       await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -608,7 +608,7 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
 
   test('Create area fails — empty name shows validation error', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -629,7 +629,7 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
 
     try {
       await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -669,7 +669,7 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
 
   test('Existing Trades list shows default seeded trades', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -693,7 +693,7 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
       tradeId = await createTradeViaApi(page, tradeName);
 
       await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -726,7 +726,7 @@ test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
 
   test('Create trade fails — empty name shows create button disabled', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -765,7 +765,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
 
     try {
       await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -808,7 +808,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
 
   test('HI Categories list shows seeded categories', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -826,7 +826,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
       catId = await createHICategoryViaApi(page, catName);
 
       await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-      await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
         state: 'visible',
       });
 
@@ -857,7 +857,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
 
   test('Create HI category fails — empty name disables the create button', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -877,7 +877,7 @@ test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, 
 test.describe('Responsive layout', { tag: '@responsive' }, () => {
   test('Manage page renders without horizontal overflow', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -889,7 +889,7 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
 
   test('All six tabs are accessible/scrollable on all viewports', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'Manage', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
@@ -915,7 +915,7 @@ test.describe('Dark mode', () => {
 
     try {
       await page.goto(MANAGE_ROUTE);
-      const heading = page.getByRole('heading', { level: 1, name: 'Manage', exact: true });
+      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
       await expect(heading).toBeVisible();
 
       // Navigate through each tab in dark mode

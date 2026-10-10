@@ -152,6 +152,10 @@ describe('OIDC Routes', () => {
       ['no redirect parameter', '/api/auth/oidc/login'],
       ['an absolute-URL redirect', '/api/auth/oidc/login?redirect=https%3A%2F%2Fevil.test%2F'],
       ['a protocol-relative redirect', '/api/auth/oidc/login?redirect=%2F%2Fevil.test'],
+      // Mutation: reverting isSafeRedirect to the old startsWith/includes rule lets these through.
+      ['a backslash redirect', '/api/auth/oidc/login?redirect=%2F%5Cevil.example'],
+      ['a tab-led redirect', '/api/auth/oidc/login?redirect=%2F%09%2Fevil.example'],
+      ['an over-long redirect', `/api/auth/oidc/login?redirect=%2F${'a'.repeat(2048)}`],
     ])('falls back to the home route "/" for %s', async (_name, url) => {
       const response = await app.inject({ method: 'GET', url });
 
@@ -160,6 +164,16 @@ describe('OIDC Routes', () => {
         expect.anything(),
         expect.any(String),
         '/',
+      );
+    });
+
+    it('passes a deep link with query and hash through unchanged', async () => {
+      await app.inject({ method: 'GET', url: '/api/auth/oidc/login?redirect=%2Fdiary%3Fq%3D1' });
+
+      expect(mockBuildAuthorizationUrl).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.any(String),
+        '/diary?q=1',
       );
     });
 
@@ -912,12 +926,157 @@ describe('OIDC Routes', () => {
     });
   });
 
+  describe('GET /api/auth/oidc/callback — error redirects keep the deep link (#2204)', () => {
+    beforeEach(async () => {
+      process.env.OIDC_ISSUER = 'https://oidc.example.com';
+      process.env.OIDC_CLIENT_ID = 'client-123';
+      process.env.OIDC_CLIENT_SECRET = 'secret-456';
+      app = await buildApp();
+      mockDiscoverOidcConfig.mockResolvedValue({});
+      mockConsumeState.mockReturnValue('/diary?q=1');
+    });
+
+    async function callback(query: string) {
+      return app.inject({ method: 'GET', url: `/api/auth/oidc/callback${query}` });
+    }
+
+    it('appends next after error for no matching account', async () => {
+      mockHandleCallback.mockResolvedValue({
+        sub: 'sub-nm',
+        email: 'nomatch@example.com',
+        emailVerified: true,
+      });
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe(
+        '/login?error=oidc_no_matching_account&next=%2Fdiary%3Fq%3D1',
+      );
+    });
+
+    it('appends next for a deactivated account', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'deact2204@example.com',
+        'Deactivated',
+        'password123456',
+      );
+      userService.deactivateUser(app.db, user.id);
+      mockHandleCallback.mockResolvedValue({ sub: 's', email: user.email, emailVerified: true });
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe(
+        '/login?error=account_deactivated&next=%2Fdiary%3Fq%3D1',
+      );
+    });
+
+    it('appends next for an unverified email', async () => {
+      const user = await userService.createLocalUser(
+        app.db,
+        'unver2204@example.com',
+        'Unverified',
+        'password123456',
+      );
+      mockHandleCallback.mockResolvedValue({ sub: 's', email: user.email, emailVerified: false });
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe(
+        '/login?error=oidc_email_unverified&next=%2Fdiary%3Fq%3D1',
+      );
+    });
+
+    it('appends next for a missing email claim', async () => {
+      mockHandleCallback.mockResolvedValue({ sub: 'sub-x', email: '', emailVerified: true });
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe('/login?error=missing_email&next=%2Fdiary%3Fq%3D1');
+    });
+
+    it('appends next when the token exchange fails', async () => {
+      mockHandleCallback.mockRejectedValue(new Error('boom'));
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe('/login?error=oidc_error&next=%2Fdiary%3Fq%3D1');
+    });
+
+    it('consumes the state of a provider error and appends its next', async () => {
+      mockConsumeState.mockReturnValue('/diary');
+
+      const response = await callback('?error=access_denied&state=s1');
+
+      expect(mockConsumeState).toHaveBeenCalledWith('s1');
+      expect(response.headers.location).toBe('/login?error=oidc_error&next=%2Fdiary');
+    });
+
+    it('does not consume any state for a provider error without state', async () => {
+      const response = await callback('?error=access_denied');
+
+      expect(mockConsumeState).not.toHaveBeenCalled();
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+
+    it('adds no next for a provider error whose state is unknown or expired', async () => {
+      mockConsumeState.mockReturnValue(undefined);
+
+      const response = await callback('?error=access_denied&state=gone');
+
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+
+    it('adds no next for a missing state', async () => {
+      const response = await callback('?code=abc');
+
+      expect(mockConsumeState).not.toHaveBeenCalled();
+      expect(response.headers.location).toBe('/login?error=invalid_state');
+    });
+
+    it('adds no next for an invalid state', async () => {
+      mockConsumeState.mockReturnValue(undefined);
+
+      const response = await callback('?code=abc&state=bad');
+
+      expect(response.headers.location).toBe('/login?error=invalid_state');
+    });
+
+    it('adds no next when the stored redirect is the home path', async () => {
+      mockConsumeState.mockReturnValue('/');
+      mockHandleCallback.mockRejectedValue(new Error('boom'));
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+
+    it('drops a stored redirect that fails the safe-path rule instead of echoing it', async () => {
+      mockConsumeState.mockReturnValue('/\\evil.example');
+      mockHandleCallback.mockRejectedValue(new Error('boom'));
+
+      const response = await callback('?code=abc&state=xyz');
+
+      expect(response.headers.location).toBe('/login?error=oidc_error');
+    });
+
+    it('adds no next when OIDC is not configured', async () => {
+      delete process.env.OIDC_ISSUER;
+      await app.close();
+      app = await buildApp();
+
+      const response = await callback('?error=access_denied&state=s1');
+
+      expect(response.headers.location).toBe('/login?error=oidc_not_configured');
+    });
+  });
+
   describe('login error redirect codes (typed via loginErrorPath)', () => {
     const routeSource = readFileSync(new URL('./oidc.ts', import.meta.url), 'utf8');
     const testSource = readFileSync(new URL('./oidc.test.ts', import.meta.url), 'utf8');
 
     it('only redirects to /login with codes in OIDC_LOGIN_ERROR_CODES', () => {
-      const used = [...routeSource.matchAll(/loginErrorPath\('(\w+)'\)/g)].map((m) => m[1]);
+      const used = [...routeSource.matchAll(/loginErrorPath\('(\w+)'[,)]/g)].map((m) => m[1]);
       expect(used.length).toBeGreaterThan(0);
       for (const code of used) {
         expect(OIDC_LOGIN_ERROR_CODES).toContain(code);

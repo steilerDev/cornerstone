@@ -11,12 +11,17 @@ import { SpotsGrid } from '../../components/photos/SpotsGrid.js';
 import { getPhotoSpots } from '../../lib/photoApi.js';
 import { buildSpotGroups } from '../../lib/photoSpots.js';
 import { useMediaQuery } from '../../hooks/useMediaQuery.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import styles from './PhotosPage.module.css';
 
 type Status = 'loading' | 'error' | 'ready';
 
 export default function PhotosPage() {
   const { t } = useTranslation('photos');
+  const { t: tc } = useTranslation('common');
+  const pageTitle = tc('navigation.photos');
+  useDocumentTitle(pageTitle);
   const location = useLocation();
   const navigate = useNavigate();
   const isMobile = useMediaQuery('(max-width: 767px)');
@@ -43,14 +48,6 @@ export default function PhotosPage() {
     return () => controller.abort();
   }, [reloadToken]);
 
-  useEffect(() => {
-    const prev = document.title;
-    document.title = t('page.title');
-    return () => {
-      document.title = prev;
-    };
-  }, [t]);
-
   // Restore focus to the spot the user came back from, then clear the state so a refresh
   // does not re-focus.
   useEffect(() => {
@@ -65,7 +62,8 @@ export default function PhotosPage() {
     () => (data ? buildSpotGroups(data.areas, data.orientations, data.spots) : []),
     [data],
   );
-  const linkState = useMemo(() => ({ fromSearch: location.search }), [location.search]);
+  // Origin = this page with its filters, so the viewer's back link returns to them
+  const linkState = useOriginState();
   const retry = useCallback(() => setReloadToken((n) => n + 1), []);
 
   let content;
@@ -99,7 +97,7 @@ export default function PhotosPage() {
   }
 
   return (
-    <PageLayout title={t('page.title')} testId="photos-page" headingRef={headingRef}>
+    <PageLayout title={pageTitle} testId="photos-page" headingRef={headingRef}>
       <p className={styles.subtitle}>{t('page.subtitle')}</p>
       {content}
     </PageLayout>

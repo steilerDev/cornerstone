@@ -213,7 +213,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // ── Open viewer ────────────────────────────────────────────────────────
       await openPhotoViewer(page, photoId, viewer);
@@ -366,7 +366,7 @@ test('Cancel annotation discards without saving', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
 
     await openAnnotator(viewer);
@@ -432,7 +432,7 @@ test('Save failure shows error banner and keeps annotator open', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
 
     // Intercept PUT /annotation to return 500 before opening the annotator
     const annotationGlob = `**/api/photos/${photoId}/annotation`;
@@ -518,7 +518,7 @@ test('Highlight tool — draw highlight and save', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -586,7 +586,7 @@ test('Arrow tool — draw arrow and save', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -663,7 +663,7 @@ test('Line tool — draw line and save', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -746,7 +746,7 @@ test('Line tool — diagonal drag commits line shape with correct geometry', asy
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -822,7 +822,7 @@ test('Ellipse tool — draw ellipse and save', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -892,7 +892,7 @@ test('Ellipse tool — wide drag commits ellipse with correct rx and ry in state
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -970,7 +970,7 @@ test('Text tool — tap to place, type text, Enter commits shape', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1054,7 +1054,7 @@ test('Text tool — Escape discards the draft without adding a shape', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1127,7 +1127,7 @@ test('Measurement tool — drag, type label, Enter commits with label text', asy
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1197,7 +1197,7 @@ test('Measurement tool — Escape commits line with empty label', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1274,7 +1274,7 @@ test('Freehand tool — drag stroke commits polyline shape', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1351,7 +1351,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
@@ -1422,7 +1422,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
@@ -1490,7 +1490,7 @@ test('Undo removes last committed shape; Redo restores it', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1574,7 +1574,7 @@ test('Select tool — drag moves a committed rectangle', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1663,7 +1663,7 @@ test('Select tool — Delete key removes the selected shape', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1750,7 +1750,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
@@ -1897,7 +1897,7 @@ test('Tool palette — all 9 tools visible; switching tool updates aria-pressed'
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -1979,7 +1979,7 @@ test('Color palette — selecting a swatch marks it aria-checked and new shapes 
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
     await openPhotoViewer(page, photoId, viewer);
     await openAnnotator(viewer);
 
@@ -2083,7 +2083,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
@@ -2151,7 +2151,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 
@@ -2241,7 +2241,7 @@ test(
       const viewer = new PhotoViewerPage(page);
 
       await detailPage.goto(entryId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await openPhotoViewer(page, photoId, viewer);
       await openAnnotator(viewer);
 

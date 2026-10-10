@@ -195,7 +195,7 @@ test.describe('Automatic badge on detail page (Scenario 3)', { tag: '@responsive
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // "Automatic" badge should be visible
       await expect(detailPage.automaticBadge).toBeVisible();
@@ -244,7 +244,7 @@ test.describe('No Edit/Delete for automatic entries (Scenario 4)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Edit and Delete must NOT be rendered for automatic entries
       await expect(detailPage.editButton).not.toBeVisible();
@@ -297,7 +297,7 @@ test.describe('Source entity section (Scenario 5)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Source section must be visible
       await expect(detailPage.sourceSection).toBeVisible();
@@ -328,7 +328,7 @@ test.describe('Source entity section (Scenario 5)', () => {
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Source section must NOT be rendered for entries without source entity
       await expect(detailPage.sourceSection).not.toBeVisible();
@@ -408,10 +408,10 @@ test.describe('Automatic entry is read-only via API (Scenario 6)', () => {
       // So we verify the page loads (heading visible or error visible).
       await Promise.race([
         page
-          .getByRole('heading', { level: 1, name: 'Edit Diary Entry' })
+          .getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ })
           .waitFor({ state: 'visible' }),
         page
-          .getByRole('heading', { level: 2, name: /Entry Not Found|Error Loading/i })
+          .getByRole('heading', { name: /Diary entry not found|Error Loading/i })
           .waitFor({ state: 'visible' }),
         page.locator('[class*="bannerError"]').waitFor({ state: 'visible' }),
       ]);

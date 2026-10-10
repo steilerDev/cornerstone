@@ -1,5 +1,5 @@
 /**
- * E2E tests for UAT Round 2 fixes for the Construction Diary (EPIC-13).
+ * E2E tests for UAT Round 2 fixes for the Site diary (EPIC-13).
  *
  * Issues addressed:
  * - #866-A: Mode filter chips (All/Manual/Automatic) added to DiaryFilterBar

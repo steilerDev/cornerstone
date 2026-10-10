@@ -9,6 +9,10 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { SpotViewer } from '../../components/photos/SpotViewer.js';
 import { getPhotoSpotPhotos } from '../../lib/photoApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { pathnameOf, readOrigin } from '../../navigation/origin.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { originLabelKeyForPath } from '../../navigation/pageIdentity.js';
 import { formatAreaPath, fromSpotUrlKey, spotKey } from '../../lib/photoSpots.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './PhotoSpotViewerPage.module.css';
@@ -17,6 +21,7 @@ type Status = 'loading' | 'ready' | 'notFound' | 'error';
 
 export default function PhotoSpotViewerPage() {
   const { t } = useTranslation('photos');
+  const { t: tc } = useTranslation('common');
   const location = useLocation();
   const navigate = useNavigate();
   const { areaKey = 'none', orientationKey = 'none' } = useParams();
@@ -65,11 +70,28 @@ export default function PhotoSpotViewerPage() {
     return i >= 0 ? i : 0;
   }, [photos, photoParam]);
 
-  const backTo = `${routeUrl('photos')}${(location.state as { fromSearch?: string } | null)?.fromSearch ?? ''}`;
-  const backState = useMemo(() => ({ focusSpotId: `spot-${currentSpotKey}` }), [currentSpotKey]);
+  // Back target: the Photos page (with its filters) unless the viewer was opened from elsewhere
+  const photosPath = routeUrl('photos');
+  const origin = readOrigin(location.state);
+  const fromPhotos = !origin || pathnameOf(origin.to) === photosPath;
+  let otherLabel: string | null = null;
+  if (origin && !fromPhotos) {
+    const labelKey = originLabelKeyForPath(pathnameOf(origin.to));
+    otherLabel = origin.name ?? (labelKey ? tc(labelKey) : null);
+  }
+  const backTo = origin && (fromPhotos || otherLabel) ? origin.to : photosPath;
+  const backToPhotos = fromPhotos || !otherLabel;
+  const backLabel = otherLabel
+    ? tc('navigation.backTo', { origin: otherLabel })
+    : tc('navigation.photos');
+  const backState = useMemo(
+    () => (backToPhotos ? { focusSpotId: `spot-${currentSpotKey}` } : undefined),
+    [backToPhotos, currentSpotKey],
+  );
   const goBack = useCallback(() => {
     void navigate(backTo, { state: backState });
   }, [navigate, backTo, backState]);
+  const entryLinkState = useOriginState(status === 'ready' ? spotLabel : null);
 
   const onSelect = useCallback(
     (i: number) => {
@@ -87,18 +109,11 @@ export default function PhotoSpotViewerPage() {
     headingRef.current?.focus();
   }, [status, currentSpotKey]);
 
-  useEffect(() => {
-    if (status !== 'ready') return;
-    const prev = document.title;
-    document.title = t('viewer.documentTitle', { spot: spotLabel });
-    return () => {
-      document.title = prev;
-    };
-  }, [status, t, spotLabel]);
+  useDocumentTitle(status === 'ready' ? spotLabel : null);
 
   const heading = (
     <h1 tabIndex={-1} ref={headingRef} className={sharedStyles.srOnly}>
-      {status === 'ready' ? spotLabel : t('page.title')}
+      {status === 'ready' ? spotLabel : tc('navigation.photos')}
     </h1>
   );
 
@@ -120,7 +135,10 @@ export default function PhotoSpotViewerPage() {
         <EmptyState
           message={notFound ? t('viewer.notFoundTitle') : t('viewer.emptyTitle')}
           description={notFound ? t('viewer.notFoundDescription') : t('viewer.emptyDescription')}
-          action={{ label: t('viewer.backToSpots'), onClick: goBack }}
+          action={{
+            label: tc('navigation.backTo', { origin: otherLabel ?? tc('navigation.photos') }),
+            onClick: goBack,
+          }}
         />
       </div>
     );
@@ -147,6 +165,8 @@ export default function PhotoSpotViewerPage() {
         onBack={goBack}
         backTo={backTo}
         backState={backState}
+        backLabel={backLabel}
+        entryLinkState={entryLinkState}
         area={area}
         orientation={orientation}
         headingSlot={heading}

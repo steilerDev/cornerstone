@@ -252,7 +252,7 @@ test('Caption persists across lightbox navigation (detail page)', async ({
     const viewer = new PhotoViewerPage(page);
 
     await detailPage.goto(entryId);
-    await expect(detailPage.backButton).toBeVisible();
+    await expect(detailPage.loaded).toBeVisible();
 
     // ── Open PhotoViewer on photo 1 ────────────────────────────────────────
     await openPhotoViewer(page, photo1Id, viewer);

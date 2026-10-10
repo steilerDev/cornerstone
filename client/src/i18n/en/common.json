@@ -50,7 +50,12 @@
     "splitWithAi": "Split with AI",
     "bankReport": "Bank report",
     "fundingSources": "Funding sources",
-    "grants": "Grants"
+    "grants": "Grants",
+    "newDiaryEntry": "New diary entry",
+    "editDiaryEntry": "Edit diary entry",
+    "diaryEntry": "Diary entry",
+    "diaryEntryNotFound": "Diary entry not found",
+    "diaryEntryUntitled": "{{type}} · {{date}}"
   },
   "name": "Name",
   "noArea": "No Area",
@@ -113,12 +118,12 @@
     "current": "Current: {{current}} — click to switch to {{next}}"
   },
   "notFound": {
-    "title": "404 - Page Not Found",
+    "title": "Page not found",
     "description": "The page you are looking for does not exist or has been moved.",
-    "backLink": "Go back to Project Overview"
+    "backLink": "Go to Home"
   },
   "noAccess": {
-    "title": "You don't have access to this page",
+    "title": "No access",
     "description": "Ask an administrator if you need it",
     "backLink": "Back to Home"
   },

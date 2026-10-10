@@ -1,16 +1,16 @@
 /**
- * E2E tests for UAT fixes applied to the Construction Diary (EPIC-13).
+ * E2E tests for UAT fixes applied to the Site diary (EPIC-13).
  *
  * Issues addressed:
  * - #845: Remove PDF export and print functionality
- * - #842: Back button navigates to /diary; source entity links show entity title
+ * - #842: the breadcrumb navigates to /diary; source entity links show entity title
  * - #838: Automatic events shown in section per date group (UAT R2 #868: now flat div, not collapsible)
  * - #843: After creating entry, navigate to /diary/:id/edit instead of detail page
  * - #844: Dashboard "Recent Diary" card showing latest entries
  *
  * Scenarios covered:
  * 1.  [smoke] Diary list page renders without export button
- * 2.  [smoke] Diary detail back button navigates to /diary (not browser-back)
+ * 2.  [smoke] Diary detail "Site diary" breadcrumb navigates to /diary
  * 3.  [smoke] Dashboard "Recent Diary" card is visible
  * 4.  Source entity title displayed in diary card source link
  * 5.  Automatic events are in a flat "Automated Events" section (UAT R2 #868: changed from collapsible) per date group
@@ -44,11 +44,11 @@ test.describe('No export button (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Back button navigates to /diary
+// Scenario 2: the breadcrumb navigates to /diary
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Back button navigates to /diary (Scenario 2)', { tag: '@responsive' }, () => {
+test.describe('Breadcrumb navigates to /diary (Scenario 2)', { tag: '@responsive' }, () => {
   test(
-    'Back button on diary detail page navigates to the /diary list page',
+    'The "Site diary" breadcrumb on the detail page navigates to the /diary list page',
     { tag: '@smoke' },
     async ({ page, testPrefix }) => {
       const detailPage = new DiaryEntryDetailPage(page);
@@ -63,10 +63,10 @@ test.describe('Back button navigates to /diary (Scenario 2)', { tag: '@responsiv
         });
 
         await detailPage.goto(createdId);
-        await expect(detailPage.backButton).toBeVisible();
+        await expect(detailPage.loaded).toBeVisible();
 
-        // UAT fix #842: back button calls navigate('/diary') — always goes to list, not browser-back
-        await detailPage.backButton.click();
+        // UAT fix #842: the way back is the "Site diary" breadcrumb (always the list, not browser-back)
+        await detailPage.breadcrumbs.trailLink('Site diary').click();
 
         // Must land on /diary (exact path, not /diary/:id)
         await page.waitForURL('**/diary', { timeout: 15_000 });
@@ -321,9 +321,8 @@ test.describe('Create navigates to detail page (Scenario 6)', { tag: '@responsiv
         await page.waitForURL(new RegExp(`/diary/${createdId}$`));
         expect(page.url()).toMatch(new RegExp(`/diary/${createdId}$`));
 
-        // Detail page back button should be visible (confirms we're on detail page)
-        const backButton = page.getByLabel('Go back to diary');
-        await expect(backButton).toBeVisible();
+        // The entry has loaded (confirms we're on the detail page)
+        await expect(new DiaryEntryDetailPage(page).loaded).toBeVisible();
       } finally {
         if (createdId) await deleteDiaryEntryViaApi(page, createdId);
       }
@@ -417,7 +416,7 @@ test.describe('No print button on detail page (Scenario 8)', { tag: '@responsive
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // UAT fix #845: print button removed from detail page
       const printButton = page.getByRole('button', { name: /Print/i });

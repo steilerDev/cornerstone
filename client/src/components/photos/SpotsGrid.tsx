@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FilterChipGroup } from '../FilterChipGroup/index.js';
 import { SpotThumbnail } from '../SpotThumbnail/index.js';
+import type { OriginState } from '../../navigation/origin.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { buildSpotViewerPath, spotKey } from '../../lib/photoSpots.js';
 import type { SpotGroup } from '../../lib/photoSpots.js';
@@ -11,7 +12,7 @@ import styles from './SpotsGrid.module.css';
 
 export interface SpotsGridProps {
   groups: SpotGroup[];
-  linkState?: unknown;
+  linkState?: OriginState;
 }
 
 const ALL = 'all';

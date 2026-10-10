@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { ManualDiaryEntryType } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { forwardOriginState } from '../../navigation/origin.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './DiaryEntryCreatePage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -36,8 +39,11 @@ function TypeCard({ type, emoji, label, description, disabled, onSelect }: TypeC
 
 export default function DiaryEntryCreatePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { t } = useTranslation('diary');
   const { t: tCommon } = useTranslation('common');
+  const pageTitle = tCommon('navigation.newDiaryEntry');
+  useDocumentTitle(pageTitle);
   const { showToast } = useToast();
   const [isCreating, setIsCreating] = useState(false);
   const draftCreatingRef = useRef(false);
@@ -48,7 +54,10 @@ export default function DiaryEntryCreatePage() {
     setIsCreating(true);
     try {
       const draft = await createDiaryEntry({ entryType: type, status: 'draft' });
-      navigate(routeUrl('diaryEntryEdit', { id: draft.id }), { replace: true });
+      navigate(routeUrl('diaryEntryEdit', { id: draft.id }), {
+        replace: true,
+        state: forwardOriginState(location.state),
+      });
     } catch (err) {
       showToast('error', t('createPage.draftCreateError'));
       console.error('Failed to create draft:', err);
@@ -59,15 +68,9 @@ export default function DiaryEntryCreatePage() {
 
   return (
     <div className={styles.container}>
+      <PageBreadcrumbs />
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.backButton}
-          onClick={() => navigate(routeUrl('diary'))}
-        >
-          {t('createPage.backLink')}
-        </button>
-        <h1 className={styles.title}>{t('createPage.title')}</h1>
+        <h1 className={styles.title}>{pageTitle}</h1>
       </div>
 
       <div className={styles.typeSelector}>

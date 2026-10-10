@@ -2456,7 +2456,7 @@
     "to": "Site diary > Site diary list (grouped by week; photo-first cards)",
     "change": "same",
     "gate": "none",
-    "note": "One header per week instead of per entry (P30)."
+    "note": "One header per week instead of per entry (P30). #2204: h1 \"Site diary\"; filter changes use history replace."
   },
   "JRN-002": {
     "name": "Load older diary entries progressively (infinite scroll, \"Load more\", retry)",
@@ -2546,7 +2546,7 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3)."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
@@ -2586,7 +2586,7 @@
     "to": "Site diary > Site diary list > 'Unfinished' row; Home > Tidy up (draft older than 1 day: Continue · Discard)",
     "change": "promoted",
     "gate": "none",
-    "note": "Real data: 1 draft from 1 Sep."
+    "note": "Real data: 1 draft from 1 Sep. #2204: a draft opens with h1 \"New diary entry\" and breadcrumb \"Site diary\"."
   },
   "JRN-018": {
     "name": "Automatically delete abandoned drafts after a retention period",
@@ -2714,7 +2714,7 @@
     "to": "Site diary > Entry page (/diary/:id)",
     "change": "same",
     "gate": "none",
-    "note": "Photos first."
+    "note": "Photos first. #2204: h1 = entry title, else \"‹Type› · ‹date›\"; breadcrumb \"Site diary\"; Home and spot-viewer openers pass origin (\"Back to Home\" / \"Back to ‹spot›\")."
   },
   "JRN-032": {
     "name": "Edit a saved diary entry",
@@ -2722,7 +2722,7 @@
     "to": "Site diary > Entry page > Edit -> Site diary > Capture (/diary/new, /diary/:id/edit)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2204: h1 \"Edit diary entry\", breadcrumb \"Site diary › ‹entry›\"; Save/Cancel return in one step."
   },
   "JRN-033": {
     "name": "Delete a diary entry and its photos",
@@ -2992,7 +2992,7 @@
     "change": "same",
     "gate": "none",
     "decision": "Q16a, Q16c (approved, PLAN §2.0 #24)",
-    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct)."
+    "note": "'No orientation' is a valid tag. Photos without an area are normal (deliveries, materials, timesheets) and show as a neutral 'No area' group (owner, 7 Oct). #2204: h1 \"Photos\", tab title \"Photos · ‹house›\"."
   },
   "JRN-064": {
     "name": "See per spot the photo count, latest diary date and latest thumbnail",
@@ -3016,7 +3016,7 @@
     "to": "Photos > Spot viewer > earlier / later, 'n of N' in list order (1 = newest, as decided on 1 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as the owner decided; D-31 is reduced to the hidden title, and the 'No area' spot is an ordinary spot series (PLAN §2.0 #24)."
+    "note": "Kept as the owner decided; D-31 is reduced to the hidden title, and the 'No area' spot is an ordinary spot series (PLAN §2.0 #24). #2204: the viewer's top-bar link reads \"Photos\" (restores the spots filter) or \"Back to ‹origin›\"; tab title \"‹spot› · Photos · ‹house›\"."
   },
   "JRN-067": {
     "name": "See a spot photo's diary date, area path, orientation and caption",
@@ -3304,7 +3304,7 @@
     "to": "Router > / renders Home; /schedule -> Tasks > Schedule (query kept); /budget -> Money > Overview; /settings -> Settings > Project setup",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (daily use). #2201: / lands on /project/overview in one hop (was two)."
+    "note": "Kept as it works today, inside Router; only the shared page template, the words and the navigation around it change (daily use). #2201: / lands on /project/overview in one hop (was two). #2204: /settings/manage no longer rewrites itself to ?tab=areas on load; the default tab shows without a URL change."
   },
   "PLT-013": {
     "name": "See a \"Page not found\" page for unknown in-app URLs, with a link back to the project overview",
@@ -3312,7 +3312,7 @@
     "to": "404 page > 'Go to Home'",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside 404 page; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside 404 page; only the shared page template, the words and the navigation around it change (rare use). #2204: h1 \"Page not found\" (no \"404 -\"), link \"Go to Home\", tab title \"Page not found · ‹house›\"."
   },
   "PLT-014": {
     "name": "Recover automatically when the app was updated while a tab was open (stale code chunks)",
@@ -3328,7 +3328,7 @@
     "to": "Global > loading states (translated)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (daily use). #2204: the session-check loading text is translated."
   },
   "PLT-016": {
     "name": "Print any page with the app chrome hidden",
@@ -3376,7 +3376,7 @@
     "to": "Auth > Login (keeps the requested URL and returns to it)",
     "change": "same",
     "gate": "none",
-    "note": "Deep link fix (D-13)."
+    "note": "Deep link fix (D-13). #2204: a signed-out deep link goes to /login?next=<url>; local sign-in refreshes the session and lands on it (D-13)."
   },
   "PLT-022": {
     "name": "Skip the sign-in page when already signed in",
@@ -3384,7 +3384,7 @@
     "to": "Auth > Login skipped when signed in -> Home",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (rare use). #2204: a signed-in visit to /login honours a valid ?next=."
   },
   "PLT-023": {
     "name": "Sign in with single sign-on (SSO / OpenID Connect)",
@@ -3392,7 +3392,7 @@
     "to": "Auth > Login > 'Sign in with SSO' (OIDC only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (weekly use). #2204: the SSO start passes ?redirect=<next>; after SSO the user lands on the deep link (D-13)."
   },
   "PLT-024": {
     "name": "Have an existing account linked to the identity provider automatically on first SSO sign-in",
@@ -3416,7 +3416,7 @@
     "to": "Auth > Login > SSO error banner (SSO only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Auth; only the shared page template, the words and the navigation around it change (rare use). #2204: banner unchanged; callback error redirects keep next when the sign-in state is known."
   },
   "PLT-027": {
     "name": "Sign out",
@@ -3457,7 +3457,7 @@
     "to": "Settings > Account > Profile > Sign-in method (SSO only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Shown only when single sign-on (OIDC) is configured."
+    "note": "Shown only when single sign-on (OIDC) is configured. #2204: h1 \"Account\", tab title \"Account · Settings · ‹house›\"."
   },
   "PLT-032": {
     "name": "Change own display name",
@@ -3804,7 +3804,7 @@
     "to": "Settings > Users (admin only)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays). #2204: h1 \"Users\", tab title \"Users · Settings · ‹house›\"."
   },
   "PLT-073": {
     "name": "Search users by name or email",
@@ -3908,7 +3908,7 @@
     "to": "Settings > Backups (admin only) > list",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (monthly use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (monthly use). #2200: members who open the URL get the \"No access\" page in place (URL kept, sidebar stays). #2204: h1 \"Backups\", tab title \"Backups · Settings · ‹house›\"."
   },
   "PLT-087": {
     "name": "Restore the whole instance from a backup",
@@ -3949,7 +3949,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "Project setup sections reachable by ?tab= anchors; areas via /areas.",
-    "note": "Manage's inner tab row and Back trap retired (D-10, P17). #2196: Manage tab row scrolls instead of overflowing, with arrow-key navigation."
+    "note": "Manage's inner tab row and Back trap retired (D-10, P17). #2196: Manage tab row scrolls instead of overflowing, with arrow-key navigation. #2204: tab changes use history replace and loading the page writes nothing to the URL (D-10 Back trap fixed)."
   },
   "PLT-092": {
     "name": "Set the household name and address",

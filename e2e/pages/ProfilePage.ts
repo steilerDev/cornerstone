@@ -46,7 +46,7 @@ export class ProfilePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.heading = page.getByRole('heading', { level: 1, name: 'Profile' });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Account', exact: true });
     this.profileInfoSection = page
       .getByRole('heading', { level: 2, name: 'Profile Information' })
       .locator('..');

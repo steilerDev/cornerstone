@@ -98,7 +98,7 @@ test.describe('Photo section heading (Scenario 1)', { tag: '@responsive' }, () =
         });
 
         await detailPage.goto(createdId);
-        await expect(detailPage.backButton).toBeVisible();
+        await expect(detailPage.loaded).toBeVisible();
 
         // Photo section should always be rendered
         await expect(detailPage.photoSection).toBeVisible();
@@ -132,7 +132,7 @@ test.describe('Photo empty state (Scenario 2)', () => {
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Empty state text must be present
       await expect(detailPage.photoEmptyState).toBeVisible();
@@ -239,7 +239,7 @@ test.describe('"Add photos" link navigation (Scenario 4)', () => {
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // The "Add photos" link should be visible in the photo empty state
       const addPhotosLink = page.getByRole('link', { name: /Add photos/i });
@@ -275,7 +275,7 @@ test.describe('Photo section on edit page (Scenario 5)', { tag: '@responsive' },
       await page.goto(`/diary/${createdId}/edit`);
 
       // Wait for the edit page to load
-      await page.getByRole('heading', { level: 1, name: 'Edit Diary Entry' }).waitFor({
+      await page.getByRole('heading', { level: 1, name: /^(Edit|New) diary entry$/ }).waitFor({
         state: 'visible',
       });
 
@@ -307,7 +307,7 @@ test.describe('Responsive — photo section (Scenario 6)', { tag: '@responsive' 
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
       await expect(detailPage.photoSection).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
@@ -339,7 +339,7 @@ test.describe('No signature section without signatures (Scenario 7)', () => {
       });
 
       await detailPage.goto(createdId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // signatureSection is conditionally rendered only when signatures[] is non-empty
       await expect(detailPage.signatureSection).not.toBeVisible();
@@ -407,7 +407,7 @@ test.describe('Signature rendered in detail view (Scenario 8)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Signature section should be rendered
       await expect(detailPage.signatureSection).toBeVisible();
@@ -459,7 +459,7 @@ test.describe('Edit hidden for signed entries (Scenario 9)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Edit must NOT be rendered for signed entries (cannot edit a signed entry)
       await expect(detailPage.editButton).not.toBeVisible();
@@ -512,7 +512,7 @@ test.describe('Photo section visibility (Scenario 10)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // Photo section should be entirely hidden for signed entries with no photos
       await expect(page.getByRole('link', { name: /Add photos/i })).not.toBeVisible();
@@ -561,7 +561,7 @@ test.describe('Photo section visibility (Scenario 10)', () => {
 
     try {
       await detailPage.goto(mockId);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.loaded).toBeVisible();
 
       // UAT R3 fix #875: entire photo section is hidden for automatic entries
       await expect(page.getByRole('link', { name: /Add photos/i })).not.toBeVisible();

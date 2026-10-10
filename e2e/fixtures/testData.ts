@@ -44,6 +44,14 @@ export const ROUTES = {
   backups: routeUrl('settingsBackups'),
 };
 
+/**
+ * The sign-in URL a signed-out visit to `target` lands on (#2204): `/login?next=<target>`.
+ * Built with the same `routeUrl` the AuthGuard uses, so the encoding always matches.
+ */
+export function loginUrlFor(target: string): string {
+  return routeUrl('login', undefined, { next: target });
+}
+
 export const API = {
   health: '/api/health',
   authMe: '/api/auth/me',
