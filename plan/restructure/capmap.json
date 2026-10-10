@@ -444,7 +444,7 @@
     "to": "Global > keyboard shortcuts (/, n, ?, g+section) on every page; Global > User menu > Keyboard shortcuts",
     "change": "promoted",
     "gate": "none",
-    "note": "Shortcuts registered once globally (GLB-11)."
+    "note": "Shortcuts registered once globally (GLB-11). #2206: User menu > Keyboard shortcuts lists the current page's registered shortcuts (registry in AppShell)."
   },
   "WRK-070": {
     "name": "Use keyboard shortcuts on the work-item detail page",
@@ -3226,7 +3226,7 @@
     "to": "Global > Sidebar > Settings (opens Settings > Project setup; real link with aria-current); Global > User menu > Account",
     "change": "same",
     "gate": "none",
-    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\". #2205: Settings is a link to /settings/manage with aria-current; /settings redirects there."
+    "note": "No longer a Logout-styled button (NAV-17). #2200: same active colours as the other items; aria-current=\"page\". #2205: Settings is a link to /settings/manage with aria-current; /settings redirects there. #2206: also Global > User menu > Account (Settings > Account)."
   },
   "PLT-004": {
     "name": "Switch between the pages of a section via the second-level tab bar (sub-nav)",
@@ -3243,7 +3243,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Out of the sidebar footer (GLB-13)."
+    "note": "Out of the sidebar footer (GLB-13). #2206: Theme is a Light / Dark / System choice in the user menu (top bar, 1024 px and wider); below 1024 px the sidebar footer toggle stays until #2207."
   },
   "PLT-006": {
     "name": "Follow the operating-system light/dark setting automatically",
@@ -3268,7 +3268,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Moves to Global, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Global, the one home of its object (principle 2); the old URL keeps working (rare use). #2206: version shown on the About line of the user menu; below 1024 px still in the sidebar footer until #2207."
   },
   "PLT-009": {
     "name": "Open the project's GitHub repository",
@@ -3278,7 +3278,7 @@
     "gate": "none",
     "clicks": 2,
     "clickPath": "Avatar menu (1) > About: GitHub link (2)",
-    "note": "Developer link off primary chrome; 2 clicks."
+    "note": "Developer link off primary chrome; 2 clicks. #2206: About › GitHub link in the user menu (new tab); below 1024 px still in the sidebar footer until #2207."
   },
   "PLT-010": {
     "name": "Open and close the navigation drawer on phones and tablets",
@@ -3425,7 +3425,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Away from Settings (GLB-13)."
+    "note": "Away from Settings (GLB-13). #2206: Log out is the last user-menu row from 1024 px; below 1024 px the sidebar footer button (now \"Log out\") stays until #2207. One control per viewport."
   },
   "PLT-028": {
     "name": "Stay signed in for a fixed period without re-entering credentials",
@@ -3489,7 +3489,7 @@
     "to": "Settings > Account > Preferences > Language; Global > User menu > Language (toggled in place)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch)."
   },
   "PLT-036": {
     "name": "See dates, numbers and money formatted for the chosen language",

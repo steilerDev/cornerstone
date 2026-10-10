@@ -9,6 +9,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFile } from 'fs/promises';
 import { TEST_ADMIN, API } from '../../fixtures/testData.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 
 // Read the proxy base URL from container state
 let proxyBaseUrl: string;
@@ -160,20 +161,8 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     // When: Logging out through the proxy
     await page.goto(`${proxyBaseUrl}/settings/profile`);
 
-    // Open sidebar on mobile/tablet viewports where it's hidden
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width < 1024) {
-      // Scope to header to avoid strict mode violation (sidebar also has a Close menu button)
-      const menuButton = page
-        .locator('header')
-        .getByRole('button', { name: /Open menu|Close menu/ });
-      await menuButton.click();
-      // Wait for sidebar to open (CSS transform-based, not display-based)
-      await page.locator('aside[data-open="true"]').waitFor();
-    }
-
-    const logoutButton = page.getByRole('button', { name: /logout/i });
-    await logoutButton.click();
+    // Real UI log-out: user menu on desktop, sidebar drawer below 1024px (#2206)
+    await new AppShellPage(page).logout();
 
     // Then: Should redirect to login page
     await expect(page).toHaveURL(/\/login/);

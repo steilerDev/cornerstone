@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useEffect, useId } from 'react';
+import { useShortcutRegistry } from './shortcutRegistry.js';
 
 export interface KeyboardShortcut {
   key: string;
@@ -14,6 +15,10 @@ export interface KeyboardShortcut {
  * @returns The same array of shortcuts (for the help overlay)
  */
 export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]): KeyboardShortcut[] {
+  const registry = useShortcutRegistry();
+  const id = useId();
+  useEffect(() => registry?.register(id, shortcuts), [registry, id, shortcuts]);
+
   useEffect(() => {
     function handleKeyDown(event: KeyboardEvent) {
       // Ignore shortcuts when modifier keys are held

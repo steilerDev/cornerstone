@@ -156,4 +156,38 @@ describe('Breadcrumbs', () => {
     expect(screen.getByRole('link', { name: 'Tasks' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Milestones' })).toBeVisible();
   });
+
+  describe('layout', () => {
+    it('uses the page row by default, without the bar modifier', () => {
+      renderCrumbs({ parents: [TASKS] });
+
+      const row = screen.getByTestId('breadcrumbs');
+      expect(row).toHaveClass('row');
+      expect(row).not.toHaveClass('rowBar');
+    });
+
+    it('keeps the page row for an explicit layout="page"', () => {
+      renderCrumbs({ parents: [TASKS], layout: 'page' });
+
+      expect(screen.getByTestId('breadcrumbs')).not.toHaveClass('rowBar');
+    });
+
+    it('adds the one-line bar modifier for layout="bar" and keeps the base row class', () => {
+      renderCrumbs({ parents: [TASKS], layout: 'bar' });
+
+      const row = screen.getByTestId('breadcrumbs');
+      expect(row).toHaveClass('row', 'rowBar');
+    });
+
+    it('keeps the same landmark, links and test ids in the bar layout', () => {
+      renderCrumbs({ parents: [TASKS], origin: HOME_ORIGIN, layout: 'bar' });
+
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getByRole('link', { name: 'Tasks' })).toHaveAttribute(
+        'href',
+        '/project/work-items',
+      );
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveAttribute('href', '/project/overview');
+    });
+  });
 });

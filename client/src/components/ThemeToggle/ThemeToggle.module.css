@@ -36,7 +36,7 @@
 }
 
 /* Mobile / tablet touch target */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .themeToggle {
     min-height: 44px;
     font-size: var(--font-size-sm);

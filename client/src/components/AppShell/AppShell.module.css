@@ -1,6 +1,16 @@
 .appShell {
+  --topbar-height: calc(var(--spacing-12) + var(--spacing-2));
+
   display: flex;
   min-height: 100vh;
+}
+
+/* Non-scrolling column: the sticky top bar sticks to the viewport, not to .mainContent */
+.shellColumn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .mainContent {
@@ -33,7 +43,7 @@
 }
 
 /* Mobile and tablet: show overlay when sidebar is open */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .overlay {
     display: block;
   }
@@ -49,10 +59,10 @@
   width: var(--spacing-12);
   height: var(--spacing-12);
   border-radius: var(--radius-full);
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
   font-size: var(--font-size-2xl);
-  border: none;
+  border: 1px solid var(--color-border-strong);
   cursor: pointer;
   z-index: calc(var(--z-overlay) + 10);
   box-shadow: var(--shadow-md);
@@ -60,17 +70,18 @@
 }
 
 .menuFab:hover {
-  background-color: var(--color-primary-hover);
+  background-color: var(--color-bg-hover);
   box-shadow: var(--shadow-lg);
 }
 
 .menuFab:focus-visible {
   outline: none;
   box-shadow: var(--shadow-focus);
+  border-color: var(--color-border-focus);
 }
 
 /* Mobile and tablet: show floating menu button */
-@media (max-width: 1024px) {
+@media (max-width: 1023px) {
   .menuFab {
     display: flex;
     align-items: center;
@@ -87,7 +98,7 @@
 /* Full-height layout opt-in: pages with data-layout="full-height" want to manage
    their own internal scrolling (header + scrollable column). We only drop the
    pageContent padding so the page can occupy the full mainContent area; we keep
-   mainContent's overflow-y: auto so the sidebar's sticky positioning still works. */
+   mainContent's overflow-y: auto to contain wide pages horizontally. */
 .mainContent:has(> main > [data-layout='full-height']) > main {
   padding: 0;
 }

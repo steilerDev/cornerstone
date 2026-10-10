@@ -130,7 +130,7 @@ async function createAndLinkBudgetLine(
 
 /**
  * Opens the OverflowMenu for a budget line row by clicking the trigger button.
- * The trigger renders with aria-haspopup="true" scoped to the budgetLinesSection.
+ * The trigger renders with aria-haspopup="menu" scoped to the budgetLinesSection.
  *
  * With usePortal=true the menu is appended to document.body outside the section —
  * we wait for a visible role="menu" anywhere on the page.
@@ -139,7 +139,7 @@ async function openBudgetLineMenu(
   page: Page,
   section: ReturnType<typeof page.locator>,
 ): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="true"]').visible().first();
+  const trigger = section.locator('button[aria-haspopup="menu"]').visible().first();
 
   // Pre-scroll the trigger into the center of the viewport before clicking.
   // This prevents the OverflowMenu's scroll-close listener from firing during

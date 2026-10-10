@@ -82,6 +82,27 @@
   overflow: hidden;
 }
 
+/* Top bar: one line, no bottom margin */
+.rowBar {
+  margin-bottom: 0;
+  flex-wrap: nowrap;
+  min-height: var(--spacing-10);
+  min-width: 0;
+}
+
+.rowBar .list {
+  flex-wrap: nowrap;
+}
+
+.rowBar .item {
+  flex: 0 0 auto;
+}
+
+.rowBar .item:has(.linkDynamic) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
 .label {
   min-width: 0;
   overflow: hidden;

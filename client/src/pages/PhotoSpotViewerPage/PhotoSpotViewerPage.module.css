@@ -2,6 +2,12 @@
   min-height: 100dvh;
 }
 
+@media (min-width: 1024px) {
+  .root {
+    min-height: calc(100dvh - var(--topbar-height));
+  }
+}
+
 /* The dark stage only wraps the viewer itself; loading/error/empty states use the themed page. */
 .rootViewer {
   background: var(--color-photo-stage-bg);

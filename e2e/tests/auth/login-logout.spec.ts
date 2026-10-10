@@ -63,13 +63,7 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     await loginPage.login(TEST_ADMIN.email, TEST_ADMIN.password);
     await expect(page).toHaveURL(ROUTES.home);
 
-    // Open sidebar if on mobile/tablet viewport
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width < 1024) {
-      await appShell.openSidebar();
-    }
-
-    // When: User clicks Logout
+    // When: User logs out (user menu on desktop, sidebar drawer below 1024px)
     await appShell.logout();
 
     // Then: Should redirect to login page
@@ -84,12 +78,6 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     await loginPage.goto();
     await loginPage.login(TEST_ADMIN.email, TEST_ADMIN.password);
     await expect(page).toHaveURL(ROUTES.home);
-
-    // Open sidebar if on mobile/tablet viewport
-    const viewport = page.viewportSize();
-    if (viewport && viewport.width < 1024) {
-      await appShell.openSidebar();
-    }
 
     await appShell.logout();
     await expect(page).toHaveURL(ROUTES.login);

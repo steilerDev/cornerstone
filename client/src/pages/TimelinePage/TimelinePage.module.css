@@ -11,10 +11,16 @@
   margin: -2rem;
   display: flex;
   flex-direction: column;
-  /* Full height: viewport minus AppShell header (60px) */
+  /* Full height: viewport minus the desktop top bar (from 1024 px, see below) */
   height: calc(100vh - 60px);
   overflow: hidden;
   background: var(--color-bg-secondary);
+}
+
+@media (min-width: 1024px) {
+  .page {
+    height: calc(100dvh - var(--topbar-height));
+  }
 }
 
 /* ---- Page header: title + zoom toggle ---- */

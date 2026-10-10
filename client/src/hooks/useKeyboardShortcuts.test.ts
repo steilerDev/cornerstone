@@ -1,6 +1,8 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { createElement, type ReactNode } from 'react';
 import { renderHook, act } from '@testing-library/react';
 import { useKeyboardShortcuts } from './useKeyboardShortcuts.js';
+import { ShortcutRegistryProvider, useShortcutRegistry } from './shortcutRegistry.js';
 import type { KeyboardShortcut } from './useKeyboardShortcuts.js';
 
 describe('useKeyboardShortcuts', () => {
@@ -158,5 +160,60 @@ describe('useKeyboardShortcuts', () => {
     });
 
     expect(preventDefaultSpy).toHaveBeenCalled();
+  });
+});
+
+describe('useKeyboardShortcuts registry integration', () => {
+  const list: KeyboardShortcut[] = [{ key: 'n', handler: () => {}, description: 'New item' }];
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(ShortcutRegistryProvider, null, children);
+
+  it('registers its list in the surrounding provider', () => {
+    const { result } = renderHook(
+      () => {
+        useKeyboardShortcuts(list);
+        return useShortcutRegistry();
+      },
+      { wrapper },
+    );
+    expect(result.current?.snapshot()).toEqual(list);
+  });
+
+  it('removes its entries from the registry when the page unmounts', () => {
+    // One provider instance, two siblings: a page hook and a registry reader.
+    const holder: { registry: ReturnType<typeof useShortcutRegistry> } = { registry: null };
+    const Provider = ({ children }: { children: ReactNode }) =>
+      createElement(ShortcutRegistryProvider, null, children);
+    const reader = renderHook(
+      () => {
+        holder.registry = useShortcutRegistry();
+      },
+      { wrapper: Provider },
+    );
+    expect(holder.registry?.snapshot()).toEqual([]);
+    // The registry is per provider, so register through the same hook instance
+    const page = renderHook(
+      () => {
+        useKeyboardShortcuts(list);
+        holder.registry = useShortcutRegistry();
+      },
+      { wrapper: Provider },
+    );
+    const own = holder.registry;
+    expect(own?.snapshot()).toEqual(list);
+    page.unmount();
+    expect(own?.snapshot()).toEqual([]);
+    reader.unmount();
+  });
+
+  it('still handles keys and does not throw without a provider', () => {
+    const handler = jest.fn<() => void>();
+    expect(() =>
+      renderHook(() => useKeyboardShortcuts([{ key: 'q', handler, description: 'Q' }])),
+    ).not.toThrow();
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'q' }));
+    });
+    expect(handler).toHaveBeenCalledTimes(1);
   });
 });

@@ -13,6 +13,8 @@
 - [test-patterns-reference.md](test-patterns-reference.md) — Jest/ts-jest/Fastify/Drizzle infra patterns: sqlite sync errors, ESM mock shape, worktree jest execution, key file locations (overlaps test-infra-reference.md)
 - [environment-setup.md](environment-setup.md) — worktree/sandbox gotchas: ARM64 crashes (older infra), `@cornerstone/shared` symlink issues, definitive jest invocation pattern, schema quirks; **2026-09-07: current sandbox has real per-worktree node_modules — never `rm -rf node_modules` for a single stale package, virtiofs ENOTDIR race on full reinstall, rsync-from-base-repo recovery fallback**
 
+- [Story #2206 top bar / user menu](story-2206-top-bar-user-menu.md) (2026-10-10) — matchMedia not configurable, noTabRows flags href+label arrays, OverflowMenu panel vs list classes, bash-guard workarounds
+
 - [Issue #2132 in-place restore tests](issue-2132-restore-in-place-tests.md) (2026-10) — fs.renameSync spy injection, non-WAL fixtures for byte-identical rollback, lock-leak cascade, rollback idempotency bug, "./" archive quirk
 
 - [Story #2202 page identity](story-2202-page-identity.md) (2026-10) — OriginProbe test helper, live query maps consume keys, title/breadcrumb patterns, command-guard drops edits silently

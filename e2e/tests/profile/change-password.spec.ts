@@ -75,10 +75,6 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
 
       // Verify new password works by logging out and back in
       const appShell = new AppShellPage(scopedPage);
-      const viewport = scopedPage.viewportSize();
-      if (viewport && viewport.width < 1024) {
-        await appShell.openSidebar();
-      }
       await appShell.logout();
 
       await loginPage.login(dedicatedEmail, newPassword);

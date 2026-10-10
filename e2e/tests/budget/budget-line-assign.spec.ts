@@ -186,7 +186,7 @@ async function openBudgetLineMenu(
   page: Page,
   section: ReturnType<typeof page.locator>,
 ): Promise<void> {
-  const trigger = section.locator('button[aria-haspopup="true"]').visible().first();
+  const trigger = section.locator('button[aria-haspopup="menu"]').visible().first();
   await trigger.evaluate((el) => el.scrollIntoView({ block: 'center', inline: 'nearest' }));
   await trigger.click();
   await page.locator('[role="menu"]').visible().first().waitFor({ state: 'visible' });

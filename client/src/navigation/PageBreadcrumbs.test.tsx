@@ -2,12 +2,14 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, afterEach } from '@jest/globals';
+import { useState, type ReactNode } from 'react';
 import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n/index.js';
 import { PageBreadcrumbs } from './PageBreadcrumbs.js';
 import { usePageBreadcrumbs, type ObjectNames } from './usePageBreadcrumbs.js';
 import { originStateFor } from './origin.js';
+import { BreadcrumbSlotContext } from './breadcrumbSlot.js';
 
 function renderAt(pathname: string, options: { state?: unknown; objectNames?: ObjectNames } = {}) {
   return render(
@@ -338,5 +340,82 @@ describe('PageBreadcrumbs', () => {
       expect(trailLabels()).toEqual(['Site diary', 'Synthetic pour']);
       expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Site diary');
     });
+  });
+});
+
+describe('PageBreadcrumbs in the top bar (>= 1024 px)', () => {
+  const originalMatchMedia = window.matchMedia;
+
+  function setWide(wide: boolean) {
+    window.matchMedia = (query: string): MediaQueryList =>
+      ({
+        matches: wide && query === '(min-width: 1024px)',
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => false,
+      }) as MediaQueryList;
+  }
+
+  afterEach(() => {
+    cleanup();
+    window.matchMedia = originalMatchMedia;
+  });
+
+  function Shell({ withSlot, children }: { withSlot: boolean; children: ReactNode }) {
+    const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+    return (
+      <BreadcrumbSlotContext value={withSlot ? slot : null}>
+        <div data-testid="bar-slot" ref={setSlot} />
+        <main data-testid="page">{children}</main>
+      </BreadcrumbSlotContext>
+    );
+  }
+
+  function renderShell(withSlot: boolean) {
+    return render(
+      <MemoryRouter initialEntries={['/project/work-items/w-1']}>
+        <Shell withSlot={withSlot}>
+          <PageBreadcrumbs />
+        </Shell>
+      </MemoryRouter>,
+    );
+  }
+
+  it('renders the row inside the bar slot and not in the page when wide and a slot exists', () => {
+    setWide(true);
+    renderShell(true);
+
+    const slot = screen.getByTestId('bar-slot');
+    expect(within(slot).getByTestId('breadcrumbs')).toHaveClass('rowBar');
+    expect(within(screen.getByTestId('page')).queryByTestId('breadcrumbs')).toBeNull();
+    expect(screen.getAllByRole('navigation', { name: 'You are here' })).toHaveLength(1);
+  });
+
+  it('renders inline when wide but there is no slot (outside the shell)', () => {
+    setWide(true);
+    renderShell(false);
+
+    expect(within(screen.getByTestId('page')).getByTestId('breadcrumbs')).not.toHaveClass('rowBar');
+    expect(within(screen.getByTestId('bar-slot')).queryByTestId('breadcrumbs')).toBeNull();
+    expect(screen.getAllByRole('navigation', { name: 'You are here' })).toHaveLength(1);
+  });
+
+  it('renders inline when narrow even though a slot exists', () => {
+    setWide(false);
+    renderShell(true);
+
+    expect(within(screen.getByTestId('page')).getByTestId('breadcrumbs')).toBeInTheDocument();
+    expect(within(screen.getByTestId('bar-slot')).queryByTestId('breadcrumbs')).toBeNull();
+    expect(screen.getAllByRole('navigation', { name: 'You are here' })).toHaveLength(1);
+  });
+
+  it('renders inline with the default jsdom matchMedia (no polyfill override)', () => {
+    renderShell(true);
+
+    expect(within(screen.getByTestId('page')).getByTestId('breadcrumbs')).toBeInTheDocument();
   });
 });
