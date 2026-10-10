@@ -4,7 +4,7 @@
  * The page renders:
  * - A PageLayout with h1 "Milestones" (common navigation.milestones)
  *   and a "New Milestone" button (data-testid="new-milestone-button")
- * - No in-page tab row (#2205): "Milestones" is a sidebar view under Tasks (AppShellPage.viewLink)
+ * - No in-page tab row (#2205): "Milestones" is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
  * - A DataTable with search input (aria-label="Search items") and per-column filter buttons
  * - Filter buttons: "Filter by Status", "Filter by Target Date", "Filter by Linked Items"
  * - Table columns: Title, Target Date, Status (Badge), Linked Items, Description

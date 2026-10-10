@@ -3,7 +3,7 @@
  *
  * The page renders:
  * - An h1 "Budget" page title
- * - No in-page tab row (#2205): Money views are sidebar links (AppShellPage.viewLink)
+ * - No in-page tab row (#2205): the Money view is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
  * - An "Add Program" button (no h2 "Subsidy Programs" section heading — removed in visual cleanup #1185)
  * - An inline create form (h2 "New Subsidy Program") toggled by "Add Program"
  *   - `#programName` (text, required)

@@ -14,7 +14,7 @@
  *
  * The page renders:
  * - An h1 "Bank report" page title (#2203) (PageLayout)
- * - No in-page tab row (#2205): "Bank report" is a sidebar view under Money (AppShellPage.viewLink)
+ * - No in-page tab row (#2205): "Bank report" is a Money view: a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
  * - A WizardStepper (`client/src/components/WizardStepper`): BOTH trees below are ALWAYS
  *   present in the DOM simultaneously — visibility is toggled purely via a
  *   `@media (max-width: 767px)` CSS rule in `WizardStepper.module.css` (`.stepper{display:

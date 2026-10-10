@@ -58,11 +58,11 @@ test.describe('Mobile layout (Scenario 2)', { tag: '@responsive' }, () => {
     await expect(timelinePage.heading).toHaveText('Schedule');
   });
 
-  test('View links are visible in the sidebar drawer on mobile viewport', async ({ page }) => {
+  test('View entries are reachable from the title menu on phones and tablets', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     await timelinePage.goto();
 
-    await new AppShellPage(page).openSidebarIfDrawer();
+    await new AppShellPage(page).revealViews();
     await expect(timelinePage.ganttViewButton).toBeVisible();
     await expect(timelinePage.calendarViewButton).toBeVisible();
   });
@@ -399,15 +399,16 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     await expect(timelinePage.zoomToolbar).toHaveAttribute('aria-label', 'Zoom level');
   });
 
-  test('Tasks views are listed in the labelled sidebar navigation', async ({ page }) => {
+  test('Tasks views are listed in the main navigation or the title menu', async ({ page }) => {
     const timelinePage = new TimelinePage(page);
     const appShell = new AppShellPage(page);
     await timelinePage.goto();
 
     // #2205: the Schedule tab row is gone; its views are sidebar links under Tasks
-    await appShell.openSidebarIfDrawer();
+    await appShell.revealViews();
     await expect(appShell.nav).toBeVisible();
     // Below 1024px the title menu marks the current row with a check mark: match by substring
+    await expect(appShell.viewLinks).toHaveCount(3);
     await expect(appShell.viewLinks).toContainText(['Schedule', 'Calendar', 'Milestones']);
     await expect(appShell.viewLink('scheduleGantt')).toHaveAttribute('aria-current', 'page');
   });

@@ -16,7 +16,7 @@ export class NotFoundPage {
     this.description = page.getByText(
       'The page you are looking for does not exist or has been moved.',
     );
-    // Scoped to the page area: the sidebar logo link carries the same accessible name (#2205)
+    // Scoped to the page area: the sidebar logo link (≥ 1024 px) carries the same accessible name (#2205)
     this.dashboardLink = page.getByRole('main').getByRole('link', { name: 'Go to Home' });
   }
 

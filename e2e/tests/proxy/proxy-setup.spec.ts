@@ -161,7 +161,7 @@ test.describe('Reverse Proxy Setup', { tag: '@responsive' }, () => {
     // When: Logging out through the proxy
     await page.goto(`${proxyBaseUrl}/settings/profile`);
 
-    // Real UI log-out: user menu on desktop, sidebar drawer below 1024px (#2206)
+    // Real UI log-out: user menu on desktop, More sheet below 1024px (#2207)
     await new AppShellPage(page).logout();
 
     // Then: Should redirect to login page

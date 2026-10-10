@@ -4,7 +4,7 @@
  * Below 1024px the shell is: a compact top bar (Back / "‹ parent" link, scrolled-past-heading
  * title, search), a bottom bar (Home, Site diary, New, Photos, More), the More sheet (sections
  * and the user block) and, on a section's views, the h1 as a title menu ("Tasks v") that lists
- * the section's views. The drawer, the floating menu button and the overlay are gone.
+ * the section's views. Below 1024px the bottom bar and the More sheet are the only navigation.
  *
  * Scenarios (all but S10 run below 1024px only; the tablet and mobile projects cover them):
  * - S1  (AC2, AC3) bar slots in order, label size, touch size, 64px row; Home current; New opens
@@ -391,7 +391,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
 
       await page.goto(ROUTES.home);
       await expect(appShell.bottomBar).toBeVisible();
-      await expect(appShell.desktopUserMenuTrigger).toHaveCount(0);
+      await expect(appShell.userMenuTrigger).toHaveCount(0);
       await expect(page.getByRole('button', { name: LOG_OUT })).toHaveCount(0);
 
       await appShell.openMoreSheet();
@@ -524,9 +524,8 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await page.goto(ROUTES.home);
       await expect(appShell.bottomBar).toBeVisible();
 
-      await appShell.openSection('money');
-      await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetOverview'));
-      await appShell.openView('budgetSources');
+      // Home -> Money (push) -> Funding sources (replace)
+      await appShell.navigateTo('budgetSources');
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('budgetSources'));
 
       await page.getByTestId('breadcrumbs-parent').click();
@@ -653,7 +652,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
     await page.setViewportSize({ width: 1023, height: 800 });
     await expect(appShell.bottomBar).toBeVisible();
     await expect(page.locator('aside')).toHaveCount(0);
-    await expect(appShell.desktopUserMenuTrigger).toHaveCount(0);
+    await expect(appShell.userMenuTrigger).toHaveCount(0);
     await expect(
       page.getByRole('navigation', { name: 'Main navigation', exact: true }),
     ).toHaveCount(1);
@@ -662,7 +661,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
     // 1024px: sidebar and avatar, no bottom bar
     await page.setViewportSize({ width: 1024, height: 800 });
     await expect(page.locator('aside')).toBeVisible();
-    await expect(appShell.desktopUserMenuTrigger).toBeVisible();
+    await expect(appShell.userMenuTrigger).toBeVisible();
     await expect(appShell.bottomBar).toHaveCount(0);
     await expect(appShell.moreSheet).toHaveCount(0);
     await expect(

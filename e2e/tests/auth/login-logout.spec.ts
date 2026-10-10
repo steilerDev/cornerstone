@@ -63,7 +63,7 @@ test.describe('Login and Logout', { tag: '@responsive' }, () => {
     await loginPage.login(TEST_ADMIN.email, TEST_ADMIN.password);
     await expect(page).toHaveURL(ROUTES.home);
 
-    // When: User logs out (user menu on desktop, sidebar drawer below 1024px)
+    // When: User logs out (user menu on desktop, More sheet below 1024px)
     await appShell.logout();
 
     // Then: Should redirect to login page

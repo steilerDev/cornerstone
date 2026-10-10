@@ -2,7 +2,7 @@
  * Page Object Model for the Invoices list page (/budget/invoices)
  *
  * The page renders:
- * - No in-page tab row (#2205): Money views are sidebar links (AppShellPage.viewLink)
+ * - No in-page tab row (#2205): the Money view is a sidebar link ≥ 1024 px and a title-menu item below (AppShellPage.viewLink / navigateTo)
  * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
  * - Summary cards: To pay, Ready to submit, Submitted, Offers, Still to pay — always rendered —
  *   plus two conditional cards: Refunds due to you (data-testid="summary-card-refunds-due",

@@ -1,21 +1,53 @@
 /**
  * Page Object Model for the AppShell layout.
  *
- * - >= 1024px: sidebar + desktop top bar with the user menu (#2205, #2206).
+ * - >= 1024px: sidebar + desktop top bar and user menu (#2205, #2206).
  * - < 1024px (phones and tablets, #2207): compact top bar, bottom bar (Home, Site diary, New,
  *   Photos, More), the More sheet (sections + user block) and the title menu ("Tasks v") that
- *   lists the section's views. No drawer, no floating menu button.
+ *   lists the section's views.
  *
- * Several locators are getters evaluated per call, so `page.setViewportSize()` mid-test is
- * honoured. Members marked `@deprecated` are compatibility shims over the new bar and sheet so
- * the suites written for the drawer keep working; story #2208 migrates them and removes them.
+ * Navigation helpers: `navigateTo(route)` goes through the shell the way a user does, composed
+ * of `tapBottomBar(slot)` / `openFromMoreSheet(section)` (below 1024px) or the sidebar (above),
+ * plus `openView(route)` for a section's views.
+ *
+ * Desktop-only members (>= 1024px): `sidebar`, `settingsNav`, `userMenuTrigger`, `userMenu`,
+ * `openUserMenu()`. The remaining locators name one control that exists at every width and are
+ * evaluated per call, so `page.setViewportSize()` mid-test is honoured.
  */
 
 import type { Page, Locator } from '@playwright/test';
-
-const BAR_SECTION_IDS = ['home', 'diary', 'photos'];
+import { getRouteEntry, routeUrl } from '../../shared/src/routes/index.js';
+import type { RouteSection, ServedRouteId } from '../../shared/src/routes/index.js';
 
 export type BottomBarSlot = 'home' | 'diary' | 'new' | 'photos' | 'more';
+/** NavConfig section ids that live in the bottom bar. */
+export type BarSection = 'home' | 'diary' | 'photos';
+/** NavConfig section ids that live in the More sheet. */
+export type SheetSection =
+  'tasks' | 'purchases' | 'money' | 'companies' | 'areas' | 'history' | 'documents' | 'settings';
+export type ShellSection = BarSection | SheetSection;
+
+/** Route-map section label -> NavConfig section id (Auth/System pages are not in the shell). */
+const SECTION_OF: Record<RouteSection, ShellSection | null> = {
+  Auth: null,
+  Home: 'home',
+  Tasks: 'tasks',
+  Purchases: 'purchases',
+  'Site diary': 'diary',
+  Photos: 'photos',
+  Money: 'money',
+  Companies: 'companies',
+  Areas: 'areas',
+  History: 'history',
+  Documents: 'documents',
+  Settings: 'settings',
+  System: null,
+};
+const BAR_SECTIONS: readonly BarSection[] = ['home', 'diary', 'photos'];
+
+function isBarSection(section: ShellSection): section is BarSection {
+  return (BAR_SECTIONS as readonly string[]).includes(section);
+}
 
 export class AppShellPage {
   readonly page: Page;
@@ -25,7 +57,7 @@ export class AppShellPage {
   readonly topBar: Locator;
   /** The compact bottom bar (`<nav>` "Main navigation"), < 1024px only. */
   readonly bottomBar: Locator;
-  /** The More button (last slot of the bottom bar). */
+  /** The More button (last slot of the bottom bar), < 1024px only. */
   readonly moreButton: Locator;
   /** The More sheet panel: always mounted below 1024px, `inert` and without a dialog role while closed. */
   readonly moreSheet: Locator;
@@ -39,9 +71,14 @@ export class AppShellPage {
   /** Compact top bar: house name, and the title that appears once the h1 scrolled away. */
   readonly topBarHouseName: Locator;
   readonly topBarTitle: Locator;
-  /** Desktop user menu trigger / panel (>= 1024px). */
-  readonly desktopUserMenuTrigger: Locator;
-  readonly desktopUserMenu: Locator;
+  /** The `aside` sidebar. >= 1024px only. */
+  readonly sidebar: Locator;
+  /** Footer landmark "Settings" / "Einstellungen" of the sidebar. >= 1024px only. */
+  readonly settingsNav: Locator;
+  /** Avatar trigger of the user menu in the top bar. >= 1024px only. */
+  readonly userMenuTrigger: Locator;
+  /** The open user-menu panel. >= 1024px only. */
+  readonly userMenu: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -56,8 +93,10 @@ export class AppShellPage {
     this.viewMenu = page.getByTestId('view-menu');
     this.topBarHouseName = page.getByTestId('top-bar-house-name');
     this.topBarTitle = page.getByTestId('top-bar-title');
-    this.desktopUserMenuTrigger = page.getByTestId('user-menu-trigger');
-    this.desktopUserMenu = page.getByTestId('user-menu');
+    this.sidebar = page.locator('aside');
+    this.settingsNav = page.getByRole('navigation', { name: /^(Settings|Einstellungen)$/ });
+    this.userMenuTrigger = page.getByTestId('user-menu-trigger');
+    this.userMenu = page.getByTestId('user-menu');
   }
 
   /** True below the shell breakpoint (1023/1024): bottom bar + More sheet instead of the sidebar. */
@@ -67,7 +106,7 @@ export class AppShellPage {
   }
 
   // ---------------------------------------------------------------------------------------
-  // New phone / tablet vocabulary (#2207)
+  // Phone / tablet controls
   // ---------------------------------------------------------------------------------------
 
   /** A bottom-bar slot (`home` | `diary` | `new` | `photos` | `more`). */
@@ -100,6 +139,24 @@ export class AppShellPage {
     await this.page.locator('[data-testid="more-sheet"][data-open="false"]').waitFor();
   }
 
+  /** Phone/tablet only: tap a bottom-bar slot (More opens the sheet and waits for it). */
+  async tapBottomBar(slot: BottomBarSlot): Promise<void> {
+    if (!this.isCompact()) throw new Error('tapBottomBar is below 1024px only');
+    if (slot === 'more') {
+      await this.openMoreSheet();
+      return;
+    }
+    await this.bottomBarSlot(slot).click();
+  }
+
+  /** Phone/tablet only: open the More sheet and tap a section row; waits until the sheet closed. */
+  async openFromMoreSheet(section: SheetSection): Promise<void> {
+    if (!this.isCompact()) throw new Error('openFromMoreSheet is below 1024px only');
+    await this.openMoreSheet();
+    await this.moreSheetRow(section).click();
+    await this.page.locator('[data-testid="more-sheet"][data-open="false"]').waitFor();
+  }
+
   /**
    * Make the section's views assertable: below 1024px open the title menu (when not open);
    * on desktop the sidebar already shows them (no-op).
@@ -112,58 +169,21 @@ export class AppShellPage {
   }
 
   // ---------------------------------------------------------------------------------------
-  // Viewport-aware members (desktop sidebar/user menu vs. compact bar, title menu and sheet)
+  // Viewport-aware members
   // ---------------------------------------------------------------------------------------
-
-  /** Desktop: the `aside` sidebar. Compact (shim): the bottom bar. */
-  get sidebar(): Locator {
-    return this.isCompact() ? this.bottomBar : this.page.locator('aside');
-  }
-
-  /** @deprecated shim, removed in #2208. Compact: the More button. */
-  get menuButton(): Locator {
-    return this.moreButton;
-  }
-
-  /** @deprecated shim, removed in #2208. Compact: the More sheet's Close button. */
-  get sidebarCloseButton(): Locator {
-    return this.moreSheetClose;
-  }
-
-  /** @deprecated shim, removed in #2208. Compact: the More sheet backdrop. */
-  get overlay(): Locator {
-    return this.moreSheetBackdrop;
-  }
-
-  /** Desktop: footer landmark "Settings". Compact (shim): the open title menu. */
-  get settingsNav(): Locator {
-    return this.isCompact()
-      ? this.viewMenu
-      : this.page.getByRole('navigation', { name: /^(Settings|Einstellungen)$/ });
-  }
 
   /** Every bar/sheet/sidebar entry currently marked as the page's entry (never the title menu). */
   get activeEntries(): Locator {
     return this.isCompact()
       ? this.bottomBar.or(this.moreSheet).locator('[aria-current="page"]')
-      : this.page.locator('aside').locator('[aria-current="page"]');
+      : this.sidebar.locator('[aria-current="page"]');
   }
 
   /** The nested view links: desktop sidebar views, compact title-menu items (main view excluded). */
   get viewLinks(): Locator {
     return this.isCompact()
       ? this.viewMenu.locator('[data-testid^="view-menu-item-"]')
-      : this.page.locator('aside').locator('[data-testid^="sidebar-view-"]');
-  }
-
-  /** Avatar trigger (desktop). Compact (shim): the More button. */
-  get userMenuTrigger(): Locator {
-    return this.isCompact() ? this.moreButton : this.desktopUserMenuTrigger;
-  }
-
-  /** Open user-menu panel (desktop). Compact (shim): the More sheet. */
-  get userMenu(): Locator {
-    return this.isCompact() ? this.moreSheet : this.desktopUserMenu;
+      : this.sidebar.locator('[data-testid^="sidebar-view-"]');
   }
 
   /** Theme choice (`light` | `dark` | `system`) in the user menu (desktop) or the More sheet. */
@@ -180,14 +200,13 @@ export class AppShellPage {
     );
   }
 
-  /** Open the user menu (desktop avatar) or, below 1024px, the More sheet. */
+  /** Open the user menu from the avatar. Desktop only; below 1024px use openMoreSheet(). */
   async openUserMenu(): Promise<void> {
     if (this.isCompact()) {
-      await this.openMoreSheet();
-      return;
+      throw new Error('openUserMenu is desktop-only; use openMoreSheet() below 1024px');
     }
-    await this.desktopUserMenuTrigger.click();
-    await this.desktopUserMenu.waitFor({ state: 'visible' });
+    await this.userMenuTrigger.click();
+    await this.userMenu.waitFor({ state: 'visible' });
   }
 
   /**
@@ -197,7 +216,7 @@ export class AppShellPage {
    */
   sectionLink(id: string): Locator {
     if (!this.isCompact()) return this.page.getByTestId(`sidebar-section-${id}`);
-    return BAR_SECTION_IDS.includes(id)
+    return isBarSection(id as ShellSection)
       ? this.bottomBarSlot(id as BottomBarSlot)
       : this.moreSheetRow(id);
   }
@@ -214,65 +233,58 @@ export class AppShellPage {
     );
   }
 
-  /** Click a section entry (compact: through the bar, or through the More sheet for the rest). */
-  async openSection(id: string): Promise<void> {
-    if (this.isCompact() && !BAR_SECTION_IDS.includes(id)) await this.openMoreSheet();
-    await this.sectionLink(id).click();
-  }
-
   /** Click a nested view (the page must already be inside its section). */
-  async openView(route: string): Promise<void> {
+  async openView(route: ServedRouteId): Promise<void> {
     await this.revealViews();
     await this.viewLink(route).click();
   }
 
-  /** @deprecated shim, removed in #2208. Compact: reveal the title menu when the page has one. */
-  async openSidebar(): Promise<void> {
-    await this.openSidebarIfDrawer();
+  /** The NavConfig section that owns a route (from the route map's `section`). */
+  sectionOf(route: ServedRouteId): ShellSection {
+    const section = SECTION_OF[getRouteEntry(route).section];
+    if (section === null) throw new Error(`${route} does not belong to a shell section`);
+    return section;
   }
 
-  /** @deprecated shim, removed in #2208. Compact: reveal the title menu when the page has one. */
-  async openSidebarIfDrawer(): Promise<void> {
-    if (!this.isCompact()) return;
-    await this.bottomBar.waitFor({ state: 'attached' });
-    if ((await this.viewMenuTrigger.count()) > 0) await this.revealViews();
-  }
+  /**
+   * Navigate through the shell the way a user does, to a section's entry route or one of its
+   * views. Desktop: the sidebar entry, then the sidebar view. Below 1024px: the bottom-bar slot
+   * or the More sheet row, then the title menu. Redirecting entries (home -> dashboard,
+   * companies -> vendors) are followed. Parameter-free routes only; callers assert the final URL.
+   */
+  async navigateTo(route: ServedRouteId): Promise<void> {
+    const section = this.sectionOf(route);
+    const target = (routeUrl as (id: ServedRouteId) => string)(route);
+    const compact = this.isCompact();
+    const entry = this.sectionLink(section);
+    const testId = compact
+      ? isBarSection(section)
+        ? `bottom-bar-${section}`
+        : `more-sheet-section-${section}`
+      : `sidebar-section-${section}`;
+    // Read before clicking: the closed sheet row keeps its href
+    const entryPath = await entry.getAttribute('href');
 
-  /** @deprecated shim, removed in #2208. Compact: close the title menu or the sheet if open. */
-  async closeSidebar(): Promise<void> {
-    if (!this.isCompact()) return;
-    if (await this.viewMenu.isVisible()) {
-      await this.page.keyboard.press('Escape');
-      await this.viewMenu.waitFor({ state: 'hidden' });
-      return;
+    if (!compact) await entry.click();
+    else if (isBarSection(section)) await this.tapBottomBar(section);
+    else await this.openFromMoreSheet(section);
+
+    // Home and Companies redirect, so wait for the entry to be marked current, not for the URL.
+    // `attached`: the closed sheet row is hidden.
+    await this.page
+      .locator(`[data-testid="${testId}"][aria-current="page"]`)
+      .waitFor({ state: 'attached' });
+    await this.page.locator('main h1').first().waitFor({ state: 'visible' });
+
+    if (entryPath === target) return;
+
+    // The target is one of the section's views
+    await this.revealViews();
+    if ((await this.viewLink(route).count()) === 0) {
+      throw new Error(`${route} is neither the entry nor a view of section ${section}`);
     }
-    await this.closeMoreSheet();
-  }
-
-  /** @deprecated shim, removed in #2208. True when the More sheet is open (compact only). */
-  async isSidebarOpen(): Promise<boolean> {
-    if (!this.isCompact()) return false;
-    return (await this.moreSheet.getAttribute('data-open')) === 'true';
-  }
-
-  /** @deprecated shim, removed in #2208. True when the More sheet backdrop is visible. */
-  async isOverlayVisible(): Promise<boolean> {
-    return await this.moreSheetBackdrop.isVisible();
-  }
-
-  async getNavLinks(): Promise<Locator[]> {
-    return await this.nav.locator('a').all();
-  }
-
-  async clickNavLink(name: string): Promise<void> {
-    const link = this.nav.getByRole('link', { name });
-    await link.click();
-  }
-
-  async isNavLinkActive(name: string): Promise<boolean> {
-    const link = this.nav.getByRole('link', { name });
-    const ariaCurrent = await link.getAttribute('aria-current');
-    return ariaCurrent === 'page';
+    await this.viewLink(route).click();
+    await this.page.waitForURL((url) => url.pathname === target);
   }
 
   /**
@@ -287,10 +299,5 @@ export class AppShellPage {
     }
     await this.openUserMenu();
     await this.page.getByTestId('user-menu-logout').click();
-  }
-
-  /** @deprecated shim, removed in #2208. */
-  async getMenuButton(): Promise<Locator> {
-    return this.menuButton;
   }
 }
