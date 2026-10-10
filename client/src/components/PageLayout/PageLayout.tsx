@@ -1,4 +1,5 @@
 import type { ReactNode, Ref } from 'react';
+import { PageTitle } from './PageTitle.js';
 import styles from './PageLayout.module.css';
 
 export interface PageLayoutProps {
@@ -35,13 +36,7 @@ export function PageLayout({
     >
       {breadcrumbs}
       <div className={styles.header}>
-        {headingRef ? (
-          <h1 className={styles.title} ref={headingRef} tabIndex={-1}>
-            {title}
-          </h1>
-        ) : (
-          <h1 className={styles.title}>{title}</h1>
-        )}
+        <PageTitle title={title} headingRef={headingRef} className={styles.title} />
         {action && <div className={styles.action}>{action}</div>}
       </div>
       <div className={styles.content}>{children}</div>

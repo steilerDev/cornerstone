@@ -7,8 +7,8 @@
 
 .trigger {
   composes: btnIcon from '../../styles/shared.module.css';
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   padding: var(--spacing-2);
   font-size: var(--font-size-lg);
 }
@@ -54,6 +54,14 @@
   margin-top: var(--spacing-1);
 }
 
+.menuBottomStart {
+  top: 100%;
+  left: 0;
+  margin-top: var(--spacing-1);
+  min-width: 100%;
+  max-width: calc(100vw - 2 * var(--spacing-4));
+}
+
 .menuTop {
   bottom: 100%;
   right: 0;
@@ -97,6 +105,16 @@
   .item {
     transition: none;
   }
+}
+
+.itemCurrent {
+  background-color: var(--color-primary-bg);
+  color: var(--color-primary-badge-text);
+  font-weight: var(--font-weight-semibold);
+}
+
+.checkmark {
+  flex: 0 0 auto;
 }
 
 .itemIcon {
@@ -195,5 +213,11 @@
 @media (max-width: 767px) {
   .item {
     padding: var(--spacing-3) var(--spacing-4);
+  }
+}
+
+@media (max-width: 1023px) {
+  .item {
+    min-height: var(--touch-target-min);
   }
 }

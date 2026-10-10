@@ -14,6 +14,7 @@ import {
 import { barDates } from '../../lib/scheduleDates.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { PageTitle } from '../../components/PageLayout/PageTitle.js';
 import styles from './TimelinePage.module.css';
 import { routeUrl, routePattern } from '@cornerstone/shared';
 
@@ -342,7 +343,7 @@ export function TimelinePage() {
     <div className={styles.page} data-testid="timeline-page">
       {/* Page header: title + toolbar */}
       <div className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>{viewTitle}</h1>
+        <PageTitle title={viewTitle} className={styles.pageTitle} />
 
         <div className={styles.toolbar}>
           {/* Entity filter toggle — shown in both views */}

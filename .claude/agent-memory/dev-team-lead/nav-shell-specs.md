@@ -1,6 +1,6 @@
 ---
 name: nav-shell-specs
-description: Hazards when speccing shell work (EPIC-21 0.12 sidebar, 1.1 top bar) — capability loss from deleted tabs, NavLink double-highlight, interim views, defect coverage in deleted tests, sticky inside never-scrolling mainContent, shell ARIA selector changes in E2E, shell primary-button closure, breadcrumb portal
+description: Hazards when speccing shell work (EPIC-21 0.12 sidebar, 1.1 top bar, 1.2a phone shell) — capability loss from deleted tabs, NavLink double-highlight, interim views, defect coverage in deleted tests, sticky inside never-scrolling mainContent, shell ARIA selector changes in E2E, shell primary-button closure, breadcrumb portal
 metadata:
   type: feedback
 ---
@@ -26,6 +26,22 @@ Found while speccing #2206 (P1.1, desktop top bar):
 13. **No interim capability gaps on beta (orchestrator, #2206).** Beta publishes images, so a story that moves controls into desktop-only chrome must keep the old controls on the other viewports. Hide them with CSS `display: none` on a container, never delete them, until the story for that viewport removes them. Exactly one control per action may be accessible per viewport. Spec it up front and do not offer "accept the gap" as an option.
 
 14. **Structural guards from earlier stories catch new shapes.** The #2205 `noTabRows` "copied tab array" detector (two or more objects with `href`/`to` + `label`) flagged the user menu's entry array. Before speccing an array of labelled links, grep the AST guards in `client/src/navigation/*.test.ts` and spec the narrowing up front, e.g. skip `kind: 'link'` menu entries and add a self-test proving real tab rows still fail.
+
+Found while speccing #2207 (P1.2a, phone and tablet shell):
+
+15. **An always-mounted, hidden dialog is caught by E2E `[role="dialog"]` locators.** About 15 page objects use unfiltered `page.locator('[role="dialog"]')` or `document.querySelector('[role="dialog"]')`. **How to apply:** an `inert` sheet sets `role`, `aria-modal` and `aria-labelledby` only while open.
+16. **The baseline counts shell chrome too.**
+    - Intrinsic `role="dialog"`/`aria-modal` outside `components/Modal/` counts toward `handRolledDialogs`, so put new dialog primitives in `components/Modal/`.
+    - Every JSX `<Link>` in the AppShell closure raises `shell.destinations`. Use a `useHref` + `useLinkClickHandler` anchor (`navigation/NavAnchor`).
+    - PascalCase same-basename dirs are new shared components; helpers inside an existing component dir are not.
+17. **A compact "Back to X" link in the top bar collides with page-wide `getByRole('link', { name: 'Back to X' })`** in page objects, e.g. a not-found state's own back link. Grep `e2e/pages` for page-wide "Back to" links.
+18. **Locator shims cannot reach elements that exist only while a menu is open.** Sidebar view links became title-menu items, so tests that assert `viewLink`/`viewLinks` without opening need a one-line `revealViews()`. Say so up front when the orchestrator asks for "shims only".
+19. **Inventory E2E by project, not by grep alone.** `npx playwright test --list --project=mobile` (no browser needed) lists which `file:line` tests run below 1024. Map each grep hit to its enclosing `test(` line and keep only the hits that are in that list. That turned 40 grep hits into the exact edit list.
+
+Found while reviewing #2207:
+
+20. **"Previous pathname" is not "the history entry at idx-1".** A smart Back that calls `navigate(-1)` when the previously shown pathname equals the link target breaks after any replace navigation (title-menu view switch, same-section re-click, redirect). Example: Money overview, then the title menu replaces it with Sources, whose parent link "‹ Money" goes back past the overview. **How to apply:** record `pathname` per `history.state.idx` on every location change and compare the target with the entry at `idx-1`. An unknown entry (after a reload) falls back to the href.
+21. **E2E written from the spec's row list can name sections that are not served yet** (the spec's S3 listed Areas and History, which are `planned`). **How to apply:** derive E2E row expectations from `navSections()` visibility (route-map stage) at review time, not from the IA target.
 
 **Why:** each of these would have surfaced late: as a capability-preservation review finding, a broken earlier-story suite, or a silently shrunk defect coverage.
 

@@ -29,6 +29,62 @@
   flex-shrink: 0;
 }
 
+/* Title menu ("Tasks ▾"): the h1 wraps a button that opens the section's view menu. */
+.titleMenu {
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.titleTrigger {
+  display: inline-block;
+  min-height: var(--touch-target-min);
+  margin-inline: calc(-1 * var(--spacing-2));
+  padding-block: 0;
+  padding-inline: var(--spacing-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+  transition: var(--transition-button-border);
+}
+
+@media (hover: hover) {
+  .titleTrigger:hover {
+    background-color: var(--color-bg-tertiary);
+  }
+}
+
+.titleTrigger[aria-expanded='true'] {
+  background-color: var(--color-bg-tertiary);
+}
+
+.titleTrigger:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-border-focus);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .titleTrigger {
+    transition: none;
+  }
+}
+
+.titleText {
+  overflow-wrap: anywhere;
+}
+
+.chevron {
+  display: inline;
+  vertical-align: middle;
+  margin-inline-start: var(--spacing-2);
+  color: var(--color-text-secondary);
+}
+
 .content {
   display: flex;
   flex-direction: column;
@@ -56,13 +112,13 @@
 
   .action > * {
     width: 100%;
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 }
 
 @media (min-width: 768px) and (max-width: 1023px) {
   .action > * {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 
   .header {

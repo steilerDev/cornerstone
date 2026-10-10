@@ -9,6 +9,8 @@ import {
   NAV_LABEL_KEYS,
   NAV_SECTIONS,
   PHONE_BAR,
+  PHONE_BAR_SECTIONS,
+  PHONE_CAPTURE_ROUTE,
   navSections,
   type NavContext,
   type NavSection,
@@ -208,6 +210,10 @@ describe('NAV_LABEL_KEYS', () => {
     'diaryEntry',
     'diaryEntryNotFound',
     'diaryEntryUntitled',
+    // #2207: phone and tablet shell words
+    'more',
+    'homeAttention_one',
+    'homeAttention_other',
   ] as const;
 
   it('has no navigation key in either locale that the tuple or the page-identity words do not declare', () => {
@@ -316,6 +322,28 @@ describe('PHONE_BAR and MORE_SHEET', () => {
       ['areas', 'history', 'documents'],
       ['settings'],
     ]);
+  });
+});
+
+describe('phone shell constants (#2207)', () => {
+  it("opens today's new diary entry from the capture slot", () => {
+    expect(PHONE_CAPTURE_ROUTE).toBe('diaryEntryNew');
+    expect(routePattern(PHONE_CAPTURE_ROUTE)).toBe('/diary/new');
+  });
+
+  it('gives only Home, Site diary and Photos a slot of their own', () => {
+    expect(PHONE_BAR_SECTIONS).toEqual(['home', 'diary', 'photos']);
+  });
+
+  it('has More, and the Home attention plurals, in both locales', () => {
+    for (const tree of [enCommon, deCommon]) {
+      const nav = (tree as { navigation: Record<string, string> }).navigation;
+      expect(nav.more).toMatch(/\S/);
+      expect(nav.homeAttention_one).toContain('{{count}}');
+      expect(nav.homeAttention_other).toContain('{{count}}');
+    }
+    expect(enCommon.navigation.more).toBe('More');
+    expect(deCommon.navigation.more).toBe('Mehr');
   });
 });
 

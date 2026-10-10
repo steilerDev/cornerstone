@@ -1,7 +1,7 @@
 .viewer {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  min-height: 100dvh;
+  min-height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
 }
 
 .stage {
@@ -69,14 +69,8 @@
 .image {
   display: block;
   max-width: 100%;
-  max-height: calc(100dvh - 12rem);
+  max-height: calc(100dvh - 12rem - var(--topbar-height) - var(--shell-bottom-height));
   object-fit: contain;
-}
-
-@media (min-width: 1024px) {
-  .image {
-    max-height: calc(100dvh - 12rem - var(--topbar-height));
-  }
 }
 
 .imageFallback {
@@ -304,8 +298,8 @@
 @media (min-width: 1024px) {
   .viewer {
     grid-template-columns: minmax(0, 1fr) 25rem;
-    height: calc(100dvh - var(--topbar-height));
-    min-height: calc(100dvh - var(--topbar-height));
+    height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
+    min-height: calc(100dvh - var(--topbar-height) - var(--shell-bottom-height));
   }
 
   .details {

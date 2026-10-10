@@ -218,6 +218,14 @@ export const PHONE_BAR: readonly ('home' | 'diary' | 'capture' | 'photos' | 'mor
   'more',
 ];
 
+/** The ＋ slot opens today's /diary/new until P2.3. */
+export const PHONE_CAPTURE_ROUTE: RouteId = 'diaryEntryNew';
+
+/** Sections that own a slot of their own in the phone bottom bar. */
+export const PHONE_BAR_SECTIONS: readonly NavSectionId[] = PHONE_BAR.filter(
+  (s): s is 'home' | 'diary' | 'photos' => s !== 'capture' && s !== 'more',
+);
+
 /** "More" sheet groups, top to bottom. */
 export const MORE_SHEET: readonly (readonly NavSectionId[])[] = [
   ['tasks', 'purchases', 'money', 'companies'],

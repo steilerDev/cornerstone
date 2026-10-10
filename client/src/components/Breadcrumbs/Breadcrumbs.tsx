@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
-import { useHref, useLinkClickHandler } from 'react-router-dom';
+import { useHref, useLinkClickHandler, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { isPlainLeftClick } from '../../lib/plainClick.js';
 import styles from './Breadcrumbs.module.css';
 
 export interface BreadcrumbLink {
@@ -19,8 +20,16 @@ export interface BreadcrumbsProps {
   /** An object ancestor is still loading: keep the row height. */
   readonly pending?: boolean;
   readonly testId?: string;
-  /** 'bar' lays the row out on one line inside the top bar. */
-  readonly layout?: 'page' | 'bar';
+  /**
+   * 'bar' lays the row out on one line inside the desktop top bar; 'compact' is the phone and
+   * tablet top bar's single "‹ target" link (Back to the origin, else the nearest parent).
+   */
+  readonly layout?: 'page' | 'bar' | 'compact';
+  /**
+   * Compact only: true when the browser's previous entry is the page `href` points at, so a
+   * plain click may go back in the session history instead of pushing a new entry.
+   */
+  readonly shouldGoBack?: (href: string) => boolean;
 }
 
 /** Real anchor (middle-click works) that navigates in-app on a plain click. */
@@ -49,6 +58,45 @@ function CrumbLink({
   );
 }
 
+/** Compact top-bar link: goes back when that leads where the label says, else a normal link. */
+function CompactLink({
+  target,
+  isOrigin,
+  testId,
+  shouldGoBack,
+}: {
+  target: BreadcrumbLink;
+  isOrigin: boolean;
+  testId: string;
+  shouldGoBack: ((href: string) => boolean) | undefined;
+}) {
+  const { t } = useTranslation('common');
+  const navigate = useNavigate();
+  const resolvedHref = useHref(target.href);
+  const handleLinkClick = useLinkClickHandler<HTMLAnchorElement>(target.href);
+  return (
+    <a
+      href={resolvedHref}
+      aria-label={t('navigation.backTo', { origin: target.label })}
+      className={styles.compactLink}
+      data-testid={isOrigin ? `${testId}-back` : `${testId}-parent`}
+      onClick={(event) => {
+        if (isPlainLeftClick(event) && shouldGoBack?.(target.href)) {
+          event.preventDefault();
+          void navigate(-1);
+          return;
+        }
+        handleLinkClick(event);
+      }}
+    >
+      <span aria-hidden="true" className={styles.backGlyph}>
+        ‹
+      </span>
+      <span className={styles.label}>{target.label}</span>
+    </a>
+  );
+}
+
 /**
  * Breadcrumbs — "Back to <origin>" link plus a "You are here" trail of parents only.
  * Renders nothing when there is nothing to show.
@@ -59,8 +107,29 @@ export function Breadcrumbs({
   pending = false,
   testId = 'breadcrumbs',
   layout = 'page',
+  shouldGoBack,
 }: BreadcrumbsProps) {
   const { t } = useTranslation('common');
+  if (layout === 'compact') {
+    const target = origin ?? (pending ? null : (parents[parents.length - 1] ?? null));
+    if (!target) {
+      return pending ? (
+        <div className={styles.rowCompact} data-testid={testId} data-pending="true" />
+      ) : null;
+    }
+    return (
+      <div className={styles.rowCompact} data-testid={testId}>
+        <nav aria-label={t('navigation.youAreHere')} className={styles.trailCompact}>
+          <CompactLink
+            target={target}
+            isOrigin={origin !== null}
+            testId={testId}
+            shouldGoBack={shouldGoBack}
+          />
+        </nav>
+      </div>
+    );
+  }
   if (parents.length === 0 && !origin && !pending) return null;
 
   return (
@@ -83,9 +152,6 @@ export function Breadcrumbs({
             {parents.map((p, index) => (
               <li key={p.href} className={styles.item}>
                 <CrumbLink href={p.href} className={p.dynamic ? styles.linkDynamic : styles.link}>
-                  <span aria-hidden="true" className={styles.phoneGlyph}>
-                    ‹
-                  </span>
                   <span className={styles.label}>{p.label}</span>
                 </CrumbLink>
                 {index < parents.length - 1 && (

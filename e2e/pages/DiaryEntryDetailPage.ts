@@ -109,8 +109,11 @@ export class DiaryEntryDetailPage {
     this.heading = page.getByRole('heading', { level: 1 });
     this.loaded = page.locator('[class*="typeBadgeContainer"]').first();
 
-    // "Back to Site diary" link in the not-found / error states — a <Link> element
-    this.backToDiaryLink = page.getByRole('link', { name: 'Back to Site diary', exact: true });
+    // "Back to Site diary" link in the not-found / error states — a <Link> element in main.
+    // Scoped to main: below 1024px the compact top bar carries a link with the same name (#2207)
+    this.backToDiaryLink = page
+      .locator('main')
+      .getByRole('link', { name: 'Back to Site diary', exact: true });
 
     // "Edit" is a <Link> rendered as an anchor — only visible for non-automatic entries
     this.editButton = page.getByRole('link', { name: 'Edit', exact: true });

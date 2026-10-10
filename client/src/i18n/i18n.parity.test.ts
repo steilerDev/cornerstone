@@ -401,6 +401,8 @@ describe('#2206 top bar and user menu keys', () => {
     userMenu: Record<string, string>;
     keyboardShortcuts: Record<string, string>;
     button: Record<string, string>;
+    aria: Record<string, string>;
+    navigation: Record<string, string>;
     theme: Record<string, string>;
   };
   const bundles = { en: enCommon, de: deCommon } as unknown as Record<string, Bundle>;
@@ -452,10 +454,24 @@ describe('#2206 top bar and user menu keys', () => {
       expect(b.userMenu.logOut).toMatch(/\S/);
     });
 
-    it(`${locale}: the theme keys the interim sidebar toggle and the user menu share stay`, () => {
-      for (const key of ['light', 'dark', 'system', 'switchTo', 'current']) {
+    it(`${locale}: the theme keys the user menu and the More sheet share stay`, () => {
+      for (const key of ['light', 'dark', 'system']) {
         expect(b.theme[key]).toMatch(/\S/);
       }
+    });
+
+    it(`${locale}: the retired sidebar toggle and drawer keys are gone (#2207)`, () => {
+      expect(b.theme).not.toHaveProperty('switchTo');
+      expect(b.theme).not.toHaveProperty('current');
+      expect(b.aria).not.toHaveProperty('openMenu');
+      expect(b.aria).not.toHaveProperty('closeMenu');
+    });
+
+    it(`${locale}: the More sheet and Home attention keys exist, with the count placeholder`, () => {
+      expect(b.navigation.more).toMatch(/\S/);
+      expect(b.navigation.homeAttention_one).toContain('{{count}}');
+      expect(b.navigation.homeAttention_other).toContain('{{count}}');
+      expect(b.navigation.homeAttention_one).not.toBe(b.navigation.homeAttention_other);
     });
   }
 

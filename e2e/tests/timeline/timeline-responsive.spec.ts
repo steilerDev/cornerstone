@@ -407,7 +407,8 @@ test.describe('ARIA roles and labels (Scenario 7)', { tag: '@responsive' }, () =
     // #2205: the Schedule tab row is gone; its views are sidebar links under Tasks
     await appShell.openSidebarIfDrawer();
     await expect(appShell.nav).toBeVisible();
-    await expect(appShell.viewLinks).toHaveText(['Schedule', 'Calendar', 'Milestones']);
+    // Below 1024px the title menu marks the current row with a check mark: match by substring
+    await expect(appShell.viewLinks).toContainText(['Schedule', 'Calendar', 'Milestones']);
     await expect(appShell.viewLink('scheduleGantt')).toHaveAttribute('aria-current', 'page');
   });
 

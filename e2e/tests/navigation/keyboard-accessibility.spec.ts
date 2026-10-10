@@ -54,7 +54,9 @@ test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
     expect([...foundLinks].sort()).toEqual([...expectedLinks].sort());
   });
 
-  test('Escape key closes sidebar (mobile/tablet)', async ({ page }) => {
+  test('Escape closes the More sheet and returns focus to More (mobile/tablet)', async ({
+    page,
+  }) => {
     const viewport = page.viewportSize();
 
     // Skip this test on desktop viewports
@@ -65,25 +67,23 @@ test.describe('Keyboard Accessibility', { tag: '@responsive' }, () => {
 
     const appShell = new AppShellPage(page);
 
-    // Given: User is on dashboard (mobile/tablet viewport)
+    // Given: User is on the dashboard (mobile/tablet viewport) and the sheet is closed
     await page.goto(ROUTES.home);
+    await expect(appShell.bottomBar).toBeVisible();
+    await expect(appShell.moreSheet).toHaveAttribute('data-open', 'false');
+    await expect(appShell.moreButton).toHaveAttribute('aria-expanded', 'false');
 
-    // And: Sidebar is closed initially
-    let isOpen = await appShell.isSidebarOpen();
-    expect(isOpen).toBe(false);
+    // When: User opens the More sheet
+    await appShell.openMoreSheet();
+    await expect(appShell.moreButton).toHaveAttribute('aria-expanded', 'true');
 
-    // When: User opens the sidebar
-    await appShell.openSidebar();
-    isOpen = await appShell.isSidebarOpen();
-    expect(isOpen).toBe(true);
-
-    // And: User presses Escape key
+    // And: User presses Escape
     await page.keyboard.press('Escape');
 
-    // Then: Sidebar should close
-    await expect(async () => {
-      const closed = !(await appShell.isSidebarOpen());
-      expect(closed).toBe(true);
-    }).toPass({ timeout: 3000 });
+    // Then: the sheet closes and focus returns to the More button
+    await expect(appShell.moreSheet).toHaveAttribute('data-open', 'false');
+    await expect(appShell.moreSheet).toBeHidden();
+    await expect(appShell.moreButton).toBeFocused();
+    await expect(appShell.moreButton).toHaveAttribute('aria-expanded', 'false');
   });
 });

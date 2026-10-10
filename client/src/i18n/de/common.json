@@ -21,6 +21,9 @@
     "users": "Benutzer",
     "backups": "Sicherungen",
     "integrations": "Integrationen",
+    "more": "Mehr",
+    "homeAttention_one": "Start, {{count}} braucht dich",
+    "homeAttention_other": "Start, {{count}} brauchen dich",
     "youAreHere": "Du bist hier",
     "backTo": "Zurück zu {{origin}}",
     "task": "Aufgabe",
@@ -69,8 +72,6 @@
   },
   "optional": "(optional)",
   "aria": {
-    "closeMenu": "Menü schließen",
-    "openMenu": "Menü öffnen",
     "goToHome": "Zum Start",
     "closeDialog": "Dialog schließen",
     "clearSelection": "Auswahl aufheben",
@@ -105,9 +106,7 @@
   "theme": {
     "light": "Hell",
     "dark": "Dunkel",
-    "system": "System",
-    "switchTo": "Zu {{mode}}-Modus wechseln",
-    "current": "Aktuell: {{current}} — klicken um zu {{next}} zu wechseln"
+    "system": "System"
   },
   "topBar": {
     "search": "Suchen",

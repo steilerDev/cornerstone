@@ -3,13 +3,23 @@
  */
 import { describe, it, expect, afterEach } from '@jest/globals';
 import { useState, type ReactNode } from 'react';
-import { act, cleanup, render, renderHook, screen, within } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  within,
+} from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import i18n from '../i18n/index.js';
 import { PageBreadcrumbs } from './PageBreadcrumbs.js';
 import { usePageBreadcrumbs, type ObjectNames } from './usePageBreadcrumbs.js';
 import { originStateFor } from './origin.js';
 import { BreadcrumbSlotContext } from './breadcrumbSlot.js';
+import { PreviousPathContext } from './previousPath.js';
+import { RecordingRouter, createRouterLog } from '../test/recordingRouter.js';
 
 function renderAt(pathname: string, options: { state?: unknown; objectNames?: ObjectNames } = {}) {
   return render(
@@ -404,18 +414,112 @@ describe('PageBreadcrumbs in the top bar (>= 1024 px)', () => {
     expect(screen.getAllByRole('navigation', { name: 'You are here' })).toHaveLength(1);
   });
 
-  it('renders inline when narrow even though a slot exists', () => {
+  it('portals the compact single-link row into the slot when narrow (every width has one row)', () => {
     setWide(false);
     renderShell(true);
 
-    expect(within(screen.getByTestId('page')).getByTestId('breadcrumbs')).toBeInTheDocument();
-    expect(within(screen.getByTestId('bar-slot')).queryByTestId('breadcrumbs')).toBeNull();
+    const slot = screen.getByTestId('bar-slot');
+    expect(within(slot).getByTestId('breadcrumbs')).toHaveClass('rowCompact');
+    expect(within(slot).getByTestId('breadcrumbs-parent')).toHaveAccessibleName('Back to Tasks');
+    expect(within(screen.getByTestId('page')).queryByTestId('breadcrumbs')).toBeNull();
     expect(screen.getAllByRole('navigation', { name: 'You are here' })).toHaveLength(1);
   });
 
-  it('renders inline with the default jsdom matchMedia (no polyfill override)', () => {
+  it('portals the compact row with the default jsdom matchMedia (narrow)', () => {
     renderShell(true);
 
-    expect(within(screen.getByTestId('page')).getByTestId('breadcrumbs')).toBeInTheDocument();
+    expect(within(screen.getByTestId('bar-slot')).getByTestId('breadcrumbs')).toHaveClass(
+      'rowCompact',
+    );
+  });
+
+  describe('history-back rule (compact)', () => {
+    const originalState: unknown = window.history.state;
+
+    afterEach(() => {
+      window.history.replaceState(originalState, '');
+    });
+
+    function renderCompact(options: { idx?: number | 'none'; previous: string | null }) {
+      if (options.idx === 'none') window.history.replaceState(null, '');
+      else window.history.replaceState({ idx: options.idx ?? 1 }, '');
+      const log = createRouterLog();
+      function Host() {
+        const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+        return (
+          <BreadcrumbSlotContext value={slot}>
+            <PreviousPathContext value={() => options.previous}>
+              <div ref={setSlot} />
+              <PageBreadcrumbs />
+            </PreviousPathContext>
+          </BreadcrumbSlotContext>
+        );
+      }
+      render(
+        <RecordingRouter entries={['/project/work-items/w-1']} log={log}>
+          <Host />
+        </RecordingRouter>,
+      );
+      return log;
+    }
+
+    it('goes back when history has an entry and the previous page is the target (Tasks)', () => {
+      const log = renderCompact({ idx: 1, previous: '/project/work-items' });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['GO -1']);
+    });
+
+    it('follows the link when the previous page is not the target (it was the Schedule)', () => {
+      const log = renderCompact({ idx: 1, previous: '/schedule/gantt' });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['PUSH /project/work-items']);
+    });
+
+    it('follows the link when there is no previous in-app page', () => {
+      const log = renderCompact({ idx: 1, previous: null });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['PUSH /project/work-items']);
+    });
+
+    it('follows the link at the first history entry (idx 0), even if the previous path matches', () => {
+      const log = renderCompact({ idx: 0, previous: '/project/work-items' });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['PUSH /project/work-items']);
+    });
+
+    it('follows the link when history.state is null', () => {
+      const log = renderCompact({ idx: 'none', previous: '/project/work-items' });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['PUSH /project/work-items']);
+    });
+
+    it('follows the link when history.state has a non-numeric idx', () => {
+      window.history.replaceState({ idx: 'x' }, '');
+      const log = createRouterLog();
+      function Host() {
+        const [slot, setSlot] = useState<HTMLDivElement | null>(null);
+        return (
+          <BreadcrumbSlotContext value={slot}>
+            <PreviousPathContext value={() => '/project/work-items'}>
+              <div ref={setSlot} />
+              <PageBreadcrumbs />
+            </PreviousPathContext>
+          </BreadcrumbSlotContext>
+        );
+      }
+      render(
+        <RecordingRouter entries={['/project/work-items/w-1']} log={log}>
+          <Host />
+        </RecordingRouter>,
+      );
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['PUSH /project/work-items']);
+    });
+
+    it('goes back from a deeper history index too', () => {
+      const log = renderCompact({ idx: 2, previous: '/project/work-items' });
+      fireEvent.click(screen.getByTestId('breadcrumbs-parent'));
+      expect(log.actions).toEqual(['GO -1']);
+    });
   });
 });

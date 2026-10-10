@@ -11,7 +11,9 @@
  *                    section replace, changing section pushes one entry (ADR-038 rule 8)
  * - E4 (AC4, D-23)   admin sees Settings, Account, Users, Backups; a member sees Settings and
  *                    Account only; /settings lands on Project setup
- * - Log out stays in the sidebar below 1024px until #2207 (from 1024px it is in the user menu)
+ *
+ * The sidebar exists from 1024px only (#2207): below it the shell is the bottom bar, the More
+ * sheet and the title menu, covered by phone-tablet-shell.spec.ts. These scenarios skip there.
  *
  * E2 (the German labels and landmark names) lives in i18n/i18n.spec.ts, which owns the dedicated
  * user whose locale it may change. E5 (no tab rows) is in no-tab-rows.spec.ts and E6 (the
@@ -74,6 +76,13 @@ async function mockMember(page: Page): Promise<void> {
 }
 
 test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
+  test.beforeEach(({ page }) => {
+    test.skip(
+      (page.viewportSize()?.width ?? Number.MAX_SAFE_INTEGER) < 1024,
+      'the sidebar is desktop-only; phone and tablet coverage is in phone-tablet-shell.spec.ts',
+    );
+  });
+
   test(
     'E1: the primary entries read in order and each opens its main view',
     { tag: '@smoke' },
@@ -267,20 +276,5 @@ test.describe('Sidebar Navigation', { tag: '@responsive' }, () => {
       page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }),
     ).toBeVisible();
     await expect(appShell.sectionLink('settings')).toHaveAttribute('aria-current', 'page');
-  });
-
-  test('Log out button is in the sidebar below 1024px only', async ({ page }) => {
-    const appShell = new AppShellPage(page);
-    await page.goto(ROUTES.home);
-
-    const logoutButton = appShell.sidebar.getByRole('button', { name: /^(Log out|Abmelden)$/ });
-    if ((page.viewportSize()?.width ?? 0) < 1024) {
-      await appShell.openSidebar();
-      await expect(logoutButton).toBeVisible();
-    } else {
-      // The sidebar footer is display:none from 1024px, so the role query finds nothing
-      await expect(appShell.sectionLink('home')).toBeVisible();
-      await expect(logoutButton).toHaveCount(0);
-    }
   });
 });

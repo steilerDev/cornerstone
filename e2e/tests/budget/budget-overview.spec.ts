@@ -115,6 +115,8 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     // Then: Money is the one highlighted entry and lists its views (#2205)
     await expect(appShell.activeEntries).toHaveCount(1);
     await expect(appShell.sectionLink('money')).toHaveAttribute('aria-current', 'page');
+    // Below 1024px the views live in the title menu: open it first (no-op on desktop)
+    await appShell.revealViews();
     await expect(appShell.viewLinks).toHaveText([
       'Invoices',
       'Funding sources',

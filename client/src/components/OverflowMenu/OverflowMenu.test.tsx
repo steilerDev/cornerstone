@@ -1147,3 +1147,130 @@ describe('OverflowMenu Escape from outside the menu element', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument();
   });
 });
+
+describe('OverflowMenu renderTrigger, bottom-start placement and current links (#2207)', () => {
+  const linkItems: OverflowMenuEntry[] = [
+    { kind: 'link', id: 'a', label: 'Tasks', href: '/a', current: true, testId: 'link-a' },
+    { kind: 'link', id: 'b', label: 'Schedule', href: '/b', testId: 'link-b' },
+  ];
+
+  function renderCustom(extra: Partial<Parameters<typeof OverflowMenu>[0]> = {}) {
+    return render(
+      <OverflowMenu
+        items={linkItems}
+        triggerAriaLabel="Tasks"
+        data-testid="custom-trigger"
+        renderTrigger={(props) => (
+          <h1>
+            <button {...props} className="custom">
+              Tasks
+            </button>
+          </h1>
+        )}
+        {...extra}
+      />,
+    );
+  }
+
+  it('renders the custom trigger instead of the built-in button, with working ARIA props', () => {
+    renderCustom();
+    const trigger = screen.getByTestId('custom-trigger');
+    expect(trigger).toHaveClass('custom');
+    expect(trigger.closest('h1')).not.toBeNull();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+    expect(trigger).toHaveAttribute('aria-haspopup', 'menu');
+    expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    expect(trigger).toHaveAttribute('aria-label', 'Tasks');
+    expect(trigger).toHaveAttribute('type', 'button');
+    expect(trigger).not.toHaveAttribute('aria-controls');
+  });
+
+  it('opens on click and wires aria-controls to the menu', () => {
+    renderCustom();
+    const trigger = screen.getByTestId('custom-trigger');
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    expect(trigger).toHaveAttribute('aria-controls', screen.getByRole('menu').id);
+  });
+
+  it.each(['Enter', 'ArrowDown'])(
+    'opens from the keyboard with %s and focuses the first item',
+    (key) => {
+      renderCustom();
+      const trigger = screen.getByTestId('custom-trigger');
+      trigger.focus();
+      fireEvent.keyDown(trigger, { key });
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(screen.getByTestId('link-a')).toHaveFocus();
+    },
+  );
+
+  it('Escape closes the menu and returns focus to the rendered trigger', () => {
+    renderCustom();
+    const trigger = screen.getByTestId('custom-trigger');
+    fireEvent.click(trigger);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(trigger).toHaveFocus();
+  });
+
+  it('does not open a disabled custom trigger', () => {
+    renderCustom({ disabled: true });
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('appends wrapperClassName to the wrapper', () => {
+    const { container } = renderCustom({ wrapperClassName: 'titleMenu' });
+    expect(container.firstElementChild).toHaveClass('wrapper', 'titleMenu');
+  });
+
+  it('keeps the plain wrapper class without wrapperClassName', () => {
+    const { container } = renderCustom();
+    expect(container.firstElementChild?.className).toBe('wrapper');
+  });
+
+  it('bottom-start applies the left-aligned panel class (not menuBottom or menuTop)', () => {
+    renderCustom({ placement: 'bottom-start', menuTestId: 'panel' });
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    const panel = screen.getByTestId('panel');
+    expect(panel).toHaveClass('menuBottomStart');
+    expect(panel).not.toHaveClass('menuBottom');
+    expect(panel).not.toHaveClass('menuTop');
+  });
+
+  it('bottom-start with usePortal falls back to bottom-end positioning in the body', () => {
+    renderCustom({ placement: 'bottom-start', usePortal: true, menuTestId: 'panel' });
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    const panel = screen.getByTestId('panel');
+    expect(panel).toHaveClass('menuFixed');
+    expect(panel).not.toHaveClass('menuBottomStart');
+    expect(panel.parentElement).toBe(document.body);
+  });
+
+  it('marks the current link with aria-current, the itemCurrent class and a hidden check mark', () => {
+    renderCustom();
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    const current = screen.getByTestId('link-a');
+    expect(current).toHaveAttribute('aria-current', 'page');
+    expect(current).toHaveClass('itemCurrent');
+    const check = current.querySelector('[aria-hidden="true"]');
+    expect(check).toHaveTextContent('✓');
+    expect(check).toHaveClass('checkmark');
+  });
+
+  it('leaves other links without the current cues', () => {
+    renderCustom();
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    const other = screen.getByTestId('link-b');
+    expect(other).not.toHaveAttribute('aria-current');
+    expect(other).not.toHaveClass('itemCurrent');
+    expect(other.querySelector('[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('keeps the check mark out of the accessible name of the current link', () => {
+    renderCustom();
+    fireEvent.click(screen.getByTestId('custom-trigger'));
+    expect(screen.getByRole('menuitem', { name: 'Tasks' })).toBe(screen.getByTestId('link-a'));
+  });
+});

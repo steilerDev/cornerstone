@@ -150,9 +150,10 @@ test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () 
     // Project setup is the Settings entry itself, so it is the highlighted one.
     await expect(appShell.sectionLink('settings')).toHaveText('Settings');
     await expect(appShell.sectionLink('settings')).toHaveAttribute('aria-current', 'page');
-    await expect(
-      appShell.settingsNav.getByRole('link', { name: 'Account', exact: true }),
-    ).toHaveCount(1);
+    // Below 1024px the Account view lives in the title menu: open it first (no-op on desktop)
+    await appShell.revealViews();
+    await expect(appShell.viewLink('settingsProfile')).toHaveCount(1);
+    await expect(appShell.viewLink('settingsProfile')).toContainText('Account');
     await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
   });
 });

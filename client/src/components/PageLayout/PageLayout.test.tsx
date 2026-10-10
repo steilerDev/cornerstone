@@ -3,8 +3,13 @@
  */
 import { describe, it, expect } from '@jest/globals';
 import { createRef } from 'react';
-import { render, screen } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { render as rtlRender, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { PageLayout } from './PageLayout.js';
+
+// PageTitle reads the router (its title menu navigates), so every render sits inside one.
+const render = (ui: ReactElement) => rtlRender(ui, { wrapper: MemoryRouter });
 
 // CSS modules are mocked via identity-obj-proxy (classNames returned as-is)
 

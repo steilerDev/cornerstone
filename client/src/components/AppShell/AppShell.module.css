@@ -3,6 +3,12 @@
 
   display: flex;
   min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Phone and tablet: the top bar also covers the top safe-area inset */
+.compact {
+  --topbar-height: calc(var(--spacing-12) + var(--spacing-2) + env(safe-area-inset-top, 0rem));
 }
 
 /* Non-scrolling column: the sticky top bar sticks to the viewport, not to .mainContent */
@@ -15,6 +21,7 @@
 
 .mainContent {
   flex: 1;
+  padding-bottom: var(--shell-bottom-height);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -32,68 +39,6 @@
   justify-content: center;
   padding: var(--spacing-8);
   color: var(--color-text-muted);
-}
-
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: var(--color-overlay);
-  z-index: var(--z-overlay);
-  display: none;
-}
-
-/* Mobile and tablet: show overlay when sidebar is open */
-@media (max-width: 1023px) {
-  .overlay {
-    display: block;
-  }
-}
-
-.menuFab {
-  display: none;
-  position: fixed;
-  bottom: var(--spacing-6);
-  right: var(--spacing-6);
-  min-width: 44px;
-  min-height: 44px;
-  width: var(--spacing-12);
-  height: var(--spacing-12);
-  border-radius: var(--radius-full);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-size: var(--font-size-2xl);
-  border: 1px solid var(--color-border-strong);
-  cursor: pointer;
-  z-index: calc(var(--z-overlay) + 10);
-  box-shadow: var(--shadow-md);
-  transition: var(--transition-button);
-}
-
-.menuFab:hover {
-  background-color: var(--color-bg-hover);
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-lg);
-}
-
-.menuFab:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  border-color: var(--color-border-focus);
-}
-
-/* Mobile and tablet: show floating menu button */
-@media (max-width: 1023px) {
-  .menuFab {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .menuFab {
-    transition: none;
-  }
 }
 
 /* Full-height layout opt-in: pages with data-layout="full-height" want to manage
