@@ -15,6 +15,7 @@ import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type * as UsePreferencesTypes from '../../hooks/usePreferences.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import enErrors from '../../i18n/en/errors.json';
 import enDashboard from '../../i18n/en/dashboard.json';
 import enCommon from '../../i18n/en/common.json';
@@ -255,12 +256,11 @@ describe('DashboardPage', () => {
     expect(screen.getByRole('heading', { level: 1, name: 'Project' })).toBeInTheDocument();
   });
 
-  // ─── Test 12: project section SubNav ────────────────────────────────────
+  // ─── Test 12: no tab row ─────────────────────────────────────────────────
 
-  it('renders project section SubNav navigation', () => {
-    renderPage();
-    // SubNav renders a <nav> element with project links
-    expect(screen.getByRole('navigation')).toBeInTheDocument();
+  it('renders no project tab row of its own: the sidebar lists the views (AC5)', () => {
+    const { container } = renderPage();
+    expect(ownNavigations(container)).toEqual([]);
   });
 
   // ─── Test 13: All 10 cards render after data loads ───────────────────────

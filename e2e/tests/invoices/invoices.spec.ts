@@ -20,6 +20,7 @@
  */
 
 import { test, expect } from '../../fixtures/isolatedUser.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import type { Page } from '@playwright/test';
 import { InvoicesPage } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
@@ -173,18 +174,20 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
     },
   );
 
-  test('Budget subnav tabs are visible', async ({ page }) => {
+  test('Money views are listed in the sidebar with Invoices highlighted', async ({ page }) => {
     const invoicesPage = new InvoicesPage(page);
+    const appShell = new AppShellPage(page);
     await invoicesPage.goto();
 
-    // SubNav renders the Budget section tabs. Scope to the Budget <nav> landmark
-    // so labels like "Overview" don't collide with the project-logo link's
-    // aria-label ("Go to project overview").
-    const subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
-    await expect(subNav.getByRole('link', { name: 'Overview' })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Invoices' })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Sources' })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Subsidies' })).toBeVisible();
+    // #2205: the Money views live in the sidebar, not in an in-page tab row
+    await expect(appShell.viewLinks).toHaveText([
+      'Invoices',
+      'Funding sources',
+      'Grants',
+      'Bank report',
+    ]);
+    await expect(appShell.viewLink('invoices')).toHaveAttribute('aria-current', 'page');
+    await expect(appShell.activeEntries).toHaveCount(1);
   });
 });
 

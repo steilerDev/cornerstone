@@ -127,10 +127,20 @@ describe('AppShell', () => {
     );
 
     // All navigation links should be present
-    expect(screen.getByRole('link', { name: /^project$/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^budget$/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /^schedule$/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^settings$/i })).toBeInTheDocument();
+    for (const name of [
+      'Home',
+      'Tasks',
+      'Purchases',
+      'Site diary',
+      'Photos',
+      'Money',
+      'Companies',
+      'Settings',
+    ]) {
+      expect(screen.getByRole('link', { name })).toBeInTheDocument();
+    }
+    expect(screen.getByRole('navigation', { name: /main navigation/i })).toBeInTheDocument();
+    expect(screen.getByRole('navigation', { name: /^settings$/i })).toBeInTheDocument();
   });
 
   it('renders floating menu button for mobile sidebar toggle', () => {

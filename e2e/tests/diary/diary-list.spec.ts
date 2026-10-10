@@ -132,8 +132,8 @@ test.describe('Sidebar navigation (Scenario 2)', { tag: '@responsive' }, () => {
       await appShell.openSidebar();
     }
 
-    // Click the "Diary" link inside the sidebar navigation
-    const diaryNavLink = appShell.sidebar.getByRole('link', { name: 'Diary', exact: true });
+    // Click the "Site diary" link inside the sidebar navigation
+    const diaryNavLink = appShell.sidebar.getByRole('link', { name: 'Site diary', exact: true });
     await diaryNavLink.waitFor({ state: 'visible' });
     await diaryNavLink.click();
 

@@ -8,10 +8,8 @@ import { useAuth } from '../../contexts/AuthContext.js';
 import { useLocale, type LocalePreference } from '../../contexts/LocaleContext.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav, type SubNavTab } from '../../components/SubNav/SubNav.js';
 import { DavAccessCard } from '../../components/DavAccessCard/DavAccessCard.js';
 import styles from './ProfilePage.module.css';
-import { routeUrl } from '@cornerstone/shared';
 
 interface PasswordFormErrors {
   currentPassword?: string;
@@ -33,24 +31,6 @@ export function ProfilePage() {
   } = useFormatters();
   const { user, isLoading, error: loadError, refreshAuth } = useAuth();
   const { locale, setLocale } = useLocale();
-
-  const settingsTabs: SubNavTab[] = [
-    { labelKey: 'subnav.settings.profile', to: routeUrl('settingsProfile'), ns: 'common' },
-    { labelKey: 'subnav.settings.manage', to: routeUrl('settingsManage'), ns: 'common' },
-    { labelKey: 'subnav.settings.vendors', to: routeUrl('vendors'), ns: 'common' },
-    {
-      labelKey: 'subnav.settings.userManagement',
-      to: routeUrl('settingsUsers'),
-      ns: 'common',
-      visible: user?.role === 'admin',
-    },
-    {
-      labelKey: 'subnav.settings.backups',
-      to: routeUrl('settingsBackups'),
-      ns: 'common',
-      visible: user?.role === 'admin',
-    },
-  ];
 
   // Display name state
   const [displayName, setDisplayName] = useState('');
@@ -168,11 +148,7 @@ export function ProfilePage() {
 
   if (isLoading) {
     return (
-      <PageLayout
-        maxWidth="narrow"
-        title={pageTitle}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-      >
+      <PageLayout maxWidth="narrow" title={pageTitle}>
         <div className={styles.loading}>{t('profile.loading')}</div>
       </PageLayout>
     );
@@ -180,11 +156,7 @@ export function ProfilePage() {
 
   if (loadError) {
     return (
-      <PageLayout
-        maxWidth="narrow"
-        title={pageTitle}
-        subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-      >
+      <PageLayout maxWidth="narrow" title={pageTitle}>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('profile.error')}</h2>
           <p>{loadError}</p>
@@ -200,11 +172,7 @@ export function ProfilePage() {
   const isLocalAuth = user.authProvider === 'local';
 
   return (
-    <PageLayout
-      maxWidth="narrow"
-      title={pageTitle}
-      subNav={<SubNav tabs={settingsTabs} ariaLabel={tCommon('subNav.settings')} />}
-    >
+    <PageLayout maxWidth="narrow" title={pageTitle}>
       {/* Profile Information Card */}
       <section className={styles.card}>
         <h2 className={styles.cardTitle}>{t('profile.profileInformation')}</h2>

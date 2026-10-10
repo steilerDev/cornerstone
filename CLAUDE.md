@@ -171,8 +171,8 @@ One verdict matrix for all reviewer agents (product-architect, security-engineer
 
 A **restructure story** is any sub-issue of EPIC-21 (#2190) — list them with `gh api repos/steilerDev/cornerstone/issues/2190/sub_issues --paginate --jq '.[].number'`. Its PR is a **restructure PR**. These rules add to, and where they conflict override, the rest of this file:
 
-- **NavConfig is the only route source.** Navigation (sidebar, phone shell, title menus, command-search destinations) comes from NavConfig (`client/src/navigation/navConfig.ts`), which references route ids (property `route`, never paths) of the shared route map (`shared/src/routes/`, exported from `@cornerstone/shared`). App URLs — client and server (vCard, iCal, OIDC redirects) — are built only with `routeUrl(id, params?, query?)`: no hand-written tab arrays, no string-literal app paths (`client/src/navigation/routeSource.test.ts` fails on them; `/api/…` paths are exempt). A route is added or changed in `shared/src/routes/routeMap.ts` **and** `plan/restructure/routemap.json` in the same PR — `npm run plan:check` fails when they disagree; `client/src/App.tsx` declares pages with `routePattern(id)` and generates redirects from `LIVE_REDIRECT_ROUTES`, never hand-written `<Navigate>` routes. The story that builds a target page flips its route-map `stage` to `done` and deletes `interim` (ADR-038 §2, wiki Route Map › Rollout stage).
-- **Capability-map rule.** Each story names the capability ids it touches (in the issue and the PR body) and updates `plan/restructure/capmap.json` (plus `routemap.json` on any route change) in the same PR. Capabilities may be moved, merged or tucked away, never removed; demoted ones stay at most 2 clicks from their object's page (ADR-038 §4–§5). `npm run plan:check` runs on every PR and enforces placement and the click bound for every capability, capmap ↔ inventory consistency, route coverage and drift against `client/src/App.tsx`, the pattern baseline and privacy. It cannot see a removal (a capability deleted from both files, or a permanent route-map entry deleted together with its route), so reviewers check the diffs of `plan/restructure/capabilities.json`, `capmap.json` and `routemap.json` for removed entries.
+- **NavConfig is the only route source.** Navigation (sidebar, phone shell, title menus, command-search destinations) comes from NavConfig (`client/src/navigation/navConfig.ts`), which references route ids (property `route`, never paths) of the shared route map (`shared/src/routes/`, exported from `@cornerstone/shared`). App URLs — client and server (vCard, iCal, OIDC redirects) — are built only with `routeUrl(id, params?, query?)`: no hand-written tab arrays or `SubNav` consumers (`client/src/navigation/noTabRows.test.ts` fails on them), no string-literal app paths (`client/src/navigation/routeSource.test.ts` fails on them; `/api/…` paths are exempt). The sidebar highlights exactly one entry, resolved from the route map (`resolveNavActive`), never by `NavLink` prefix matching. A NavConfig view whose final home is not built yet carries `interimUntil: <route id>` and is shown only while that route is unserved; the story that serves the route deletes it (wiki Architecture › Sidebar from NavConfig). A route is added or changed in `shared/src/routes/routeMap.ts` **and** `plan/restructure/routemap.json` in the same PR — `npm run plan:check` fails when they disagree; `client/src/App.tsx` declares pages with `routePattern(id)` and generates redirects from `LIVE_REDIRECT_ROUTES`, never hand-written `<Navigate>` routes. The story that builds a target page flips its route-map `stage` to `done` and deletes `interim` (ADR-038 §2, wiki Route Map › Rollout stage).
+- **Capability-map rule.** Each story names the capability ids it touches (in the issue and the PR body) and updates `plan/restructure/capmap.json` (plus `routemap.json` on any route change) in the same PR. Capabilities may be moved, merged or tucked away, never removed; demoted ones stay at most 2 clicks from their object's page (ADR-038 §4–§5). `npm run plan:check` runs on every PR and enforces placement and the click bound for every capability, capmap ↔ inventory consistency, route coverage and drift against `client/src/App.tsx`, the pattern baseline, the Phase-0 defect registry (`plan/restructure/defects.json`: every listed test file exists and names its defect id) and privacy. It cannot see a removal (a capability deleted from both files, or a permanent route-map entry deleted together with its route), so reviewers check the diffs of `plan/restructure/capabilities.json`, `capmap.json` and `routemap.json` for removed entries.
 - **IA placement named per story.** Every touched capability states its placement as `Section › view › surface`, consistent with NavConfig and the route map.
 - **Glossary English canon.** English terms in `client/src/i18n/glossary.json` are the canonical UI words: `en` labels use them verbatim, other locales use the approved translation. Retired words survive only as search aliases ("formerly …"). Plain words over jargon — "Gantt" is an alias, never a label.
 - **Full E2E gating.** Restructure PRs wait on `bash scripts/ci-wait.sh <pr> main` (Quality Gates + E2E Gates) even though they target `beta`.
@@ -572,25 +572,25 @@ npm run dev                   # Start server (port 3000) + client dev server (po
 
 ### Common Commands
 
-| Command                    | Description                                                    |
-| -------------------------- | -------------------------------------------------------------- |
-| `npm run dev`              | Start both server and client in watch mode                     |
-| `npm run dev:server`       | Start only the Fastify server (node --watch)                   |
-| `npm run dev:client`       | Start only the Webpack dev server                              |
-| `npm run build`            | Build all packages (shared -> client -> server)                |
-| `npm test`                 | Run all tests                                                  |
-| `npm run test:collect`     | List all tests (suites + names) without executing them         |
-| `npm run lint`             | Lint all code                                                  |
-| `npm run format`           | Format all code                                                |
-| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)          |
-| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                    |
-| `npm run db:migrate`       | Run pending SQL migrations                                     |
-| `npm run docs:dev`         | Start docs site dev server (port 3001)                         |
-| `npm run docs:build`       | Build docs site to `docs/build/`                               |
-| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/`    |
-| `npm run plan:check`       | Validate the EPIC-21 capability/route map and pattern baseline |
-| `npm run plan:build`       | Regenerate derived `plan/restructure/` JSON                    |
-| `npm run test:plan`        | Run the `plan/restructure/scripts` test suites                 |
+| Command                    | Description                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------- |
+| `npm run dev`              | Start both server and client in watch mode                                      |
+| `npm run dev:server`       | Start only the Fastify server (node --watch)                                    |
+| `npm run dev:client`       | Start only the Webpack dev server                                               |
+| `npm run build`            | Build all packages (shared -> client -> server)                                 |
+| `npm test`                 | Run all tests                                                                   |
+| `npm run test:collect`     | List all tests (suites + names) without executing them                          |
+| `npm run lint`             | Lint all code                                                                   |
+| `npm run format`           | Format all code                                                                 |
+| `npm run typecheck`        | Type-check all packages (shared, server, client, e2e)                           |
+| `npm run test:e2e:smoke`   | Run E2E smoke tests (desktop/Chromium only)                                     |
+| `npm run db:migrate`       | Run pending SQL migrations                                                      |
+| `npm run docs:dev`         | Start docs site dev server (port 3001)                                          |
+| `npm run docs:build`       | Build docs site to `docs/build/`                                                |
+| `npm run docs:screenshots` | Capture app screenshots into `docs/static/img/screenshots/`                     |
+| `npm run plan:check`       | Validate the EPIC-21 capability/route map, pattern baseline and defect registry |
+| `npm run plan:build`       | Regenerate derived `plan/restructure/` JSON                                     |
+| `npm run test:plan`        | Run the `plan/restructure/scripts` test suites                                  |
 
 ### Documentation Site
 

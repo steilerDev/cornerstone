@@ -3,7 +3,7 @@
  *
  * Coverage:
  * 1. [smoke] Admin can navigate to Backups page and see the heading
- * 2. Backups tab is not visible in SettingsSubNav for non-admin (member) users
+ * 2. Backups view is not offered in the sidebar Settings group for non-admin (member) users
  * 3. Create backup — covered via mocked API responses
  * 4. Delete backup confirmation modal — cancel closes without deleting; delete removes row
  * 5. Restore confirmation modal shows warning text; cancel closes modal
@@ -19,6 +19,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BackupsPage } from '../../pages/BackupsPage.js';
 import { API } from '../../fixtures/testData.js';
 
@@ -59,25 +60,26 @@ test.describe('Backups page — admin access', () => {
     },
   );
 
-  test('Backups nav tab is visible in SettingsSubNav for admin', async ({ page }) => {
+  test('Backups view is listed in the sidebar Settings group for admin', async ({ page }) => {
+    const shell = new AppShellPage(page);
     // Given: Authenticated admin user on the profile page
     await page.goto('/settings/profile');
 
-    // Then: The "Backups" tab is visible in the sub-nav.
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Backups' })).toBeVisible();
+    // Then: The "Backups" view is listed in the sidebar Settings group (#2205: no in-page tab row)
+    await expect(shell.viewLink('settingsBackups')).toHaveText('Backups');
+    await expect(shell.settingsNav.getByRole('link', { name: 'Backups' })).toHaveCount(1);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Member user cannot see Backups tab
+// Scenario 2: Member user is not offered Backups
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Backups tab — member access control', () => {
-  test('Backups tab is not visible in SettingsSubNav for member role', async ({ page }) => {
+test.describe('Backups view — member access control', () => {
+  test('Backups view is not offered in the sidebar for member role', async ({ page }) => {
+    const shell = new AppShellPage(page);
     // Mock the /api/auth/me endpoint to return a member role.
-    // The SettingsSubNav reads from AuthContext (which uses /api/auth/me via useAuth),
+    // The sidebar reads the role from AuthContext (which uses /api/auth/me via useAuth),
     // so mocking the auth endpoint is the correct E2E approach for role-based UI tests
     // when no member storage state exists.
     // Mock format: { user: { ... }, setupRequired, oidcEnabled }
@@ -114,18 +116,12 @@ test.describe('Backups tab — member access control', () => {
       page.getByRole('heading', { level: 1, name: 'Account', exact: true }),
     ).toBeVisible();
 
-    // Then: The "Backups" tab is NOT visible (admin-only).
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    // Use not.toBeVisible() rather than not.toBeHidden() — admin-only tabs are not
-    // rendered at all for member role (conditional render), so the element is absent
-    // from the DOM entirely, not merely CSS-hidden.
-    await expect(subNav.getByText('Backups', { exact: true })).not.toBeVisible();
+    // Then: The admin-only views are not rendered at all for the member role
+    await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
+    await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
 
-    // And: The "User Management" tab is also not visible for members
-    await expect(subNav.getByText('User Management', { exact: true })).not.toBeVisible();
-
-    // And: The shared tabs (Profile, Manage) remain visible
-    await expect(subNav.getByText('Profile', { exact: true })).toBeVisible();
+    // And: The shared view (Account) remains in the Settings group
+    await expect(shell.viewLink('settingsProfile')).toHaveText('Account');
   });
 });
 

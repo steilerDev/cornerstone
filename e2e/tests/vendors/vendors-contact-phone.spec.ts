@@ -29,7 +29,7 @@ async function createContact(
 }
 
 test.describe('Vendor list phone fallback', { tag: '@responsive' }, () => {
-  test('shows the first contact phone when the vendor has none, and the vendor phone when it has one', async ({
+  test('D-34: shows the first contact phone when the vendor has none, and the vendor phone when it has one', async ({
     page,
     testPrefix,
   }) => {

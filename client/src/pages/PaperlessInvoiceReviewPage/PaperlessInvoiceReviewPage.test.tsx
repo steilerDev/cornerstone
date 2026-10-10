@@ -447,7 +447,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       expect(screen.getAllByText(/Analyzing/i).length).toBeGreaterThan(0);
     });
 
-    it('previewAutoItemize is called on mount with the documentId from the ?documentId= query', async () => {
+    it('D-12: previewAutoItemize is called on mount with the documentId from the ?documentId= query', async () => {
       // Allow the document fetch to proceed so the preview call fires
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       // Let vendors load
@@ -1131,7 +1131,7 @@ describe('PaperlessInvoiceReviewPage', () => {
 
   // ─── 11. Missing documentId guard ───────────────────────────────────────────
 
-  describe('missing documentId guard', () => {
+  describe('D-12: missing documentId guard', () => {
     function renderAt(entry: string | { pathname: string; state: unknown }) {
       return render(
         React.createElement(
@@ -1191,7 +1191,7 @@ describe('PaperlessInvoiceReviewPage', () => {
       },
     );
 
-    it('treats history state alone (no query) as a missing document', async () => {
+    it('D-12: treats history state alone (no query) as a missing document', async () => {
       renderAt({
         pathname: '/budget/invoices/new/paperless',
         state: { documentId: 42, documentTitle: 'Test Invoice' },

@@ -65,7 +65,7 @@ test.describe('Schedule tooltip company and dependency direction (Scenario 1 + 2
     );
   }
 
-  test('A task in the middle shows its owner, what it waits for and what it holds up', async ({
+  test('D-33: A task in the middle shows its owner, what it waits for and what it holds up', async ({
     page,
   }) => {
     const timelinePage = new TimelinePage(page);
@@ -98,7 +98,9 @@ test.describe('Schedule tooltip company and dependency direction (Scenario 1 + 2
     }
   });
 
-  test('A task for a company shows the company and only a "Holds up" group', async ({ page }) => {
+  test('D-33: A task for a company shows the company and only a "Holds up" group', async ({
+    page,
+  }) => {
     const timelinePage = new TimelinePage(page);
     await mockThreeTasks(timelinePage);
 

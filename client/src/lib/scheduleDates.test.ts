@@ -9,7 +9,7 @@ describe('barDates', () => {
     projectedEndDate: '2026-03-13',
   };
 
-  it('uses the forecast dates when there are no actual dates', () => {
+  it('D-38: uses the forecast dates when there are no actual dates', () => {
     expect(barDates(base)).toEqual({ start: '2026-03-10', end: '2026-03-13' });
   });
 
@@ -84,7 +84,7 @@ describe('showsPlannedRow', () => {
     ).toBe(false);
   });
 
-  it('is true when the start differs', () => {
+  it('D-38: is true when the start differs', () => {
     expect(
       showsPlannedRow({ ...shown, plannedStartDate: '2026-03-01', plannedEndDate: '2026-03-15' }),
     ).toBe(true);

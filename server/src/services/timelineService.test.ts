@@ -851,7 +851,7 @@ describe('getTimeline service', () => {
   describe('schedule projection fields', () => {
     const TODAY_NOW = '2026-03-10T12:00:00.000Z';
 
-    it('reports a late task with planned dates, forecast dates and lateDays (scenario 16)', () => {
+    it('D-38: reports a late task with planned dates, forecast dates and lateDays (scenario 16)', () => {
       jest.setSystemTime(new Date(TODAY_NOW));
       const userId = insertUser(db);
       const late = insertWorkItem(db, userId, {

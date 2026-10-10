@@ -21,7 +21,6 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav } from '../../components/SubNav/SubNav.js';
 import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
 import { overAllocatedAmount } from '../../lib/money.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -29,7 +28,6 @@ import { SourceBudgetLinePanel } from '../../components/SourceBudgetLinePanel/So
 import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { OverflowMenu } from '../../components/OverflowMenu/index.js';
-import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
@@ -733,11 +731,7 @@ export function BudgetSourcesPage() {
 
   if (isLoading) {
     return (
-      <PageLayout
-        title={pageTitle}
-        breadcrumbs={<PageBreadcrumbs />}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
         <div className={styles.loading}>{t('sources.loading')}</div>
       </PageLayout>
     );
@@ -745,11 +739,7 @@ export function BudgetSourcesPage() {
 
   if (error && sources.length === 0) {
     return (
-      <PageLayout
-        title={pageTitle}
-        breadcrumbs={<PageBreadcrumbs />}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('sources.error')}</h2>
           <p>{error}</p>
@@ -778,7 +768,6 @@ export function BudgetSourcesPage() {
           {t('sources.addSource')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">

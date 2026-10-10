@@ -31,7 +31,6 @@ import type { DataTableSurface } from '../../components/DataTable/dataTableTestI
 import { Modal } from '../../components/Modal/Modal.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav } from '../../components/SubNav/SubNav.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
@@ -45,7 +44,6 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
-import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import {
   todayIso,
   dueFlag,
@@ -932,7 +930,6 @@ export function InvoicesPage() {
           {t('invoices.addInvoice')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {headerContent}
       <DataTable<Invoice, InvoiceDeposit>

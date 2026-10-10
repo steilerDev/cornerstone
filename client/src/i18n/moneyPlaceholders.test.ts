@@ -28,7 +28,7 @@ describe('money input placeholders (AC4)', () => {
     expect(files.length).toBeGreaterThan(300);
   });
 
-  it('no production file hard-codes placeholder="0.00" or placeholder="1,000"', () => {
+  it('D-29: no production file hard-codes placeholder="0.00" or placeholder="1,000"', () => {
     const offenders = files
       .filter((f) => /placeholder=(["'{`]+)\s*(0\.00|1,000)/.test(f.source))
       .map((f) => f.rel);

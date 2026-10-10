@@ -35,7 +35,6 @@ import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav } from '../../components/SubNav/SubNav.js';
 import { WizardStepper, type WizardStep } from '../../components/WizardStepper/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { FormError } from '../../components/FormError/FormError.js';
@@ -44,7 +43,6 @@ import { Spinner } from '../../components/Spinner/Spinner.js';
 import { ReportInvoiceList } from '../../components/reports/ReportInvoiceList.js';
 import { ReportPdfPreview } from '../../components/reports/ReportPdfPreview.js';
 import { ReportContentEditor } from '../../components/reports/ReportContentEditor.js';
-import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { Step1UseCase } from './Step1UseCase.js';
 import { Step2Source } from './Step2Source.js';
 import { Step4Settings } from './Step4Settings.js';
@@ -895,8 +893,6 @@ export function ReportWizardPage() {
 
   return (
     <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
-      <SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />
-
       <WizardStepper
         steps={steps}
         currentStep={currentStep}

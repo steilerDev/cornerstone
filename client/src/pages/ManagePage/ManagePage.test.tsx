@@ -7,6 +7,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { OriginProbe } from '../../test/originProbe.js';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import type { ReactNode } from 'react';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
@@ -349,40 +350,12 @@ describe('ManagePage', () => {
 
   // ─── Tab rendering ─────────────────────────────────────────────────────────
 
-  describe('Settings section navigation (D-23)', () => {
-    it('hides the User Management and Backups tabs from members', async () => {
-      mockUseAuth.mockReturnValue({
-        user: {
-          id: 'user-member',
-          email: 'member@example.com',
-          displayName: 'Member',
-          role: 'member' as const,
-          authProvider: 'local' as const,
-          oidcLinked: false,
-          createdAt: '2024-01-01T00:00:00.000Z',
-          updatedAt: '2024-01-01T00:00:00.000Z',
-          deactivatedAt: null,
-        },
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-      renderManagePage();
+  describe('Settings section navigation (AC5)', () => {
+    it('renders no Settings tab row of its own: the sidebar lists the Settings views', () => {
+      const { container } = renderManagePage();
 
-      const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
-      expect(within(nav).getByRole('link', { name: 'Profile' })).toBeInTheDocument();
-      expect(within(nav).queryByRole('link', { name: 'User Management' })).toBeNull();
-      expect(within(nav).queryByRole('link', { name: 'Backups' })).toBeNull();
-    });
-
-    it('shows the User Management and Backups tabs to admins', async () => {
-      renderManagePage();
-
-      const nav = screen.getByRole('navigation', { name: 'Settings section navigation' });
-      expect(within(nav).getByRole('link', { name: 'User Management' })).toBeInTheDocument();
-      expect(within(nav).getByRole('link', { name: 'Backups' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'Settings section navigation' })).toBeNull();
+      expect(ownNavigations(container)).toEqual([]);
     });
   });
 

@@ -2,7 +2,7 @@
  * Page Object Model for the Invoices list page (/budget/invoices)
  *
  * The page renders:
- * - A SubNav with Budget tabs: Overview, Invoices, Vendors, Sources, Subsidies
+ * - No in-page tab row (#2205): Money views are sidebar links (AppShellPage.viewLink)
  * - A page header with h1 "Budget" and an "Add Invoice" button (data-testid="new-invoice-button")
  * - Summary cards: To pay, Ready to submit, Submitted, Offers, Still to pay — always rendered —
  *   plus two conditional cards: Refunds due to you (data-testid="summary-card-refunds-due",

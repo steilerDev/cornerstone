@@ -23,11 +23,12 @@
  * - Navigation:  Vendors → Detail → "Companies" trail link
  * - Dark mode:   Page renders without layout breakage in dark mode
  * - Redirect:    Legacy /budget/vendors → /settings/vendors (Story #1283)
- * - SubNav:      Settings section navigation shows Vendors tab active (Story #1283)
+ * - Sidebar:     The Companies sidebar entry is the highlighted one (Story #1283, #2205)
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { VendorsPage, VENDORS_ROUTE } from '../../pages/VendorsPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { API } from '../../fixtures/testData.js';
@@ -1109,9 +1110,11 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
     await expect(vendorsPage.heading).toBeVisible();
     await expect(vendorsPage.heading).toHaveText('Vendors');
 
-    // Verify correct sub-page loaded via the SettingsSubNav "Vendors" tab being visible and active.
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav.getByRole('link', { name: 'Vendors' })).toBeVisible();
+    // Verify the right page loaded: the Companies sidebar entry is the highlighted one (#2205).
+    await expect(new AppShellPage(page).sectionLink('companies')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
   });
 });
 
@@ -1167,23 +1170,22 @@ test.describe('Legacy redirect: /budget/vendors → /settings/vendors (Story #12
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Story #1283: Settings SubNav presence
+// Story #1283 / #2205: the Companies sidebar entry is active; the page has no tab row
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Settings SubNav shows Vendors tab active (Story #1283)', () => {
-  test('Settings section navigation is visible with Vendors tab marked active', async ({
-    page,
-  }) => {
+test.describe('Companies sidebar entry is active on the vendors page (Story #1283, #2205)', () => {
+  test('Companies is the one highlighted entry and the page has no tab row', async ({ page }) => {
+    const shell = new AppShellPage(page);
     // When: the user is on the Settings > Vendors page
     await page.goto(VENDORS_ROUTE);
+    await new VendorsPage(page).heading.waitFor({ state: 'visible' });
 
-    // Then: The Settings SubNav is present
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav).toBeVisible({ timeout: 8000 });
+    // Then: exactly one sidebar entry is current: Companies (not Settings)
+    await expect(shell.activeEntries).toHaveCount(1);
+    await expect(shell.sectionLink('companies')).toHaveAttribute('aria-current', 'page');
+    await expect(shell.sectionLink('companies')).toHaveText('Companies');
 
-    // And: The "Vendors" tab within it has aria-current="page" (active state)
-    const vendorsTab = subNav.getByRole('link', { name: 'Vendors' });
-    await expect(vendorsTab).toBeVisible();
-    await expect(vendorsTab).toHaveAttribute('aria-current', 'page');
+    // And: no in-page tab row
+    await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
   });
 });
 

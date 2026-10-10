@@ -1,5 +1,5 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, cleanup, within } from '@testing-library/react';
+import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
@@ -7,6 +7,7 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import enErrors from '../../i18n/en/errors.json';
 import enSettings from '../../i18n/en/settings.json';
 
@@ -24,20 +25,6 @@ jest.unstable_mockModule('../../lib/usersApi.js', () => ({
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: ReactNode }) => children,
-}));
-
-// Mock SubNav — uses NavLink (requires Router context); stub it out since ProfilePage has no MemoryRouter
-// It mirrors SubNav's `visible !== false` filter so tests can see which tabs are offered.
-jest.unstable_mockModule('../../components/SubNav/SubNav.js', () => ({
-  SubNav: ({ tabs }: { tabs: { labelKey: string; visible?: boolean }[] }) => (
-    <ul data-testid="settings-tabs">
-      {tabs
-        .filter((tab) => tab.visible !== false)
-        .map((tab) => (
-          <li key={tab.labelKey}>{tab.labelKey}</li>
-        ))}
-    </ul>
-  ),
 }));
 
 // ─── Mock: formatters — provides useFormatters() hook ────────────────────────
@@ -280,30 +267,10 @@ describe('ProfilePage', () => {
       expect(screen.getByText('Administrator')).toBeInTheDocument();
     });
 
-    it('offers no User Management or Backups tab to members (D-23)', () => {
-      renderPage();
+    it('renders no tab row of its own: Settings views live in the sidebar (AC5)', () => {
+      const { container } = renderPage();
 
-      const tabs = screen.getByTestId('settings-tabs');
-      expect(within(tabs).getByText('subnav.settings.profile')).toBeInTheDocument();
-      expect(within(tabs).queryByText('subnav.settings.userManagement')).toBeNull();
-      expect(within(tabs).queryByText('subnav.settings.backups')).toBeNull();
-    });
-
-    it('offers the User Management and Backups tabs to admins', () => {
-      mockUseAuth.mockReturnValue({
-        user: { ...mockLocalUser, role: 'admin' },
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      renderPage();
-
-      const tabs = screen.getByTestId('settings-tabs');
-      expect(within(tabs).getByText('subnav.settings.userManagement')).toBeInTheDocument();
-      expect(within(tabs).getByText('subnav.settings.backups')).toBeInTheDocument();
+      expect(ownNavigations(container)).toEqual([]);
     });
 
     it('displays role as "Member" for member users', () => {

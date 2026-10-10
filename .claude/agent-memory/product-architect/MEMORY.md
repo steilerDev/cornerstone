@@ -105,6 +105,9 @@ is still undocumented in Schema.md.
 a ToastProvider`. That looks like a PR regression but is not one (PR #2137).
 - Confirm a run actually executed something: `Tests: N passed` — a `--maxWorkers=1 -t <filter>` run that
   matched nothing still exits 0 in some invocations, so a silent pass is not evidence.
+- **Worktree-isolation guard** refuses Bash commands mixing `git -C <other dir>` with pipes/subshells or a
+  runtime variable in an option slot (`sed -n … $F`). Run each git command plainly from its own `cd`, write
+  diffs to `/tmp` files, then scan/process them in a separate call.
 - **`.claude/agent-memory/` exists in BOTH the base checkout and every worktree, at diverging lengths.**
   An "absolute" path that omits the `.claude/worktrees/<name>/` segment silently reads/edits the _base_
   copy — no error, just stale content and an edit that never reaches the PR. Hit this on 2026-08-04

@@ -3,7 +3,7 @@
  *
  * The page renders:
  * - An h1 "Money" page title (#2203)
- * - BudgetSubNav (tab-style nav for the Budget section)
+ * - No in-page tab row (#2205): the Money views live in the sidebar (AppShellPage.viewLink)
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
  * - Empty state when no budget data has been entered (all-zero response)
@@ -25,9 +25,6 @@ export class BudgetOverviewPage {
 
   // Page heading
   readonly heading: Locator;
-
-  // BudgetSubNav
-  readonly subNav: Locator;
 
   // Loading indicator
   readonly loadingIndicator: Locator;
@@ -54,8 +51,6 @@ export class BudgetOverviewPage {
     this.page = page;
 
     this.heading = page.getByRole('heading', { level: 1, name: 'Money', exact: true });
-
-    this.subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
 
     this.loadingIndicator = page.getByRole('status', { name: 'Loading budget overview' });
 
@@ -127,13 +122,6 @@ export class BudgetOverviewPage {
       this.emptyState.waitFor({ state: 'visible', timeout: 10000 }),
       this.costBreakdownCard.waitFor({ state: 'visible', timeout: 10000 }),
     ]);
-  }
-
-  /**
-   * Check whether the Budget sub-navigation is visible.
-   */
-  async isSubNavVisible(): Promise<boolean> {
-    return await this.subNav.isVisible();
   }
 
   // ── Print helpers ─────────────────────────────────────────────────────────

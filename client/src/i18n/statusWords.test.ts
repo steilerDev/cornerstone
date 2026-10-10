@@ -118,7 +118,7 @@ describe('no "ausstehend" status word in de values (AC7)', () => {
   });
 });
 
-describe('planned and scheduled are different words (AC5)', () => {
+describe('D-32: planned and scheduled are different words (AC5)', () => {
   it('en', () => {
     expect(en.get('common.statusVocabulary.purchase.planned')).not.toBe(
       en.get('common.statusVocabulary.purchase.scheduled'),

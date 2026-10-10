@@ -2197,7 +2197,7 @@ describe('WorkItemDetailPage', () => {
       expect(screen.getByRole('button', { name: /retry/i })).toBeVisible();
     });
 
-    it('trails only the Tasks parent and drops the old back and To Schedule buttons', async () => {
+    it('D-37: trails only the Tasks parent and drops the old back and To Schedule buttons', async () => {
       renderWith('/project/work-items/work-1');
       await screen.findByRole('heading', { name: 'Test Work Item', level: 1 });
 

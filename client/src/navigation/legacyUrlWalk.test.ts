@@ -95,7 +95,7 @@ const REDIRECTED_TODAY: Readonly<Record<string, string>> = {
   '/profile': '/settings/profile',
   '/project': '/project/overview',
   '/schedule': '/schedule/gantt',
-  '/settings': '/settings/profile',
+  '/settings': '/settings/manage',
   '/tags': '/settings/manage',
   '/timeline': '/schedule/gantt',
   '/work-items': '/project/work-items',

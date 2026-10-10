@@ -3,13 +3,16 @@
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import type React from 'react';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { render } from '@testing-library/react';
 import { renderWithRouter } from '../../test/testUtils.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as SidebarTypes from './Sidebar.js';
 
 // Mock the AuthContext BEFORE importing Sidebar
 const mockLogout = jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+let mockRole: 'admin' | 'member' = 'admin';
 
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({
@@ -17,7 +20,7 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
       id: '1',
       email: 'test@example.com',
       displayName: 'Test',
-      role: 'admin',
+      role: mockRole,
       authProvider: 'local',
       createdAt: '',
       updatedAt: '',
@@ -43,6 +46,12 @@ jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
   ThemeProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+// The sidebar must not ask Paperless anything today (no served route is Paperless-gated).
+const mockGetPaperlessStatus = jest.fn<() => Promise<{ configured: boolean }>>();
+jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({
+  getPaperlessStatus: mockGetPaperlessStatus,
+}));
+
 describe('Sidebar', () => {
   let SidebarModule: typeof SidebarTypes;
   let mockOnClose: jest.MockedFunction<() => void>;
@@ -53,6 +62,8 @@ describe('Sidebar', () => {
     }
     mockOnClose = jest.fn<() => void>();
     mockLogout.mockReset().mockResolvedValue(undefined);
+    mockGetPaperlessStatus.mockReset();
+    mockRole = 'admin';
   });
 
   afterEach(() => {
@@ -64,309 +75,393 @@ describe('Sidebar', () => {
     onClose: mockOnClose,
   });
 
-  it('renders 5 navigation links plus 1 logo link plus 1 GitHub footer link', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const links = screen.getAllByRole('link');
-    // 5 main nav links (Project, Budget, Schedule, Diary, Photos) + 1 logo link (Go to project overview)
-    // + 1 GitHub link in the footer (Settings is now a button, not a link)
-    expect(links).toHaveLength(7);
-  });
-
-  it('logo link navigates to /project and has aria-label', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const logoLink = screen.getByRole('link', { name: /go to project overview/i });
-    expect(logoLink).toBeInTheDocument();
-    expect(logoLink).toHaveAttribute('href', '/project');
-  });
-
-  it('renders navigation with correct aria-label', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const nav = screen.getByRole('navigation', { name: /main navigation/i });
-    expect(nav).toBeInTheDocument();
-  });
-
-  it('links have correct href attributes', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    expect(screen.getByRole('link', { name: /^project$/i })).toHaveAttribute('href', '/project');
-    expect(screen.getByRole('link', { name: /^budget$/i })).toHaveAttribute('href', '/budget');
-    expect(screen.getByRole('link', { name: /^schedule$/i })).toHaveAttribute('href', '/schedule');
-    expect(screen.getByRole('link', { name: /^diary$/i })).toHaveAttribute('href', '/diary');
-    // Settings is now a button (programmatic navigation), not a link
-    expect(screen.getByRole('button', { name: /^settings$/i })).toBeInTheDocument();
-  });
-
-  it('project link is active at /project', () => {
+  const renderAt = (path: string) =>
     renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/project'],
+      initialEntries: [path],
     });
 
-    const projectLink = screen.getByRole('link', { name: /^project$/i });
-    expect(projectLink).toHaveClass('active');
-  });
+  const mainNav = () => screen.getByRole('navigation', { name: /main navigation/i });
+  const settingsNav = () => screen.getByRole('navigation', { name: /^settings$/i });
+  const sectionLinks = (nav: HTMLElement) =>
+    within(nav)
+      .queryAllByRole('link')
+      .filter((l) => l.getAttribute('data-testid')?.startsWith('sidebar-section-'));
+  const section = (id: string) => screen.getByTestId(`sidebar-section-${id}`);
+  const view = (route: string) => screen.getByTestId(`sidebar-view-${route}`);
+  const hasView = (route: string) => screen.queryByTestId(`sidebar-view-${route}`) !== null;
 
-  it('project link is active on nested project routes', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/project/work-items'],
+  describe('structure', () => {
+    it('lists Home, Tasks, Purchases, Site diary, Photos, Money and Companies in order', () => {
+      renderAt('/budget/overview');
+
+      expect(sectionLinks(mainNav()).map((l) => l.textContent)).toEqual([
+        'Home',
+        'Tasks',
+        'Purchases',
+        'Site diary',
+        'Photos',
+        'Money',
+        'Companies',
+      ]);
     });
 
-    const projectLink = screen.getByRole('link', { name: /^project$/i });
-    expect(projectLink).toHaveClass('active');
-  });
+    it('has no Schedule entry of its own outside Tasks', () => {
+      renderAt('/budget/overview');
 
-  it('budget link is active at /budget', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget'],
+      expect(screen.queryByRole('link', { name: /^schedule$/i })).not.toBeInTheDocument();
     });
 
-    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
-    expect(budgetLink).toHaveClass('active');
-  });
+    it('renders no separator and no quiet group while Areas, History and Documents are planned', () => {
+      const { container } = renderAt('/project/work-items');
 
-  it('schedule link is active at /schedule', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/schedule'],
+      expect(container.querySelector('[aria-hidden="true"][class*="navSeparator"]')).toBeNull();
+      expect(container.querySelector('[class*="navLinkQuiet"]')).toBeNull();
+      for (const id of ['areas', 'history', 'documents']) {
+        expect(screen.queryByTestId(`sidebar-section-${id}`)).not.toBeInTheDocument();
+      }
     });
 
-    const scheduleLink = screen.getByRole('link', { name: /^schedule$/i });
-    expect(scheduleLink).toHaveClass('active');
-  });
+    it('uses real lists for each group', () => {
+      renderAt('/project/work-items');
 
-  it('diary link is active at /diary', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/diary'],
+      expect(within(mainNav()).getAllByRole('list').length).toBeGreaterThanOrEqual(2);
+      expect(within(settingsNav()).getAllByRole('list')).toHaveLength(1);
     });
 
-    const diaryLink = screen.getByRole('link', { name: /^diary$/i });
-    expect(diaryLink).toHaveClass('active');
-  });
+    it('has two landmarks, Main navigation and Settings, with theme toggle and logout outside both', () => {
+      renderAt('/project/work-items');
 
-  it('photos link points to /photos', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveAttribute('href', '/photos');
-  });
-
-  it('photos link is active at /photos', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/photos'],
+      const main = mainNav();
+      const settings = settingsNav();
+      const logout = screen.getByRole('button', { name: /logout/i });
+      const theme = screen.getByRole('button', { name: /switch to .+ mode/i });
+      for (const outside of [logout, theme]) {
+        expect(main.contains(outside)).toBe(false);
+        expect(settings.contains(outside)).toBe(false);
+      }
+      expect(main.contains(settings)).toBe(false);
+      expect(within(settings).getByRole('link', { name: /^settings$/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveClass('active');
-  });
+    it('opens Home with a labelled logo link to the root path', () => {
+      renderAt('/project/work-items');
 
-  it('photos link stays active on the spot viewer route', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/photos/spot/x/y'],
+      const logo = screen.getByRole('link', { name: 'Go to Home' });
+      expect(logo).toHaveAttribute('href', '/');
     });
 
-    expect(screen.getByRole('link', { name: /^photos$/i })).toHaveClass('active');
-    expect(screen.getByRole('link', { name: /^diary$/i })).not.toHaveClass('active');
-  });
+    it('links Tasks to the work item list and Settings to Project setup', () => {
+      renderAt('/photos');
 
-  it('clicking the photos link calls onClose', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    await user.click(screen.getByRole('link', { name: /^photos$/i }));
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('settings button is active at /settings', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/settings'],
+      expect(section('tasks')).toHaveAttribute('href', '/project/work-items');
+      expect(section('settings')).toHaveAttribute('href', '/settings/manage');
     });
 
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    expect(settingsButton).toHaveClass('active');
-  });
+    it('does not ask Paperless for its status', () => {
+      renderAt('/project/work-items');
 
-  it('settings button has aria-current="page" and the active class on /settings/profile', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/settings/profile'],
+      expect(mockGetPaperlessStatus).not.toHaveBeenCalled();
     });
 
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    expect(settingsButton).toHaveAttribute('aria-current', 'page');
-    expect(settingsButton).toHaveClass('active');
-  });
+    it('sidebar has .open class when isOpen is true', () => {
+      renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
 
-  it('settings button has no aria-current and is not active outside /settings', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/project'],
+      expect(screen.getByRole('complementary').className).toMatch(/open/);
     });
 
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    expect(settingsButton).not.toHaveAttribute('aria-current');
-    expect(settingsButton).not.toHaveClass('active');
+    it('sidebar does not have .open class when isOpen is false', () => {
+      renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={false} />);
+
+      expect(screen.getByRole('complementary').className).not.toMatch(/open/);
+    });
   });
 
-  it('only one nav link is active at a time', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />, {
-      initialEntries: ['/budget'],
+  describe('views nested under the section you are in', () => {
+    it('shows Schedule, Calendar and Milestones under Tasks, with Calendar current at /schedule/calendar', () => {
+      renderAt('/schedule/calendar');
+
+      expect(section('tasks')).toHaveClass('sectionCurrent');
+      expect(section('tasks')).not.toHaveAttribute('aria-current');
+      expect(section('tasks')).not.toHaveClass('active');
+      expect(view('scheduleCalendar')).toHaveAttribute('aria-current', 'page');
+      expect(view('scheduleCalendar')).toHaveClass('active');
+      expect(view('scheduleGantt')).toHaveTextContent('Schedule');
+      expect(view('scheduleGantt')).not.toHaveAttribute('aria-current');
+      expect(view('milestones')).toHaveTextContent('Milestones');
+      expect(view('scheduleCalendar')).toHaveTextContent('Calendar');
     });
 
-    // Settings is now a button so only check nav links for active state
-    const activeLinks = screen
-      .getAllByRole('link')
-      .filter((link) => link.classList.contains('active'));
-    expect(activeLinks).toHaveLength(1);
-    expect(activeLinks[0]!).toHaveTextContent(/^budget$/i);
-  });
+    it('marks the Tasks entry itself on the task list, with the views listed and none current', () => {
+      renderAt('/project/work-items');
 
-  it('sidebar has .open class when isOpen is true', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={true} />);
-
-    const sidebar = screen.getByRole('complementary');
-    expect(sidebar.className).toMatch(/open/);
-  });
-
-  it('sidebar does not have .open class when isOpen is false', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} isOpen={false} />);
-
-    const sidebar = screen.getByRole('complementary');
-    expect(sidebar.className).not.toMatch(/open/);
-  });
-
-  it('clicking a nav link calls onClose (project)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const projectLink = screen.getByRole('link', { name: /^project$/i });
-    await user.click(projectLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking a nav link calls onClose (budget)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const budgetLink = screen.getByRole('link', { name: /^budget$/i });
-    await user.click(budgetLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking a nav link calls onClose (schedule)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const scheduleLink = screen.getByRole('link', { name: /^schedule$/i });
-    await user.click(scheduleLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking a nav link calls onClose (diary)', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const diaryLink = screen.getByRole('link', { name: /^diary$/i });
-    await user.click(diaryLink);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking settings button calls onClose', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    await user.click(settingsButton);
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders a logout button', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument();
-  });
-
-  it('clicking logout button calls logout from context', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const logoutButton = screen.getByRole('button', { name: /logout/i });
-    await user.click(logoutButton);
-
-    // Wait for async logout to complete
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(mockLogout).toHaveBeenCalledTimes(1);
-  });
-
-  it('clicking logout button calls onClose after logout', async () => {
-    const user = userEvent.setup();
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-
-    const logoutButton = screen.getByRole('button', { name: /logout/i });
-    await user.click(logoutButton);
-
-    // Wait for async logout to complete
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
-  });
-
-  it('onClose is called after logout completes, not before', async () => {
-    const user = userEvent.setup();
-    let resolveLogout: () => void;
-    const logoutPromise = new Promise<void>((resolve) => {
-      resolveLogout = resolve;
+      expect(section('tasks')).toHaveAttribute('aria-current', 'page');
+      expect(section('tasks')).toHaveClass('active');
+      expect(hasView('scheduleGantt')).toBe(true);
+      expect(hasView('milestones')).toBe(true);
     });
-    mockLogout.mockReturnValue(logoutPromise);
 
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+    it('keeps Milestones current on a milestone detail page', () => {
+      renderAt('/project/milestones/m1');
 
-    const logoutButton = screen.getByRole('button', { name: /logout/i });
-    await user.click(logoutButton);
+      expect(view('milestones')).toHaveAttribute('aria-current', 'page');
+    });
 
-    // onClose should not be called yet
-    expect(mockOnClose).not.toHaveBeenCalled();
+    it('shows Invoices, Funding sources, Grants and Bank report under Money, without Financing', () => {
+      renderAt('/budget/invoices/i1');
 
-    // Resolve logout
-    resolveLogout!();
-    await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(
+        ['invoices', 'budgetSources', 'budgetSubsidies', 'bankReport'].map(
+          (r) => view(r).textContent,
+        ),
+      ).toEqual(['Invoices', 'Funding sources', 'Grants', 'Bank report']);
+      expect(view('invoices')).toHaveAttribute('aria-current', 'page');
+      expect(hasView('financing')).toBe(false);
+      expect(section('money')).toHaveClass('sectionCurrent');
+    });
 
-    // Now onClose should be called
-    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    it.each([
+      ['/budget/sources', 'budgetSources'],
+      ['/budget/subsidies', 'budgetSubsidies'],
+      ['/budget/reports', 'bankReport'],
+    ])('highlights the interim Money view for %s', (path, route) => {
+      renderAt(path);
+
+      expect(view(route)).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('renders the nested lists only for the section you are in', () => {
+      renderAt('/photos');
+
+      expect(hasView('scheduleGantt')).toBe(false);
+      expect(hasView('invoices')).toBe(false);
+      expect(hasView('settingsProfile')).toBe(false);
+      expect(section('photos')).toHaveClass('active');
+    });
+
+    it('renders no nested list at all for Purchases, which has no views', () => {
+      const { container } = renderAt('/project/household-items');
+
+      expect(section('purchases')).toHaveClass('active');
+      expect(container.querySelectorAll('[data-testid^="sidebar-view-"]')).toHaveLength(0);
+    });
   });
 
-  it('logout button does not interfere with navigation link count', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
+  describe('exactly one highlighted entry', () => {
+    it.each([
+      ['/project/work-items'],
+      ['/project/work-items/w1'],
+      ['/project/work-items/new'],
+      ['/schedule/gantt'],
+      ['/schedule/calendar'],
+      ['/project/milestones/m1'],
+      ['/budget/overview'],
+      ['/budget/invoices/i1'],
+      ['/budget/invoices/i1/auto-itemize/d1'],
+      ['/budget/sources'],
+      ['/budget/reports'],
+      ['/project/household-items/h1/edit'],
+      ['/diary/e1/edit'],
+      ['/photos/spot/a/b'],
+      ['/project/overview'],
+      ['/settings/vendors/v1'],
+      ['/settings/manage'],
+      ['/settings/profile'],
+    ])('highlights one entry at %s', (path) => {
+      const { container } = renderAt(path);
 
-    const links = screen.getAllByRole('link');
-    const buttons = screen.getAllByRole('button');
+      expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(1);
+      expect(container.querySelectorAll('.active')).toHaveLength(1);
+    });
 
-    // 5 main nav links (Project, Budget, Schedule, Diary, Photos) + 1 logo link + 1 GitHub link
-    // (Settings is now a button, not a link)
-    expect(links).toHaveLength(7);
-    // 3 buttons: theme toggle + settings button + logout button
-    expect(buttons).toHaveLength(3);
-    expect(buttons[0]!).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
-    expect(buttons[2]!).toHaveTextContent(/logout/i);
+    it.each(['/does-not-exist', '/login'])(
+      'highlights nothing and opens no nested list at %s',
+      (path) => {
+        const { container } = renderAt(path);
+
+        expect(container.querySelectorAll('[aria-current="page"]')).toHaveLength(0);
+        expect(container.querySelectorAll('.active, .sectionCurrent')).toHaveLength(0);
+        expect(container.querySelectorAll('[data-testid^="sidebar-view-"]')).toHaveLength(0);
+      },
+    );
   });
 
-  it('Settings button appears immediately before the Logout button in the footer', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    const logoutButton = screen.getByRole('button', { name: /logout/i });
-    expect(settingsButton.nextElementSibling).toBe(logoutButton);
+  describe('Settings', () => {
+    it('D-23: a member is offered Settings and Account only, never Users or Backups', () => {
+      mockRole = 'member';
+      renderAt('/settings/profile');
+
+      const links = within(settingsNav()).getAllByRole('link');
+      expect(links.map((l) => l.textContent)).toEqual(['Settings', 'Account']);
+      expect(screen.queryByRole('link', { name: /^users$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /^backups$/i })).not.toBeInTheDocument();
+      expect(section('settings')).toHaveAttribute('href', '/settings/manage');
+    });
+
+    it('D-23: an admin is offered Account, Users and Backups under Settings', () => {
+      renderAt('/settings/profile');
+
+      const links = within(settingsNav()).getAllByRole('link');
+      expect(links.map((l) => l.textContent)).toEqual(['Settings', 'Account', 'Users', 'Backups']);
+      expect(view('settingsProfile')).toHaveAttribute('aria-current', 'page');
+    });
+
+    it('highlights Settings itself on Project setup', () => {
+      renderAt('/settings/manage');
+
+      expect(section('settings')).toHaveAttribute('aria-current', 'page');
+      expect(section('settings')).toHaveClass('active');
+    });
+
+    it('keeps the Settings section current on a view a member cannot see', () => {
+      mockRole = 'member';
+      renderAt('/settings/users');
+
+      expect(section('settings')).toHaveClass('active');
+      expect(hasView('settingsUsers')).toBe(false);
+    });
+
+    it('does not highlight Settings on a company page that lives under /settings/vendors', () => {
+      renderAt('/settings/vendors/v1');
+
+      expect(section('companies')).toHaveClass('active');
+      expect(section('settings')).not.toHaveAttribute('aria-current');
+    });
   });
 
-  it('ThemeToggle appears before the Settings button in the footer', () => {
-    renderWithRouter(<SidebarModule.Sidebar {...getDefaultProps()} />);
-    const settingsButton = screen.getByRole('button', { name: /^settings$/i });
-    const prevSibling = settingsButton.previousElementSibling;
-    expect(prevSibling).not.toBeNull();
-    expect(prevSibling?.tagName.toLowerCase()).toBe('button');
-    // ThemeToggle aria-label is "Switch to <NextTheme> mode" — matches /switch to .+ mode/i
-    expect(prevSibling).toHaveAttribute('aria-label', expect.stringMatching(/switch to .+ mode/i));
+  describe('closing the drawer', () => {
+    it('clicking a section link calls onClose', async () => {
+      const user = userEvent.setup();
+      renderAt('/project/work-items');
+
+      await user.click(section('photos'));
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('clicking a nested view link calls onClose', async () => {
+      const user = userEvent.setup();
+      renderAt('/project/work-items');
+
+      await user.click(view('scheduleCalendar'));
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('clicking the Settings link calls onClose', async () => {
+      const user = userEvent.setup();
+      renderAt('/project/work-items');
+
+      await user.click(section('settings'));
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('clicking the logo calls onClose', async () => {
+      const user = userEvent.setup();
+      renderAt('/photos');
+
+      await user.click(screen.getByRole('link', { name: 'Go to Home' }));
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('navigates when a view is clicked and moves the highlight', async () => {
+      const user = userEvent.setup();
+      renderAt('/project/work-items');
+
+      await user.click(view('scheduleCalendar'));
+
+      expect(view('scheduleCalendar')).toHaveAttribute('aria-current', 'page');
+      expect(section('tasks')).not.toHaveAttribute('aria-current');
+    });
+  });
+
+  describe('history action of a sidebar click', () => {
+    // Mutation: hardcoding replace={false} on the sidebar links fails both REPLACE cases.
+    async function clickFrom(path: string, testId: string) {
+      const user = userEvent.setup();
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[path]} log={log}>
+          <SidebarModule.Sidebar {...getDefaultProps()} />
+        </RecordingRouter>,
+      );
+      await user.click(screen.getByTestId(testId));
+      return log.actions;
+    }
+
+    it('replaces when switching to Calendar from the Schedule view', async () => {
+      expect(await clickFrom('/schedule/gantt', 'sidebar-view-scheduleCalendar')).toEqual([
+        'REPLACE /schedule/calendar',
+      ]);
+    });
+
+    it('replaces when clicking Tasks while on a Tasks view', async () => {
+      expect(await clickFrom('/schedule/calendar', 'sidebar-section-tasks')).toEqual([
+        'REPLACE /project/work-items',
+      ]);
+    });
+
+    it('pushes when entering another section (Money from Schedule)', async () => {
+      expect(await clickFrom('/schedule/gantt', 'sidebar-section-money')).toEqual([
+        'PUSH /budget/overview',
+      ]);
+    });
+
+    it('pushes when leaving a detail page (Tasks from a task page)', async () => {
+      expect(await clickFrom('/project/work-items/w1', 'sidebar-section-tasks')).toEqual([
+        'PUSH /project/work-items',
+      ]);
+    });
+  });
+
+  describe('footer', () => {
+    it('renders a logout button', () => {
+      renderAt('/photos');
+
+      expect(screen.getByRole('button', { name: /logout/i })).toBeInTheDocument();
+    });
+
+    it('clicking logout calls logout, then onClose', async () => {
+      const user = userEvent.setup();
+      let resolveLogout: () => void = () => undefined;
+      mockLogout.mockReturnValue(
+        new Promise<void>((resolve) => {
+          resolveLogout = resolve;
+        }),
+      );
+      renderAt('/photos');
+
+      await user.click(screen.getByRole('button', { name: /logout/i }));
+
+      expect(mockLogout).toHaveBeenCalledTimes(1);
+      expect(mockOnClose).not.toHaveBeenCalled();
+
+      resolveLogout();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(mockOnClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('lists the theme toggle and logout as the only buttons, and no Settings button', () => {
+      renderAt('/photos');
+
+      const buttons = screen.getAllByRole('button');
+      expect(buttons).toHaveLength(2);
+      expect(buttons[0]!).toHaveAttribute(
+        'aria-label',
+        expect.stringMatching(/switch to .+ mode/i),
+      );
+      expect(buttons[1]!).toHaveTextContent(/logout/i);
+    });
+
+    it('shows the app version and the GitHub link', () => {
+      renderAt('/photos');
+
+      expect(screen.getByRole('link', { name: 'GitHub' })).toHaveAttribute(
+        'href',
+        'https://github.com/steilerDev/cornerstone',
+      );
+    });
   });
 });

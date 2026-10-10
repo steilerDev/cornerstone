@@ -900,7 +900,7 @@ describe('schedule projection with a database', () => {
       expect(spy).toHaveBeenCalledWith(1, 'Milestone 1', '2026-03-12', '2026-03-13');
     });
 
-    it('does not fire for a completed milestone even though contributors forecast after target', () => {
+    it('D-16: does not fire for a completed milestone even though contributors forecast after target', () => {
       lateContributor();
       insertMilestone(db, 1, '2026-03-12', {
         isCompleted: true,

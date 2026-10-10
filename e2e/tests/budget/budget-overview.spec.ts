@@ -24,6 +24,7 @@
 
 import type { Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BudgetOverviewPage } from '../../pages/BudgetOverviewPage.js';
 import { API } from '../../fixtures/testData.js';
 
@@ -102,20 +103,27 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await expect(overviewPage.heading).toHaveText('Money');
   });
 
-  test('Budget sub-navigation is visible with all tabs', async ({ page }) => {
+  test('Money views are listed in the sidebar and there is no in-page tab row', async ({
+    page,
+  }) => {
     const overviewPage = new BudgetOverviewPage(page);
+    const appShell = new AppShellPage(page);
 
     await overviewPage.goto();
     await overviewPage.waitForLoaded();
 
-    // Then: The sub-navigation is visible
-    await expect(overviewPage.subNav).toBeVisible();
+    // Then: Money is the one highlighted entry and lists its views (#2205)
+    await expect(appShell.activeEntries).toHaveCount(1);
+    await expect(appShell.sectionLink('money')).toHaveAttribute('aria-current', 'page');
+    await expect(appShell.viewLinks).toHaveText([
+      'Invoices',
+      'Funding sources',
+      'Grants',
+      'Bank report',
+    ]);
 
-    // And: All four budget tabs are present (Vendors moved to Settings in #1286, Categories to Manage page)
-    const expectedTabs = ['Overview', 'Invoices', 'Sources', 'Subsidies'];
-    for (const tab of expectedTabs) {
-      await expect(overviewPage.subNav.getByRole('link', { name: tab })).toBeVisible();
-    }
+    // And: the page itself carries no tab row
+    await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
   });
 
   test('Page URL is /budget/overview', async ({ page }) => {
@@ -251,8 +259,11 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     // Heading is visible in dark mode
     await expect(overviewPage.heading).toBeVisible();
 
-    // Sub-navigation is visible in dark mode
-    await expect(overviewPage.subNav).toBeVisible();
+    // The Money entry is still highlighted in dark mode
+    await expect(new AppShellPage(page).sectionLink('money')).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
 
     // No horizontal scroll in dark mode
     const hasHorizontalScroll = await page.evaluate(() => {

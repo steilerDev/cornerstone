@@ -45,7 +45,6 @@ export class DashboardPage {
   readonly mobileSections: Locator;
   readonly customizeButton: Locator;
   readonly customizeDropdown: Locator;
-  readonly projectSubNav: Locator;
 
   /** The consolidated "Add" dropdown trigger button (data-testid="dashboard-add-button"). */
   readonly addButton: Locator;
@@ -76,9 +75,6 @@ export class DashboardPage {
 
     // Customize dropdown menu
     this.customizeDropdown = page.getByRole('menu');
-
-    // Project sub-navigation
-    this.projectSubNav = page.getByRole('navigation', { name: 'Project section navigation' });
 
     // Consolidated "Add" dropdown button (replaces the 3 individual add buttons)
     this.addButton = page.getByTestId('dashboard-add-button');

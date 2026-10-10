@@ -46,12 +46,6 @@
       "goToWorkItems": "Zu Arbeitspaketen gehen"
     }
   },
-  "schedule": {
-    "navigation": {
-      "gantt": "Gantt-Diagramm",
-      "calendar": "Kalender"
-    }
-  },
   "ganttSidebar": {
     "header": "Elemente",
     "ariaLabel": "Arbeitspakete, Meilensteine und Haushaltsartikel"

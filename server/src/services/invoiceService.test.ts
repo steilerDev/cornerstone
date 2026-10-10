@@ -1134,7 +1134,7 @@ describe('Invoice Service', () => {
   // ─── listAllInvoices() q search (#2197) ─────────────────────────────────────
 
   describe('listAllInvoices() q search (#2197)', () => {
-    it('finds an invoice by company name, case-insensitively, even when the number differs', () => {
+    it('D-21: finds an invoice by company name, case-insensitively, even when the number differs', () => {
       const drywall = createTestVendor('Sample Drywall Ltd');
       const roofing = createTestVendor('Test Roofing Co');
       insertRawInvoice(drywall, { invoiceNumber: 'INV-TEST-0001' });

@@ -1,12 +1,4 @@
 {
-  "nav": {
-    "project": "Projekt",
-    "budget": "Budget",
-    "schedule": "Zeitplan",
-    "diary": "Tagebuch",
-    "photos": "Fotos",
-    "settings": "Einstellungen"
-  },
   "navigation": {
     "home": "Start",
     "tasks": "Aufgaben",
@@ -80,7 +72,7 @@
   "aria": {
     "closeMenu": "Menü schließen",
     "openMenu": "Menü öffnen",
-    "goToOverview": "Zur Projektübersicht",
+    "goToHome": "Zum Start",
     "closeDialog": "Dialog schließen",
     "clearSelection": "Auswahl aufheben",
     "noArea": "Kein Bereich",
@@ -91,7 +83,8 @@
     "selectOrientation": "Ausrichtung auswählen",
     "selectAssignment": "Benutzer oder Auftragnehmer auswählen",
     "unassigned": "Nicht zugewiesen",
-    "mainNavigation": "Hauptnavigation"
+    "mainNavigation": "Hauptnavigation",
+    "settingsNavigation": "Einstellungen"
   },
   "loading": "Wird geladen...",
   "searching": "Suche läuft...",
@@ -154,28 +147,6 @@
   "assignmentPicker": {
     "usersGroup": "Benutzer",
     "vendorsGroup": "Auftragnehmer"
-  },
-  "subnav": {
-    "project": {
-      "overview": "Übersicht",
-      "workItems": "Arbeitspakete",
-      "householdItems": "Haushaltsartikel",
-      "milestones": "Meilensteine"
-    },
-    "budget": {
-      "overview": "Übersicht",
-      "invoices": "Rechnungen",
-      "sources": "Geldquellen",
-      "subsidies": "Zuschüsse",
-      "reports": "Berichte"
-    },
-    "settings": {
-      "profile": "Profil",
-      "manage": "Verwalten",
-      "vendors": "Auftragnehmer",
-      "userManagement": "Benutzerverwaltung",
-      "backups": "Sicherungen"
-    }
   },
   "dataTable": {
     "search": {
@@ -240,12 +211,6 @@
   "requestErrors": {
     "network": "Der Server ist nicht erreichbar. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
     "unexpected": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
-  },
-  "subNav": {
-    "project": "Navigation im Bereich Projekt",
-    "budget": "Navigation im Bereich Budget",
-    "settings": "Navigation im Bereich Einstellungen",
-    "schedule": "Navigation im Bereich Zeitplan"
   },
   "statusVocabulary": {
     "invoice": {

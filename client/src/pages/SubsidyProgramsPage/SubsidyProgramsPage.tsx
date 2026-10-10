@@ -20,9 +20,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
-import { SubNav } from '../../components/SubNav/SubNav.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
-import { BUDGET_TABS } from '../shared/budgetTabs.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
@@ -408,11 +406,7 @@ export function SubsidyProgramsPage() {
 
   if (isLoading) {
     return (
-      <PageLayout
-        title={pageTitle}
-        breadcrumbs={<PageBreadcrumbs />}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
         <div className={styles.loading}>{t('subsidies.loading')}</div>
       </PageLayout>
     );
@@ -420,11 +414,7 @@ export function SubsidyProgramsPage() {
 
   if (error && programs.length === 0) {
     return (
-      <PageLayout
-        title={pageTitle}
-        breadcrumbs={<PageBreadcrumbs />}
-        subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
-      >
+      <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('subsidies.error')}</h2>
           <p>{error}</p>
@@ -455,7 +445,6 @@ export function SubsidyProgramsPage() {
           {t('subsidies.addProgram')}
         </button>
       }
-      subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >
       {successMessage && (
         <div className={styles.successBanner} role="status" aria-atomic="true">

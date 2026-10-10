@@ -36,6 +36,7 @@
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
+import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
 
 const MANAGE_ROUTE = '/settings/manage';
@@ -136,16 +137,23 @@ test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () 
     },
   );
 
-  test('Settings subnav renders Profile, Manage, User Management, Backups tabs', async ({
+  test('Settings sidebar group lists Settings and its views and the page has no tab row', async ({
     page,
   }) => {
+    const appShell = new AppShellPage(page);
     await page.goto(MANAGE_ROUTE);
+    await page
+      .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
+      .waitFor({ state: 'visible' });
 
-    // SubNav for Settings section — scope to the Settings nav landmark; use
-    // exact matching so "Manage" does not collide with "User Management".
-    const subNav = page.getByRole('navigation', { name: 'Settings section navigation' });
-    await expect(subNav.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
-    await expect(subNav.getByRole('link', { name: 'Manage', exact: true })).toBeVisible();
+    // #2205: the Settings landmark in the sidebar replaces the old in-page tab row.
+    // Project setup is the Settings entry itself, so it is the highlighted one.
+    await expect(appShell.sectionLink('settings')).toHaveText('Settings');
+    await expect(appShell.sectionLink('settings')).toHaveAttribute('aria-current', 'page');
+    await expect(
+      appShell.settingsNav.getByRole('link', { name: 'Account', exact: true }),
+    ).toHaveCount(1);
+    await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
   });
 });
 

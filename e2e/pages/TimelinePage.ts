@@ -29,6 +29,7 @@
  */
 
 import type { Page, Locator } from '@playwright/test';
+import { AppShellPage } from './AppShellPage.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import { routeUrl } from '../../shared/src/routes/index.js';
 
@@ -48,9 +49,13 @@ export class TimelinePage {
   readonly arrowsToggleButton: Locator;
   /** Zoom toolbar (role=toolbar, aria-label="Zoom level"). */
   readonly zoomToolbar: Locator;
-  /** Gantt view toggle button. */
+  /**
+   * Schedule (Gantt) view link in the sidebar (#2205: replaces the in-page tab row). It only
+   * exists while inside Tasks; on <= 1024px it is in the off-canvas drawer, so open the drawer
+   * (`AppShellPage.openSidebar()`) before asserting visibility.
+   */
   readonly ganttViewButton: Locator;
-  /** Calendar view toggle button. */
+  /** Calendar view link in the sidebar (see `ganttViewButton`). */
   readonly calendarViewButton: Locator;
   /**
    * "Add" dropdown trigger button (data-testid="timeline-add-button").
@@ -128,8 +133,8 @@ export class TimelinePage {
     // Toolbar controls
     this.arrowsToggleButton = page.getByLabel(/dependency arrows/i);
     this.zoomToolbar = page.getByRole('toolbar', { name: 'Zoom level' });
-    this.ganttViewButton = page.getByTestId('schedule-view-gantt');
-    this.calendarViewButton = page.getByTestId('schedule-view-calendar');
+    this.ganttViewButton = page.getByTestId('sidebar-view-scheduleGantt');
+    this.calendarViewButton = page.getByTestId('sidebar-view-scheduleCalendar');
     this.addButton = page.getByTestId('timeline-add-button');
 
     // Chart area states
@@ -286,12 +291,14 @@ export class TimelinePage {
 
   /** Switch to Calendar view. */
   async switchToCalendar(): Promise<void> {
+    await new AppShellPage(this.page).openSidebarIfDrawer();
     await this.calendarViewButton.click();
     await this.calendarView.waitFor({ state: 'visible' });
   }
 
   /** Switch to Gantt view. */
   async switchToGantt(): Promise<void> {
+    await new AppShellPage(this.page).openSidebarIfDrawer();
     await this.ganttViewButton.click();
     await Promise.race([
       this.ganttChart.waitFor({ state: 'visible' }),

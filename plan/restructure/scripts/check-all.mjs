@@ -4,6 +4,7 @@
 //   route map        build-routes.mjs    router drift + route-map validation
 //   capability map   build-capmap.mjs    placement, click bound, route references
 //   pattern baseline build-baseline.mjs  UI pattern counts vs the committed baseline
+//   defects          check-defects.mjs   every Phase-0 defect id is named by an existing test
 //   privacy          scan-privacy.mjs    personal data in plan/restructure (profile full)
 //
 // Every part always runs; the exit code is 1 when any part failed. A missing input file is
@@ -17,6 +18,7 @@ import { join } from 'node:path';
 import { run as runBaseline } from './build-baseline.mjs';
 import { run as runCapmap } from './build-capmap.mjs';
 import { run as runRoutes } from './build-routes.mjs';
+import { run as runDefects } from './check-defects.mjs';
 import { REPO_ROOT, isMain } from './lib/io.mjs';
 import { scanPaths } from './scan-privacy.mjs';
 
@@ -38,6 +40,7 @@ export async function runAll({ root = REPO_ROOT, mode = 'check' } = {}) {
   await guarded('route map', () => runRoutes({ root, mode }));
   await guarded('capability map', () => runCapmap({ root, mode }));
   await guarded('pattern baseline', () => runBaseline({ root, mode }));
+  await guarded('defects', () => runDefects({ root, mode }));
   await guarded('privacy', async () => {
     const dir = join(root, 'plan/restructure');
     const errors = scanPaths([dir], { profile: 'full', cwd: root });

@@ -23,7 +23,7 @@ const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/budget', '/budget/overview'],
   ['/budget/categories', '/settings/manage?tab=budget-categories'],
   ['/schedule', '/schedule/gantt'],
-  ['/settings', '/settings/profile'],
+  ['/settings', '/settings/manage'],
   ['/work-items', '/project/work-items'],
   ['/work-items/new', '/project/work-items/new'],
   ['/work-items/:id', '/project/work-items/:id'],

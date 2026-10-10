@@ -1,0 +1,256 @@
+{
+  "_meta": {
+    "description": "Phase 0 defects (plan \u00a711) and the tests that cover them. plan:check verifies every listed file exists and contains the id token.",
+    "phase": "0"
+  },
+  "defects": [
+    {
+      "id": "D-01",
+      "story": 2193,
+      "tests": [
+        "client/src/components/TimelineStatusCards/UpcomingMilestonesCard.test.tsx",
+        "e2e/tests/navigation/dashboard.spec.ts"
+      ]
+    },
+    {
+      "id": "D-02",
+      "story": 2193,
+      "tests": [
+        "client/src/pages/DashboardPage/DashboardPage.test.tsx",
+        "e2e/tests/navigation/dashboard.spec.ts"
+      ]
+    },
+    {
+      "id": "D-03",
+      "story": 2193,
+      "tests": ["client/src/components/BudgetSummaryCard/BudgetSummaryCard.test.tsx"]
+    },
+    {
+      "id": "D-04",
+      "story": 2193,
+      "tests": ["e2e/tests/navigation/dashboard.spec.ts"]
+    },
+    {
+      "id": "D-05",
+      "story": 2194,
+      "tests": [
+        "client/src/components/BudgetBar/BudgetBar.test.tsx",
+        "client/src/components/SourceUtilizationCard/SourceUtilizationCard.test.tsx"
+      ]
+    },
+    {
+      "id": "D-06",
+      "story": 2194,
+      "tests": ["server/src/services/vendorService.test.ts", "e2e/tests/budget/money-truth.spec.ts"]
+    },
+    {
+      "id": "D-07",
+      "story": 2195,
+      "tests": [
+        "client/src/pages/InvoiceDetailPage/InvoiceDetailPage.test.tsx",
+        "client/src/pages/VendorDetailPage/VendorDetailPage.test.tsx"
+      ]
+    },
+    {
+      "id": "D-08",
+      "story": 2195,
+      "tests": [
+        "client/src/pages/WorkItemsPage/WorkItemsPage.test.tsx",
+        "client/src/pages/HouseholdItemsPage/HouseholdItemsPage.test.tsx"
+      ]
+    },
+    {
+      "id": "D-09",
+      "story": 2196,
+      "tests": ["e2e/tests/responsive/visual-defects.spec.ts"]
+    },
+    {
+      "id": "D-10",
+      "story": 2204,
+      "tests": [
+        "client/src/pages/ManagePage/ManagePage.test.tsx",
+        "e2e/tests/navigation/page-identity-diary-settings.spec.ts"
+      ]
+    },
+    {
+      "id": "D-11",
+      "story": 2202,
+      "tests": [
+        "client/src/navigation/legacyUrlWalk.test.ts",
+        "shared/src/routes/match.test.ts",
+        "e2e/tests/navigation/legacy-url-walk.spec.ts",
+        "e2e/tests/navigation/page-identity-tasks.spec.ts"
+      ]
+    },
+    {
+      "id": "D-12",
+      "story": 2197,
+      "tests": [
+        "e2e/tests/invoices/paperless-review-reload.spec.ts",
+        "client/src/pages/PaperlessInvoiceReviewPage/PaperlessInvoiceReviewPage.test.tsx"
+      ]
+    },
+    {
+      "id": "D-13",
+      "story": 2204,
+      "tests": [
+        "e2e/tests/auth/deep-link-sign-in.spec.ts",
+        "client/src/navigation/nextParam.test.ts"
+      ]
+    },
+    {
+      "id": "D-14",
+      "story": 2198,
+      "tests": [
+        "client/src/components/calendar/MonthGrid.test.tsx",
+        "client/src/components/calendar/WeekGrid.test.tsx",
+        "e2e/tests/timeline/calendar-status-segments.spec.ts"
+      ]
+    },
+    {
+      "id": "D-15",
+      "story": 2199,
+      "tests": ["server/src/services/schedulingEngine.projection.test.ts"]
+    },
+    {
+      "id": "D-16",
+      "story": 2199,
+      "tests": [
+        "server/src/services/diaryAutoEventService.test.ts",
+        "server/src/services/schedulingEngine.dailyReschedule.test.ts",
+        "server/src/services/schedulingEngine.projection.test.ts"
+      ]
+    },
+    {
+      "id": "D-17",
+      "story": 2194,
+      "tests": ["client/src/pages/InvoicesPage/InvoicesPage.test.tsx"]
+    },
+    {
+      "id": "D-18",
+      "story": 2194,
+      "tests": ["client/src/pages/ReportWizardPage/Step1UseCase.test.tsx"]
+    },
+    {
+      "id": "D-19",
+      "story": 2194,
+      "tests": ["client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx"]
+    },
+    {
+      "id": "D-20",
+      "story": 2194,
+      "tests": ["client/src/pages/InvoiceDetailPage/InvoiceBudgetLinesSection.test.tsx"]
+    },
+    {
+      "id": "D-21",
+      "story": 2197,
+      "tests": [
+        "client/src/components/DataTable/DataTable.test.tsx",
+        "server/src/services/invoiceService.test.ts",
+        "e2e/tests/invoices/invoices-search.spec.ts"
+      ]
+    },
+    {
+      "id": "D-22",
+      "story": 2196,
+      "tests": ["e2e/tests/responsive/visual-defects.spec.ts"]
+    },
+    {
+      "id": "D-23",
+      "story": 2200,
+      "tests": [
+        "client/src/App.test.tsx",
+        "client/src/components/Sidebar/Sidebar.test.tsx",
+        "e2e/tests/admin/member-access.spec.ts"
+      ]
+    },
+    {
+      "id": "D-24",
+      "story": 2201,
+      "tests": ["e2e/tests/navigation/legacy-url-walk.spec.ts"]
+    },
+    {
+      "id": "D-25",
+      "story": 2196,
+      "tests": ["client/src/pages/DashboardPage/DashboardPage.test.tsx"]
+    },
+    {
+      "id": "D-26",
+      "story": 2200,
+      "tests": ["client/src/styles/tokenContrast.test.ts"]
+    },
+    {
+      "id": "D-27",
+      "story": 2194,
+      "tests": ["client/src/components/budget/InvoiceLinkModal.test.tsx"]
+    },
+    {
+      "id": "D-28",
+      "story": 2196,
+      "tests": ["e2e/tests/responsive/visual-defects.spec.ts"]
+    },
+    {
+      "id": "D-29",
+      "story": 2195,
+      "tests": ["client/src/i18n/moneyPlaceholders.test.ts"]
+    },
+    {
+      "id": "D-32",
+      "story": 2195,
+      "tests": ["client/src/i18n/statusWords.test.ts"]
+    },
+    {
+      "id": "D-33",
+      "story": 2198,
+      "tests": [
+        "client/src/components/GanttChart/GanttTooltip.test.tsx",
+        "e2e/tests/timeline/schedule-tooltip-company-direction.spec.ts"
+      ]
+    },
+    {
+      "id": "D-34",
+      "story": 2197,
+      "tests": [
+        "client/src/pages/VendorsPage/VendorsPage.test.tsx",
+        "e2e/tests/vendors/vendors-contact-phone.spec.ts"
+      ]
+    },
+    {
+      "id": "D-35",
+      "story": 2194,
+      "tests": [
+        "client/src/pages/BudgetOverviewPage/BudgetOverviewPage.test.tsx",
+        "e2e/tests/budget/money-truth.spec.ts"
+      ]
+    },
+    {
+      "id": "D-36",
+      "story": 2195,
+      "tests": ["client/src/pages/ReportWizardPage/Step5Actions.test.tsx"]
+    },
+    {
+      "id": "D-37",
+      "story": 2196,
+      "tests": ["client/src/pages/WorkItemDetailPage/WorkItemDetailPage.test.tsx"]
+    },
+    {
+      "id": "D-38",
+      "story": 2199,
+      "tests": [
+        "server/src/services/timelineService.test.ts",
+        "client/src/lib/scheduleDates.test.ts",
+        "e2e/tests/timeline/scheduler-truth.spec.ts"
+      ]
+    }
+  ],
+  "later": [
+    {
+      "id": "D-30",
+      "story": "4.6"
+    },
+    {
+      "id": "D-31",
+      "story": "2.7"
+    }
+  ]
+}

@@ -7,7 +7,7 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import enCommon from '../../i18n/en/common.json';
+import { ownNavigations } from '../../test/navLandmarks.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import type * as TimelineApiTypes from '../../lib/timelineApi.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -408,34 +408,15 @@ describe('TimelinePage', () => {
   });
 
   // ---------------------------------------------------------------------------
-  // ScheduleSubNav integration
+  // View switching lives in the sidebar (#2205)
   // ---------------------------------------------------------------------------
 
-  describe('ScheduleSubNav integration', () => {
-    it('renders the ScheduleSubNav labelled with common.subNav.schedule', () => {
-      renderWithRouter();
-      expect(
-        screen.getByRole('navigation', { name: enCommon.subNav.schedule }),
-      ).toBeInTheDocument();
-    });
-
-    it('renders both Gantt and Calendar tabs', () => {
-      renderWithRouter();
-      expect(screen.getByTestId('schedule-view-gantt')).toBeInTheDocument();
-      expect(screen.getByTestId('schedule-view-calendar')).toBeInTheDocument();
-    });
-
-    it('Gantt tab links to /schedule/gantt', () => {
-      renderWithRouter();
-      expect(screen.getByTestId('schedule-view-gantt')).toHaveAttribute('href', '/schedule/gantt');
-    });
-
-    it('Calendar tab links to /schedule/calendar', () => {
-      renderWithRouter();
-      expect(screen.getByTestId('schedule-view-calendar')).toHaveAttribute(
-        'href',
-        '/schedule/calendar',
-      );
+  describe('no schedule tab row', () => {
+    it('renders no Gantt/Calendar tab row of its own', () => {
+      const { container } = renderWithRouter();
+      expect(ownNavigations(container)).toEqual([]);
+      expect(screen.queryByTestId('schedule-view-gantt')).toBeNull();
+      expect(screen.queryByTestId('schedule-view-calendar')).toBeNull();
     });
   });
 

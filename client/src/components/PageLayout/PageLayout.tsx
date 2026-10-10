@@ -5,7 +5,6 @@ export interface PageLayoutProps {
   title: string;
   maxWidth?: 'narrow' | 'wide';
   action?: ReactNode;
-  subNav?: ReactNode;
   children: ReactNode;
   /** Location trail and origin Back (`PageBreadcrumbs`), rendered above the header row. */
   breadcrumbs?: ReactNode;
@@ -17,14 +16,13 @@ export interface PageLayoutProps {
 /**
  * PageLayout — shared page structure for consistent headers, navigation, and content layout.
  *
- * Provides a standard container with optional sub-navigation tabs, title heading, and action button.
+ * Provides a standard container with title heading, and action button.
  * Handles responsive layout with proper spacing and alignment.
  */
 export function PageLayout({
   title,
   maxWidth = 'wide',
   action,
-  subNav,
   children,
   breadcrumbs,
   testId,
@@ -46,7 +44,6 @@ export function PageLayout({
         )}
         {action && <div className={styles.action}>{action}</div>}
       </div>
-      {subNav && <div className={styles.subNav}>{subNav}</div>}
       <div className={styles.content}>{children}</div>
     </div>
   );

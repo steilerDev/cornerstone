@@ -213,7 +213,7 @@ describe('diaryAutoEventService', () => {
       expect(getAllEntries()).toHaveLength(0);
     });
 
-    it('writes nothing for a completed milestone (AC4)', () => {
+    it('D-16: writes nothing for a completed milestone (AC4)', () => {
       insertMilestone(5, { completed: true });
       onMilestoneDelayed(db, true, 5, 'Done Milestone', '2026-03-01', '2026-03-15');
       expect(getAllEntries()).toHaveLength(0);
@@ -231,7 +231,7 @@ describe('diaryAutoEventService', () => {
       expect(getAllEntries()).toHaveLength(0);
     });
 
-    it('does not repeat an entry for the same projected date (AC3)', () => {
+    it('D-16: does not repeat an entry for the same projected date (AC3)', () => {
       insertMilestone(7);
       onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');
       onMilestoneDelayed(db, true, 7, 'Repeat', '2026-03-01', '2026-03-15');

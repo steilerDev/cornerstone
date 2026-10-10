@@ -262,7 +262,7 @@ describe('MonthGrid', () => {
       expect(calendarItems[0]!.style.right).toBe('calc(-2 * (100% + 1px))');
     });
 
-    it('cuts an item across 3 weeks into exactly 3 segments, one per week row', () => {
+    it('D-14: cuts an item across 3 weeks into exactly 3 segments, one per week row', () => {
       const item = makeWorkItem('long', '2024-03-06', '2024-03-19', 'Long Task');
       renderGrid({ year: 2024, month: 3, workItems: [item] });
       const segments = screen.getAllByTestId('calendar-item');
@@ -328,7 +328,7 @@ describe('MonthGrid', () => {
         .map((el) => el.style.height);
     }
 
-    it('sizes every container of a row for its lanes plus its busiest day of milestones and purchases', () => {
+    it('D-14: sizes every container of a row for its lanes plus its busiest day of milestones and purchases', () => {
       render(
         <MemoryRouter>
           <MonthGrid

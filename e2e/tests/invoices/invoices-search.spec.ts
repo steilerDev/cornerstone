@@ -50,7 +50,7 @@ async function cleanup(
 }
 
 test.describe('Scenario 1 — Invoices search keeps focus and value', { tag: '@responsive' }, () => {
-  test('typing past a no-result state keeps focus, value, URL and empty state; clearing restores rows', async ({
+  test('D-21: typing past a no-result state keeps focus, value, URL and empty state; clearing restores rows', async ({
     page,
     testPrefix,
   }) => {
@@ -132,7 +132,7 @@ test.describe('Scenario 2 — Vendors search keeps focus and value', { tag: '@re
 });
 
 test.describe('Scenarios 3-5 — Invoice search matches company, number and description', () => {
-  test('finds invoices by company name, invoice number and description', async ({
+  test('D-21: finds invoices by company name, invoice number and description', async ({
     page,
     testPrefix,
   }) => {

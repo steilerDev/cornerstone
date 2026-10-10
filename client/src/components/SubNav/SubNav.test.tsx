@@ -159,13 +159,13 @@ describe('SubNav', () => {
   // ── custom namespace ──────────────────────────────────────────────────────
 
   it('renders translated label from the schedule namespace when ns="schedule"', () => {
-    // 'schedule.navigation.gantt' in the schedule namespace resolves to 'Gantt'
+    // 'ganttSidebar.header' in the schedule namespace resolves to 'Items'
     const tabs: SubNavTab[] = [
-      { labelKey: 'schedule.navigation.gantt', to: '/schedule/gantt', ns: 'schedule' },
+      { labelKey: 'ganttSidebar.header', to: '/schedule/gantt', ns: 'schedule' },
     ];
     renderSubNav(tabs);
 
-    expect(screen.getByText('Gantt')).toBeInTheDocument();
+    expect(screen.getByText('Items')).toBeInTheDocument();
   });
 
   it('renders translated label from default common namespace when ns is omitted', () => {

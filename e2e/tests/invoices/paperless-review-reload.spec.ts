@@ -128,7 +128,7 @@ async function mockPreview(page: Page): Promise<void> {
 }
 
 test.describe('Paperless review page — reload and direct link', () => {
-  test('picking a document puts its id in the URL and the review survives goto and reload', async ({
+  test('D-12: picking a document puts its id in the URL and the review survives goto and reload', async ({
     page,
   }) => {
     await mockPaperlessConfigured(page);
