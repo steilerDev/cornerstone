@@ -80,7 +80,7 @@ async function deleteProgramViaApi(page: Page, id: string): Promise<void> {
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
   // Visual cleanup #1185: the h2 "Subsidy Programs" section heading was removed.
   // Test name updated to reflect that only the h1 is asserted.
-  test('Page loads with h1 "Budget"', async ({ page }) => {
+  test('Page loads with h1 "Grants"', async ({ page }) => {
     const subsidyPage = new SubsidyProgramsPage(page);
 
     await subsidyPage.goto();
@@ -88,7 +88,7 @@ test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
     await subsidyPage.heading.waitFor({ state: 'visible' });
 
     await expect(subsidyPage.heading).toBeVisible();
-    await expect(subsidyPage.heading).toHaveText('Budget');
+    await expect(subsidyPage.heading).toHaveText('Grants');
 
     // h2 "Subsidy Programs" was removed in visual cleanup #1185 — no longer asserted.
   });

@@ -22,6 +22,7 @@
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
 import type * as VendorsApiModule from '../../lib/vendorsApi.js';
@@ -1172,8 +1173,9 @@ describe('PaperlessInvoiceReviewPage', () => {
         renderAt(url);
 
         expect(
-          await screen.findByRole('heading', { level: 1, name: 'No document chosen' }),
+          await screen.findByRole('heading', { level: 1, name: 'New invoice' }),
         ).toBeInTheDocument();
+        expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
         expect(
           screen.getByText(
             'Go back to Invoices and choose a document to start a new invoice from it.',
@@ -1196,8 +1198,11 @@ describe('PaperlessInvoiceReviewPage', () => {
       });
 
       expect(
-        await screen.findByRole('heading', { level: 1, name: 'No document chosen' }),
+        await screen.findByRole('heading', { level: 1, name: 'New invoice' }),
       ).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Go back to Invoices and choose a document to start a new invoice from it.',
+      );
       expect(mockGetPaperlessDocument).not.toHaveBeenCalled();
       expect(mockPreviewAutoItemize).not.toHaveBeenCalled();
     });
@@ -1873,6 +1878,162 @@ describe('PaperlessInvoiceReviewPage', () => {
       const payload = await commit();
 
       expect(payload.lines[0]).toMatchObject({ totalAmount: 119, includesVat: true });
+    });
+  });
+  // ─── 13. Page identity (#2203) ─────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    function renderRouted(
+      entry:
+        string | { url: string; state?: unknown } = '/budget/invoices/new/paperless?documentId=42',
+    ) {
+      const log = createRouterLog();
+      render(
+        <LocaleProvider>
+          <RecordingRouter entries={[entry]} log={log}>
+            <Routes>
+              <Route
+                path="/budget/invoices/new/paperless"
+                element={<PaperlessInvoiceReviewPage />}
+              />
+              <Route path="*" element={<div data-testid="elsewhere" />} />
+            </Routes>
+          </RecordingRouter>
+        </LocaleProvider>,
+      );
+      return log;
+    }
+
+    function trail(): string[] {
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      return within(nav)
+        .getAllByRole('link')
+        .map((a) => (a.textContent ?? '').replace('‹', ''));
+    }
+
+    function mockReady() {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockPreviewAutoItemize.mockResolvedValue(
+        makePreviewResponse({ suggestedVendorId: 'vendor-1' }),
+      );
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([{ id: 'vendor-1', name: 'Builder Corp' }]),
+      );
+    }
+
+    it('loading: one "New invoice" h1, a role=status line, the trail and the tab title', async () => {
+      document.title = 'initial';
+      mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
+      mockPreviewAutoItemize.mockReturnValue(new Promise(() => {}));
+      mockFetchVendors.mockReturnValue(new Promise(() => {}));
+      renderRouted();
+
+      expect(
+        await screen.findByRole('heading', { level: 1, name: 'New invoice' }),
+      ).toBeInTheDocument();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('status')).toHaveTextContent('Analyzing document with AI…');
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      expect(document.title).toBe('New invoice · Money · Cornerstone');
+    });
+
+    it('ready: the same h1, and the extraction note is a plain line without role=status', async () => {
+      mockReady();
+      renderRouted();
+
+      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'New invoice' })).toBeInTheDocument();
+      const note = screen.getByText(/^Extraction complete/);
+      expect(note.tagName).not.toBe('H1');
+      expect(note).not.toHaveAttribute('role');
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      expect(document.title).toBe('New invoice · Money · Cornerstone');
+    });
+
+    it('error: the same h1 and a "Back to Invoices" button that replaces history', async () => {
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockPreviewAutoItemize.mockRejectedValue(new Error('LLM error'));
+      mockFetchVendors.mockResolvedValue(makeVendorsResponse([]));
+      const log = renderRouted({
+        url: '/budget/invoices/new/paperless?documentId=42',
+        state: { origin: { to: '/budget/overview' } },
+      });
+
+      await screen.findByRole('alert');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'New invoice' })).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Back to Invoices' }));
+
+      expect(log.actions).toEqual(['REPLACE /budget/invoices']);
+    });
+
+    it('Cancel replaces history with the origin the page was opened from', async () => {
+      mockReady();
+      const log = renderRouted({
+        url: '/budget/invoices/new/paperless?documentId=42',
+        state: { origin: { to: '/budget/invoices?status=pending' } },
+      });
+      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      });
+
+      expect(log.actions).toEqual(['REPLACE /budget/invoices?status=pending']);
+    });
+
+    it('Cancel without an origin replaces history with the Invoices list', async () => {
+      mockReady();
+      const log = renderRouted();
+      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
+      });
+
+      expect(log.actions).toEqual(['REPLACE /budget/invoices']);
+    });
+
+    it('create success replaces history with the new invoice and forwards the origin', async () => {
+      mockReady();
+      mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
+      const log = renderRouted({
+        url: '/budget/invoices/new/paperless?documentId=42',
+        state: { origin: { to: '/project/overview' }, documentId: 99 },
+      });
+      const create = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+
+      await act(async () => {
+        fireEvent.click(create);
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices/inv-new-1']));
+      expect(log.states).toEqual([{ origin: { to: '/project/overview' } }]);
+      expect(log.entries).toEqual(['/budget/invoices/inv-new-1']);
+    });
+
+    it('create success without an origin forwards no state', async () => {
+      mockReady();
+      mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
+      const log = renderRouted();
+      const create = await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+
+      await act(async () => {
+        fireEvent.click(create);
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices/inv-new-1']));
+      expect(log.states).toEqual([undefined]);
+    });
+
+    it('does not navigate on mount', async () => {
+      mockReady();
+      const log = renderRouted();
+
+      await screen.findByRole('button', { name: 'Create Invoice & Itemize' });
+      expect(log.actions).toEqual([]);
     });
   });
 });

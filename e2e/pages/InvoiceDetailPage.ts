@@ -2,8 +2,8 @@
  * Page Object Model for the Invoice Detail page (/budget/invoices/:id)
  *
  * The page renders:
- * - A back button "← Back to Invoices" (button type, not a Link)
- * - An h1 with the invoice number ("#INV-001") or "Invoice Details" (fallback)
+ * - A breadcrumb row (`breadcrumbs`, trail "Money › Invoices", optional origin Back) — #2203
+ * - An h1 `‹company› · ‹number›` (`‹company› · Invoice/Offer` without a number, see invoiceTitle.ts)
  * - A status badge next to the heading
  * - Edit and Delete action buttons in the header row
  * - A detail card (section) with a dl/dt/dd list of:
@@ -15,8 +15,8 @@
  * - A Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
  *
  * Key DOM observations from source code (InvoiceDetailPage.tsx):
- * - Back button: type="button", class="backButton", text includes "Back to Invoices"
- * - h1: invoice.invoiceNumber ? `#${invoice.invoiceNumber}` : t('invoiceDetail.invoiceDetails')
+ * - Breadcrumbs: shared Breadcrumbs row via BreadcrumbsBar (the old "← Back to Invoices" button is retired)
+ * - h1: invoiceDisplayTitle() (client/src/lib/invoiceTitle.ts); loading/error state "Invoice", 404 "Invoice not found"
  * - Status badge: shared <Badge> chip in the page heading, data-testid="invoice-status-badge"
  * - Edit button: class="editButton", text="Edit"
  * - Delete button: class="deleteButton", text="Delete"
@@ -93,6 +93,7 @@
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 /** API (not app route) detail-endpoint matcher. */
 const API_INVOICE_DETAIL_URL = /\/api\/(?:.*\/)?invoices\//;
@@ -100,8 +101,8 @@ const API_INVOICE_DETAIL_URL = /\/api\/(?:.*\/)?invoices\//;
 export class InvoiceDetailPage {
   readonly page: Page;
 
-  // Navigation
-  readonly backButton: Locator;
+  // Navigation (trail "Money › Invoices" and the optional origin Back)
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Page header
   readonly heading: Locator;
@@ -621,10 +622,9 @@ export class InvoiceDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Back button — styled as a button that navigates to /budget/invoices
-    this.backButton = page.getByRole('button', { name: /Back to Invoices/i });
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
-    // h1 heading — either "#InvoiceNumber" or "Invoice Details"
+    // h1 heading — "‹company› · ‹number›" (see invoiceTitle.ts)
     this.heading = page.getByRole('heading', { level: 1 });
 
     // Status badge — shared Badge chip in the heading (Story #2195)
@@ -1153,10 +1153,11 @@ export class InvoiceDetailPage {
   }
 
   /**
-   * Navigate back to the invoices list by clicking the back button.
+   * Navigate back to the invoices list by clicking the "Invoices" trail link (on a phone the
+   * row shows only this nearest parent).
    */
   async goBackToInvoices(): Promise<void> {
-    await this.backButton.click();
+    await this.breadcrumbs.trailLink('Invoices').click();
     await this.page.waitForURL('**/budget/invoices');
   }
 

@@ -33,6 +33,8 @@ import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
@@ -180,6 +182,9 @@ export function InvoicesPage() {
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
+  const pageTitle = tCommon('navigation.invoices');
+  useDocumentTitle(pageTitle);
+  const originState = useOriginState();
   const { formatCurrency, formatDate } = useFormatters();
 
   // Data state
@@ -387,7 +392,7 @@ export function InvoicesPage() {
       params.delete('openOnly');
     }
 
-    setSearchParams(params);
+    setSearchParams(params, { replace: true });
   };
 
   const setOpenOnly = (next: boolean) => {
@@ -399,7 +404,7 @@ export function InvoicesPage() {
       params.delete('openOnly');
     }
     params.set('page', '1');
-    setSearchParams(params);
+    setSearchParams(params, { replace: true });
   };
 
   const openCreateModalFor = (status: IntegrationStatus) => {
@@ -418,7 +423,9 @@ export function InvoicesPage() {
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);
-    navigate(routeUrl('invoicePaperlessReview', undefined, { documentId: doc.id }));
+    navigate(routeUrl('invoicePaperlessReview', undefined, { documentId: doc.id }), {
+      state: originState,
+    });
   };
 
   const handlePaperlessManualEntry = () => {
@@ -530,7 +537,11 @@ export function InvoicesPage() {
         filterParamKey: 'vendorId',
         enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (inv) => (
-          <Link to={routeUrl('vendor', { id: inv.vendorId })} className={styles.vendorLink}>
+          <Link
+            to={routeUrl('vendor', { id: inv.vendorId })}
+            state={originState}
+            className={styles.vendorLink}
+          >
             {inv.vendorName}
           </Link>
         ),
@@ -649,7 +660,17 @@ export function InvoicesPage() {
         render: (inv) => formatCurrency(inv.finalPaymentAmount),
       },
     ],
-    [t, formatDate, formatCurrency, statusVariants, flagVariants, vendors, openOnly, today],
+    [
+      t,
+      formatDate,
+      formatCurrency,
+      statusVariants,
+      flagVariants,
+      vendors,
+      openOnly,
+      today,
+      originState,
+    ],
   );
 
   // Expandable child rows: open (pending) deposits nested under each invoice (Story #2046)
@@ -892,7 +913,7 @@ export function InvoicesPage() {
 
   return (
     <PageLayout
-      title={t('invoices.title')}
+      title={pageTitle}
       action={
         <button
           type="button"

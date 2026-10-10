@@ -586,7 +586,7 @@ test.describe('Legacy URL walk (route map)', () => {
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.goto();
 
-    await expect(reviewPage.heading).toHaveText('No document chosen');
+    await expect(reviewPage.heading).toHaveText('New invoice');
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('invoicePaperlessReview'));
     await expectSingleHop(page, routeUrl('invoicePaperlessReview'), false);
   });

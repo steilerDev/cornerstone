@@ -20,6 +20,11 @@ import styles from './InvoiceDetailPage.module.css';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 
 interface InvoiceFormState {
   invoiceNumber: string;
@@ -41,6 +46,7 @@ export function InvoiceDetailPage() {
   } = useFormatters();
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tc } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -48,6 +54,17 @@ export function InvoiceDetailPage() {
   const [invoice, setInvoice] = useState<Invoice | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [notFound, setNotFound] = useState(false);
+
+  const invoiceTitle = useInvoiceDisplayTitle(invoice);
+  const h1Text =
+    isLoading || !invoice
+      ? notFound && !isLoading
+        ? tc('navigation.invoiceNotFound')
+        : tc('navigation.invoice')
+      : (invoiceTitle ?? tc('navigation.invoice'));
+  useDocumentTitle(h1Text);
+  const originState = useOriginState(invoice ? invoiceTitle : null);
 
   // Edit modal
   const [showEditModal, setShowEditModal] = useState(false);
@@ -110,12 +127,14 @@ export function InvoiceDetailPage() {
     if (!id) return;
     setIsLoading(true);
     setError(null);
+    setNotFound(false);
     try {
       const data = await fetchInvoiceById(id);
       setInvoice(data);
     } catch (err) {
       if (err instanceof ApiClientError) {
         if (err.statusCode === 404) {
+          setNotFound(true);
           setError(t('invoiceDetail.invoiceNotFound'));
         } else {
           setError(translateApiError(err.error.code, tErrors));
@@ -225,7 +244,7 @@ export function InvoiceDetailPage() {
     setDeleteError('');
     try {
       await deleteInvoice(invoice.vendorId, invoice.id);
-      navigate(routeUrl('invoices'));
+      navigate(routeUrl('invoices'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteError(translateApiError(err.error.code, tErrors));
@@ -240,7 +259,9 @@ export function InvoiceDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>{t('invoiceDetail.loading')}</div>
+        <PageBreadcrumbs />
+        <h1 className={styles.pageTitle}>{h1Text}</h1>
+        <Skeleton lines={4} loadingLabel={t('invoiceDetail.loading')} />
       </div>
     );
   }
@@ -248,8 +269,14 @@ export function InvoiceDetailPage() {
   if (error || !invoice) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        {!notFound && <h1 className={styles.pageTitle}>{h1Text}</h1>}
         <div className={styles.errorCard} role="alert">
-          <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
+          {notFound ? (
+            <h1 className={styles.errorTitle}>{h1Text}</h1>
+          ) : (
+            <h2 className={styles.errorTitle}>{t('invoiceDetail.error')}</h2>
+          )}
           <p>{error ?? t('invoiceDetail.invoiceNotFound')}</p>
           <div className={styles.errorActions}>
             <button
@@ -257,7 +284,7 @@ export function InvoiceDetailPage() {
               className={styles.secondaryButton}
               onClick={() => navigate(routeUrl('invoices'))}
             >
-              {t('invoiceDetail.backToInvoices')}
+              {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadInvoice()}>
               {t('invoiceDetail.retry')}
@@ -271,24 +298,13 @@ export function InvoiceDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Navigation buttons */}
-        <div className={styles.navButtons}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate(routeUrl('invoices'))}
-          >
-            ← {t('invoiceDetail.backToInvoices')}
-          </button>
-        </div>
+        <PageBreadcrumbs />
 
         {/* Page heading */}
         <div className={styles.headerRow}>
           <div className={styles.pageHeading}>
             <h1 className={styles.pageTitle} ref={headingRef} tabIndex={-1}>
-              {invoice.invoiceNumber
-                ? `#${invoice.invoiceNumber}`
-                : t('invoiceDetail.invoiceDetails')}
+              {h1Text}
             </h1>
             <Badge
               variants={statusVariants.invoice}
@@ -330,7 +346,11 @@ export function InvoiceDetailPage() {
             <div className={styles.infoRow}>
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
               <dd className={styles.infoValue}>
-                <Link to={routeUrl('vendor', { id: invoice.vendorId })} className={styles.infoLink}>
+                <Link
+                  to={routeUrl('vendor', { id: invoice.vendorId })}
+                  state={originState}
+                  className={styles.infoLink}
+                >
                   {invoice.vendorName}
                 </Link>
               </dd>
@@ -388,6 +408,7 @@ export function InvoiceDetailPage() {
           key={`lines-${sectionsKey}`}
           invoiceId={id!}
           invoiceTotal={invoice.amount}
+          linkState={originState}
         />
 
         <LinkedDocumentsSection key={`docs-${sectionsKey}`} entityType="invoice" entityId={id!} />

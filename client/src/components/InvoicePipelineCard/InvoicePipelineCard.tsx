@@ -2,6 +2,7 @@ import { routeUrl } from '@cornerstone/shared';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import styles from './InvoicePipelineCard.module.css';
 
@@ -14,6 +15,7 @@ interface InvoicePipelineCardProps {
 }
 
 export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardProps) {
+  const originState = useOriginState();
   const {
     formatCurrency,
     formatDate,
@@ -70,7 +72,11 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
                 data-testid="invoice-row"
                 className={`${styles.item} ${overdue ? styles.itemOverdue : ''}`}
               >
-                <Link to={routeUrl('invoice', { id: invoice.id })} className={styles.itemLink}>
+                <Link
+                  to={routeUrl('invoice', { id: invoice.id })}
+                  state={originState}
+                  className={styles.itemLink}
+                >
                   <span className={styles.vendorName} title={invoice.vendorName}>
                     {invoice.vendorName}
                   </span>
@@ -98,7 +104,11 @@ export function InvoicePipelineCard({ invoices, summary }: InvoicePipelineCardPr
 
               return (
                 <li key={invoice.id} data-testid="quotation-row" className={styles.item}>
-                  <Link to={routeUrl('invoice', { id: invoice.id })} className={styles.itemLink}>
+                  <Link
+                    to={routeUrl('invoice', { id: invoice.id })}
+                    state={originState}
+                    className={styles.itemLink}
+                  >
                     <span className={styles.vendorName} title={invoice.vendorName}>
                       {invoice.vendorName}
                     </span>

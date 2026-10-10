@@ -153,6 +153,8 @@ const rows: Row[] = [
   ['both', '--color-text-muted', '--color-bg-page', 4.5], // 5.52 / 7.18
   ['both', '--color-text-secondary', '--color-bg-page', 4.5], // 9.86 / 12.39
   ['light', '--color-text-muted', '--color-bg-primary', 4.5], // 5.77
+  // Page status lines (#2203, e.g. the new-invoice extraction note) use secondary text on cards
+  ['both', '--color-text-secondary', '--color-bg-primary', 4.5],
   // Cross-rule: calendar week view "today" header (WeekGrid .dayName on .headerCellToday)
   ['light', '--color-text-muted', '--color-primary-bg', 4.5], // 4.73
   ['dark', '--color-role-member-text', '--color-role-member-bg', 4.5], // 8.40

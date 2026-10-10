@@ -14,8 +14,8 @@
  *   - Spinner: role="img" aria-label="Analyzing invoice" (t('autoItemize.spinnerLabel'))
  *   - analyzingCaption: <p class="analyzingCaption"> with t('autoItemize.analyzing') = "Analyzing… (Ns)"
  * - Ready state:
- *   - pageTitle: h1 with t('autoItemize.title') = "Auto-Itemize Invoice"
- *   - breadcrumb: <a class="breadcrumb"> with t('autoItemize.backToInvoice') = "Back to Invoice"
+ *   - pageTitle: h1 "Split with AI" (common:navigation.splitWithAi; same in loading/error/ready, #2203)
+ *   - breadcrumbs: shared Breadcrumbs row, trail "Money › Invoices › ‹invoice h1›" (BreadcrumbsBar)
  *   - metadataCard: invoice metadata form with inputs #invoice-number, #amount, #date, #due-date, #notes
  *   - SuggestionBadge fields: invoiceNumber, amount, date, dueDate, notes (all use same badge pattern)
  *   - statusSelect: <select id="invoice-status"> with status options
@@ -49,13 +49,15 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export class AutoItemizePage {
   readonly page: Page;
 
   // Header
   readonly pageTitle: Locator;
-  readonly breadcrumb: Locator;
+  /** Trail "Money › Invoices › ‹invoice h1›" (the invoice item appears once it has loaded). */
+  readonly breadcrumbs: BreadcrumbsBar;
   readonly saveButton: Locator;
   readonly cancelButton: Locator;
 
@@ -212,13 +214,11 @@ export class AutoItemizePage {
   constructor(page: Page) {
     this.page = page;
 
-    // The h1 title: "Auto-Itemize Invoice"
+    // The h1 title: "Split with AI"
     this.pageTitle = page.getByRole('heading', { level: 1 });
 
-    // Breadcrumb back link: "Back to Invoice" — rendered as <a class="breadcrumb">
-    // In loading/error states this is not present; in ready state it renders inside pageHeader.
-    // getByRole('link') is more robust than class-based since the link uses the t() string.
-    this.breadcrumb = page.getByRole('link', { name: /Back to Invoice/i });
+    // Shared breadcrumb row (trail + optional origin Back)
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Save button: "Save" / "Saving..."
     this.saveButton = page.getByRole('button', { name: /^Save$|^Saving\.\.\.$/i });

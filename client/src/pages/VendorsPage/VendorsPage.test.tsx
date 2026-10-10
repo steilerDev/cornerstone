@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
@@ -865,6 +866,32 @@ describe('VendorsPage', () => {
       renderPage();
 
       await waitFor(() => expect(document.title).toBe('Companies · Cornerstone'));
+    });
+  });
+  describe('row click guard', () => {
+    it('clicking the tel: link triggers no router navigation', async () => {
+      mockFetchVendors.mockResolvedValue(
+        defaultFetchResponse([makeVendor({ id: 'vendor-1', phone: '+1-555-0100' })]),
+      );
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <RecordingRouter entries={['/settings/vendors']} log={log}>
+            <VendorsPage />
+          </RecordingRouter>
+        </ToastProvider>,
+      );
+      // jsdom cannot follow tel: links; swallow the default action after React has handled the click.
+      const swallow = (e: Event) => e.preventDefault();
+      document.addEventListener('click', swallow);
+      try {
+        const links = await screen.findAllByRole('link', { name: '+1-555-0100' });
+        fireEvent.click(links[0]!);
+      } finally {
+        document.removeEventListener('click', swallow);
+      }
+
+      expect(log.actions).toEqual([]);
     });
   });
 });

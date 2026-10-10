@@ -6,8 +6,9 @@
  * handlers can be invoked directly.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, waitFor, act, screen } from '@testing-library/react';
+import { render, waitFor, act, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
 import type {
@@ -441,6 +442,7 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
           <Route path="/project/household-items" element={<div>Household Items List</div>} />
         </Routes>
         <LocationDisplay />
+        <OriginProbe />
       </MemoryRouter>,
     );
   }
@@ -728,6 +730,27 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
     it('a failed move renders no alert anywhere on the page', async () => {
       await move(false, 'household_item', new Error('RAW-LOCAL'));
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
+    });
+  });
+  describe('origin pass-through (#2203)', () => {
+    it('hands the budget section this purchase as the origin of its invoice links', async () => {
+      await load(true);
+
+      expect(capturedBudgetSectionProps.invoiceLinkState).toEqual({
+        origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
+      });
+    });
+
+    it('the company link opens the company page with this purchase as origin', async () => {
+      await load();
+
+      fireEvent.click(await screen.findByRole('link', { name: 'IKEA' }));
+
+      expect(probedPath()).toBe('/settings/vendors/vendor-1');
+      expect(probedOrigin()).toEqual({
+        to: '/project/household-items/item-1',
+        name: 'Standing Desk',
+      });
     });
   });
 });

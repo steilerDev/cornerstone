@@ -42,7 +42,15 @@
     "newMilestone": "New milestone",
     "editPurchase": "Edit purchase",
     "taskNotFound": "Task not found",
-    "purchaseNotFound": "Purchase not found"
+    "purchaseNotFound": "Purchase not found",
+    "invoice": "Invoice",
+    "offer": "Offer",
+    "invoiceNotFound": "Invoice not found",
+    "newInvoice": "New invoice",
+    "splitWithAi": "Split with AI",
+    "bankReport": "Bank report",
+    "fundingSources": "Funding sources",
+    "grants": "Grants"
   },
   "name": "Name",
   "noArea": "No Area",
@@ -241,9 +249,21 @@
       "claimed": "Submitted",
       "quotation": "Offer"
     },
-    "progressPayment": { "pending": "To pay", "paid": "Paid", "claimed": "Submitted" },
-    "task": { "not_started": "Not started", "in_progress": "In progress", "completed": "Done" },
-    "scheduleSignal": { "late": "Late · {{days}} d", "held_up": "Held up", "critical": "Critical" },
+    "progressPayment": {
+      "pending": "To pay",
+      "paid": "Paid",
+      "claimed": "Submitted"
+    },
+    "task": {
+      "not_started": "Not started",
+      "in_progress": "In progress",
+      "completed": "Done"
+    },
+    "scheduleSignal": {
+      "late": "Late · {{days}} d",
+      "held_up": "Held up",
+      "critical": "Critical"
+    },
     "purchase": {
       "planned": "Planned",
       "purchased": "Ordered",
@@ -263,9 +283,20 @@
       "received": "Received",
       "rejected": "Rejected"
     },
-    "fundingSource": { "active": "Active", "exhausted": "Used up", "closed": "Closed" },
-    "defect": { "open": "Open", "in_progress": "Being fixed", "resolved": "Fixed" },
-    "budgetVerdict": { "on_budget": "On budget", "over_budget": "Over budget" },
+    "fundingSource": {
+      "active": "Active",
+      "exhausted": "Used up",
+      "closed": "Closed"
+    },
+    "defect": {
+      "open": "Open",
+      "in_progress": "Being fixed",
+      "resolved": "Fixed"
+    },
+    "budgetVerdict": {
+      "on_budget": "On budget",
+      "over_budget": "Over budget"
+    },
     "diaryType": {
       "daily_log": "Daily log",
       "site_visit": "Site visit",

@@ -1,6 +1,5 @@
 {
   "overview": {
-    "title": "Budget",
     "loading": "Loading budget overview...",
     "error": "Error",
     "errorMessage": "Failed to load budget overview. Please try again.",
@@ -80,7 +79,6 @@
     }
   },
   "sources": {
-    "title": "Budget",
     "sectionTitle": "Sources",
     "addSource": "Add Source",
     "loading": "Loading budget sources...",
@@ -331,7 +329,6 @@
   "vendorDetail": {
     "loading": "Loading vendor...",
     "error": "Error",
-    "backToVendors": "Back to Vendors",
     "retry": "Retry",
     "vendorNotFound": "Vendor not found. It may have been deleted.",
     "vendorInformation": "Vendor Information",
@@ -441,7 +438,6 @@
     "unlinkFromInvoice": "Unlink from invoice"
   },
   "invoices": {
-    "title": "Budget",
     "sectionTitle": "Invoices",
     "addInvoice": "Add Invoice",
     "addFirstInvoice": "Add First Invoice",
@@ -585,7 +581,6 @@
   "invoiceDetail": {
     "loading": "Loading invoice...",
     "error": "Error",
-    "backToInvoices": "Back to Invoices",
     "retry": "Retry",
     "invoiceNotFound": "Invoice not found. It may have been deleted.",
     "invoiceDetails": "Invoice Details",
@@ -1096,17 +1091,14 @@
     "ariaNoData": "Budget breakdown: no data"
   },
   "autoItemize": {
-    "title": "Auto-Itemize Invoice",
     "analyzing": "Analyzing… ({{seconds}}s)",
     "spinnerLabel": "Analyzing invoice",
     "error": "Error loading auto-itemize",
-    "missingDocumentTitle": "No document chosen",
     "missingDocument": "Go back to Invoices and choose a document to start a new invoice from it.",
     "loadError": "Failed to load invoice data. Please try again.",
     "saveError": "Failed to save auto-itemized invoice. Please try again.",
     "unexpectedResponse": "Unexpected response from LLM. Please try again.",
     "retry": "Retry",
-    "backToInvoice": "Back to Invoice",
     "skipToForm": "Skip to form",
     "invoiceMetadata": "Invoice Metadata",
     "invoiceNumber": "Invoice Number",
@@ -1188,12 +1180,10 @@
     "budgetSourceApplied_other": "Budget source \"{{name}}\" applied to {{count}} lines",
     "vendorCreatedAnnounce": "Vendor \"{{name}}\" created and selected",
     "createAndItemize": "Create Invoice & Itemize",
-    "extractingFromDocument": "Analyzing document…",
     "extractionStarted": "Analyzing document with AI…",
     "extractionComplete": "Extraction complete. Please review the suggested line items.",
     "lineItems": "Line Items",
     "noLineItems": "No line items extracted",
-    "backToInvoices": "Back to Invoices",
     "creatingNewBadge": "Creating New",
     "inlineFormLabel": "New budget line details",
     "discardInlineDraft": "Discard",
@@ -1221,7 +1211,6 @@
     "notesPlaceholder": "Optional notes"
   },
   "sourceReports": {
-    "title": "Bank Reports",
     "subtitle": "Generate financial reports for budget sources",
     "stepper": {
       "useCase": "Report Type",
@@ -1516,6 +1505,8 @@
     "budgetSectionTitle": "Budget"
   },
   "invoiceGroup": {
-    "planned": "Planned"
+    "planned": "Planned",
+    "ariaLabel_one": "{{invoice}}: {{count}} cost line on this item, {{amount}} {{amountLabel}}",
+    "ariaLabel_other": "{{invoice}}: {{count}} cost lines on this item, {{amount}} {{amountLabel}}"
   }
 }

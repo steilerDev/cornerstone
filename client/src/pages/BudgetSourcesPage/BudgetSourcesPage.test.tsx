@@ -5,6 +5,8 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -284,13 +286,15 @@ describe('BudgetSourcesPage', () => {
   // ─── Page structure ──────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget"', async () => {
+    it('renders the page heading "Funding sources"', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(
+          screen.getByRole('heading', { name: /^funding sources$/i, level: 1 }),
+        ).toBeInTheDocument();
       });
     });
 
@@ -2829,6 +2833,82 @@ describe('BudgetSourcesPage', () => {
           `/budget/reports?sourceId=${sampleSource2.id}`,
         );
       });
+    });
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    function renderRouted() {
+      const log = createRouterLog();
+      render(
+        <LocaleProvider>
+          <RecordingRouter entries={['/budget/sources']} log={log}>
+            <BudgetSourcesPage />
+          </RecordingRouter>
+        </LocaleProvider>,
+      );
+      return log;
+    }
+
+    it('shows one "Funding sources" h1, the Money trail and the tab title while loading', () => {
+      document.title = 'initial';
+      mockFetchBudgetSources.mockReturnValueOnce(new Promise(() => {}));
+      renderRouted();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Funding sources' }),
+      ).toBeInTheDocument();
+      const trail = screen.getByRole('navigation', { name: 'You are here' });
+      expect(trail).toHaveTextContent('Money');
+      expect(document.title).toBe('Funding sources · Money · Cornerstone');
+    });
+
+    it('keeps one h1 and the trail in the error state', async () => {
+      mockFetchBudgetSources.mockRejectedValueOnce(new Error('Network error'));
+      renderRouted();
+
+      await screen.findByRole('alert');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(
+        screen.getByRole('heading', { level: 1, name: 'Funding sources' }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toHaveTextContent('Money');
+    });
+
+    it('keeps one h1 and the trail once loaded, and does not navigate on mount', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(emptyResponse);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget sources/i)).toBeNull());
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toHaveTextContent('Money');
+      expect(screen.getByRole('link', { name: /Money/ })).toHaveAttribute(
+        'href',
+        '/budget/overview',
+      );
+      expect(log.actions).toEqual([]);
+    });
+
+    it('"Generate report" opens the Bank report with the source and this page as origin', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce({ budgetSources: [sampleSource1] });
+      render(
+        <LocaleProvider>
+          <MemoryRouter initialEntries={['/budget/sources']}>
+            <BudgetSourcesPage />
+            <OriginProbe />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+      await waitFor(() => expect(screen.getByText('Home Loan')).toBeInTheDocument());
+
+      fireEvent.click(screen.getByRole('button', { name: 'Generate report for Home Loan' }));
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Generate Report' }));
+
+      await waitFor(() => expect(probedOrigin()).not.toBeNull());
+      expect(screen.getByTestId('probe-path')).toHaveTextContent('/budget/reports');
+      expect(screen.getByTestId('probe-search')).toHaveTextContent(`?sourceId=${sampleSource1.id}`);
+      expect(probedOrigin()).toEqual({ to: '/budget/sources' });
     });
   });
 });

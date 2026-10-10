@@ -22,9 +22,9 @@ test.describe('Deep Linking', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Tasks' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.workItems);
 
-    // Budget
+    // Money (Budget redirects to the Money overview)
     await page.goto(ROUTES.budget);
-    await expect(page.getByRole('heading', { level: 1, name: 'Budget' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Money' })).toBeVisible();
     expect(page.url()).toContain(ROUTES.budget);
 
     // Schedule

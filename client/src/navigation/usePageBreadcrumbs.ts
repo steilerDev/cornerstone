@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { matchLocation } from '@cornerstone/shared';
 import type { BreadcrumbLink, BreadcrumbsProps } from '../components/Breadcrumbs/Breadcrumbs.js';
 import { pathnameOf, readOrigin } from './origin.js';
-import { breadcrumbChain, isNavView, navLabelKeyForPath } from './pageIdentity.js';
+import { breadcrumbChain, isNavView, originLabelKeyForPath } from './pageIdentity.js';
 
 /** Object display names by route id, e.g. `{ householdItem: item?.name }`. */
 export type ObjectNames = Readonly<Partial<Record<string, string | null | undefined>>>;
@@ -38,7 +38,7 @@ export function usePageBreadcrumbs(objectNames?: ObjectNames): BreadcrumbsProps 
     const suppressed =
       originPath === location.pathname || (nearest && originPath === pathnameOf(nearest.href));
     if (!suppressed) {
-      const key = navLabelKeyForPath(originPath);
+      const key = originLabelKeyForPath(originPath);
       const label = raw.name?.trim() || (key ? t(key) : null);
       if (label) origin = { label, href: raw.to, dynamic: !!raw.name };
     }

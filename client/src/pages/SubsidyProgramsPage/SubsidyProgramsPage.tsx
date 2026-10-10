@@ -23,6 +23,8 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import styles from './SubsidyProgramsPage.module.css';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -98,6 +100,8 @@ export function SubsidyProgramsPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon('navigation.grants');
+  useDocumentTitle(pageTitle);
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
@@ -404,7 +408,8 @@ export function SubsidyProgramsPage() {
   if (isLoading) {
     return (
       <PageLayout
-        title={t('overview.title')}
+        title={pageTitle}
+        breadcrumbs={<PageBreadcrumbs />}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading}>{t('subsidies.loading')}</div>
@@ -415,7 +420,8 @@ export function SubsidyProgramsPage() {
   if (error && programs.length === 0) {
     return (
       <PageLayout
-        title={t('overview.title')}
+        title={pageTitle}
+        breadcrumbs={<PageBreadcrumbs />}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
@@ -431,7 +437,8 @@ export function SubsidyProgramsPage() {
 
   return (
     <PageLayout
-      title={t('overview.title')}
+      title={pageTitle}
+      breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
           type="button"

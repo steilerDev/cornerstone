@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ColumnDef } from './DataTable.js';
+import { isInteractiveDescendantClick } from './interactiveTarget.js';
 import styles from './DataTable.module.css';
 
 export interface DataTableRowProps<T> {
@@ -35,7 +36,13 @@ export function DataTableRow<T>({
   return (
     <tr
       className={`${styles.tableRow} ${isSelected ? styles.tableRowSelected : ''}`}
-      onClick={onClick}
+      onClick={
+        onClick
+          ? (e) => {
+              if (!isInteractiveDescendantClick(e)) onClick();
+            }
+          : undefined
+      }
       tabIndex={onClick ? 0 : -1}
     >
       {leadingCell !== undefined && <td className={styles.expandCell}>{leadingCell}</td>}

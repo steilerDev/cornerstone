@@ -8,6 +8,7 @@ import type {
   BudgetCategory,
   SubsidyProgram,
 } from '@cornerstone/shared';
+import type { OriginState } from '../../navigation/origin.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { LocalizedError } from '../../lib/localizedError.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -56,6 +57,8 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
     newParentType: 'work_item' | 'household_item',
     newParentId: string,
   ) => Promise<void>;
+  /** Router state (origin) passed to every invoice group link. */
+  invoiceLinkState?: OriginState;
 }
 
 export function BudgetSection<T extends BaseBudgetLine>({
@@ -83,6 +86,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   onMoveBudgetLine,
   onInvoiceLineEdit,
   onInvoiceLineMove,
+  invoiceLinkState,
 }: BudgetSectionProps<T>) {
   const { t } = useTranslation(budgetLineType === 'household_item' ? 'householdItems' : 'budget');
   const { vatRate } = useLocale();
@@ -305,6 +309,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
               isUnlinking={isUnlinking || {}}
               confidenceLabels={CONFIDENCE_LABELS}
               vendorName={vendorName}
+              linkState={invoiceLinkState}
             />
           );
         })}

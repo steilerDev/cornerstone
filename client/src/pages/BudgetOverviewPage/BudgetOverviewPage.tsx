@@ -6,6 +6,7 @@ import { fetchBudgetOverview, fetchBudgetBreakdown } from '../../lib/budgetOverv
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { SubNav } from '../../components/SubNav/SubNav.js';
@@ -20,6 +21,8 @@ export function BudgetOverviewPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon('navigation.money');
+  useDocumentTitle(pageTitle);
   const navigate = useNavigate();
 
   const [overview, setOverview] = useState<BudgetOverview | null>(null);
@@ -70,44 +73,53 @@ export function BudgetOverviewPage() {
   const handleSourceToggle = useCallback(
     (sourceId: string | null) => {
       const key = sourceId ?? 'unassigned';
-      setSearchParams((prev) => {
-        const current = new Set(prev.get('deselectedSources')?.split(',').filter(Boolean) ?? []);
-        if (current.has(key)) {
-          current.delete(key);
-        } else {
-          current.add(key);
-        }
-        const params = new URLSearchParams(prev);
-        if (current.size === 0) {
-          params.delete('deselectedSources');
-        } else {
-          params.set('deselectedSources', [...current].join(','));
-        }
-        return params;
-      });
+      setSearchParams(
+        (prev) => {
+          const current = new Set(prev.get('deselectedSources')?.split(',').filter(Boolean) ?? []);
+          if (current.has(key)) {
+            current.delete(key);
+          } else {
+            current.add(key);
+          }
+          const params = new URLSearchParams(prev);
+          if (current.size === 0) {
+            params.delete('deselectedSources');
+          } else {
+            params.set('deselectedSources', [...current].join(','));
+          }
+          return params;
+        },
+        { replace: true },
+      );
     },
     [setSearchParams],
   );
 
   const handleSelectAllSources = useCallback(() => {
-    setSearchParams((prev) => {
-      const params = new URLSearchParams(prev);
-      params.delete('deselectedSources');
-      return params;
-    });
+    setSearchParams(
+      (prev) => {
+        const params = new URLSearchParams(prev);
+        params.delete('deselectedSources');
+        return params;
+      },
+      { replace: true },
+    );
   }, [setSearchParams]);
 
   const handlePaymentStatusChange = useCallback(
     (value: 'all' | 'paid' | 'outstanding') => {
-      setSearchParams((prev) => {
-        const params = new URLSearchParams(prev);
-        if (value === 'all') {
-          params.delete('paymentStatus');
-        } else {
-          params.set('paymentStatus', value);
-        }
-        return params;
-      });
+      setSearchParams(
+        (prev) => {
+          const params = new URLSearchParams(prev);
+          if (value === 'all') {
+            params.delete('paymentStatus');
+          } else {
+            params.set('paymentStatus', value);
+          }
+          return params;
+        },
+        { replace: true },
+      );
     },
     [setSearchParams],
   );
@@ -271,7 +283,7 @@ export function BudgetOverviewPage() {
   if (isLoading) {
     return (
       <PageLayout
-        title={t('overview.title')}
+        title={pageTitle}
         action={actionDropdown}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
@@ -286,7 +298,7 @@ export function BudgetOverviewPage() {
   if (error) {
     return (
       <PageLayout
-        title={t('overview.title')}
+        title={pageTitle}
         action={actionDropdown}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
@@ -309,7 +321,7 @@ export function BudgetOverviewPage() {
 
   return (
     <PageLayout
-      title={t('overview.title')}
+      title={pageTitle}
       action={actionDropdown}
       subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
     >

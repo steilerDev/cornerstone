@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
 import type * as BudgetCategoriesApiTypes from '../../lib/budgetCategoriesApi.js';
@@ -333,13 +334,13 @@ describe('SubsidyProgramsPage', () => {
   // ─── Page structure ────────────────────────────────────────────────────────
 
   describe('page structure', () => {
-    it('renders the page heading "Budget"', async () => {
+    it('renders the page heading "Grants"', async () => {
       mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
 
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^grants$/i, level: 1 })).toBeInTheDocument();
       });
     });
 
@@ -2041,6 +2042,55 @@ describe('SubsidyProgramsPage', () => {
       await waitFor(() =>
         expect(screen.queryByTestId('linked-documents-section')).not.toBeInTheDocument(),
       );
+    });
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    function renderRouted() {
+      const log = createRouterLog();
+      render(
+        <LocaleProvider>
+          <RecordingRouter entries={['/budget/subsidies']} log={log}>
+            <SubsidyProgramsPage />
+          </RecordingRouter>
+        </LocaleProvider>,
+      );
+      return log;
+    }
+
+    it('shows one "Grants" h1, the Money trail and the tab title while loading', () => {
+      document.title = 'initial';
+      mockFetchSubsidyPrograms.mockReturnValueOnce(new Promise(() => {}));
+      renderRouted();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Grants' })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toHaveTextContent('Money');
+      expect(document.title).toBe('Grants · Money · Cornerstone');
+    });
+
+    it('keeps one h1 and the trail in the error state', async () => {
+      mockFetchSubsidyPrograms.mockRejectedValueOnce(new Error('Network error'));
+      renderRouted();
+
+      await screen.findByRole('alert');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Grants' })).toBeInTheDocument();
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toHaveTextContent('Money');
+    });
+
+    it('keeps one h1 and the trail once loaded, and does not navigate on mount', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValueOnce(emptyProgramsResponse);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading subsidy programs/i)).toBeNull());
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('link', { name: /Money/ })).toHaveAttribute(
+        'href',
+        '/budget/overview',
+      );
+      expect(log.actions).toEqual([]);
     });
   });
 });

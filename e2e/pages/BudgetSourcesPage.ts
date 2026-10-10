@@ -80,7 +80,7 @@ export class BudgetSourcesPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Funding sources', exact: true });
 
     // Visual cleanup #1185: the h2 "Sources" section heading was removed.
     // This locator is kept for TypeScript compatibility but will not match any element.

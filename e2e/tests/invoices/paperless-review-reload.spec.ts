@@ -9,7 +9,7 @@
  *   1. Pick a document -> URL carries ?documentId; `page.goto(page.url())` (fresh
  *      navigation, no history state) shows the review again and re-fetches the same
  *      document; `page.reload()` does too.
- *   2. Opening the page without an id shows "No document chosen", an explanation and a
+ *   2. Opening the page without an id keeps the h1 "New invoice", shows an explanation and a
  *      "Back to Invoices" button that returns to the list; no "Error loading" text.
  *
  * Paperless, config and extraction are mocked with page.route (same approach as
@@ -149,14 +149,16 @@ test.describe('Paperless review page — reload and direct link', () => {
 
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.waitForExtractionComplete();
-    await expect(reviewPage.heading).toContainText('Extraction complete');
+    await expect(reviewPage.heading).toHaveText('New invoice');
+    await expect(reviewPage.statusLine).toContainText('Extraction complete');
     const hitsAfterPick = detail.hits();
     expect(hitsAfterPick).toBeGreaterThan(0);
 
     // Fresh navigation to the same URL: no history state, like a bookmark or login redirect.
     await page.goto(page.url());
     await reviewPage.waitForExtractionComplete();
-    await expect(reviewPage.heading).toContainText('Extraction complete');
+    await expect(reviewPage.heading).toHaveText('New invoice');
+    await expect(reviewPage.statusLine).toContainText('Extraction complete');
     expect(new URL(page.url()).searchParams.get('documentId')).toBe(String(DOC_ID));
     expect(detail.hits()).toBeGreaterThan(hitsAfterPick);
 
@@ -164,7 +166,8 @@ test.describe('Paperless review page — reload and direct link', () => {
     const hitsAfterGoto = detail.hits();
     await page.reload();
     await reviewPage.waitForExtractionComplete();
-    await expect(reviewPage.heading).toContainText('Extraction complete');
+    await expect(reviewPage.heading).toHaveText('New invoice');
+    await expect(reviewPage.statusLine).toContainText('Extraction complete');
     expect(detail.hits()).toBeGreaterThan(hitsAfterGoto);
   });
 
@@ -177,7 +180,7 @@ test.describe('Paperless review page — reload and direct link', () => {
     const reviewPage = new PaperlessInvoiceReviewPage(page);
     await reviewPage.goto();
 
-    await expect(reviewPage.heading).toHaveText('No document chosen');
+    await expect(reviewPage.heading).toHaveText('New invoice');
     await expect(
       page.getByText('Go back to Invoices and choose a document to start a new invoice from it.'),
     ).toBeVisible();

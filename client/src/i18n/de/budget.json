@@ -1,6 +1,5 @@
 {
   "overview": {
-    "title": "Budget",
     "loading": "Budget-Übersicht wird geladen...",
     "error": "Fehler",
     "errorMessage": "Budget-Übersicht konnte nicht geladen werden. Bitte versuchen Sie es später erneut.",
@@ -80,7 +79,6 @@
     }
   },
   "sources": {
-    "title": "Budget",
     "sectionTitle": "Quellen",
     "addSource": "Quelle Hinzufügen",
     "loading": "Budgetquellen werden geladen...",
@@ -331,7 +329,6 @@
   "vendorDetail": {
     "loading": "Auftragnehmer wird geladen...",
     "error": "Fehler",
-    "backToVendors": "Zurück zu Auftragnehmern",
     "retry": "Erneut versuchen",
     "vendorNotFound": "Auftragnehmer nicht gefunden. Er wurde möglicherweise gelöscht.",
     "vendorInformation": "Auftragnehmerinformationen",
@@ -443,7 +440,6 @@
   "invoiceDetail": {
     "loading": "Rechnung wird geladen...",
     "error": "Fehler",
-    "backToInvoices": "Zurück zu Rechnungen",
     "retry": "Erneut versuchen",
     "invoiceNotFound": "Rechnung nicht gefunden. Sie wurde möglicherweise gelöscht.",
     "invoiceDetails": "Rechnungsdetails",
@@ -954,7 +950,6 @@
     "ariaNoData": "Budgetaufschlüsselung: keine Daten"
   },
   "invoices": {
-    "title": "Budget",
     "sectionTitle": "Rechnungen",
     "addInvoice": "Rechnung Hinzufügen",
     "addFirstInvoice": "Erste Rechnung Hinzufügen",
@@ -1096,17 +1091,14 @@
     }
   },
   "autoItemize": {
-    "title": "Rechnung aufschlüsseln",
     "analyzing": "Analysiere… ({{seconds}}s)",
     "spinnerLabel": "Rechnung wird analysiert",
     "error": "Fehler beim Laden der Aufschlüsselung",
-    "missingDocumentTitle": "Kein Dokument ausgewählt",
     "missingDocument": "Kehren Sie zu den Rechnungen zurück und wählen Sie ein Dokument aus, um daraus eine neue Rechnung zu erstellen.",
     "loadError": "Rechnungsdaten konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
     "saveError": "Aufgeschlüsselte Rechnung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
     "unexpectedResponse": "Unerwartete Antwort vom Sprachmodell. Bitte versuchen Sie es erneut.",
     "retry": "Erneut versuchen",
-    "backToInvoice": "Zurück zur Rechnung",
     "skipToForm": "Zum Formular springen",
     "invoiceMetadata": "Rechnungsmetadaten",
     "invoiceNumber": "Rechnungsnummer",
@@ -1188,12 +1180,10 @@
     "budgetSourceApplied_other": "Budgetquelle „{{name}}“ auf {{count}} Positionen angewendet",
     "vendorCreatedAnnounce": "Auftragnehmer „{{name}}“ erstellt und ausgewählt",
     "createAndItemize": "Rechnung Erstellen & Aufschlüsseln",
-    "extractingFromDocument": "Dokument wird analysiert…",
     "extractionStarted": "Dokument wird mit KI analysiert…",
     "extractionComplete": "Extraktion abgeschlossen. Bitte prüfen Sie die vorgeschlagenen Positionen.",
     "lineItems": "Positionen",
     "noLineItems": "Keine Positionen extrahiert",
-    "backToInvoices": "Zurück zu Rechnungen",
     "creatingNewBadge": "Wird erstellt",
     "inlineFormLabel": "Details der neuen Budgetposition",
     "discardInlineDraft": "Verwerfen",
@@ -1221,7 +1211,6 @@
     "notesPlaceholder": "Optionale Notizen"
   },
   "sourceReports": {
-    "title": "Bankberichte",
     "subtitle": "Finanzberichte für Budgetquellen erstellen",
     "stepper": {
       "useCase": "Berichtsart",
@@ -1516,6 +1505,8 @@
     "budgetSectionTitle": "Budget"
   },
   "invoiceGroup": {
-    "planned": "Geplant"
+    "planned": "Geplant",
+    "ariaLabel_one": "{{invoice}}: {{count}} Kostenposition für diesen Eintrag, {{amount}} {{amountLabel}}",
+    "ariaLabel_other": "{{invoice}}: {{count}} Kostenpositionen für diesen Eintrag, {{amount}} {{amountLabel}}"
   }
 }

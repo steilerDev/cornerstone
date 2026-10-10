@@ -85,4 +85,31 @@ describe('DataTableRow', () => {
     expect(tr.className).toContain('tableRowSelected');
     expect(tr).toHaveAttribute('tabindex', '0');
   });
+  // Mutation: removing the isInteractiveDescendantClick guard in DataTableRow makes the
+  // inner-link and inner-button tests below fail (the row onClick would fire as well).
+  it('does not call onClick when an inner link is clicked', () => {
+    const onClick = jest.fn();
+    renderRow(
+      [{ key: 'title', label: 'Title', render: (i) => <a href={`/x/${i.id}`}>{i.title}</a> }],
+      { onClick },
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Alpha' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('does not call onClick when an inner button is clicked', () => {
+    const onClick = jest.fn();
+    renderRow([{ key: 'title', label: 'Title', render: () => <button type="button">go</button> }], {
+      onClick,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'go' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('calls onClick exactly once when a plain cell is clicked', () => {
+    const onClick = jest.fn();
+    renderRow([{ key: 'title', label: 'Title', render: (i) => i.title }], { onClick });
+    fireEvent.click(screen.getByText('Alpha'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });

@@ -170,7 +170,7 @@ export class InvoicesPage {
     this.page = page;
 
     // Page header — h1 from PageLayout is "Budget" (invoices.title translation)
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Invoices', exact: true });
 
     // "Add Invoice" button — data-testid="new-invoice-button"
     this.newInvoiceButton = page.getByTestId('new-invoice-button');

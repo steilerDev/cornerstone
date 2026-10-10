@@ -15,6 +15,7 @@ import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
 import { DocumentBrowser } from './DocumentBrowser.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
@@ -30,6 +31,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   const { t } = useTranslation('documents');
   const { t: tErrors } = useTranslation('errors');
   const navigate = useNavigate();
+  const originState = useOriginState();
   const hook = useDocumentLinks(entityType, entityId);
   const systemLinkedIds = useAllLinkedDocumentIds();
 
@@ -414,6 +416,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
                               id: entityId,
                               documentId: l.document.id,
                             }),
+                            { state: originState },
                           );
                         }
                       }

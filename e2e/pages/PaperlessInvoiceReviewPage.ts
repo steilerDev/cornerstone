@@ -8,17 +8,19 @@
  * DOM observations from PaperlessInvoiceReviewPage.tsx (updated for Story #1703/#1704/#1764):
  *
  * Loading state (pageStatus='loading'):
- *   - div.pageContainer > div.pageHeader with h1 "Analyzing document with AI…"
- *     (budget.json: autoItemize.extractionStarted)
- *   - div.loadingState: Spinner (role="img") + h2 class*="loadingMessage"
+ *   - div.pageContainer > div.pageHeader with h1 "New invoice" (common:navigation.newInvoice,
+ *     the same h1 in loading, error and ready; #2203) and below it the status line
+ *     <p role="status"> "Analyzing document with AI…" (budget.json: autoItemize.extractionStarted)
+ *   - div.loadingState: Spinner (role="img") only (the old "Analyzing document…" h2 is gone)
  *   - Cancel button: disabled
  *
  * Error state (pageStatus='error'):
- *   - div.pageContainer > div.pageHeader with h1 t('autoItemize.error')
+ *   - div.pageContainer > div.pageHeader with h1 "New invoice" (also for a missing document id)
  *   - div.errorState: p.errorText + "Back to Invoices" button
  *
  * Ready state (pageStatus='ready'): TWO-COLUMN LAYOUT (Story #1703/#1704)
- *   - div.pageContainer > div.pageHeader with h1 t('autoItemize.extractionComplete')
+ *   - div.pageContainer > div.pageHeader with h1 "New invoice" and the status line
+ *     <p> t('autoItemize.extractionComplete') = "Extraction complete. …"
  *   - div.pageBody (grid with formColumn + previewColumn)
  *   - LEFT: div.formColumn (class*="formColumn") — contains:
  *       - Page-level FormError banner: <FormError variant="banner"> when pageError set
@@ -66,11 +68,17 @@ import { routeUrl } from '../../shared/src/routes/index.js';
 export class PaperlessInvoiceReviewPage {
   readonly page: Page;
 
-  /** Spinner visible during extraction loading state */
+  /**
+   * Loading indicator: the role="status" line under the h1 ("Analyzing document with AI…").
+   * It exists only while the extraction runs.
+   */
   readonly spinner: Locator;
 
-  /** Loading message h2: "Analyzing document…" */
-  readonly loadingMessage: Locator;
+  /**
+   * Status line under the h1: "Analyzing document with AI…" while loading,
+   * "Extraction complete. Please review the suggested line items." when ready.
+   */
+  readonly statusLine: Locator;
 
   /** Error container div in fatal error state (pageStatus='error') */
   readonly errorContainer: Locator;
@@ -203,7 +211,7 @@ export class PaperlessInvoiceReviewPage {
    */
   readonly pickerCreateBudgetLineButton: Locator;
 
-  /** Page h1 (extraction complete / missing document / error, depending on state). */
+  /** Page h1: "New invoice" in every state (loading, error, missing document, ready). */
   readonly heading: Locator;
 
   constructor(page: Page) {
@@ -211,11 +219,13 @@ export class PaperlessInvoiceReviewPage {
 
     this.heading = page.getByRole('heading', { level: 1 });
 
-    // Loading state
-    // Loading state: the "Analyzing document…" heading (budget:autoItemize.extractingFromDocument)
-    // is rendered only while pageStatus === 'loading', next to the Spinner (role="img").
-    this.spinner = page.getByRole('heading', { name: 'Analyzing document…', level: 2 });
-    this.loadingMessage = page.getByRole('heading', { name: /Analyzing document/i });
+    // Loading state: the status line (budget:autoItemize.extractionStarted) is a
+    // role="status" paragraph in the page header, rendered only while pageStatus === 'loading'.
+    this.statusLine = page.locator('[class*="pageHeader"] p[class*="statusLine"]');
+    this.spinner = page
+      .locator('[class*="pageHeader"]')
+      .getByRole('status')
+      .filter({ hasText: 'Analyzing document with AI…' });
 
     // Fatal error state (pageStatus='error')
     this.errorContainer = page.locator(

@@ -5,7 +5,7 @@
  * Legacy route /budget/vendors/:id redirects to /settings/vendors/:id via React Router.
  *
  * The page renders:
- * - A back button navigation ("← Back to Vendors")
+ * - A breadcrumb row (trail "Companies", optional origin Back) — "Back to Vendors" retired in #2203
  * - A page header with vendor name, trade subtitle (EPIC-18), and Edit/Delete buttons
  * - Stats cards: Total Invoices and Outstanding Balance
  * - An info card (dl/dt/dd list) with all vendor fields — read view
@@ -17,6 +17,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 
 export interface EditVendorData {
   name?: string;
@@ -30,7 +31,7 @@ export class VendorDetailPage {
   readonly page: Page;
 
   // Navigation
-  readonly backToVendorsButton: Locator;
+  readonly breadcrumbs: BreadcrumbsBar;
 
   // Page header
   readonly pageTitle: Locator;
@@ -103,8 +104,8 @@ export class VendorDetailPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Navigation — back button replaces breadcrumb
-    this.backToVendorsButton = page.getByRole('button', { name: /back to vendors/i });
+    // Navigation — shared breadcrumb row (trail "Companies")
+    this.breadcrumbs = new BreadcrumbsBar(page);
 
     // Page header
     this.pageTitle = page.getByRole('heading', { level: 1 });
@@ -213,10 +214,10 @@ export class VendorDetailPage {
   }
 
   /**
-   * Navigate back to the vendors list using the back button.
+   * Navigate back to the vendors list using the "Companies" trail link.
    */
   async goBackToVendors(): Promise<void> {
-    await this.backToVendorsButton.click();
+    await this.breadcrumbs.trailLink('Companies').click();
     await this.page.waitForURL('**/settings/vendors');
   }
 

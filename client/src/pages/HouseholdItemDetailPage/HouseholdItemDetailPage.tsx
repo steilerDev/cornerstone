@@ -858,7 +858,11 @@ export function HouseholdItemDetailPage() {
               <dt className={styles.infoLabel}>{t('detail.details.vendor')}</dt>
               <dd className={styles.infoValue}>
                 {item.vendor ? (
-                  <Link to={routeUrl('vendor', { id: item.vendor.id })} className={styles.infoLink}>
+                  <Link
+                    to={routeUrl('vendor', { id: item.vendor.id })}
+                    state={originState}
+                    className={styles.infoLink}
+                  >
                     {item.vendor.name}
                   </Link>
                 ) : (
@@ -1354,6 +1358,7 @@ export function HouseholdItemDetailPage() {
         {/* Budget Lines */}
         <section className={styles.section}>
           <BudgetSection
+            invoiceLinkState={originState}
             budgetLines={budgetLines}
             subsidyPayback={subsidyPayback}
             linkedSubsidies={linkedSubsidies}

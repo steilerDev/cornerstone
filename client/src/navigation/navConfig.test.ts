@@ -197,6 +197,14 @@ describe('NAV_LABEL_KEYS', () => {
     'editPurchase',
     'taskNotFound',
     'purchaseNotFound',
+    'invoice',
+    'offer',
+    'invoiceNotFound',
+    'newInvoice',
+    'splitWithAi',
+    'bankReport',
+    'fundingSources',
+    'grants',
   ] as const;
 
   it('has no navigation key in either locale that the tuple or the page-identity words do not declare', () => {

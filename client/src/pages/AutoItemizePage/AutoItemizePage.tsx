@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
@@ -24,6 +24,10 @@ import {
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { pathnameOf, readOrigin } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
@@ -59,6 +63,8 @@ export function AutoItemizePage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tc } = useTranslation('common');
+  const location = useLocation();
   const { vatRate } = useLocale();
   const { formatCurrency } = useFormatters();
 
@@ -75,6 +81,10 @@ export function AutoItemizePage() {
   // Page state — ALL hooks must be called unconditionally before any early return
   const [pageStatus, setPageStatus] = useState<PageStatus>('loading');
   const [invoice, setInvoice] = useState<Invoice | null>(null);
+  const pageTitle = tc('navigation.splitWithAi');
+  useDocumentTitle(pageTitle);
+  const invoiceTitle = useInvoiceDisplayTitle(invoice);
+  const crumbs = <PageBreadcrumbs objectNames={{ invoice: invoiceTitle }} />;
   const [document, setDocument] = useState<PaperlessDocumentSearchResult | null>(null);
   const [warnings, setWarnings] = useState<AutoItemizeWarning[]>([]);
   const [mode, setMode] = useState<'append' | 'replace'>('append');
@@ -251,20 +261,31 @@ export function AutoItemizePage() {
     setIsDirty(metadataChanged || linesChanged || lineFieldsEdited);
   }, [metadataEdits, lines, originalMetadata, lineFieldsEdited]);
 
+  /** Back to the invoice: one step back when the page was opened from it, else replace. */
+  const returnToInvoice = useCallback(() => {
+    if (!invoiceId) return;
+    const invoiceUrl = routeUrl('invoice', { id: invoiceId });
+    if (pathnameOf(readOrigin(location.state)?.to ?? '') === invoiceUrl) {
+      navigate(-1);
+    } else {
+      navigate(invoiceUrl, { replace: true });
+    }
+  }, [invoiceId, navigate, location.state]);
+
   const handleCancel = useCallback(() => {
     if (!invoiceId) return;
     if (isDirty) {
       setShowCancelConfirm(true);
     } else {
-      navigate(routeUrl('invoice', { id: invoiceId }));
+      returnToInvoice();
     }
-  }, [isDirty, invoiceId, navigate]);
+  }, [isDirty, invoiceId, returnToInvoice]);
 
   const handleConfirmCancel = useCallback(() => {
     if (!invoiceId) return;
     setShowCancelConfirm(false);
-    navigate(routeUrl('invoice', { id: invoiceId }));
-  }, [invoiceId, navigate]);
+    returnToInvoice();
+  }, [invoiceId, returnToInvoice]);
 
   const handleSave = useCallback(async () => {
     if (!invoiceId || !documentId || !invoice || !document) return;
@@ -331,7 +352,7 @@ export function AutoItemizePage() {
         ...(Object.keys(patch).length > 0 ? { invoicePatch: patch } : {}),
       });
 
-      navigate(routeUrl('invoice', { id: invoiceId }));
+      returnToInvoice();
     } catch (err) {
       if (err instanceof ApiClientError) {
         setPageError(translateApiError(err.error.code, tErrors));
@@ -349,7 +370,7 @@ export function AutoItemizePage() {
     mode,
     invoice,
     document,
-    navigate,
+    returnToInvoice,
     setLines,
     t,
     tErrors,
@@ -459,14 +480,31 @@ export function AutoItemizePage() {
   }, [lines, metadataEdits.amount, invoice?.amount, vatRate]);
 
   if (!invoiceId || !documentId) {
-    return <div>{t('autoItemize.error')}</div>;
+    return (
+      <div className={styles.pageContainer}>
+        <div className={styles.pageHeader}>
+          <div className={styles.headerMain}>
+            {crumbs}
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          </div>
+        </div>
+        <div className={styles.pageBody}>
+          <div className={styles.errorColumn}>
+            <FormError variant="banner" message={t('autoItemize.error')} />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (pageStatus === 'loading') {
     return (
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
+          <div className={styles.headerMain}>
+            {crumbs}
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          </div>
         </div>
         <div className={styles.pageBody}>
           <div className={styles.loadingState} aria-busy="true">
@@ -484,7 +522,10 @@ export function AutoItemizePage() {
     return (
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
-          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
+          <div className={styles.headerMain}>
+            {crumbs}
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          </div>
         </div>
         <div className={styles.pageBody}>
           <div className={styles.errorColumn}>
@@ -495,7 +536,7 @@ export function AutoItemizePage() {
               </button>
             )}
             <Link to={routeUrl('invoice', { id: invoiceId })} className={sharedStyles.btnSecondary}>
-              {t('autoItemize.backToInvoice')}
+              {tc('navigation.backTo', { origin: invoiceTitle ?? tc('navigation.invoice') })}
             </Link>
           </div>
         </div>
@@ -507,12 +548,10 @@ export function AutoItemizePage() {
     <>
       <div className={styles.pageContainer} data-layout="full-height">
         <div className={styles.pageHeader}>
-          <div>
-            <Link to={routeUrl('invoice', { id: invoiceId })} className={styles.breadcrumb}>
-              {t('autoItemize.backToInvoice')}
-            </Link>
+          <div className={styles.headerMain}>
+            {crumbs}
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
           </div>
-          <h1 className={styles.pageTitle}>{t('autoItemize.title')}</h1>
         </div>
 
         <div className={styles.pageBody}>

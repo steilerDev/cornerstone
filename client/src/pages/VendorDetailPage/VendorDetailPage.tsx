@@ -13,10 +13,14 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
+import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { VendorContactsSection } from '../../components/VendorContacts/VendorContactsSection.js';
 import { TradePicker } from '../../components/TradePicker/TradePicker.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useOriginState } from '../../navigation/useOriginState.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './VendorDetailPage.module.css';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
 import { Badge } from '../../components/Badge/Badge.js';
@@ -45,6 +49,7 @@ export function VendorDetailPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tc } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
   const { formatCurrency, formatDate } = useFormatters();
   const { id } = useParams<{ id: string }>();
@@ -53,6 +58,7 @@ export function VendorDetailPage() {
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
   useDocumentTitle(vendor?.name ?? null);
+  const originState = useOriginState(vendor?.name);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -324,7 +330,9 @@ export function VendorDetailPage() {
   if (isLoading) {
     return (
       <div className={styles.container}>
-        <div className={styles.loading}>{t('vendorDetail.loading')}</div>
+        <PageBreadcrumbs />
+        <h1 className={sharedStyles.srOnly}>{tc('navigation.companies')}</h1>
+        <Skeleton lines={4} loadingLabel={t('vendorDetail.loading')} />
       </div>
     );
   }
@@ -332,6 +340,8 @@ export function VendorDetailPage() {
   if (error || !vendor) {
     return (
       <div className={styles.container}>
+        <PageBreadcrumbs />
+        <h1 className={sharedStyles.srOnly}>{tc('navigation.companies')}</h1>
         <div className={styles.errorCard} role="alert">
           <h2 className={styles.errorTitle}>{t('vendorDetail.error')}</h2>
           <p>{error ?? t('vendorDetail.vendorNotFound')}</p>
@@ -341,7 +351,7 @@ export function VendorDetailPage() {
               className={styles.secondaryButton}
               onClick={() => navigate(routeUrl('vendors'))}
             >
-              {t('vendorDetail.backToVendors')}
+              {tc('navigation.backTo', { origin: tc('navigation.companies') })}
             </button>
             <button type="button" className={styles.button} onClick={() => void loadVendor()}>
               {t('vendorDetail.retry')}
@@ -358,16 +368,7 @@ export function VendorDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.content}>
-        {/* Navigation buttons */}
-        <div className={styles.navButtons}>
-          <button
-            type="button"
-            className={styles.backButton}
-            onClick={() => navigate(routeUrl('vendors'))}
-          >
-            ← {t('vendorDetail.backToVendors')}
-          </button>
-        </div>
+        <PageBreadcrumbs />
 
         {/* Page heading */}
         <div className={styles.headerRow}>
@@ -696,7 +697,11 @@ export function VendorDetailPage() {
                             <button
                               type="button"
                               className={styles.rowActionButton}
-                              onClick={() => navigate(routeUrl('invoice', { id: invoice.id }))}
+                              onClick={() =>
+                                navigate(routeUrl('invoice', { id: invoice.id }), {
+                                  state: originState,
+                                })
+                              }
                               aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                             >
                               {t('vendorDetail.buttons.editRow')}
@@ -749,7 +754,9 @@ export function VendorDetailPage() {
                       <button
                         type="button"
                         className={styles.rowActionButton}
-                        onClick={() => navigate(routeUrl('invoice', { id: invoice.id }))}
+                        onClick={() =>
+                          navigate(routeUrl('invoice', { id: invoice.id }), { state: originState })
+                        }
                         aria-label={`Edit invoice ${invoice.invoiceNumber ?? invoice.id}`}
                       >
                         {t('vendorDetail.buttons.editRow')}

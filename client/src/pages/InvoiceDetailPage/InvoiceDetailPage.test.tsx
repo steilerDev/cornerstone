@@ -3,8 +3,10 @@
  */
 import { useEffect } from 'react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
 import type {
   AppConfigResponse,
   Invoice,
@@ -53,7 +55,11 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 // Stub out the section to avoid cascading dependencies in InvoiceDetailPage tests
 
 jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
-  InvoiceBudgetLinesSection: (props: { invoiceId: string; invoiceTotal: number }) => {
+  InvoiceBudgetLinesSection: (props: {
+    invoiceId: string;
+    invoiceTotal: number;
+    linkState?: unknown;
+  }) => {
     useEffect(() => {
       budgetLinesMounts += 1;
     }, []);
@@ -62,6 +68,7 @@ jest.unstable_mockModule('./InvoiceBudgetLinesSection.js', () => ({
         data-testid="invoice-budget-lines-section"
         data-invoice-id={props.invoiceId}
         data-invoice-total={props.invoiceTotal}
+        data-link-state={JSON.stringify(props.linkState ?? null)}
       />
     );
   },
@@ -367,7 +374,7 @@ describe('InvoiceDetailPage', () => {
     it('renders "Loading invoice..." before fetchInvoiceById resolves', () => {
       mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
       renderPage();
-      expect(screen.getByText('Loading invoice...')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'Loading invoice...' })).toBeInTheDocument();
     });
   });
 
@@ -401,7 +408,12 @@ describe('InvoiceDetailPage', () => {
       );
       renderPage();
 
-      await waitFor(() => expect(screen.getByText(/Invoice not found/i)).toBeInTheDocument());
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: 'Invoice not found' }),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.getByText(/It may have been deleted/i)).toBeInTheDocument();
     });
 
     it('renders generic error message on non-404 API error', async () => {
@@ -433,7 +445,7 @@ describe('InvoiceDetailPage', () => {
 
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
     });
@@ -559,7 +571,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
       screen.getByRole('button', { name: /^Edit$/i }).click();
@@ -578,7 +590,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -599,7 +611,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -623,7 +635,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -647,7 +659,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -684,7 +696,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -718,7 +730,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
 
@@ -902,7 +914,7 @@ describe('InvoiceDetailPage', () => {
         expect(screen.queryByTestId('convert-overpaid-banner')).not.toBeInTheDocument(),
       );
       expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2);
-      expect(screen.queryByText('Loading invoice...')).not.toBeInTheDocument();
+      expect(screen.queryByRole('status', { name: 'Loading invoice...' })).not.toBeInTheDocument();
       expect(screen.getAllByRole('dialog')).toHaveLength(1);
       expect(screen.getByTestId('convert-final-amount')).toHaveValue(5000);
       expect(screen.getByTestId('convert-confirm')).toBeEnabled();
@@ -963,7 +975,9 @@ describe('InvoiceDetailPage', () => {
       });
 
       await waitFor(() =>
-        expect(screen.getByRole('heading', { level: 1, name: /#INV-2026-001/ })).toHaveFocus(),
+        expect(
+          screen.getByRole('heading', { level: 1, name: /Acme Construction · INV-2026-001/ }),
+        ).toHaveFocus(),
       );
     });
 
@@ -996,7 +1010,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
       await act(async () => {
@@ -1090,7 +1104,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
       await act(async () => {
@@ -1114,7 +1128,7 @@ describe('InvoiceDetailPage', () => {
       renderPage();
       await waitFor(() =>
         expect(
-          screen.getByRole('heading', { name: /#INV-2026-001/i, level: 1 }),
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
         ).toBeInTheDocument(),
       );
       await act(async () => {
@@ -1127,6 +1141,160 @@ describe('InvoiceDetailPage', () => {
       await waitFor(() =>
         expect(screen.getByText('Failed to delete invoice. Please try again.')).toBeInTheDocument(),
       );
+    });
+  });
+  describe('page identity (#2203)', () => {
+    function renderRouted(
+      entry: string | { url: string; state?: unknown } = '/budget/invoices/inv-001',
+    ) {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[entry]} log={log}>
+          <Routes>
+            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="*" element={<div>Elsewhere</div>} />
+          </Routes>
+        </RecordingRouter>,
+      );
+      return log;
+    }
+
+    function trail(): string[] {
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      return within(nav)
+        .getAllByRole('link')
+        .map((a) => (a.textContent ?? '').replace('‹', ''));
+    }
+
+    it('loading: one "Invoice" h1, the Money > Invoices trail and the matching tab title', () => {
+      document.title = 'initial';
+      mockFetchInvoiceById.mockImplementation(() => new Promise(() => {}));
+      renderRouted();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      expect(document.title).toBe('Invoice · Money · Cornerstone');
+    });
+
+    it('not found: "Invoice not found" is the only h1, with the trail and tab title', async () => {
+      mockFetchInvoiceById.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'Invoice not found.' }),
+      );
+      renderRouted();
+
+      await screen.findByRole('heading', { level: 1, name: 'Invoice not found' });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      await waitFor(() => expect(document.title).toBe('Invoice not found · Money · Cornerstone'));
+    });
+
+    it('server error: "Invoice" h1 plus the card h2 "Error"', async () => {
+      mockFetchInvoiceById.mockRejectedValue(
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      renderRouted();
+
+      await screen.findByRole('heading', { level: 2, name: 'Error' });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Invoice' })).toBeInTheDocument();
+      expect(trail()).toEqual(['Money', 'Invoices']);
+    });
+
+    it('loaded: the h1 and tab title are company and number, with no "Back to Invoices"', async () => {
+      renderRouted();
+
+      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      await waitFor(() =>
+        expect(document.title).toBe('Acme Construction · INV-2026-001 · Money · Cornerstone'),
+      );
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      expect(screen.queryByText(/back to invoices/i)).toBeNull();
+      expect(screen.queryByTestId('breadcrumbs-back')).toBeNull();
+    });
+
+    it('loaded offer without a number: company and "Offer"', async () => {
+      mockFetchInvoiceById.mockResolvedValue({
+        ...mockQuotation,
+        invoiceNumber: null,
+      });
+      renderRouted();
+
+      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · Offer' });
+    });
+
+    it('offers Back to the company the invoice was opened from', async () => {
+      renderRouted({
+        url: '/budget/invoices/inv-001',
+        state: { origin: { to: '/settings/vendors/vendor-1', name: 'Acme Construction' } },
+      });
+
+      const back = await screen.findByTestId('breadcrumbs-back');
+      expect(back).toHaveTextContent('Back to Acme Construction');
+      expect(back).toHaveAttribute('href', '/settings/vendors/vendor-1');
+    });
+
+    it('the error action "Back to Invoices" navigates to the Invoices list', async () => {
+      mockFetchInvoiceById.mockRejectedValue(
+        new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      const log = renderRouted();
+
+      fireEvent.click(await screen.findByRole('button', { name: 'Back to Invoices' }));
+
+      expect(log.actions).toEqual(['PUSH /budget/invoices']);
+      expect(await screen.findByText('Elsewhere')).toBeInTheDocument();
+    });
+
+    it('deleting the invoice replaces the history entry with the Invoices list', async () => {
+      mockDeleteInvoice.mockResolvedValue(undefined);
+      const log = renderRouted();
+      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+      await act(async () => {
+        fireEvent.click(await screen.findByRole('button', { name: 'Delete Invoice' }));
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices']));
+      expect(log.entries).toEqual(['/budget/invoices']);
+    });
+
+    it('does not navigate on mount', async () => {
+      const log = renderRouted();
+
+      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
+      expect(log.actions).toEqual([]);
+      expect(log.entries).toEqual(['/budget/invoices/inv-001']);
+    });
+
+    it('the company link and the budget lines carry this invoice as origin', async () => {
+      render(
+        <MemoryRouter initialEntries={['/budget/invoices/inv-001']}>
+          <Routes>
+            <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+            <Route path="*" element={<div>Elsewhere</div>} />
+          </Routes>
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+      await screen.findByRole('heading', { level: 1, name: 'Acme Construction · INV-2026-001' });
+
+      const lines = screen.getByTestId('invoice-budget-lines-section');
+      expect(JSON.parse(lines.getAttribute('data-link-state') ?? 'null')).toEqual({
+        origin: { to: '/budget/invoices/inv-001', name: 'Acme Construction · INV-2026-001' },
+      });
+
+      fireEvent.click(screen.getByRole('link', { name: 'Acme Construction' }));
+
+      await screen.findByText('Elsewhere');
+      expect(probedOrigin()).toEqual({
+        to: '/budget/invoices/inv-001',
+        name: 'Acme Construction · INV-2026-001',
+      });
     });
   });
 });

@@ -42,7 +42,15 @@
     "newMilestone": "Neuer Meilenstein",
     "editPurchase": "Anschaffung bearbeiten",
     "taskNotFound": "Aufgabe nicht gefunden",
-    "purchaseNotFound": "Anschaffung nicht gefunden"
+    "purchaseNotFound": "Anschaffung nicht gefunden",
+    "invoice": "Rechnung",
+    "offer": "Angebot",
+    "invoiceNotFound": "Rechnung nicht gefunden",
+    "newInvoice": "Neue Rechnung",
+    "splitWithAi": "Mit KI aufschlüsseln",
+    "bankReport": "Bankbericht",
+    "fundingSources": "Finanzierungsquellen",
+    "grants": "Förderprogramme"
   },
   "name": "Name",
   "noArea": "Kein Bereich",
