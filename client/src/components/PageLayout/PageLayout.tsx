@@ -7,6 +7,8 @@ export interface PageLayoutProps {
   action?: ReactNode;
   subNav?: ReactNode;
   children: ReactNode;
+  /** Location trail and origin Back (`PageBreadcrumbs`), rendered above the header row. */
+  breadcrumbs?: ReactNode;
   testId?: string;
   /** Optional ref to the <h1>; when set the heading is programmatically focusable (tabIndex -1). */
   headingRef?: Ref<HTMLHeadingElement>;
@@ -24,6 +26,7 @@ export function PageLayout({
   action,
   subNav,
   children,
+  breadcrumbs,
   testId,
   headingRef,
 }: PageLayoutProps) {
@@ -32,6 +35,7 @@ export function PageLayout({
       className={`${styles.container} ${maxWidth === 'narrow' ? styles.containerNarrow : ''}`}
       {...(testId ? { 'data-testid': testId } : {})}
     >
+      {breadcrumbs}
       <div className={styles.header}>
         {headingRef ? (
           <h1 className={styles.title} ref={headingRef} tabIndex={-1}>

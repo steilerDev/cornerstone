@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { screen, waitFor, render, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as BudgetOverviewApiTypes from '../../lib/budgetOverviewApi.js';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -297,7 +298,7 @@ describe('BudgetOverviewPage', () => {
       await user.click(screen.getByRole('button', { name: /retry/i }));
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^money$/i, level: 1 })).toBeInTheDocument();
       });
 
       expect(mockFetchBudgetOverview).toHaveBeenCalledTimes(2);
@@ -329,12 +330,12 @@ describe('BudgetOverviewPage', () => {
   // ─── Page header ────────────────────────────────────────────────────────────
 
   describe('page header', () => {
-    it('renders "Budget" heading when data is loaded', async () => {
+    it('renders "Money" heading when data is loaded', async () => {
       mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^money$/i, level: 1 })).toBeInTheDocument();
       });
     });
   });
@@ -361,7 +362,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^money$/i, level: 1 })).toBeInTheDocument();
       });
 
       // Page is functional despite sources error — no error state shown
@@ -515,7 +516,7 @@ describe('BudgetOverviewPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: /^budget$/i, level: 1 })).toBeInTheDocument();
+        expect(screen.getByRole('heading', { name: /^money$/i, level: 1 })).toBeInTheDocument();
       });
 
       expect(screen.getByTestId('budget-overview-add-button')).toBeInTheDocument();
@@ -1149,6 +1150,159 @@ describe('BudgetOverviewPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('location-full')).not.toHaveTextContent('paymentStatus');
       });
+    });
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    const breakdownWithSources = {
+      ...emptyBreakdown,
+      budgetSources: [
+        {
+          id: 'src-a',
+          name: 'Synthetic savings',
+          totalAmount: 100000,
+          projectedMin: 0,
+          projectedMax: 0,
+          actualCost: 0,
+          actualCostPaid: 0,
+          actualCostPending: 0,
+          subsidyPaybackMin: 0,
+          subsidyPaybackMax: 0,
+        },
+      ],
+    };
+
+    function renderRouted(url = '/budget/overview') {
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={[url]} log={log}>
+          <BudgetOverviewPage />
+        </RecordingRouter>,
+      );
+      return log;
+    }
+
+    it('shows exactly one "Money" h1 and a Money tab title in the loading state', () => {
+      document.title = 'initial';
+      mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+      renderRouted();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Money' })).toBeInTheDocument();
+      expect(document.title).toBe('Money · Cornerstone');
+    });
+
+    it('shows exactly one "Money" h1 in the error state', async () => {
+      mockFetchBudgetOverview.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'boom' }),
+      );
+      renderRouted();
+
+      await screen.findByRole('alert');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Money' })).toBeInTheDocument();
+      expect(document.title).toBe('Money · Cornerstone');
+    });
+
+    it('shows exactly one "Money" h1 once loaded and renders no breadcrumbs', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Money' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).toBeNull();
+    });
+
+    it('translates the h1 and tab title in German', async () => {
+      const i18n = (await import('../../i18n/index.js')).default;
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      try {
+        mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
+        renderRouted();
+
+        expect(screen.getByRole('heading', { level: 1, name: 'Finanzen' })).toBeInTheDocument();
+        expect(document.title).toBe('Finanzen · Cornerstone');
+      } finally {
+        await act(async () => {
+          await i18n.changeLanguage('en');
+        });
+      }
+    });
+
+    it('does not navigate on mount', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(richOverview);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+      expect(log.actions).toEqual([]);
+      expect(log.entries).toEqual(['/budget/overview']);
+    });
+
+    it('replaces history when the payment status filter changes', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+      await userEvent.selectOptions(
+        document.querySelector<HTMLSelectElement>('#cost-basis-select')!,
+        'paid',
+      );
+
+      await waitFor(() =>
+        expect(log.actions).toEqual(['REPLACE /budget/overview?paymentStatus=paid']),
+      );
+      expect(log.entries).toHaveLength(1);
+    });
+
+    it('replaces history again when a deselected source is toggled back on', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+      await userEvent.click(
+        await screen.findByRole('button', { name: /expand available funds sources/i }),
+      );
+      await userEvent.click(await screen.findByRole('button', { name: /Synthetic savings/ }));
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      await userEvent.click(await screen.findByRole('button', { name: /Synthetic savings/ }));
+
+      await waitFor(() => expect(log.actions).toHaveLength(2));
+      expect(log.actions).toEqual([
+        'REPLACE /budget/overview?deselectedSources=src-a',
+        'REPLACE /budget/overview',
+      ]);
+      expect(log.entries).toHaveLength(1);
+    });
+
+    it('replaces history when a source is toggled and when all sources are selected again', async () => {
+      mockFetchBudgetOverview.mockResolvedValueOnce(zeroOverview);
+      mockFetchBudgetBreakdown.mockResolvedValue(breakdownWithSources);
+      const log = renderRouted();
+
+      await waitFor(() => expect(screen.queryByText(/loading budget overview/i)).toBeNull());
+      await userEvent.click(
+        await screen.findByRole('button', { name: /expand available funds sources/i }),
+      );
+      await userEvent.click(await screen.findByRole('button', { name: /Synthetic savings/ }));
+
+      await waitFor(() =>
+        expect(log.actions).toEqual(['REPLACE /budget/overview?deselectedSources=src-a']),
+      );
+
+      // Escape on a source row selects all sources again.
+      const row = await screen.findByRole('button', { name: /Synthetic savings/ });
+      row.focus();
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() => expect(log.actions).toHaveLength(2));
+      expect(log.actions[1]).toBe('REPLACE /budget/overview');
+      expect(log.entries).toHaveLength(1);
     });
   });
 });

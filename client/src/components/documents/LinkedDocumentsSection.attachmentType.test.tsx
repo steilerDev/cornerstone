@@ -81,8 +81,12 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 
 const mockNavigate = jest.fn();
 
+// useLocation feeds useOriginState (origin carried to the opened page, #2203).
+const mockLocation = { pathname: '/budget/invoices/inv-xyz', search: '', hash: '' };
+
 jest.unstable_mockModule('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => mockLocation,
 }));
 
 // ─── Mock: child components ───────────────────────────────────────────────────

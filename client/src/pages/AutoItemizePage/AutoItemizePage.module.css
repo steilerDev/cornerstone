@@ -18,21 +18,18 @@
 }
 
 .pageTitle {
-  flex: 1;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.breadcrumb {
-  font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.breadcrumb:hover {
-  text-decoration: underline;
+.headerMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
 }
 
 .pageBody {

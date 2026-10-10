@@ -18,21 +18,24 @@
 }
 
 .pageTitle {
-  flex: 1;
   font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
-.breadcrumb {
+.headerMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.statusLine {
+  margin: var(--spacing-1) 0 0;
   font-size: var(--font-size-sm);
-  color: var(--color-primary);
-  text-decoration: none;
-}
-
-.breadcrumb:hover {
-  text-decoration: underline;
+  color: var(--color-text-secondary);
 }
 
 .pageBody {
@@ -277,13 +280,6 @@
   gap: var(--spacing-4);
   min-height: 300px;
   flex: 1;
-}
-
-.loadingMessage {
-  margin: 0;
-  font-size: var(--font-size-lg);
-  color: var(--color-text-primary);
-  text-align: center;
 }
 
 .errorState {

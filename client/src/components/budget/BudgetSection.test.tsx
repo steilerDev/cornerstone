@@ -57,7 +57,9 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
     lines,
     onUnlink,
     vendorName,
+    linkState,
   }: {
+    linkState?: unknown;
     invoiceId: string;
     invoiceNumber: string | null;
     invoiceStatus: string;
@@ -66,6 +68,9 @@ jest.unstable_mockModule('./InvoiceGroup.js', () => ({
     vendorName: string | null;
   }) => (
     <div data-testid={`invoice-group-${invoiceId}`}>
+      <span data-testid={`invoice-group-state-${invoiceId}`}>
+        {JSON.stringify(linkState ?? null)}
+      </span>
       <span>{invoiceNumber ?? 'Invoice'}</span>
       <span>{invoiceStatus}</span>
       {vendorName && <span data-testid={`invoice-group-vendor-${invoiceId}`}>{vendorName}</span>}
@@ -410,5 +415,26 @@ describe('BudgetSection', () => {
 
     // First line has null vendor → InvoiceGroup receives null → no vendor span
     expect(screen.queryByTestId('invoice-group-vendor-inv-mix')).toBeNull();
+  });
+  it('forwards invoiceLinkState to every invoice group', () => {
+    const lines = [
+      buildLine('line-1', buildInvoiceLink('inv-1')),
+      buildLine('line-2', buildInvoiceLink('inv-2')),
+    ];
+    const invoiceLinkState = { origin: { to: '/project/work-items/w-1', name: 'Synthetic task' } };
+    render(<BudgetSection {...buildProps(lines, { invoiceLinkState })} />);
+
+    for (const id of ['inv-1', 'inv-2']) {
+      expect(screen.getByTestId(`invoice-group-state-${id}`)).toHaveTextContent(
+        JSON.stringify(invoiceLinkState),
+      );
+    }
+  });
+
+  it('passes no link state when invoiceLinkState is not given', () => {
+    const lines = [buildLine('line-1', buildInvoiceLink('inv-1'))];
+    render(<BudgetSection {...buildProps(lines)} />);
+
+    expect(screen.getByTestId('invoice-group-state-inv-1')).toHaveTextContent('null');
   });
 });

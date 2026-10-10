@@ -2,7 +2,7 @@
  * E2E tests for Budget Sources management (Story #145, Issue #727)
  *
  * UAT Scenarios covered:
- * - Page loads with h1 "Budget" (h2 "Sources" removed in visual cleanup #1185)
+ * - Page loads with h1 "Funding sources" (h2 "Sources" removed in visual cleanup #1185)
  * - Empty state when no sources exist
  * - Create source — full fields (name, type, amount, rate, terms, notes)
  * - Create source — minimal (name + amount only)
@@ -83,16 +83,16 @@ async function deleteSourceViaApi(page: Page, id: string): Promise<void> {
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
   // Visual cleanup #1185: the h2 "Sources" section heading was removed.
   // Test name updated to reflect that only the h1 is asserted.
-  test('Page loads with h1 "Budget"', { tag: '@smoke' }, async ({ page }) => {
+  test('Page loads with h1 "Funding sources"', { tag: '@smoke' }, async ({ page }) => {
     const sourcesPage = new BudgetSourcesPage(page);
 
     await sourcesPage.goto();
     // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
     await sourcesPage.heading.waitFor({ state: 'visible' });
 
-    // h1 "Budget"
+    // h1 "Funding sources"
     await expect(sourcesPage.heading).toBeVisible();
-    await expect(sourcesPage.heading).toHaveText('Budget');
+    await expect(sourcesPage.heading).toHaveText('Funding sources');
 
     // h2 "Sources" was removed in visual cleanup #1185 — no longer asserted.
   });

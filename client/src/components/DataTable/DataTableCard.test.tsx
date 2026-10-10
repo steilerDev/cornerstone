@@ -99,4 +99,34 @@ describe('DataTableCard', () => {
     fireEvent.click(screen.getByText('v'));
     expect(onClick).toHaveBeenCalledTimes(1);
   });
+  // Mutation: removing the isInteractiveDescendantClick guard in DataTableCard makes the
+  // inner-link and inner-button tests below fail (the card onClick would fire as well).
+  it('does not call onClick when an inner link is clicked', () => {
+    const onClick = jest.fn();
+    renderCard(
+      [{ key: 'title', label: 'Title', render: (i) => <a href={`/x/${i.id}`}>{i.title}</a> }],
+      { onClick },
+    );
+    fireEvent.click(screen.getByRole('link', { name: 'Alpha' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('does not call onClick when an inner button is clicked', () => {
+    const onClick = jest.fn();
+    renderCard(
+      [{ key: 'title', label: 'Title', render: () => <button type="button">go</button> }],
+      {
+        onClick,
+      },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'go' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+
+  it('calls onClick exactly once when a plain cell is clicked', () => {
+    const onClick = jest.fn();
+    renderCard([{ key: 'title', label: 'Title', render: (i) => i.title }], { onClick });
+    fireEvent.click(screen.getByText('Alpha'));
+    expect(onClick).toHaveBeenCalledTimes(1);
+  });
 });

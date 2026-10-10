@@ -2,7 +2,7 @@
  * Page Object Model for the Budget Overview page (/budget/overview)
  *
  * The page renders:
- * - An h1 "Budget" page title
+ * - An h1 "Money" page title (#2203)
  * - BudgetSubNav (tab-style nav for the Budget section)
  * - Loading indicator while data is fetched
  * - Error card with a Retry button if the API fails
@@ -53,7 +53,7 @@ export class BudgetOverviewPage {
   constructor(page: Page) {
     this.page = page;
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'Budget', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Money', exact: true });
 
     this.subNav = page.getByRole('navigation', { name: 'Budget section navigation' });
 

@@ -160,7 +160,7 @@ test.describe('Invoices list page load (Scenario 1)', { tag: '@responsive' }, ()
 
       // Page heading
       await expect(invoicesPage.heading).toBeVisible();
-      await expect(invoicesPage.heading).toHaveText('Budget');
+      await expect(invoicesPage.heading).toHaveText('Invoices');
 
       // Summary cards render (at least the containers)
       await expect(invoicesPage.summaryGrid).toBeVisible();
@@ -487,8 +487,8 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
         await expect(detailPage.editButton).toBeVisible();
         await expect(detailPage.deleteButton).toBeVisible();
 
-        // Back button visible
-        await expect(detailPage.backButton).toBeVisible();
+        // Breadcrumb trail "Money › Invoices" (the old Back button is retired)
+        await detailPage.breadcrumbs.expectTrail(['Money', 'Invoices']);
       } finally {
         if (vendorId) await deleteVendorViaApi(page, vendorId);
       }
@@ -509,7 +509,7 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
       });
 
       await detailPage.goto(invoice.id);
-      await expect(detailPage.backButton).toBeVisible();
+      await expect(detailPage.breadcrumbs.trailLink('Invoices')).toBeVisible();
 
       await detailPage.goBackToInvoices();
       // URL should be the invoices list
@@ -519,7 +519,7 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
     }
   });
 
-  test('Invoice detail page shows "Invoice Details" heading when no invoice number', async ({
+  test('Invoice detail page heading is "‹company› · Invoice" when there is no invoice number', async ({
     page,
     testPrefix,
   }) => {
@@ -538,8 +538,8 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
 
       await detailPage.goto(invoice.id);
 
-      // Heading falls back to "Invoice Details"
-      await expect(detailPage.heading).toHaveText('Invoice Details');
+      // Heading falls back to "‹company› · Invoice" (#2203)
+      await expect(detailPage.heading).toHaveText(`${vendorName} · Invoice`);
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }
@@ -550,8 +550,9 @@ test.describe('Invoice detail page (Scenario 8)', { tag: '@responsive' }, () => 
 
     await page.goto('/budget/invoices/non-existent-invoice-id-12345');
 
-    // Error state should render
+    // Error state should render; the 404 h1 is "Invoice not found" (#2203)
     await expect(detailPage.errorCard).toBeVisible();
+    await expect(detailPage.heading).toHaveText('Invoice not found');
   });
 });
 

@@ -62,6 +62,9 @@ import {
   isGeneratingAi,
 } from './wizardReducer.js';
 import sharedStyles from '../../styles/shared.module.css';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './ReportWizardPage.module.css';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
 
@@ -82,6 +85,8 @@ export function ReportWizardPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon(PAGE_LABEL_KEYS.bankReport);
+  useDocumentTitle(pageTitle);
   const { showToast } = useToast();
   const { user } = useAuth();
   const { resolvedLocale, currency } = useLocale();
@@ -889,7 +894,7 @@ export function ReportWizardPage() {
   }, [limitInvalid, partsMode, currentStep, startSizing]);
 
   return (
-    <PageLayout title={t('sourceReports.title')}>
+    <PageLayout title={pageTitle} breadcrumbs={<PageBreadcrumbs />}>
       <SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />
 
       <WizardStepper

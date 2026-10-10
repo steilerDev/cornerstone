@@ -1547,6 +1547,7 @@ export default function WorkItemDetailPage() {
           {/* Budget Lines */}
           <section className={styles.section}>
             <BudgetSection
+              invoiceLinkState={originState}
               budgetLines={budgetLines}
               subsidyPayback={subsidyPayback}
               linkedSubsidies={linkedSubsidies}

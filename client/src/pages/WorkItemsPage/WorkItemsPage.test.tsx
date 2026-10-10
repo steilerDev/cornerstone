@@ -13,6 +13,7 @@ import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as WorkItemsPageTypes from './WorkItemsPage.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
@@ -617,6 +618,24 @@ describe('WorkItemsPage', () => {
 
       await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
       expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
+    });
+  });
+  describe('row click guard', () => {
+    it('clicking the title link pushes exactly once, to the task', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <RecordingRouter entries={['/project/work-items']} log={log}>
+            <WorkItemsPageModule.WorkItemsPage />
+          </RecordingRouter>
+        </ToastProvider>,
+      );
+
+      const links = await screen.findAllByRole('link', { name: /Lay Foundation/ });
+      fireEvent.click(links[0]!);
+
+      expect(log.actions).toEqual(['PUSH /project/work-items/wi-1']);
     });
   });
 });

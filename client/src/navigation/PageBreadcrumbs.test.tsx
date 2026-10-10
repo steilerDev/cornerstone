@@ -181,4 +181,91 @@ describe('PageBreadcrumbs', () => {
       screen.getByRole('navigation', { name: 'Du bist hier' }).querySelector('a'),
     ).toHaveTextContent('Aufgaben');
   });
+  describe('Money pages (#2203)', () => {
+    it('shows the Money and Invoices trail and Back to a company origin on an invoice', () => {
+      renderAt('/budget/invoices/i-1', {
+        state: originStateFor(
+          { pathname: '/settings/vendors/v-1', search: '', hash: '' },
+          'Synthetic Builders',
+        ),
+      });
+
+      const back = screen.getByTestId('breadcrumbs-back');
+      expect(back).toHaveTextContent('Back to Synthetic Builders');
+      expect(back).toHaveAttribute('href', '/settings/vendors/v-1');
+      expect(trailLabels()).toEqual(['Money', 'Invoices']);
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(nav).getByRole('link', { name: /Money/ })).toHaveAttribute(
+        'href',
+        '/budget/overview',
+      );
+      expect(within(nav).getByRole('link', { name: /Invoices/ })).toHaveAttribute(
+        'href',
+        '/budget/invoices',
+      );
+      expect(screen.queryByText('Synthetic Builders · SB-7')).not.toBeInTheDocument();
+    });
+
+    it('suppresses Back when an invoice was opened from the Invoices list', () => {
+      renderAt('/budget/invoices/i-1', {
+        state: originStateFor({
+          pathname: '/budget/invoices',
+          search: '?status=pending',
+          hash: '',
+        }),
+      });
+
+      expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+
+    it('offers Back to Funding sources on the Bank report', () => {
+      renderAt('/budget/reports', {
+        state: originStateFor({ pathname: '/budget/sources', search: '', hash: '' }),
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Funding sources');
+      expect(trailLabels()).toEqual(['Money']);
+    });
+
+    it('labels Back with the page label of a non-view origin on a task page', () => {
+      renderAt('/project/work-items/w-1', {
+        state: originStateFor({ pathname: '/budget/reports', search: '', hash: '' }),
+      });
+
+      expect(screen.getByTestId('breadcrumbs-back')).toHaveTextContent('Back to Bank report');
+    });
+
+    it('keeps the invoice row pending until the invoice name is known on Split with AI', () => {
+      const { unmount } = renderAt('/budget/invoices/i-1/auto-itemize/3');
+      expect(trailLabels()).toEqual(['Money', 'Invoices']);
+      expect(screen.getByTestId('breadcrumbs')).toBeInTheDocument();
+      unmount();
+
+      renderAt('/budget/invoices/i-1/auto-itemize/3', {
+        objectNames: { invoice: 'Synthetic Builders · SB-7' },
+      });
+      expect(trailLabels()).toEqual(['Money', 'Invoices', 'Synthetic Builders · SB-7']);
+      expect(screen.getByRole('link', { name: /Synthetic Builders · SB-7/ })).toHaveClass(
+        'linkDynamic',
+      );
+    });
+
+    it.each(['/budget/overview', '/budget/invoices'])('renders nothing on the view %s', (path) => {
+      const { container } = renderAt(path, {
+        state: originStateFor({ pathname: '/project/overview', search: '', hash: '' }),
+      });
+
+      expect(container).toBeEmptyDOMElement();
+    });
+
+    it('shows the Companies trail on the company page', () => {
+      renderAt('/settings/vendors/v-1');
+
+      expect(trailLabels()).toEqual(['Companies']);
+      expect(screen.getByRole('link', { name: /Companies/ })).toHaveAttribute(
+        'href',
+        '/settings/vendors',
+      );
+    });
+  });
 });

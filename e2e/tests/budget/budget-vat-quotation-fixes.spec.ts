@@ -261,7 +261,8 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         // but the group div itself and its toggle button header are always in the DOM.
 
         // Assert 1: the invoice group header is present and accessible
-        // aria-label format: "Invoice <number|unknown> from <vendorName>: N budget lines, <amount> <label>"
+        // aria-label format (#2203): "<invoice title>: N cost line(s) on this item, <amount> <label>",
+        // where the invoice title is "<vendorName> · <number>" or "<vendorName> · Offer"
         // We use a regex to match the vendor name without asserting exact amounts.
         const invoiceGroup = detailPage.budgetSection.locator('[role="group"]').first();
         await expect(invoiceGroup).toBeVisible();
@@ -271,8 +272,12 @@ test.describe('Budget regression — quotation invoice shows quoted amount + ven
         await expect(vendorNameSpan).toBeVisible();
         await expect(vendorNameSpan).toContainText('QA Vendor');
 
-        // Assert 3: aria-label includes "from <vendorName>" (regression pin for accessibility)
-        await expect(invoiceGroup).toHaveAttribute('aria-label', /from.*QA Vendor/i);
+        // Assert 3: aria-label names the vendor, the Offer noun (quotation) and the line count
+        // (regression pin for accessibility); no hard-coded test prefix, retrying
+        await expect(invoiceGroup).toHaveAttribute(
+          'aria-label',
+          /QA Vendor · Offer: 1 cost line on this item/,
+        );
 
         // Assert 4: the quoted amount is displayed as a single value (not a ±5% range).
         // After issue #1449, InvoiceGroup renders itemizedAmount directly (e.g. €500.00)

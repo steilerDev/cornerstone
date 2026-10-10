@@ -13,7 +13,7 @@
  *      on-demand PDF generation (see the step-5 bullet below for the full detail)
  *
  * The page renders:
- * - An h1 "Bank Reports" page title (PageLayout)
+ * - An h1 "Bank report" page title (#2203) (PageLayout)
  * - BUDGET_TABS SubNav ("Reports" tab, 5th)
  * - A WizardStepper (`client/src/components/WizardStepper`): BOTH trees below are ALWAYS
  *   present in the DOM simultaneously — visibility is toggled purely via a

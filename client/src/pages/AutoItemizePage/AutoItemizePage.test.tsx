@@ -14,6 +14,7 @@
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as InvoicesApiModule from '../../lib/invoicesApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
@@ -1524,7 +1525,8 @@ describe('AutoItemizePage', () => {
         expect(screen.getByDisplayValue('Window installation')).toBeInTheDocument();
       });
 
-      const listItems = screen.getAllByRole('listitem');
+      const list = screen.getByRole('list', { name: /Extracted line items/i });
+      const listItems = within(list).getAllByRole('listitem');
       expect(listItems).toHaveLength(2);
     });
 
@@ -3404,6 +3406,232 @@ describe('AutoItemizePage', () => {
       });
 
       expect(screen.getAllByText('€640.00').length).toBeGreaterThan(0);
+    });
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    const AUTO_URL = '/budget/invoices/inv-1/auto-itemize/42';
+
+    function renderRouted(
+      entries: ReadonlyArray<string | { url: string; state?: unknown }>,
+      initialIndex?: number,
+    ) {
+      const log = createRouterLog();
+      render(
+        <LocaleProvider>
+          <RecordingRouter entries={entries} log={log} initialIndex={initialIndex}>
+            <Routes>
+              <Route
+                path="/budget/invoices/:id/auto-itemize/:documentId"
+                element={<AutoItemizePage />}
+              />
+              <Route path="/oops" element={<AutoItemizePage />} />
+              <Route path="*" element={<div data-testid="elsewhere" />} />
+            </Routes>
+          </RecordingRouter>
+        </LocaleProvider>,
+      );
+      return log;
+    }
+
+    function trail(): string[] {
+      const nav = screen.getByRole('navigation', { name: 'You are here' });
+      return within(nav)
+        .getAllByRole('link')
+        .map((a) => (a.textContent ?? '').replace('\u2039', ''));
+    }
+
+    function mockReady() {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(makeDryRunResponse());
+    }
+
+    it('loading: one "Split with AI" h1, the pending trail and the tab title', () => {
+      document.title = 'initial';
+      mockFetchInvoiceById.mockReturnValue(new Promise(() => {}));
+      mockAutoItemize.mockReturnValue(new Promise(() => {}));
+      mockGetPaperlessDocument.mockReturnValue(new Promise(() => {}));
+      renderRouted([AUTO_URL]);
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Split with AI' })).toBeInTheDocument();
+      expect(trail()).toEqual(['Money', 'Invoices']);
+      expect(document.title).toBe('Split with AI · Money · Cornerstone');
+    });
+
+    it('ready: the invoice joins the trail once loaded, and there is no header back link', async () => {
+      mockReady();
+      renderRouted([AUTO_URL]);
+
+      await screen.findByRole('button', { name: /^Save$/i });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Split with AI' })).toBeInTheDocument();
+      expect(trail()).toEqual(['Money', 'Invoices', 'Test Vendor · INV-001']);
+      expect(screen.getByRole('link', { name: /Test Vendor · INV-001/ })).toHaveAttribute(
+        'href',
+        '/budget/invoices/inv-1',
+      );
+      expect(screen.queryByText(/back to invoice/i)).toBeNull();
+    });
+
+    it('error: the h1 stays and the action reads "Back to <invoice title>" when the invoice loaded', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockRejectedValue(new Error('boom'));
+      mockAutoItemize.mockResolvedValue(makeDryRunResponse());
+      renderRouted([AUTO_URL]);
+
+      await screen.findByRole('alert');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Split with AI' })).toBeInTheDocument();
+      await waitFor(() =>
+        expect(screen.getByRole('link', { name: 'Back to Test Vendor · INV-001' })).toHaveAttribute(
+          'href',
+          '/budget/invoices/inv-1',
+        ),
+      );
+    });
+
+    it('error: the action reads "Back to Invoice" when the invoice did not load', async () => {
+      mockFetchInvoiceById.mockRejectedValue(new Error('boom'));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(makeDryRunResponse());
+      renderRouted([AUTO_URL]);
+
+      await screen.findByRole('alert');
+      const back = screen.getByRole('link', { name: 'Back to Invoice' });
+      expect(back).toHaveAttribute('href', '/budget/invoices/inv-1');
+      expect(trail()).toEqual(['Money', 'Invoices']);
+    });
+
+    it('missing parameters: a header with one h1, the trail and an error banner', () => {
+      renderRouted(['/oops']);
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Split with AI' })).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent('Error loading auto-itemize');
+    });
+
+    it('Cancel steps back in history when the page was opened from the invoice', async () => {
+      mockReady();
+      const log = renderRouted(
+        [
+          '/budget/invoices/inv-1',
+          { url: AUTO_URL, state: { origin: { to: '/budget/invoices/inv-1' } } },
+        ],
+        1,
+      );
+      await screen.findByRole('button', { name: /^Cancel$/i });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      expect(log.actions).toEqual(['GO -1']);
+      expect(log.index).toBe(0);
+      expect(log.entries).toEqual(['/budget/invoices/inv-1', AUTO_URL]);
+    });
+
+    it('Cancel steps back for an origin that is the invoice with a query string', async () => {
+      mockReady();
+      const log = renderRouted(
+        [
+          '/budget/invoices/inv-1?tab=lines',
+          { url: AUTO_URL, state: { origin: { to: '/budget/invoices/inv-1?tab=lines' } } },
+        ],
+        1,
+      );
+      await screen.findByRole('button', { name: /^Cancel$/i });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      expect(log.actions).toEqual(['GO -1']);
+    });
+
+    it('Cancel replaces with the invoice when there is no origin', async () => {
+      mockReady();
+      const log = renderRouted([AUTO_URL]);
+      await screen.findByRole('button', { name: /^Cancel$/i });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      expect(log.actions).toEqual(['REPLACE /budget/invoices/inv-1']);
+      expect(log.entries).toEqual(['/budget/invoices/inv-1']);
+    });
+
+    it('Cancel replaces with the invoice when the origin is another page', async () => {
+      mockReady();
+      const log = renderRouted([
+        '/project/overview',
+        { url: AUTO_URL, state: { origin: { to: '/project/overview' } } },
+      ]);
+      await screen.findByRole('button', { name: /^Cancel$/i });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+
+      expect(log.actions).toEqual(['REPLACE /budget/invoices/inv-1']);
+    });
+
+    it('Discard (dirty cancel) also returns to the invoice by stepping back', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice({ notes: null }));
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValue(makeDryRunResponse());
+      const log = renderRouted(
+        [
+          '/budget/invoices/inv-1',
+          { url: AUTO_URL, state: { origin: { to: '/budget/invoices/inv-1' } } },
+        ],
+        1,
+      );
+      fireEvent.change(await screen.findByLabelText(/Notes/i), { target: { value: 'note' } });
+
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Discard Changes$/i }));
+
+      expect(log.actions).toEqual(['GO -1']);
+    });
+
+    it('Save success steps back to the invoice when opened from it', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
+      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
+      const log = renderRouted(
+        [
+          '/budget/invoices/inv-1',
+          { url: AUTO_URL, state: { origin: { to: '/budget/invoices/inv-1' } } },
+        ],
+        1,
+      );
+      await screen.findByRole('button', { name: /^Save$/i });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['GO -1']));
+    });
+
+    it('Save success replaces with the invoice when there is no origin', async () => {
+      mockFetchInvoiceById.mockResolvedValue(makeInvoice());
+      mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
+      mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse());
+      mockAutoItemize.mockResolvedValueOnce({ budgetLines: [], remainingAmount: 1000 });
+      const log = renderRouted([AUTO_URL]);
+      await screen.findByRole('button', { name: /^Save$/i });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save$/i }));
+      });
+
+      await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices/inv-1']));
+    });
+
+    it('does not navigate on mount', async () => {
+      mockReady();
+      const log = renderRouted([AUTO_URL]);
+
+      await screen.findByRole('button', { name: /^Save$/i });
+      expect(log.actions).toEqual([]);
     });
   });
 });

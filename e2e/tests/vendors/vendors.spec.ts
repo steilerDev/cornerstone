@@ -20,7 +20,7 @@
  * - Scenario 13: Filter by trade name via search (EPIC-18: specialty replaced by trade)
  * - Scenario 14: List shows scannable key info (name, contact) — EPIC-18: specialty column removed
  * - Scenario 17: Responsive layout on mobile/tablet/desktop (no horizontal scroll)
- * - Navigation:  Vendors → Detail → Back to Vendors
+ * - Navigation:  Vendors → Detail → "Companies" trail link
  * - Dark mode:   Page renders without layout breakage in dark mode
  * - Redirect:    Legacy /budget/vendors → /settings/vendors (Story #1283)
  * - SubNav:      Settings section navigation shows Vendors tab active (Story #1283)
@@ -420,7 +420,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Detail page heading matches vendor name and back button is visible', async ({
+  test('Detail page heading matches vendor name and the Companies trail is visible', async ({
     page,
     testPrefix,
   }) => {
@@ -436,7 +436,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await detailPage.goto(createdId);
 
       await expect(detailPage.pageTitle).toHaveText(vendorName);
-      await expect(detailPage.backToVendorsButton).toBeVisible();
+      await detailPage.breadcrumbs.expectTrail(['Companies']);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }

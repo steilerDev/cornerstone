@@ -1,9 +1,12 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { act } from '@testing-library/react';
+import i18n from '../../i18n/index.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { InvoiceGroupProps } from './InvoiceGroup.js';
 import enBudget from '../../i18n/en/budget.json';
@@ -182,12 +185,15 @@ function buildProps(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function renderGroup(ui: React.ReactElement) {
+function renderGroup(ui: React.ReactElement, options: { probe?: boolean } = {}) {
   // Wrap in LocaleProvider so the real useFormatters → useLocale works locally
   // when jest.unstable_mockModule doesn't intercept LocaleContext.
   return render(
     <LocaleProvider>
-      <MemoryRouter initialEntries={['/budget/invoices']}>{ui}</MemoryRouter>
+      <MemoryRouter initialEntries={['/budget/invoices']}>
+        {ui}
+        {options.probe ? <OriginProbe /> : null}
+      </MemoryRouter>
     </LocaleProvider>,
   );
 }
@@ -393,28 +399,100 @@ describe('InvoiceGroup', () => {
     expect(vendorSpan).toBeNull();
   });
 
-  it('aria-label includes vendor name when present', () => {
+  it('aria-label names the company and invoice number and the line count', () => {
     renderGroup(
       <InvoiceGroup
         {...buildProps({ vendorName: 'Acme Corp', invoiceNumber: 'INV-007', itemizedTotal: 100 })}
       />,
     );
 
-    const group = screen.getByRole('group');
-    const ariaLabel = group.getAttribute('aria-label') ?? '';
-    expect(ariaLabel).toContain('from Acme Corp');
+    const ariaLabel = screen.getByRole('group').getAttribute('aria-label') ?? '';
+    expect(ariaLabel).toContain('Acme Corp · INV-007: 1 cost line on this item, ');
+    expect(ariaLabel).toContain('€100.00');
   });
 
-  it('aria-label omits vendor segment when vendorName is null', () => {
+  it('aria-label uses the plural form for several lines', () => {
+    const lines = [
+      buildLine('line-1', buildInvoiceLink()),
+      buildLine('line-2', buildInvoiceLink()),
+    ];
     renderGroup(
       <InvoiceGroup
-        {...buildProps({ vendorName: null, invoiceNumber: 'INV-007', itemizedTotal: 100 })}
+        {...buildProps({ vendorName: 'Acme Corp', invoiceNumber: 'INV-007', lines })}
       />,
     );
 
-    const group = screen.getByRole('group');
-    const ariaLabel = group.getAttribute('aria-label') ?? '';
-    expect(ariaLabel).not.toContain('from');
+    expect(screen.getByRole('group').getAttribute('aria-label') ?? '').toContain(
+      'Acme Corp · INV-007: 2 cost lines on this item, ',
+    );
+  });
+
+  it('aria-label falls back to the invoice noun when the number and company are missing', () => {
+    renderGroup(<InvoiceGroup {...buildProps({ vendorName: null, invoiceNumber: null })} />);
+
+    const ariaLabel = screen.getByRole('group').getAttribute('aria-label') ?? '';
+    expect(ariaLabel.startsWith('Invoice: 1 cost line on this item, ')).toBe(true);
+  });
+
+  it('aria-label uses the offer noun for a quotation without a number', () => {
+    renderGroup(
+      <InvoiceGroup
+        {...buildProps({
+          vendorName: 'Acme Corp',
+          invoiceNumber: null,
+          invoiceStatus: 'quotation',
+        })}
+      />,
+    );
+
+    expect(screen.getByRole('group').getAttribute('aria-label') ?? '').toContain(
+      'Acme Corp · Offer: ',
+    );
+  });
+
+  describe('translated fallbacks and link state (#2203)', () => {
+    afterEach(async () => {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    });
+
+    it('translates the link fallback text and the aria-label in German', async () => {
+      await act(async () => {
+        await i18n.changeLanguage('de');
+      });
+      renderGroup(<InvoiceGroup {...buildProps({ vendorName: null, invoiceNumber: null })} />);
+
+      expect(screen.getByRole('link', { name: 'Rechnung' })).toBeInTheDocument();
+      expect(screen.getByRole('group').getAttribute('aria-label') ?? '').toMatch(
+        /^Rechnung: 1 Kostenposition/,
+      );
+    });
+
+    it('carries the given link state to the invoice page', () => {
+      renderGroup(
+        <InvoiceGroup
+          {...buildProps({
+            linkState: { origin: { to: '/project/work-items/w-1', name: 'Synthetic task' } },
+          })}
+        />,
+        { probe: true },
+      );
+
+      fireEvent.click(screen.getByRole('link', { name: '#INV-001' }));
+
+      expect(probedPath()).toBe('/budget/invoices/inv-1');
+      expect(probedOrigin()).toEqual({ to: '/project/work-items/w-1', name: 'Synthetic task' });
+    });
+
+    it('carries no state when linkState is absent', () => {
+      renderGroup(<InvoiceGroup {...buildProps()} />, { probe: true });
+
+      fireEvent.click(screen.getByRole('link', { name: '#INV-001' }));
+
+      expect(probedPath()).toBe('/budget/invoices/inv-1');
+      expect(probedOrigin()).toBeNull();
+    });
   });
 
   // ─── #1449: quoted-amount rework tests ────────────────────────────────────

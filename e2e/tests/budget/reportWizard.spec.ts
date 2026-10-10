@@ -725,7 +725,7 @@ test.describe('Report wizard — route smoke (Scenario 8)', { tag: '@responsive'
   test('Heading and stepper render', { tag: '@smoke' }, async ({ page }) => {
     const wizard = new ReportWizardPage(page);
     await wizard.goto();
-    await expect(wizard.heading).toHaveText('Bank Reports');
+    await expect(wizard.heading).toHaveText('Bank report');
     await expect(wizard.useCaseRadioGroup).toBeVisible();
     // 5 steps as of Story #1899 (Settings inserted at position 4).
     await expect(wizard.stepItems).toHaveCount(5);
@@ -980,7 +980,7 @@ test.describe('Report wizard — German report language from English UI (Scenari
       // and every other piece of wizard chrome stay English regardless of `reportLanguage` —
       // proven by having successfully located the field via its English label above, plus the
       // heading/stepper/button checks below.
-      await expect(wizard.heading).toHaveText('Bank Reports');
+      await expect(wizard.heading).toHaveText('Bank report');
       await expect(wizard.stepItems.nth(4)).toContainText('Preview & Export');
       await expect(wizard.step5BackButton).toHaveText('Back');
 

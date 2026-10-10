@@ -530,12 +530,17 @@ test.describe('Scenario 3 — Happy path: full itemize flow', { tag: ['@smoke'] 
 
         // ── AutoItemizePage: page title visible ───────────────────────────────
         await expect(autoItemizePage.pageTitle).toBeVisible();
-        await expect(autoItemizePage.pageTitle).toContainText(/Auto-Itemize Invoice/i);
+        await expect(autoItemizePage.pageTitle).toHaveText('Split with AI');
 
-        // ── Breadcrumb visible (story #1576: rendered in ready state) ────────
+        // ── Trail "Money › Invoices › ‹invoice›" (#2203): the invoice h1 is the vendor
+        // name and the invoice number. Opened from that invoice, so no extra Back link.
         await autoItemizePage.waitForAnalyzingDone();
-        await expect(autoItemizePage.breadcrumb).toBeVisible();
-        await expect(autoItemizePage.breadcrumb).toContainText(/Back to Invoice/i);
+        await autoItemizePage.breadcrumbs.expectTrail([
+          'Money',
+          'Invoices',
+          `${testPrefix} AI-HP Vendor · ${testPrefix}-AI-HP-001`,
+        ]);
+        await autoItemizePage.breadcrumbs.expectNoBack();
 
         // ── Three line cards visible (card list replaces table) ───────────────
         const cards = page.locator('[role="list"] li[class*="lineCard"]');

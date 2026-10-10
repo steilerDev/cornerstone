@@ -4,7 +4,7 @@
  * Markup (Story #2202):
  * - Row: data-testid="breadcrumbs" (absent when there is nothing to show)
  * - Back link: data-testid="breadcrumbs-back", text "Back to {origin}" (anchor, outside the nav)
- * - Trail: <nav aria-label="You are here"> with parents only (never the current page)
+ * - Trail: <nav aria-label="You are here"> (located inside the row, so German runs work) with parents only (never the current page)
  *
  * Views (list pages, Schedule, Calendar) render neither Back nor a trail.
  *
@@ -29,7 +29,8 @@ export class BreadcrumbsBar {
   constructor(page: Page) {
     this.page = page;
     this.row = page.getByTestId('breadcrumbs');
-    this.nav = page.getByRole('navigation', { name: 'You are here' });
+    // Locale independent: the nav's accessible name is translated ("You are here" / German)
+    this.nav = this.row.getByRole('navigation');
     this.backLink = page.getByTestId('breadcrumbs-back');
     this.trailLinks = this.nav.getByRole('link');
   }

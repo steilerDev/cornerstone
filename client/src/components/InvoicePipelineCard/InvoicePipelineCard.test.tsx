@@ -2,7 +2,9 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { renderWithRouter } from '../../test/testUtils.js';
 import type * as CardTypes from './InvoicePipelineCard.js';
 import type { Invoice, InvoiceStatusBreakdown } from '@cornerstone/shared';
@@ -274,5 +276,42 @@ describe('InvoicePipelineCard', () => {
     const linkBBB = rows[1]!.querySelector('a');
     expect(linkBBB).not.toBeNull();
     expect(linkBBB).toHaveAttribute('href', '/budget/invoices/inv-bbb');
+  });
+  // ── Origin state (#2203) ────────────────────────────────────────────────────
+
+  function renderAtDashboard(invoices: Invoice[]) {
+    return render(
+      <MemoryRouter initialEntries={['/project/overview']}>
+        <InvoicePipelineCard invoices={invoices} summary={baseSummary} />
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+  }
+
+  it('pending invoice rows carry the dashboard as origin', () => {
+    renderAtDashboard([{ ...baseInvoice, id: 'inv-aaa' }]);
+
+    fireEvent.click(screen.getByTestId('invoice-row').querySelector('a')!);
+
+    expect(probedPath()).toBe('/budget/invoices/inv-aaa');
+    expect(probedOrigin()).toEqual({ to: '/project/overview' });
+  });
+
+  it('offer rows carry the dashboard as origin', () => {
+    renderAtDashboard([{ ...baseInvoice, id: 'inv-q', status: 'quotation' }]);
+
+    fireEvent.click(screen.getByTestId('quotation-row').querySelector('a')!);
+
+    expect(probedPath()).toBe('/budget/invoices/inv-q');
+    expect(probedOrigin()).toEqual({ to: '/project/overview' });
+  });
+
+  it('the "View all" link carries no origin', () => {
+    renderAtDashboard([{ ...baseInvoice }]);
+
+    fireEvent.click(screen.getByRole('link', { name: /all invoices/i }));
+
+    expect(probedPath()).toBe('/budget/invoices');
+    expect(probedOrigin()).toBeNull();
   });
 });

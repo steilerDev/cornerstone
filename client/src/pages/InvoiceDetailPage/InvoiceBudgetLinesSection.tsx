@@ -37,11 +37,14 @@ import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
 import { EditBudgetLineModal } from '../../components/budget/EditBudgetLineModal.js';
 import sharedStyles from '../../styles/shared.module.css';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import type { OriginState } from '../../navigation/origin.js';
 import styles from './InvoiceBudgetLinesSection.module.css';
 
 interface InvoiceBudgetLinesSectionProps {
   invoiceId: string;
   invoiceTotal: number;
+  /** Router state (origin) for task/purchase links; defaults to this page's own origin. */
+  linkState?: OriginState;
 }
 
 /**
@@ -52,11 +55,13 @@ type BudgetLineModalMode = 'edit' | 'remove' | null;
 export function InvoiceBudgetLinesSection({
   invoiceId,
   invoiceTotal,
+  linkState,
 }: InvoiceBudgetLinesSectionProps) {
   const { formatCurrency } = useFormatters();
   const { vatRate } = useLocale();
   const { t: tSettings } = useTranslation('settings');
-  const originState = useOriginState();
+  const ownOrigin = useOriginState();
+  const originState = linkState ?? ownOrigin;
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
 

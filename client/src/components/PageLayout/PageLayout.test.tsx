@@ -191,4 +191,29 @@ describe('PageLayout', () => {
 
     expect(screen.getByRole('heading', { level: 1 })).not.toHaveAttribute('tabindex');
   });
+  // -- breadcrumbs slot (#2203) --
+
+  it('renders the breadcrumbs slot before the heading', () => {
+    render(
+      <PageLayout title="Grants" breadcrumbs={<nav data-testid="trail">Money</nav>}>
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    const trail = screen.getByTestId('trail');
+    const heading = screen.getByRole('heading', { level: 1, name: 'Grants' });
+    expect(trail.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('adds no element without the breadcrumbs prop', () => {
+    const { container } = render(
+      <PageLayout title="Grants">
+        <p>content</p>
+      </PageLayout>,
+    );
+
+    const first = container.firstElementChild?.firstElementChild;
+    expect(first).toHaveClass('header');
+    expect(first).toContainElement(screen.getByRole('heading', { level: 1, name: 'Grants' }));
+  });
 });

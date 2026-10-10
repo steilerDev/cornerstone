@@ -219,7 +219,7 @@ async function mountRoutes(page: Page, overviewBody: object, breakdownBody: obje
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }, () => {
-  test('Page loads and "Budget" heading is visible', async ({ page }) => {
+  test('Page loads and "Money" heading is visible', async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
     const teardown = await mountRoutes(
       page,
@@ -232,7 +232,7 @@ test.describe('Budget Overview — hero card removed (#1389)', { tag: '@smoke' }
       await overviewPage.waitForLoaded();
 
       await expect(overviewPage.heading).toBeVisible();
-      await expect(overviewPage.heading).toHaveText('Budget');
+      await expect(overviewPage.heading).toHaveText('Money');
     } finally {
       await teardown();
     }

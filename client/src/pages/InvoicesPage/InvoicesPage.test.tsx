@@ -12,6 +12,7 @@ import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared'
 import type * as InvoicesPageTypes from './InvoicesPage.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
@@ -1051,7 +1052,7 @@ describe('InvoicesPage', () => {
       });
     });
 
-    it('navigates to the review page with ?documentId= (no history state) when a Paperless document is picked (#2197)', async () => {
+    it('navigates to the review page with ?documentId= and only the origin in history state when a Paperless document is picked (#2197, #2203)', async () => {
       mockGetPaperlessStatus.mockResolvedValue({
         configured: true,
         reachable: true,
@@ -1079,7 +1080,10 @@ describe('InvoicesPage', () => {
           '/budget/invoices/new/paperless?documentId=7',
         );
       });
-      expect(screen.getByTestId('location-state')).toHaveTextContent('null');
+      // The document travels in the query, never in state; state carries only the origin.
+      expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
+        origin: { to: '/budget/invoices' },
+      });
       expect(screen.queryByTestId('paperless-picker-modal')).not.toBeInTheDocument();
     });
 
@@ -1602,6 +1606,149 @@ describe('InvoicesPage', () => {
       expect(desktopBadges).toHaveLength(1);
       expect(mobileBadges).toHaveLength(1);
       expect(desktopBadges[0]).not.toBe(mobileBadges[0]);
+    });
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    function renderRouted(url = '/budget/invoices') {
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <RecordingRouter entries={[url]} log={log}>
+            <InvoicesPageModule.InvoicesPage />
+          </RecordingRouter>
+        </ToastProvider>,
+      );
+      return log;
+    }
+
+    it('shows one "Invoices" h1 and the Invoices tab title in every state', async () => {
+      document.title = 'initial';
+      mockFetchAllInvoices.mockReturnValueOnce(new Promise(() => {}));
+      renderRouted();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Invoices' })).toBeInTheDocument();
+      expect(document.title).toBe('Invoices · Money · Cornerstone');
+    });
+
+    it('keeps one "Invoices" h1 and no breadcrumbs once loaded, and does not navigate on mount', async () => {
+      mockFetchAllInvoices.mockResolvedValue({
+        ...emptyResponse,
+        invoices: [sampleInvoice1],
+      });
+      const log = renderRouted();
+
+      await screen.findAllByText('ACME Construction');
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Invoices' })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: 'You are here' })).toBeNull();
+      expect(log.actions).toEqual([]);
+    });
+
+    it('replaces history when the open-only toggle changes', async () => {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      const log = renderRouted();
+
+      await waitFor(() => expect(mockFetchAllInvoices).toHaveBeenCalled());
+      fireEvent.click(await screen.findByRole('checkbox', { name: 'Show only open items' }));
+
+      await waitFor(() => expect(log.actions.length).toBeGreaterThan(0));
+      expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
+      expect(log.actions.at(-1)).toContain('openOnly=true');
+      expect(log.entries).toHaveLength(1);
+    });
+
+    it('replaces history again when the open-only toggle is switched off', async () => {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      const log = renderRouted('/budget/invoices?openOnly=true');
+
+      const toggle = await screen.findByRole('checkbox', { name: 'Show only open items' });
+      expect(toggle).toBeChecked();
+      fireEvent.click(toggle);
+
+      await waitFor(() => expect(log.actions.length).toBeGreaterThan(0));
+      expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
+      expect(log.actions.at(-1)).not.toContain('openOnly');
+      expect(log.entries).toHaveLength(1);
+    });
+
+    it('replaces history when a table sort changes', async () => {
+      mockFetchAllInvoices.mockResolvedValue({ ...emptyResponse, invoices: [sampleInvoice1] });
+      const log = renderRouted();
+
+      await screen.findAllByText('ACME Construction');
+      const header = screen
+        .getAllByRole('columnheader')
+        .find((h) => /^\s*Amount/i.test(h.textContent ?? ''));
+      expect(header).toBeDefined();
+      fireEvent.click(header!);
+
+      await waitFor(() => expect(log.actions.length).toBeGreaterThan(0));
+      expect(log.actions.every((a) => a.startsWith('REPLACE '))).toBe(true);
+      expect(log.entries).toHaveLength(1);
+    });
+
+    function renderProbed() {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/budget/invoices?status=pending']}>
+            <Routes>
+              <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              <Route path="*" element={<div>Elsewhere</div>} />
+            </Routes>
+            <LocationDisplay />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('the company link pushes once, to the company page with origin state, and never to the invoice', async () => {
+      mockFetchAllInvoices.mockResolvedValue({ ...emptyResponse, invoices: [sampleInvoice1] });
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <RecordingRouter entries={['/budget/invoices?status=pending']} log={log}>
+            <InvoicesPageModule.InvoicesPage />
+          </RecordingRouter>
+        </ToastProvider>,
+      );
+
+      fireEvent.click((await screen.findAllByRole('link', { name: 'ACME Construction' }))[0]!);
+
+      expect(log.actions).toEqual(['PUSH /settings/vendors/v-1']);
+      expect(log.states[0]).toEqual({ origin: { to: '/budget/invoices?status=pending' } });
+    });
+
+    it('the invoice-number link pushes exactly once, to the invoice', async () => {
+      mockFetchAllInvoices.mockResolvedValue({ ...emptyResponse, invoices: [sampleInvoice1] });
+      const log = createRouterLog();
+      render(
+        <ToastProvider>
+          <RecordingRouter entries={['/budget/invoices']} log={log}>
+            <InvoicesPageModule.InvoicesPage />
+          </RecordingRouter>
+        </ToastProvider>,
+      );
+
+      const links = await screen.findAllByRole('link', { name: 'INV-2026-001' });
+      fireEvent.click(links[0]!);
+
+      expect(log.actions).toEqual(['PUSH /budget/invoices/inv-001']);
+    });
+
+    it('opening a row carries no origin', async () => {
+      mockFetchAllInvoices.mockResolvedValue({ ...emptyResponse, invoices: [sampleInvoice1] });
+      renderProbed();
+
+      const cell = (await screen.findAllByText('INV-2026-001'))[0]!;
+      fireEvent.click(cell);
+
+      await waitFor(() =>
+        expect(screen.getByTestId('location')).toHaveTextContent('/budget/invoices/inv-001'),
+      );
+      expect(screen.getByTestId('location-state')).toHaveTextContent('null');
     });
   });
 });

@@ -488,14 +488,17 @@ describe('App', () => {
     render(<App />);
 
     // Wait for lazy-loaded Invoices component to resolve
-    // The InvoicesPage h1 now reads "Budget" (shared sub-nav heading)
+    // The InvoicesPage h1 reads "Invoices" (page identity, #2203)
     const heading = await screen.findByRole(
       'heading',
-      { name: /^budget$/i, level: 1 },
+      { name: /^invoices$/i, level: 1 },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-  });
+    await waitFor(() =>
+      expect(document.title).toBe('Invoices \u00B7 Money \u00B7 Synthetic House'),
+    );
+  }, 15000);
 
   it('renders the Photos page at /photos (Story #2162)', async () => {
     window.history.pushState({}, 'Photos', '/photos');

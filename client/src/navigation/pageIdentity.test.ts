@@ -8,6 +8,9 @@ import {
   navLabelKeyForPath,
   navLabelKeyForRoute,
   navSectionForRoute,
+  originLabelKeyForPath,
+  pageLabelKeyForRoute,
+  PAGE_LABEL_KEYS,
 } from './pageIdentity.js';
 
 describe('navLabelKeyForRoute', () => {
@@ -177,5 +180,67 @@ describe('composeDocumentTitle', () => {
 
   it('trims every part', () => {
     expect(composeDocumentTitle({ page: ' A ', section: ' B ', house: ' C ' })).toBe('A · B · C');
+  });
+});
+
+describe('pageLabelKeyForRoute', () => {
+  it.each([
+    ['bankReport', 'navigation.bankReport'],
+    ['budgetSources', 'navigation.fundingSources'],
+    ['budgetSubsidies', 'navigation.grants'],
+  ])('maps the page %s to %s', (id, key) => {
+    expect(pageLabelKeyForRoute(id)).toBe(key);
+  });
+
+  it('gives an object page and an unknown id no label without throwing', () => {
+    expect(pageLabelKeyForRoute('invoice')).toBeNull();
+    expect(() => pageLabelKeyForRoute('doesNotExist')).not.toThrow();
+    expect(pageLabelKeyForRoute('doesNotExist')).toBeNull();
+  });
+
+  it('keeps the page labels out of the view set', () => {
+    expect(Object.keys(PAGE_LABEL_KEYS).sort()).toEqual([
+      'bankReport',
+      'budgetSources',
+      'budgetSubsidies',
+    ]);
+    for (const id of Object.keys(PAGE_LABEL_KEYS)) {
+      expect(isNavView(id)).toBe(false);
+    }
+  });
+});
+
+describe('originLabelKeyForPath', () => {
+  it('resolves a non-view page through the page labels', () => {
+    expect(originLabelKeyForPath('/budget/reports')).toBe('navigation.bankReport');
+    expect(originLabelKeyForPath('/budget/sources')).toBe('navigation.fundingSources');
+  });
+
+  it('lets the NavConfig label win over the page labels', () => {
+    expect(originLabelKeyForPath('/budget/invoices')).toBe('navigation.invoices');
+    expect(originLabelKeyForPath('/project/work-items')).toBe('navigation.tasks');
+  });
+
+  it('returns null for an object page and an unmatched path', () => {
+    expect(originLabelKeyForPath('/budget/invoices/i-1')).toBeNull();
+    expect(originLabelKeyForPath('/no/such/page')).toBeNull();
+  });
+});
+
+describe('breadcrumbChain for Money pages', () => {
+  it('lists Money and Invoices before the invoice on the Split with AI page', () => {
+    expect(breadcrumbChain('invoiceAutoItemize', { id: 'i-1', documentId: '3' })).toEqual([
+      { id: 'budgetOverview', href: '/budget/overview', labelKey: expect.any(String) },
+      { id: 'invoices', href: '/budget/invoices', labelKey: 'navigation.invoices' },
+      { id: 'invoice', href: '/budget/invoices/i-1', labelKey: null },
+    ]);
+  });
+
+  it('gives Funding sources only the Money parent', () => {
+    expect(breadcrumbChain('budgetSources', {}).map((c) => c.id)).toEqual(['budgetOverview']);
+  });
+
+  it('gives the Invoices view no chain', () => {
+    expect(breadcrumbChain('invoices', {})).toEqual([]);
   });
 });

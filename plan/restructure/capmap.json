@@ -906,7 +906,7 @@
     "to": "Money > Overview > Breakdown (By area / By type / By category / By funding source)",
     "change": "same",
     "gate": "none",
-    "note": "'By type' restores today's split between building work and purchases (R-m1); area rows still add both."
+    "note": "'By type' restores today's split between building work and purchases (R-m1); area rows still add both. #2203: h1 \"Money\" (never \"Budget\"); tab title \"Money · ‹house›\"."
   },
   "MNY-002": {
     "name": "Drill down the breakdown from section to area tree, item and individual budget line",
@@ -932,7 +932,7 @@
     "to": "Money > Overview > Breakdown chips All / Paid / Not yet paid (today's Outstanding: Expected − Paid; ?paymentStatus kept)",
     "change": "same",
     "gate": "none",
-    "note": "Owner check 7 Oct: 'Still to pay' (invoices only) was narrower than Outstanding; 'Not yet paid' restores it (label 19, PLAN §7.2)."
+    "note": "Owner check 7 Oct: 'Still to pay' (invoices only) was narrower than Outstanding; 'Not yet paid' restores it (label 19, PLAN §7.2). #2203: filter changes use history replace."
   },
   "MNY-005": {
     "name": "See invoiced / quoted / confidence badges and the funding-source badge on each budget line",
@@ -989,7 +989,7 @@
     "to": "Money > Overview > Breakdown filter chip 'Funding source: n of N' (checkboxes, Show all; recomputes all views; ?deselectedSources kept)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (monthly use). #2203: filter changes use history replace."
   },
   "MNY-012": {
     "name": "Print the budget overview with every row expanded",
@@ -1013,7 +1013,7 @@
     "to": "Money > Financing > Loans & own funds cards (type, status, amount, rate)",
     "change": "same",
     "gate": "none",
-    "note": "Sources renamed Funding sources."
+    "note": "Sources renamed Funding sources. #2203: interim h1 \"Funding sources\", breadcrumb \"Money\"."
   },
   "MNY-023": {
     "name": "See each source's utilization bar with segment tooltips",
@@ -1125,7 +1125,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Money > Financing); every old URL redirects there in one hop.",
-    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3)."
+    "note": "Subsidies tab merged into Financing. #2195: grant status words read the canonical grant key set (AC3). #2203: interim h1 \"Grants\", breadcrumb \"Money\"."
   },
   "MNY-037": {
     "name": "Create a subsidy program",
@@ -1283,7 +1283,7 @@
     "to": "Money > Invoices > row link",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Invoices\"; list filters use history replace; an invoice opened from the list shows no Back (the list is its parent)."
   },
   "MNY-059": {
     "name": "Open the vendor of an invoice",
@@ -1291,7 +1291,7 @@
     "to": "Money > Invoices / Money > Invoice / Offer page > company link -> Companies > Company page",
     "change": "same",
     "gate": "none",
-    "note": "Opens Companies instead of jumping into Settings."
+    "note": "Opens Companies instead of jumping into Settings. #2203: the company page opened from Money shows Back to its origin and the breadcrumb \"Companies\"; \"Back to Vendors\" retired."
   },
   "MNY-060": {
     "name": "Create an invoice manually",
@@ -1315,7 +1315,7 @@
     "to": "Money > New from document page (Paperless + AI only) (document id kept in the URL)",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Survives reload (D-12). #2197: the document id is read from ?documentId=, so reload and direct links restore the page; without an id the page explains how to start again (D-12)."
+    "note": "Survives reload (D-12). #2197: the document id is read from ?documentId=, so reload and direct links restore the page; without an id the page explains how to start again (D-12). #2203: h1 \"New invoice\" in every state; extraction wording is a status line; creating replaces the review page in history."
   },
   "MNY-063": {
     "name": "Confirm or change the AI-suggested vendor",
@@ -1365,7 +1365,7 @@
     "gate": "paperless+ai",
     "clicks": 2,
     "clickPath": "Invoice / Offer page > Cost tab (1) > 'Split with AI' (2) — Paperless + AI only",
-    "note": "Offered where the job happens, on the Cost tab (Routines placement, capability judge §3.1)."
+    "note": "Offered where the job happens, on the Cost tab (Routines placement, capability judge §3.1). #2203: the Split with AI page opens with its invoice as origin."
   },
   "MNY-069": {
     "name": "Follow extraction progress and retry a failed analysis",
@@ -1373,7 +1373,7 @@
     "to": "Money > Split with AI page (Paperless + AI only) > progress / Retry",
     "change": "same",
     "gate": "paperless+ai",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (weekly use). #2203: h1 \"Split with AI\"; breadcrumb \"Money › Invoices › ‹invoice›\"; error state keeps Retry and \"Back to ‹invoice›\"; Save/Cancel return without a duplicate history entry."
   },
   "MNY-070": {
     "name": "Accept AI-suggested invoice metadata field by field",
@@ -1469,7 +1469,7 @@
     "to": "Money > Invoice / Offer page > summary strip (Amount, Paid, Still to pay or Remaining on offer, Due, Split %, Funding source, Documents) and the description under the h1 (no Overview tab)",
     "change": "same",
     "gate": "none",
-    "note": "Amount, paid so far and still to pay on the first screen (P34)."
+    "note": "Amount, paid so far and still to pay on the first screen (P34). #2203: h1 \"‹company› · ‹number›\" (Invoice/Offer fallbacks); breadcrumb \"Money › Invoices\"; origin-aware \"‹ Back to ‹origin›\" replaces \"Back to Invoices\"."
   },
   "MNY-082": {
     "name": "Edit invoice fields or reassign the invoice to another vendor",
@@ -1494,7 +1494,7 @@
     "to": "Money > Invoice / Offer page > header ⋯ > Delete (modal); Companies > Company page > Payments tab > row ⋯ > Delete",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (rare use). #2203: after a delete, Invoices replaces the deleted page in history."
   },
   "MNY-085": {
     "name": "Convert a quotation into the final invoice",
@@ -1722,7 +1722,7 @@
     "to": "Task / Purchase page > Cost tab > grouped by offer / invoice, estimates first",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones."
+    "note": "Kept as it works today, inside Tasks/Purchases; only the shared page template, the words and the navigation around it change (weekly use). #2194: Planned shows the gross amount on the invoice page, matching the item page (D-19). #2196: expanded invoice group wraps long numbers and company names on phones. #2203: an invoice opened from a task or purchase shows \"‹ Back to ‹that name›\"."
   },
   "MNY-116": {
     "name": "Pick a bank-report type: Budget Overview, Claim or Proof of Funds",
@@ -1731,7 +1731,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Bank report step 1 types; presets from Home N8, Financing and the funding source page; Budget ⋯ entry for the budget overview.",
-    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7)."
+    "note": "Periodic report types stay 1–2 clicks from where the finance session happens (R-m6). #2194: Claim helper and step-2 amount label describe the server set: to pay or paid, not yet submitted (D-18). #2195: the words Pending / Claimed / Claimable are gone from the bar chart legend, proof-of-funds helper and amount label (AC7). #2203: h1 \"Bank report\"; breadcrumb \"Money\" until Financing is served."
   },
   "MNY-117": {
     "name": "Pick the financing source for the report, with its type-specific amount",
@@ -1937,7 +1937,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Row action says Open, not Edit (VRD-15). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06)."
+    "note": "Row action says Open, not Edit (VRD-15). #2194: the balance is ADR-039 Still to pay (submitted never counts, paid progress payments subtracted); header and stats card share one server figure (D-06). #2203: an invoice opened from the company page shows \"‹ Back to ‹company›\"."
   },
   "MNY-142": {
     "name": "Manage a vendor's contact persons",
@@ -3771,7 +3771,7 @@
     "to": "Home > attention rows -> Invoice page; Pulse -> Money",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Home; only the shared page template, the words and the navigation around it change (weekly use). #2203: an invoice opened from Home shows \"‹ Back to Home\"."
   },
   "PLT-069": {
     "name": "See subsidy programs by application status, with fixed-amount totals and upcoming-deadline flags",

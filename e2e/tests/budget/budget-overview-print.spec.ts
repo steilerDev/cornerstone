@@ -359,7 +359,7 @@ test.describe('Budget Overview — print behaviour', () => {
 
       // h1 heading must remain visible in print
       await expect(overviewPage.heading).toBeVisible();
-      await expect(overviewPage.heading).toHaveText('Budget');
+      await expect(overviewPage.heading).toHaveText('Money');
     } finally {
       await overviewPage.endPrint();
       await teardown();

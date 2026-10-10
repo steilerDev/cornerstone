@@ -42,7 +42,15 @@
     "newMilestone": "New milestone",
     "editPurchase": "Edit purchase",
     "taskNotFound": "Task not found",
-    "purchaseNotFound": "Purchase not found"
+    "purchaseNotFound": "Purchase not found",
+    "invoice": "Invoice",
+    "offer": "Offer",
+    "invoiceNotFound": "Invoice not found",
+    "newInvoice": "New invoice",
+    "splitWithAi": "Split with AI",
+    "bankReport": "Bank report",
+    "fundingSources": "Funding sources",
+    "grants": "Grants"
   },
   "name": "Name",
   "noArea": "No Area",

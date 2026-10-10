@@ -212,9 +212,11 @@ test.describe(
         await detailPage.goto(createdId);
 
         // Then: The setup instructions should mention the env var names
-        const pageContent = await page.content();
-        expect(pageContent).toContain('PAPERLESS_URL');
-        expect(pageContent).toContain('PAPERLESS_API_TOKEN');
+        // (retrying assertions: the section renders after the Paperless status fetch resolves,
+        // so a one-shot page.content() read right after goto() races it)
+        await expect(page.getByText('Paperless-ngx is not configured')).toBeVisible();
+        await expect(page.getByText('PAPERLESS_URL').first()).toBeAttached();
+        await expect(page.getByText('PAPERLESS_API_TOKEN').first()).toBeAttached();
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
       }
@@ -1552,7 +1554,12 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       await commitResponsePromise;
 
       await page.waitForURL(`**/budget/invoices/${mockInvoiceId}`);
-      await expect(page.getByRole('heading', { level: 1, name: '#PF-ATTACH-001' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', {
+          level: 1,
+          name: `${testPrefix} PF Attach Vendor · PF-ATTACH-001`,
+        }),
+      ).toBeVisible();
 
       // The auto-linked document shows the "Invoice" badge — and the select still
       // renders on invoice detail cards generally (entityType='invoice'); only the

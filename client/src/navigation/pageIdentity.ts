@@ -45,6 +45,27 @@ export function navLabelKeyForPath(pathname: string): NavLabelKey | null {
   return id ? navLabelKeyForRoute(id) : null;
 }
 
+/** Fixed h1 keys of non-view pages, used as origin labels and chain-label fallback. Views stay in NavConfig. */
+export const PAGE_LABEL_KEYS = {
+  bankReport: 'navigation.bankReport',
+  budgetSources: 'navigation.fundingSources',
+  budgetSubsidies: 'navigation.grants',
+} as const satisfies Partial<Record<RouteId, string>>;
+
+export type PageLabelKey = (typeof PAGE_LABEL_KEYS)[keyof typeof PAGE_LABEL_KEYS];
+
+export function pageLabelKeyForRoute(id: string): PageLabelKey | null {
+  if (!isKnownRouteId(id)) return null;
+  return (PAGE_LABEL_KEYS as Partial<Record<string, PageLabelKey>>)[id] ?? null;
+}
+
+/** NavConfig label first, then the fixed page labels. */
+export function originLabelKeyForPath(pathname: string): NavLabelKey | PageLabelKey | null {
+  const id = matchLocation(pathname)?.entry.id;
+  if (!id) return null;
+  return navLabelKeyForRoute(id) ?? pageLabelKeyForRoute(id);
+}
+
 /** A view is a NavConfig main route or view route (incl. interim aliases): no trail, no Back. */
 export function isNavView(id: string): boolean {
   return navLabelKeyForRoute(id) !== null;
@@ -59,7 +80,7 @@ export function navSectionForRoute(id: string): NavSection | null {
 export interface ChainItem {
   readonly id: string;
   readonly href: string;
-  readonly labelKey: NavLabelKey | null;
+  readonly labelKey: NavLabelKey | PageLabelKey | null;
 }
 
 /** Served ancestors of a route, root first. Views have no chain. */
@@ -80,7 +101,11 @@ export function breadcrumbChain(
           parentId as ServedRouteId,
           params,
         );
-        chain.push({ id: parentId, href, labelKey: navLabelKeyForRoute(parentId) });
+        chain.push({
+          id: parentId,
+          href,
+          labelKey: navLabelKeyForRoute(parentId) ?? pageLabelKeyForRoute(parentId),
+        });
       } catch {
         // a required param is missing: skip this ancestor
       }

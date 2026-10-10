@@ -2,7 +2,7 @@
  * E2E tests for the Budget Overview page (Story #148 + feat/budget-hero-bar + fix/1276)
  *
  * UAT Scenarios covered:
- * - Page loads with the correct h1 "Budget" heading
+ * - Page loads with the correct h1 "Money" heading
  * - Budget sub-navigation (tabs) is visible
  * - Empty state shown when no budget data exists
  * - Error state with Retry button when API returns 500
@@ -91,15 +91,15 @@ function populatedOverviewResponse() {
 // Page heading and navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Page heading and navigation', { tag: '@responsive' }, () => {
-  test('Page loads with h1 "Budget" heading', { tag: '@smoke' }, async ({ page }) => {
+  test('Page loads with h1 "Money" heading', { tag: '@smoke' }, async ({ page }) => {
     const overviewPage = new BudgetOverviewPage(page);
 
     await overviewPage.goto();
     await overviewPage.waitForLoaded();
 
-    // Then: The h1 heading shows "Budget"
+    // Then: The h1 heading shows "Money"
     await expect(overviewPage.heading).toBeVisible();
-    await expect(overviewPage.heading).toHaveText('Budget');
+    await expect(overviewPage.heading).toHaveText('Money');
   });
 
   test('Budget sub-navigation is visible with all tabs', async ({ page }) => {
@@ -666,7 +666,7 @@ test.describe('Cost Breakdown area grouping', { tag: '@responsive' }, () => {
   test('No standalone Area Breakdown section renders', { tag: '@smoke' }, async ({ page }) => {
     // Navigate without mocks — verifies the removed AreaTreeTable section is gone
     await page.goto('/budget/overview');
-    await page.getByRole('heading', { level: 1, name: 'Budget', exact: true }).waitFor({
+    await page.getByRole('heading', { level: 1, name: 'Money', exact: true }).waitFor({
       state: 'visible',
     });
 

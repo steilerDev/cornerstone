@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTranslation } from 'react-i18next';
 import type {
   BudgetSource,
@@ -29,6 +30,9 @@ import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { BUDGET_TABS } from '../shared/budgetTabs.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './BudgetSourcesPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
 
@@ -284,7 +288,10 @@ export function BudgetSourcesPage() {
   const { t } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const pageTitle = tCommon(PAGE_LABEL_KEYS.budgetSources);
+  useDocumentTitle(pageTitle);
   const navigate = useNavigate();
+  const originState = useOriginState();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
   const [sources, setSources] = useState<BudgetSource[]>([]);
@@ -727,7 +734,8 @@ export function BudgetSourcesPage() {
   if (isLoading) {
     return (
       <PageLayout
-        title={t('sources.title')}
+        title={pageTitle}
+        breadcrumbs={<PageBreadcrumbs />}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.loading}>{t('sources.loading')}</div>
@@ -738,7 +746,8 @@ export function BudgetSourcesPage() {
   if (error && sources.length === 0) {
     return (
       <PageLayout
-        title={t('sources.title')}
+        title={pageTitle}
+        breadcrumbs={<PageBreadcrumbs />}
         subNav={<SubNav tabs={BUDGET_TABS} ariaLabel={tCommon('subNav.budget')} />}
       >
         <div className={styles.errorCard} role="alert">
@@ -754,7 +763,8 @@ export function BudgetSourcesPage() {
 
   return (
     <PageLayout
-      title={t('sources.title')}
+      title={pageTitle}
+      breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
           type="button"
@@ -1332,6 +1342,7 @@ export function BudgetSourcesPage() {
                               onClick: () =>
                                 navigate(
                                   routeUrl('bankReport', undefined, { sourceId: source.id }),
+                                  { state: originState },
                                 ),
                             },
                           ]}

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "measured": {
     "screens": {
-      "AutoItemizePage": { "destinations": 2, "primaryButtons": 12, "searchFields": 0 },
+      "AutoItemizePage": { "destinations": 1, "primaryButtons": 12, "searchFields": 0 },
       "BackupsPage": { "destinations": 6, "primaryButtons": 1, "searchFields": 0 },
       "BudgetOverviewPage": { "destinations": 8, "primaryButtons": 3, "searchFields": 0 },
       "BudgetSourcesPage": { "destinations": 8, "primaryButtons": 7, "searchFields": 1 },
@@ -24,7 +24,7 @@
       "MilestonesPage": { "destinations": 5, "primaryButtons": 6, "searchFields": 1 },
       "NoAccessPage": { "destinations": 0, "primaryButtons": 0, "searchFields": 0 },
       "NotFoundPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
-      "PaperlessInvoiceReviewPage": { "destinations": 1, "primaryButtons": 12, "searchFields": 0 },
+      "PaperlessInvoiceReviewPage": { "destinations": 0, "primaryButtons": 12, "searchFields": 0 },
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PhotoSpotViewerPage": { "destinations": 2, "primaryButtons": 1, "searchFields": 0 },
       "ProfilePage": { "destinations": 6, "primaryButtons": 5, "searchFields": 0 },
@@ -155,7 +155,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 184,
+      "count": 186,
       "values": [
         "% allocated",
         "(refund)",
@@ -236,6 +236,8 @@
         "final amount",
         "fixed amount (€)",
         "funding source",
+        "funding sources",
+        "grants",
         "headroom",
         "invoice amount",
         "invoiced",

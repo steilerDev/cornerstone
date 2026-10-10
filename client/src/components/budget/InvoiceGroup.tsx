@@ -6,6 +6,8 @@ import type { BaseBudgetLine, InvoiceStatus } from '@cornerstone/shared';
 import { useFormatters } from '../../lib/formatters.js';
 import { Badge } from '../Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useInvoiceDisplayTitle } from '../../hooks/useInvoiceDisplayTitle.js';
+import type { OriginState } from '../../navigation/origin.js';
 import { BudgetLineCard } from './BudgetLineCard.js';
 import styles from './InvoiceGroup.module.css';
 
@@ -25,6 +27,8 @@ export interface InvoiceGroupProps<T extends BaseBudgetLine> {
   isUnlinking: Record<string, boolean>;
   confidenceLabels: Record<string, string>;
   vendorName: string | null;
+  /** Router state (origin) passed to the invoice link. */
+  linkState?: OriginState;
 }
 
 export function InvoiceGroup<T extends BaseBudgetLine>({
@@ -43,9 +47,11 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   isUnlinking,
   confidenceLabels,
   vendorName,
+  linkState,
 }: InvoiceGroupProps<T>) {
   const { formatCurrency } = useFormatters();
   const { t } = useTranslation('budget');
+  const { t: tCommon } = useTranslation('common');
   const statusVariants = useStatusBadgeVariants();
   const [isExpanded, setIsExpanded] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -72,7 +78,17 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
     invoiceStatus === 'quotation'
       ? t('vendorDetail.quotedAmount')
       : t('vendorDetail.invoicedAmount');
-  const ariaLabel = `Invoice ${invoiceNumber || 'unknown'}${vendorName ? ` from ${vendorName}` : ''}: ${lines.length} budget lines, ${formatCurrency(itemizedTotal)} ${amountLabel}`;
+  const invoiceTitle = useInvoiceDisplayTitle({
+    vendorName,
+    invoiceNumber,
+    status: invoiceStatus,
+  });
+  const ariaLabel = t('invoiceGroup.ariaLabel', {
+    invoice: invoiceTitle,
+    count: lines.length,
+    amount: formatCurrency(itemizedTotal),
+    amountLabel,
+  });
 
   return (
     <div className={styles.group} role="group" aria-label={ariaLabel}>
@@ -91,10 +107,11 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
             <div className={styles.invoiceIdentity}>
               <Link
                 to={routeUrl('invoice', { id: invoiceId })}
+                state={linkState}
                 className={styles.invoiceLink}
                 onClick={(e) => e.stopPropagation()}
               >
-                {invoiceNumber ? `#${invoiceNumber}` : 'Invoice'}
+                {invoiceNumber ? `#${invoiceNumber}` : tCommon('navigation.invoice')}
               </Link>
               {vendorName && <span className={styles.vendorName}>{vendorName}</span>}
             </div>

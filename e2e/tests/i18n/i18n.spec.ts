@@ -43,6 +43,7 @@
 import type { Page, Locator } from '@playwright/test';
 import { test, expect } from '../../fixtures/isolatedUser.js';
 import { ROUTES } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import {
   createHouseholdItemViaApi,
@@ -183,9 +184,9 @@ test.describe('i18n: Language Switching', () => {
       timeout: 15000,
     });
 
-    // And: Budget page renders in German
+    // And: the Money overview (formerly Budget) renders in German
     await page.goto(ROUTES.budget);
-    await expect(page.getByRole('heading', { level: 1, name: 'Budget' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'Finanzen' })).toBeVisible();
 
     // And: Schedule/timeline page renders in German
     await page.goto(ROUTES.timeline);
@@ -223,6 +224,52 @@ test.describe('i18n: Language Switching', () => {
     await page.goto(ROUTES.householdItems);
     await expect(page.getByRole('heading', { level: 1, name: 'Anschaffungen' })).toBeVisible();
     await expect(page).toHaveTitle(/^Anschaffungen · [^·]+$/);
+  });
+
+  test('Money page identity renders in German: h1 and tab title of the Money pages (#2203)', async ({
+    page,
+  }) => {
+    // Given: Language is set to German
+    await setLanguage(page, 'de');
+
+    // Money overview: h1 "Finanzen" (never "Budget"), title "Finanzen · <house name or Cornerstone>"
+    await page.goto(ROUTES.budget);
+    await page.reload();
+    await page.waitForLoadState('networkidle');
+    await expect(page.getByRole('heading', { level: 1, name: 'Finanzen' })).toBeVisible({
+      timeout: 15000,
+    });
+    await expect(page).toHaveTitle(/^Finanzen · [^·]+$/);
+
+    // Invoices: h1 "Rechnungen", title "Rechnungen · Finanzen · ..."
+    await page.goto(routeUrl('invoices'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Rechnungen' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Rechnungen · Finanzen · [^·]+$/);
+
+    // Unknown invoice: typed 404 h1 and title
+    await page.goto(routeUrl('invoice', { id: 'pi-missing-invoice-de' }));
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Rechnung nicht gefunden' }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Rechnung nicht gefunden · Finanzen · [^·]+$/);
+
+    // Fixed-name pages: h1 and title carry the German label and the section
+    await page.goto(routeUrl('budgetSources'));
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Finanzierungsquellen' }),
+    ).toBeVisible();
+    await expect(page).toHaveTitle(/^Finanzierungsquellen · Finanzen · [^·]+$/);
+
+    await page.goto(routeUrl('budgetSubsidies'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Förderprogramme' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Förderprogramme · Finanzen · [^·]+$/);
+
+    await page.goto(routeUrl('bankReport'));
+    await expect(page.getByRole('heading', { level: 1, name: 'Bankbericht' })).toBeVisible();
+    await expect(page).toHaveTitle(/^Bankbericht · Finanzen · [^·]+$/);
+
+    // The trail is translated too, and located without an English accessible name
+    await expect(page.getByTestId('breadcrumbs').getByRole('navigation')).toHaveText(/Finanzen/);
   });
 
   test('Language can be switched back to English from German', async ({ page }) => {

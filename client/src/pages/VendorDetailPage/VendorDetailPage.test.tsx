@@ -8,6 +8,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
+import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import enErrors from '../../i18n/en/errors.json';
 import type { VendorDetail, Invoice } from '@cornerstone/shared';
 
@@ -201,9 +202,10 @@ describe('VendorDetailPage', () => {
   /**
    * Renders the VendorDetailPage in a router context with the given vendor ID param.
    */
-  function renderPage(vendorId: string = 'vendor-1') {
+  function renderPage(vendorId: string = 'vendor-1', options: { probe?: boolean } = {}) {
     return render(
       <MemoryRouter initialEntries={[`/settings/vendors/${vendorId}`]}>
+        {options.probe ? <OriginProbe /> : null}
         <Routes>
           <Route path="/settings/vendors/:id" element={<VendorDetailPage />} />
           <Route path="/settings/vendors" element={<div>Vendors List Page</div>} />
@@ -225,7 +227,22 @@ describe('VendorDetailPage', () => {
 
       renderPage();
 
-      expect(screen.getByText(/loading vendor/i)).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: /loading vendor/i })).toBeInTheDocument();
+    });
+
+    it('keeps the Companies trail and exactly one (screen-reader) h1 while loading', () => {
+      mockFetchVendor.mockReturnValueOnce(new Promise(() => {}));
+
+      renderPage();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Companies' })).toBeInTheDocument();
+      const trail = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
+        'href',
+        '/settings/vendors',
+      );
+      expect(screen.queryByText(/back to vendors/i)).toBeNull();
     });
 
     it('hides loading indicator after data loads', async () => {
@@ -385,14 +402,20 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders back button to Vendors list', async () => {
+    it('shows the Companies trail, one company-name h1 and no "Back to Vendors" control', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to vendors/i })).toBeInTheDocument();
-      });
+      await screen.findByRole('heading', { name: /smith plumbing/i, level: 1 });
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      const trail = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
+        'href',
+        '/settings/vendors',
+      );
+      expect(screen.queryByRole('button', { name: /back to vendors/i })).toBeNull();
+      expect(screen.queryByText(/back to vendors/i)).toBeNull();
     });
   });
 
@@ -436,16 +459,20 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('shows "Back to Vendors" button on error', async () => {
+    it('shows a "Back to Companies" action, the trail and one h1 on error', async () => {
       mockFetchVendor.mockRejectedValueOnce(
         new ApiClientError(404, { code: 'NOT_FOUND', message: 'Vendor not found' }),
       );
 
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /back to vendors/i })).toBeInTheDocument();
-      });
+      const back = await screen.findByRole('button', { name: 'Back to Companies' });
+      expect(screen.queryByText(/back to vendors/i)).toBeNull();
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('navigation', { name: 'You are here' })).toBeInTheDocument();
+
+      fireEvent.click(back);
+      expect(await screen.findByText('Vendors List Page')).toBeInTheDocument();
     });
 
     it('shows Retry button on error', async () => {
@@ -1546,7 +1573,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
       const user = userEvent.setup();
-      renderPage();
+      renderPage('vendor-1', { probe: true });
 
       await waitFor(() => {
         expect(screen.getByRole('table')).toBeInTheDocument();
@@ -1558,6 +1585,11 @@ describe('VendorDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
       });
+      expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
+      expect(probedOrigin()).toEqual({
+        to: '/settings/vendors/vendor-1',
+        name: sampleVendor.name,
+      });
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
@@ -1567,7 +1599,7 @@ describe('VendorDetailPage', () => {
       mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
 
       const user = userEvent.setup();
-      renderPage();
+      renderPage('vendor-1', { probe: true });
 
       await waitFor(() => {
         const editButtons = screen.getAllByRole('button', { name: /edit invoice/i });
@@ -1580,6 +1612,11 @@ describe('VendorDetailPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
+      });
+      expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
+      expect(probedOrigin()).toEqual({
+        to: '/settings/vendors/vendor-1',
+        name: sampleVendor.name,
       });
 
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();

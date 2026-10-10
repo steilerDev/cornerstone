@@ -704,4 +704,13 @@ describe('WorkItemDetailPage', () => {
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
   });
+  describe('origin pass-through (#2203)', () => {
+    it('hands the budget section this task as the origin of its invoice links', async () => {
+      await load(true);
+
+      expect(capturedBudgetSectionProps.invoiceLinkState).toEqual({
+        origin: { to: '/project/work-items/work-1', name: 'Test Work Item' },
+      });
+    });
+  });
 });

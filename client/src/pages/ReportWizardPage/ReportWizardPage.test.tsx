@@ -39,6 +39,7 @@ import { render, screen, waitFor, within, fireEvent, act } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { MemoryRouter } from 'react-router-dom';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type {
   BudgetSource,
@@ -2498,5 +2499,71 @@ describe('ReportWizardPage', () => {
     await waitFor(() => screen.getAllByRole('radio').length > 0);
     await user.click(screen.getByRole('button', { name: 'Report Type' }));
     await waitFor(() => expect(screen.getByRole('radiogroup')).toBeInTheDocument());
+  });
+  // ─── Page identity (#2203) ─────────────────────────────────────────────────
+
+  describe('page identity (#2203)', () => {
+    it('shows one "Bank report" h1, the Money trail and the tab title while loading', () => {
+      document.title = 'initial';
+      mockFetchBudgetSources.mockReturnValue(new Promise(() => {}));
+      renderPage();
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Bank report' })).toBeInTheDocument();
+      const trail = screen.getByRole('navigation', { name: 'You are here' });
+      expect(within(trail).getByRole('link', { name: /Money/ })).toHaveAttribute(
+        'href',
+        '/budget/overview',
+      );
+      expect(document.title).toBe('Bank report · Money · Cornerstone');
+    });
+
+    it('keeps one h1 on the first and on the last wizard step', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      mockGetSourceReport.mockResolvedValue(makeReport());
+      renderPage();
+      const user = userEvent.setup();
+      await waitFor(() => screen.getByRole('radiogroup'));
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+
+      await goToStep5(user);
+
+      expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
+      expect(screen.getByRole('heading', { level: 1, name: 'Bank report' })).toBeInTheDocument();
+    });
+
+    it('offers Back to Funding sources when opened from that page', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      render(
+        <LocaleProvider>
+          <MemoryRouter
+            initialEntries={[
+              { pathname: '/budget/reports', state: { origin: { to: '/budget/sources' } } },
+            ]}
+          >
+            <ReportWizardPage />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+
+      const back = await screen.findByTestId('breadcrumbs-back');
+      expect(back).toHaveTextContent('Back to Funding sources');
+      expect(back).toHaveAttribute('href', '/budget/sources');
+    });
+
+    it('does not navigate on mount', async () => {
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [makeSource()] });
+      const log = createRouterLog();
+      render(
+        <LocaleProvider>
+          <RecordingRouter entries={['/budget/reports?sourceId=src-1']} log={log}>
+            <ReportWizardPage />
+          </RecordingRouter>
+        </LocaleProvider>,
+      );
+
+      await waitFor(() => screen.getByRole('radiogroup'));
+      expect(log.actions).toEqual([]);
+    });
   });
 });

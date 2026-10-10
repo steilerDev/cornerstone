@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import type { ColumnDef } from './DataTable.js';
+import { isInteractiveDescendantClick } from './interactiveTarget.js';
 import styles from './DataTable.module.css';
 
 export interface DataTableCardProps<T> {
@@ -53,7 +54,17 @@ export function DataTableCard<T>({
   );
 
   return (
-    <div className={styles.card} onClick={onClick} tabIndex={onClick ? 0 : -1}>
+    <div
+      className={styles.card}
+      onClick={
+        onClick
+          ? (e) => {
+              if (!isInteractiveDescendantClick(e)) onClick();
+            }
+          : undefined
+      }
+      tabIndex={onClick ? 0 : -1}
+    >
       <div className={styles.cardHeader}>
         {expandButton ? (
           <div className={styles.cardHeaderRow}>

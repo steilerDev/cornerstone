@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
@@ -27,6 +27,9 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
+import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
 import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
@@ -68,6 +71,10 @@ export function PaperlessInvoiceReviewPage() {
   const { t } = useTranslation('budget');
   const { t: tErrors } = useTranslation('errors');
   const { t: tSettings } = useTranslation('settings');
+  const { t: tc } = useTranslation('common');
+  const location = useLocation();
+  const pageTitle = tc('navigation.newInvoice');
+  useDocumentTitle(pageTitle);
   const { vatRate } = useLocale();
   const vatRateRef = useRef(vatRate);
   vatRateRef.current = vatRate;
@@ -249,8 +256,8 @@ export function PaperlessInvoiceReviewPage() {
   }, [documentId, t, tErrors]);
 
   const handleCancel = useCallback(() => {
-    navigate(routeUrl('invoices'));
-  }, [navigate]);
+    navigate(originHrefOr(location.state, routeUrl('invoices')), { replace: true });
+  }, [navigate, location.state]);
 
   const settleCreate = (v: { id: string; name: string } | null) => {
     const resolve = createResolverRef.current;
@@ -336,7 +343,10 @@ export function PaperlessInvoiceReviewPage() {
         lines: linesPayload,
       });
 
-      navigate(routeUrl('invoice', { id: result.invoice.id }));
+      navigate(routeUrl('invoice', { id: result.invoice.id }), {
+        replace: true,
+        state: forwardOriginState(location.state),
+      });
     } catch (err) {
       if (err instanceof ApiClientError) {
         setPageError(translateApiError(err.error.code, tErrors));
@@ -352,6 +362,7 @@ export function PaperlessInvoiceReviewPage() {
     lines,
     metadataEdits,
     navigate,
+    location.state,
     setLines,
     t,
     tErrors,
@@ -392,11 +403,16 @@ export function PaperlessInvoiceReviewPage() {
               {t('autoItemize.cancel')}
             </button>
           </div>
-          <h1 className={styles.pageTitle}>{t('autoItemize.extractionStarted')}</h1>
+          <div className={styles.headerMain}>
+            <PageBreadcrumbs />
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+            <p className={styles.statusLine} role="status" aria-atomic="true">
+              {t('autoItemize.extractionStarted')}
+            </p>
+          </div>
         </div>
         <div className={styles.loadingState}>
           <Spinner size="lg" />
-          <h2 className={styles.loadingMessage}>{t('autoItemize.extractingFromDocument')}</h2>
         </div>
       </div>
     );
@@ -411,9 +427,10 @@ export function PaperlessInvoiceReviewPage() {
               {t('autoItemize.cancel')}
             </button>
           </div>
-          <h1 className={styles.pageTitle}>
-            {missingDocument ? t('autoItemize.missingDocumentTitle') : t('autoItemize.error')}
-          </h1>
+          <div className={styles.headerMain}>
+            <PageBreadcrumbs />
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+          </div>
         </div>
         <div className={styles.errorState}>
           <FormError
@@ -424,8 +441,12 @@ export function PaperlessInvoiceReviewPage() {
                 : pageError || t('autoItemize.loadError')
             }
           />
-          <button type="button" className={sharedStyles.btnPrimary} onClick={handleCancel}>
-            {t('autoItemize.backToInvoices')}
+          <button
+            type="button"
+            className={sharedStyles.btnPrimary}
+            onClick={() => navigate(routeUrl('invoices'), { replace: true })}
+          >
+            {tc('navigation.backTo', { origin: tc('navigation.invoices') })}
           </button>
         </div>
       </div>
@@ -436,12 +457,11 @@ export function PaperlessInvoiceReviewPage() {
     <>
       <div className={styles.pageContainer}>
         <div className={styles.pageHeader}>
-          <div>
-            <Link to={routeUrl('invoices')} className={styles.breadcrumb}>
-              {t('autoItemize.backToInvoices')}
-            </Link>
+          <div className={styles.headerMain}>
+            <PageBreadcrumbs />
+            <h1 className={styles.pageTitle}>{pageTitle}</h1>
+            <p className={styles.statusLine}>{t('autoItemize.extractionComplete')}</p>
           </div>
-          <h1 className={styles.pageTitle}>{t('autoItemize.extractionComplete')}</h1>
         </div>
 
         <div className={styles.pageBody}>

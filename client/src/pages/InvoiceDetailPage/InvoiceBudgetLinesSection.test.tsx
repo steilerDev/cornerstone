@@ -1702,3 +1702,44 @@ describe('InvoiceBudgetLinesSection — linked item origin (#2202)', () => {
     expect(probedOrigin()).toEqual({ to: `/budget/invoices/${INVOICE_ID}?tab=lines` });
   });
 });
+
+// ─── linkState prop (#2203): the invoice page passes its named origin ─────────
+
+describe('InvoiceBudgetLinesSection — linkState prop (#2203)', () => {
+  it('uses the given linkState (with the invoice name) instead of its own origin', async () => {
+    mockFetchInvoiceBudgetLines.mockResolvedValue(
+      makeListResponse(
+        [
+          makeDetailLine('ibl-003', {
+            parentItemId: 'wi-001',
+            parentItemTitle: 'Foundation',
+            parentItemType: 'work_item',
+          }),
+        ],
+        1000.0,
+      ),
+    );
+    render(
+      <MemoryRouter initialEntries={[`/budget/invoices/${INVOICE_ID}`]}>
+        <LocaleProviderStub>
+          <InvoiceBudgetLinesSection
+            invoiceId={INVOICE_ID}
+            invoiceTotal={INVOICE_TOTAL}
+            linkState={{
+              origin: { to: `/budget/invoices/${INVOICE_ID}`, name: 'Synthetic Builders · SB-7' },
+            }}
+          />
+        </LocaleProviderStub>
+        <OriginProbe />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(await screen.findByRole('link', { name: 'Foundation' }));
+
+    expect(probedPath()).toBe('/project/work-items/wi-001');
+    expect(probedOrigin()).toEqual({
+      to: `/budget/invoices/${INVOICE_ID}`,
+      name: 'Synthetic Builders · SB-7',
+    });
+  });
+});
