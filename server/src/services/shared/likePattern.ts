@@ -5,3 +5,11 @@
 export function toLikeContainsPattern(term: string): string {
   return `%${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
 }
+
+/**
+ * Builds a `term%` pattern for `LIKE … ESCAPE '\'` (prefix match), escaping like
+ * `toLikeContainsPattern`.
+ */
+export function toLikePrefixPattern(term: string): string {
+  return `${term.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%`;
+}

@@ -68,6 +68,15 @@ describe('Database Plugin', () => {
     expect(existsSync(dbPath)).toBe(true);
   });
 
+  it('registers the search SQL functions fold() and digits() on the connection', async () => {
+    app = await buildApp();
+
+    const row = app.db.$client
+      .prepare("SELECT fold('Müller') AS f, digits('+1 (2)') AS d, fold(NULL) AS n")
+      .get() as { f: string; d: string; n: null };
+    expect(row).toEqual({ f: 'muller', d: '12', n: null });
+  });
+
   it('Scenario 2: Server starts with custom DATABASE_URL', async () => {
     // Given: DATABASE_URL is set to custom path
     const customDir = join(tempDir, 'custom-data');

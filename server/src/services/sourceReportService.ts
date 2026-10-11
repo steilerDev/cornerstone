@@ -52,6 +52,7 @@ export async function getSourceReport(
     paperlessEnabled: boolean;
     paperlessUrl?: string;
     paperlessApiToken?: string;
+    paperlessFilterTag?: string;
   },
 ): Promise<SourceReportResponse> {
   // 1. Fetch budget source
@@ -377,6 +378,7 @@ export async function getSourceReport(
         paperlessConfig.paperlessUrl,
         paperlessConfig.paperlessApiToken,
         Array.from(allPaperlessDocIds),
+        paperlessConfig.paperlessFilterTag,
       );
       for (const doc of docs.values()) {
         paperlessDocMap.set(doc.id, {

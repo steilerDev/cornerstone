@@ -166,6 +166,7 @@ export async function autoItemize(
       paperlessAuth.url,
       paperlessAuth.apiToken,
       body.paperlessDocumentId,
+      config.paperlessFilterTag,
     );
 
     const provider = getProvider(config);
@@ -581,6 +582,7 @@ async function runExtractionCore(
     paperlessAuth.url,
     paperlessAuth.apiToken,
     paperlessDocumentId,
+    config.paperlessFilterTag,
   );
 
   const provider = getProvider(config);

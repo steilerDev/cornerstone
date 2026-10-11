@@ -690,31 +690,41 @@ describe('listDocuments()', () => {
       expect(callUrl).not.toContain('tags__id__all=5%2C5');
     });
 
-    it('preserves client tags when filter tag not found', async () => {
-      // 1. Filter tag resolution — returns empty (tag not found)
+    it('fails closed with 502 PAPERLESS_ERROR when the filter tag is not found, even with client tags', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
-      // 2-5. Standard list mocks
-      setupListMocks();
 
-      await paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'missing');
+      await expect(
+        paperlessService.listDocuments(BASE_URL, TOKEN, { tags: '12' }, 'missing'),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
 
-      // Documents call is at index 1
-      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      // Should still have client-specified tag
-      expect(callUrl).toContain('tags__id__all=12');
+      // only the tag lookup happened: no documents request
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect((mockFetch.mock.calls[0] as [string])[0]).toContain('/api/tags/');
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining(
+          'Document listing, search and reads will fail until the tag exists.',
+        ),
+      );
+      warn.mockRestore();
     });
 
-    it('does not append tags__id__all when no filter tag and no client tags', async () => {
-      // 1. Filter tag resolution — returns empty (tag not found)
-      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
-      // 2-5. Standard list mocks
+    it('fails closed with 502 PAPERLESS_ERROR when the tag lookup throws', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+
+      await expect(
+        paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'invoice'),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not append tags__id__all when no filter tag is configured and no client tags', async () => {
       setupListMocks();
 
-      await paperlessService.listDocuments(BASE_URL, TOKEN, {}, 'missing');
+      await paperlessService.listDocuments(BASE_URL, TOKEN, {}, undefined);
 
-      // Documents call is at index 1
-      const callUrl = (mockFetch.mock.calls[1] as [string, ...unknown[]])[0];
-      // No tags__id__all should be present
+      const callUrl = (mockFetch.mock.calls[0] as [string, ...unknown[]])[0];
       expect(callUrl).not.toContain('tags__id__all');
     });
   });
@@ -775,6 +785,184 @@ describe('getDocument()', () => {
     await expect(paperlessService.getDocument(BASE_URL, TOKEN, 42)).rejects.toMatchObject({
       code: 'PAPERLESS_ERROR',
       statusCode: 502,
+    });
+  });
+});
+
+// ─── Filter tag fail-closed on by-id reads ───────────────────────────────────
+
+describe('filter tag on by-id reads', () => {
+  const TAG_NOT_FOUND = { count: 0, results: [] };
+
+  describe('getDocument()', () => {
+    it('returns the document when it carries the filter tag', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)); // tag lookup
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_DOCUMENT_1));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+
+      const doc = await paperlessService.getDocument(BASE_URL, TOKEN, 42, 'invoice');
+      expect(doc.id).toBe(42);
+    });
+
+    it('reports a document without the tag exactly like a missing one (404 NOT_FOUND)', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT_1, tags: [12] }));
+      const untagged = await paperlessService
+        .getDocument(BASE_URL, TOKEN, 42, 'invoice')
+        .catch((e: AppError) => e);
+
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Not found.' }, 404));
+      const missing = await paperlessService
+        .getDocument(BASE_URL, TOKEN, 999, 'invoice')
+        .catch((e: AppError) => e);
+
+      expect(untagged).toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+      expect((untagged as AppError).message).toBe((missing as AppError).message);
+      expect((missing as AppError).code).toBe('NOT_FOUND');
+      // no metadata calls (tags map, correspondent) were made for the untagged document
+      expect(mockFetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('treats a document without a tags array as untagged', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      const { tags: _omit, ...noTags } = RAW_DOCUMENT_1;
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(noTags));
+      await expect(
+        paperlessService.getDocument(BASE_URL, TOKEN, 42, 'invoice'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+    });
+
+    it('fails with 502 PAPERLESS_ERROR when the filter tag cannot be resolved, without reading the document', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_NOT_FOUND));
+      await expect(
+        paperlessService.getDocument(BASE_URL, TOKEN, 42, 'missing'),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+
+    it('does not look up a tag when none is configured', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT_1, tags: [] }));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 3, name: 'Builder Co' }));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ id: 7, name: 'Invoice' }));
+      await paperlessService.getDocument(BASE_URL, TOKEN, 42, null);
+      expect((mockFetch.mock.calls[0] as [string])[0]).toBe(`${BASE_URL}/api/documents/42/`);
+    });
+  });
+
+  describe('assertDocumentReadable()', () => {
+    it('is a no-op without any request when no filter tag is configured', async () => {
+      await paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, undefined);
+      await paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, '');
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('passes for a tagged document using one metadata request', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_DOCUMENT_1));
+      await expect(
+        paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, 'invoice'),
+      ).resolves.toBeUndefined();
+      expect((mockFetch.mock.calls[1] as [string])[0]).toBe(`${BASE_URL}/api/documents/42/`);
+    });
+
+    it('rejects an untagged document with 404 NOT_FOUND', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT_1, tags: [12] }));
+      await expect(
+        paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, 'invoice'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+    });
+
+    it('rejects a document without a tags array with 404', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      const { tags: _omit, ...noTags } = RAW_DOCUMENT_1;
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(noTags));
+      await expect(
+        paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, 'invoice'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+    });
+
+    it('rejects a missing document with 404', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ detail: 'Not found.' }, 404));
+      await expect(
+        paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, 'invoice'),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND', statusCode: 404 });
+    });
+
+    it('fails with 502 when the tag cannot be resolved, without a document request', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_NOT_FOUND));
+      await expect(
+        paperlessService.assertDocumentReadable(BASE_URL, TOKEN, 42, 'missing'),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+  });
+
+  describe('getDocuments() (bulk)', () => {
+    const OTHER_DOC = {
+      ...RAW_DOCUMENT_1,
+      id: 43,
+      tags: [12],
+      correspondent: null,
+      document_type: null,
+    };
+    const TAGGED_DOC = { ...RAW_DOCUMENT_1, correspondent: null, document_type: null };
+
+    it('excludes documents without the filter tag from the map', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)); // tag lookup
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)); // tags map
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({ count: 2, results: [TAGGED_DOC, OTHER_DOC] }),
+      );
+
+      const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 43], 'invoice');
+
+      expect([...result.keys()]).toEqual([42]);
+    });
+
+    it('treats a document without a tags array as untagged', async () => {
+      const { tags: _omit, ...noTags } = TAGGED_DOC;
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [noTags] }));
+      const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42], 'invoice');
+      expect(result.size).toBe(0);
+    });
+
+    it('returns an empty map without a documents request and without throwing when the tag cannot be resolved', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_NOT_FOUND));
+
+      const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42], 'missing');
+
+      expect(result.size).toBe(0);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect((mockFetch.mock.calls[0] as [string])[0]).toContain('/api/tags/');
+      warn.mockRestore();
+    });
+
+    it('returns an empty map when the tag lookup request fails', async () => {
+      mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+      const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42], 'invoice');
+      expect(result.size).toBe(0);
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not look up a tag and keeps every document when none is configured', async () => {
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(
+        mockJsonResponse({ count: 2, results: [TAGGED_DOC, OTHER_DOC] }),
+      );
+      const result = await paperlessService.getDocuments(BASE_URL, TOKEN, [42, 43]);
+      expect(result.size).toBe(2);
     });
   });
 });
@@ -1311,20 +1499,32 @@ describe('uploadDocument()', () => {
     });
   });
 
-  it('scenario 32: unresolvable filter tag → no tags field, upload still succeeds', async () => {
-    // 1. resolveFilterTagId's tag lookup returns no matching tag
+  it('scenario 32: unresolvable filter tag → 502 PAPERLESS_ERROR and nothing is uploaded', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    // the tag lookup returns no matching tag
     mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
-    // 2. the upload itself proceeds untagged
-    mockFetch.mockResolvedValueOnce(mockJsonResponse('task-untagged-id'));
 
-    const result = await paperlessService.uploadDocument(BASE_URL, TOKEN, {
-      ...INPUT,
-      filterTagName: 'does-not-exist',
-    });
+    await expect(
+      paperlessService.uploadDocument(BASE_URL, TOKEN, {
+        ...INPUT,
+        filterTagName: 'does-not-exist',
+      }),
+    ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
 
-    expect(result).toEqual({ taskId: 'task-untagged-id' });
-    const body = lastFetchBody();
-    expect(body.has('tags')).toBe(false);
+    // only the tag lookup: no POST to the post_document endpoint
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect((mockFetch.mock.calls[0] as [string])[0]).not.toContain('post_document');
+    warn.mockRestore();
+  });
+
+  it('unresolvable filter tag because the lookup fails → 502 and nothing is uploaded', async () => {
+    mockFetch.mockRejectedValueOnce(new Error('ECONNRESET'));
+
+    await expect(
+      paperlessService.uploadDocument(BASE_URL, TOKEN, { ...INPUT, filterTagName: 'invoice' }),
+    ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+
+    expect(mockFetch).toHaveBeenCalledTimes(1);
   });
 
   it('no filterTagName provided → skips tag resolution entirely (single fetch call, no tags field)', async () => {

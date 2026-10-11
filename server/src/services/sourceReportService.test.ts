@@ -21,6 +21,7 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import { getSourceReport, markInvoicesClaimed } from './sourceReportService.js';
 import { NotFoundError, ValidationError, InvoicesNotClaimableError } from '../errors/AppError.js';
+import { _resetFilterTagCache } from './paperlessService.js';
 
 // ─── Paperless mocking (mirrors documentLinkService.test.ts / paperlessService.test.ts) ──
 
@@ -1125,6 +1126,82 @@ describe('sourceReportService', () => {
       expect(doc.documentId).toBe(42);
       expect(doc.archiveSerialNumber).toBeNull();
       expect(doc.title).toBeNull();
+    });
+
+    describe('with a configured filter tag', () => {
+      beforeEach(() => _resetFilterTagCache());
+      const CONFIG_TAGGED = { ...PAPERLESS_CONFIG_ENABLED, paperlessFilterTag: 'house' };
+      const TAGS_HOUSE = {
+        count: 1,
+        results: [{ id: 5, name: 'house', color: '#112233', document_count: 1 }],
+      };
+      const rawDoc = (tags: number[]) => ({
+        id: 42,
+        title: 'Synthetic scan',
+        content: null,
+        tags,
+        created: '2026-01-15',
+        added: '2026-01-16T08:30:00Z',
+        modified: '2026-01-16T08:30:00Z',
+        correspondent: null,
+        document_type: null,
+        archive_serial_number: 77,
+        original_file_name: 'scan.pdf',
+        page_count: 1,
+      });
+
+      function seedLinkedInvoice(): string {
+        const sourceId = insertSource();
+        const vendorId = insertVendor();
+        const budgetId = insertWorkItemBudget(sourceId);
+        const invId = insertInvoice(vendorId, { status: 'paid', amount: 500 });
+        insertInvoiceBudgetLine(invId, budgetId, 500);
+        insertDocumentLink(invId, 42, null);
+        return sourceId;
+      }
+
+      it('fills ASN and title for a document carrying the tag', async () => {
+        const sourceId = seedLinkedInvoice();
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE)) // filter tag lookup
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE)) // tags map
+          .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [rawDoc([5])] }));
+
+        const result = await getSourceReport(db, 'claim', sourceId, CONFIG_TAGGED);
+
+        const doc = result.invoices[0]!.documents[0]!;
+        expect(doc.archiveSerialNumber).toBe(77);
+        expect(doc.title).toBe('Synthetic scan');
+      });
+
+      it('leaves ASN and title null for a document without the tag', async () => {
+        const sourceId = seedLinkedInvoice();
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [rawDoc([9])] }));
+
+        const result = await getSourceReport(db, 'claim', sourceId, CONFIG_TAGGED);
+
+        const doc = result.invoices[0]!.documents[0]!;
+        expect(doc.documentId).toBe(42);
+        expect(doc.archiveSerialNumber).toBeNull();
+        expect(doc.title).toBeNull();
+      });
+
+      it('leaves ASN and title null, with no documents request, when the tag cannot be resolved', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const sourceId = seedLinkedInvoice();
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+        const result = await getSourceReport(db, 'claim', sourceId, CONFIG_TAGGED);
+
+        const doc = result.invoices[0]!.documents[0]!;
+        expect(doc.archiveSerialNumber).toBeNull();
+        expect(doc.title).toBeNull();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+      });
     });
 
     it('scenario 19: Paperless unconfigured → degrades without calling fetch at all', async () => {

@@ -46,7 +46,7 @@ export type NavLabelKey = (typeof NAV_LABEL_KEYS)[number];
 export interface NavView {
   readonly route: RouteId;
   readonly labelKey: NavLabelKey;
-  /** Glossary canon term (search aliases via getSearchAliases). */
+  /** Glossary canon term (search names via getSearchableNames in i18n/glossary.ts). */
   readonly term: string;
   /** Interim view: shown only while this route is NOT served (staging, like the route map's `interim`). */
   readonly interimUntil?: RouteId;
@@ -238,7 +238,8 @@ export interface NavContext {
   readonly paperlessConfigured: boolean;
 }
 
-function isVisible(route: RouteId, ctx: NavContext): boolean {
+/** True when the route is served and the signed-in user (role, Paperless) may open it. */
+export function isRouteVisible(route: RouteId, ctx: NavContext): boolean {
   if (!isRouteServed(route)) return false;
   const { guard, gate } = getRouteEntry(route);
   if (guard === 'admin' && ctx.role !== 'admin') return false;
@@ -248,11 +249,11 @@ function isVisible(route: RouteId, ctx: NavContext): boolean {
 
 /** Sections (and views) the signed-in user can open today. Order follows NAV_SECTIONS. */
 export function navSections(ctx: NavContext): readonly NavSection[] {
-  return NAV_SECTIONS.filter((section) => isVisible(section.route, ctx)).map((section) => ({
+  return NAV_SECTIONS.filter((section) => isRouteVisible(section.route, ctx)).map((section) => ({
     ...section,
     views: section.views.filter(
       (view) =>
-        isVisible(view.route, ctx) &&
+        isRouteVisible(view.route, ctx) &&
         (view.interimUntil === undefined || !isRouteServed(view.interimUntil)),
     ),
   }));

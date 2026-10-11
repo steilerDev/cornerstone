@@ -24,6 +24,7 @@ import type {
   DocumentLinkResponse,
   DocumentLinkListResponse,
 } from '@cornerstone/shared';
+import { _resetFilterTagCache } from '../services/paperlessService.js';
 
 // Local type definition to avoid worktree symlink resolution issues with @cornerstone/shared
 // (the root project symlinks to the old shared dist; worktree's updated shared type is not visible)
@@ -785,6 +786,92 @@ describe('Document Links Routes', () => {
       expect(response.statusCode).toBe(200);
       const body = response.json<DocumentLinkListResponse>();
       expect(body.documentLinks[0]!.document).toBeNull();
+    });
+
+    describe('with PAPERLESS_FILTER_TAG', () => {
+      beforeEach(() => _resetFilterTagCache());
+      const TAGS_HOUSE = {
+        count: 1,
+        results: [{ id: 5, name: 'house', color: '#e31a1c', document_count: 15 }],
+      };
+
+      async function linkedWorkItem(): Promise<{ cookie: string; workItemId: string }> {
+        await app.close();
+        process.env.PAPERLESS_URL = 'http://paperless:8000';
+        process.env.PAPERLESS_API_TOKEN = 'test-token';
+        process.env.PAPERLESS_FILTER_TAG = 'house';
+        app = await buildApp();
+        const { cookie } = await createUserWithSession();
+        const workItemId = await createWorkItem(cookie);
+        await app.inject({
+          method: 'POST',
+          url: '/api/document-links',
+          headers: { cookie, 'content-type': 'application/json' },
+          payload: JSON.stringify({
+            entityType: 'work_item',
+            entityId: workItemId,
+            paperlessDocumentId: 42,
+          }),
+        });
+        mockFetch.mockReset();
+        return { cookie, workItemId };
+      }
+
+      function list(cookie: string, workItemId: string) {
+        return app.inject({
+          method: 'GET',
+          url: `/api/document-links?entityType=work_item&entityId=${workItemId}`,
+          headers: { cookie },
+        });
+      }
+
+      afterEach(() => {
+        delete process.env.PAPERLESS_FILTER_TAG;
+      });
+
+      it('enriches a document carrying the tag', async () => {
+        const { cookie, workItemId } = await linkedWorkItem();
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(
+            mockJsonResponse({ count: 1, results: [{ ...RAW_DOCUMENT, tags: [5] }] }),
+          );
+
+        const body = (await list(cookie, workItemId)).json<DocumentLinkListResponse>();
+
+        expect(body.documentLinks[0]!.document?.id).toBe(42);
+      });
+
+      it('shows document: null for a document without the tag', async () => {
+        const { cookie, workItemId } = await linkedWorkItem();
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(mockJsonResponse(TAGS_HOUSE))
+          .mockResolvedValueOnce(
+            mockJsonResponse({ count: 1, results: [{ ...RAW_DOCUMENT, tags: [9] }] }),
+          );
+
+        const response = await list(cookie, workItemId);
+
+        expect(response.statusCode).toBe(200);
+        const body = response.json<DocumentLinkListResponse>();
+        expect(body.documentLinks[0]!.document).toBeNull();
+        expect(body.documentLinks[0]!.paperlessDocumentId).toBe(42);
+      });
+
+      it('shows document: null and requests no documents when the tag cannot be resolved', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const { cookie, workItemId } = await linkedWorkItem();
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+        const response = await list(cookie, workItemId);
+
+        expect(response.statusCode).toBe(200);
+        expect(response.json<DocumentLinkListResponse>().documentLinks[0]!.document).toBeNull();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+      });
     });
 
     it('returns links for invoice entity type', async () => {

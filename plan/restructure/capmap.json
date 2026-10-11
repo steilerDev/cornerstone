@@ -13,7 +13,7 @@
     "to": "Tasks > Tasks list (/project/work-items) > search box; also Global > Top bar > Search",
     "change": "same",
     "gate": "none",
-    "note": "Server q search; search box no longer unmounts on 0 results (D-21). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce)."
+    "note": "Server q search; search box no longer unmounts on 0 results (D-21). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2210: GET /api/search (German-aware folding) covers this object for the global search; the UI follows in #2211."
   },
   "WRK-003": {
     "name": "Filter work items by status",
@@ -632,7 +632,7 @@
     "gate": "none",
     "acceptance": "Sidebar view 'Schedule' under Tasks, title menu 'Tasks ▾' > Schedule, Home > This week 'Open schedule', search 'Schedule' or 'Gantt', key g s all open /schedule/gantt.",
     "decision": "Q1b, PLAN §2.0 #1",
-    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone."
+    "note": "No sidebar entry of its own (owner, 7 Oct, PLAN §2.0 #1): the schedule is a view under Tasks, 2 clicks from anywhere, by key g s or from Home > This week; 'Tasks' never changes its target page (SIM-08). The P2 tree test asks 'where is the timeline?'. #2202: the detail-page \"To Schedule\" entry point is retired (Schedule is a Tasks view). #2205: reached from the sidebar (view under Tasks / own entry); the tab row is gone. #2210: the client search resolver returns Schedule for its name and former names (Gantt, Timeline) and its German name; the UI follows in #2211."
   },
   "WRK-093": {
     "name": "Switch between Gantt and Calendar views",
@@ -1219,7 +1219,7 @@
     "to": "Money > Invoices > list search (number, company, description) that searches every status chip, offers included; Global > Search",
     "change": "promoted",
     "gate": "none",
-    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8). #2197: search also matches the company name and description (D-21)."
+    "note": "A search never stays inside the preselected 'To pay' view, so an old invoice cannot dead-end again (R-M8). #2197: search also matches the company name and description (D-21). #2210: GET /api/search (German-aware folding) covers this object for the global search; the UI follows in #2211."
   },
   "MNY-049": {
     "name": "Filter invoices by vendor, status, invoice date range, due-date range and amount range",
@@ -1893,7 +1893,7 @@
     "to": "Companies > Companies list > row Call button; Companies > Company page > primary 'Call', contact persons first; Global > Search results > Call",
     "change": "promoted",
     "gate": "none",
-    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34)."
+    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2210: GET /api/search matches company name, trade, phone, e-mail and contact persons (name, phone, e-mail) and returns the call number (company phone, else the first contact person's); the result Call button follows in #2211."
   },
   "MNY-137": {
     "name": "Create a vendor",
@@ -2497,7 +2497,7 @@
     "to": "Site diary > Site diary list > search; also Global search",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Site diary; only the shared page template, the words and the navigation around it change (monthly use). #2210: GET /api/search (German-aware folding) covers this object for the global search; the UI follows in #2211."
   },
   "JRN-007": {
     "name": "Filter diary entries by a date range",

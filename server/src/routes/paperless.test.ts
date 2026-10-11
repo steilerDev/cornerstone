@@ -1196,7 +1196,7 @@ describe('Paperless Routes', () => {
       expect(response.statusCode).toBe(400);
     });
 
-    it('unresolvable filter tag configured → upload still succeeds untagged (201)', async () => {
+    it('unresolvable filter tag configured → 502 PAPERLESS_ERROR and nothing is uploaded', async () => {
       await rebuildAppWithPaperless();
       process.env.PAPERLESS_FILTER_TAG = 'nonexistent-tag';
       await app.close();
@@ -1207,10 +1207,8 @@ describe('Paperless Routes', () => {
         { name: 'title', value: 'Invoice' },
       ]);
 
-      // 1. resolveFilterTagId's tag lookup returns no match
+      // the tag lookup returns no match
       mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
-      // 2. the upload itself proceeds untagged
-      mockFetch.mockResolvedValueOnce(mockJsonResponse('task-untagged'));
 
       const response = await app.inject({
         method: 'POST',
@@ -1219,9 +1217,11 @@ describe('Paperless Routes', () => {
         payload: body,
       });
 
-      expect(response.statusCode).toBe(201);
-      const responseBody = response.json<{ taskId: string }>();
-      expect(responseBody.taskId).toBe('task-untagged');
+      expect(response.statusCode).toBe(502);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_ERROR');
+      // only the tag lookup: nothing was sent to post_document
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      expect((mockFetch.mock.calls[0] as [string])[0]).toContain('/api/tags/');
 
       delete process.env.PAPERLESS_FILTER_TAG;
     });
@@ -1230,5 +1230,109 @@ describe('Paperless Routes', () => {
     // FST_REQ_FILE_TOO_LARGE → 413 mapping test (server/src/plugins/errorHandler.test.ts) —
     // that test already exercises the same global 50MB multipart cap (app.ts) this route
     // relies on; duplicating it here would test Fastify's multipart plugin, not this route.
+  });
+
+  // ─── Filter tag fail-closed (reads, listing) ──────────────────────────────
+
+  describe('PAPERLESS_FILTER_TAG fail-closed', () => {
+    const TAG_MISS = { count: 0, results: [] };
+
+    async function appWithFilterTag(tag: string): Promise<{ cookie: string }> {
+      await app.close();
+      process.env.PAPERLESS_URL = 'http://paperless:8000';
+      process.env.PAPERLESS_API_TOKEN = 'test-token';
+      process.env.PAPERLESS_FILTER_TAG = tag;
+      app = await buildApp();
+      return createUserWithSession();
+    }
+
+    function get(url: string, cookie: string) {
+      return app.inject({ method: 'GET', url, headers: { cookie } });
+    }
+
+    afterEach(() => {
+      delete process.env.PAPERLESS_FILTER_TAG;
+    });
+
+    it('GET /documents returns 502 PAPERLESS_ERROR and sends no documents request when the tag is not found', async () => {
+      const { cookie } = await appWithFilterTag('missing-tag');
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_MISS));
+
+      const response = await get('/api/paperless/documents', cookie);
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_ERROR');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it('GET /documents/:id returns 404 for a document without the tag', async () => {
+      const { cookie } = await appWithFilterTag('invoice');
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+      mockFetch.mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT, tags: [99] }));
+
+      const response = await get('/api/paperless/documents/42', cookie);
+
+      expect(response.statusCode).toBe(404);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+      expect(response.body).not.toContain(RAW_DOCUMENT.title);
+    });
+
+    it('GET /documents/:id returns 502 when the tag cannot be resolved', async () => {
+      const { cookie } = await appWithFilterTag('missing-tag');
+      mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_MISS));
+
+      const response = await get('/api/paperless/documents/42', cookie);
+
+      expect(response.statusCode).toBe(502);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('PAPERLESS_ERROR');
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+    });
+
+    it.each(['thumb', 'preview'])(
+      'GET /documents/:id/%s checks the metadata first and streams nothing for an untagged document',
+      async (kind) => {
+        const { cookie } = await appWithFilterTag('invoice');
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ ...RAW_DOCUMENT, tags: [99] }));
+
+        const response = await get(`/api/paperless/documents/42/${kind}`, cookie);
+
+        expect(response.statusCode).toBe(404);
+        // tag lookup + metadata check only: the binary endpoint was never requested
+        expect(mockFetch).toHaveBeenCalledTimes(2);
+        expect((mockFetch.mock.calls[1] as [string])[0]).toBe(
+          'http://paperless:8000/api/documents/42/',
+        );
+      },
+    );
+
+    it.each(['thumb', 'preview'])(
+      'GET /documents/:id/%s streams the binary after a successful metadata check',
+      async (kind) => {
+        const { cookie } = await appWithFilterTag('invoice');
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE));
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(RAW_DOCUMENT));
+        mockFetch.mockResolvedValueOnce(mockBinaryResponse('image/webp'));
+
+        const response = await get(`/api/paperless/documents/42/${kind}`, cookie);
+
+        expect(response.statusCode).toBe(200);
+        expect(mockFetch).toHaveBeenCalledTimes(3);
+        expect((mockFetch.mock.calls[2] as [string])[0]).toContain(`/api/documents/42/${kind}`);
+      },
+    );
+
+    it.each(['thumb', 'preview'])(
+      'GET /documents/:id/%s returns 502 when the tag cannot be resolved',
+      async (kind) => {
+        const { cookie } = await appWithFilterTag('missing-tag');
+        mockFetch.mockResolvedValueOnce(mockJsonResponse(TAG_MISS));
+
+        const response = await get(`/api/paperless/documents/42/${kind}`, cookie);
+
+        expect(response.statusCode).toBe(502);
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+      },
+    );
   });
 });

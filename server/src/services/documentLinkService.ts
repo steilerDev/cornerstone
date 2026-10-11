@@ -42,6 +42,7 @@ interface PaperlessConfig {
   paperlessEnabled: boolean;
   paperlessUrl?: string | null;
   paperlessApiToken?: string | null;
+  paperlessFilterTag?: string | null;
 }
 
 /**
@@ -199,6 +200,7 @@ export async function getLinksForEntity(
         config.paperlessUrl,
         config.paperlessApiToken,
         rows.map((r) => r.paperlessDocumentId),
+        config.paperlessFilterTag,
       );
     } catch {
       // Paperless-ngx unreachable — all documents will appear as null

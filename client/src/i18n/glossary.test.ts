@@ -8,6 +8,7 @@ import {
   findTermsByAlias,
   getBannedSynonyms,
   getSearchAliases,
+  getSearchableNames,
   parseGlossary,
 } from './glossary.js';
 import type { Glossary, GlossaryGroup, GlossaryTerm } from './glossary.js';
@@ -746,6 +747,97 @@ describe('accessors with an injected glossary', () => {
 
     it('matches a query equal to the de short form', () => {
       expect(canons(findTermsByAlias('abschlag', withExtras))).toEqual(['Widget']);
+    });
+  });
+
+  describe('findTermsByAlias folds spellings', () => {
+    const folded: Glossary = parseGlossary(
+      (() => {
+        const raw = validRaw() as Mutable;
+        raw.terms.Widget.de.singular = 'Müller Fußleiste';
+        raw.terms.Widget.formerly = ['Café Ärger'];
+        return raw;
+      })(),
+    );
+
+    it.each(['Muller Fussleiste', 'Mueller Fussleiste', 'MÜLLER FUßLEISTE', 'müller fussleiste'])(
+      'finds the term by the spelling "%s"',
+      (query) => {
+        expect(canons(findTermsByAlias(query, folded))).toEqual(['Widget']);
+      },
+    );
+
+    it('maps ß to ss in both directions', () => {
+      expect(canons(findTermsByAlias('Fußleiste', folded))).toEqual([]);
+      expect(canons(findTermsByAlias('Müller Fußleiste', folded))).toEqual(['Widget']);
+      expect(canons(findTermsByAlias('Mueller Fußleiste', folded))).toEqual(['Widget']);
+    });
+
+    it('ignores accents on a former name', () => {
+      expect(canons(findTermsByAlias('cafe arger', folded))).toEqual(['Widget']);
+      expect(canons(findTermsByAlias('CAFÉ ÄRGER', folded))).toEqual(['Widget']);
+      expect(canons(findTermsByAlias('cafe aerger', folded))).toEqual(['Widget']);
+    });
+
+    it('is exact after folding (no substring match)', () => {
+      expect(findTermsByAlias('Muller', folded)).toEqual([]);
+    });
+  });
+
+  describe('getSearchableNames', () => {
+    const named: Glossary = parseGlossary(
+      (() => {
+        const raw = validRaw() as Mutable;
+        const widget = raw.terms.Widget;
+        widget.en.verb = 'Widgetize';
+        widget.en.noun = 'Widgeting';
+        widget.de.verb = 'Dingsen';
+        widget.de.noun = 'Dingserei';
+        widget.de.shortForm = 'Ding';
+        widget.en.note = 'Not a name';
+        widget.en.chip = 'Chip {{n}}';
+        widget.en.sentence = 'Sentence {{n}}';
+        return raw;
+      })(),
+    );
+    const names = getSearchableNames(named.terms.find((t) => t.canon === 'Widget')!);
+    const textOf = (former: boolean) => names.filter((n) => n.former === former).map((n) => n.text);
+
+    it('starts with the canon, flagged as current', () => {
+      expect(names[0]).toEqual({ text: 'Widget', former: false });
+    });
+
+    it('includes verb, noun and short forms of every locale as current names', () => {
+      expect(textOf(false)).toEqual(
+        expect.arrayContaining(['Widgetize', 'Widgeting', 'Dingsen', 'Dingserei', 'Ding']),
+      );
+    });
+
+    it('flags former names and only those', () => {
+      expect(textOf(true)).toEqual(['Gizmo']);
+    });
+
+    it('excludes notes, chips and sentence templates', () => {
+      const all = names.map((n) => n.text);
+      expect(all).not.toContain('Not a name');
+      expect(all).not.toContain('Chip {{n}}');
+      expect(all).not.toContain('Sentence {{n}}');
+    });
+
+    it('returns every real term at least its canon', () => {
+      for (const t of GLOSSARY.terms) {
+        expect(getSearchableNames(t)[0]).toEqual({ text: t.canon, former: false });
+        expect(
+          getSearchableNames(t)
+            .filter((n) => n.former)
+            .map((n) => n.text),
+        ).toEqual([...t.formerly]);
+      }
+    });
+
+    it('finds a term through its verb and noun forms', () => {
+      expect(canons(findTermsByAlias('widgetize', named))).toEqual(['Widget']);
+      expect(canons(findTermsByAlias('Dingserei', named))).toEqual(['Widget']);
     });
   });
 

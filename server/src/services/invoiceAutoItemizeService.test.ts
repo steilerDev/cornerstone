@@ -31,6 +31,7 @@ import {
   BudgetLineAlreadyLinkedError,
 } from '../errors/AppError.js';
 import type { AppConfig } from '../plugins/config.js';
+import { _resetFilterTagCache } from './paperlessService.js';
 import type { ExtractedLine } from '@cornerstone/shared';
 
 // ─── DB & helpers ──────────────────────────────────────────────────────────────
@@ -399,6 +400,124 @@ describe('invoiceAutoItemizeService', () => {
           PAPERLESS_AUTH,
         ),
       ).rejects.toThrow(NotFoundError);
+    });
+  });
+
+  // ─── Filter tag (fail-closed) ──────────────────────────────────────────────
+
+  describe('PAPERLESS_FILTER_TAG', () => {
+    const TAGS_HOUSE = { count: 1, results: [{ id: 5, name: 'house', color: '#112233' }] };
+    const tagged = (tags: number[]) => ({ ...makePaperlessRawDoc(), tags });
+
+    beforeEach(() => {
+      _resetFilterTagCache();
+    });
+
+    function setup(): string {
+      const vendorId = insertVendor(db);
+      const invoiceId = insertInvoice(db, vendorId, 500);
+      linkDocument(db, invoiceId, 42);
+      return invoiceId;
+    }
+
+    it('dry-run passes the configured tag to the document read: a tagged document is processed', async () => {
+      const invoiceId = setup();
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(TAGS_HOUSE)) // filter tag lookup
+        .mockResolvedValueOnce(makeOkFetch(tagged([5])))
+        .mockResolvedValueOnce(makeOkFetch(TAGS_HOUSE)) // tags map
+        .mockResolvedValueOnce(
+          makeOkFetch(
+            makeLlmResponse([{ description: 'Tile', totalAmount: 200, confidence: 0.9 }]),
+          ),
+        );
+
+      const result = await autoItemize(
+        db,
+        makeConfig({ paperlessFilterTag: 'house' }),
+        invoiceId,
+        'user-1',
+        { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+        PAPERLESS_AUTH,
+      );
+
+      expect((mockFetch.mock.calls[0] as [string])[0]).toContain('/api/tags/');
+      expect((mockFetch.mock.calls[1] as [string])[0]).toContain('/api/documents/42/');
+      expect(result).toBeDefined();
+    });
+
+    it('dry-run rejects a document without the tag as not found and never calls the LLM', async () => {
+      const invoiceId = setup();
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(TAGS_HOUSE))
+        .mockResolvedValueOnce(makeOkFetch(tagged([9])));
+
+      await expect(
+        autoItemize(
+          db,
+          makeConfig({ paperlessFilterTag: 'house' }),
+          invoiceId,
+          'user-1',
+          { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('dry-run fails with 502 when the configured tag cannot be resolved, without reading the document', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const invoiceId = setup();
+      mockFetch.mockResolvedValueOnce(makeOkFetch({ count: 0, results: [] }));
+
+      await expect(
+        autoItemize(
+          db,
+          makeConfig({ paperlessFilterTag: 'house' }),
+          invoiceId,
+          'user-1',
+          { paperlessDocumentId: 42, mode: 'append', dryRun: true },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
+    });
+
+    it('preview passes the configured tag: an untagged document is rejected as not found', async () => {
+      mockFetch
+        .mockResolvedValueOnce(makeOkFetch(TAGS_HOUSE))
+        .mockResolvedValueOnce(makeOkFetch(tagged([9])));
+
+      await expect(
+        previewAutoItemize(
+          db,
+          makeConfig({ paperlessFilterTag: 'house' }),
+          { paperlessDocumentId: 42 },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      expect(mockFetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('preview fails with 502 when the configured tag cannot be resolved', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      mockFetch.mockResolvedValueOnce(makeOkFetch({ count: 0, results: [] }));
+
+      await expect(
+        previewAutoItemize(
+          db,
+          makeConfig({ paperlessFilterTag: 'house' }),
+          { paperlessDocumentId: 42 },
+          PAPERLESS_AUTH,
+        ),
+      ).rejects.toMatchObject({ code: 'PAPERLESS_ERROR', statusCode: 502 });
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
     });
   });
 

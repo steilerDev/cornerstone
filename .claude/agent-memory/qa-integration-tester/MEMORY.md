@@ -12,6 +12,9 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2210 search service tests](story-2210-search-service.md) (2026-10-11) — serialized-DB clone, tie-break needs limit cut, perf headroom ~2x, equivalent mutants
+
+- [Story #2210 client search tests](story-2210-client-search-tests.md) (2026-10-11) — gate via mockModule, AC4 all resolve, never-guard quirk, interim pins
 - [Story #2209 client tests](story-2209-client-tests.md) (2026-10-10) — host-page mock plumbing (deleteImpact/toast/formatDayMonth), blocked-only-on-409 mutant, Escape-swallow + focus-to-body prod bugs, mutation script
 - [Story #2209 undo/delete-impact server tests](story-2209-undo-delete-impact.md) (2026-10-10) — undoStore captures Date.now, milestone-delay repro, mutation-script pattern, equivalent mutants
 - [Story #2207 phone/tablet shell](story-2207-phone-tablet-shell.md) (2026-10-10) — matchMedia control, resetModules vs RTL, previousPath by idx

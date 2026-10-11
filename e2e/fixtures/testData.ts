@@ -62,6 +62,7 @@ export const API = {
   profile: '/api/users/me',
   budgetCategories: '/api/budget-categories',
   vendors: '/api/vendors',
+  search: '/api/search',
   workItems: '/api/work-items',
   budgetSources: '/api/budget-sources',
   subsidyPrograms: '/api/subsidy-programs',
