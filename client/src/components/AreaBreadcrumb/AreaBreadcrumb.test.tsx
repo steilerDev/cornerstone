@@ -200,3 +200,55 @@ describe('AreaBreadcrumb', () => {
     });
   });
 });
+
+describe('AreaBreadcrumb variant="path" (#2211)', () => {
+  const segments = [
+    { id: '1', name: 'House' },
+    { id: '2', name: 'Basement' },
+    { id: '3', name: 'Bathroom' },
+  ];
+
+  it('renders the segments in order', () => {
+    const { container } = render(<AreaBreadcrumb variant="path" segments={segments} />);
+    expect(container.textContent).toBe('House › Basement › Bathroom');
+  });
+
+  it('renders a single segment without a separator', () => {
+    const { container } = render(
+      <AreaBreadcrumb variant="path" segments={[{ id: '1', name: 'Garage' }]} />,
+    );
+    expect(container.textContent).toBe('Garage');
+    expect(container.querySelector('[aria-hidden="true"]')).toBeNull();
+  });
+
+  it('hides every separator from assistive technology', () => {
+    const { container } = render(<AreaBreadcrumb variant="path" segments={segments} />);
+    const separators = Array.from(container.querySelectorAll('[aria-hidden="true"]'));
+    expect(separators).toHaveLength(2);
+    expect(separators.every((el) => el.textContent === ' › ')).toBe(true);
+  });
+
+  it('marks only the last segment with the last-segment class', () => {
+    const { container } = render(<AreaBreadcrumb variant="path" segments={segments} />);
+    expect(screen.getByText('Bathroom').className).toContain('pathLast');
+    expect(screen.getByText('House').className).toContain('pathSegment');
+    expect(screen.getByText('House').className).not.toContain('pathLast');
+    expect(container.querySelectorAll('.pathLast')).toHaveLength(1);
+  });
+
+  it('is plain phrasing content: no nav, no list, no landmark', () => {
+    const { container } = render(<AreaBreadcrumb variant="path" segments={segments} />);
+    expect(container.querySelector('nav, ol, ul, li')).toBeNull();
+    expect(screen.queryByRole('navigation')).toBeNull();
+  });
+
+  it('renders nothing for no segments', () => {
+    const { container } = render(<AreaBreadcrumb variant="path" segments={[]} />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('leaves the default variant unchanged', () => {
+    render(<AreaBreadcrumb area={areaTwoAncestors} />);
+    expect(screen.getByRole('navigation')).toBeInTheDocument();
+  });
+});

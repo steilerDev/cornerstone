@@ -19,8 +19,11 @@ jest.unstable_mockModule('../../hooks/useColumnPreferences.js', () => ({
 }));
 
 import type * as DataTableModule from './DataTable.js';
+import type * as CommandSearchContextModule from '../CommandSearch/CommandSearchContext.js';
+import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 let DataTable: (typeof DataTableModule)['DataTable'];
+let CommandSearchProvider: (typeof CommandSearchContextModule)['CommandSearchProvider'];
 type TableState = DataTableModule.TableState;
 
 const COLUMNS: DataTableModule.ColumnDef<TestItem>[] = [
@@ -95,6 +98,8 @@ function renderDataTable({
 
 beforeEach(async () => {
   ({ DataTable } = (await import('./DataTable.js')) as typeof DataTableModule);
+  ({ CommandSearchProvider } =
+    (await import('../CommandSearch/CommandSearchContext.js')) as typeof CommandSearchContextModule);
   mockUseColumnPreferences.mockReturnValue({
     visibleColumns: new Set(COLUMNS.map((c) => c.key)),
     columnOrder: COLUMNS.map((c) => c.key),
@@ -525,6 +530,112 @@ describe('DataTable', () => {
     it('renders column settings gear button', () => {
       renderDataTable();
       expect(screen.getByRole('button', { name: /column settings/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('search everywhere (#2211)', () => {
+    function inShell(
+      props: {
+        search?: string;
+        items?: TestItem[];
+        searchEverywhere?: boolean;
+        provider?: boolean;
+      },
+      onOpen: jest.Mock = jest.fn(),
+    ) {
+      const items = props.items ?? SAMPLE_ITEMS;
+      const table = (
+        <DataTable<TestItem>
+          pageKey="test-page"
+          columns={COLUMNS}
+          items={items}
+          totalItems={items.length}
+          totalPages={1}
+          currentPage={1}
+          isLoading={false}
+          error={null}
+          getRowKey={(item) => item.id}
+          tableState={makeTableState({ search: props.search ?? '' })}
+          onStateChange={jest.fn()}
+          {...(props.searchEverywhere === undefined
+            ? {}
+            : { searchEverywhere: props.searchEverywhere })}
+        />
+      );
+      return render(
+        props.provider === false ? (
+          table
+        ) : (
+          <CommandSearchProvider isOpen={false} onOpen={onOpen} onClose={() => {}}>
+            {table}
+          </CommandSearchProvider>
+        ),
+      );
+    }
+
+    it('marks the search field as the page search target', () => {
+      inShell({});
+      expect(screen.getByRole('searchbox')).toHaveAttribute('data-page-search');
+    });
+
+    it('shows the row under the field from two characters', () => {
+      inShell({ search: 'ro' });
+      const row = screen.getByTestId('search-everywhere-row');
+      expect(row).toHaveTextContent('Search everywhere for “ro”');
+      expect(screen.getByRole('searchbox').parentElement).toBe(row.parentElement);
+    });
+
+    it('shows no row for an empty or one-character draft', () => {
+      inShell({ search: 'r' });
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+    });
+
+    it('follows the draft while typing, before the debounce commits it', () => {
+      inShell({});
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+      fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'roof' } });
+      expect(screen.getByTestId('search-everywhere-row')).toHaveTextContent('“roof”');
+    });
+
+    it('keeps the row at zero results once the table has settled', () => {
+      inShell({ search: 'zzzz', items: [] });
+      expect(screen.getByTestId('search-everywhere-row')).toBeInTheDocument();
+      expect(screen.getByRole('searchbox')).toBeInTheDocument();
+    });
+
+    it('shows no row with searchEverywhere={false}', () => {
+      inShell({ search: 'roof', searchEverywhere: false });
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+      expect(screen.getByRole('searchbox')).toHaveAttribute('data-page-search');
+    });
+
+    it('shows the row with searchEverywhere={true}', () => {
+      inShell({ search: 'roof', searchEverywhere: true });
+      expect(screen.getByTestId('search-everywhere-row')).toBeInTheDocument();
+    });
+
+    it('shows no row outside the shell (no provider)', () => {
+      inShell({ search: 'roof', provider: false });
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+    });
+
+    it('opens the search with the trimmed draft and returns focus to the field', () => {
+      const onOpen = jest.fn();
+      inShell({ search: ' roof ' }, onOpen);
+      fireEvent.click(screen.getByTestId('search-everywhere-row'));
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      const options = onOpen.mock.calls[0]![0] as {
+        query: string;
+        returnFocusRef: { current: HTMLElement | null };
+      };
+      expect(options.query).toBe('roof');
+      expect(options.returnFocusRef.current).toBe(screen.getByRole('searchbox'));
+    });
+
+    it('renders the row once, with no duplicate test ids', () => {
+      const { container } = inShell({ search: 'roof' });
+      expect(screen.getAllByTestId('search-everywhere-row')).toHaveLength(1);
+      expect(findDuplicateTestIds(container)).toEqual([]);
     });
   });
 

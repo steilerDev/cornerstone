@@ -14,6 +14,8 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import enErrors from '../../i18n/en/errors.json';
@@ -1049,6 +1051,108 @@ describe('InvoicesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('paperless-picker-modal')).toBeInTheDocument();
+      });
+    });
+
+    describe('n shortcut (#2211)', () => {
+      const PAPERLESS_READY = {
+        configured: true,
+        reachable: true,
+        error: null,
+        paperlessUrl: 'https://paperless.example.com',
+        filterTag: null,
+      };
+
+      it('opens the manual create modal like the primary button when Paperless is not configured', async () => {
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+            'aria-disabled',
+            'true',
+          );
+        });
+        fireEvent.keyDown(document, { key: 'n' });
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByTestId('paperless-picker-modal')).toBeNull();
+      });
+
+      it('opens the Paperless picker when Paperless and auto-itemize are on, like the button', async () => {
+        mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_READY);
+        mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: true });
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+            'aria-disabled',
+            'true',
+          );
+        });
+        fireEvent.keyDown(document, { key: 'n' });
+        await waitFor(() => {
+          expect(screen.getByTestId('paperless-picker-modal')).toBeInTheDocument();
+        });
+      });
+
+      it('opens the manual modal when Paperless is on but auto-itemize is off', async () => {
+        mockGetPaperlessStatus.mockResolvedValue(PAPERLESS_READY);
+        mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+            'aria-disabled',
+            'true',
+          );
+        });
+        fireEvent.keyDown(document, { key: 'n' });
+        expect(await screen.findByRole('dialog')).toBeInTheDocument();
+        expect(screen.queryByTestId('paperless-picker-modal')).toBeNull();
+      });
+
+      // Fixed in #2211: n honours integrationReady like the disabled primary button.
+      it('does nothing while the integration status is still loading, like the disabled button', async () => {
+        mockGetPaperlessStatus.mockReturnValue(new Promise(() => {}));
+        mockFetchConfig.mockReturnValue(new Promise(() => {}));
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).toHaveAttribute('aria-disabled', 'true');
+        });
+        fireEvent.keyDown(document, { key: 'n' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+
+      it('ignores n typed into the list search field', async () => {
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        renderPage();
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).not.toHaveAttribute(
+            'aria-disabled',
+            'true',
+          );
+        });
+        fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'n' });
+        expect(screen.queryByRole('dialog')).toBeNull();
+      });
+
+      it('registers n as "New invoice" in the shortcut registry', async () => {
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        render(
+          <ShortcutRegistryProvider>
+            <ToastProvider>
+              <MemoryRouter initialEntries={['/budget/invoices']}>
+                <InvoicesPageModule.InvoicesPage />
+                <ShortcutSnapshot />
+              </MemoryRouter>
+            </ToastProvider>
+          </ShortcutRegistryProvider>,
+        );
+        await waitFor(() => {
+          expect(screen.getByTestId('new-invoice-button')).toBeInTheDocument();
+        });
+        fireEvent.click(screen.getByTestId('shortcut-snapshot'));
+        expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain('n:New invoice');
       });
     });
 

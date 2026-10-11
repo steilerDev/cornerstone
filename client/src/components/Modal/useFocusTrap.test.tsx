@@ -108,3 +108,70 @@ describe('useFocusTrap', () => {
     expect(onEscape).not.toHaveBeenCalled();
   });
 });
+
+function TrapWithResults() {
+  const ref = useRef<HTMLDivElement>(null);
+  useFocusTrap(ref, { active: true, onEscape: () => {} });
+  return (
+    <div>
+      <button type="button">outside</button>
+      <div ref={ref}>
+        <input data-testid="first" aria-label="first" />
+        <a href="/result" tabIndex={-1}>
+          result
+        </a>
+        <button type="button" data-testid="last">
+          last
+        </button>
+      </div>
+    </div>
+  );
+}
+
+describe('getFocusableElements and tabindex="-1" (#2211)', () => {
+  function build(html: string): HTMLElement {
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    document.body.appendChild(container);
+    return container;
+  }
+
+  it('excludes an anchor with an href and tabindex -1', () => {
+    const box = build('<button>a</button><a href="/x" tabindex="-1">skip</a><a href="/y">keep</a>');
+    expect(getFocusableElements(box).map((el) => el.textContent)).toEqual(['a', 'keep']);
+    box.remove();
+  });
+
+  it('excludes any element with tabindex -1, including buttons and inputs', () => {
+    const box = build(
+      '<button tabindex="-1">no</button><input tabindex="-1" /><button>yes</button>',
+    );
+    expect(getFocusableElements(box).map((el) => el.tagName)).toEqual(['BUTTON']);
+    box.remove();
+  });
+
+  it('still includes tabindex 0, buttons, inputs, selects and textareas', () => {
+    const box = build(
+      '<button>b</button><input /><select></select><textarea></textarea><div tabindex="0">d</div>',
+    );
+    expect(getFocusableElements(box)).toHaveLength(5);
+    box.remove();
+  });
+
+  it('still excludes disabled controls', () => {
+    const box = build('<button disabled>x</button><button>y</button>');
+    expect(getFocusableElements(box).map((el) => el.textContent)).toEqual(['y']);
+    box.remove();
+  });
+
+  it('keeps Tab inside the trap when result anchors have tabindex -1', async () => {
+    render(<TrapWithResults />);
+    screen.getByTestId('first').focus();
+    await userEvent.tab();
+    expect(screen.getByTestId('last')).toHaveFocus();
+    await userEvent.tab();
+    expect(screen.getByTestId('first')).toHaveFocus();
+    await userEvent.tab({ shift: true });
+    expect(screen.getByTestId('last')).toHaveFocus();
+  });
+});

@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
@@ -36,6 +37,17 @@ export function HouseholdItemsPage() {
   useDocumentTitle(tCommon('navigation.purchases'));
   const navigate = useNavigate();
   const openCreate = useOpenCreate();
+  const listShortcuts = useMemo(
+    () => [
+      {
+        key: 'n',
+        handler: () => openCreate('purchase'),
+        description: tCommon('listShortcuts.newPurchase'),
+      },
+    ],
+    [openCreate, tCommon],
+  );
+  useKeyboardShortcuts(listShortcuts);
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
 

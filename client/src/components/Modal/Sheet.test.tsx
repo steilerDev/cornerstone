@@ -299,3 +299,122 @@ describe('Sheet (#2212 extensions)', () => {
     expect(screen.getByTestId('sheet')).toHaveAttribute('inert');
   });
 });
+
+describe('Sheet hideTitle and contentMaxWidth (#2211)', () => {
+  it('hides the title visually but keeps it as the dialog name', () => {
+    render(
+      <Sheet id="s2" open title="Search" hideTitle onClose={() => {}}>
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByRole('heading', { name: 'Search' }).className).toContain('srOnly');
+    expect(screen.getByRole('dialog', { name: 'Search' })).toBeInTheDocument();
+  });
+
+  it('also hides the title visually next to a header slot', () => {
+    render(
+      <Sheet
+        id="s9"
+        open
+        title="Search"
+        hideTitle
+        headerStart={<input aria-label="field" />}
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByRole('heading', { name: 'Search' }).className).toContain('srOnly');
+  });
+
+  it('shows the title normally by default', () => {
+    render(
+      <Sheet id="s3" open title="Search" onClose={() => {}}>
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByRole('heading', { name: 'Search' }).className).not.toContain('srOnly');
+  });
+
+  it('lets the header slot grow when the title is hidden', () => {
+    render(
+      <Sheet
+        id="s4"
+        open
+        title="Search"
+        hideTitle
+        headerStart={<input aria-label="field" data-testid="slot" />}
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByTestId('slot').parentElement!.className).toContain('headerStartGrow');
+  });
+
+  it('does not let the header slot grow while the title is visible', () => {
+    render(
+      <Sheet
+        id="s5"
+        open
+        title="Search"
+        headerStart={<input aria-label="field" data-testid="slot" />}
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByTestId('slot').parentElement!.className).not.toContain('headerStartGrow');
+  });
+
+  it('sets the content column width for a full-screen sheet only', () => {
+    const { unmount } = render(
+      <Sheet
+        id="s6"
+        open
+        variant="fullScreen"
+        title="Search"
+        contentMaxWidth="40rem"
+        testId="wide-sheet"
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    const panel = screen.getByTestId('wide-sheet');
+    expect(panel.className).toContain('panelContentWidth');
+    expect(panel.style.getPropertyValue('--sheet-content-max-width')).toBe('40rem');
+    unmount();
+    render(
+      <Sheet
+        id="s7"
+        open
+        title="Search"
+        contentMaxWidth="40rem"
+        testId="bottom-sheet"
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    const bottom = screen.getByTestId('bottom-sheet');
+    expect(bottom.className).not.toContain('panelContentWidth');
+    expect(bottom.style.getPropertyValue('--sheet-content-max-width')).toBe('');
+  });
+
+  it('adds no content width style for a full-screen sheet without contentMaxWidth', () => {
+    render(
+      <Sheet
+        id="s8"
+        open
+        variant="fullScreen"
+        title="Search"
+        testId="plain-sheet"
+        onClose={() => {}}
+      >
+        <button type="button">body</button>
+      </Sheet>,
+    );
+    expect(screen.getByTestId('plain-sheet').className).not.toContain('panelContentWidth');
+  });
+});

@@ -6,6 +6,8 @@ import { act, render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { ShortcutRegistryProvider, useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 
 import type { WorkItemSummary } from '@cornerstone/shared';
@@ -839,5 +841,130 @@ describe('WorkItemsPage create openers (#2212)', () => {
     const calls = mockListWorkItems.mock.calls.length;
     act(() => notifyObjectCreated('purchase'));
     expect(mockListWorkItems.mock.calls.length).toBe(calls);
+  });
+});
+
+describe('WorkItemsPage shortcuts and ? help (#2211)', () => {
+  let Page: typeof WorkItemsPageTypes;
+  const SHELL_SLASH = 'Search this list, or search everywhere';
+
+  beforeEach(async () => {
+    mockListWorkItems.mockReset();
+    mockListUsers.mockReset();
+    mockFetchVendors.mockReset();
+    mockListPreferences.mockReset();
+    mockListPreferences.mockResolvedValue([]);
+    mockUseAreas.mockReset();
+    mockListUsers.mockResolvedValue({ users: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+      createArea: jest.fn(),
+      updateArea: jest.fn(),
+      deleteArea: jest.fn(),
+    });
+    mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+    if (!Page) Page = await import('./WorkItemsPage.js');
+  });
+
+  /** Stands in for the shell: the "/" fallback registered in the shared registry. */
+  function ShellSlash({ handler }: { handler: () => void }) {
+    useKeyboardShortcuts([{ key: '/', handler, description: SHELL_SLASH }], { fallback: true });
+    return null;
+  }
+
+  function Snapshot() {
+    const registry = useShortcutRegistry();
+    return (
+      <button
+        type="button"
+        data-testid="snapshot"
+        onClick={() => {
+          document.body.dataset.registryKeys = (registry?.snapshot() ?? [])
+            .map((s) => s.key)
+            .join(',');
+        }}
+      >
+        snapshot
+      </button>
+    );
+  }
+
+  function renderPage(options: { shell?: boolean; handler?: () => void } = {}) {
+    render(
+      <ShortcutRegistryProvider>
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/project/work-items']}>
+            {options.shell !== false && <ShellSlash handler={options.handler ?? (() => {})} />}
+            <Snapshot />
+            <Page.WorkItemsPage />
+          </MemoryRouter>
+        </ToastProvider>
+      </ShortcutRegistryProvider>,
+    );
+  }
+
+  it('registers no "/" shortcut of its own any more', async () => {
+    renderPage({ shell: false });
+    await screen.findAllByText('Lay Foundation');
+    fireEvent.click(screen.getByTestId('snapshot'));
+    const keys = document.body.dataset.registryKeys!.split(',');
+    delete document.body.dataset.registryKeys;
+    expect(keys).toEqual(expect.arrayContaining(['n', '?']));
+    expect(keys).not.toContain('/');
+  });
+
+  it('leaves "/" to the shell: the list search field is not focused by the page', async () => {
+    const shellHandler = jest.fn();
+    renderPage({ handler: shellHandler });
+    await screen.findAllByText('Lay Foundation');
+    fireEvent.keyDown(document, { key: '/' });
+    expect(shellHandler).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('searchbox')).not.toHaveFocus();
+  });
+
+  it('opens the ? help with the whole registry, so the shell "/" row stays listed', async () => {
+    renderPage();
+    await screen.findAllByText('Lay Foundation');
+    fireEvent.keyDown(document, { key: '?' });
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent(SHELL_SLASH);
+    expect(dialog).toHaveTextContent('New work item');
+    expect(dialog).toHaveTextContent('Show keyboard shortcuts');
+    expect(dialog).not.toHaveTextContent('Focus search');
+  });
+
+  it('falls back to the page shortcuts for ? when there is no registry', async () => {
+    render(
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/project/work-items']}>
+          <Page.WorkItemsPage />
+        </MemoryRouter>
+      </ToastProvider>,
+    );
+    await screen.findAllByText('Lay Foundation');
+    fireEvent.keyDown(document, { key: '?' });
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveTextContent('New work item');
+    expect(dialog).not.toHaveTextContent(SHELL_SLASH);
+  });
+
+  it('closes the help with Escape', async () => {
+    renderPage();
+    await screen.findAllByText('Lay Foundation');
+    fireEvent.keyDown(document, { key: '?' });
+    await screen.findByRole('dialog');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('no longer carries the focus-search string in the English catalogue', () => {
+    expect(JSON.stringify(enWorkItems)).not.toContain('focusSearch');
   });
 });

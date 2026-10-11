@@ -177,6 +177,41 @@ describe('findSearchDestinations: folding and labels', () => {
   });
 });
 
+describe('findSearchDestinations: labelKey (#2211)', () => {
+  it('carries the NavConfig label key of a section and of a view', () => {
+    expect(findSearchDestinations('Task', ADMIN, EN)[0]).toMatchObject({
+      route: 'workItems',
+      labelKey: 'navigation.tasks',
+    });
+    expect(findSearchDestinations('Gantt', ADMIN, EN)[0]).toMatchObject({
+      route: 'scheduleGantt',
+      labelKey: 'navigation.schedule',
+    });
+  });
+
+  it('carries the key even when the match came from a former name', () => {
+    const hit = findSearchDestinations('Timeline', ADMIN, EN)[0]!;
+    expect(hit.viaFormerName).toBe(true);
+    expect(hit.labelKey).toBe('navigation.schedule');
+  });
+
+  it('leaves labelKey unset for a glossary extra that has no NavConfig entry', () => {
+    const hit = findSearchDestinations('Submitted', ADMIN, EN).find(
+      (h) => h.route === 'invoices' && h.query?.status === 'claimed',
+    )!;
+    expect(hit).toBeDefined();
+    expect('labelKey' in hit).toBe(false);
+  });
+
+  it('every labelKey it returns is a NavConfig label key that has an English label', () => {
+    for (const word of ['Task', 'Schedule', 'Invoice', 'Company', 'Diary', 'Money']) {
+      for (const hit of findSearchDestinations(word, ADMIN, EN)) {
+        if (hit.labelKey) expect(EN(hit.labelKey)).not.toBe(hit.labelKey);
+      }
+    }
+  });
+});
+
 describe('findSearchDestinations: rank order', () => {
   it('ranks exact (0) before prefix (1) before word-prefix (2)', () => {
     const synthetic: GlossaryTerm[] = [

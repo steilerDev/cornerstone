@@ -5,7 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import type React from 'react';
 import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { lazy, use } from 'react';
+import { lazy, use, useRef } from 'react';
 import { Route, Routes, useLocation, useNavigate, useNavigationType } from 'react-router-dom';
 import { renderWithRouter } from '../../test/testUtils';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds';
@@ -16,6 +16,7 @@ import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import { useCreateContext } from '../CreateMenu/CreateMenuContext.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 import type * as AppShellTypes from './AppShell.js';
+import type * as SearchApiTypes from '../../lib/searchApi.js';
 
 let mockRole: 'admin' | 'member' | null = 'admin';
 
@@ -65,6 +66,10 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
   RESOLVED_LOCALES: ['en', 'de'],
   LocaleProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
+
+// The command search is mounted by the shell; its API is mocked with an empty result.
+const mockSearch = jest.fn<typeof SearchApiTypes.searchEverywhere>();
+jest.unstable_mockModule('../../lib/searchApi.js', () => ({ searchEverywhere: mockSearch }));
 
 const PAGE_SHORTCUTS: KeyboardShortcut[] = [
   { key: 'n', handler: () => {}, description: 'New synthetic task' },
@@ -401,6 +406,230 @@ describe('AppShell', () => {
       const { container } = renderAt('/project/work-items', <div>Test Content</div>);
 
       expect(findDuplicateTestIds(container)).toEqual([]);
+    });
+  });
+
+  describe('command search (#2211)', () => {
+    beforeEach(() => {
+      mockSearch.mockReset();
+      mockSearch.mockImplementation((params) => Promise.resolve({ query: params.q, groups: [] }));
+    });
+
+    function SearchPage() {
+      const navigate = useNavigate();
+      return (
+        <>
+          <h1>Search page</h1>
+          <button
+            type="button"
+            data-testid="go-photos-now"
+            onClick={() => void navigate('/photos')}
+          >
+            go
+          </button>
+          <button type="button" data-testid="go-back" onClick={() => void navigate(-1)}>
+            back
+          </button>
+        </>
+      );
+    }
+
+    const shellRoot = () => screen.getByTestId('top-bar').closest('[class*="appShell"]')!;
+
+    it('opens the palette from the Search button and makes the shell inert', async () => {
+      installMatchMedia(true);
+      const user = userEvent.setup();
+      renderAt('/', <SearchPage />);
+      expect(shellRoot()).not.toHaveAttribute('inert');
+      await user.click(screen.getByTestId('top-bar-search'));
+      const dialog = await screen.findByRole('dialog', { name: 'Search everywhere' });
+      expect(shellRoot()).toHaveAttribute('inert');
+      expect(dialog.closest('[inert]')).toBeNull();
+      expect(shellRoot().contains(dialog)).toBe(false);
+      expect(screen.queryByTestId('command-search-sheet')).toBeNull();
+    });
+
+    it('removes the inert attribute and returns focus to the button when it closes', async () => {
+      installMatchMedia(true);
+      const user = userEvent.setup();
+      renderAt('/', <SearchPage />);
+      const trigger = screen.getByTestId('top-bar-search');
+      await user.click(trigger);
+      await screen.findByRole('dialog', { name: 'Search everywhere' });
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(shellRoot()).not.toHaveAttribute('inert');
+      expect(trigger).toHaveFocus();
+    });
+
+    it('toggles with Ctrl K from anywhere and prevents the browser default', async () => {
+      installMatchMedia(true);
+      renderAt('/', <SearchPage />);
+      const open = new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        document.body.dispatchEvent(open);
+      });
+      expect(open.defaultPrevented).toBe(true);
+      await screen.findByRole('dialog', { name: 'Search everywhere' });
+      const close = new KeyboardEvent('keydown', {
+        key: 'k',
+        metaKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        document.body.dispatchEvent(close);
+      });
+      expect(close.defaultPrevented).toBe(true);
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('opens the palette from the shell "/" when the page has no list search field', async () => {
+      installMatchMedia(true);
+      renderAt('/', <SearchPage />);
+      fireEvent.keyDown(document, { key: '/' });
+      expect(await screen.findByRole('dialog', { name: 'Search everywhere' })).toBeInTheDocument();
+    });
+
+    it('focuses the page list search field instead when there is one', () => {
+      installMatchMedia(true);
+      renderAt('/', <input data-page-search="" data-testid="list-field" />);
+      const field = screen.getByTestId('list-field');
+      Object.defineProperty(field, 'checkVisibility', { value: () => true, configurable: true });
+      fireEvent.keyDown(document, { key: '/' });
+      expect(field).toHaveFocus();
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('closes on any real navigation', async () => {
+      installMatchMedia(true);
+      renderAt('/', <SearchPage />);
+      fireEvent.keyDown(document, { key: 'k', ctrlKey: true });
+      await screen.findByRole('dialog', { name: 'Search everywhere' });
+      fireEvent.click(screen.getByTestId('go-photos-now'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(shellRoot()).not.toHaveAttribute('inert');
+    });
+
+    it('closes when the browser goes back', async () => {
+      installMatchMedia(true);
+      const user = userEvent.setup();
+      renderWithRouter(
+        <Routes>
+          <Route element={<AppShellModule.AppShell />} path="*">
+            <Route path="*" element={<SearchPage />} />
+          </Route>
+        </Routes>,
+        { initialEntries: ['/schedule/gantt', '/'], initialIndex: 1 },
+      );
+      await user.click(screen.getByTestId('top-bar-search'));
+      await screen.findByRole('dialog', { name: 'Search everywhere' });
+      fireEvent.click(screen.getByTestId('go-back'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    });
+
+    it('does not open over another dialog (Ctrl K is still consumed)', async () => {
+      installMatchMedia(false);
+      const user = userEvent.setup();
+      renderAt('/', <SearchPage />);
+      await user.click(screen.getByRole('button', { name: 'More' }));
+      await screen.findByTestId('more-sheet');
+      const press = new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        document.body.dispatchEvent(press);
+      });
+      expect(press.defaultPrevented).toBe(true);
+      expect(screen.queryByTestId('command-search-sheet')).toBeNull();
+    });
+
+    it('renders the full-screen sheet below 1024 px, outside the inert shell', async () => {
+      installMatchMedia(false);
+      const user = userEvent.setup();
+      renderAt('/', <SearchPage />);
+      await user.click(screen.getByTestId('top-bar-search'));
+      const sheet = await screen.findByTestId('command-search-sheet');
+      expect(sheet).toHaveAttribute('data-open', 'true');
+      expect(shellRoot()).toHaveAttribute('inert');
+      expect(sheet.closest('[inert]')).toBeNull();
+      expect(shellRoot().contains(sheet)).toBe(false);
+      expect(screen.getAllByRole('dialog').filter((d) => !d.hasAttribute('inert'))).toHaveLength(1);
+    });
+
+    it('keeps the query when the window crosses 1024 px while open', async () => {
+      installMatchMedia(true);
+      const user = userEvent.setup();
+      renderAt('/', <SearchPage />);
+      await user.click(screen.getByTestId('top-bar-search'));
+      await user.type(await screen.findByTestId('command-search-input'), 'roof');
+      resizeTo(false);
+      expect(await screen.findByTestId('command-search-sheet')).toBeInTheDocument();
+      expect((screen.getByTestId('command-search-input') as HTMLInputElement).value).toBe('roof');
+    });
+
+    it('does not reopen the palette when the user comes back to the page it was opened on', async () => {
+      installMatchMedia(true);
+      const user = userEvent.setup();
+      renderWithRouter(
+        <Routes>
+          <Route element={<AppShellModule.AppShell />} path="*">
+            <Route path="*" element={<SearchPage />} />
+          </Route>
+        </Routes>,
+        { initialEntries: ['/'] },
+      );
+      await user.click(screen.getByTestId('top-bar-search'));
+      await screen.findByRole('dialog', { name: 'Search everywhere' });
+      fireEvent.click(screen.getByTestId('go-photos-now'));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      // Back to the entry (and location key) the palette was opened on.
+      fireEvent.click(screen.getByTestId('go-back'));
+      await waitFor(() => expect(screen.getByTestId('top-bar-search')).toBeInTheDocument());
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(shellRoot()).not.toHaveAttribute('inert');
+    });
+
+    it('returns focus to the list search field when opened from its "Search everywhere" row', async () => {
+      installMatchMedia(true);
+      const { SearchEverywhereRow } = await import('../CommandSearch/SearchEverywhereRow.js');
+      function ListPage() {
+        const ref = useRef<HTMLInputElement>(null);
+        return (
+          <>
+            <h1>List</h1>
+            <input ref={ref} data-page-search="" data-testid="list-field" defaultValue="roof" />
+            <SearchEverywhereRow query="roof" returnFocusRef={ref} />
+          </>
+        );
+      }
+      const user = userEvent.setup();
+      renderAt('/', <ListPage />);
+      await user.click(screen.getByTestId('search-everywhere-row'));
+      const input = await screen.findByTestId('command-search-input');
+      expect((input as HTMLInputElement).value).toBe('roof');
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(screen.getByTestId('list-field')).toHaveFocus();
+    });
+
+    it('gives the Search button its popup semantics in both layouts', () => {
+      installMatchMedia(true);
+      const { unmount } = renderAt('/', <SearchPage />);
+      expect(screen.getByTestId('top-bar-search')).toHaveAttribute('aria-haspopup', 'dialog');
+      unmount();
+      installMatchMedia(false);
+      renderAt('/', <SearchPage />);
+      expect(screen.getByTestId('top-bar-search')).toHaveAttribute('aria-haspopup', 'dialog');
     });
   });
 

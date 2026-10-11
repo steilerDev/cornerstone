@@ -386,6 +386,13 @@ test.describe('Open modal — current source excluded from picker', { tag: '@res
       await searchInput.fill(sourceBName);
       await expect(page.getByRole('option', { name: sourceBName })).toBeVisible();
 
+      // Close the open picker first: its dropdown sits directly under the input and can overlap
+      // the footer's Cancel button by a pixel or two (font metrics decide), intercepting the click
+      await sourcesPage.moveModal
+        .getByRole('heading', { level: 2, name: 'Move lines to another source' })
+        .click();
+      await expect(page.getByRole('option', { name: sourceBName })).not.toBeVisible();
+
       // Cancel the modal
       await sourcesPage.moveModalCancelButton.click();
       await expect(sourcesPage.moveModal).not.toBeVisible();

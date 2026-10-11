@@ -3,7 +3,9 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { useEffect } from 'react';
 import { MemoryRouter } from 'react-router-dom';
+import { ShortcutRegistryProvider, useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
@@ -80,8 +82,15 @@ jest.unstable_mockModule('../../hooks/useKeyboardShortcuts.js', () => ({
 }));
 
 jest.unstable_mockModule('../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js', () => ({
-  KeyboardShortcutsHelp: ({ onClose }: { onClose: () => void }) => (
+  KeyboardShortcutsHelp: ({
+    onClose,
+    shortcuts,
+  }: {
+    onClose: () => void;
+    shortcuts: Array<{ key: string }>;
+  }) => (
     <div data-testid="keyboard-shortcuts-help">
+      <output data-testid="help-keys">{shortcuts.map((s) => s.key).join(',')}</output>
       <button onClick={onClose}>Close</button>
     </div>
   ),
@@ -632,5 +641,78 @@ describe('MilestonesPage create openers (#2212)', () => {
     const log = renderAt();
     fireEvent.click(await screen.findByRole('button', { name: 'Create First Milestone' }));
     expectDialogPush(log);
+  });
+});
+
+describe('MilestonesPage ? help lists the shell shortcuts (#2211)', () => {
+  let Page: typeof MilestonesPageTypes;
+
+  beforeEach(async () => {
+    mockListMilestones.mockReset();
+    if (!Page) Page = await import('./MilestonesPage.js');
+  });
+
+  /** Stands in for the shell: a fallback "/" owner in the shared registry. */
+  function ShellSlash() {
+    const registry = useShortcutRegistry();
+    useEffect(
+      () =>
+        registry?.register(
+          'shell',
+          [{ key: '/', handler: () => {}, description: 'Search this list, or search everywhere' }],
+          { fallback: true },
+        ),
+      [registry],
+    );
+    return null;
+  }
+
+  function renderPage(withRegistry: boolean) {
+    const page = (
+      <ToastProvider>
+        <MemoryRouter initialEntries={['/project/milestones']}>
+          <ShellSlash />
+          <Page.MilestonesPage />
+        </MemoryRouter>
+      </ToastProvider>
+    );
+    render(withRegistry ? <ShortcutRegistryProvider>{page}</ShortcutRegistryProvider> : page);
+  }
+
+  async function pressQuestionMark() {
+    const { useKeyboardShortcuts } = await import('../../hooks/useKeyboardShortcuts.js');
+    const calls = (useKeyboardShortcuts as unknown as jest.Mock).mock.calls as Array<
+      [Array<{ key: string; handler: () => void }>]
+    >;
+    const help = calls.at(-1)![0].find((s) => s.key === '?')!;
+    act(() => help.handler());
+  }
+
+  it('shows the registry snapshot, so "/" stays listed', async () => {
+    mockListMilestones.mockResolvedValue([sampleMilestone1]);
+    renderPage(true);
+    await screen.findByTestId('new-milestone-button');
+    await pressQuestionMark();
+    const keys = screen.getByTestId('help-keys').textContent!.split(',');
+    expect(keys).toContain('/');
+  });
+
+  it('shows the page own shortcuts when there is no registry', async () => {
+    mockListMilestones.mockResolvedValue([sampleMilestone1]);
+    renderPage(false);
+    await screen.findByTestId('new-milestone-button');
+    await pressQuestionMark();
+    const keys = screen.getByTestId('help-keys').textContent!.split(',');
+    expect(keys).toEqual(expect.arrayContaining(['n', '?', 'Escape']));
+    expect(keys).not.toContain('/');
+  });
+
+  it('closes the help from its own Close button', async () => {
+    mockListMilestones.mockResolvedValue([sampleMilestone1]);
+    renderPage(true);
+    await screen.findByTestId('new-milestone-button');
+    await pressQuestionMark();
+    fireEvent.click(screen.getByRole('button', { name: 'Close' }));
+    expect(screen.queryByTestId('keyboard-shortcuts-help')).toBeNull();
   });
 });

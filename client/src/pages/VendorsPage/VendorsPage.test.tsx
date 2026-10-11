@@ -22,6 +22,8 @@ import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import { ownNavigations } from '../../test/navLandmarks.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -453,6 +455,56 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getByTestId('new-vendor-button'));
 
       expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    });
+
+    it('opens the same create modal with the n shortcut (#2211)', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      expect(screen.queryByRole('dialog')).toBeNull();
+
+      fireEvent.keyDown(document, { key: 'n' });
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByLabelText(/name/i)).toBeInTheDocument();
+    });
+
+    it('ignores n typed into the list search field (#2211)', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'n' });
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('does not stack a second dialog when n is pressed while the modal is open (#2211)', async () => {
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      fireEvent.keyDown(document, { key: 'n' });
+      fireEvent.keyDown(document, { key: 'n' });
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+    });
+
+    it('registers n as "New company" in the shortcut registry (#2211)', async () => {
+      render(
+        <ShortcutRegistryProvider>
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/settings/vendors']}>
+              <VendorsPage />
+              <ShortcutSnapshot />
+            </MemoryRouter>
+          </ToastProvider>
+        </ShortcutRegistryProvider>,
+      );
+      await waitFor(() => {
+        expect(screen.getByTestId('new-vendor-button')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('shortcut-snapshot'));
+      expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain('n:New company');
     });
 
     it('disables create button when vendor name is empty', async () => {

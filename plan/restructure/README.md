@@ -92,7 +92,8 @@ the build and commit the result.
   `var(--color-primary)`, or has `composes: Z [from '<file>']` where `Z` is primary (recursively).
 - **searchFields**: an intrinsic `<input>` with `type="search"` or `role="searchbox"`, or whose
   `placeholder` or `aria-label` is `t('...')` with a key containing `search` (case-insensitive).
-  `components/SearchPicker/` and `*Picker*.tsx` are excluded.
+  `components/SearchPicker/`, `*Picker*.tsx` and `components/CommandSearch/` (the one global
+  search field, #2211) are excluded.
 - **sharedComponents**: names (path relative to `components/`, without extension) of non-test
   PascalCase `.tsx` files under `client/src/components/**` that (a) sit in a same-basename directory
   (`Foo/Foo.tsx`) or (b) sit directly in a lowercase domain directory (`budget/`, `diary/`). Helpers in

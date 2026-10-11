@@ -37,6 +37,8 @@ import {
   PROGRESS_PAYMENT_STATUS_ACTIONS,
   PURCHASE_STATUS_ACTIONS,
   SCHEDULE_SIGNALS,
+  SEARCH_MATCHED_FIELDS,
+  SEARCH_RESULT_TYPES,
   SOURCE_REPORT_TYPES,
   SUBSIDY_APPLICATION_STATUSES,
   TASK_STATUS_ACTIONS,
@@ -199,6 +201,10 @@ export const I18N_UNION_KEYS = {
   deleteImpactKind: unionKeySet('common', 'confirmDialog.impact', DELETE_IMPACT_KINDS),
   /** diary — automatic (system) entry type label. Manual types use statusVocabularyDiaryType. */
   diaryAutomaticEntryType: unionKeySet('diary', 'entryTypes', AUTOMATIC_DIARY_ENTRY_TYPES),
+  /** common — command search group header per result type (#2211). */
+  searchResultGroup: unionKeySet('common', 'commandSearch.groups', SEARCH_RESULT_TYPES),
+  /** common — "Found in ‹field›" word per matched field (#2211). */
+  searchMatchedField: unionKeySet('common', 'commandSearch.fields', SEARCH_MATCHED_FIELDS),
   /** common — New menu / New sheet entry label. */
   createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
 } as const;

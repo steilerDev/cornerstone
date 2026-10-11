@@ -660,6 +660,7 @@ export function UserManagementPage() {
     >
       <DataTable<UserResponse>
         pageKey="users"
+        searchEverywhere={false}
         columns={columns}
         items={filtered}
         totalItems={filtered.length}

@@ -37,6 +37,8 @@
 - [issue-1911-splitkind-e2e.md](issue-1911-splitkind-e2e.md) — #1911 `splitKind` field: incoming spec said "no E2E changes needed", was wrong — fixed Scenario 18's mis-seeded fixture AND found Scenario 17 independently affected (zero-contribution-line case) by cross-referencing unit-test ACs; new AC-3.2 regression-guard sibling test; POM docblock corrections.
 - [story-2201-route-map-walk.md](story-2201-route-map-walk.md) — #2201: POMs build URLs via shared `routeUrl`; legacy-url-walk spec design (frozen 26 redirects, hop log, strict param seeding).
 
+- [story-2211-command-search.md](story-2211-command-search.md) — #2211 palette POM/spec, Back-reopens-palette defect, list-search text collision, sandbox run notes.
+
 ## Open follow-ups to flag to orchestrator
 
 - No Paperless-ngx testcontainer exists yet (story-epic08-e2e.md) — all Paperless E2E coverage is `page.route()` mocked, not real integration. Add the container when Paperless work resumes.

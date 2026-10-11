@@ -231,5 +231,32 @@ describe('KeyboardShortcutsHelp', () => {
       expect(screen.getByText('⌘Z')).toBeInTheDocument();
       expect(screen.queryByText('Ctrl Z')).toBeNull();
     });
+
+    it('lists "Search everywhere" first, with Ctrl K on non-Apple platforms (#2211)', () => {
+      platformSpy().mockReturnValue('Win32');
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      const table = screen.getAllByRole('table').at(-1)!;
+      const rows = within(table).getAllByRole('row');
+      expect(within(rows[0]!).getByText('Ctrl K')).toBeInTheDocument();
+      expect(within(rows[0]!).getByText('Search everywhere')).toBeInTheDocument();
+      expect(within(table).queryByText('⌘K')).toBeNull();
+    });
+
+    it('shows ⌘K on Apple platforms (#2211)', () => {
+      platformSpy().mockReturnValue('MacIntel');
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      const table = screen.getAllByRole('table').at(-1)!;
+      const first = within(table).getAllByRole('row')[0]!;
+      expect(within(first).getByText('⌘K')).toBeInTheDocument();
+      expect(within(first).getByText('Search everywhere')).toBeInTheDocument();
+      expect(within(table).queryByText('Ctrl K')).toBeNull();
+    });
+
+    it('keeps the undo row after the search row (#2211)', () => {
+      render(<KeyboardShortcutsHelp shortcuts={[]} onClose={() => {}} />);
+      const table = screen.getAllByRole('table').at(-1)!;
+      expect(within(table).getAllByRole('row')).toHaveLength(2);
+      expect(within(table).getByText('Undo the last change')).toBeInTheDocument();
+    });
   });
 });

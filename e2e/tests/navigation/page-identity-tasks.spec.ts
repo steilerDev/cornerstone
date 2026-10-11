@@ -565,7 +565,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
 
       await page.goto(`${routeUrl('householdItems')}?q=${encodeURIComponent(NAMES.purchase)}`);
       await list.heading.waitFor({ state: 'visible' });
-      await page.getByText(NAMES.purchase).first().click();
+      // Scoped to the table: the "Search everywhere for ..." row (#2211) repeats the typed text
+      await page.locator('tbody').getByText(NAMES.purchase).first().click();
 
       await expect(page).toHaveURL(
         (url) => url.pathname === routeUrl('householdItem', { id: seed.householdItemId }),

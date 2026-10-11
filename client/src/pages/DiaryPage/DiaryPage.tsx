@@ -2,6 +2,8 @@ import { routeUrl } from '@cornerstone/shared';
 import { useEffect, useLayoutEffect, useRef, useState, useMemo } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import type {
   DiaryEntryType,
   DiaryEntrySummary,
@@ -40,6 +42,18 @@ export default function DiaryPage() {
   const { t: tc } = useTranslation('common');
   const pageTitle = tc('navigation.siteDiary');
   useDocumentTitle(pageTitle);
+  const openCreate = useOpenCreate();
+  const listShortcuts = useMemo(
+    () => [
+      {
+        key: 'n',
+        handler: () => openCreate('diaryEntry'),
+        description: tc('listShortcuts.newDiaryEntry'),
+      },
+    ],
+    [openCreate, tc],
+  );
+  useKeyboardShortcuts(listShortcuts);
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [totalItems, setTotalItems] = useState(0);

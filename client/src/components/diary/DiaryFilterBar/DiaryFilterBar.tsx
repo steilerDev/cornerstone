@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   AUTOMATIC_DIARY_ENTRY_TYPES,
@@ -7,6 +7,7 @@ import {
 } from '@cornerstone/shared';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import { diaryEntryTypeLabelKey } from '../../../lib/diaryEntryTypeLabel.js';
+import { SearchEverywhereRow } from '../../CommandSearch/SearchEverywhereRow.js';
 import shared from '../../../styles/shared.module.css';
 import styles from './DiaryFilterBar.module.css';
 
@@ -55,6 +56,7 @@ export function DiaryFilterBar({
 }: DiaryFilterBarProps) {
   const { t } = useTranslation('diary');
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const handleModeChange = (mode: FilterMode) => {
     onFilterModeChange?.(mode);
@@ -165,6 +167,8 @@ export function DiaryFilterBar({
             {t('filterBar.searchLabel')}
           </label>
           <input
+            ref={searchInputRef}
+            data-page-search=""
             id="diary-search"
             type="text"
             className={shared.input}
@@ -183,6 +187,7 @@ export function DiaryFilterBar({
             aria-label={t('filterBar.searchAriaLabel')}
             data-testid="diary-search-input"
           />
+          <SearchEverywhereRow query={searchQuery} returnFocusRef={searchInputRef} />
         </div>
 
         {/* Date range */}

@@ -1,6 +1,8 @@
 import { describe, it, expect } from '@jest/globals';
 import {
   ATTACHMENT_TYPES,
+  SEARCH_MATCHED_FIELDS,
+  SEARCH_RESULT_TYPES,
   DEFECT_STATUS_ACTIONS,
   DELETE_IMPACT_KINDS,
   FUNDING_SOURCE_STATUS_ACTIONS,
@@ -77,8 +79,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 35 registered sets', () => {
-    expect(SETS).toHaveLength(35);
+  it('iterates all 37 registered sets', () => {
+    expect(SETS).toHaveLength(37);
   });
 });
 
@@ -189,6 +191,8 @@ describe('I18N_UNION_KEYS registry', () => {
       'statusActionDefect',
       'deleteImpactKind',
       'diaryAutomaticEntryType',
+      'searchResultGroup',
+      'searchMatchedField',
       'createMenuEntry',
     ]);
   });
@@ -241,6 +245,19 @@ describe('I18N_UNION_KEYS registry', () => {
     expect(I18N_UNION_KEYS.createMenuEntry.ns).toBe('common');
     expect(I18N_UNION_KEYS.createMenuEntry.key('fundingSource')).toBe(
       'createMenu.entry.fundingSource',
+    );
+  });
+
+  it('builds the #2211 command search keys from the shared tuples, in the common namespace', () => {
+    expect(I18N_UNION_KEYS.searchResultGroup.members).toBe(SEARCH_RESULT_TYPES);
+    expect(I18N_UNION_KEYS.searchMatchedField.members).toBe(SEARCH_MATCHED_FIELDS);
+    expect(I18N_UNION_KEYS.searchResultGroup.ns).toBe('common');
+    expect(I18N_UNION_KEYS.searchMatchedField.ns).toBe('common');
+    expect(I18N_UNION_KEYS.searchResultGroup.key('budget_line')).toBe(
+      'commandSearch.groups.budget_line',
+    );
+    expect(I18N_UNION_KEYS.searchMatchedField.key('invoiceNumber')).toBe(
+      'commandSearch.fields.invoiceNumber',
     );
   });
 

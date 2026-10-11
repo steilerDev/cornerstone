@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import type { Vendor, VendorListItem, VendorListQuery } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
 import { DataTable } from '../../components/DataTable/DataTable.js';
@@ -137,6 +138,17 @@ export function VendorsPage() {
   };
 
   const openCreateModal = () => setShowCreateModal(true);
+  const listShortcuts = useMemo(
+    () => [
+      {
+        key: 'n',
+        handler: () => setShowCreateModal(true),
+        description: tCommon('listShortcuts.newCompany'),
+      },
+    ],
+    [tCommon],
+  );
+  useKeyboardShortcuts(listShortcuts);
 
   const openDeleteConfirm = (vendor: Vendor) => {
     setDeletingVendor(vendor);

@@ -48,3 +48,25 @@
   overflow: hidden;
   white-space: nowrap;
 }
+
+.path {
+  font-size: var(--font-size-xs);
+  line-height: 1.4;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.pathSegment {
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.pathLast {
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-secondary);
+}
+
+.pathSeparator {
+  color: var(--color-text-muted);
+  user-select: none;
+}

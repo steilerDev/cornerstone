@@ -9,6 +9,8 @@ import type * as DiaryApiTypes from '../../lib/diaryApi.js';
 import type { DiaryEntryListResponse, DiaryEntrySummary } from '@cornerstone/shared';
 import type React from 'react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 
 /** Renders the current URL's search string into the DOM so tests can assert on
  * which query params are present/absent without reaching into router internals. */
@@ -1078,6 +1080,50 @@ describe('DiaryPage', () => {
           mockListDiaryEntries.mock.calls[mockListDiaryEntries.mock.calls.length - 1];
         expect(lastCall?.[0]?.status).toBeUndefined();
       });
+    });
+  });
+
+  describe('n shortcut (#2211)', () => {
+    const renderRecorded = (url = '/diary?filterMode=all') => {
+      const log = createRouterLog();
+      render(
+        <ShortcutRegistryProvider>
+          <RecordingRouter entries={[url]} log={log}>
+            <DiaryPage />
+            <ShortcutSnapshot />
+          </RecordingRouter>
+        </ShortcutRegistryProvider>,
+      );
+      return log;
+    };
+
+    it('opens the New diary entry target with the page as origin', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const log = renderRecorded();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      fireEvent.keyDown(document, { key: 'n' });
+      // The page stays mounted in this router and may rewrite its own params afterwards.
+      expect(log.actions[0]).toMatch(/^PUSH \/diary\/new/);
+      expect(log.actions.filter((a) => a.startsWith('PUSH'))).toHaveLength(1);
+      expect(log.states[0]).toMatchObject({ origin: { to: '/diary?filterMode=all' } });
+    });
+
+    it('ignores n typed into the diary search field', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      const log = renderRecorded();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      fireEvent.keyDown(screen.getByTestId('diary-search-input'), { key: 'n' });
+      expect(log.actions).toEqual([]);
+    });
+
+    it('registers n as "New diary entry" in the shortcut registry', async () => {
+      mockListDiaryEntries.mockResolvedValueOnce(emptyResponse);
+      renderRecorded();
+      await waitFor(() => expect(mockListDiaryEntries).toHaveBeenCalled());
+      fireEvent.click(screen.getByTestId('shortcut-snapshot'));
+      expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain(
+        'n:New diary entry',
+      );
     });
   });
 });

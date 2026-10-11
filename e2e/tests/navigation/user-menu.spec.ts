@@ -151,6 +151,11 @@ test.describe('User menu', () => {
     // #2209: a fixed "Everywhere" section lists the global undo shortcut
     await expect(dialog.getByRole('heading', { name: 'Everywhere' })).toBeVisible();
     await expect(dialog).toContainText('Undo the last change');
+    // #2211: the command search rows live in the same section
+    await expect(dialog).toContainText('Search everywhere');
+    await expect(
+      dialog.locator('kbd').filter({ hasText: /^(Ctrl|⌘)\s?K$|^Ctrl\+K$/ }),
+    ).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(dialog).toBeHidden();
     await expect(appShell.userMenuTrigger).toBeFocused();
