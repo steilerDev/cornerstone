@@ -60,8 +60,17 @@ describe('createLinkFor', () => {
     expect(link.state).not.toHaveProperty('createOpener');
   });
 
-  it('gives non-dialog targets the origin but no background', () => {
+  it('gives the company target a background like the other dialogs (#2213)', () => {
     const link = createLinkFor('company', {}, LOCATION);
+    expect(link.to).toBe(routeUrl('companyNew'));
+    expect(link.state).toMatchObject({
+      origin: { to: '/schedule/gantt?q=1' },
+      background: { pathname: '/schedule/gantt', search: '?q=1' },
+    });
+  });
+
+  it('gives non-dialog targets the origin but no background', () => {
+    const link = createLinkFor('fundingSource', {}, LOCATION);
     expect(link.state).toHaveProperty('origin');
     expect(link.state).not.toHaveProperty('background');
   });

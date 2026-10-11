@@ -31,7 +31,7 @@ const PAGES = [
   ['Project setup', () => routeUrl('settingsManage')],
   ['Users', () => routeUrl('settingsUsers')],
   ['Backups', () => routeUrl('settingsBackups')],
-  ['Companies', () => routeUrl('vendors')],
+  ['Companies', () => routeUrl('companies')],
   ['Home', () => routeUrl('dashboard')],
 ] as const;
 

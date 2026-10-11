@@ -14,6 +14,8 @@ import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
 import { fetchVendors } from '../../../lib/vendorsApi.js';
+import { useCompanyCreateAction } from '../../../objectForms/useCompanyCreateAction.js';
+import type { CompanyOption } from '../../../objectForms/companyForm.js';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
 import { useStatusBadgeVariants } from '../../../hooks/useStatusBadgeVariants.js';
 import styles from './DiaryEntryForm.module.css';
@@ -180,6 +182,7 @@ export function DiaryEntryForm({
 }: DiaryEntryFormProps) {
   const { t } = useTranslation('diary');
   const { formatHours } = useFormatters();
+  const { createAction: companyCreateAction } = useCompanyCreateAction();
   const weatherOptions = useWeatherOptions();
   const outcomeOptions = useOutcomeOptions();
   const severityOptions = useSeverityOptions();
@@ -358,7 +361,7 @@ export function DiaryEntryForm({
             <label htmlFor="daily-log-vendor" className={styles.label}>
               {t('form.vendor')}
             </label>
-            <SearchPicker
+            <SearchPicker<CompanyOption>
               id="daily-log-vendor"
               value={dailyLogVendorId ?? ''}
               onChange={(id) => onDailyLogVendorIdChange?.(id || null)}
@@ -372,6 +375,7 @@ export function DiaryEntryForm({
               renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
               showItemsOnFocus
               initialTitle={dailyLogVendorName ?? undefined}
+              createAction={companyCreateAction}
             />
           </div>
 

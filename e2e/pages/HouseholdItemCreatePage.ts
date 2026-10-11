@@ -7,7 +7,8 @@
  *
  * Fields (ids kept from the page):
  * - Essentials: #name (required), #category (required, select), #status, #quantity, the area
- *   picker (label for="area"), #vendorId
+ *   picker (label for="area"), #vendorId (a company SearchPicker with the
+ *   inline "New company ‹text›" row since #2213; its create flow is a child step of this dialog)
  * - Behind "More details": #description, #url, #orderDate, #earliestDeliveryDate,
  *   #latestDeliveryDate, #actualDeliveryDate
  *
@@ -19,6 +20,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const HOUSEHOLD_ITEM_CREATE_ROUTE = routeUrl('householdItemNew');
@@ -29,7 +31,8 @@ export interface HouseholdItemFormData {
   category?: string;
   status?: string;
   quantity?: string;
-  vendorId?: string;
+  /** Company name to pick in the company picker. */
+  vendorName?: string;
   url?: string;
   /** areaId — value of the AreaPicker select (area ID from /api/areas). */
   areaId?: string;
@@ -54,7 +57,12 @@ export class HouseholdItemCreatePage {
   readonly categorySelect: Locator;
   readonly statusSelect: Locator;
   readonly quantityInput: Locator;
+  /** The company picker's text input (#vendorId); only present while no company is selected. */
   readonly vendorSelect: Locator;
+  /** The company picker control (input, dropdown, create row, clear button). */
+  readonly vendorPicker: CompanyPickerControl;
+  /** The picker's selected-company chip (replaces the input once a company is chosen). */
+  readonly vendorSelectedDisplay: Locator;
   readonly urlInput: Locator;
   /** AreaPicker select (aria-label="Select an area") */
   readonly areaSelect: Locator;
@@ -84,6 +92,11 @@ export class HouseholdItemCreatePage {
     this.statusSelect = this.form.field('status');
     this.quantityInput = this.form.field('quantity');
     this.vendorSelect = this.form.field('vendorId');
+    this.vendorPicker = new CompanyPickerControl(page, 'vendorId', this.dialog);
+    this.vendorSelectedDisplay = this.dialog
+      .locator('label[for="vendorId"]')
+      .locator('xpath=..')
+      .locator('[class*="selectedDisplay"]');
     this.urlInput = this.form.field('url');
     this.areaSelect = this.dialog.getByLabel('Select an area');
     this.orderDateInput = this.form.field('orderDate');
@@ -133,7 +146,12 @@ export class HouseholdItemCreatePage {
     if (data.category !== undefined) await this.categorySelect.selectOption(data.category);
     if (data.status !== undefined) await this.statusSelect.selectOption(data.status);
     if (data.quantity !== undefined) await this.quantityInput.fill(data.quantity);
-    if (data.vendorId !== undefined) await this.vendorSelect.selectOption(data.vendorId);
+    if (data.vendorName !== undefined) {
+      await this.vendorSelect.fill(data.vendorName);
+      await this.vendorPicker.dropdown
+        .getByRole('option', { name: data.vendorName, exact: true })
+        .click();
+    }
     if (data.url !== undefined) await this.urlInput.fill(data.url);
     if (data.areaId !== undefined) await this.areaSelect.selectOption(data.areaId);
     if (data.orderDate !== undefined) await this.orderDateInput.fill(data.orderDate);

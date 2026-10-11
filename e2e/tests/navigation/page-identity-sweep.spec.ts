@@ -12,12 +12,11 @@
  * silently fall behind. The two exemptions are Paperless+AI pages that redirect away when the
  * integration is off, which is the case in the E2E environment (covered by their own suites).
  *
- * Documented exemptions inside the table (their h1s belong to other stories):
- *  - Home (#2230) and Companies (#2213): the title is checked, the h1 is not.
+ * Documented exemption inside the table (its h1 belongs to another story):
+ *  - Home (#2230): the title is checked, the h1 is not.
  *
- * `home` and `companies`/`company` are interim routes that redirect one hop (`/` to the
- * overview, `/companies` to the vendors pages); the sweep waits for the final URL before it
- * reads anything.
+ * `home` is an interim route that redirects one hop (`/` to the overview); the sweep waits for
+ * the final URL before it reads anything. Companies are served on `/companies` since #2213.
  *
  * Desktop only (the logic is viewport independent). `GET /api/settings` is mocked with a complete
  * HouseholdSettingsResponse because other specs set the house name concurrently. Data is
@@ -328,38 +327,28 @@ const ROWS: SweepRow[] = [
     crumbs: false,
     active: HOME,
   },
-  // Companies (h1s owned by #2213): `/companies` redirects one hop to the vendors pages
+  // Companies (#2213): the list, the New company dialog route over it, and a company page
   {
     id: 'companies',
     path: () => routeUrl('companies'),
-    finalPath: () => routeUrl('vendors'),
-    h1: null,
-    title: new RegExp(`^Companies · ${HOUSE}$`),
+    h1: 'Companies',
+    crumbs: false,
+    active: COMPANIES,
+  },
+  {
+    id: 'companyNew',
+    path: () => routeUrl('companyNew'),
+    // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
+    h1: 'Companies',
+    dialog: 'New company',
+    title: new RegExp(`^New company · Companies · ${HOUSE}$`),
     crumbs: false,
     active: COMPANIES,
   },
   {
     id: 'company',
     path: () => routeUrl('company', { id: seed.vendorId }),
-    finalPath: () => routeUrl('vendor', { id: seed.vendorId }),
-    h1: null,
-    title: new RegExp(` · Companies · ${HOUSE}$`),
-    crumbs: true,
-    active: COMPANIES,
-  },
-  {
-    id: 'vendors',
-    path: () => routeUrl('vendors'),
-    h1: null,
-    title: new RegExp(`^Companies · ${HOUSE}$`),
-    crumbs: false,
-    active: COMPANIES,
-  },
-  {
-    id: 'vendor',
-    path: () => routeUrl('vendor', { id: seed.vendorId }),
-    h1: null,
-    title: new RegExp(` · Companies · ${HOUSE}$`),
+    h1: NAMES.company,
     crumbs: true,
     active: COMPANIES,
   },

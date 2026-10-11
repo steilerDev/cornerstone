@@ -8,6 +8,8 @@ import type { DiaryEntryFormProps } from './DiaryEntryForm.js';
 import type React from 'react';
 import type { ReactElement } from 'react';
 import { LocaleProvider } from '../../../contexts/LocaleContext.js';
+import { CompanyCreateContext } from '../../../objectForms/companyCreateContext.js';
+import type { RequestCompanyCreate } from '../../../objectForms/companyCreateContext.js';
 
 /**
  * Custom render function that wraps the component with LocaleProvider —
@@ -1184,6 +1186,79 @@ describe('DiaryEntryForm', () => {
       await user.click(document.getElementById('daily-log-vendor')!);
       await user.click(await screen.findByRole('option', { name: 'Acme Concrete' }));
       await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+    });
+
+    describe('New company row (#2213)', () => {
+      function renderWithRequest(
+        request: RequestCompanyCreate | null,
+        props: Partial<DiaryEntryFormProps> = {},
+      ) {
+        return render(
+          <CompanyCreateContext value={request}>
+            <DiaryEntryForm {...makeProps({ entryType: 'daily_log', ...props })} />
+          </CompanyCreateContext>,
+        );
+      }
+
+      it('offers "New company ‹text›" when no result equals the typed text', async () => {
+        const user = userEvent.setup();
+        renderWithRequest(jest.fn<RequestCompanyCreate>());
+
+        await user.type(document.getElementById('daily-log-vendor')!, 'Brand New Co');
+
+        expect(
+          await screen.findByRole('option', { name: 'New company Brand New Co' }),
+        ).toBeInTheDocument();
+      });
+
+      it('offers no row when a result equals the text, ignoring case', async () => {
+        const user = userEvent.setup();
+        renderWithRequest(jest.fn<RequestCompanyCreate>());
+
+        await user.type(document.getElementById('daily-log-vendor')!, 'acme concrete');
+
+        await screen.findByRole('option', { name: 'Acme Concrete' });
+        expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
+      });
+
+      it('offers no row outside a CompanyCreateProvider', async () => {
+        const user = userEvent.setup();
+        renderWithRequest(null);
+
+        await user.type(document.getElementById('daily-log-vendor')!, 'Brand New Co');
+
+        await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+        expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
+      });
+
+      it('reports the created company id and shows its name', async () => {
+        const user = userEvent.setup();
+        const onDailyLogVendorIdChange = jest.fn();
+        const request = jest
+          .fn<RequestCompanyCreate>()
+          .mockResolvedValue({ id: 'v-new', name: 'Brand New Co' });
+        renderWithRequest(request, { onDailyLogVendorIdChange });
+
+        await user.type(document.getElementById('daily-log-vendor')!, 'Brand New Co');
+        await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+        expect(request).toHaveBeenCalledWith('Brand New Co');
+        await waitFor(() => expect(onDailyLogVendorIdChange).toHaveBeenCalledWith('v-new'));
+        expect(await screen.findByText('Brand New Co')).toBeInTheDocument();
+      });
+
+      it('reports nothing when the New company form is cancelled', async () => {
+        const user = userEvent.setup();
+        const onDailyLogVendorIdChange = jest.fn();
+        const request = jest.fn<RequestCompanyCreate>().mockResolvedValue(null);
+        renderWithRequest(request, { onDailyLogVendorIdChange });
+
+        await user.type(document.getElementById('daily-log-vendor')!, 'Brand New Co');
+        await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+        await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+        expect(onDailyLogVendorIdChange).not.toHaveBeenCalled();
+      });
     });
 
     it('shows the stored vendor name for an existing selection', () => {

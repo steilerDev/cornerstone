@@ -1,9 +1,14 @@
 import { getRouteEntry, matchLocation, routeUrl, safeAppPath } from '@cornerstone/shared';
 
 /** Routes that render the ObjectForm dialog over another page. */
-export const DIALOG_ROUTE_IDS = ['workItemNew', 'householdItemNew', 'milestoneNew'] as const;
+export const DIALOG_ROUTE_IDS = [
+  'workItemNew',
+  'householdItemNew',
+  'milestoneNew',
+  'companyNew',
+] as const;
 export type DialogRouteId = (typeof DIALOG_ROUTE_IDS)[number];
-export type DialogParentRoute = 'workItems' | 'householdItems' | 'milestones';
+export type DialogParentRoute = 'workItems' | 'householdItems' | 'milestones' | 'companies';
 
 /** A location a dialog route renders over (router state `{ background }`). */
 export interface BackgroundLocation {

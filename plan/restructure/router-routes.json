@@ -49,25 +49,16 @@
       "kind": "page",
       "element": "SubsidyProgramsPage"
     },
-    {
-      "path": "/budget/vendors",
-      "guard": "member",
-      "kind": "redirect",
-      "target": "/settings/vendors"
-    },
+    { "path": "/budget/vendors", "guard": "member", "kind": "redirect", "target": "/companies" },
     {
       "path": "/budget/vendors/:id",
       "guard": "member",
       "kind": "redirect",
-      "target": "/settings/vendors/:id"
+      "target": "/companies/:id"
     },
-    { "path": "/companies", "guard": "member", "kind": "redirect", "target": "/settings/vendors" },
-    {
-      "path": "/companies/:id",
-      "guard": "member",
-      "kind": "redirect",
-      "target": "/settings/vendors/:id"
-    },
+    { "path": "/companies", "guard": "member", "kind": "page", "element": "VendorsPage" },
+    { "path": "/companies/:id", "guard": "member", "kind": "page", "element": "VendorDetailPage" },
+    { "path": "/companies/new", "guard": "member", "kind": "page", "element": "VendorsPage" },
     { "path": "/diary", "guard": "member", "kind": "page", "element": "DiaryPage" },
     { "path": "/diary/:id", "guard": "member", "kind": "page", "element": "DiaryEntryDetailPage" },
     {
@@ -205,12 +196,12 @@
       "kind": "page",
       "element": "UserManagementPage"
     },
-    { "path": "/settings/vendors", "guard": "member", "kind": "page", "element": "VendorsPage" },
+    { "path": "/settings/vendors", "guard": "member", "kind": "redirect", "target": "/companies" },
     {
       "path": "/settings/vendors/:id",
       "guard": "member",
-      "kind": "page",
-      "element": "VendorDetailPage"
+      "kind": "redirect",
+      "target": "/companies/:id"
     },
     { "path": "/setup", "guard": "public", "kind": "page", "element": "SetupPage" },
     { "path": "/tags", "guard": "member", "kind": "redirect", "target": "/settings/manage" },

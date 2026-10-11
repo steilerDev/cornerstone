@@ -601,7 +601,7 @@ test.describe('Page identity: Money (#2203)', () => {
       // Back returns to the company page
       await detail.breadcrumbs.backLink.click();
       await expect(page).toHaveURL(
-        (url) => url.pathname === routeUrl('vendor', { id: seed.vendorId }),
+        (url) => url.pathname === routeUrl('company', { id: seed.vendorId }),
       );
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
     });
@@ -617,7 +617,7 @@ test.describe('Page identity: Money (#2203)', () => {
       await page.getByRole('link', { name: NAMES.company, exact: true }).first().click();
 
       await expect(page).toHaveURL(
-        (url) => url.pathname === routeUrl('vendor', { id: seed.vendorId }),
+        (url) => url.pathname === routeUrl('company', { id: seed.vendorId }),
       );
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
       await vendorPage.breadcrumbs.expectBack(INVOICE_H1);
@@ -656,7 +656,7 @@ test.describe('Page identity: Money (#2203)', () => {
       // Scoped to the row: the link is resolved relative to it
       await row.getByRole('link', { name: NAMES.company, exact: true }).click();
 
-      await expect(page).toHaveURL(new RegExp(`/settings/vendors/${seed.vendorId}$`));
+      await expect(page).toHaveURL(new RegExp(`/companies/${seed.vendorId}$`));
       await expect(vendorPage.pageTitle).toHaveText(NAMES.company);
       await vendorPage.breadcrumbs.expectBack('Invoices');
 
@@ -739,7 +739,7 @@ test.describe('Page identity: Money (#2203)', () => {
       ['Funding sources', () => routeUrl('budgetSources')],
       ['Grants', () => routeUrl('budgetSubsidies')],
       ['the Bank report', () => routeUrl('bankReport')],
-      ['a company page', () => routeUrl('vendor', { id: seed.vendorId })],
+      ['a company page', () => routeUrl('company', { id: seed.vendorId })],
     ];
     for (const [label, route] of MOUNT_CASES) {
       test(`E5: opening ${label} pushes nothing after load`, async ({ page }) => {

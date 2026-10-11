@@ -1,23 +1,25 @@
 /**
  * E2E tests for inline vendor creation on the Paperless-first invoice review page (#2148).
  *
- * The vendor SearchPicker offers an "Add new vendor" row; activating it opens the shared
- * VendorCreateModal (prefilled from the LLM-extracted issuer name, or the typed query).
- * On success the new vendor is selected, focus moves to the picker's clear button, and a
- * polite status announcement is made.
+ * The company SearchPicker offers a "New company ‹text›" row; activating it opens the shared
+ * New company ObjectForm (#2213; prefilled from the LLM-extracted issuer name, or the typed
+ * query). On success the new company is selected, focus moves to the picker's clear button, and
+ * a polite status announcement is made.
  *
  * Paperless, config, preview and commit are mocked via page.route() (no LLM/Paperless
  * container). POST /api/vendors is REAL unless a scenario explicitly intercepts it.
  *
  * Scenarios (all run on desktop/tablet/mobile projects):
  *   1. @smoke Prefilled create -> select -> commit carries the new vendorId
- *   2. Typed-query fallback, keyboard activation, Tab focus trap in modal
+ *   2. Typed-query fallback, keyboard activation, Tab focus trap in the dialog
  *   3. Cancel paths (button / Escape / backdrop) restore picker focus, create nothing
  *   4. Existing form state (invoice number, notes, line include) survives; no re-extraction
- *   5. Real server validation error keeps the modal open and the input intact
- *   6. Server 500 then retry; submit disabled while the request is in flight
+ *   5. Validation (client-side and a server field error) keeps the dialog open, input intact
+ *   6. Server 500 then retry; Save aria-disabled while the request is in flight
  *   7. Responsive: modal never overflows horizontally; mobile stacks phone/email
- *   8. Dark mode: create row and modal render and are readable
+ *   8. Dark mode: create row and dialog render and are readable
+ *   9. An existing company never gets a create row (case and umlaut folded), even with an
+ *      unmatched extracted name
  *
  * Scenario 9 (regression) is covered by the unchanged exact-match setVendor() users in
  * paperless-first-invoice.spec.ts and friends.
@@ -202,12 +204,13 @@ test.describe('Scenario 2 — Typed query fallback, keyboard only', () => {
 
       await reviewPage.vendorInput.fill(typed);
       await expect(reviewPage.vendorPortalDropdown).toBeVisible();
+      // With no result the create row replaces the "No results" line
       await expect(
         reviewPage.vendorPortalDropdown.getByText('No matching items found'),
-      ).toBeVisible();
+      ).toHaveCount(0);
       await expect(
         reviewPage.vendorPortalDropdown.getByRole('option', {
-          name: `Add new vendor "${typed}"`,
+          name: `New company ${typed}`,
           exact: true,
         }),
       ).toBeVisible();
@@ -328,29 +331,30 @@ test.describe('Scenario 4 — Existing form state is preserved', () => {
 // Scenario 5 — real server validation error
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Scenario 5 — Server validation error', () => {
-  test('Invalid email returns a real 400: banner shown, modal stays open, input kept; fixing it succeeds', async ({
+test.describe('Scenario 5 — Validation errors', () => {
+  test('An invalid e-mail is an inline field error without a request; fixing it saves', async ({
     page,
     testPrefix,
   }) => {
     const getIds = trackCreatedVendors(page);
+    const postCount = countVendorPosts(page);
     const name = `${testPrefix} Validation Co`;
 
     try {
       const { reviewPage } = await openReviewPage(page, { extractedVendorName: name });
       await reviewPage.openCreateVendor();
+      await reviewPage.expandVendorCreateDetails();
       await reviewPage.vendorCreateEmailInput.fill('not-an-email');
-
-      const badResponse = page.waitForResponse(
-        (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/vendors',
-      );
       await reviewPage.vendorCreateSubmit.click();
-      expect((await badResponse).status()).toBe(400);
 
-      await expect(reviewPage.vendorCreateErrorBanner.first()).toBeVisible();
+      await expect(reviewPage.vendorPicker.form.fieldError('email')).toHaveText(
+        'Enter a valid e-mail address.',
+      );
+      await expect(reviewPage.vendorCreateEmailInput).toBeFocused();
+      await expect(reviewPage.vendorCreateErrorBanner).toHaveCount(0);
       await expect(reviewPage.vendorCreateModal).toBeVisible();
       await expect(reviewPage.vendorCreateNameInput).toHaveValue(name);
-      await expect(reviewPage.vendorCreateEmailInput).toHaveValue('not-an-email');
+      expect(postCount()).toBe(0);
 
       await reviewPage.vendorCreateEmailInput.fill(`${testPrefix.toLowerCase()}@example.com`);
       const okPromise = waitForVendorCreated(page);
@@ -358,6 +362,59 @@ test.describe('Scenario 5 — Server validation error', () => {
       await okPromise;
 
       await expect(reviewPage.vendorCreateModal).not.toBeVisible();
+      await expect(reviewPage.vendorSelectedDisplay).toContainText(name);
+    } finally {
+      await cleanupVendors(page, getIds);
+    }
+  });
+
+  test('A server field error (400) lands on the field and keeps everything typed', async ({
+    page,
+    testPrefix,
+  }) => {
+    const getIds = trackCreatedVendors(page);
+    const name = `${testPrefix} Server Field Co`;
+    const isVendorPost = (route: Route) =>
+      route.request().method() === 'POST' &&
+      new URL(route.request().url()).pathname === '/api/vendors';
+
+    try {
+      const { reviewPage } = await openReviewPage(page, { extractedVendorName: name });
+      await reviewPage.openCreateVendor();
+      await reviewPage.expandVendorCreateDetails();
+      await reviewPage.vendorCreatePhoneInput.fill('555-0188');
+
+      const rejectOnce = async (route: Route) => {
+        if (!isVendorPost(route)) {
+          await route.fallback();
+          return;
+        }
+        await page.unroute('**/api/vendors', rejectOnce);
+        await route.fulfill({
+          status: 400,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid',
+              details: { fields: [{ path: '/phone', message: 'must be valid' }] },
+            },
+          }),
+        });
+      };
+      await page.route('**/api/vendors', rejectOnce);
+      await reviewPage.vendorCreateSubmit.click();
+
+      await expect(reviewPage.vendorPicker.form.fieldError('phone')).toBeVisible();
+      await expect(reviewPage.vendorCreatePhoneInput).toBeFocused();
+      await expect(reviewPage.vendorCreateModal).toBeVisible();
+      await expect(reviewPage.vendorCreateNameInput).toHaveValue(name);
+      await expect(reviewPage.vendorCreatePhoneInput).toHaveValue('555-0188');
+
+      // The real request goes through on the second attempt
+      const okPromise = waitForVendorCreated(page);
+      await reviewPage.vendorCreateSubmit.click();
+      await okPromise;
       await expect(reviewPage.vendorSelectedDisplay).toContainText(name);
     } finally {
       await cleanupVendors(page, getIds);
@@ -405,7 +462,7 @@ test.describe('Scenario 6 — Server error, retry and in-flight state', () => {
       await expect(reviewPage.vendorCreateErrorBanner.first()).toBeVisible();
       await expect(reviewPage.vendorCreateModal).toBeVisible();
       await expect(reviewPage.vendorCreateNameInput).toHaveValue(name);
-      await expect(reviewPage.vendorCreateSubmit).toBeEnabled();
+      await expect(reviewPage.vendorCreateSubmit).not.toHaveAttribute('aria-disabled', 'true');
 
       // Retry: hold the real request until the in-flight state has been asserted
       let release!: () => void;
@@ -425,9 +482,10 @@ test.describe('Scenario 6 — Server error, retry and in-flight state', () => {
 
       const okPromise = waitForVendorCreated(page);
       await reviewPage.vendorCreateSubmit.click();
-      await expect(reviewPage.vendorCreateSubmit).toBeDisabled();
-      await expect(reviewPage.vendorCreateSubmit).toHaveText('Adding...');
-      await expect(reviewPage.vendorCreateCancel).toBeDisabled();
+      // In flight: aria-disabled (never natively disabled, so focus cannot drop to the body)
+      await expect(reviewPage.vendorCreateSubmit).toHaveAttribute('aria-disabled', 'true');
+      await expect(reviewPage.vendorCreateSubmit).toHaveText('Saving…');
+      await expect(reviewPage.vendorCreateCancel).toHaveAttribute('aria-disabled', 'true');
       release();
       await okPromise;
 
@@ -470,6 +528,7 @@ test.describe('Scenario 7 — Responsive modal', { tag: '@responsive' }, () => {
 
       const viewport = page.viewportSize();
       if (viewport && viewport.width < 600) {
+        await reviewPage.expandVendorCreateDetails();
         const phone = await reviewPage.vendorCreatePhoneInput.boundingBox();
         const email = await reviewPage.vendorCreateEmailInput.boundingBox();
         expect(phone).not.toBeNull();
@@ -515,6 +574,42 @@ test.describe('Scenario 8 — Dark mode', { tag: '@responsive' }, () => {
       await expect(reviewPage.vendorCreateNameInput).toBeVisible();
       await expect(reviewPage.vendorCreateSubmit).toBeVisible();
     } finally {
+      await cleanupVendors(page, getIds);
+    }
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scenario 9 — no create row for an existing company
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Scenario 9 — Existing company, no create row', () => {
+  test('Typing an existing name (other case, umlaut folded) shows no create row, even with an unmatched extracted name', async ({
+    page,
+    testPrefix,
+  }) => {
+    const getIds = trackCreatedVendors(page);
+    const existing = `${testPrefix} Öko Fenster 2213`;
+    const created = await page.request.post(API.vendors, { data: { name: existing } });
+    expect(created.ok(), 'POST company').toBeTruthy();
+    const existingId = ((await created.json()) as { vendor: { id: string } }).vendor.id;
+
+    try {
+      // An extracted issuer name that matches no company keeps the create row on an empty field
+      const { reviewPage } = await openReviewPage(page, {
+        extractedVendorName: `${testPrefix} Extracted Only Co`,
+      });
+      await reviewPage.vendorInput.focus();
+      await expect(reviewPage.vendorCreateOption).toBeVisible();
+
+      // ... but a name that is already a company never offers to create it again
+      await reviewPage.vendorInput.fill(`${testPrefix} OEKO FENSTER 2213`);
+      await expect(
+        reviewPage.vendorPortalDropdown.getByRole('option', { name: existing, exact: true }),
+      ).toBeVisible();
+      await expect(reviewPage.vendorCreateOption).toHaveCount(0);
+    } finally {
+      await page.request.delete(`${API.vendors}/${existingId}`);
       await cleanupVendors(page, getIds);
     }
   });

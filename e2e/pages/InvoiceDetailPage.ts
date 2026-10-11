@@ -11,7 +11,7 @@
  * - An InvoiceDepositsSection (deposits between details and budget lines) — Issue #1404
  * - An InvoiceBudgetLinesSection for linking work item / household item budget lines
  * - A LinkedDocumentsSection (Paperless-ngx integration)
- * - An Edit modal (role="dialog", aria-labelledby="edit-modal-title")
+ * - An Edit modal (role="dialog" named "Edit Invoice")
  * - A Delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
  *
  * Key DOM observations from source code (InvoiceDetailPage.tsx):
@@ -21,7 +21,7 @@
  *   for To pay / Paid (Mark paid has no date step), a plain Badge for Submitted / Offer
  * - Edit button: class="editButton", text="Edit"
  * - Delete button: class="deleteButton", text="Delete"
- * - Edit modal: role="dialog", aria-labelledby="edit-modal-title", h2="Edit Invoice"
+ * - Edit modal: role="dialog" named "Edit Invoice" (shared Modal), h2="Edit Invoice"
  * - Edit form inputs: #edit-invoice-number, #edit-amount, #edit-date, #edit-due-date,
  *   #edit-status, #edit-notes
  * - Edit save: class="saveButton", text="Save Changes" / "Saving..."
@@ -650,9 +650,10 @@ export class InvoiceDetailPage {
     // Documents section (LinkedDocumentsSection)
     this.documentsSection = page.getByRole('region', { name: 'Documents' });
 
-    // Edit modal — role="dialog", aria-labelledby="edit-modal-title"
+    // Edit modal — role="dialog" named "Edit Invoice"
     // Using the modal title text as the accessible name anchor
-    this.editModal = page.locator('[role="dialog"][aria-labelledby="edit-modal-title"]');
+    // The shared Modal names the dialog by its title (#2213): "Edit Invoice"
+    this.editModal = page.getByRole('dialog', { name: 'Edit Invoice', exact: true });
     this.editNumberInput = page.locator('#edit-invoice-number');
     this.editAmountInput = page.locator('#edit-amount');
     this.editDateInput = page.locator('#edit-date');
@@ -982,6 +983,8 @@ export class InvoiceDetailPage {
    * Returns a map of label → value strings.
    */
   async getDetailFields(): Promise<Record<string, string>> {
+    // The heading renders before the info list when the page is slow; read only once rows exist
+    await this.infoList.locator('[class*="infoRow"]').first().waitFor({ state: 'visible' });
     const rows = await this.infoList.locator('[class*="infoRow"]').all();
     const fields: Record<string, string> = {};
     for (const row of rows) {

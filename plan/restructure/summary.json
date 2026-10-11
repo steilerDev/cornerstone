@@ -6,9 +6,9 @@
       "consolidated-entry-points": 14,
       "demoted": 19,
       "merged": 40,
-      "moved": 44,
+      "moved": 47,
       "promoted": 47,
-      "same": 338
+      "same": 335
     },
     "byGate": { "ai": 1, "none": 451, "oidc": 8, "paperless": 21, "paperless+ai": 21 },
     "byDestinationSection": {
@@ -78,14 +78,14 @@
     "dailyWeeklyInSettings": 0
   },
   "routes": {
-    "total": 89,
-    "byKind": { "page": 42, "redirect": 47 },
+    "total": 90,
+    "byKind": { "page": 43, "redirect": 47 },
     "byChange": {
       "conditional": 5,
       "kept": 30,
       "merged": 2,
       "moved": 3,
-      "new": 11,
+      "new": 12,
       "query-map": 11,
       "redirect": 13,
       "redirect-becomes-page": 1,
@@ -96,7 +96,7 @@
     "bySection": {
       "Areas": 4,
       "Auth": 2,
-      "Companies": 6,
+      "Companies": 7,
       "Documents": 2,
       "History": 3,
       "Home": 3,

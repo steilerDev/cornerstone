@@ -6,6 +6,8 @@ export interface SearchEverywhereParams {
   /** Restrict the search to these result types; omitted or empty searches all types. */
   types?: readonly SearchResultType[];
   limit?: number;
+  /** Ids of trades whose translated name matched `q` client-side (#2213). */
+  tradeIds?: readonly string[];
 }
 
 /** Global search across every entity type (GET /api/search). */
@@ -20,6 +22,9 @@ export function searchEverywhere(
   }
   if (params.limit !== undefined) {
     search.set('limit', String(params.limit));
+  }
+  if (params.tradeIds !== undefined && params.tradeIds.length > 0) {
+    search.set('tradeIds', params.tradeIds.join(','));
   }
   return get<SearchResponse>(`/search?${search.toString()}`, { signal });
 }

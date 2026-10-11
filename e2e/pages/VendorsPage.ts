@@ -1,25 +1,31 @@
 /**
- * Page Object Model for the Vendors list page (/settings/vendors)
+ * Page Object Model for the Companies list page (/companies)
  *
- * Vendors moved from Budget section to Settings section in Story #1283.
- * Legacy route /budget/vendors redirects to /settings/vendors via React Router.
+ * The list was /settings/vendors until #2213; /settings/vendors and /budget/vendors now redirect
+ * here. The class keeps its file name (many specs import it); `CompaniesPage` is an alias.
  *
  * The page renders:
- * - No in-page tab row (#2205): the Companies entry is the active one (sidebar ≥ 1024 px, More sheet below)
- * - A page header with an "Add Vendor" button
- * - A search input and sort controls
- * - A data table (desktop) / card list (mobile) of vendors
- * - Pagination controls when totalPages > 1
- * - An "Add Vendor" modal (role="dialog", aria-labelledby="create-modal-title")
- * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
- * - An empty state when no vendors exist (or no search matches)
+ * - A header with a secondary "Trades" button and the primary "New company" button
+ *   (`new-company-button`; hidden while the unfiltered list is empty, the empty state has its own)
+ * - A search field, "Trade" filter chips (FilterChipGroup, testid `company-trade-<id>`), a data
+ *   table (>= 768px) and phone cards (< 768px). DataTable mounts both surfaces at once, so every
+ *   row/card locator here is filtered to the visible one.
+ * - A row ⋯ OverflowMenu ("Actions for <name>") with Delete, a Call button (`tel:` link) in the
+ *   Phone column, and the shared ConfirmDialog (prefix `company-list-delete`)
+ * - The New company ObjectForm dialog at /companies/new
+ * - The Trades sheet at ?trades=1 (see `TradesSheet`)
  */
 
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
+import { TradesSheet } from './TradesSheet.js';
 
-export const VENDORS_ROUTE = routeUrl('vendors');
+export const COMPANIES_ROUTE = routeUrl('companies');
+/** Kept for the specs that predate #2213. */
+export const VENDORS_ROUTE = COMPANIES_ROUTE;
 
 export interface CreateVendorData {
   name: string;
@@ -34,25 +40,24 @@ export class VendorsPage {
 
   // Page header
   readonly heading: Locator;
-  readonly addVendorButton: Locator;
+  readonly tradesButton: Locator;
+  readonly newCompanyButton: Locator;
 
-  // Search/sort bar
+  // Search / filters
   readonly searchInput: Locator;
-  // sortSelect removed — DataTable has no standalone sort select; sorting is column-header-based.
-  readonly sortOrderButton: Locator;
+  readonly columnSettingsButton: Locator;
+  readonly tradeChips: Locator;
 
-  // Error banner (outside modals)
+  // Error banner (outside dialogs)
   readonly errorBanner: Locator;
 
   // Empty state
   readonly emptyState: Locator;
   readonly emptyStateHeading: Locator;
 
-  // Table (desktop view)
+  // Table (>= 768px) and phone cards
   readonly tableContainer: Locator;
   readonly tableBody: Locator;
-
-  // Mobile cards container
   readonly cardsContainer: Locator;
 
   // Pagination
@@ -61,20 +66,10 @@ export class VendorsPage {
   readonly prevPageButton: Locator;
   readonly nextPageButton: Locator;
 
-  // Create (Add Vendor) modal
-  readonly createModal: Locator;
-  readonly createModalTitle: Locator;
-  readonly createNameInput: Locator;
-  readonly createPhoneInput: Locator;
-  readonly createEmailInput: Locator;
-  readonly createAddressInput: Locator;
-  readonly createNotesInput: Locator;
-  readonly createTradeSelect: Locator;
-  readonly createSubmitButton: Locator;
-  readonly createCancelButton: Locator;
-  readonly createErrorBanner: Locator;
-
-  // Delete confirmation modal
+  // Dialogs
+  readonly createDialog: ObjectFormDialog;
+  readonly tradesSheet: TradesSheet;
+  readonly deleteDialog: ConfirmDialogControl;
   readonly deleteModal: Locator;
   readonly deleteModalTitle: Locator;
   readonly deleteConfirmButton: Locator;
@@ -84,295 +79,192 @@ export class VendorsPage {
   constructor(page: Page) {
     this.page = page;
 
-    // Page header
-    this.heading = page.getByRole('heading', { level: 1, name: 'Vendors', exact: true });
-    this.addVendorButton = page.getByRole('button', { name: 'Add Vendor', exact: true });
+    this.heading = page.getByRole('heading', { level: 1, name: 'Companies', exact: true });
+    this.tradesButton = page.getByTestId('companies-trades-button');
+    this.newCompanyButton = page.getByTestId('new-company-button');
 
-    // Search / sort
     // DataTable renders a generic search input with aria-label="Search items" for all pages.
     this.searchInput = page.getByLabel('Search items');
-    // DataTable sorting is column-header-based — no standalone sort select or order toggle button.
-    // Sorting is triggered by clicking a sortable column header (th) in the table.
-    // sortOrderButton points to the column settings button (the only sort-related toolbar element).
-    this.sortOrderButton = page.getByLabel('Column settings');
+    this.columnSettingsButton = page.getByLabel('Column settings');
+    this.tradeChips = page.getByRole('group', { name: 'Trade', exact: true });
 
-    // Error banner outside modals
     this.errorBanner = page.locator('[role="alert"]').first();
 
-    // Empty state — use .first() to avoid strict mode: child elements such as
-    // emptyStateTitle/emptyStateDescription also contain "emptyState" in their class names.
+    // `.first()`: child elements such as emptyStateTitle also contain "emptyState" in their class.
     this.emptyState = page.locator('[class*="emptyState"]').first();
     this.emptyStateHeading = this.emptyState.getByRole('heading');
 
-    // Table (desktop)
     this.tableContainer = page.locator('[class*="tableContainer"]');
     this.tableBody = this.tableContainer.locator('tbody');
-
-    // Mobile cards
     this.cardsContainer = page.locator('[class*="cardsContainer"]');
 
-    // Pagination — use `.first()` because `[class*="pagination"]` matches the
-    // outer container plus child elements (paginationInfo, paginationButton, etc.)
-    // which causes strict mode violations in production CSS Modules.
+    // `.first()`: `[class*="pagination"]` also matches paginationInfo, paginationButton, ...
     this.pagination = page.locator('[class*="pagination"]').first();
     this.paginationInfo = page.locator('[class*="paginationInfo"]');
-    // DataTable pagination uses aria-label from common.json: "Previous" and "Next"
     this.prevPageButton = page.getByLabel('Previous');
     this.nextPageButton = page.getByLabel('Next');
 
-    // Create modal — Modal uses useId() for its title, so no stable #id selector.
-    // Match by accessible name (title text) using getByRole.
-    this.createModal = page.getByRole('dialog', { name: 'Add Vendor' });
-    // createModalTitle: the <h2> inside the create modal
-    this.createModalTitle = this.createModal.getByRole('heading', { level: 2 });
-    this.createNameInput = this.createModal.locator('#vendor-name');
-    this.createPhoneInput = this.createModal.locator('#vendor-phone');
-    this.createEmailInput = this.createModal.locator('#vendor-email');
-    this.createAddressInput = this.createModal.locator('#vendor-address');
-    this.createNotesInput = this.createModal.locator('#vendor-notes');
-    this.createTradeSelect = this.createModal.getByPlaceholder('Select a trade...');
-    this.createSubmitButton = this.createModal.getByRole('button', {
-      name: /Add Vendor|Adding\.\.\./,
-    });
-    this.createCancelButton = this.createModal.getByRole('button', { name: 'Cancel', exact: true });
-    this.createErrorBanner = this.createModal.locator('[role="alert"]');
+    // The New company form: a Modal from 768px, a full-screen Sheet below (both role="dialog").
+    this.createDialog = new ObjectFormDialog(page, 'New company');
+    this.tradesSheet = new TradesSheet(page);
 
-    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title
-    // "Delete <name>?", testid prefix vendor-list-delete.
-    this.deleteModal = page
-      .getByRole('alertdialog')
-      .filter({ has: page.getByTestId('vendor-list-delete-cancel') });
-    // deleteModalTitle: the <h2> inside the delete dialog
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog"), title "Delete <name>?".
+    this.deleteDialog = new ConfirmDialogControl(page, 'company-list-delete');
+    this.deleteModal = this.deleteDialog.dialog;
     this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
-    this.deleteConfirmButton = this.deleteModal.getByTestId('vendor-list-delete-confirm');
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    this.deleteConfirmButton = this.deleteDialog.confirmButton;
+    this.deleteCancelButton = this.deleteDialog.cancelButton;
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
   }
 
-  async goto(): Promise<void> {
-    await this.page.goto(VENDORS_ROUTE);
-    // Wait for either the heading (data loaded) or the loading indicator to clear
+  async goto(query?: Record<string, string | number>): Promise<void> {
+    await this.page.goto(routeUrl('companies', undefined, query));
     await this.heading.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Open the Add Vendor modal.
-   */
-  async openCreateModal(): Promise<void> {
-    await this.addVendorButton.click();
-    await this.createModal.waitFor({ state: 'visible' });
+  /** The Trade chip with the given visible label (a toggle button with aria-pressed). */
+  tradeChip(label: string): Locator {
+    return this.tradeChips.getByRole('button', { name: label, exact: true });
   }
 
-  /**
-   * Fill and submit the create vendor form.
-   * Only name is required; other fields are optional.
-   */
-  async createVendor(data: CreateVendorData): Promise<void> {
-    await this.createNameInput.fill(data.name);
-    if (data.phone !== undefined) {
-      await this.createPhoneInput.fill(data.phone);
-    }
-    if (data.email !== undefined) {
-      await this.createEmailInput.fill(data.email);
-    }
-    if (data.address !== undefined) {
-      await this.createAddressInput.fill(data.address);
-    }
-    if (data.notes !== undefined) {
-      await this.createNotesInput.fill(data.notes);
-    }
-    await this.createSubmitButton.click();
-  }
-
-  /**
-   * Get all table row locators in the vendor table (desktop view).
-   */
-  async getTableRows(): Promise<Locator[]> {
-    return this.tableBody.locator('tr').all();
-  }
-
-  /**
-   * The visible table row (desktop/tablet) or card (mobile) for the named vendor.
-   * DataTable mounts both surfaces at once; the visible filter keeps this strict-mode safe.
-   */
-  contactCell(vendorName: string): Locator {
-    const escaped = vendorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  /** The visible row (table) or card (phone) whose name link reads exactly `name`. */
+  row(name: string): Locator {
+    const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return this.tableBody
       .locator('tr')
       .or(this.cardsContainer.locator(':scope > *'))
       .filter({
-        has: this.page.locator('[class*="vendorLink"]', {
+        has: this.page.locator('[data-company-name-link]', {
           hasText: new RegExp(`^\\s*${escaped}\\s*$`),
         }),
       })
       .filter({ visible: true });
   }
 
-  /** The `tel:` link in the named vendor's Contact column (row or card). */
-  phoneLink(vendorName: string): Locator {
-    return this.contactCell(vendorName).locator('a[href^="tel:"]');
+  /** Kept for the specs that predate #2213. */
+  contactCell(name: string): Locator {
+    return this.row(name);
+  }
+
+  /** The name link (to the company page) of the named row. */
+  nameLink(name: string): Locator {
+    return this.row(name).locator('[data-company-name-link]');
+  }
+
+  /** The Call button (a `tel:` link) of the named row or card. */
+  callLink(name: string): Locator {
+    return this.row(name).locator('a[href^="tel:"]');
+  }
+
+  /** Kept for the specs that predate #2213. */
+  phoneLink(name: string): Locator {
+    return this.callLink(name);
+  }
+
+  /** The row ⋯ trigger of the named company ("Actions for <name>"). */
+  rowActions(name: string): Locator {
+    return this.row(name).getByRole('button', { name: `Actions for ${name}`, exact: true });
+  }
+
+  /** The Delete item of the open row menu (the menu is portaled to the body). */
+  get deleteMenuItem(): Locator {
+    return this.page.getByRole('menuitem', { name: 'Delete', exact: true });
   }
 
   /**
-   * Get all card locators (mobile view).
+   * Open the New company dialog with the header button. While the unfiltered list is empty the
+   * header button is hidden and the empty state's own "New company" action opens the same dialog.
    */
-  async getCards(): Promise<Locator[]> {
-    return this.cardsContainer
-      .locator('[class*="card"]')
-      .filter({ has: this.page.locator('[class*="vendorLink"]') })
-      .all();
+  async openCreateModal(): Promise<void> {
+    const action = this.newCompanyButton
+      .or(this.emptyState.getByRole('button', { name: 'New company' }))
+      .first();
+    await action.click();
+    await this.createDialog.waitForOpen();
   }
 
-  /**
-   * Find the table row for the named vendor. Returns null if not found.
-   * Uses the vendor link inside the name cell (aria-accessible text).
-   */
-  async getTableRowByName(vendorName: string): Promise<Locator | null> {
-    try {
-      await this.tableBody.locator('tr').first().waitFor({ state: 'visible' });
-    } catch {
-      return null;
-    }
-    const escaped = vendorName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const row = this.tableBody.locator('tr').filter({
-      has: this.page.locator('[class*="vendorLink"]', {
-        hasText: new RegExp(`^\\s*${escaped}\\s*$`),
-      }),
-    });
-    return (await row.count()) > 0 ? row.first() : null;
+  /** Fill and submit the New company dialog. Only the name is required. */
+  async createVendor(data: CreateVendorData): Promise<void> {
+    await this.createDialog.field('name').fill(data.name);
+    const more = [data.phone, data.email, data.address, data.notes].some((v) => v !== undefined);
+    if (more) await this.createDialog.expandMoreDetails();
+    if (data.phone !== undefined) await this.createDialog.field('phone').fill(data.phone);
+    if (data.email !== undefined) await this.createDialog.field('email').fill(data.email);
+    if (data.address !== undefined) await this.createDialog.field('address').fill(data.address);
+    if (data.notes !== undefined) await this.createDialog.field('notes').fill(data.notes);
+    await this.createDialog.save();
   }
 
-  /**
-   * Get the names of all vendors currently shown in the table (desktop) or cards (mobile).
-   * On mobile the table container is CSS display:none (still in DOM) — check visibility
-   * before attempting to read table rows to avoid timeouts on hidden elements.
-   */
+  /** Names currently shown, in display order, from whichever surface is visible. */
   async getVendorNames(): Promise<string[]> {
-    const tableVisible = await this.tableContainer.isVisible();
-    // One atomic read of the matching links (no per-element snapshot loop). Mobile cards render
-    // the same vendorLink anchor inside a cardValue span.
-    const links = tableVisible
-      ? this.tableBody.locator('tr [class*="vendorLink"]')
-      : this.cardsContainer.locator('[class*="vendorLink"]');
+    const links = this.page.locator('[data-company-name-link]').filter({ visible: true });
     const texts = await links.allTextContents();
     return texts.map((text) => text.trim()).filter((text) => text.length > 0);
   }
 
-  /**
-   * Click the "View" button for a vendor row (by name) to navigate to its detail page.
-   * For the table, the View button has aria-label="View <name>".
-   */
-  async clickView(vendorName: string): Promise<void> {
-    await this.page.getByRole('link', { name: vendorName }).first().click();
-  }
-
-  /**
-   * Open the delete modal for the named vendor.
-   *
-   * VendorsPage uses a custom actions menu (not DataTable's built-in actions column):
-   * - Each row has a ⋮ menu button: aria-label=t('common:menu.actions'), data-testid="vendor-menu-button-{id}"
-   * - After opening the menu, the delete button renders: data-testid="vendor-delete-{id}", text="Delete"
-   *
-   * Strategy: find the table row that contains the vendor name, open its actions menu,
-   * then click the Delete item.
-   */
-  async openDeleteModal(vendorName: string): Promise<void> {
-    // DataTable mounts the table row and the mobile card at once; contactCell() is the visible
-    // one for the exact vendor name. Wait for the (possibly just-filtered) list to settle on
-    // exactly that one match instead of walking a snapshot of rows/cards, which goes stale
-    // while a search re-renders the list.
-    const item = this.contactCell(vendorName);
-    await expect(item).toHaveCount(1);
-
-    await item.locator('[class*="menuButton"]').click();
-    await item.locator('[class*="menuItem"][class*="menuItemDanger"]').click();
+  /** Open the delete confirmation of the named company through its row ⋯ menu. */
+  async openDeleteModal(name: string): Promise<void> {
+    await expect(this.row(name)).toHaveCount(1);
+    await this.rowActions(name).click();
+    await this.deleteMenuItem.click();
     await this.deleteModal.waitFor({ state: 'visible' });
   }
 
-  /**
-   * Confirm vendor deletion in the delete modal.
-   */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();
   }
 
-  /**
-   * Cancel the delete modal.
-   */
   async cancelDelete(): Promise<void> {
     await this.deleteCancelButton.click();
     await this.deleteModal.waitFor({ state: 'hidden' });
   }
 
+  /** Open the Trades sheet with its header button. */
+  async openTrades(): Promise<void> {
+    await this.tradesButton.click();
+    await this.tradesSheet.waitForOpen();
+  }
+
   /**
    * Type into the search field and wait for the debounced API response.
-   * Register the response listener BEFORE fill to avoid a race with the debounce.
-   * 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
-   * API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
+   * The listener is registered BEFORE fill to avoid a race with the debounce.
    */
   async search(query: string): Promise<void> {
+    // Match the answer to THIS query: an in-flight response of the unfiltered list must not count
     const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
-      { timeout: 15000 },
+      (resp) =>
+        new URL(resp.url()).pathname === '/api/vendors' &&
+        new URL(resp.url()).searchParams.get('q') === query &&
+        resp.status() === 200,
     );
     await this.searchInput.fill(query);
     await responsePromise;
-    // Wait for React to commit the filtered results — the API response has arrived but
-    // the DOM may not yet reflect the new data on mobile viewports.
     await this.waitForVendorsLoaded();
   }
 
-  /**
-   * Clear the search input and wait for the debounced API response.
-   * Register the response listener BEFORE clear to avoid a race with the debounce.
-   * 15s timeout: mobile fill() may take up to 10s (actionTimeout) and the debounce +
-   * API round-trip adds latency on top, so 10s was too tight for mobile CI runners.
-   */
   async clearSearch(): Promise<void> {
     const responsePromise = this.page.waitForResponse(
-      (resp) => resp.url().includes('/api/vendors') && resp.status() === 200,
-      { timeout: 15000 },
+      (resp) =>
+        new URL(resp.url()).pathname === '/api/vendors' &&
+        !new URL(resp.url()).searchParams.has('q') &&
+        resp.status() === 200,
     );
     await this.searchInput.clear();
     await responsePromise;
-    // Wait for React to commit the updated results after clearing search.
     await this.waitForVendorsLoaded();
   }
 
-  /**
-   * Wait for vendor list to load (at least one row visible, at least one card visible, or empty state).
-   * On mobile/tablet viewports vendors render as cards rather than a table, so we race all three.
-   */
+  /** Wait for at least one visible row/card or the empty state. */
   async waitForVendorsLoaded(): Promise<void> {
-    await Promise.race([
-      this.tableBody.locator('tr').first().waitFor({ state: 'visible' }),
-      this.cardsContainer
-        .locator('[class*="card"]')
-        .filter({ has: this.page.locator('[class*="vendorLink"]') })
+    await expect(
+      this.page
+        .locator('[data-company-name-link]')
+        .filter({ visible: true })
         .first()
-        .waitFor({ state: 'visible' }),
-      this.emptyState.waitFor({ state: 'visible' }),
-    ]);
+        .or(this.emptyState),
+    ).toBeVisible();
   }
 
-  /**
-   * Get the create error banner text, or null if not visible.
-   */
-  async getCreateErrorText(): Promise<string | null> {
-    try {
-      await this.createErrorBanner.waitFor({ state: 'visible' });
-      return await this.createErrorBanner.textContent();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Get the delete modal error banner text, or null if not visible.
-   */
   async getDeleteErrorText(): Promise<string | null> {
     try {
       await this.deleteErrorBanner.waitFor({ state: 'visible' });
@@ -382,3 +274,5 @@ export class VendorsPage {
     }
   }
 }
+
+export { VendorsPage as CompaniesPage };

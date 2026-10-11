@@ -3,7 +3,13 @@ import { eq, asc, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { trades, vendors } from '../db/schema.js';
-import type { CreateTradeRequest, UpdateTradeRequest, TradeResponse } from '@cornerstone/shared';
+import type {
+  CreateTradeRequest,
+  UpdateTradeRequest,
+  TradeResponse,
+  TradeListItem,
+  TradeMergeResponse,
+} from '@cornerstone/shared';
 import {
   NotFoundError,
   ValidationError,
@@ -41,9 +47,13 @@ function isValidHexColor(color: string): boolean {
  * List all trades, sorted by sort_order ascending, then name ascending.
  * Optionally filter by name search (case-insensitive).
  */
-export function listTrades(db: DbType, search?: string): TradeResponse[] {
+export function listTrades(db: DbType, search?: string): TradeListItem[] {
   const rows = db
-    .select()
+    .select({
+      trade: trades,
+      // Qualified by hand: drizzle renders ${trades.id} unqualified inside a select-field subquery.
+      vendorCount: sql<number>`(SELECT COUNT(*) FROM vendors v WHERE v.trade_id = "trades"."id")`,
+    })
     .from(trades)
     .where(
       search
@@ -53,7 +63,7 @@ export function listTrades(db: DbType, search?: string): TradeResponse[] {
     .orderBy(asc(trades.sortOrder), asc(trades.name))
     .all();
 
-  return rows.map(toTradeResponse);
+  return rows.map((r) => ({ ...toTradeResponse(r.trade), vendorCount: Number(r.vendorCount) }));
 }
 
 /**
@@ -184,6 +194,10 @@ export function updateTrade(db: DbType, id: string, data: UpdateTradeRequest): T
     }
 
     updates.name = trimmedName;
+    // A typed name replaces the built-in one in every locale (#2213): drop the translation key.
+    if (trimmedName !== existing.name) {
+      updates.translationKey = null;
+    }
   }
 
   // Validate and add description if provided
@@ -251,4 +265,56 @@ export function deleteTrade(db: DbType, id: string): void {
 
   // Delete trade
   db.delete(trades).where(eq(trades.id, id)).run();
+}
+
+/**
+ * Merges trade `id` into `targetTradeId` (#2213): its companies move to the target, then `id`
+ * is deleted. One transaction. Not undoable.
+ * @throws NotFoundError when `id` does not exist
+ * @throws ValidationError when the target is empty, equals `id`, or does not exist
+ */
+export function mergeTrade(db: DbType, id: string, targetTradeId: string): TradeMergeResponse {
+  return db.transaction((tx) => {
+    const source = tx.select().from(trades).where(eq(trades.id, id)).get();
+    if (!source) {
+      throw new NotFoundError('Trade not found');
+    }
+
+    const targetId = targetTradeId.trim();
+    if (targetId === '') {
+      throw new ValidationError('Target trade is required', {
+        targetTradeId: 'must not be empty',
+      });
+    }
+    if (targetId === id) {
+      throw new ValidationError('Target trade must differ from the merged trade', {
+        targetTradeId: 'must differ from the merged trade',
+      });
+    }
+    const target = tx.select().from(trades).where(eq(trades.id, targetId)).get();
+    if (!target) {
+      throw new ValidationError('Target trade does not exist', {
+        targetTradeId: 'does not exist',
+      });
+    }
+
+    const now = new Date().toISOString();
+    const moved = tx
+      .update(vendors)
+      .set({ tradeId: targetId, updatedAt: now })
+      .where(eq(vendors.tradeId, id))
+      .run();
+    tx.delete(trades).where(eq(trades.id, id)).run();
+
+    const count = tx
+      .select({ count: sql<number>`COUNT(*)` })
+      .from(vendors)
+      .where(eq(vendors.tradeId, targetId))
+      .get();
+
+    return {
+      trade: { ...toTradeResponse(target), vendorCount: Number(count?.count ?? 0) },
+      movedVendorCount: moved.changes,
+    };
+  });
 }

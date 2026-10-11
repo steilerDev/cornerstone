@@ -893,4 +893,62 @@ describe('Budget Category Service', () => {
       expect(result.translationKey).toBeNull();
     });
   });
+
+  // ─── rename rule (#2213) ───────────────────────────────────────────────────
+
+  describe('updateBudgetCategory() rename rule (#2213)', () => {
+    const storedName = () => budgetCategoryService.getBudgetCategoryById(db, 'bc-materials').name;
+
+    it('clears translationKey when the name changes', () => {
+      const result = budgetCategoryService.updateBudgetCategory(db, 'bc-materials', {
+        name: 'Renamed Budget',
+      });
+      expect(result.translationKey).toBeNull();
+      expect(
+        budgetCategoryService.getBudgetCategoryById(db, 'bc-materials').translationKey,
+      ).toBeNull();
+    });
+
+    it('keeps translationKey when the name is unchanged', () => {
+      const before = budgetCategoryService.getBudgetCategoryById(db, 'bc-materials');
+      expect(before.translationKey).not.toBeNull();
+      const result = budgetCategoryService.updateBudgetCategory(db, 'bc-materials', {
+        name: before.name,
+      });
+      expect(result.translationKey).toBe(before.translationKey);
+    });
+
+    it('clears translationKey for a change in case only (case-sensitive comparison)', () => {
+      const swapped = storedName().toUpperCase();
+      expect(swapped).not.toBe(storedName());
+      expect(
+        budgetCategoryService.updateBudgetCategory(db, 'bc-materials', { name: swapped })
+          .translationKey,
+      ).toBeNull();
+    });
+
+    it('keeps translationKey when surrounding spaces trim to the stored name', () => {
+      const name = storedName();
+      const result = budgetCategoryService.updateBudgetCategory(db, 'bc-materials', {
+        name: `  ${name}  `,
+      });
+      expect(result.translationKey).not.toBeNull();
+      expect(result.name).toBe(name);
+    });
+
+    it('keeps translationKey for a PATCH without a name', () => {
+      const result = budgetCategoryService.updateBudgetCategory(db, 'bc-materials', {
+        description: 'Updated description',
+      });
+      expect(result.translationKey).not.toBeNull();
+    });
+
+    it('leaves translationKey null for a renamed user-created category', () => {
+      const cat = createTestCategory('Custom Budget');
+      const result = budgetCategoryService.updateBudgetCategory(db, cat.id, {
+        name: 'Custom Budget 2',
+      });
+      expect(result.translationKey).toBeNull();
+    });
+  });
 });

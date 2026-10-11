@@ -18,6 +18,9 @@ export interface UseFocusTrapOptions {
   readonly onEscape: () => void;
 }
 
+/** Active traps in open order: only the last (topmost dialog) handles Escape and Tab. */
+const activeTraps: symbol[] = [];
+
 /** While active: Escape calls onEscape; Tab and Shift+Tab wrap inside the container. */
 export function useFocusTrap(
   containerRef: RefObject<HTMLElement | null>,
@@ -30,7 +33,10 @@ export function useFocusTrap(
 
   useEffect(() => {
     if (!active) return;
+    const token = Symbol('focus-trap');
+    activeTraps.push(token);
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (activeTraps[activeTraps.length - 1] !== token) return;
       if (e.key === 'Escape') {
         onEscapeRef.current();
         return;
@@ -53,6 +59,9 @@ export function useFocusTrap(
     };
 
     document.addEventListener('keydown', handleKeyDown);
-    return () => document.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      activeTraps.splice(activeTraps.indexOf(token), 1);
+    };
   }, [active, containerRef]);
 }

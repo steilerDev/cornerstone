@@ -29,7 +29,7 @@ export interface CreateTarget {
     | 'workItemNew'
     | 'householdItemNew'
     | 'invoices'
-    | 'vendors'
+    | 'companyNew'
     | 'milestoneNew'
     | 'budgetSources'
     | 'budgetSubsidies'
@@ -73,13 +73,7 @@ export const CREATE_TARGETS: Readonly<Record<CreateEntryId, CreateTarget>> = {
     moneyOnly: false,
     dialog: false,
   },
-  company: {
-    route: 'vendors',
-    query: { [CREATE_PARAM]: '1' },
-    prefill: [],
-    moneyOnly: false,
-    dialog: false,
-  },
+  company: { route: 'companyNew', query: {}, prefill: [], moneyOnly: false, dialog: true },
   milestone: {
     route: 'milestoneNew',
     query: {},

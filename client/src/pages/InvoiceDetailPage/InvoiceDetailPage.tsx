@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import type { Invoice, InvoiceStatus, Vendor } from '@cornerstone/shared';
+import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -13,6 +15,7 @@ import { FormError } from '../../components/FormError/FormError.js';
 import { InvoiceBudgetLinesSection } from './InvoiceBudgetLinesSection.js';
 import { InvoiceDepositsSection } from './InvoiceDepositsSection.js';
 import { InvoiceDepositFormModal } from './InvoiceDepositFormModal.js';
+import { Modal } from '../../components/Modal/Modal.js';
 import { ConvertQuotationModal } from './ConvertQuotationModal.js';
 import { useConvertQuotation } from './useConvertQuotation.js';
 import { InvoicePaperlessPickerModal } from '../../components/invoices/InvoicePaperlessPickerModal.js';
@@ -86,6 +89,9 @@ export function InvoiceDetailPage() {
     vendorName: '',
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  // The New company form stacks over the edit modal; the lower dialog stays put meanwhile.
+  const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
+    useCompanyCreateAction();
   const [editError, setEditError] = useState('');
   const [vendorError, setVendorError] = useState('');
 
@@ -174,7 +180,7 @@ export function InvoiceDetailPage() {
   };
 
   const closeEditModal = () => {
-    if (!isUpdating) {
+    if (!isUpdating && !isCreatingCompany) {
       setShowEditModal(false);
       setEditError('');
       setVendorError('');
@@ -373,7 +379,7 @@ export function InvoiceDetailPage() {
               <dt className={styles.infoLabel}>{t('invoiceDetail.detailFields.vendor')}</dt>
               <dd className={styles.infoValue}>
                 <Link
-                  to={routeUrl('vendor', { id: invoice.vendorId })}
+                  to={routeUrl('company', { id: invoice.vendorId })}
                   state={originState}
                   className={styles.infoLink}
                 >
@@ -464,17 +470,13 @@ export function InvoiceDetailPage() {
 
       {/* Edit invoice modal */}
       {showEditModal && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="edit-modal-title"
+        <Modal
+          title={t('invoiceDetail.modal.editTitle')}
+          onClose={closeEditModal}
+          className={styles.modalContentWide}
+          dismissible={!isUpdating && !isCreatingCompany}
         >
-          <div className={styles.modalBackdrop} onClick={closeEditModal} />
-          <div className={`${styles.modalContent} ${styles.modalContentWide}`}>
-            <h2 id="edit-modal-title" className={styles.modalTitle}>
-              {t('invoiceDetail.modal.editTitle')}
-            </h2>
+          <div>
             <form onSubmit={handleUpdate} className={styles.form} noValidate>
               {editError && (
                 <div className={styles.errorBanner} role="alert">
@@ -523,7 +525,7 @@ export function InvoiceDetailPage() {
                   {t('invoiceDetail.form.vendor')}{' '}
                   <span className={styles.required}>{t('invoiceDetail.form.required')}</span>
                 </label>
-                <SearchPicker<Vendor>
+                <SearchPicker<CompanyOption>
                   id="edit-vendor"
                   value={editForm.vendorId}
                   onChange={(id) => setEditForm({ ...editForm, vendorId: id })}
@@ -538,6 +540,7 @@ export function InvoiceDetailPage() {
                   showItemsOnFocus
                   initialTitle={editForm.vendorName}
                   noResultsMessage={t('invoiceDetail.form.noVendorsFound')}
+                  createAction={companyCreateAction}
                 />
                 <FormError message={vendorError} variant="field" />
               </div>
@@ -627,7 +630,7 @@ export function InvoiceDetailPage() {
               </div>
             </form>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* Delete confirmation */}

@@ -5,6 +5,7 @@ import sharedStyles from '../../styles/shared.module.css';
 import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
 import { lockScroll } from './scrollLock.js';
 import { useFocusRestore } from './useFocusRestore.js';
+import { dialogLayerStyle, useDialogLevel } from './dialogLayer.js';
 import styles from './Modal.module.css';
 
 export interface ModalProps {
@@ -56,6 +57,7 @@ export function Modal({
   hideTitle = false,
 }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+  const level = useDialogLevel(true);
   const titleId = useId();
   const { t } = useTranslation('common');
 
@@ -97,6 +99,7 @@ export function Modal({
     <div
       className={[sharedStyles.modal, palette && styles.paletteRoot].filter(Boolean).join(' ')}
       role={role}
+      style={dialogLayerStyle(level)}
       aria-modal="true"
       aria-labelledby={titleId}
       aria-describedby={describedById}

@@ -72,7 +72,7 @@ async function clickAreaDelete(page: Page, areaName: string): Promise<void> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('ConfirmDialog — company delete with counts', { tag: '@responsive' }, () => {
-  test('Lists the contact persons deleted with the company; Cancel is focused; Escape returns focus to Delete', async ({
+  test('Lists the contact persons deleted with the company; Cancel is focused; Escape returns focus to the ⋯ trigger', async ({
     page,
     testPrefix,
   }) => {
@@ -93,8 +93,11 @@ test.describe('ConfirmDialog — company delete with counts', { tag: '@responsiv
       const detail = new VendorDetailPage(page);
       await detail.goto(vendorId);
 
-      // Open with the keyboard so the opener is a focused element on every browser engine
-      await detail.deleteButton.focus();
+      // Open the header ⋯ menu and choose Delete with the keyboard (#2213), so the opener is a
+      // focused element on every browser engine
+      await detail.actionsTrigger.focus();
+      await page.keyboard.press('Enter');
+      await expect(detail.deleteButton).toBeFocused();
       await page.keyboard.press('Enter');
 
       const dialog = new ConfirmDialogControl(page, 'vendor-delete', `Delete ${name}?`);
@@ -105,10 +108,11 @@ test.describe('ConfirmDialog — company delete with counts', { tag: '@responsiv
       // Initial focus is on the safe action
       await expect(dialog.cancelButton).toBeFocused();
 
-      // Escape cancels and focus returns to the control that opened the dialog
+      // Escape cancels and focus returns to the ⋯ trigger that opened the menu (the Delete item
+      // itself is gone once chosen)
       await page.keyboard.press('Escape');
       await expect(dialog.dialog).toBeHidden();
-      await expect(detail.deleteButton).toBeFocused();
+      await expect(detail.actionsTrigger).toBeFocused();
     } finally {
       await deleteVendorViaApi(page, vendorId);
     }

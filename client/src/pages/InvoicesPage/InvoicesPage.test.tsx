@@ -6,6 +6,9 @@ import { act, render, screen, waitFor, fireEvent, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useSearchParams } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
+import { CompanyCreateContext } from '../../objectForms/companyCreateContext.js';
+import type { RequestCompanyCreate } from '../../objectForms/companyCreateContext.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import type { Invoice, InvoiceListPaginatedResponse } from '@cornerstone/shared';
@@ -25,6 +28,7 @@ import enErrors from '../../i18n/en/errors.json';
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
@@ -37,7 +41,7 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -284,6 +288,12 @@ const vendorsResponse = {
   pagination: { page: 1, pageSize: 100, totalItems: 2, totalPages: 1 },
 };
 
+/** The company field is a text picker (#2213): open it and click the result. */
+async function chooseCompany(user: ReturnType<typeof userEvent.setup>, name: string) {
+  await user.click(within(screen.getByRole('dialog')).getByLabelText(/vendor/i));
+  await user.click(await screen.findByRole('option', { name }));
+}
+
 describe('InvoicesPage', () => {
   let InvoicesPageModule: typeof InvoicesPageTypes;
 
@@ -291,6 +301,8 @@ describe('InvoicesPage', () => {
     mockFetchAllInvoices.mockReset();
     mockCreateInvoice.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockFetchVendor.mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
     mockGetPaperlessStatus.mockReset();
     mockFetchConfig.mockReset();
 
@@ -320,7 +332,7 @@ describe('InvoicesPage', () => {
             <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
             <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
             <Route path="/budget/invoices/new/paperless" element={<div>Paperless Review</div>} />
-            <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+            <Route path="/companies/:id" element={<div>Vendor Detail</div>} />
           </Routes>
           <LocationDisplay />
         </MemoryRouter>
@@ -471,7 +483,7 @@ describe('InvoicesPage', () => {
       });
     });
 
-    it('shows vendor select in modal', async () => {
+    it('shows the company field as a text picker, not a select (#2213)', async () => {
       const user = userEvent.setup();
       mockFetchAllInvoices.mockResolvedValue(emptyResponse);
       mockFetchVendors.mockResolvedValue(vendorsResponse);
@@ -488,8 +500,11 @@ describe('InvoicesPage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      // Vendor select should be visible
-      expect(screen.getByRole('combobox', { name: /vendor/i })).toBeInTheDocument();
+      const field = within(screen.getByRole('dialog')).getByLabelText(/vendor/i);
+      expect(field.tagName).toBe('INPUT');
+      expect(field.id).toBe('invoice-vendor');
+      expect(field).toHaveAttribute('aria-required', 'true');
+      expect(screen.getByRole('dialog').querySelector('select#invoice-vendor')).toBeNull();
     });
 
     it('shows validation error when submitting without vendor', async () => {
@@ -539,8 +554,7 @@ describe('InvoicesPage', () => {
       });
 
       // Select a vendor
-      const vendorSelect = screen.getByRole('combobox', { name: /vendor/i });
-      await user.selectOptions(vendorSelect, 'v-1');
+      await chooseCompany(user, 'ACME Construction');
 
       // Set a date, no amount
       const dateInput = screen.getByLabelText(/invoice date/i);
@@ -576,8 +590,7 @@ describe('InvoicesPage', () => {
       });
 
       // Fill vendor
-      const vendorSelect = screen.getByRole('combobox', { name: /vendor/i });
-      await user.selectOptions(vendorSelect, 'v-1');
+      await chooseCompany(user, 'ACME Construction');
 
       // Fill amount using fireEvent.change (reliable for number inputs)
       const amountInput = screen.getByLabelText(/^amount/i);
@@ -624,8 +637,7 @@ describe('InvoicesPage', () => {
         expect(screen.getByRole('dialog')).toBeInTheDocument();
       });
 
-      const vendorSelect = screen.getByRole('combobox', { name: /vendor/i });
-      await user.selectOptions(vendorSelect, 'v-1');
+      await chooseCompany(user, 'ACME Construction');
 
       // Fill amount using fireEvent.change (reliable for number inputs)
       const amountInput = screen.getByLabelText(/^amount/i);
@@ -1238,7 +1250,7 @@ describe('InvoicesPage', () => {
             <Routes>
               <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
               <Route path="/budget/invoices/:id" element={<div>Invoice Detail</div>} />
-              <Route path="/settings/vendors/:id" element={<div>Vendor Detail</div>} />
+              <Route path="/companies/:id" element={<div>Vendor Detail</div>} />
             </Routes>
             <LocationSearchDisplay />
           </MemoryRouter>
@@ -1576,9 +1588,8 @@ describe('InvoicesPage', () => {
       it('pre-selects a known companyId', async () => {
         renderAtUrl('/budget/invoices?create=1&companyId=v-1');
         const dialog = await screen.findByRole('dialog');
-        await waitFor(() => {
-          expect((dialog.querySelector('#invoice-vendor') as HTMLSelectElement).value).toBe('v-1');
-        });
+        expect(await within(dialog).findByText('ACME Construction')).toBeInTheDocument();
+        expect(within(dialog).getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
       });
 
       it('clears a stale companyId once the companies have loaded', async () => {
@@ -1589,6 +1600,138 @@ describe('InvoicesPage', () => {
         });
         await waitFor(() => {
           expect((dialog.querySelector('#invoice-vendor') as HTMLSelectElement).value).toBe('');
+        });
+      });
+
+      describe('company lookup beyond the first page', () => {
+        const farCompany = { id: 'v-far', name: 'Far Away Co' } as unknown as Awaited<
+          ReturnType<typeof VendorsApiTypes.fetchVendor>
+        >;
+        const dialogField = (dialog: HTMLElement) =>
+          dialog.querySelector('#invoice-vendor') as HTMLInputElement;
+
+        /** The companies list arrives after the modal opened, so the id is still unchecked. */
+        async function openBeforeCompaniesLoad(url: string) {
+          let resolveVendors!: (v: typeof vendorsResponse) => void;
+          mockGetPaperlessStatus.mockResolvedValue(unconfigured);
+          mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+          mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+          mockFetchVendors.mockReturnValue(
+            new Promise<typeof vendorsResponse>((r) => {
+              resolveVendors = r;
+            }),
+          );
+          render(
+            <ToastProvider>
+              <MemoryRouter initialEntries={[url]}>
+                <Routes>
+                  <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+                </Routes>
+              </MemoryRouter>
+            </ToastProvider>,
+          );
+          const dialog = await screen.findByRole('dialog');
+          const loadCompanies = () =>
+            act(async () => {
+              resolveVendors(vendorsResponse);
+            });
+          return { dialog, loadCompanies };
+        }
+
+        const fillAndSubmit = (dialog: HTMLElement) => {
+          fireEvent.change(dialog.querySelector('#invoice-amount') as HTMLInputElement, {
+            target: { value: '10' },
+          });
+          fireEvent.change(dialog.querySelector('#invoice-date') as HTMLInputElement, {
+            target: { value: '2026-03-01' },
+          });
+          fireEvent.submit(dialog.querySelector('form')!);
+        };
+
+        it('does not look up a company that is in the first page', async () => {
+          renderAtUrl('/budget/invoices?create=1&companyId=v-1');
+          const dialog = await screen.findByRole('dialog');
+          await within(dialog).findByText('ACME Construction');
+          expect(mockFetchVendor).not.toHaveBeenCalled();
+        });
+
+        it('does not look up anything without a pre-filled company', async () => {
+          const { loadCompanies } = await openBeforeCompaniesLoad('/budget/invoices?create=1');
+          await loadCompanies();
+          expect(mockFetchVendor).not.toHaveBeenCalled();
+        });
+
+        it('keeps a valid company found by its own lookup, shows its name and posts its id', async () => {
+          mockFetchVendor.mockResolvedValue(farCompany);
+          mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
+          const { dialog, loadCompanies } = await openBeforeCompaniesLoad(
+            '/budget/invoices?create=1&companyId=v-far',
+          );
+          await loadCompanies();
+
+          expect(await within(dialog).findByText('Far Away Co')).toBeInTheDocument();
+          expect(mockFetchVendor).toHaveBeenCalledWith('v-far');
+          fillAndSubmit(dialog);
+
+          await waitFor(() =>
+            expect(mockCreateInvoice).toHaveBeenCalledWith('v-far', expect.anything()),
+          );
+        });
+
+        it('clears an unknown company after a failed lookup and never posts it', async () => {
+          const { dialog, loadCompanies } = await openBeforeCompaniesLoad(
+            '/budget/invoices?create=1&companyId=gone-id',
+          );
+          await loadCompanies();
+          await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('gone-id'));
+          await waitFor(() => expect(dialogField(dialog)).not.toBeDisabled());
+          fillAndSubmit(dialog);
+
+          await screen.findByRole('alert');
+          expect(mockCreateInvoice).not.toHaveBeenCalled();
+        });
+
+        it('disables the picker and clears nothing while the lookup is pending', async () => {
+          let finish: (v: typeof farCompany) => void = () => {};
+          mockFetchVendor.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+          const { dialog, loadCompanies } = await openBeforeCompaniesLoad(
+            '/budget/invoices?create=1&companyId=v-far',
+          );
+          await loadCompanies();
+
+          await waitFor(() => expect(dialogField(dialog)).toBeDisabled());
+          expect(mockFetchVendor).toHaveBeenCalledTimes(1);
+
+          await act(async () => {
+            finish(farCompany);
+          });
+
+          expect(await within(dialog).findByText('Far Away Co')).toBeInTheDocument();
+          expect(
+            within(dialog).getByRole('button', { name: 'Clear selection' }),
+          ).not.toBeDisabled();
+        });
+
+        it('looks a company up only once', async () => {
+          const { loadCompanies } = await openBeforeCompaniesLoad(
+            '/budget/invoices?create=1&companyId=gone-id',
+          );
+          await loadCompanies();
+          await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+          await act(async () => {
+            await Promise.resolve();
+          });
+          expect(mockFetchVendor).toHaveBeenCalledTimes(1);
+        });
+
+        it('keeps a valid company beyond the first page when the list loaded first', async () => {
+          mockFetchVendor.mockResolvedValue(farCompany);
+          renderAtUrl('/budget/invoices?create=1&companyId=v-far');
+          const dialog = await screen.findByRole('dialog');
+
+          expect(
+            await within(dialog).findByText('Far Away Co', {}, { timeout: 1500 }),
+          ).toBeInTheDocument();
         });
       });
 
@@ -1653,6 +1796,131 @@ describe('InvoicesPage', () => {
     });
   });
 
+  // ─── Inline company create from the picker (#2213) ────────────────────────
+
+  describe('create invoice modal: New company row (#2213)', () => {
+    function renderWithCompanyCreate(request: RequestCompanyCreate | null) {
+      return render(
+        <ToastProvider>
+          <CompanyCreateContext value={request}>
+            <MemoryRouter initialEntries={['/budget/invoices']}>
+              <Routes>
+                <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              </Routes>
+            </MemoryRouter>
+          </CompanyCreateContext>
+        </ToastProvider>,
+      );
+    }
+
+    async function openModal(user: ReturnType<typeof userEvent.setup>) {
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(vendorsResponse);
+      await waitFor(() => expect(screen.getByTestId('new-invoice-button')).toBeInTheDocument());
+      await user.click(screen.getByTestId('new-invoice-button'));
+      return within(await screen.findByRole('dialog'));
+    }
+
+    it('offers "New company ‹text›" when no result equals the text', async () => {
+      const user = userEvent.setup();
+      mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+      mockFetchVendors.mockResolvedValue(vendorsResponse);
+      renderWithCompanyCreate(jest.fn<RequestCompanyCreate>());
+      const dialog = await openModal(user);
+
+      await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
+    });
+
+    it('offers no row when a result equals the text, ignoring case', async () => {
+      const user = userEvent.setup();
+      renderWithCompanyCreate(jest.fn<RequestCompanyCreate>());
+      const dialog = await openModal(user);
+
+      await user.type(dialog.getByLabelText(/vendor/i), 'acme construction');
+
+      await screen.findByRole('option', { name: 'ACME Construction' });
+      expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
+    });
+
+    it('offers no row outside a CompanyCreateProvider', async () => {
+      const user = userEvent.setup();
+      renderWithCompanyCreate(null);
+      const dialog = await openModal(user);
+
+      await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
+
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Brand New Co', pageSize: 50 }),
+      );
+      expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
+    });
+
+    it('selects the created company and posts its id with the invoice', async () => {
+      const user = userEvent.setup();
+      const request = jest
+        .fn<RequestCompanyCreate>()
+        .mockResolvedValue({ id: 'v-new', name: 'Brand New Co' });
+      mockCreateInvoice.mockResolvedValueOnce(sampleInvoice1);
+      renderWithCompanyCreate(request);
+      const dialog = await openModal(user);
+
+      await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+      expect(request).toHaveBeenCalledWith('Brand New Co');
+      expect(await dialog.findByText('Brand New Co')).toBeInTheDocument();
+      fireEvent.change(dialog.getByLabelText(/^amount/i), { target: { value: '100' } });
+      fireEvent.change(dialog.getByLabelText(/invoice date/i), { target: { value: '2026-02-01' } });
+      fireEvent.submit(screen.getByRole('dialog').querySelector('form')!);
+
+      await waitFor(() =>
+        expect(mockCreateInvoice).toHaveBeenCalledWith(
+          'v-new',
+          expect.objectContaining({ amount: 100, date: '2026-02-01' }),
+        ),
+      );
+    });
+
+    it('selects nothing when the New company form is cancelled, and keeps the modal', async () => {
+      const user = userEvent.setup();
+      const request = jest.fn<RequestCompanyCreate>().mockResolvedValue(null);
+      renderWithCompanyCreate(request);
+      const dialog = await openModal(user);
+
+      await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+      await waitFor(() => expect(request).toHaveBeenCalledTimes(1));
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      expect(dialog.queryByText('Brand New Co')).not.toBeInTheDocument();
+      expect(dialog.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+    });
+
+    it('Escape does not close the invoice modal while the New company form is open', async () => {
+      const user = userEvent.setup();
+      let finish: (c: CompanyOption | null) => void = () => {};
+      const request = jest.fn<RequestCompanyCreate>(
+        () => new Promise<CompanyOption | null>((resolve) => (finish = resolve)),
+      );
+      renderWithCompanyCreate(request);
+      const dialog = await openModal(user);
+      await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      await act(async () => {
+        finish(null);
+      });
+      await user.keyboard('{Escape}');
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+  });
   // ─── Story #1876: effectiveAmount column ─────────────────────────────────
 
   describe('effectiveAmount column (Story #1876)', () => {
@@ -1951,7 +2219,7 @@ describe('InvoicesPage', () => {
 
       fireEvent.click((await screen.findAllByRole('link', { name: 'ACME Construction' }))[0]!);
 
-      expect(log.actions).toEqual(['PUSH /settings/vendors/v-1']);
+      expect(log.actions).toEqual(['PUSH /companies/v-1']);
       expect(log.states[0]).toEqual({ origin: { to: '/budget/invoices?status=pending' } });
     });
 

@@ -1872,20 +1872,20 @@
   "MNY-134": {
     "name": "Browse vendors with trade and contact details",
     "from": "/settings/vendors > table (Name, Trade, Contact; hidden Address, Notes, Date Added, Last Updated)",
-    "to": "Companies > Companies list (/companies, moved from /settings/vendors; flat A–Z by default; columns Name, Trade, Phone with call, Contact persons, Still to pay, Offers, Last on site; group by Trade optional)",
+    "to": "Companies > Companies list (/companies; flat A–Z; columns Name, Trade, Phone with Call, Contact persons, Last on site; Still to pay and Offers arrive with P4.12; hidden by default: Address, E-mail, Notes, Date added, Last updated)",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34)."
+    "note": "Flat A–Z stays the default; grouping by trade gave 18 headers for 40 companies on real data (R-M9). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2213: served at /companies; group by Trade dropped (the Trade chips filter instead)."
   },
   "MNY-135": {
     "name": "Search, filter, sort and paginate vendors",
     "from": "/settings/vendors > search box (name or trade), 'Trade' header filter, sortable Name / Trade / Date Added / Last Updated, pagination, column settings",
-    "to": "Companies > Companies list > list search (name, trade, contact persons, phone; German-aware), Trade chip, sort, paging",
+    "to": "Companies > Companies list (/companies) > list search (name, trade incl. translated trade names, contact persons, phone, e-mail; German-aware), Trade chips, sort incl. Last on site, paging",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Companies list); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (monthly use). #2197: the list search box stays mounted and focused while results reload and no keystroke is lost (local draft, 300 ms debounce). #2211: the list search ends with \"Search everywhere for …\", which opens the command search with the text. #2213: GET /api/vendors q uses the /api/search vendor matcher; translated trade names via tradeIds; the Trade header filter became chips."
   },
   "MNY-136": {
     "name": "Call or e-mail a vendor or vendor contact",
@@ -1893,15 +1893,15 @@
     "to": "Companies > Companies list > row Call button; Companies > Company page > primary 'Call', contact persons first; Global > Search results > Call",
     "change": "promoted",
     "gate": "none",
-    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2210: GET /api/search matches company name, trade, phone, e-mail and contact persons (name, phone, e-mail) and returns the call number (company phone, else the first contact person's); #2211: company results carry a Call button (tel:), Shift+Enter calls the active company."
+    "note": "J13: 7 taps with a dead end -> 2 taps + text. Global search covers company names, trades, contact persons and their phone numbers with German-aware matching (ä/ae, ö/oe, ü/ue, ß/ss; 9 of 40 real company names carry umlauts or ß). #2197: the Contact column falls back to the first contact person's phone number (D-34). #2210: GET /api/search matches company name, trade, phone, e-mail and contact persons (name, phone, e-mail) and returns the call number (company phone, else the first contact person's); #2211: company results carry a Call button (tel:), Shift+Enter calls the active company. #2213: shared CallButton in list rows and phone cards (tel:), the same component in the command search; e-mail stays on the Company page and as the hidden E-mail column."
   },
   "MNY-137": {
     "name": "Create a vendor",
     "from": "/settings/vendors > 'Add Vendor' / 'Add First Vendor' > modal (name*, trade, phone, email, address, notes) | /budget/invoices/new/paperless > vendor picker 'Add new vendor'",
-    "to": "Global > New menu > Company; Companies > Companies list > primary 'New company'; inline 'New company' in every company picker",
+    "to": "Global > New menu > Company (/companies/new); Companies > Companies list > primary 'New company'; inline 'New company ‹text›' in company search pickers",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2212 (interim until 5.10b): Global › New menu › Company → Companies list › today's create modal (?create=1)."
+    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2213: one ObjectForm create dialog (route /companies/new); pickers open the same form in place."
   },
   "MNY-138": {
     "name": "Delete a vendor",
@@ -1910,7 +1910,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Companies > Company page); every old URL redirects there in one hop.",
-    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Companies › Company page › Delete; Companies › Companies list › row Delete (ConfirmDialog with counts)."
+    "note": "Moves to Companies, the one home of its object (principle 2); the old URL keeps working (rare use). #2209: Companies › Company page › Delete; Companies › Companies list › row Delete (ConfirmDialog with counts). #2213: list row ⋯ (OverflowMenu) > Delete; Company page header ⋯ > Delete; both ConfirmDialog with counts."
   },
   "MNY-139": {
     "name": "See a vendor's invoice count and outstanding balance",
@@ -4007,26 +4007,29 @@
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
     "from": "/settings/manage?tab=trades > \"Create New Trade\": Trade Name, Color, Sort Order, Description > \"Create Trade\" | Settings > Manage > Trades tab",
-    "to": "Companies > Trades sheet (list with company counts; New, Rename, Merge, Delete) — Settings > Project setup keeps a pointer row (owner, 7 Oct)",
-    "change": "same",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them.",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
   },
   "PLT-099": {
     "name": "Edit a trade inline",
     "from": "/settings/manage?tab=trades > row \"Edit\" > inline form > \"Save\"",
-    "to": "Companies > Trades sheet (list with company counts; New, Rename, Merge, Delete) — Settings > Project setup keeps a pointer row (owner, 7 Oct)",
-    "change": "same",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only).",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
   },
   "PLT-100": {
     "name": "Delete a trade",
     "from": "/settings/manage?tab=trades > row \"Delete\" > dialog > \"Delete Trade\"",
-    "to": "Companies > Trades sheet (list with company counts; New, Rename, Merge, Delete) — Settings > Project setup keeps a pointer row (owner, 7 Oct)",
-    "change": "same",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "change": "moved",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Delete is blocked while companies use the trade, with 'Merge instead'.",
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
   },
   "PLT-101": {
     "name": "See predefined trades and categories in the interface language",
@@ -4034,7 +4037,7 @@
     "to": "Global > all pickers (trade, category) and Settings > Project setup lists > translated defaults — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
-    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases."
+    "note": "Implicit; visible wherever the lists are used. Mixed-language duplicates in the household's own lists (the same trade under an English and a German name) are a data clean-up for the owner (VRS-18), not a code change. Glossary v1 (#2192): Trade/Gewerk, Cost category/Kostenkategorie and Purchase category/Anschaffungskategorie are the canonical names of these lists; the former names (Budget category, Household item category, Specialty) stay permanent search aliases. #2213: renaming a built-in trade, cost category or purchase category clears its translation key, so the typed name shows in every locale."
   },
   "PLT-102": {
     "name": "Create a photo orientation (viewing direction) with description and sort order",

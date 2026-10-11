@@ -23,6 +23,15 @@ export interface Vendor {
   updatedAt: string;
 }
 
+export const VENDOR_SORT_FIELDS = [
+  'name',
+  'trade',
+  'last_on_site',
+  'created_at',
+  'updated_at',
+] as const;
+export type VendorSortField = (typeof VENDOR_SORT_FIELDS)[number];
+
 /**
  * Vendor row as returned by GET /api/vendors (list only).
  */
@@ -33,6 +42,10 @@ export interface VendorListItem extends Vendor {
    * so plain `Vendor` objects (pickers, test mocks) stay assignable.
    */
   firstContactPhone?: string | null;
+  /** Contact persons of the company. Always sent by GET /api/vendors (#2213). */
+  contactCount?: number;
+  /** YYYY-MM-DD of the latest saved daily log naming the company; null when none (#2213). */
+  lastOnSite?: string | null;
 }
 
 /**
@@ -77,8 +90,10 @@ export interface VendorListQuery {
   page?: number;
   pageSize?: number;
   q?: string;
+  /** Comma-separated trade ids whose translated name matched `q` client-side (#2213). */
+  tradeIds?: string;
   tradeId?: string;
-  sortBy?: 'name' | 'trade' | 'created_at' | 'updated_at';
+  sortBy?: VendorSortField;
   sortOrder?: 'asc' | 'desc';
 }
 

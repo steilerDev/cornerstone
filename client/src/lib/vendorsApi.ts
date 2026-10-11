@@ -33,6 +33,12 @@ export function fetchVendors(params?: VendorListQuery): Promise<VendorListRespon
   if (params?.q) {
     queryParams.set('q', params.q);
   }
+  if (params?.tradeId) {
+    queryParams.set('tradeId', params.tradeId);
+  }
+  if (params?.tradeIds) {
+    queryParams.set('tradeIds', params.tradeIds);
+  }
   if (params?.sortBy) {
     queryParams.set('sortBy', params.sortBy);
   }

@@ -8,12 +8,14 @@ const mockFetchTrades = jest.fn<() => Promise<unknown>>();
 const mockCreateTrade = jest.fn<() => Promise<unknown>>();
 const mockUpdateTrade = jest.fn<() => Promise<unknown>>();
 const mockDeleteTrade = jest.fn<() => Promise<unknown>>();
+const mockMergeTrade = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 
 jest.unstable_mockModule('../lib/tradesApi.js', () => ({
   fetchTrades: mockFetchTrades,
   createTrade: mockCreateTrade,
   updateTrade: mockUpdateTrade,
   deleteTrade: mockDeleteTrade,
+  mergeTrade: mockMergeTrade,
 }));
 
 class MockApiClientError extends Error {
@@ -65,6 +67,7 @@ beforeEach(async () => {
   mockCreateTrade.mockReset();
   mockUpdateTrade.mockReset();
   mockDeleteTrade.mockReset();
+  mockMergeTrade.mockReset();
 
   // Default: returns empty list
   mockFetchTrades.mockResolvedValue({ trades: [] });
@@ -83,6 +86,43 @@ describe('useTrades', () => {
     expect(result.current.isLoading).toBe(true);
     expect(result.current.trades).toEqual([]);
     expect(result.current.error).toBeNull();
+  });
+
+  it('isInitialLoading is true until the first response arrives (#2213)', async () => {
+    const { result } = renderHook(() => useTrades());
+
+    expect(result.current.isInitialLoading).toBe(true);
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
+  });
+
+  it('isInitialLoading becomes false after a failed first fetch too', async () => {
+    mockFetchTrades.mockReset();
+    mockFetchTrades.mockRejectedValueOnce(new Error('boom'));
+
+    const { result } = renderHook(() => useTrades());
+
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
+    expect(result.current.error).not.toBeNull();
+  });
+
+  it('isInitialLoading stays false on a refetch while isLoading turns true (#2213)', async () => {
+    let release: (value: unknown) => void = () => {};
+    const { result } = renderHook(() => useTrades());
+    await waitFor(() => expect(result.current.isInitialLoading).toBe(false));
+
+    mockFetchTrades.mockImplementationOnce(() => new Promise((resolve) => (release = resolve)));
+    act(() => {
+      result.current.refetch();
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(true));
+    expect(result.current.isInitialLoading).toBe(false);
+
+    await act(async () => {
+      release({ trades: [] });
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isInitialLoading).toBe(false);
   });
 
   it('fetches trades on mount and stores results', async () => {
@@ -371,6 +411,45 @@ describe('useTrades', () => {
       await act(async () => {
         try {
           await result.current.deleteTrade('t1');
+        } catch (err) {
+          thrown = err;
+        }
+      });
+
+      expect(thrown).toBe(failure);
+      expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  describe('mergeTrade() (#2213)', () => {
+    it('calls mergeTrade with the ids, returns the result and refetches', async () => {
+      const merged = { trade: { ...makeTrade('t2'), vendorCount: 3 }, movedVendorCount: 2 };
+      mockMergeTrade.mockResolvedValueOnce(merged);
+
+      const { result } = renderHook(() => useTrades());
+      await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
+
+      let returned: unknown;
+      await act(async () => {
+        returned = await result.current.mergeTrade('t1', 't2');
+      });
+
+      expect(mockMergeTrade).toHaveBeenCalledWith('t1', 't2');
+      expect(returned).toBe(merged);
+      await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(2));
+    });
+
+    it('rejects with the original error and does not refetch when mergeTrade throws', async () => {
+      const failure = new Error('Gone');
+      mockMergeTrade.mockRejectedValueOnce(failure);
+
+      const { result } = renderHook(() => useTrades());
+      await waitFor(() => expect(mockFetchTrades).toHaveBeenCalledTimes(1));
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await result.current.mergeTrade('t1', 't2');
         } catch (err) {
           thrown = err;
         }

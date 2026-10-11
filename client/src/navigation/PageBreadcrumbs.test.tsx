@@ -197,14 +197,14 @@ describe('PageBreadcrumbs', () => {
     it('shows the Money and Invoices trail and Back to a company origin on an invoice', () => {
       renderAt('/budget/invoices/i-1', {
         state: originStateFor(
-          { pathname: '/settings/vendors/v-1', search: '', hash: '' },
+          { pathname: '/companies/v-1', search: '', hash: '' },
           'Synthetic Builders',
         ),
       });
 
       const back = screen.getByTestId('breadcrumbs-back');
       expect(back).toHaveTextContent('Back to Synthetic Builders');
-      expect(back).toHaveAttribute('href', '/settings/vendors/v-1');
+      expect(back).toHaveAttribute('href', '/companies/v-1');
       expect(trailLabels()).toEqual(['Money', 'Invoices']);
       const nav = screen.getByRole('navigation', { name: 'You are here' });
       expect(within(nav).getByRole('link', { name: /Money/ })).toHaveAttribute(
@@ -271,13 +271,10 @@ describe('PageBreadcrumbs', () => {
     });
 
     it('shows the Companies trail on the company page', () => {
-      renderAt('/settings/vendors/v-1');
+      renderAt('/companies/v-1');
 
       expect(trailLabels()).toEqual(['Companies']);
-      expect(screen.getByRole('link', { name: /Companies/ })).toHaveAttribute(
-        'href',
-        '/settings/vendors',
-      );
+      expect(screen.getByRole('link', { name: /Companies/ })).toHaveAttribute('href', '/companies');
     });
   });
 

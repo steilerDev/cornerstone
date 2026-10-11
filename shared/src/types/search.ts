@@ -80,4 +80,5 @@ export interface SearchQuery {
   q: string;
   types?: string;
   limit?: number;
+  tradeIds?: string;
 }

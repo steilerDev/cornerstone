@@ -1,37 +1,35 @@
 /**
- * E2E tests for Vendor/Contractor Management (Story #143, migrated Story #1283)
+ * E2E tests for Company (vendor) management: the Companies list and the Company page.
  *
- * Story #1283: Vendors moved from Budget section to Settings section.
- * - New canonical URL: /settings/vendors (and /settings/vendors/:id)
- * - Legacy redirects: /budget/vendors → /settings/vendors
- *                     /budget/vendors/:id → /settings/vendors/:id
+ * #2213 moved the list from Settings to `/companies` (the old URLs redirect, see
+ * companies-redirects.spec.ts). The create dialog is the shared ObjectForm at `/companies/new`,
+ * row and header actions are OverflowMenus, the Trade filter is a chip group. Search, chips,
+ * Call buttons and the Trades sheet have their own specs in `tests/companies/`.
  *
- * UAT Scenarios covered:
- * - Scenario 1:  Empty state when no vendors exist
- * - Scenario 2:  Create a vendor — full details (happy path)
- * - Scenario 3:  Create a vendor — name only (minimal required fields)
- * - Scenario 4:  Create vendor fails — missing required name
- * - Scenario 5:  View vendor detail page with stats
- * - Scenario 6:  Edit vendor details — phone and notes
- * - Scenario 8:  Delete a vendor — no references (happy path)
+ * Scenarios covered here:
+ * - Scenario 1:  Empty state when no companies exist
+ * - Scenario 2:  Create a company - full details (happy path)
+ * - Scenario 3:  Create a company - name only
+ * - Scenario 4:  Create fails - missing required name (inline error, no alert)
+ * - Scenario 5:  Company page with stats
+ * - Scenario 6:  Edit company details
+ * - Scenario 8:  Delete - no references (list row menu and header menu)
  * - Scenario 9:  Delete blocked when invoices exist (409 via route mock)
- * - Scenario 11: Vendor list is paginated
- * - Scenario 12: Search vendors by name (case-insensitive)
- * - Scenario 13: Filter by trade name via search (EPIC-18: specialty replaced by trade)
- * - Scenario 14: List shows scannable key info (name, contact) — EPIC-18: specialty column removed
- * - Scenario 17: Responsive layout on mobile/tablet/desktop (no horizontal scroll)
- * - Navigation:  Vendors → Detail → "Companies" trail link
- * - Dark mode:   Page renders without layout breakage in dark mode
- * - Redirect:    Legacy /budget/vendors → /settings/vendors (Story #1283)
- * - Sidebar:     The Companies sidebar entry is the highlighted one (Story #1283, #2205)
+ * - Scenario 11: List is paginated
+ * - Scenario 12: Search by name (case-insensitive)
+ * - Scenario 13: Filter by trade name via search
+ * - Scenario 14: List shows scannable key info
+ * - Scenario 17: Responsive layout (no horizontal scroll)
+ * - Navigation, sidebar highlight, dark mode
  */
 
 import { test, expect } from '../../fixtures/auth.js';
 import type { Page } from '@playwright/test';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { VendorsPage, VENDORS_ROUTE } from '../../pages/VendorsPage.js';
+import { VendorsPage, COMPANIES_ROUTE } from '../../pages/VendorsPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers — create/delete vendors directly to keep tests isolated
@@ -73,7 +71,7 @@ async function deleteVendorViaApi(page: Page, id: string): Promise<void> {
 // Scenario 1: Empty state when no vendors exist
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
-  test('Empty state message and "Add Vendor" CTA shown when no vendors exist', async ({ page }) => {
+  test('Empty state and "New company" CTA shown when no companies exist', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     // Intercept the API to return an empty vendor list without mutating real data
@@ -99,15 +97,19 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
       // Then: The empty state is visible
       await expect(vendorsPage.emptyState).toBeVisible({ timeout: 8000 });
 
-      // And: The heading mentions "No vendors yet"
-      const emptyText = await vendorsPage.emptyState.textContent();
-      expect(emptyText?.toLowerCase()).toMatch(/no vendors yet/);
+      // And: The empty state says "No companies yet"
+      await expect(vendorsPage.emptyState).toContainText('No companies yet');
 
-      // And: An "Add Vendor" CTA button is visible inside the empty state
-      const ctaButton = vendorsPage.emptyState.getByRole('button', {
-        name: /Add.*Vendor|First Vendor/,
-      });
+      // And: it carries its own "New company" action, so the header button is gone
+      const ctaButton = vendorsPage.emptyState.getByRole('button', { name: 'New company' });
       await expect(ctaButton).toBeVisible();
+      await expect(vendorsPage.newCompanyButton).toHaveCount(0);
+
+      // And: the action opens the same dialog as the header button
+      await ctaButton.click();
+      await vendorsPage.createDialog.waitForOpen();
+      await expect(page).toHaveURL((url) => url.pathname === routeUrl('companyNew'));
+      await vendorsPage.createDialog.cancel();
     } finally {
       await page.unroute(`${API.vendors}*`);
     }
@@ -143,201 +145,127 @@ test.describe('Empty state (Scenario 1)', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: Create a vendor — full details (happy path)
+// Scenarios 2-4: Create a company (the New company dialog, #2213)
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor — full details (Scenario 2)', { tag: '@responsive' }, () => {
-  test('Create a vendor with all fields — appears in the vendor list', async ({
+test.describe('Create company (Scenarios 2-4)', { tag: '@responsive' }, () => {
+  test('Create a company with all fields - lands on its page and shows every value', async ({
     page,
     testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
-    let createdId: string | null = null;
+    const detailPage = new VendorDetailPage(page);
     const vendorName = `${testPrefix} Apex Construction LLC`;
 
+    await vendorsPage.goto();
+    await vendorsPage.waitForVendorsLoaded();
+    await vendorsPage.openCreateModal();
+
+    await vendorsPage.createVendor({
+      name: vendorName,
+      phone: '555-0123',
+      email: 'contact@example.com',
+      address: '1 Sample Lane, Exampleville',
+      notes: 'Primary contractor for foundation work',
+    });
+
+    // Then: the dialog closes and the new company page opens (replace: Back skips the dialog)
+    await expect(vendorsPage.createDialog.dialog).toBeHidden();
+    await expect(detailPage.pageTitle).toHaveText(vendorName);
+    await expect(page).toHaveURL(/\/companies\/[0-9a-f-]{36}$/);
+    const createdId = page.url().split('/').pop() as string;
+
     try {
-      // Given: I am on the Settings > Vendors page
+      const fields = await detailPage.getInfoFields();
+      expect(fields['Phone']).toContain('555-0123');
+      expect(fields['Email']).toContain('contact@example.com');
+      expect(fields['Address']).toBe('1 Sample Lane, Exampleville');
+      expect(fields['Notes']).toBe('Primary contractor for foundation work');
+
+      // And: the list shows the row with its Call button
       await vendorsPage.goto();
-      await vendorsPage.waitForVendorsLoaded();
-
-      // When: I click "Add Vendor"
-      await vendorsPage.openCreateModal();
-
-      // And: I fill in all fields (specialty/trade is set separately on the detail page;
-      // the create modal only supports name, phone, email, address, notes)
-      await vendorsPage.createVendor({
-        name: vendorName,
-        phone: '+1-555-234-5678',
-        email: 'contact@e2e-apex.example.com',
-        address: '123 Builder Lane, Springfield, IL 62701',
-        notes: 'Primary contractor for foundation work',
-      });
-
-      // Then: The modal closes
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
-
-      // And: The new vendor appears in the list
-      await vendorsPage.waitForVendorsLoaded();
-      const names = await vendorsPage.getVendorNames();
-      expect(names).toContain(vendorName);
-
-      // And: The list entry shows name and contact info
-      const row = await vendorsPage.getTableRowByName(vendorName);
-      if (row) {
-        const rowText = await row.textContent();
-        expect(rowText).toContain('+1-555-234-5678');
-
-        // Cleanup: locate the ID via API for deletion
-        const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
-        const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-        const found = body.vendors.find((v) => v.name === vendorName);
-        if (found) createdId = found.id;
-      }
+      await vendorsPage.search(vendorName);
+      await expect(vendorsPage.callLink(vendorName)).toHaveAttribute('href', 'tel:5550123');
     } finally {
-      if (createdId) await deleteVendorViaApi(page, createdId);
+      await deleteVendorViaApi(page, createdId);
     }
   });
 
-  test('Create modal closes and resets after successful creation', async ({ page, testPrefix }) => {
+  test('Create with only a name succeeds', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
-    let createdId: string | null = null;
-    const vendorName = `${testPrefix} Create Reset Test Vendor`;
+    const detailPage = new VendorDetailPage(page);
+    const vendorName = `${testPrefix} Name Only Company`;
 
+    await vendorsPage.goto();
+    await vendorsPage.waitForVendorsLoaded();
+    await vendorsPage.openCreateModal();
+    await vendorsPage.createVendor({ name: vendorName });
+
+    await expect(detailPage.pageTitle).toHaveText(vendorName);
+    const createdId = page.url().split('/').pop() as string;
     try {
       await vendorsPage.goto();
-      await vendorsPage.waitForVendorsLoaded();
-      await vendorsPage.openCreateModal();
-
-      // When: I fill the name and submit
-      await vendorsPage.createVendor({ name: vendorName });
-
-      // Then: The modal closes
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
-
-      // And: The "Add Vendor" button is still visible and enabled
-      await expect(vendorsPage.addVendorButton).toBeVisible();
-      await expect(vendorsPage.addVendorButton).toBeEnabled();
+      await vendorsPage.search(vendorName);
+      expect(await vendorsPage.getVendorNames()).toContain(vendorName);
     } finally {
-      const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
-      const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-      const found = body.vendors.find((v) => v.name === vendorName);
-      if (found) createdId = found.id;
-      if (createdId) await deleteVendorViaApi(page, createdId);
+      await deleteVendorViaApi(page, createdId);
     }
   });
-});
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3: Create a vendor — name only (minimal required fields)
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor — name only (Scenario 3)', { tag: '@responsive' }, () => {
-  test('Create vendor with only name — succeeds and appears in list', async ({
+  test('Saving an empty name shows an inline error, focuses the name field, and raises no alert', async ({
+    page,
+  }) => {
+    const vendorsPage = new VendorsPage(page);
+    await vendorsPage.goto();
+    await vendorsPage.openCreateModal();
+
+    await vendorsPage.createDialog.save();
+
+    await expect(vendorsPage.createDialog.fieldError('name')).toHaveText('Enter a name.');
+    await expect(vendorsPage.createDialog.field('name')).toBeFocused();
+    await expect(vendorsPage.createDialog.errorBanner).toHaveCount(0);
+    await expect(vendorsPage.createDialog.dialog).toBeVisible();
+
+    // And: typing a name clears the error
+    await vendorsPage.createDialog.field('name').fill('Temp Name');
+    await expect(vendorsPage.createDialog.fieldError('name')).toHaveCount(0);
+
+    await vendorsPage.createDialog.cancel();
+    // A dirty form asks before it closes
+    await vendorsPage.createDialog.discardConfirm.confirmAndWaitClosed();
+    await vendorsPage.createDialog.waitForClosed();
+  });
+
+  test('An invalid e-mail is reported on the e-mail field and the dialog stays open', async ({
     page,
     testPrefix,
   }) => {
     const vendorsPage = new VendorsPage(page);
-    let createdId: string | null = null;
-    const vendorName = `${testPrefix} Name Only Vendor`;
-
-    try {
-      await vendorsPage.goto();
-      await vendorsPage.waitForVendorsLoaded();
-      await vendorsPage.openCreateModal();
-
-      // When: I fill in only the name
-      await vendorsPage.createVendor({ name: vendorName });
-
-      // Then: The modal closes — vendor was created
-      await expect(vendorsPage.createModal).not.toBeVisible({ timeout: 8000 });
-
-      // And: The vendor appears in the list
-      await vendorsPage.waitForVendorsLoaded();
-      const names = await vendorsPage.getVendorNames();
-      expect(names).toContain(vendorName);
-    } finally {
-      const resp = await page.request.get(`${API.vendors}?q=${encodeURIComponent(vendorName)}`);
-      const body = (await resp.json()) as { vendors: VendorApiResponse[] };
-      const found = body.vendors.find((v) => v.name === vendorName);
-      if (found) createdId = found.id;
-      if (createdId) await deleteVendorViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Scenario 4: Create vendor fails — missing required name
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create vendor validation (Scenario 4)', { tag: '@responsive' }, () => {
-  test('"Add Vendor" submit button is disabled when name field is empty', async ({ page }) => {
-    const vendorsPage = new VendorsPage(page);
-
-    // Given: The Add Vendor modal is open
     await vendorsPage.goto();
-    await vendorsPage.waitForVendorsLoaded();
     await vendorsPage.openCreateModal();
 
-    // When: The Name field is empty (default state)
-    // Then: The submit button should be disabled
-    await expect(vendorsPage.createSubmitButton).toBeDisabled();
+    await vendorsPage.createVendor({ name: `${testPrefix} Bad Mail Co`, email: 'not-an-email' });
 
-    // Cleanup: close modal
-    await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible();
+    await expect(vendorsPage.createDialog.fieldError('email')).toHaveText(
+      'Enter a valid e-mail address.',
+    );
+    await expect(vendorsPage.createDialog.field('email')).toBeFocused();
+    await expect(vendorsPage.createDialog.dialog).toBeVisible();
   });
 
-  test('Submit button becomes enabled when name is filled in', async ({ page }) => {
+  test('Cancel closes the dialog without creating a company', async ({ page, testPrefix }) => {
     const vendorsPage = new VendorsPage(page);
+    const typed = `${testPrefix} Should Not Be Created`;
 
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
     await vendorsPage.openCreateModal();
+    await vendorsPage.createDialog.field('name').fill(typed);
+    await vendorsPage.createDialog.cancel();
+    await vendorsPage.createDialog.discardConfirm.confirmAndWaitClosed();
+    await vendorsPage.createDialog.waitForClosed();
 
-    // When: I type a name
-    await vendorsPage.createNameInput.fill('Test Vendor');
-
-    // Then: The submit button should be enabled
-    await expect(vendorsPage.createSubmitButton).toBeEnabled();
-
-    // Cleanup: close modal
-    await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible();
-  });
-
-  test('Clearing the name after typing disables the submit button again', async ({ page }) => {
-    const vendorsPage = new VendorsPage(page);
-
-    await vendorsPage.goto();
-    await vendorsPage.waitForVendorsLoaded();
-    await vendorsPage.openCreateModal();
-
-    // Fill then clear the name
-    await vendorsPage.createNameInput.fill('Temp Name');
-    await vendorsPage.createNameInput.fill('');
-
-    // Then: Submit button should be disabled again
-    await expect(vendorsPage.createSubmitButton).toBeDisabled();
-
-    await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible();
-  });
-
-  test('Cancel button closes the modal without creating a vendor', async ({ page }) => {
-    const vendorsPage = new VendorsPage(page);
-
-    await vendorsPage.goto();
-    await vendorsPage.waitForVendorsLoaded();
-
-    await vendorsPage.openCreateModal();
-    await vendorsPage.createNameInput.fill('Should Not Be Created');
-    await vendorsPage.createCancelButton.click();
-
-    // Modal closes
-    await expect(vendorsPage.createModal).not.toBeVisible();
-
-    // List does not contain the vendor name that was typed but not submitted
-    // Note: exact count check omitted — parallel tests may create/delete vendors
-    // concurrently, making a strict count comparison unreliable.
-    const namesAfter = await vendorsPage.getVendorNames();
-    expect(namesAfter).not.toContain('Should Not Be Created');
+    await vendorsPage.search(typed);
+    expect(await vendorsPage.getVendorNames()).not.toContain(typed);
   });
 });
 
@@ -375,10 +303,12 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
       await expect(page.getByRole('link', { name: vendorName }).first()).toBeVisible();
 
       // When: I click on the vendor name link
-      await vendorsPage.clickView(vendorName);
+      await vendorsPage.nameLink(vendorName).click();
 
       // Then: I am on the vendor detail page (wait for URL, not h1 which matches list page too)
-      await page.waitForURL(`**/settings/vendors/${createdId}`, { timeout: 15000 });
+      await page.waitForURL(
+        (url) => url.pathname === routeUrl('company', { id: createdId as string }),
+      );
 
       // Wait for the loading state to clear — CI runners can be slow and the
       // fetch + render may take longer than the default 7s timeout
@@ -446,7 +376,7 @@ test.describe('Vendor detail page (Scenario 5)', { tag: '@responsive' }, () => {
   test('Navigating to unknown vendor ID shows error state', async ({ page }) => {
     const detailPage = new VendorDetailPage(page);
 
-    await page.goto('/settings/vendors/nonexistent-vendor-id-12345');
+    await page.goto(routeUrl('company', { id: 'nonexistent-company-id-12345' }));
 
     // Then: An error card is shown
     await expect(detailPage.errorCard).toBeVisible({ timeout: 8000 });
@@ -570,7 +500,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // Given: A vendor exists with no invoices
     const createdId = await createVendorViaApi(page, { name: vendorName });
 
-    // When: I navigate to Settings > Vendors and search for this vendor
+    // When: I open the Companies list and search for this company
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
     await vendorsPage.search(vendorName);
@@ -578,7 +508,7 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     const namesBefore = await vendorsPage.getVendorNames();
     expect(namesBefore).toContain(vendorName);
 
-    // And: I click Delete on the vendor
+    // And: I choose Delete from the row's ⋯ menu
     await vendorsPage.openDeleteModal(vendorName);
 
     // Then: The modal is visible
@@ -593,10 +523,14 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // Then: The modal closes
     await expect(vendorsPage.deleteModal).not.toBeVisible({ timeout: 8000 });
 
-    // And: The vendor is removed from the list
+    // And: The company is removed from the list
     await vendorsPage.waitForVendorsLoaded();
     const namesAfter = await vendorsPage.getVendorNames();
     expect(namesAfter).not.toContain(vendorName);
+
+    // And: the search showed only this company, so focus lands on the page heading, never the body
+    await expect(vendorsPage.heading).toBeFocused();
+    await expect(page.locator('body')).not.toBeFocused();
 
     // Note: vendor was deleted via UI — no API cleanup needed
     void createdId;
@@ -625,27 +559,33 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     }
   });
 
-  test('Delete from detail page — navigates back to vendor list after confirmation', async ({
+  test('Delete from the company page header menu - lands on the list and Back does not return', async ({
     page,
     testPrefix,
   }) => {
     const detailPage = new VendorDetailPage(page);
+    const vendorsPage = new VendorsPage(page);
 
-    // Given: A vendor exists
+    // Given: A company exists and the user came from the list
     const createdId = await createVendorViaApi(page, {
       name: `${testPrefix} Detail Delete Vendor`,
     });
+    await vendorsPage.goto();
+    await page.goto(routeUrl('company', { id: createdId }));
+    await detailPage.pageTitle.waitFor({ state: 'visible' });
 
-    // When: I navigate to its detail page and click Delete
-    await detailPage.goto(createdId);
+    // When: I open the header ⋯ menu, choose Delete and confirm
+    await expect(page.getByRole('button', { name: 'Delete', exact: true })).toHaveCount(0);
     await detailPage.openDeleteModal();
-
-    // And: I confirm
     await detailPage.confirmDelete();
 
-    // Then: I am redirected to the vendors list (new canonical URL)
-    await page.waitForURL('**/settings/vendors', { timeout: 15000 });
-    expect(page.url()).toContain('/settings/vendors');
+    // Then: I am on the Companies list with focus on the page heading
+    await page.waitForURL((url) => url.pathname === routeUrl('companies'));
+    await expect(vendorsPage.heading).toBeFocused();
+
+    // And: the deleted page is not in the history (replace)
+    await page.goBack();
+    await expect(page).not.toHaveURL(new RegExp(createdId));
 
     // Note: vendor was deleted via UI — no API cleanup needed
     void createdId;
@@ -696,7 +636,7 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
       // Then: Error message appears in the modal
       const errorText = await vendorsPage.getDeleteErrorText();
       expect(errorText).toBeTruthy();
-      expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|invoices|in use/);
+      expect(errorText?.toLowerCase()).toMatch(/can't be deleted|invoices|in use/);
 
       // And: The "Delete" confirm button is hidden (409 blocks the action)
       await expect(vendorsPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
@@ -750,10 +690,10 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
       // Error shown in modal
       const errorText = await detailPage.getDeleteErrorText();
       expect(errorText).toBeTruthy();
-      expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|invoices/);
+      expect(errorText?.toLowerCase()).toMatch(/can't be deleted|invoices/);
 
-      // Still on detail page (new canonical URL)
-      expect(page.url()).toContain(`/settings/vendors/${createdId}`);
+      // Still on the company page
+      expect(new URL(page.url()).pathname).toBe(routeUrl('company', { id: createdId }));
 
       // Confirm button hidden
       await expect(detailPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
@@ -984,7 +924,10 @@ test.describe('Search by trade name (Scenario 13)', { tag: '@responsive' }, () =
 // Note: specialty column was removed in EPIC-18. Table now shows Name, Phone, Email, Actions.
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () => {
-  test('Table row shows vendor name, phone, and email', async ({ page, testPrefix }) => {
+  test('Row shows the company name and a Call button with its phone', async ({
+    page,
+    testPrefix,
+  }) => {
     // Table is hidden on mobile (< 768px) — cards are shown instead
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 768) {
@@ -1008,20 +951,17 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       // Search to find this vendor specifically
       await vendorsPage.search(vendorName);
 
-      const row = await vendorsPage.getTableRowByName(vendorName);
-      expect(row).not.toBeNull();
-
-      if (row) {
-        const rowText = await row.textContent();
-        expect(rowText).toContain('+1-555-333-4444');
-        expect(rowText).toContain('fullinfo@e2e-test.example.com');
-      }
+      await expect(vendorsPage.nameLink(vendorName)).toHaveText(vendorName);
+      await expect(vendorsPage.row(vendorName)).toContainText('+1-555-333-4444');
+      await expect(vendorsPage.callLink(vendorName)).toHaveAttribute('href', 'tel:+15553334444');
+      // E-mail is a hidden-by-default column
+      await expect(vendorsPage.row(vendorName)).not.toContainText('fullinfo@e2e-test.example.com');
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
   });
 
-  test('Table has correct column headers: Name, Trade, Contact', async ({ page, testPrefix }) => {
+  test('Table has the default column headers, in order', async ({ page, testPrefix }) => {
     // Table is hidden on mobile (< 768px) — cards are shown instead
     const viewport = page.viewportSize();
     if (viewport && viewport.width < 768) {
@@ -1038,13 +978,17 @@ test.describe('List shows key info (Scenario 14)', { tag: '@responsive' }, () =>
       await vendorsPage.goto();
       await vendorsPage.waitForVendorsLoaded();
 
-      // Table headers should be present (Specialty/Phone/Email columns merged into Contact in EPIC-18)
-      // VendorsPage DataTable columns: Name, Trade, Contact (combined phone/email), Address (hidden),
-      // Notes (hidden), createdAt (hidden), updatedAt (hidden). Default-visible: Name, Trade, Contact.
-      const table = vendorsPage.tableContainer.locator('table');
-      await expect(table.getByRole('columnheader', { name: 'Name' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Trade' })).toBeVisible();
-      await expect(table.getByRole('columnheader', { name: 'Contact' })).toBeVisible();
+      // Default columns: Name, Trade, Phone, Contact persons, Last on site (E-mail, Address,
+      // Notes, Date added and Last updated are hidden by default), then the row-actions column
+      // (its header is visually hidden text).
+      await expect(vendorsPage.tableContainer.locator('thead th')).toHaveText([
+        /^Name/,
+        /^Trade/,
+        /^Phone/,
+        /^Contact persons/,
+        /^Last on site/,
+        /^Actions$/,
+      ]);
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1076,35 +1020,34 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
       await expect(page.getByRole('link', { name: vendorName }).first()).toBeVisible();
 
       // Navigate to detail (wait for URL change, not h1 which matches list page too)
-      await vendorsPage.clickView(vendorName);
-      await page.waitForURL('**/settings/vendors/*', { timeout: 15000 });
+      await vendorsPage.nameLink(vendorName).click();
+      await page.waitForURL(/\/companies\/[0-9a-f-]{36}$/);
 
       // Wait for detail page to fully render before interacting with back button
       await expect(detailPage.infoCard).toBeVisible({ timeout: 15000 });
 
       // Navigate back via back button
       await detailPage.goBackToVendors();
-      expect(page.url()).toContain('/settings/vendors');
+      expect(new URL(page.url()).pathname).toBe(routeUrl('companies'));
       await vendorsPage.heading.waitFor({ state: 'visible', timeout: 15000 });
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
   });
 
-  test('Page URL is /settings/vendors', async ({ page }) => {
+  test('Page URL is /companies', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();
-    await page.waitForURL(VENDORS_ROUTE, { timeout: 15000 });
-    expect(page.url()).toContain('/settings/vendors');
+    expect(new URL(page.url()).pathname).toBe(COMPANIES_ROUTE);
   });
 
-  test('Page heading is "Vendors" (h1)', { tag: '@smoke' }, async ({ page }) => {
+  test('Page heading is "Companies" (h1)', { tag: '@smoke' }, async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
     await vendorsPage.goto();
     await expect(vendorsPage.heading).toBeVisible();
-    await expect(vendorsPage.heading).toHaveText('Vendors');
+    await expect(vendorsPage.heading).toHaveText('Companies');
 
     // Verify the right page loaded: the Companies sidebar entry is the highlighted one (#2205).
     await expect(new AppShellPage(page).sectionLink('companies')).toHaveAttribute(
@@ -1115,64 +1058,13 @@ test.describe('Navigation between list and detail pages', { tag: '@responsive' }
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Story #1283: Legacy redirect tests
-// /budget/vendors → /settings/vendors
-// /budget/vendors/:id → /settings/vendors/:id
-// ─────────────────────────────────────────────────────────────────────────────
-test.describe('Legacy redirect: /budget/vendors → /settings/vendors (Story #1283)', () => {
-  test('Navigating to /budget/vendors redirects to /settings/vendors', async ({ page }) => {
-    const vendorsPage = new VendorsPage(page);
-
-    // When: the user navigates to the old Budget > Vendors URL
-    await page.goto('/budget/vendors');
-
-    // Then: they are redirected to the new canonical Settings > Vendors URL
-    await page.waitForURL('**/settings/vendors', { timeout: 15000 });
-    expect(page.url()).toContain('/settings/vendors');
-    expect(page.url()).not.toContain('/budget/vendors');
-
-    // And: The vendors page heading is visible (page loaded correctly)
-    await expect(vendorsPage.heading).toBeVisible({ timeout: 8000 });
-  });
-
-  test('Navigating to /budget/vendors/:id redirects to /settings/vendors/:id', async ({
-    page,
-    testPrefix,
-  }) => {
-    const detailPage = new VendorDetailPage(page);
-    let createdId: string | null = null;
-
-    try {
-      // Given: A vendor exists (real ID needed for the redirect to resolve correctly)
-      createdId = await createVendorViaApi(page, {
-        name: `${testPrefix} Redirect Detail Vendor`,
-      });
-
-      // When: the user navigates to the old /budget/vendors/:id URL
-      await page.goto(`/budget/vendors/${createdId}`);
-
-      // Then: they are redirected to the new canonical /settings/vendors/:id URL
-      await page.waitForURL(`**/settings/vendors/${createdId}`, { timeout: 15000 });
-      expect(page.url()).toContain(`/settings/vendors/${createdId}`);
-      expect(page.url()).not.toContain('/budget/vendors');
-
-      // And: The vendor detail page loads correctly
-      await expect(detailPage.pageTitle).toBeVisible({ timeout: 8000 });
-      await expect(detailPage.pageTitle).toHaveText(`${testPrefix} Redirect Detail Vendor`);
-    } finally {
-      if (createdId) await deleteVendorViaApi(page, createdId);
-    }
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
 // Story #1283 / #2205: the Companies sidebar entry is active; the page has no tab row
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Companies sidebar entry is active on the vendors page (Story #1283, #2205)', () => {
+test.describe('Companies sidebar entry is active on the Companies list (#2205, #2213)', () => {
   test('Companies is the one highlighted entry and the page has no tab row', async ({ page }) => {
     const shell = new AppShellPage(page);
-    // When: the user is on the Settings > Vendors page
-    await page.goto(VENDORS_ROUTE);
+    // When: the user is on the Companies list
+    await page.goto(COMPANIES_ROUTE);
     await new VendorsPage(page).heading.waitFor({ state: 'visible' });
 
     // Then: exactly one sidebar entry is current: Companies (not Settings)
@@ -1248,12 +1140,15 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
         phone: '+1-555-100-2000',
       });
 
-      await vendorsPage.goto();
-      await vendorsPage.waitForVendorsLoaded();
+      await vendorsPage.goto({ q: `${testPrefix} Mobile Card` });
 
-      // On mobile, at least one card should be visible
-      const cards = await vendorsPage.getCards();
-      expect(cards.length).toBeGreaterThan(0);
+      // On mobile the company is a card (the table is hidden), with its Call button
+      await expect(vendorsPage.cardsContainer).toBeVisible();
+      await expect(vendorsPage.tableContainer).toBeHidden();
+      await expect(vendorsPage.row(`${testPrefix} Mobile Card Vendor`)).toBeVisible();
+      await expect(vendorsPage.callLink(`${testPrefix} Mobile Card Vendor`)).toContainText(
+        'Call +1-555-100-2000',
+      );
     } finally {
       if (createdId) await deleteVendorViaApi(page, createdId);
     }
@@ -1286,22 +1181,31 @@ test.describe('Responsive layout (Scenario 17)', { tag: '@responsive' }, () => {
     }
   });
 
-  test('Create modal fields are usable on current viewport', async ({ page }) => {
+  test('New company dialog fields are usable on current viewport', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
+    const dialog = vendorsPage.createDialog;
 
     await vendorsPage.goto();
     await vendorsPage.waitForVendorsLoaded();
     await vendorsPage.openCreateModal();
 
-    // All required form inputs visible
-    await expect(vendorsPage.createNameInput).toBeVisible();
-    await expect(vendorsPage.createTradeSelect).toBeVisible();
-    await expect(vendorsPage.createPhoneInput).toBeVisible();
-    await expect(vendorsPage.createEmailInput).toBeVisible();
-    await expect(vendorsPage.createSubmitButton).toBeVisible();
+    // Essentials first: name and trade; the rest sits behind "More details"
+    await expect(dialog.field('name')).toBeVisible();
+    await expect(dialog.field('tradeId')).toBeVisible();
+    await expect(dialog.field('phone')).toBeHidden();
+    await dialog.expandMoreDetails();
+    await expect(dialog.field('phone')).toBeVisible();
+    await expect(dialog.field('email')).toBeVisible();
+    await expect(dialog.saveButton).toBeVisible();
 
-    await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible();
+    // The dialog never scrolls the page sideways
+    const hasHorizontalScroll = await page.evaluate(
+      () => document.documentElement.scrollWidth > window.innerWidth,
+    );
+    expect(hasHorizontalScroll).toBe(false);
+
+    await dialog.cancel();
+    await dialog.waitForClosed();
   });
 });
 
@@ -1312,7 +1216,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
   test('Vendors list page renders correctly in dark mode', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    await page.goto(VENDORS_ROUTE);
+    await page.goto(COMPANIES_ROUTE);
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1329,10 +1233,10 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Add Vendor modal is usable in dark mode', async ({ page }) => {
+  test('New company dialog is usable in dark mode', async ({ page }) => {
     const vendorsPage = new VendorsPage(page);
 
-    await page.goto(VENDORS_ROUTE);
+    await page.goto(COMPANIES_ROUTE);
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
@@ -1340,12 +1244,12 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     await vendorsPage.heading.waitFor({ state: 'visible', timeout: 8000 });
     await vendorsPage.openCreateModal();
 
-    // Modal inputs should be visible in dark mode
-    await expect(vendorsPage.createNameInput).toBeVisible();
-    await expect(vendorsPage.createSubmitButton).toBeVisible();
+    // Dialog inputs should be visible in dark mode
+    await expect(vendorsPage.createDialog.field('name')).toBeVisible();
+    await expect(vendorsPage.createDialog.saveButton).toBeVisible();
 
-    await vendorsPage.createCancelButton.click();
-    await expect(vendorsPage.createModal).not.toBeVisible();
+    await vendorsPage.createDialog.cancel();
+    await vendorsPage.createDialog.waitForClosed();
   });
 
   test('Vendor detail page renders correctly in dark mode', async ({ page, testPrefix }) => {
@@ -1357,7 +1261,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
         name: `${testPrefix} Dark Mode Detail Vendor`,
       });
 
-      await page.goto(`/settings/vendors/${createdId}`);
+      await page.goto(routeUrl('company', { id: createdId }));
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });
@@ -1366,7 +1270,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
 
       await expect(detailPage.pageTitle).toBeVisible();
       await expect(detailPage.editButton).toBeVisible();
-      await expect(detailPage.deleteButton).toBeVisible();
+      await expect(detailPage.actionsTrigger).toBeVisible();
 
       const hasHorizontalScroll = await page.evaluate(() => {
         return document.documentElement.scrollWidth > window.innerWidth;
@@ -1385,7 +1289,7 @@ test.describe('Dark mode rendering', { tag: '@responsive' }, () => {
     try {
       createdId = await createVendorViaApi(page, { name: vendorName });
 
-      await page.goto(VENDORS_ROUTE);
+      await page.goto(COMPANIES_ROUTE);
       await page.evaluate(() => {
         document.documentElement.setAttribute('data-theme', 'dark');
       });

@@ -53,8 +53,15 @@ afterEach(() => {
   jest.useRealTimers();
 });
 
-function setup(initialQuery = '') {
-  return renderHook(() => useCommandSearchQuery({ initialQuery, onUnauthorized, firstOptionId }));
+function setup(initialQuery = '', resolveTradeIds?: (trimmedQuery: string) => readonly string[]) {
+  return renderHook(() =>
+    useCommandSearchQuery({
+      initialQuery,
+      onUnauthorized,
+      firstOptionId,
+      ...(resolveTradeIds ? { resolveTradeIds } : {}),
+    }),
+  );
 }
 
 function last(): Call {
@@ -709,6 +716,73 @@ describe('useCommandSearchQuery', () => {
       const more = last();
       hook.unmount();
       expect(more.signal!.aborted).toBe(true);
+    });
+  });
+
+  describe('resolveTradeIds (#2213)', () => {
+    it('sends the resolved ids with the debounced request, called with the trimmed text', async () => {
+      const resolve = jest.fn((q: string) => (q === 'roof' ? ['t1', 't2'] : []));
+      const hook = setup('', resolve);
+
+      await type(hook, '  roof ');
+      await advance(SEARCH_DEBOUNCE_MS);
+
+      expect(resolve).toHaveBeenCalledWith('roof');
+      expect(last().params).toEqual({ q: 'roof', tradeIds: ['t1', 't2'] });
+    });
+
+    it('sends the resolved ids with an initial query', () => {
+      setup('roof', () => ['t9']);
+      expect(last().params).toEqual({ q: 'roof', tradeIds: ['t9'] });
+    });
+
+    it('resolves again for every request, so later-loaded trades are used', async () => {
+      let ids: string[] = [];
+      const hook = setup('', () => ids);
+
+      await type(hook, 'roof');
+      await advance(SEARCH_DEBOUNCE_MS);
+      expect(last().params.tradeIds).toEqual([]);
+
+      ids = ['t1'];
+      await type(hook, 'roofs');
+      await advance(SEARCH_DEBOUNCE_MS);
+      expect(last().params.tradeIds).toEqual(['t1']);
+    });
+
+    it('sends the resolved ids with a retry', async () => {
+      const hook = setup('roof', () => ['t1']);
+      await act(async () => {
+        last().reject(new NetworkError('offline', null));
+      });
+      await act(async () => {
+        hook.result.current.retry();
+      });
+      expect(last().params).toEqual({ q: 'roof', tradeIds: ['t1'] });
+    });
+
+    it('sends the resolved ids when a group is expanded', async () => {
+      const hook = setup('roof', () => ['t1']);
+      const group = makeGroup('work_item', [makeItem({ id: 'a' })], { total: 5 });
+      await act(async () => {
+        last().resolve(makeResponse('roof', { work_item: group }));
+      });
+      await act(async () => {
+        hook.result.current.showMore('work_item');
+      });
+      expect(last().params).toEqual({
+        q: 'roof',
+        types: ['work_item'],
+        limit: 20,
+        tradeIds: ['t1'],
+      });
+    });
+
+    it('sends no tradeIds when no resolver is given', async () => {
+      const hook = setup();
+      await type(hook, 'roof');
+      await advance(SEARCH_DEBOUNCE_MS);
+      expect(last().params).not.toHaveProperty('tradeIds', expect.anything());
     });
   });
 });

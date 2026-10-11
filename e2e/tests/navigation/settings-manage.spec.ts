@@ -4,7 +4,7 @@
  * The ManagePage (/settings/manage) has six tabs (Household added first, Story #1877):
  *   - Household (?tab=household) — household-wide name/address, feeds bank report cover letters
  *   - Areas  (?tab=areas)  — create/edit/delete areas for organizing work items
- *   - Trades (?tab=trades) — create/edit/delete trades for organizing vendors
+ *   - Trades (?tab=trades) — a pointer to the Trades sheet on the Companies page (#2213)
  *   - Orientations (?tab=orientations) — tag photos with a direction
  *   - Budget Categories (?tab=budget-categories) — managed by budget-categories.spec.ts
  *   - Household Item Categories (?tab=hi-categories) — household item classification
@@ -14,7 +14,7 @@
  * - Tab navigation: clicking each tab renders its panel
  * - URL sync: ?tab= query param sets the correct active tab on load
  * - Areas tab: create area happy path, area appears in list, delete area
- * - Trades tab: create trade happy path, trade appears in list, delete trade
+ * - Trades tab: the pointer panel and its link to /companies?trades=1
  * - HI Categories tab: create HI category, category appears in list, delete it
  * - Household tab (Story #1877): singleton settings form — load, dirty-gated save,
  *   persistence across reload, clearing fields, error banner on save failure
@@ -35,6 +35,7 @@
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import type { Page } from '@playwright/test';
 import { AppShellPage } from '../../pages/AppShellPage.js';
 import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
@@ -83,18 +84,6 @@ async function createAreaViaApi(page: Page, name: string): Promise<string> {
 
 async function deleteAreaViaApi(page: Page, id: string): Promise<void> {
   await page.request.delete(`/api/areas/${id}`);
-}
-
-async function createTradeViaApi(page: Page, name: string): Promise<string> {
-  const response = await page.request.post('/api/trades', { data: { name } });
-  if (!response.ok()) throw new Error(`POST /api/trades returned ${response.status()}`);
-  // Server returns { trade: { id, name, ... } }
-  const body = (await response.json()) as { trade: { id: string } };
-  return body.trade.id;
-}
-
-async function deleteTradeViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`/api/trades/${id}`);
 }
 
 async function createHICategoryViaApi(page: Page, name: string): Promise<string> {
@@ -197,17 +186,15 @@ test.describe('Tab navigation', { tag: '@responsive' }, () => {
     await expect(page).toHaveURL(/\?tab=areas/);
   });
 
-  test('Clicking Trades tab shows the Trades create form', async ({ page }) => {
+  test('Clicking Trades tab shows the pointer to the Trades sheet', async ({ page }) => {
     await page.goto(MANAGE_ROUTE);
     const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
     await heading.waitFor({ state: 'visible' });
 
     await page.getByRole('tab', { name: 'Trades' }).click();
 
-    // Trades create form heading appears
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Trade', exact: true }),
-    ).toBeVisible();
+    // The Trades tab is a pointer to the Companies page since #2213
+    await expect(page.getByTestId('manage-trades-open')).toBeVisible();
 
     await expect(page).toHaveURL(/\?tab=trades/);
   });
@@ -279,9 +266,7 @@ test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
 
     const tradesTab = page.getByRole('tab', { name: 'Trades' });
     await expect(tradesTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Trade', exact: true }),
-    ).toBeVisible();
+    await expect(page.getByTestId('manage-trades-open')).toBeVisible();
   });
 
   test('?tab=budget-categories loads the Budget Categories tab as active', async ({ page }) => {
@@ -630,122 +615,31 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Trades tab: CRUD
+// Trades tab: a pointer to the Trades sheet on the Companies page (#2213)
+// Trade CRUD, merge and translation checks live in companies/companies-trades-sheet.spec.ts.
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Trades tab — CRUD', { tag: '@responsive' }, () => {
-  test('Create trade — trade appears in the Existing Trades list', async ({ page, testPrefix }) => {
-    const tradeName = `${testPrefix} Test Trade`;
-    let tradeId = '';
-
-    try {
-      await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
-
-      const createHeading = page.getByRole('heading', {
-        level: 2,
-        name: 'Create New Trade',
-        exact: true,
-      });
-      await expect(createHeading).toBeVisible();
-
-      const nameInput = page.locator('#tradeName');
-      await nameInput.fill(tradeName);
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/trades') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 201,
-      );
-      await page.getByRole('button', { name: 'Create Trade', exact: true }).click();
-      const response = await responsePromise;
-      const body = (await response.json()) as { trade: { id: string } };
-      tradeId = body.trade.id;
-
-      // Success banner visible
-      const successBanner = page.locator('[class*="successBanner"][role="status"]');
-      await expect(successBanner).toBeVisible();
-
-      // Trade appears in the list
-      const panel = page.locator(`#${TRADES_PANEL_ID}`);
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).toContain(tradeName);
-    } finally {
-      if (tradeId) await deleteTradeViaApi(page, tradeId);
-    }
-  });
-
-  test('Existing Trades list shows default seeded trades', async ({ page }) => {
+test.describe('Trades tab — pointer to the Companies page', { tag: '@responsive' }, () => {
+  test('The panel says where Trades live and the link opens the Trades sheet', async ({ page }) => {
     await page.goto(`${MANAGE_ROUTE}?tab=trades`);
     await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
       state: 'visible',
     });
 
     const panel = page.locator(`#${TRADES_PANEL_ID}`);
-    const existingHeading = panel.getByRole('heading', { level: 2, name: /Existing Trades/ });
-    await expect(existingHeading).toBeVisible();
+    await expect(panel).toContainText('Trades are managed on the Companies page.');
+    // No create form, list or delete buttons remain on the tab
+    await expect(panel.getByRole('button')).toHaveCount(0);
+    await expect(panel.locator('#tradeName')).toHaveCount(0);
 
-    // At least some trades should exist from seeding (e.g., "Plumbing", "Electrical", etc.)
-    const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-    expect(itemNames.length).toBeGreaterThan(0);
-  });
+    const link = page.getByTestId('manage-trades-open');
+    await expect(link).toHaveText('Open Trades');
+    await link.click();
 
-  test('Delete trade — trade removed from list after confirmation', async ({
-    page,
-    testPrefix,
-  }) => {
-    const tradeName = `${testPrefix} Delete Trade`;
-    let tradeId = '';
-
-    try {
-      tradeId = await createTradeViaApi(page, tradeName);
-
-      await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
-
-      const panel = page.locator(`#${TRADES_PANEL_ID}`);
-      // Trade delete buttons only have text "Delete" (no aria-label with the name).
-      // Scope to the itemRow containing the trade name to target the right button.
-      const itemRow = panel.locator('[class*="itemRow"]').filter({ hasText: tradeName });
-      const deleteButton = itemRow.getByRole('button', { name: 'Delete', exact: true });
-      await deleteButton.waitFor({ state: 'visible' });
-      await deleteButton.click();
-
-      const modal = page.getByRole('alertdialog').filter({
-        has: page.getByTestId('trade-delete-cancel'),
-      });
-      await modal.waitFor({ state: 'visible' });
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/trades/${tradeId}`) && resp.request().method() === 'DELETE',
-      );
-      await modal.getByTestId('trade-delete-confirm').click();
-      await responsePromise;
-      await modal.waitFor({ state: 'hidden' });
-
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).not.toContain(tradeName);
-      tradeId = '';
-    } finally {
-      if (tradeId) await deleteTradeViaApi(page, tradeId);
-    }
-  });
-
-  test('Create trade fails — empty name shows create button disabled', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    // Button disabled when name is empty
-    const createButton = page.getByRole('button', { name: 'Create Trade', exact: true });
-    await expect(createButton).toBeDisabled();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('companies') && url.searchParams.get('trades') === '1',
+    );
+    await expect(page.getByRole('dialog', { name: 'Trades', exact: true })).toBeVisible();
   });
 });
 
@@ -940,9 +834,7 @@ test.describe('Dark mode', () => {
       ).toBeVisible();
 
       await page.getByRole('tab', { name: 'Trades' }).click();
-      await expect(
-        page.getByRole('heading', { level: 2, name: 'Create New Trade', exact: true }),
-      ).toBeVisible();
+      await expect(page.getByTestId('manage-trades-open')).toBeVisible();
 
       await page.getByRole('tab', { name: 'Areas' }).click();
       await expect(

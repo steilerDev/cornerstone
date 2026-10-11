@@ -52,6 +52,9 @@ jest.unstable_mockModule('./purchaseForm.js', () => ({
 jest.unstable_mockModule('./milestoneForm.js', () => ({
   useMilestoneFormSchema: () => schemaFor('milestone', 'New milestone', { date: 'targetDate' }),
 }));
+jest.unstable_mockModule('./companyForm.js', () => ({
+  useCompanyFormSchema: () => schemaFor('company', 'New company', undefined),
+}));
 
 const BACKGROUND = {
   pathname: '/project/work-items',
@@ -129,6 +132,7 @@ describe('ObjectFormRoutes', () => {
     ['/project/work-items/new', 'New task'],
     ['/project/household-items/new', 'New purchase'],
     ['/project/milestones/new', 'New milestone'],
+    ['/companies/new', 'New company'],
   ])('renders the form of %s', (path, heading) => {
     renderAt([{ pathname: path }]);
     expect(screen.getByRole('dialog', { name: heading })).toBeInTheDocument();
@@ -399,5 +403,66 @@ describe('ObjectFormRoutes', () => {
     renderAt(withBackground());
     await user.type(title(), 'kept');
     expect(title().value).toBe('kept');
+  });
+
+  describe('company dialog (#2213)', () => {
+    const companyBackground = {
+      pathname: '/companies',
+      search: '?trades=1',
+      hash: '',
+      key: 'cbg',
+      state: null,
+    };
+    const overCompanies = (extra: object = {}) => [
+      { pathname: '/companies', search: '?trades=1' },
+      {
+        pathname: '/companies/new',
+        state: { background: companyBackground, origin: { to: '/companies?trades=1' }, ...extra },
+      },
+    ];
+
+    it('opens as a dialog named "New company" and keeps the list as the page behind it', () => {
+      renderAt(overCompanies());
+      expect(screen.getByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+    });
+
+    it('Cancel with a background goes back to the list state you came from', async () => {
+      const user = userEvent.setup();
+      renderAt(overCompanies());
+      await user.click(screen.getByTestId('object-form-cancel'));
+      expect(screen.getByTestId('path')).toHaveTextContent('/companies?trades=1');
+      expect(screen.getByTestId('type')).toHaveTextContent('POP');
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('Cancel in deep-link mode replaces /companies/new with the companies list', async () => {
+      const user = userEvent.setup();
+      renderAt([{ pathname: '/companies/new' }]);
+      await user.click(screen.getByTestId('object-form-cancel'));
+      expect(screen.getByTestId('path').textContent).toBe('/companies');
+      expect(screen.getByTestId('type')).toHaveTextContent('REPLACE');
+    });
+
+    it('Save replaces the dialog entry with the new company page', async () => {
+      const user = userEvent.setup();
+      mockSubmit.mockResolvedValue({ id: 'c1', href: '/companies/c1', label: 'Sample Roofing Co' });
+      renderAt(overCompanies());
+      await user.type(title(), 'Sample Roofing Co');
+      await user.click(screen.getByTestId('object-form-save'));
+      await waitFor(() => expect(screen.getByTestId('path')).toHaveTextContent('/companies/c1'));
+      expect(screen.getByTestId('type')).toHaveTextContent('REPLACE');
+      expect(JSON.parse(screen.getByTestId('state').textContent ?? 'null')).toEqual({
+        origin: { to: '/companies?trades=1' },
+      });
+    });
+
+    it('a dirty form asks before it is discarded', async () => {
+      const user = userEvent.setup();
+      renderAt(overCompanies());
+      await user.type(title(), 'x');
+      await user.click(screen.getByTestId('object-form-cancel'));
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByTestId('path')).toHaveTextContent('/companies/new');
+    });
   });
 });

@@ -266,7 +266,7 @@ export function BudgetOverviewPage() {
             role="menuitem"
             onClick={() => {
               setAddOpen(false);
-              void navigate(routeUrl('vendors'));
+              void navigate(routeUrl('companies'));
             }}
             data-testid="budget-overview-add-vendor"
           >

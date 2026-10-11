@@ -41,11 +41,15 @@ export type {
   TradeSummary,
   TradeResponse,
   TradeListResponse,
+  TradeListItem,
+  TradeMergeRequest,
+  TradeMergeResponse,
   TradeSingleResponse,
   CreateTradeRequest,
   UpdateTradeRequest,
   TradeListQuery,
 } from './types/trade.js';
+export { TRADE_IDS_MAX, TRADE_ID_MAX_LENGTH } from './types/trade.js';
 
 // Orientations
 export type {
@@ -124,9 +128,11 @@ export type {
   CreateVendorRequest,
   UpdateVendorRequest,
   VendorListQuery,
+  VendorSortField,
   VendorCreateResponse,
   VendorDetailResponse,
 } from './types/vendor.js';
+export { VENDOR_SORT_FIELDS } from './types/vendor.js';
 
 // Vendor Contacts
 export type {

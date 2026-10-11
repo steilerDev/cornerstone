@@ -10,6 +10,7 @@ import type { SearchQuery, SearchResultType } from '@cornerstone/shared';
 import { UnauthorizedError, ValidationError } from '../errors/AppError.js';
 import { search } from '../services/searchService.js';
 import type { PaperlessSearchDeps } from '../services/searchService.js';
+import { parseTradeIds } from '../services/shared/tradeIdsParam.js';
 
 // JSON schema for GET /api/search. Unknown query parameters are stripped by ajv, not rejected.
 const searchSchema = {
@@ -21,6 +22,8 @@ const searchSchema = {
       q: { type: 'string', maxLength: 500 },
       types: { type: 'string', maxLength: 300 },
       limit: { type: 'integer', minimum: 1, maximum: SEARCH_MAX_LIMIT },
+      // Count and id length limits are enforced by parseTradeIds; this only caps the raw string.
+      tradeIds: { type: 'string', maxLength: 8000 },
     },
   },
 };
@@ -66,6 +69,7 @@ export default async function searchRoutes(fastify: FastifyInstance) {
 
       const types = parseTypes(request.query.types);
       const limit = request.query.limit ?? SEARCH_DEFAULT_LIMIT;
+      const tradeIds = parseTradeIds(request.query.tradeIds);
 
       const config = fastify.config;
       const paperless: PaperlessSearchDeps | null =
@@ -78,7 +82,7 @@ export default async function searchRoutes(fastify: FastifyInstance) {
             }
           : null;
 
-      const result = await search(fastify.db, { q, types, limit }, paperless);
+      const result = await search(fastify.db, { q, types, limit, tradeIds }, paperless);
       return reply.status(200).send(result);
     },
   );

@@ -256,7 +256,7 @@ describe('Sidebar', () => {
       ['/diary/e1/edit'],
       ['/photos/spot/a/b'],
       ['/project/overview'],
-      ['/settings/vendors/v1'],
+      ['/companies/v1'],
       ['/settings/manage'],
       ['/settings/profile'],
     ])('highlights one entry at %s', (path) => {
@@ -313,8 +313,8 @@ describe('Sidebar', () => {
       expect(hasView('settingsUsers')).toBe(false);
     });
 
-    it('does not highlight Settings on a company page that lives under /settings/vendors', () => {
-      renderAt('/settings/vendors/v1');
+    it('does not highlight Settings on a company page that lives under /companies', () => {
+      renderAt('/companies/v1');
 
       expect(section('companies')).toHaveClass('active');
       expect(section('settings')).not.toHaveAttribute('aria-current');

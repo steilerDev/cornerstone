@@ -908,4 +908,177 @@ describe('Trade Routes', () => {
       expect(body.trade.translationKey).toBeNull();
     });
   });
+
+  describe('GET /api/trades vendorCount (#2213)', () => {
+    it('returns the number of companies per trade', async () => {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      const a = createTestTrade('Alpha Trade', { sortOrder: 1 });
+      const b = createTestTrade('Beta Trade', { sortOrder: 2 });
+      createTestVendor(a.id);
+      createTestVendor(a.id);
+
+      const response = await app.inject({ method: 'GET', url: '/api/trades', headers: { cookie } });
+
+      const list = response.json<TradeListResponse>().trades;
+      expect(list.map((t) => [t.id, t.vendorCount])).toEqual([
+        [a.id, 2],
+        [b.id, 0],
+      ]);
+    });
+  });
+
+  describe('PATCH /api/trades/:id rename rule (#2213)', () => {
+    function insertBuiltIn() {
+      const now = new Date().toISOString();
+      app.db
+        .insert(trades)
+        .values({
+          id: 'trade-built-in',
+          name: 'Plumbing',
+          translationKey: 'trades.plumbing',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+    }
+
+    async function patch(body: Record<string, unknown>) {
+      const { cookie } = await createUserWithSession('user@test.com', 'User', 'password');
+      return app.inject({
+        method: 'PATCH',
+        url: '/api/trades/trade-built-in',
+        headers: { cookie, 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it('clears translationKey when the name changes', async () => {
+      insertBuiltIn();
+      const res = await patch({ name: 'Sanitary' });
+      expect(res.statusCode).toBe(200);
+      expect(res.json<TradeSingleResponse>().trade.translationKey).toBeNull();
+    });
+
+    it('keeps translationKey when the name is unchanged', async () => {
+      insertBuiltIn();
+      const res = await patch({ name: 'Plumbing' });
+      expect(res.json<TradeSingleResponse>().trade.translationKey).toBe('trades.plumbing');
+    });
+  });
+
+  describe('POST /api/trades/:id/merge (#2213)', () => {
+    async function merge(id: string, body: unknown, cookie?: string) {
+      return app.inject({
+        method: 'POST',
+        url: `/api/trades/${id}/merge`,
+        headers: { ...(cookie ? { cookie } : {}), 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+    }
+
+    it('returns 401 without authentication', async () => {
+      const a = createTestTrade('Source Trade');
+      const b = createTestTrade('Target Trade');
+      const res = await merge(a.id, { targetTradeId: b.id });
+      expect(res.statusCode).toBe(401);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+      expect(app.db.select().from(trades).all()).toHaveLength(2);
+    });
+
+    it('returns 200 with the kept trade and movedVendorCount, for a member too', async () => {
+      const { cookie } = await createUserWithSession('m@test.com', 'Member', 'password', 'member');
+      const a = createTestTrade('Source Trade');
+      const b = createTestTrade('Target Trade');
+      createTestVendor(a.id);
+      createTestVendor(a.id);
+      createTestVendor(b.id);
+
+      const res = await merge(a.id, { targetTradeId: b.id }, cookie);
+
+      expect(res.statusCode).toBe(200);
+      const body = res.json<{
+        trade: { id: string; vendorCount: number };
+        movedVendorCount: number;
+      }>();
+      expect(body.movedVendorCount).toBe(2);
+      expect(body.trade).toMatchObject({ id: b.id, vendorCount: 3 });
+      expect(
+        app.db
+          .select()
+          .from(trades)
+          .all()
+          .map((t) => t.id),
+      ).toEqual([b.id]);
+      expect(
+        app.db
+          .select()
+          .from(vendors)
+          .all()
+          .every((v) => v.tradeId === b.id),
+      ).toBe(true);
+    });
+
+    it('returns 200 with movedVendorCount 0 for a trade without companies', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const b = createTestTrade('Target Trade');
+      const res = await merge(a.id, { targetTradeId: b.id }, cookie);
+      expect(res.statusCode).toBe(200);
+      expect(res.json<{ movedVendorCount: number }>().movedVendorCount).toBe(0);
+    });
+
+    it('returns 404 for an unknown trade', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const b = createTestTrade('Target Trade');
+      const res = await merge('nope', { targetTradeId: b.id }, cookie);
+      expect(res.statusCode).toBe(404);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('NOT_FOUND');
+    });
+
+    it('returns 404 for a second merge of the same trade (double submit)', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const b = createTestTrade('Target Trade');
+      expect((await merge(a.id, { targetTradeId: b.id }, cookie)).statusCode).toBe(200);
+      expect((await merge(a.id, { targetTradeId: b.id }, cookie)).statusCode).toBe(404);
+    });
+
+    it.each([
+      ['a missing targetTradeId', {}],
+      ['an empty targetTradeId', { targetTradeId: '' }],
+      ['an unknown extra property', { targetTradeId: 'x', extra: 1 }],
+      ['a non-string targetTradeId', { targetTradeId: 5 }],
+    ])('returns 400 VALIDATION_ERROR for %s', async (_label, body) => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const res = await merge(a.id, body, cookie);
+      expect(res.statusCode).toBe(400);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      expect(app.db.select().from(trades).all()).toHaveLength(1);
+    });
+
+    it('returns 400 when the target is the same trade', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const res = await merge(a.id, { targetTradeId: a.id }, cookie);
+      expect(res.statusCode).toBe(400);
+      expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+    });
+
+    it('returns 400 when the target does not exist and keeps the companies', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const v = createTestVendor(a.id);
+      const res = await merge(a.id, { targetTradeId: 'no-such-trade' }, cookie);
+      expect(res.statusCode).toBe(400);
+      expect(
+        app.db
+          .select()
+          .from(vendors)
+          .all()
+          .find((r) => r.id === v)!.tradeId,
+      ).toBe(a.id);
+    });
+  });
 });

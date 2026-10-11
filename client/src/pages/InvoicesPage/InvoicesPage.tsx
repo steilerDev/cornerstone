@@ -30,6 +30,7 @@ import { DataTable } from '../../components/DataTable/DataTable.js';
 import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Modal } from '../../components/Modal/Modal.js';
+import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
@@ -40,7 +41,9 @@ import { createReservedParams, useCreateQuery } from '../../hooks/useCreateQuery
 import type { CreateRequest } from '../../hooks/useCreateQuery.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors } from '../../lib/vendorsApi.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -226,6 +229,11 @@ export function InvoicesPage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
+  const [vendorsLoaded, setVendorsLoaded] = useState(false);
+  const [verifyingVendor, setVerifyingVendor] = useState(false);
+  // The New company form stacks over the create modal, which stays put meanwhile.
+  const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
+    useCompanyCreateAction();
   const [createError, setCreateError] = useState<string>('');
 
   // Paperless picker modal state
@@ -286,14 +294,28 @@ export function InvoicesPage() {
     void fetchVendors({ pageSize: 100 }).then((res) => {
       const loaded = res.vendors.map((v) => ({ id: v.id, name: v.name }));
       setVendors(loaded);
-      // A pre-selected company that no longer exists is dropped, never submitted.
-      setCreateForm((form) =>
-        form.vendorId && !loaded.some((v) => v.id === form.vendorId)
-          ? { ...form, vendorId: '' }
-          : form,
-      );
+      setVendorsLoaded(true);
     });
   }, []);
+
+  // A pre-selected company outside the first page is looked up on its own and added; one that
+  // does not exist (404) is dropped, never submitted. The picker stays disabled meanwhile.
+  const checkedVendorIdsRef = useRef(new Set<string>());
+  useEffect(() => {
+    const id = createForm.vendorId;
+    if (!vendorsLoaded || !id || vendors.some((v) => v.id === id)) return;
+    if (checkedVendorIdsRef.current.has(id)) return;
+    checkedVendorIdsRef.current.add(id);
+    /* eslint-disable @eslint-react/set-state-in-effect -- flag of the lookup this effect starts */
+    setVerifyingVendor(true);
+    /* eslint-enable @eslint-react/set-state-in-effect */
+    fetchVendor(id)
+      .then((found) => setVendors((prev) => [...prev, { id: found.id, name: found.name }]))
+      .catch(() =>
+        setCreateForm((form) => (form.vendorId === id ? { ...form, vendorId: '' } : form)),
+      )
+      .finally(() => setVerifyingVendor(false));
+  }, [vendorsLoaded, createForm.vendorId, vendors]);
 
   // Resolution handler for the status load (an Effect Event, so the mount-only effect below needs no
   // extra dependencies).
@@ -416,12 +438,8 @@ export function InvoicesPage() {
   const presetCreateForm = (request: CreateRequest | null): InvoiceFormState => ({
     ...EMPTY_FORM,
     status: request?.kind === 'offer' ? 'quotation' : 'pending',
-    vendorId:
-      request?.prefill.companyId && vendors.some((v) => v.id === request.prefill.companyId)
-        ? request.prefill.companyId
-        : vendors.length === 0
-          ? (request?.prefill.companyId ?? '')
-          : '',
+    // Never dropped here: the lookup effect keeps (found) or clears (failed) a pre-filled company.
+    vendorId: request?.prefill.companyId ?? '',
   });
 
   const openCreateModalFor = (status: IntegrationStatus, request: CreateRequest | null = null) => {
@@ -574,7 +592,7 @@ export function InvoicesPage() {
         enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
         render: (inv) => (
           <Link
-            to={routeUrl('vendor', { id: inv.vendorId })}
+            to={routeUrl('company', { id: inv.vendorId })}
             state={originState}
             className={styles.vendorLink}
           >
@@ -1038,6 +1056,7 @@ export function InvoicesPage() {
         <Modal
           title={t('invoices.modal.title')}
           onClose={closeCreateModal}
+          dismissible={!isCreatingCompany}
           footer={
             <>
               <button
@@ -1075,22 +1094,32 @@ export function InvoicesPage() {
                 {t('invoices.form.vendor')}{' '}
                 <span className={styles.required}>{t('invoices.form.required')}</span>
               </label>
-              <select
+              <SearchPicker<CompanyOption>
                 id="invoice-vendor"
                 value={createForm.vendorId}
-                onChange={(e) => setCreateForm({ ...createForm, vendorId: e.target.value })}
-                className={styles.select}
-                disabled={isCreating}
-                required
-                autoFocus
-              >
-                <option value="">{t('invoices.form.placeholders.vendor')}</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(id) => setCreateForm((form) => ({ ...form, vendorId: id }))}
+                excludeIds={[]}
+                disabled={isCreating || verifyingVendor}
+                placeholder={t('invoices.form.placeholders.vendor')}
+                searchFn={async (query) => {
+                  const res = await fetchVendors({ q: query, pageSize: 50 });
+                  return res.vendors;
+                }}
+                renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
+                showItemsOnFocus
+                initialTitle={vendors.find((v) => v.id === createForm.vendorId)?.name}
+                inputAriaProps={{ 'aria-required': true }}
+                createAction={
+                  companyCreateAction && {
+                    ...companyCreateAction,
+                    onCreate: async (query) => {
+                      const company = await companyCreateAction.onCreate(query);
+                      if (company) setVendors((prev) => [...prev, company]);
+                      return company;
+                    },
+                  }
+                }
+              />
             </div>
 
             <div className={styles.formRow}>

@@ -234,16 +234,10 @@
     "generateReportMenuAriaLabel": "Generate report for {{name}}"
   },
   "vendors": {
-    "title": "Vendors",
     "sectionTitle": "Vendors",
-    "addVendor": "Add Vendor",
-    "addFirstVendor": "Add First Vendor",
     "loading": "Loading vendors...",
     "error": "Error",
-    "errorMessage": "Failed to load vendors. Please try again.",
     "retry": "Retry",
-    "noVendorsTitle": "No vendors yet",
-    "noVendorsDescription": "Add your first vendor or contractor to track who is working on your project.",
     "searchPlaceholder": "Search vendors by name or specialty...",
     "sortBy": "Sort by:",
     "sortAsc": "↑ Asc",
@@ -256,60 +250,20 @@
     "pagination": "Showing {{from}} to {{to}} of {{total}} vendors",
     "previous": "Previous",
     "next": "Next",
-    "form": {
-      "name": "Name",
-      "specialty": "Specialty",
-      "phone": "Phone",
-      "email": "Email",
-      "address": "Address",
-      "notes": "Notes",
-      "trade": "Trade",
-      "required": "*",
-      "placeholders": {
-        "name": "e.g., Smith Plumbing Co.",
-        "specialty": "e.g., Plumbing, Electrical, Roofing",
-        "phone": "e.g., +1 555-123-4567",
-        "email": "e.g., contact@smithplumbing.com",
-        "address": "e.g., 123 Main St, Springfield, IL 62701",
-        "notes": "Any additional notes about this vendor...",
-        "trade": "Select a trade..."
-      }
-    },
     "validation": {
       "nameRequired": "Vendor name is required.",
       "nameTooLong": "Vendor name must be 200 characters or less."
     },
     "buttons": {
-      "create": "Add Vendor",
-      "creating": "Adding...",
       "save": "Save Changes",
       "saving": "Saving...",
-      "cancel": "Cancel",
       "edit": "Edit",
-      "delete": "Delete",
-      "view": "View",
       "viewDetails": "View Details",
       "retry": "Retry"
     },
-    "tableHeaders": {
-      "name": "Name",
-      "trade": "Trade",
-      "contactInfo": "Contact",
-      "address": "Address",
-      "notes": "Notes",
-      "createdAt": "Date Added",
-      "updatedAt": "Last Updated"
-    },
     "searchAriaLabel": "Search vendors",
-    "modal": {
-      "title": "Add Vendor",
-      "description": "Add a vendor or contractor involved in your construction project.",
-      "deleteError": "This vendor cannot be deleted because they have associated invoices or work items. Remove those references first."
-    },
     "messages": {
-      "createError": "Failed to create vendor. Please try again.",
-      "updateError": "Failed to update vendor. Please try again.",
-      "deleteError": "Failed to delete vendor. Please try again."
+      "updateError": "Failed to update vendor. Please try again."
     }
   },
   "budgetLine": {
@@ -1134,8 +1088,6 @@
     "vendor": "Vendor",
     "vendorPlaceholder": "Search vendors…",
     "vendorRequired": "Vendor is required",
-    "addNewVendor": "Add new vendor",
-    "addNewVendorNamed": "Add new vendor \"{{name}}\"",
     "budgetSource": "Budget source",
     "budgetSourceNone": "No default",
     "budgetSourceApplied_one": "Budget source \"{{name}}\" applied to {{count}} line",
@@ -1470,5 +1422,47 @@
     "planned": "Planned",
     "ariaLabel_one": "{{invoice}}: {{count}} cost line on this item, {{amount}} {{amountLabel}}",
     "ariaLabel_other": "{{invoice}}: {{count}} cost lines on this item, {{amount}} {{amountLabel}}"
+  },
+  "companies": {
+    "list": {
+      "newCompany": "New company",
+      "trades": "Trades",
+      "allTrades": "All trades",
+      "tradeFilterLabel": "Trade",
+      "actionsFor": "Actions for {{name}}",
+      "emptyTitle": "No companies yet",
+      "emptyDescription": "Add the businesses you work with, then call them in two taps.",
+      "loadError": "Companies could not be loaded. Try again.",
+      "deleteBlocked": "This company can't be deleted while invoices or cost lines use it. Remove those first.",
+      "deleteFailed": "The company could not be deleted. Try again.",
+      "columns": {
+        "name": "Name",
+        "trade": "Trade",
+        "phone": "Phone",
+        "contactPersons": "Contact persons",
+        "lastOnSite": "Last on site",
+        "email": "E-mail",
+        "address": "Address",
+        "notes": "Notes",
+        "createdAt": "Date added",
+        "updatedAt": "Last updated"
+      }
+    },
+    "form": {
+      "title": "New company",
+      "name": "Name",
+      "trade": "Trade",
+      "tradePlaceholder": "Choose a trade",
+      "phone": "Phone",
+      "email": "E-mail",
+      "address": "Address",
+      "notes": "Notes",
+      "nameRequired": "Enter a name.",
+      "nameTooLong": "Use at most 200 characters.",
+      "emailInvalid": "Enter a valid e-mail address."
+    },
+    "picker": {
+      "newNamed": "New company {{name}}"
+    }
   }
 }

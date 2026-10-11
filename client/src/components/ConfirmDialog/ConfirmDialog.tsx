@@ -46,6 +46,16 @@ export interface ConfirmDialogProps {
    * return to the opener.
    */
   readonly restoreToOpenerOnConfirm?: boolean;
+  /**
+   * Extra content (e.g. a picker) after the description, before the error. It is not part of
+   * `aria-describedby`.
+   */
+  readonly children?: ReactNode;
+  /**
+   * When set, the action is aria-disabled, ignores clicks, and this text is its description
+   * (e.g. "Pick a trade to merge into").
+   */
+  readonly actionDisabledReason?: string;
   readonly testIdPrefix?: string;
 }
 
@@ -68,11 +78,14 @@ export function ConfirmDialog({
   onCancel,
   returnFocusRef,
   restoreToOpenerOnConfirm = false,
+  children,
+  actionDisabledReason,
   testIdPrefix = 'confirm-dialog',
 }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
   const cancelRef = useRef<HTMLButtonElement>(null);
   const descriptionId = useId();
+  const reasonId = useId();
   // Set when the action is triggered; Cancel / Escape reset it so those return to the opener.
   const skipOpenerRef = useRef(false);
   const handleCancel = () => {
@@ -81,7 +94,7 @@ export function ConfirmDialog({
   };
 
   const waiting = consequences?.status === 'loading' || consequences?.status === 'error';
-  const actionDisabled = busy || waiting;
+  const actionDisabled = busy || waiting || actionDisabledReason !== undefined;
   const items =
     consequences?.status === 'ready' ? consequences.items.filter((item) => item.count > 0) : [];
 
@@ -115,6 +128,7 @@ export function ConfirmDialog({
               type="button"
               className={styles.confirmButton}
               aria-disabled={actionDisabled ? 'true' : undefined}
+              aria-describedby={actionDisabledReason !== undefined ? reasonId : undefined}
               onClick={() => {
                 if (!actionDisabled) {
                   skipOpenerRef.current = !restoreToOpenerOnConfirm;
@@ -125,6 +139,11 @@ export function ConfirmDialog({
             >
               {busy ? busyLabel : confirmLabel}
             </button>
+          )}
+          {!blocked && actionDisabledReason !== undefined && (
+            <span id={reasonId} className={styles.visuallyHidden}>
+              {actionDisabledReason}
+            </span>
           )}
         </div>
       }
@@ -159,6 +178,7 @@ export function ConfirmDialog({
         )}
         {irreversible && <p className={styles.irreversible}>{t('confirmDialog.cannotBeUndone')}</p>}
       </div>
+      {children}
       {error && <FormError message={error} />}
     </Modal>
   );

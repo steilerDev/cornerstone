@@ -75,7 +75,9 @@ describe('resolveNavActive exact results', () => {
     ['/diary/e1/edit', 'diary/null'],
     ['/photos/spot/a/b', 'photos/null'],
     ['/project/overview', 'home/null'],
-    ['/settings/vendors/v1', 'companies/null'],
+    ['/companies', 'companies/null'],
+    ['/companies/new', 'companies/null'],
+    ['/companies/v1', 'companies/null'],
     ['/settings/manage', 'settings/null'],
     ['/settings/profile', 'settings/settingsProfile'],
     ['/settings/users', 'settings/settingsUsers'],
@@ -116,18 +118,22 @@ describe('resolveNavActive interim lifecycle', () => {
 });
 
 describe('resolveNavActive exact', () => {
-  it.each(['/schedule/calendar', '/project/work-items', '/budget/sources', '/settings/profile'])(
-    'is true when %s is the entry itself',
-    (path) => {
-      expect(resolveNavActive(path, adminSections)?.exact).toBe(true);
-    },
-  );
+  it.each([
+    '/schedule/calendar',
+    '/project/work-items',
+    '/budget/sources',
+    '/settings/profile',
+    '/companies',
+  ])('is true when %s is the entry itself', (path) => {
+    expect(resolveNavActive(path, adminSections)?.exact).toBe(true);
+  });
 
   it.each([
     ['/project/work-items/w1', 'parent hop'],
     ['/budget/invoices/i1', 'parent hop to a view'],
     ['/project/overview', 'owns-fallback'],
-    ['/settings/vendors/v1', 'owns-fallback'],
+    ['/companies/new', 'dialog route: parent hop'],
+    ['/companies/v1', 'parent hop'],
   ])('is false for %s (%s)', (path) => {
     expect(resolveNavActive(path, adminSections)?.exact).toBe(false);
   });

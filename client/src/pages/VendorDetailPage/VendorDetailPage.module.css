@@ -679,27 +679,6 @@
   box-shadow: var(--shadow-focus);
 }
 
-.deleteButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-danger-bg);
-  color: var(--color-danger);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: 1px solid var(--color-danger-border);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.deleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-bg-strong);
-}
-
-.deleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
 .cancelButton {
   padding: var(--spacing-2-5) var(--spacing-4);
   background-color: var(--color-bg-tertiary);
@@ -800,8 +779,7 @@
     justify-content: stretch;
   }
 
-  .editButton,
-  .deleteButton {
+  .editButton {
     flex: 1;
     text-align: center;
     min-height: 44px;
@@ -913,7 +891,6 @@
   .secondaryButton,
   .saveButton,
   .editButton,
-  .deleteButton,
   .cancelButton {
     min-height: 44px;
   }

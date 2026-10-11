@@ -64,6 +64,7 @@
 import { expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 
 export class PaperlessInvoiceReviewPage {
   readonly page: Page;
@@ -104,14 +105,17 @@ export class PaperlessInvoiceReviewPage {
 
   // ─── Issue #2148: inline vendor creation ─────────────────────────────────────
 
-  /** "Add new vendor" / `Add new vendor "<query>"` row inside the vendor dropdown */
+  /** The vendor picker control (#vendor-picker): input, dropdown, create row, form, clear button */
+  readonly vendorPicker: CompanyPickerControl;
+
+  /** `New company <query>` row inside the vendor dropdown (#2213) */
   readonly vendorCreateOption: Locator;
-  /** VendorCreateModal dialog (title "Add Vendor") */
+  /** The New company ObjectForm dialog opened by the create row (title "New company") */
   readonly vendorCreateModal: Locator;
   readonly vendorCreateNameInput: Locator;
   readonly vendorCreatePhoneInput: Locator;
   readonly vendorCreateEmailInput: Locator;
-  /** Submit button: "Add Vendor" / "Adding..." */
+  /** Save button of the New company form ("Save" / "Saving…", aria-disabled while in flight) */
   readonly vendorCreateSubmit: Locator;
   readonly vendorCreateCancel: Locator;
   /** Server error banner (FormError variant="banner", role="alert") inside the modal */
@@ -249,21 +253,23 @@ export class PaperlessInvoiceReviewPage {
     this.vendorPortalDropdown = page.locator('[data-search-picker-dropdown]');
     this.vendorClearButton = page.getByRole('button', { name: 'Clear selection', exact: true });
 
+    this.vendorPicker = new CompanyPickerControl(
+      page,
+      'vendor-picker',
+      page.locator('[class*="vendorCard"]'),
+    );
     this.vendorCreateOption = this.vendorPortalDropdown.getByRole('option', {
-      name: /^Add new vendor/,
+      name: /New company/,
     });
-    this.vendorCreateModal = page.getByRole('dialog', { name: 'Add Vendor' });
-    this.vendorCreateNameInput = this.vendorCreateModal.locator('#vendor-name');
-    this.vendorCreatePhoneInput = this.vendorCreateModal.locator('#vendor-phone');
-    this.vendorCreateEmailInput = this.vendorCreateModal.locator('#vendor-email');
-    this.vendorCreateSubmit = this.vendorCreateModal.getByRole('button', {
-      name: /^(Add Vendor|Adding\.\.\.)$/,
-    });
-    this.vendorCreateCancel = this.vendorCreateModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
-    this.vendorCreateErrorBanner = this.vendorCreateModal.locator('[role="alert"]');
+    // The company form is the shared ObjectForm (#2213): phone and e-mail sit behind
+    // "More details" (open it with `expandVendorCreateDetails()` before using them).
+    this.vendorCreateModal = this.vendorPicker.form.dialog;
+    this.vendorCreateNameInput = this.vendorPicker.form.field('name');
+    this.vendorCreatePhoneInput = this.vendorPicker.form.field('phone');
+    this.vendorCreateEmailInput = this.vendorPicker.form.field('email');
+    this.vendorCreateSubmit = this.vendorPicker.form.saveButton;
+    this.vendorCreateCancel = this.vendorPicker.form.cancelButton;
+    this.vendorCreateErrorBanner = this.vendorPicker.form.errorBanner;
     this.statusRegion = page.locator('[class*="formColumn"] [role="status"]');
     this.invoiceNumberInput = page.locator('#invoice-number');
     this.notesInput = page.locator('#notes');
@@ -386,9 +392,13 @@ export class PaperlessInvoiceReviewPage {
   }
 
   /**
-   * Focus the vendor picker and activate the "Add new vendor" row (opens the create modal).
+   * Focus the vendor picker and activate the "New company" row (opens the New company form).
    * Pass `query` to type into the picker first (otherwise the dropdown opens on focus).
    */
+  async expandVendorCreateDetails(): Promise<void> {
+    await this.vendorPicker.form.expandMoreDetails();
+  }
+
   async openCreateVendor(query?: string): Promise<void> {
     if (query !== undefined) {
       await this.vendorInput.fill(query);

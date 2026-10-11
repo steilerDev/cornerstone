@@ -1,11 +1,11 @@
 /**
  * @jest-environment jsdom
  *
- * Integration tests for creating a vendor inline from PaperlessInvoiceReviewPage (Story #2148).
+ * Integration tests for creating a company inline from PaperlessInvoiceReviewPage (Story #2148).
  *
  * Mock factories are copied from PaperlessInvoiceReviewPage.test.tsx (kept in a separate file to
- * keep per-file shard time down). apiClient / errorTranslation are NOT mocked so the real
- * VendorCreateModal error path is exercised; vendorsApi.createVendor is mocked.
+ * keep per-file shard time down). The real CompanyCreateProvider and New company form (#2213)
+ * are used; vendorsApi.createVendor is mocked.
  */
 
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
@@ -63,6 +63,10 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 const mockUseTrades = jest.fn<typeof UseTradesModule.useTrades>();
 jest.unstable_mockModule('../../hooks/useTrades.js', () => ({
   useTrades: mockUseTrades,
+}));
+
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: { id: 'u1' } }),
 }));
 
 jest.unstable_mockModule('../../lib/workItemBudgetsApi.js', () => ({
@@ -160,12 +164,20 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 // ─── Dynamic import ────────────────────────────────────────────────────────────
 
 import type * as PageModule from './PaperlessInvoiceReviewPage.js';
+import type * as ProviderModule from '../../objectForms/CompanyCreateProvider.js';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 
 let PaperlessInvoiceReviewPage: (typeof PageModule)['PaperlessInvoiceReviewPage'];
+let CompanyCreateProvider: (typeof ProviderModule)['CompanyCreateProvider'];
+let media: MatchMediaControl;
 
 beforeEach(async () => {
   ({ PaperlessInvoiceReviewPage } =
     (await import('./PaperlessInvoiceReviewPage.js')) as typeof PageModule);
+  ({ CompanyCreateProvider } =
+    (await import('../../objectForms/CompanyCreateProvider.js')) as typeof ProviderModule);
+  media = installMatchMedia({ '(min-width: 768px)': true });
 
   mockGetPaperlessDocument.mockReset();
   mockPreviewAutoItemize.mockReset();
@@ -184,6 +196,7 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
+  media.restore();
   jest.restoreAllMocks();
 });
 
@@ -292,11 +305,13 @@ function makeCommitResponse(): AutoItemizeCommitResponse {
 function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/budget/invoices/new/paperless?documentId=42']}>
-      <Routes>
-        <Route path="/budget/invoices/new/paperless" element={<PaperlessInvoiceReviewPage />} />
-        <Route path="/budget/invoices/:id" element={<div data-testid="invoice-detail-page" />} />
-        <Route path="/budget/invoices" element={<div data-testid="invoices-list-page" />} />
-      </Routes>
+      <CompanyCreateProvider>
+        <Routes>
+          <Route path="/budget/invoices/new/paperless" element={<PaperlessInvoiceReviewPage />} />
+          <Route path="/budget/invoices/:id" element={<div data-testid="invoice-detail-page" />} />
+          <Route path="/budget/invoices" element={<div data-testid="invoices-list-page" />} />
+        </Routes>
+      </CompanyCreateProvider>
     </MemoryRouter>,
   );
 }
@@ -307,22 +322,46 @@ async function renderReady(preview: Partial<AutoItemizePreviewResponse> = {}) {
   return screen.findByPlaceholderText('Search vendors…');
 }
 
-async function openCreateDialog(input: HTMLElement) {
+// ─── Helpers for the New company form ──────────────────────────────────────────
+
+const createRowName = /^New company/;
+
+async function renderReadyEmptyField(preview: Partial<AutoItemizePreviewResponse> = {}) {
+  const input = await renderReady(preview);
   fireEvent.focus(input);
-  const row = await screen.findByRole('option', { name: /^Add new vendor/ });
+  return input;
+}
+
+async function openCreateDialog(input: HTMLElement, rowName: string | RegExp = createRowName) {
+  fireEvent.focus(input);
+  const row = await screen.findByRole('option', { name: rowName });
   fireEvent.click(row);
-  return screen.findByRole('dialog', { name: 'Add Vendor' });
+  return screen.findByRole('dialog', { name: 'New company' });
 }
 
 function dialogNameInput(dialog: HTMLElement) {
-  return within(dialog).getByLabelText(/^Name/) as HTMLInputElement;
+  return within(dialog).getByTestId('company-name-input') as HTMLInputElement;
 }
+
+const saveCompany = (dialog: HTMLElement) =>
+  fireEvent.click(within(dialog).getByTestId('company-create-form-save'));
+const cancelCompany = (dialog: HTMLElement) =>
+  fireEvent.click(within(dialog).getByTestId('company-create-form-cancel'));
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', () => {
-  describe('opening the dialog', () => {
-    it('prefills the dialog name with the extracted vendor name when no vendor was matched', async () => {
+describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #2213)', () => {
+  describe('the create row', () => {
+    it('is offered with the extracted name while the field is empty and no company matches it', async () => {
+      const input = await renderReadyEmptyField({ extractedVendorName: 'Neue Firma' });
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Neue Firma' }),
+      ).toBeInTheDocument();
+      expect(input).toBeInTheDocument();
+    });
+
+    it('opens the form pre-filled with the extracted name', async () => {
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
 
       const dialog = await openCreateDialog(input);
@@ -330,42 +369,128 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
       expect(dialogNameInput(dialog).value).toBe('Neue Firma');
     });
 
-    it('falls back to the typed query when no vendor name was extracted', async () => {
-      const input = await renderReady();
+    it('trims the extracted name and ignores a blank one', async () => {
+      const input = await renderReady({ extractedVendorName: '   Neue Firma   ' });
+      const dialog = await openCreateDialog(input, 'New company Neue Firma');
+      expect(dialogNameInput(dialog).value).toBe('Neue Firma');
+    });
+
+    it('offers no row for a blank extracted name and an empty field', async () => {
+      const input = await renderReady({ extractedVendorName: '   ' });
+
+      fireEvent.focus(input);
+      await screen.findByRole('listbox');
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('uses the typed text instead of the extracted name once the user types', async () => {
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
 
       fireEvent.change(input, { target: { value: 'Typed Co' } });
-      const row = await screen.findByRole('option', { name: 'Add new vendor "Typed Co"' });
+      const row = await screen.findByRole('option', { name: 'New company Typed Co' });
       fireEvent.click(row);
-      const dialog = await screen.findByRole('dialog', { name: 'Add Vendor' });
+      const dialog = await screen.findByRole('dialog', { name: 'New company' });
 
       expect(dialogNameInput(dialog).value).toBe('Typed Co');
     });
 
-    it('opens with an empty name when there is neither a query nor an extracted name', async () => {
+    it('falls back to the typed query when no company name was extracted', async () => {
       const input = await renderReady();
 
-      const dialog = await openCreateDialog(input);
+      fireEvent.change(input, { target: { value: 'Typed Co' } });
+      const row = await screen.findByRole('option', { name: 'New company Typed Co' });
+      fireEvent.click(row);
+      const dialog = await screen.findByRole('dialog', { name: 'New company' });
 
-      expect(dialogNameInput(dialog).value).toBe('');
+      expect(dialogNameInput(dialog).value).toBe('Typed Co');
+    });
+
+    it('offers no row for an empty field when nothing was extracted', async () => {
+      const input = await renderReady();
+
+      fireEvent.focus(input);
+      await screen.findByRole('listbox');
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('offers no row for an extracted name that only differs by case and umlaut spelling', async () => {
+      mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'Öko Fenster' }]));
+      const input = await renderReady({ extractedVendorName: 'OEKO FENSTER' });
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Öko Fenster' });
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('offers no row when the typed text matches an existing company in another spelling', async () => {
+      mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'Öko Fenster' }]));
+      const input = await renderReady({ extractedVendorName: 'Something Else GmbH' });
+
+      fireEvent.change(input, { target: { value: 'OEKO FENSTER' } });
+
+      await screen.findByRole('option', { name: 'Öko Fenster' });
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('searches the loaded companies with both sides folded (umlaut, digraph, case)', async () => {
+      mockFetchVendors.mockResolvedValue(
+        makeVendorsResponse([
+          { id: 'v-1', name: 'Öko Fenster' },
+          { id: 'v-2', name: 'MUELLER BAU' },
+          { id: 'v-3', name: 'Other Co' },
+        ]),
+      );
+      const input = await renderReady();
+
+      fireEvent.change(input, { target: { value: 'oeko' } });
+      expect(await screen.findByRole('option', { name: 'Öko Fenster' })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'Other Co' })).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: 'müller' } });
+      expect(await screen.findByRole('option', { name: 'MUELLER BAU' })).toBeInTheDocument();
+    });
+
+    it('still offers a row for typed text that matches no company, even when the extracted name matches one', async () => {
+      mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'Neue Firma' }]));
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+
+      fireEvent.change(input, { target: { value: 'Brand New Co' } });
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
+    });
+
+    it('does not push the extracted name when a company with that name already exists', async () => {
+      mockFetchVendors.mockResolvedValue(makeVendorsResponse([{ id: 'v-1', name: 'NEUE FIRMA' }]));
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'NEUE FIRMA' });
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
     });
   });
 
   describe('successful creation', () => {
-    it('closes the dialog, selects the new vendor, clears the vendor error and announces it', async () => {
+    it('closes the form, selects the new company, clears the company error and announces it', async () => {
       mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
 
-      // Trigger the required-vendor error first
+      // Trigger the required-company error first
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
       await waitFor(() => {
         expect(document.querySelector('#vendor-error')).not.toBeNull();
       });
 
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Vendor' }));
+      saveCompany(dialog);
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Add Vendor' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument();
       });
       expect(await screen.findByText('Neue Firma')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
@@ -378,11 +503,11 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
       );
     });
 
-    it('makes the new vendor available in subsequent vendor searches', async () => {
+    it('makes the new company available in subsequent searches', async () => {
       mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Vendor' }));
+      saveCompany(dialog);
       await screen.findByRole('button', { name: 'Clear selection' });
 
       fireEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
@@ -390,14 +515,16 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
       fireEvent.focus(freshInput);
 
       expect(await screen.findByRole('option', { name: 'Neue Firma' })).toBeInTheDocument();
+      // The created company now matches the extracted name, so the always-on row is gone.
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
     });
 
-    it('commits the invoice with the created vendor id', async () => {
+    it('commits the invoice with the created company id', async () => {
       mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
       mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Vendor' }));
+      saveCompany(dialog);
       await screen.findByRole('button', { name: 'Clear selection' });
 
       fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
@@ -447,7 +574,7 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
       const others = await editForm();
 
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Add Vendor' }));
+      saveCompany(dialog);
       await screen.findByRole('button', { name: 'Clear selection' });
 
       expectFormIntact(others);
@@ -458,9 +585,9 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
       const others = await editForm();
 
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      cancelCompany(dialog);
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Add Vendor' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument();
       });
 
       expectFormIntact(others);
@@ -468,13 +595,13 @@ describe('PaperlessInvoiceReviewPage — inline vendor creation (Story #2148)', 
   });
 
   describe('cancelling', () => {
-    it('leaves the vendor unset, makes no createVendor call and still requires a vendor on save', async () => {
+    it('leaves the company unset, makes no createVendor call and still requires a company on save', async () => {
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
 
       const dialog = await openCreateDialog(input);
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      cancelCompany(dialog);
       await waitFor(() => {
-        expect(screen.queryByRole('dialog', { name: 'Add Vendor' })).not.toBeInTheDocument();
+        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument();
       });
 
       expect(mockCreateVendor).not.toHaveBeenCalled();

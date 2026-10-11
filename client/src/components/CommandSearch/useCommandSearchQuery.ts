@@ -29,6 +29,8 @@ export interface UseCommandSearchQueryOptions {
   readonly onUnauthorized: () => void;
   /** The option that becomes active when a response for the current query arrives. */
   readonly firstOptionId: (response: SearchResponse) => string | null;
+  /** Trade ids whose translated name matches the trimmed query; called per request. */
+  readonly resolveTradeIds?: (trimmedQuery: string) => readonly string[];
 }
 
 export interface CommandSearchQueryApi {
@@ -114,7 +116,7 @@ export function useCommandSearchQuery(
         skeletonTimerRef.current = setTimeout(revealSkeleton, SKELETON_DELAY_MS);
       }
 
-      searchEverywhere({ q }, controller.signal)
+      searchEverywhere({ q, tradeIds: optionsRef.current.resolveTradeIds?.(q) }, controller.signal)
         .then((response) => {
           // A cancelled request is a NetworkError from apiClient, so check the signal (never err.name).
           if (controller.signal.aborted || latestQueryRef.current !== q) return;
@@ -220,7 +222,15 @@ export function useCommandSearchQuery(
       moreControllerRef.current?.abort();
       const controller = new AbortController();
       moreControllerRef.current = controller;
-      searchEverywhere({ q, types: [type], limit: SEARCH_MAX_LIMIT }, controller.signal)
+      searchEverywhere(
+        {
+          q,
+          types: [type],
+          limit: SEARCH_MAX_LIMIT,
+          tradeIds: optionsRef.current.resolveTradeIds?.(q),
+        },
+        controller.signal,
+      )
         .then((response) => {
           if (controller.signal.aborted || latestQueryRef.current !== q) return;
           const group = response.groups.find((g) => g.type === type);

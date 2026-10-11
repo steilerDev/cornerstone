@@ -132,6 +132,55 @@ describe('vendorsApi', () => {
       );
     });
 
+    it('sends tradeId and tradeIds (#2213)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          vendors: [],
+          pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+        }),
+      } as Response);
+
+      await fetchVendors({ q: 'tile', tradeId: 'trade-1', tradeIds: 't1,t2' });
+
+      const url = new URL(String(mockFetch.mock.calls[0]![0]), 'http://localhost');
+      expect(url.searchParams.get('tradeId')).toBe('trade-1');
+      expect(url.searchParams.get('tradeIds')).toBe('t1,t2');
+      expect(url.searchParams.get('q')).toBe('tile');
+    });
+
+    it('omits tradeId and tradeIds when they are not given (#2213)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          vendors: [],
+          pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+        }),
+      } as Response);
+
+      await fetchVendors({ q: 'tile' });
+
+      const call = String(mockFetch.mock.calls[0]![0]);
+      expect(call).not.toContain('tradeId');
+    });
+
+    it('sends the last_on_site sort (#2213)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          vendors: [],
+          pagination: { page: 1, pageSize: 25, totalItems: 0, totalPages: 0 },
+        }),
+      } as Response);
+
+      await fetchVendors({ sortBy: 'last_on_site', sortOrder: 'desc' });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('sortBy=last_on_site'),
+        expect.any(Object),
+      );
+    });
+
     it('includes sortBy and sortOrder when provided', async () => {
       const mockResponse: VendorListResponse = {
         vendors: [],

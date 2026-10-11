@@ -229,10 +229,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
         'href',
         routeUrl('invoices', undefined, { create: '1', kind: 'offer' }),
       );
-      await expect(createMenu.row('company')).toHaveAttribute(
-        'href',
-        routeUrl('vendors', undefined, { create: '1' }),
-      );
+      await expect(createMenu.row('company')).toHaveAttribute('href', routeUrl('companyNew'));
       await expect(createMenu.row('milestone')).toHaveAttribute('href', routeUrl('milestoneNew'));
     });
 
@@ -385,15 +382,14 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
     }) => {
       const createMenu = new CreateMenu(page);
       const createPage = new HouseholdItemCreatePage(page);
-      const companyPath = routeUrl('vendor', { id: companyId });
+      const companyPath = routeUrl('company', { id: companyId });
       await page.goto(companyPath);
       await expect(page.getByRole('heading', { level: 1, name: COMPANY })).toBeVisible();
 
       await createMenu.choose('purchase');
 
       await createPage.form.waitForOpen();
-      await expect(createPage.vendorSelect).toHaveValue(companyId);
-      await expect(createPage.vendorSelect.locator('option:checked')).toHaveText(COMPANY);
+      await expect(createPage.vendorSelectedDisplay).toContainText(COMPANY);
 
       // Nothing typed: closing is immediate, back on the company page
       await page.keyboard.press('Escape');
@@ -405,7 +401,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
     test('N4: from a company page, Invoice and Offer start with that company', async ({ page }) => {
       const createMenu = new CreateMenu(page);
       const invoices = new InvoicesPage(page);
-      const companyPath = routeUrl('vendor', { id: companyId });
+      const companyPath = routeUrl('company', { id: companyId });
 
       await page.goto(companyPath);
       await expect(page.getByRole('heading', { level: 1, name: COMPANY })).toBeVisible();
@@ -413,7 +409,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
 
       await page.waitForURL(pathnameIs(routeUrl('invoices')));
       await expect(invoices.createModal).toBeVisible();
-      await expect(invoices.createVendorSelect).toHaveValue(companyId);
+      await expect(invoices.createVendorSelected).toContainText(COMPANY);
       await expect(invoices.createStatusSelect).toHaveValue('pending');
       // The request params are consumed: the URL is clean
       expect(new URL(page.url()).search).toBe('');
@@ -430,7 +426,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
 
         await fresh.waitForURL(pathnameIs(routeUrl('invoices')));
         await expect(freshInvoices.createModal).toBeVisible();
-        await expect(freshInvoices.createVendorSelect).toHaveValue(companyId);
+        await expect(freshInvoices.createVendorSelected).toContainText(COMPANY);
         await expect(freshInvoices.createStatusSelect).toHaveValue('quotation');
         await expect(freshInvoices.createStatusSelect.locator('option:checked')).toHaveText(
           'Offer',
@@ -485,9 +481,10 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
           routeUrl('householdItemNew', undefined, { companyId: 'unknown-id' }),
         );
         await purchase.form.waitForOpen();
-        // The select appears once the company options have loaded; the unknown id is cleared
+        // The picker input appears once the company options have loaded; the unknown id is cleared
         await expect(purchase.vendorSelect).toBeVisible();
         await expect(purchase.vendorSelect).toHaveValue('');
+        await expect(purchase.vendorSelectedDisplay).toHaveCount(0);
         // Cleared without touching the form: no discard prompt on Escape
         await unknownCompany.keyboard.press('Escape');
         await purchase.form.waitForClosed();
@@ -499,7 +496,7 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
   });
 
   // ───────────────────────────────────────────────────────────────────────────
-  // N5 — interim create surfaces (?create=1)
+  // N5 — create surfaces (?create=1 for the Money forms, dialog routes elsewhere)
   // ───────────────────────────────────────────────────────────────────────────
 
   test.describe('create surfaces', () => {
@@ -532,13 +529,19 @@ test.describe('New menu (#2212)', { tag: '@responsive' }, () => {
       expect(new URL(page.url()).search).toBe('');
     });
 
-    test('N5: Company opens the Add Vendor modal on the Companies list', async ({ page }) => {
+    test('N5: Company opens the New company dialog over the page it was chosen on', async ({
+      page,
+    }) => {
       const vendors = new VendorsPage(page);
       await chooseOnMoney(page, 'company');
 
-      await page.waitForURL(pathnameIs(routeUrl('vendors')));
-      await expect(vendors.createModal).toBeVisible();
+      await page.waitForURL(pathnameIs(routeUrl('companyNew')));
+      await vendors.createDialog.waitForOpen();
       expect(new URL(page.url()).search).toBe('');
+      // The Money page stays behind the dialog (#2213: Back closes it, nothing else changes)
+      await page.goBack();
+      await vendors.createDialog.waitForClosed();
+      await page.waitForURL(pathnameIs(routeUrl('budgetOverview')));
     });
 
     test('N5: New › Invoice while already on Invoices opens the modal again', async ({ page }) => {

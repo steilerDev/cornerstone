@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as tradeService from '../services/tradeService.js';
-import type { CreateTradeRequest, UpdateTradeRequest } from '@cornerstone/shared';
+import type {
+  CreateTradeRequest,
+  UpdateTradeRequest,
+  TradeMergeRequest,
+} from '@cornerstone/shared';
 
 // JSON schema for POST /api/trades (create trade)
 const createTradeSchema = {
@@ -42,6 +46,25 @@ const updateTradeSchema = {
 
 // JSON schema for path parameter validation (GET by ID / DELETE)
 const tradeIdSchema = {
+  params: {
+    type: 'object',
+    required: ['id'],
+    properties: {
+      id: { type: 'string' },
+    },
+  },
+};
+
+// JSON schema for POST /api/trades/:id/merge
+const mergeTradeSchema = {
+  body: {
+    type: 'object',
+    required: ['targetTradeId'],
+    properties: {
+      targetTradeId: { type: 'string', minLength: 1, maxLength: 64 },
+    },
+    additionalProperties: false,
+  },
   params: {
     type: 'object',
     required: ['id'],
@@ -129,6 +152,28 @@ export default async function tradeRoutes(fastify: FastifyInstance) {
 
       const trade = tradeService.updateTrade(fastify.db, request.params.id, request.body);
       return reply.status(200).send({ trade });
+    },
+  );
+
+  /**
+   * POST /api/trades/:id/merge
+   * Moves the companies of the trade to another trade, then deletes the trade (one transaction).
+   * Auth required: Yes (both admin and member)
+   */
+  fastify.post<{ Params: { id: string }; Body: TradeMergeRequest }>(
+    '/:id/merge',
+    { schema: mergeTradeSchema },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const result = tradeService.mergeTrade(
+        fastify.db,
+        request.params.id,
+        request.body.targetTradeId,
+      );
+      return reply.status(200).send(result);
     },
   );
 

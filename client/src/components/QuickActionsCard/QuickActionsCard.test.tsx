@@ -78,7 +78,7 @@ describe('QuickActionsCard', () => {
 
     const link = screen.getByRole('link', { name: /^vendors$/i });
     expect(link).toBeInTheDocument();
-    expect(link).toHaveAttribute('href', '/settings/vendors');
+    expect(link).toHaveAttribute('href', '/companies');
   });
 
   // ── Test 7: All links are keyboard accessible ─────────────────────────────

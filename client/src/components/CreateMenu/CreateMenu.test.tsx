@@ -94,7 +94,7 @@ describe('CreateMenu', () => {
     expect(href('offer')).toBe(
       routeUrl('invoices', undefined, { create: '1', kind: 'offer', companyId: 'c1' }),
     );
-    expect(href('company')).toBe(routeUrl('vendors', undefined, { create: '1' }));
+    expect(href('company')).toBe(routeUrl('companyNew'));
   });
 
   it('a plain click pushes the target with the background, origin and createOpener state', () => {
@@ -102,6 +102,18 @@ describe('CreateMenu', () => {
     open();
     fireEvent.click(screen.getByTestId('create-menu-task'));
     expect(log.actions).toEqual([`PUSH ${routeUrl('workItemNew')}`]);
+    expect(log.states[0]).toMatchObject({
+      createOpener: true,
+      origin: { to: '/project/work-items?q=x' },
+      background: { pathname: '/project/work-items', search: '?q=x' },
+    });
+  });
+
+  it('the Company row opens the New company dialog route over the current page (#2213)', () => {
+    const log = setup();
+    open();
+    fireEvent.click(screen.getByTestId('create-menu-company'));
+    expect(log.actions).toEqual([`PUSH ${routeUrl('companyNew')}`]);
     expect(log.states[0]).toMatchObject({
       createOpener: true,
       origin: { to: '/project/work-items?q=x' },

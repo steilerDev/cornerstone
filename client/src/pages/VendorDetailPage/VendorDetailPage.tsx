@@ -15,6 +15,8 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
+import { OverflowMenu } from '../../components/OverflowMenu/OverflowMenu.js';
+import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
 import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { useTrades } from '../../hooks/useTrades.js';
@@ -187,6 +189,9 @@ export function VendorDetailPage() {
     }
   };
 
+  // Cancel returns focus to the header ⋯ (the menu item is gone by then).
+  const headerMenuRef = useRef<HTMLButtonElement>(null);
+
   const openDeleteConfirm = () => {
     setDeleteError('');
     setDeleteBlocked(false);
@@ -209,12 +214,14 @@ export function VendorDetailPage() {
 
     try {
       await deleteVendor(id);
-      navigate(routeUrl('vendors'));
+      // Replace: Back must not land on a deleted company.
+      navigate(routeUrl('companies'), { replace: true });
+      focusPageHeadingWhenReady();
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
-          setDeleteError(t('vendors.modal.deleteError'));
+          setDeleteError(t('companies.list.deleteBlocked'));
         } else {
           setDeleteError(translateApiError(err.error.code, tErrors));
         }
@@ -366,7 +373,7 @@ export function VendorDetailPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate(routeUrl('vendors'))}
+              onClick={() => navigate(routeUrl('companies'))}
             >
               {tc('navigation.backTo', { origin: tc('navigation.companies') })}
             </button>
@@ -398,9 +405,20 @@ export function VendorDetailPage() {
                 <button type="button" className={styles.editButton} onClick={startEdit}>
                   {t('vendorDetail.buttons.edit')}
                 </button>
-                <button type="button" className={styles.deleteButton} onClick={openDeleteConfirm}>
-                  {t('vendorDetail.buttons.delete')}
-                </button>
+                <OverflowMenu
+                  triggerRef={headerMenuRef}
+                  triggerAriaLabel={t('companies.list.actionsFor', { name: vendor.name })}
+                  data-testid="company-header-actions"
+                  items={[
+                    {
+                      id: 'delete',
+                      label: tc('button.delete'),
+                      variant: 'destructive',
+                      onClick: openDeleteConfirm,
+                      testId: 'company-header-delete',
+                    },
+                  ]}
+                />
               </>
             )}
           </div>
@@ -813,6 +831,7 @@ export function VendorDetailPage() {
           error={deleteError || null}
           onConfirm={() => void handleDelete()}
           onCancel={closeDeleteConfirm}
+          returnFocusRef={headerMenuRef}
           testIdPrefix="vendor-delete"
         />
       )}

@@ -87,14 +87,14 @@ const LIVE_REDIRECTS: ReadonlyArray<readonly [string, string]> = [
   ['/profile', '/settings/profile'],
   ['/admin/users', '/settings/users'],
   ['/budget/categories', '/settings/manage'],
-  ['/budget/vendors', '/settings/vendors'],
-  ['/budget/vendors/:id', '/settings/vendors/:id'],
+  ['/budget/vendors', '/companies'],
+  ['/budget/vendors/:id', '/companies/:id'],
   // Repairs
   ['/schedule/milestones', '/project/milestones'],
   ['/schedule/milestones/:id', '/project/milestones/:id'],
-  // Interim redirects for the Companies pages (vCard URLs are permanent)
-  ['/companies', '/settings/vendors'],
-  ['/companies/:id', '/settings/vendors/:id'],
+  // Companies moved out of Settings (#2213); /companies and /companies/:id are served pages now
+  ['/settings/vendors', '/companies'],
+  ['/settings/vendors/:id', '/companies/:id'],
 ];
 
 /** Landing paths whose target carries its own query pair (checked in addition to ?q=walk). */
@@ -130,7 +130,7 @@ const GROUPS: ReadonlyArray<{ name: string; from: readonly string[] }> = [
     ],
   },
   { name: 'repairs', from: ['/schedule/milestones', '/schedule/milestones/:id'] },
-  { name: 'companies', from: ['/companies', '/companies/:id'] },
+  { name: 'companies', from: ['/settings/vendors', '/settings/vendors/:id'] },
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -524,20 +524,22 @@ test.describe('Legacy URL walk (route map)', () => {
     }
   });
 
-  test('E3: vCard URLs /companies/:id and /budget/vendors/:id land on the company in one hop', async ({
+  test('E3: vCard URLs /companies/:id and the legacy vendor URLs land on the company in one hop', async ({
     page,
   }) => {
     await installRouteLog(page);
-    const landing = routeUrl('vendor', { id: seed.vendorId });
+    const landing = routeUrl('company', { id: seed.vendorId });
 
-    for (const start of [
-      routeUrl('company', { id: seed.vendorId }),
-      `/budget/vendors/${seed.vendorId}`,
-    ]) {
+    // /companies/:id is served as it is (no hop); the legacy URLs redirect to it in one hop
+    for (const [start, mustHop] of [
+      [landing, false],
+      [`/budget/vendors/${seed.vendorId}`, true],
+      [`/settings/vendors/${seed.vendorId}`, true],
+    ] as const) {
       await page.goto(start);
       await expect(page, start).toHaveURL((url) => url.pathname === landing);
       await expect(page.getByRole('heading', { level: 1, name: NAMES.company })).toBeVisible();
-      await expectSingleHop(page, landing, true);
+      await expectSingleHop(page, landing, mustHop);
     }
   });
 

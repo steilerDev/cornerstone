@@ -2,11 +2,10 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useLocale } from '../../contexts/LocaleContext.js';
-import { INVOICE_STATUSES, routeUrl } from '@cornerstone/shared';
+import { INVOICE_STATUSES, foldSearchText, routeUrl } from '@cornerstone/shared';
 import type {
   PaperlessDocumentSearchResult,
   CreateInvoiceRequest,
-  Vendor,
   InvoiceStatus,
 } from '@cornerstone/shared';
 import { createWorkItemBudget } from '../../lib/workItemBudgetsApi.js';
@@ -23,6 +22,7 @@ import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
@@ -32,7 +32,6 @@ import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { forwardOriginState, originHrefOr } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
@@ -112,15 +111,14 @@ export function PaperlessInvoiceReviewPage() {
   // Vendor selection
   const [vendorId, setVendorId] = useState<string>('');
   const [suggestedVendorId, setSuggestedVendorId] = useState<string | null>(null);
+  const [extractedVendorName, setExtractedVendorName] = useState<string | null>(null);
   const [suggestedVendorName, setSuggestedVendorName] = useState<string | null>(null);
   const [vendorError, setVendorError] = useState<string | null>(null);
   const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
 
   const [announceMessage, setAnnounceMessage] = useState('');
   const [defaultBudgetSourceId, setDefaultBudgetSourceId] = useState('');
-  const [extractedVendorName, setExtractedVendorName] = useState<string | null>(null);
-  const [vendorCreate, setVendorCreate] = useState<{ initialName: string } | null>(null);
-  const createResolverRef = useRef<((v: { id: string; name: string } | null) => void) | null>(null);
+  const { createAction: companyCreateAction } = useCompanyCreateAction();
 
   const {
     lines,
@@ -213,8 +211,7 @@ export function PaperlessInvoiceReviewPage() {
 
         setLines(linesWithInclude);
 
-        setExtractedVendorName(previewResult.extractedVendorName ?? null);
-
+        setExtractedVendorName(previewResult.extractedVendorName?.trim() || null);
         if (previewResult.suggestedVendorId) {
           setSuggestedVendorId(previewResult.suggestedVendorId);
           setVendorId(previewResult.suggestedVendorId);
@@ -259,29 +256,25 @@ export function PaperlessInvoiceReviewPage() {
     navigate(originHrefOr(location.state, routeUrl('invoices')), { replace: true });
   }, [navigate, location.state]);
 
-  const settleCreate = (v: { id: string; name: string } | null) => {
-    const resolve = createResolverRef.current;
-    createResolverRef.current = null;
-    resolve?.(v);
-  };
-
-  const handleRequestCreateVendor = (query: string) =>
-    new Promise<{ id: string; name: string } | null>((resolve) => {
-      createResolverRef.current = resolve;
-      setVendorCreate({ initialName: extractedVendorName ?? query });
-    });
-
-  const handleVendorCreated = (vendor: Vendor) => {
-    const option = { id: vendor.id, name: vendor.name };
-    setVendors((prev) => [...prev, option]);
-    setVendorCreate(null);
-    setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: vendor.name }));
-    settleCreate(option);
-  };
-
-  const handleVendorCreateClose = () => {
-    setVendorCreate(null);
-    settleCreate(null);
+  // A company created from the picker joins the local list, so the client-side search finds it later.
+  // An extracted company name that matches no company stays offered as a create row, prefilled
+  // with that name while the field is empty.
+  const extractedUnmatched =
+    extractedVendorName !== null &&
+    !vendors.some((v) => foldSearchText(v.name) === foldSearchText(extractedVendorName));
+  const vendorCreateAction = companyCreateAction && {
+    ...companyCreateAction,
+    show: 'noExactMatch' as const,
+    showWhenEmpty: extractedUnmatched,
+    getLabel: (query: string) => companyCreateAction.getLabel(query || extractedVendorName || ''),
+    onCreate: async (query: string) => {
+      const company = await companyCreateAction.onCreate(query || extractedVendorName || '');
+      if (company) {
+        setVendors((prev) => [...prev, company]);
+        setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: company.name }));
+      }
+      return company;
+    },
   };
 
   const handleSave = useCallback(async () => {
@@ -496,7 +489,7 @@ export function PaperlessInvoiceReviewPage() {
                   }}
                   excludeIds={[]}
                   searchFn={async (query) =>
-                    vendors.filter((v) => v.name.toLowerCase().includes(query.toLowerCase()))
+                    vendors.filter((v) => foldSearchText(v.name).includes(foldSearchText(query)))
                   }
                   renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   placeholder={t('autoItemize.vendorPlaceholder')}
@@ -506,13 +499,7 @@ export function PaperlessInvoiceReviewPage() {
                     'aria-invalid': vendorError ? true : undefined,
                     'aria-describedby': vendorError ? 'vendor-error' : undefined,
                   }}
-                  createAction={{
-                    getLabel: (q) =>
-                      q
-                        ? t('autoItemize.addNewVendorNamed', { name: q })
-                        : t('autoItemize.addNewVendor'),
-                    onCreate: handleRequestCreateVendor,
-                  }}
+                  createAction={vendorCreateAction}
                 />
                 {vendorError && (
                   <div id="vendor-error">
@@ -718,14 +705,6 @@ export function PaperlessInvoiceReviewPage() {
           </div>
         </div>
       </div>
-
-      {vendorCreate && (
-        <VendorCreateModal
-          initialName={vendorCreate.initialName}
-          onCreated={handleVendorCreated}
-          onClose={handleVendorCreateClose}
-        />
-      )}
 
       {/* Budget line picker modal */}
       {picker.pickerState.isOpen && (

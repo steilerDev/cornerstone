@@ -204,6 +204,9 @@ test.describe('Command search', () => {
     const call = search.call(companyId);
     await expect(call).toHaveAttribute('href', 'tel:5550142');
     await expect(call).toHaveAttribute('tabindex', '-1');
+    // The shared CallButton (#2213): its accessible name starts with the visible text "Call"
+    await expect(call).toHaveText('Call');
+    await expect(call).toHaveAccessibleName(`Call ${name} on 555-0142`);
 
     // The same company through the umlaut spelling
     await search.search(`grüner testbau ${tag}`);
@@ -532,10 +535,12 @@ test.describe('Command search', () => {
     await page.goto(routeUrl('companies'));
     await pageHeading(page);
     await page.keyboard.press('n');
-    await expect(new VendorsPage(page).createModal).toBeVisible();
+    await expect(new VendorsPage(page).createDialog.dialog).toBeVisible();
 
     await page.goto(routeUrl('invoices'));
     await pageHeading(page);
+    // `n` follows the Add Invoice button: both wait for the integration status to load
+    await expect(new InvoicesPage(page).newInvoiceButton).toBeEnabled();
     await page.keyboard.press('n');
     await expect(new InvoicesPage(page).createModal).toBeVisible();
 

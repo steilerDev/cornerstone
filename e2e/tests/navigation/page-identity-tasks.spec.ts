@@ -245,9 +245,9 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         title: `Home · ${HOUSE}`,
       },
       {
-        name: 'Companies (title only; its h1 is owned by #2213)',
-        path: () => ROUTES.settingsVendors,
-        h1: null,
+        name: 'Companies',
+        path: () => ROUTES.companies,
+        h1: 'Companies',
         title: `Companies · ${HOUSE}`,
       },
     ];

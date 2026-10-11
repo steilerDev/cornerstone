@@ -189,42 +189,9 @@
       }
     },
     "trades": {
-      "loading": "Loading trades...",
-      "errorTitle": "Error",
-      "retry": "Retry",
       "loadError": "Failed to load trades. Please try again.",
-      "createTitle": "Create New Trade",
-      "createDescription": "Trades represent specialties of work (e.g., Plumbing, Electrical, Carpentry). Vendors are associated with trades to indicate their area of expertise.",
-      "nameLabel": "Trade Name",
-      "namePlaceholder": "e.g., Plumbing, Electrical, Carpentry",
-      "colorLabel": "Color",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "Optional description",
-      "sortOrderLabel": "Sort Order",
-      "createButton": "Create Trade",
-      "creating": "Creating...",
-      "existingTitle": "Existing Trades ({{count}})",
-      "emptyState": "No trades yet. Create your first trade to start organizing your vendors and work items.",
-      "save": "Save",
-      "saving": "Saving...",
-      "cancel": "Cancel",
-      "edit": "Edit",
-      "delete": "Delete",
-      "deleteWarning": "A trade that a company uses cannot be deleted. Change those companies' trade first.",
-      "validation": {
-        "nameRequired": "Trade name is required",
-        "nameTooLong": "Trade name must be 100 characters or less"
-      },
-      "messages": {
-        "created": "Trade \"{{name}}\" created successfully",
-        "updated": "Trade \"{{name}}\" updated successfully",
-        "deleted": "Trade \"{{name}}\" deleted successfully",
-        "createError": "Failed to create trade. Please try again.",
-        "updateError": "Failed to update trade. Please try again.",
-        "deleteError": "Failed to delete trade. Please try again.",
-        "deleteConflict": "This trade cannot be deleted because a company uses it.",
-        "duplicateName": "A trade with this name already exists."
-      }
+      "movedText": "Trades are managed on the Companies page.",
+      "movedLink": "Open Trades"
     },
     "orientations": {
       "tabLabel": "Orientations",
@@ -482,6 +449,54 @@
         "createFailed": "Failed to create contact. Please try again.",
         "updateFailed": "Failed to update contact. Please try again."
       }
+    }
+  },
+  "tradesManager": {
+    "title": "Trades",
+    "newLabel": "New trade",
+    "add": "Add",
+    "adding": "Adding…",
+    "done": "Done",
+    "listLabel": "Trades",
+    "noCompanies": "No companies",
+    "companyCount_one": "{{count}} company",
+    "companyCount_other": "{{count}} companies",
+    "actionsFor": "Actions for {{name}}",
+    "rename": "Rename",
+    "renameLabel": "New name for {{name}}",
+    "renameHint": "Renaming replaces the built-in translation.",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "mergeDuplicates": "Merge duplicates…",
+    "duplicateName": "A trade with this name exists already.",
+    "nameRequired": "Enter a name.",
+    "added": "{{name}} added",
+    "renamed": "{{name}} renamed",
+    "empty": "No trades yet. Add one above.",
+    "loadError": "Trades could not be loaded.",
+    "tryAgain": "Try again",
+    "merge": {
+      "title": "Merge {{name}} into another trade?",
+      "lead": "Pick the trade to keep. The companies of {{name}} move to it, and {{name}} is removed.",
+      "keepLabel": "Keep this trade",
+      "moveCount_one": "{{count}} company moves to {{target}}",
+      "moveCount_other": "{{count}} companies move to {{target}}",
+      "noneMove": "No companies move to {{target}}",
+      "chooseFirst": "Choose the trade to keep",
+      "confirm": "Merge",
+      "busy": "Merging…",
+      "done": "{{name}} merged into {{target}}"
+    },
+    "deleteAction": "Delete",
+    "deleteDialog": {
+      "title": "Delete {{name}}?",
+      "blocked_one": "{{count}} company still uses this trade. Merge it into another trade instead, or change that company first.",
+      "blocked_other": "{{count}} companies still use this trade. Merge it into another trade instead, or change those companies first.",
+      "mergeInstead": "Merge instead",
+      "confirm": "Delete",
+      "busy": "Deleting…",
+      "done": "{{name}} deleted"
     }
   }
 }

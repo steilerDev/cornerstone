@@ -9,10 +9,14 @@
  */
 
 import { describe, it, expect } from '@jest/globals';
+import { TRADE_IDS_MAX, TRADE_ID_MAX_LENGTH } from './trade.js';
 import type {
   TradeSummary,
   TradeResponse,
   TradeListResponse,
+  TradeListItem,
+  TradeMergeRequest,
+  TradeMergeResponse,
   TradeSingleResponse,
   CreateTradeRequest,
   UpdateTradeRequest,
@@ -154,6 +158,7 @@ describe('TradeListResponse interface', () => {
           sortOrder: 0,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
+          vendorCount: 3,
         },
         {
           id: 'trade-hvac',
@@ -164,6 +169,7 @@ describe('TradeListResponse interface', () => {
           sortOrder: 1,
           createdAt: '2026-01-01T00:00:00Z',
           updatedAt: '2026-01-01T00:00:00Z',
+          vendorCount: 0,
         },
       ],
     };
@@ -306,5 +312,35 @@ describe('TradeListQuery interface', () => {
   it('allows empty query (all fields optional)', () => {
     const query: TradeListQuery = {};
     expect(Object.keys(query)).toHaveLength(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Merge types and tradeIds limits (#2213)
+// ---------------------------------------------------------------------------
+
+describe('trade merge types and tradeIds limits', () => {
+  it('exposes the tradeIds limits used by vendors and search', () => {
+    expect(TRADE_IDS_MAX).toBe(50);
+    expect(TRADE_ID_MAX_LENGTH).toBe(64);
+  });
+
+  it('merge response carries the kept trade with its vendor count and the moved count', () => {
+    const request: TradeMergeRequest = { targetTradeId: 'trade-hvac' };
+    const kept: TradeListItem = {
+      id: request.targetTradeId,
+      name: 'HVAC',
+      color: null,
+      description: null,
+      translationKey: null,
+      sortOrder: 1,
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      vendorCount: 5,
+    };
+    const response: TradeMergeResponse = { trade: kept, movedVendorCount: 2 };
+
+    expect(response.trade.vendorCount).toBe(5);
+    expect(response.movedVendorCount).toBe(2);
   });
 });
