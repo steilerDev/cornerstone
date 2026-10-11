@@ -99,6 +99,8 @@ interface SweepRow {
   title?: RegExp;
   /** Breadcrumb row expected (non-view pages). The 404 page renders none. */
   crumbs: boolean;
+  /** #2212: the ObjectForm dialog open over the page (create URLs render their list). */
+  dialog?: string;
   /** Test id of the one highlighted sidebar entry; null = none (404). */
   active: string | null;
 }
@@ -118,8 +120,11 @@ const ROWS: SweepRow[] = [
   {
     id: 'workItemNew',
     path: () => routeUrl('workItemNew'),
-    h1: 'New task',
-    crumbs: true,
+    // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
+    h1: 'Tasks',
+    dialog: 'New task',
+    title: new RegExp(`^New task · Tasks · ${HOUSE}$`),
+    crumbs: false,
     active: TASKS,
   },
   {
@@ -139,8 +144,11 @@ const ROWS: SweepRow[] = [
   {
     id: 'milestoneNew',
     path: () => routeUrl('milestoneNew'),
-    h1: 'New milestone',
-    crumbs: true,
+    // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
+    h1: 'Milestones',
+    dialog: 'New milestone',
+    title: new RegExp(`^New milestone · Tasks · ${HOUSE}$`),
+    crumbs: false,
     active: 'sidebar-view-milestones',
   },
   {
@@ -175,8 +183,11 @@ const ROWS: SweepRow[] = [
   {
     id: 'householdItemNew',
     path: () => routeUrl('householdItemNew'),
-    h1: 'New purchase',
-    crumbs: true,
+    // A create URL renders its list (a view: no breadcrumb row) with the dialog open over it
+    h1: 'Purchases',
+    dialog: 'New purchase',
+    title: new RegExp(`^New purchase · Purchases · ${HOUSE}$`),
+    crumbs: false,
     active: PURCHASES,
   },
   {
@@ -515,6 +526,9 @@ test.describe('Page identity sweep: every page of the route map (#2205)', () => 
       if (row.h1 !== null) {
         await expect(headings).toHaveCount(1);
         await expect(headings).toHaveText(row.h1);
+      }
+      if (row.dialog !== undefined) {
+        await expect(page.getByRole('dialog', { name: row.dialog, exact: true })).toBeVisible();
       }
       const title =
         row.title ?? new RegExp(`^${escapeRegExp(row.h1 ?? '')} · (.* · )?${escapeRegExp(HOUSE)}$`);

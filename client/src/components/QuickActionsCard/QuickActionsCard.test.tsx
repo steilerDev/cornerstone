@@ -118,3 +118,26 @@ describe('QuickActionsCard', () => {
     expect(probedOrigin()).toEqual({ to: '/project/overview?x=1' });
   });
 });
+
+describe('QuickActionsCard dialog link (#2212)', () => {
+  it('opens the New task dialog over the Home page: background plus origin in the link state', async () => {
+    const { QuickActionsCard: Card } = await import('./QuickActionsCard.js');
+    renderWithRouter(
+      <>
+        <Card />
+        <OriginProbe />
+      </>,
+      { initialEntries: ['/project/overview?x=1'] },
+    );
+
+    fireEvent.click(screen.getByRole('link', { name: /new work item/i }));
+
+    const state = JSON.parse(screen.getByTestId('probe-state').textContent ?? 'null');
+    expect(probedPath()).toBe('/project/work-items/new');
+    expect(state).toMatchObject({
+      origin: { to: '/project/overview?x=1' },
+      background: { pathname: '/project/overview', search: '?x=1' },
+    });
+    expect(state).not.toHaveProperty('createOpener');
+  });
+});

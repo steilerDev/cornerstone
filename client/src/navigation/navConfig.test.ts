@@ -10,7 +10,6 @@ import {
   NAV_SECTIONS,
   PHONE_BAR,
   PHONE_BAR_SECTIONS,
-  PHONE_CAPTURE_ROUTE,
   navSections,
   type NavContext,
   type NavSection,
@@ -326,9 +325,8 @@ describe('PHONE_BAR and MORE_SHEET', () => {
 });
 
 describe('phone shell constants (#2207)', () => {
-  it("opens today's new diary entry from the capture slot", () => {
-    expect(PHONE_CAPTURE_ROUTE).toBe('diaryEntryNew');
-    expect(routePattern(PHONE_CAPTURE_ROUTE)).toBe('/diary/new');
+  it('keeps the capture slot id in the phone bar (the plus button opens the New sheet)', () => {
+    expect(PHONE_BAR).toContain('capture');
   });
 
   it('gives only Home, Site diary and Photos a slot of their own', () => {

@@ -199,29 +199,21 @@
       "closeDialog": "Dialog schließen oder abbrechen"
     },
     "create": {
-      "errors": {
-        "createFailed": "Meilenstein konnte nicht erstellt werden. Bitte versuchen Sie es erneut."
-      },
       "form": {
         "title": {
           "label": "Titel",
-          "required": "*",
           "placeholder": "Meilensteintitel eingeben",
           "error": "Titel ist erforderlich."
         },
         "targetDate": {
           "label": "Zieldatum",
-          "required": "*",
           "error": "Zieldatum ist erforderlich."
         },
         "description": {
           "label": "Beschreibung",
           "placeholder": "Optionale Beschreibung für diesen Meilenstein"
         }
-      },
-      "cancel": "Abbrechen",
-      "submit": "Meilenstein erstellen",
-      "submitting": "Wird erstellt..."
+      }
     },
     "detail": {
       "loading": "Meilenstein wird geladen...",

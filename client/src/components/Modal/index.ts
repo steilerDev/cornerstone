@@ -5,3 +5,5 @@ export type { SheetProps } from './Sheet.js';
 export { useFocusTrap } from './useFocusTrap.js';
 export { AnchoredPanel } from './AnchoredPanel.js';
 export type { AnchoredPanelProps } from './AnchoredPanel.js';
+export { useFocusRestore } from './useFocusRestore.js';
+export type { UseFocusRestoreOptions } from './useFocusRestore.js';

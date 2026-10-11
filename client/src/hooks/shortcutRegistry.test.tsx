@@ -99,3 +99,48 @@ describe('ShortcutRegistry', () => {
     expect(renders.mock.calls.length).toBe(before);
   });
 });
+
+describe('ShortcutRegistry fallback owners (#2212 D10)', () => {
+  const named = (key: string, description: string): KeyboardShortcut => ({
+    key,
+    handler: noop,
+    description,
+  });
+
+  it('lists a non-fallback entry over a fallback one, fallback registered first', () => {
+    const registry = setup();
+    registry.register('shell', [named('n', 'shell n')], { fallback: true });
+    registry.register('page', [named('n', 'page n')]);
+    expect(registry.snapshot().map((s) => s.description)).toEqual(['page n']);
+  });
+
+  it('lists a non-fallback entry over a fallback one, fallback registered last', () => {
+    const registry = setup();
+    registry.register('page', [named('n', 'page n')]);
+    registry.register('shell', [named('n', 'shell n')], { fallback: true });
+    expect(registry.snapshot().map((s) => s.description)).toEqual(['page n']);
+  });
+
+  it('lists the fallback entry when nobody else owns the key', () => {
+    const registry = setup();
+    registry.register('shell', [named('n', 'shell n')], { fallback: true });
+    expect(registry.snapshot().map((s) => s.description)).toEqual(['shell n']);
+  });
+
+  it('still lets the last non-fallback owner win among non-fallbacks', () => {
+    const registry = setup();
+    registry.register('a', [named('n', 'first')]);
+    registry.register('b', [named('n', 'second')]);
+    expect(registry.snapshot().map((s) => s.description)).toEqual(['second']);
+  });
+
+  it('hasNonFallbackOwner ignores fallbacks and the asking owner', () => {
+    const registry = setup();
+    registry.register('shell', [named('n', 's')], { fallback: true });
+    expect(registry.hasNonFallbackOwner('n', 'x')).toBe(false);
+    registry.register('page', [named('n', 'p')]);
+    expect(registry.hasNonFallbackOwner('n', 'x')).toBe(true);
+    expect(registry.hasNonFallbackOwner('n', 'page')).toBe(false);
+    expect(registry.hasNonFallbackOwner('q', 'x')).toBe(false);
+  });
+});

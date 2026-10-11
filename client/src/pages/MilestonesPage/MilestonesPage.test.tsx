@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
@@ -12,6 +12,7 @@ import enErrors from '../../i18n/en/errors.json';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type * as MilestonesPageTypes from './MilestonesPage.js';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 
 // ── API mocks ─────────────────────────────────────────────────────────────────
 
@@ -574,5 +575,62 @@ describe('MilestonesPage', () => {
       expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
       expect(screen.queryByTestId('breadcrumbs')).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('MilestonesPage create openers (#2212)', () => {
+  let Page: typeof MilestonesPageTypes;
+
+  beforeEach(async () => {
+    mockListMilestones.mockReset();
+    if (!Page) Page = await import('./MilestonesPage.js');
+  });
+
+  function renderAt(entry = '/project/milestones?x=1') {
+    const log = createRouterLog();
+    render(
+      <ToastProvider>
+        <RecordingRouter entries={[entry]} log={log}>
+          <Page.MilestonesPage />
+        </RecordingRouter>
+      </ToastProvider>,
+    );
+    return log;
+  }
+
+  function expectDialogPush(log: ReturnType<typeof createRouterLog>) {
+    expect(log.actions).toEqual(['PUSH /project/milestones/new']);
+    expect(log.states[0]).toMatchObject({
+      origin: { to: '/project/milestones?x=1' },
+      background: { pathname: '/project/milestones', search: '?x=1' },
+    });
+  }
+
+  it('the primary button opens the New milestone dialog over the list', async () => {
+    mockListMilestones.mockResolvedValue([sampleMilestone1]);
+    const log = renderAt();
+    fireEvent.click(await screen.findByTestId('new-milestone-button'));
+    expectDialogPush(log);
+  });
+
+  it('the n shortcut opens the New milestone dialog over the list', async () => {
+    mockListMilestones.mockResolvedValue([sampleMilestone1]);
+    const log = renderAt();
+    await screen.findByTestId('new-milestone-button');
+    // useKeyboardShortcuts is mocked in this file: run the page's registered n handler.
+    const { useKeyboardShortcuts } = await import('../../hooks/useKeyboardShortcuts.js');
+    const calls = (useKeyboardShortcuts as unknown as jest.Mock).mock.calls as Array<
+      [Array<{ key: string; handler: () => void }>]
+    >;
+    const shortcut = calls.at(-1)![0].find((s) => s.key === 'n')!;
+    act(() => shortcut.handler());
+    expectDialogPush(log);
+  });
+
+  it('the empty-state action opens the New milestone dialog over the list', async () => {
+    mockListMilestones.mockResolvedValue([]);
+    const log = renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: 'Create First Milestone' }));
+    expectDialogPush(log);
   });
 });

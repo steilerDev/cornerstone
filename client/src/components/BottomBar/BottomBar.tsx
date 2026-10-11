@@ -5,12 +5,8 @@ import { useOnScreenKeyboard } from '../../hooks/useOnScreenKeyboard.js';
 import { navHref } from '../../navigation/navActive.js';
 import type { NavActive } from '../../navigation/navActive.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
-import {
-  NAV_SECTIONS,
-  PHONE_BAR,
-  PHONE_BAR_SECTIONS,
-  PHONE_CAPTURE_ROUTE,
-} from '../../navigation/navConfig.js';
+import { NAV_SECTIONS, PHONE_BAR, PHONE_BAR_SECTIONS } from '../../navigation/navConfig.js';
+import { useCreateMenuShell } from '../CreateMenu/CreateMenuContext.js';
 import styles from './BottomBar.module.css';
 
 export interface BottomBarProps {
@@ -99,6 +95,7 @@ export function BottomBar({
     };
   }, [keyboardOpen]);
 
+  const { sheetOpen, sheetId, plusButtonRef, toggleSheet } = useCreateMenuShell();
   const moreActive = active !== null && !PHONE_BAR_SECTIONS.includes(active.sectionId);
 
   return (
@@ -133,16 +130,22 @@ export function BottomBar({
           if (slot === 'capture') {
             return (
               <li key={slot} className={styles.item}>
-                <NavAnchor
-                  to={navHref(PHONE_CAPTURE_ROUTE)}
+                <button
+                  ref={plusButtonRef}
+                  type="button"
                   className={styles.slot}
+                  aria-haspopup="dialog"
+                  aria-expanded={sheetOpen}
+                  aria-controls={sheetId || undefined}
                   data-testid="bottom-bar-new"
+                  data-create-trigger=""
+                  onClick={toggleSheet}
                 >
                   <span className={styles.icon}>
                     <span className={styles.newIcon}>{ICONS.capture}</span>
                   </span>
                   <span className={styles.label}>{t('topBar.new')}</span>
-                </NavAnchor>
+                </button>
               </li>
             );
           }

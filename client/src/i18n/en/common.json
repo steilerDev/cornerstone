@@ -116,6 +116,30 @@
     "attention": "Needs attention",
     "accountMenu": "Account menu for {{name}}"
   },
+  "createMenu": {
+    "entry": {
+      "diaryEntry": "Diary entry",
+      "task": "Task",
+      "purchase": "Purchase",
+      "invoice": "Invoice",
+      "offer": "Offer",
+      "company": "Company",
+      "milestone": "Milestone",
+      "fundingSource": "Funding source",
+      "grant": "Grant"
+    },
+    "shortcut": "Open the New menu"
+  },
+  "objectForm": {
+    "required": "(required)",
+    "moreDetails": "More details",
+    "fewerDetails": "Fewer details",
+    "addAnother": "Add another after saving",
+    "saving": "Saving…",
+    "saveFailed": "Couldn't save. Check your connection and try again.",
+    "fieldInvalid": "Check this value.",
+    "backTo": "Back to {{title}}"
+  },
   "userMenu": {
     "account": "Account",
     "theme": "Theme",

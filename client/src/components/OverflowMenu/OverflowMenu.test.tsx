@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
-import { createRef } from 'react';
+import { createRef, useRef } from 'react';
 import { render, screen, fireEvent, act, waitFor, within } from '@testing-library/react';
 import {
   OverflowMenu,
+  type OverflowMenuControl,
   SCROLL_CLOSE_THRESHOLD_PX,
   type OverflowMenuEntry,
   type OverflowMenuItem,
@@ -1272,5 +1273,96 @@ describe('OverflowMenu renderTrigger, bottom-start placement and current links (
     renderCustom();
     fireEvent.click(screen.getByTestId('custom-trigger'));
     expect(screen.getByRole('menuitem', { name: 'Tasks' })).toBe(screen.getByTestId('link-a'));
+  });
+});
+
+describe('OverflowMenu controlRef (#2212)', () => {
+  let controlHandle: { current: OverflowMenuControl | null } = { current: null };
+
+  function Harness() {
+    const controlRef = useRef<OverflowMenuControl | null>(null);
+    controlHandle = controlRef;
+    return (
+      <div>
+        <button type="button" id="elsewhere">
+          elsewhere
+        </button>
+        <OverflowMenu items={buildItems(3)} triggerAriaLabel="Open menu" controlRef={controlRef} />
+      </div>
+    );
+  }
+  it('exposes open/close/isOpen and clears the handle on unmount', () => {
+    const { unmount } = render(<Harness />);
+    expect(controlHandle.current).not.toBeNull();
+    expect(controlHandle.current!.isOpen()).toBe(false);
+    act(() => controlHandle.current!.open('first'));
+    expect(screen.getByRole('menu')).toBeInTheDocument();
+    expect(controlHandle.current!.isOpen()).toBe(true);
+    act(() => controlHandle.current!.close());
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(controlHandle.current!.isOpen()).toBe(false);
+    const handle = controlHandle;
+    unmount();
+    expect(handle.current).toBeNull();
+  });
+
+  it('open("first") focuses the first row; open("last") the last', () => {
+    render(<Harness />);
+    act(() => controlHandle.current!.open('first'));
+    expect(screen.getAllByRole('menuitem')[0]).toHaveFocus();
+    act(() => controlHandle.current!.close());
+    act(() => controlHandle.current!.open('last'));
+    expect(screen.getAllByRole('menuitem')[2]).toHaveFocus();
+  });
+
+  it('Escape returns focus to returnTo, not the trigger', () => {
+    render(<Harness />);
+    const elsewhere = screen.getByText('elsewhere');
+    act(() => controlHandle.current!.open('first', elsewhere));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it('Escape from a row (menu keydown) also returns to returnTo', () => {
+    render(<Harness />);
+    const elsewhere = screen.getByText('elsewhere');
+    act(() => controlHandle.current!.open('first', elsewhere));
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0]!, { key: 'Escape' });
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it('Tab closes the menu and returns focus to returnTo', () => {
+    render(<Harness />);
+    const elsewhere = screen.getByText('elsewhere');
+    act(() => controlHandle.current!.open('first', elsewhere));
+    fireEvent.keyDown(screen.getAllByRole('menuitem')[0]!, { key: 'Tab' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(elsewhere).toHaveFocus();
+  });
+
+  it('falls back to the trigger when returnTo is disconnected', () => {
+    render(<Harness />);
+    const gone = document.createElement('button');
+    act(() => controlHandle.current!.open('first', gone));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+  });
+
+  it('falls back to the trigger when no returnTo was given', () => {
+    render(<Harness />);
+    act(() => controlHandle.current!.open('first'));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
+  });
+
+  it('forgets returnTo after a pointer open on the trigger', () => {
+    render(<Harness />);
+    const elsewhere = screen.getByText('elsewhere');
+    act(() => controlHandle.current!.open('first', elsewhere));
+    act(() => controlHandle.current!.close());
+    fireEvent.click(screen.getByRole('button', { name: 'Open menu' }));
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.getByRole('button', { name: 'Open menu' })).toHaveFocus();
   });
 });

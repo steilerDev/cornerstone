@@ -127,7 +127,7 @@
     "to": "Global > New menu > Task (context-aware: area, company or date pre-filled from the current page, e.g. the date on Tasks > Schedule); Tasks > Tasks list > primary 'New task'; Areas > Area page via the context-aware New menu",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there."
+    "note": "Seven entry points become one ObjectForm dialog. The Schedule loses its own 'New ▾' (one primary per page, SIM-02); the top-bar New pre-fills the date there. #2212: Global › New menu › Task; Tasks › Tasks list › primary 'New Work Item', empty state and n (each opens the New task dialog over the page they are on); Tasks › Schedule › 'Add' menu (kept until its own story)."
   },
   "WRK-018": {
     "name": "Create a work item with title, description and initial status",
@@ -136,7 +136,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New task dialog: Title, Description (More details) and Status (More details) fields; Save creates the task.",
-    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08)."
+    "note": "One schema per object (ObjectForm): create shows all sections, edit shows one section in its card (SIM-09). 'Planned cost' creates the first cost line (J09). #2195: status chip, select and filter read the canonical task words (Not started / In progress / Done) through the shared Badge map, so the chip is coloured (D-08). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "WRK-019": {
     "name": "Choose the work item's area at creation with a live breadcrumb preview",
@@ -144,7 +144,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Area picker (area path shown; inline 'New area')",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Tasks; only the shared page template, the words and the navigation around it change (weekly use). #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "WRK-020": {
     "name": "Assign the new work item to a household member or a vendor",
@@ -152,7 +152,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > Who (one picker: companies first, then household members; inline 'New company')",
     "change": "same",
     "gate": "none",
-    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500."
+    "note": "One 'Who' field: the data model allows a company or a person, never both (migration 0028 triggers); creating both today returns HTTP 500 (D-25, fixed as a 400 validation). #2196: assigning both a user and a vendor answers 400 instead of 500. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "WRK-021": {
     "name": "Set duration and start-after / start-before constraints at creation",
@@ -160,7 +160,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > More details > Timing > Duration, Not before, Start by",
     "change": "same",
     "gate": "none",
-    "note": "Start After/Start Before relabelled in plain words."
+    "note": "Start After/Start Before relabelled in plain words. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "WRK-022": {
     "name": "Define dependencies on other work items before the new item exists",
@@ -168,7 +168,7 @@
     "to": "Tasks > New task dialog (ObjectForm; /project/work-items/new opens it over the list) > More details > 'Waits for' picker",
     "change": "same",
     "gate": "none",
-    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced."
+    "note": "Sentence builder replaced by plain 'Waits for' list; advanced types under Advanced. #2212: Tasks › New task dialog (ObjectForm; /project/work-items/new opens it over the page you came from, or over the Tasks list on a deep link). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "WRK-023": {
     "name": "Open a work item's full detail page",
@@ -524,7 +524,7 @@
     "to": "Global > New menu > Milestone; Tasks > Milestones > primary 'New milestone'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "6 entry points become one form reached from 3 places."
+    "note": "6 entry points become one form reached from 3 places. #2212: Global › New menu › Milestone; Tasks › Milestones › primary; both open the New milestone dialog."
   },
   "WRK-080": {
     "name": "Create a milestone with title, target date and description",
@@ -533,7 +533,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New milestone dialog: Title*, Target date*, Description; Save.",
-    "note": "Create page (h1 'Project') retired; same form as edit."
+    "note": "Create page (h1 'Project') retired; same form as edit. #2212: Tasks › New milestone dialog (ObjectForm; /project/milestones/new opens it over the page you came from, or over the Milestones list on a deep link). The create page is retired."
   },
   "WRK-081": {
     "name": "View a milestone (status, target date, description, completion date)",
@@ -656,7 +656,7 @@
     "to": "Global > New menu (on Tasks > Schedule the date is pre-filled from the visible week)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "The Schedule's own 'New ▾' goes (one primary control per page, SIM-02)."
+    "note": "The Schedule's own 'New ▾' goes (one primary control per page, SIM-02). #2212: Tasks › Schedule › Calendar view: New › Milestone / Diary entry pre-fill the visible date (today when shown, else the first day of the displayed month or week). The Gantt view pre-fills no date. The Schedule 'Add' menu stays until its own story."
   },
   "WRK-096": {
     "name": "View work items as bars on a time axis, coloured by status",
@@ -1005,7 +1005,7 @@
     "to": "Global > New menu > Invoice / Offer / Company (company pre-filled on a company page)",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35)."
+    "note": "Budget 'Add' menu that only navigated is retired (D1 §7 #10). + New is context-aware (company pre-filled on a company page). #2194: Add Invoice opens the invoice form (?create=1) (D-35). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer; company pre-filled on a company page)."
   },
   "MNY-022": {
     "name": "View all financing sources with type, status, total and interest rate",
@@ -1038,7 +1038,7 @@
     "to": "Global > New menu > Funding source (context: Money > Financing) -> New funding source dialog (ObjectForm)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Money; only the shared page template, the words and the navigation around it change (setup-once use). #2212 (interim until the Financing page): Global › New menu › Funding source (on Money pages only) → the Funding sources page with its create form open (?create=1)."
   },
   "MNY-026": {
     "name": "Edit a financing source inline",
@@ -1134,7 +1134,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > New menu); every old URL redirects there in one hop.",
-    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Money, the one home of its object (principle 2); the old URL keeps working (rare use). #2212 (interim until the Financing page): Global › New menu › Grant (on Money pages only) → the Grants page with its create form open (?create=1)."
   },
   "MNY-038": {
     "name": "Edit a subsidy program inline",
@@ -1299,7 +1299,7 @@
     "to": "Global > New menu > Invoice / Offer (company pre-filled on a company page); Money > Invoices > primary 'New invoice' ('New offer' on the Offers chip); Companies > Company page > Payments tab > 'New invoice'; Task / Purchase page > Cost tab > 'New invoice' -> one New invoice / New offer dialog (ObjectForm) with 'For task / purchase' (allocates the full amount at create) and the 'Add another after saving' checkbox",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17)."
+    "note": "A new invoice is never saved as an offer (D-17). 54 of 56 real invoices that hit a task hit exactly one. #2194: the status defaults to To pay (pending); Quotation must be chosen explicitly (D-17). #2212 (interim until 4.9): Global › New menu › Invoice / Offer → Money › Invoices › today's create modal (?create=1; kind=offer presets status Offer (quotation); company pre-filled on a company page). The ObjectForm schema arrives with 4.9."
   },
   "MNY-061": {
     "name": "Choose a Paperless document as the starting point for a new invoice",
@@ -1901,7 +1901,7 @@
     "to": "Global > New menu > Company; Companies > Companies list > primary 'New company'; inline 'New company' in every company picker",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Fixes the invoice dead end on a fresh instance (GLB-05)."
+    "note": "Fixes the invoice dead end on a fresh instance (GLB-05). #2212 (interim until 5.10b): Global › New menu › Company → Companies list › today's create modal (?create=1)."
   },
   "MNY-138": {
     "name": "Delete a vendor",
@@ -1970,7 +1970,7 @@
     "to": "Global > New menu > Purchase; Purchases > Purchases list > primary 'New purchase'; empty state",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use)."
+    "note": "Duplicate entry points merged into one pattern; the capability itself is unchanged (weekly use). #2212: Global › New menu › Purchase; Purchases › Purchases list › primary and empty state (both open the New purchase dialog over the list)."
   },
   "HHI-006": {
     "name": "Open a household item detail page from the list",
@@ -2131,7 +2131,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Name*, Description; Save.",
-    "note": "Create page and separate edit page become one form."
+    "note": "Create page and separate edit page become one form. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-033": {
     "name": "Choose a category when creating a household item",
@@ -2140,7 +2140,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Category* with inline 'New category'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-034": {
     "name": "Set the initial purchase status when creating",
@@ -2149,7 +2149,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Status (Planned default).",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; weekly use). #2195: status chip, select and filter read the canonical purchase words (Planned / Ordered / Delivery scheduled / Delivered) through the shared Badge map (D-08, D-32). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-035": {
     "name": "Set the quantity of a household item",
@@ -2158,7 +2158,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Quantity.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-036": {
     "name": "Assign an area (room/location) to a household item",
@@ -2167,7 +2167,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Area picker.",
-    "note": "Area editable in one place only (P44)."
+    "note": "Area editable in one place only (P44). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-037": {
     "name": "Assign a vendor (retailer/supplier) to a household item",
@@ -2176,7 +2176,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Company picker with inline 'New company'.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-038": {
     "name": "Store a product URL for a household item",
@@ -2185,7 +2185,7 @@
     "change": "merged",
     "gate": "none",
     "acceptance": "New purchase dialog: Product link.",
-    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use)."
+    "note": "Folded into one shared surface in Purchases (one pattern per task, principle 8; monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-039": {
     "name": "Enter the order date when creating a household item",
@@ -2193,7 +2193,7 @@
     "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Ordered on",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-040": {
     "name": "Define an expected delivery window (earliest/latest delivery) when creating",
@@ -2201,7 +2201,7 @@
     "to": "Purchases > New purchase dialog (ObjectForm; /project/household-items/new opens it over the list) > Delivery window (earliest / latest)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use)."
+    "note": "Kept as it works today, inside Purchases; only the shared page template, the words and the navigation around it change (monthly use). #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-041": {
     "name": "Record an actual delivery date when creating (already delivered items)",
@@ -2211,7 +2211,7 @@
     "gate": "none",
     "clicks": 1,
     "clickPath": "New purchase dialog > 'More details' (1) > Delivered on field",
-    "note": "Rare at creation."
+    "note": "Rare at creation. #2212: Purchases › New purchase dialog (ObjectForm over the Purchases list or the page you came from). Field labels are ported 1:1 until 5.10a rewords the schema."
   },
   "HHI-042": {
     "name": "View a household item summary header (name, category, status)",
@@ -2546,7 +2546,7 @@
     "to": "Phone and tablet bottom bar ＋ -> Site diary > Capture (/diary/new) (always a new entry; camera and library first; 'Also create' row); Home (phone) > 'Where are you?' area chips (pre-fill the area); Global > New menu > Diary entry; Site diary > Site diary list > primary 'Log today'",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3."
+    "note": "Capture never appends silently: on real data 12 entry dates hold 2–3 separate entries for different trades and no title repeats on a day (R-B1). When an entry with the same date and title exists, capture offers 'Add to that entry instead' (one tap). No draft is written until the first photo or character. #2195: diary type labels read one key set (common statusVocabulary.diaryType for manual types), so chip, badge and filter show the same word (AC3). #2204: h1 \"New diary entry\", breadcrumb \"Site diary\", origin forwarded through the draft. #2207: the bottom bar ＋ New opens /diary/new until Capture lands in P2.3. #2212: Global › New menu › Diary entry → Site diary › New diary entry (/diary/new; ?date= pre-fills the entry date). The phone ＋ opens the New sheet, with Diary entry as the first row, until 2.3 restores one-tap capture."
   },
   "JRN-013": {
     "name": "Write the entry date, an optional title and the entry text",
@@ -3288,7 +3288,7 @@
     "gate": "none",
     "acceptance": "Bottom bar (5 slots) and More sheet list every destination of the sidebar; More opens and closes; closed sheet is inert.",
     "decision": "Q1d",
-    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert."
+    "note": "Tablets (768–1023 px) use the same bar: no separate navigation rail, so labels never need short forms (SIM-08, R-m4). #2196: viewport allows pinch-zoom. #2207: built; floating button, overlay and drawer removed; closed sheet is inert. #2212: Global › bottom bar: ＋ New is a button that opens the New sheet (no longer a link to /diary/new)."
   },
   "PLT-011": {
     "name": "Follow old bookmarks and legacy URLs to their new locations",
@@ -3593,7 +3593,7 @@
     "to": "Global > New menu in the top bar (neutral button, key n outside lists; fixed order Diary entry · Task · Purchase · Invoice · Offer · Company · Milestone; context-aware prefill); phone ＋ opens capture with an 'Also create' row",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "The top-bar New is not primary-styled, so every page keeps exactly one primary action (SIM-02)."
+    "note": "The top-bar New is not primary-styled, so every page keeps exactly one primary action (SIM-02). #2212: built. Global › top bar › 'New ▾' menu (from 1024px); Global › bottom bar › ＋ New sheet (below 1024px); key n outside lists. Entry order and context pre-fill come from navigation/createEntries.ts. The Home 'Add' menu stays until story 3.3."
   },
   "PLT-049": {
     "name": "Hide a dashboard card I do not need",
@@ -3796,7 +3796,7 @@
     "to": "Global > New menu and Sidebar",
     "change": "consolidated-entry-points",
     "gate": "none",
-    "note": "Quick Actions card retired; all 6 links duplicated navigation."
+    "note": "Quick Actions card retired; all 6 links duplicated navigation. #2212: Global › New menu (as PLT-048). The Quick Actions card stays until story 3.3; its 'New Work Item' opens the New task dialog over Home."
   },
   "PLT-072": {
     "name": "View all user accounts with role, sign-in method and status",

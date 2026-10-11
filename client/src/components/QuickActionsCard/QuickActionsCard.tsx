@@ -1,7 +1,7 @@
 import { routeUrl } from '@cornerstone/shared';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { useOriginState } from '../../navigation/useOriginState.js';
+import { useCreateEntryLink } from '../../navigation/useOpenCreate.js';
 import styles from './QuickActionsCard.module.css';
 
 /**
@@ -11,12 +11,12 @@ import styles from './QuickActionsCard.module.css';
  */
 export function QuickActionsCard() {
   const { t } = useTranslation('dashboard');
-  const originState = useOriginState();
+  const newTask = useCreateEntryLink('task');
 
   return (
     <div className={styles.container}>
       {/* Primary action: New Work Item */}
-      <Link to={routeUrl('workItemNew')} state={originState} className={styles.primaryAction}>
+      <Link to={newTask.to} state={newTask.state} className={styles.primaryAction}>
         {t('cards.quickActions.newWorkItem')}
       </Link>
 

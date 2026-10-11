@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { useTranslation } from 'react-i18next';
 import type {
   DashboardCardId,
@@ -36,7 +37,6 @@ import {
 } from '../../components/InvoicePipelineCard/InvoicePipelineCard.js';
 import { SubsidyPipelineCard } from '../../components/SubsidyPipelineCard/SubsidyPipelineCard.js';
 import { RecentDiaryCard } from '../../components/RecentDiaryCard/RecentDiaryCard.js';
-import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './DashboardPage.module.css';
 
@@ -57,7 +57,7 @@ export function DashboardPage() {
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(tCommon('navigation.home'));
   const navigate = useNavigate();
-  const originState = useOriginState();
+  const openCreate = useOpenCreate();
 
   const CARD_DEFINITIONS = [
     {
@@ -544,7 +544,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('workItemNew'), { state: originState });
+                    openCreate('task');
                   }}
                   data-testid="dashboard-add-work-item"
                 >
@@ -556,7 +556,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('householdItemNew'), { state: originState });
+                    openCreate('purchase');
                   }}
                   data-testid="dashboard-add-household-item"
                 >
@@ -568,7 +568,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('milestoneNew'), { state: originState });
+                    openCreate('milestone');
                   }}
                   data-testid="dashboard-add-milestone"
                 >
@@ -580,7 +580,7 @@ export function DashboardPage() {
                   role="menuitem"
                   onClick={() => {
                     setAddOpen(false);
-                    void navigate(routeUrl('diaryEntryNew'), { state: originState });
+                    openCreate('diaryEntry');
                   }}
                   data-testid="dashboard-add-diary-entry"
                 >

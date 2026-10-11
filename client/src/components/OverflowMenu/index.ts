@@ -1,6 +1,7 @@
 export {
   OverflowMenu,
   type OverflowMenuProps,
+  type OverflowMenuControl,
   type OverflowMenuTriggerProps,
   type OverflowMenuItem,
   type OverflowMenuLinkItem,

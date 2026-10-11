@@ -1,3 +1,4 @@
+import { useCreateContext } from '../../components/CreateMenu/CreateMenuContext.js';
 import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -59,6 +60,8 @@ export function VendorDetailPage() {
   const { trades } = useTrades();
 
   const [vendor, setVendor] = useState<VendorDetail | null>(null);
+  // New › Invoice / Offer / Purchase start from this company.
+  useCreateContext({ companyId: vendor?.id });
   useDocumentTitle(vendor?.name ?? null);
   const originState = useOriginState(vendor?.name);
   const [isLoading, setIsLoading] = useState(true);

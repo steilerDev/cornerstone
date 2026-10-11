@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { HouseholdItemSummary, HouseholdItemListQuery, FilterMeta } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -34,6 +35,7 @@ export function HouseholdItemsPage() {
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(tCommon('navigation.purchases'));
   const navigate = useNavigate();
+  const openCreate = useOpenCreate();
   const { formatCurrency, formatDate } = useFormatters();
   const { areas } = useAreas();
 
@@ -450,7 +452,7 @@ export function HouseholdItemsPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate(routeUrl('householdItemNew'))}
+          onClick={() => openCreate('purchase')}
           data-testid="new-household-item-button"
         >
           {t('newButton')}
@@ -477,7 +479,7 @@ export function HouseholdItemsPage() {
           description: t('empty.noItemsMessage')!,
           action: {
             label: t('empty.createFirstItem')!,
-            onClick: () => navigate(routeUrl('householdItemNew')),
+            onClick: () => openCreate('purchase'),
           },
         }}
       />

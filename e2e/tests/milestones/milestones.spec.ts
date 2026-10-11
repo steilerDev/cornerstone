@@ -4,12 +4,12 @@
  * Scenarios covered:
  * 1.  List page loads with heading "Milestones" and "New Milestone" button
  * 2.  Empty state when no milestones exist (mocked)
- * 3.  "New Milestone" button navigates to /project/milestones/new
+ * 3.  "New Milestone" button opens the New milestone dialog at /project/milestones/new
  * 4.  Create milestone with title + targetDate only — happy path, redirects to detail
  * 5.  Create milestone with all fields (title, targetDate, description)
  * 6.  Create form validation — title required
  * 7.  Create form validation — targetDate required
- * 8.  Create form cancel / back link navigation
+ * 8.  Create dialog cancel / Escape close
  * 9.  Milestone created via API appears in list
  * 10. Row click navigates to detail page
  * 11. Detail page loads with correct title and status badge
@@ -20,7 +20,7 @@
  * 16. Delete milestone from detail page (via delete button + modal confirm)
  * 17. Detail page 404 — not found state rendered
  * 18. Responsive — list page no horizontal scroll on current viewport
- * 19. Responsive — create page no horizontal scroll on current viewport
+ * 19. Responsive — create dialog no horizontal scroll on current viewport
  * 20. Responsive — detail page no horizontal scroll on current viewport
  * 21. Dark mode — list page renders correctly
  */
@@ -100,16 +100,19 @@ test.describe('Empty state (Scenario 2)', { tag: '@responsive' }, () => {
 // Scenario 3: "New Milestone" button navigation
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('"New Milestone" navigation (Scenario 3)', { tag: '@responsive' }, () => {
-  test('"New Milestone" button navigates to the create page', async ({ page }) => {
+  test('"New Milestone" button opens the New milestone dialog over the list', async ({ page }) => {
     const milestonesPage = new MilestonesPage(page);
+    const createPage = new MilestoneCreatePage(page);
 
     await milestonesPage.goto();
     await expect(milestonesPage.newMilestoneButton).toBeVisible();
 
     await milestonesPage.newMilestoneButton.click();
 
-    await page.waitForURL('**/project/milestones/new');
-    expect(page.url()).toContain('/project/milestones/new');
+    await page.waitForURL((url) => url.pathname === MILESTONE_CREATE_ROUTE);
+    await createPage.form.waitForOpen();
+    // The Milestones list stays rendered behind the dialog
+    await expect(milestonesPage.heading).toBeVisible();
   });
 });
 
@@ -147,10 +150,9 @@ test.describe('Create milestone — title + date only (Scenario 4)', { tag: '@re
         const body = (await response.json()) as { id: number };
         createdId = body.id ?? null;
 
-        // Should redirect to /project/milestones/:id
-        await page.waitForURL('**/project/milestones/**');
-        expect(page.url()).toMatch(/\/project\/milestones\/\d+$/);
-        expect(page.url()).not.toContain('/project/milestones/new');
+        // Should redirect to /project/milestones/:id (a glob would match the dialog's own /new)
+        await page.waitForURL(/\/project\/milestones\/\d+$/);
+        expect(new URL(page.url()).pathname).toMatch(/^\/project\/milestones\/\d+$/);
 
         // Detail page shows the correct h1 title
         await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
@@ -197,7 +199,7 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
       createdId = body.id ?? null;
 
       // Should redirect to detail page
-      await page.waitForURL('**/project/milestones/**');
+      await page.waitForURL(/\/project\/milestones\/\d+$/);
 
       // Detail page shows the correct title
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
@@ -206,7 +208,7 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
     }
   });
 
-  test('Heading shows "New milestone", the trail is Tasks > Milestones and required fields are visible', async ({
+  test('Dialog is titled "New milestone" over the Milestones list and all fields are visible', async ({
     page,
   }) => {
     const createPage = new MilestoneCreatePage(page);
@@ -215,7 +217,10 @@ test.describe('Create milestone — all fields (Scenario 5)', { tag: '@responsiv
 
     await expect(createPage.heading).toBeVisible();
     await expect(createPage.heading).toHaveText('New milestone');
-    await createPage.breadcrumbs.expectTrail(['Tasks', 'Milestones']);
+    // A deep link shows the list behind the dialog (a view: no breadcrumb trail)
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+    ).toBeVisible();
     await expect(createPage.titleInput).toBeVisible();
     await expect(createPage.targetDateInput).toBeVisible();
     await expect(createPage.descriptionInput).toBeVisible();
@@ -240,13 +245,14 @@ test.describe(
 
       await createPage.submit();
 
-      // Error banner should appear with the title validation message
-      const errorText = await createPage.getErrorBannerText();
-      expect(errorText).toBeTruthy();
-      expect(errorText?.toLowerCase()).toMatch(/title is required/i);
+      // Inline error under the title field, which takes focus (no alert banner)
+      await expect(createPage.titleErrorText).toBeVisible();
+      await expect(createPage.titleErrorText).toContainText(/title is required/i);
+      await expect(createPage.titleInput).toBeFocused();
+      await expect(createPage.errorBanner).toHaveCount(0);
 
-      // Still on the create page
-      expect(page.url()).toContain('/project/milestones/new');
+      // Dialog still open on /new
+      expect(new URL(page.url()).pathname).toBe(MILESTONE_CREATE_ROUTE);
     });
   },
 );
@@ -270,13 +276,14 @@ test.describe(
 
       await createPage.submit();
 
-      // Error banner should appear with the targetDate validation message
-      const errorText = await createPage.getErrorBannerText();
-      expect(errorText).toBeTruthy();
-      expect(errorText?.toLowerCase()).toMatch(/target date is required/i);
+      // Inline error under the date field, which takes focus (no alert banner)
+      await expect(createPage.targetDateErrorText).toBeVisible();
+      await expect(createPage.targetDateErrorText).toContainText(/target date is required/i);
+      await expect(createPage.targetDateInput).toBeFocused();
+      await expect(createPage.errorBanner).toHaveCount(0);
 
-      // Still on the create page
-      expect(page.url()).toContain('/project/milestones/new');
+      // Dialog still open on /new
+      expect(new URL(page.url()).pathname).toBe(MILESTONE_CREATE_ROUTE);
     });
   },
 );
@@ -284,31 +291,30 @@ test.describe(
 // ─────────────────────────────────────────────────────────────────────────────
 // Scenario 8: Create form cancel / back link navigation
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Create form navigation (Scenario 8)', { tag: '@responsive' }, () => {
-  test('"Cancel" link navigates back to /project/milestones', async ({ page }) => {
+test.describe('Create dialog close paths (Scenario 8)', { tag: '@responsive' }, () => {
+  test('"Cancel" closes the dialog back to /project/milestones', async ({ page }) => {
     const createPage = new MilestoneCreatePage(page);
 
     await createPage.goto();
+    await createPage.cancel();
 
-    // Click the Cancel link (anchor → navigation)
-    await createPage.cancelLink.click();
-
-    await page.waitForURL('**/project/milestones');
-    expect(page.url()).toContain('/project/milestones');
-    expect(page.url()).not.toContain('/project/milestones/new');
+    await page.waitForURL((url) => url.pathname === MILESTONES_ROUTE);
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+    ).toBeVisible();
   });
 
-  test('"Milestones" breadcrumb navigates to /project/milestones', async ({ page }) => {
+  test('Escape closes the dialog and focuses the Milestones heading', async ({ page }) => {
     const createPage = new MilestoneCreatePage(page);
 
     await createPage.goto();
+    await page.keyboard.press('Escape');
 
-    // Click the parent in the trail (the only visible trail link on a phone)
-    await createPage.breadcrumbs.trailLink('Milestones').click();
-
-    await page.waitForURL('**/project/milestones');
-    expect(page.url()).toContain('/project/milestones');
-    expect(page.url()).not.toContain('/project/milestones/new');
+    await page.waitForURL((url) => url.pathname === MILESTONES_ROUTE);
+    await createPage.form.waitForClosed();
+    await expect(
+      page.getByRole('heading', { level: 1, name: 'Milestones', exact: true }),
+    ).toBeFocused();
   });
 });
 
@@ -840,7 +846,7 @@ test.describe('Responsive layout — list (Scenario 18)', { tag: '@responsive' }
 // Scenario 19: Responsive — create page no horizontal scroll
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout — create page (Scenario 19)', { tag: '@responsive' }, () => {
-  test('Milestone create page renders without horizontal scroll on current viewport', async ({
+  test('Milestone create dialog renders without horizontal scroll on current viewport', async ({
     page,
   }) => {
     const createPage = new MilestoneCreatePage(page);
@@ -925,14 +931,12 @@ test.describe('Dark mode rendering (Scenario 21)', { tag: '@responsive' }, () =>
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('Milestone create page renders correctly in dark mode', async ({ page }) => {
-    await page.goto(MILESTONE_CREATE_ROUTE);
+  test('Milestone create dialog renders correctly in dark mode', async ({ page }) => {
+    const createPage = new MilestoneCreatePage(page);
+    await createPage.goto();
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
-
-    const createPage = new MilestoneCreatePage(page);
-    await createPage.heading.waitFor({ state: 'visible' });
 
     await expect(createPage.heading).toBeVisible();
     await expect(createPage.titleInput).toBeVisible();

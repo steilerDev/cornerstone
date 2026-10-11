@@ -1,32 +1,26 @@
 /**
- * Page Object Model for the Milestone Create page (/project/milestones/new)
+ * Page Object Model for the New milestone dialog (/project/milestones/new), #2212.
  *
- * The page renders:
- * - Breadcrumbs (Story #2202): trail "Tasks" > "Milestones" + optional "Back to {origin}"
- * - h1 "New milestone" (common navigation.newMilestone); no SubNav, no form h2
- * - A <form> card
- * - Form fields:
- *   - #title (text, required) — data-testid="milestone-title-input"
- *   - #targetDate (date, required) — data-testid="milestone-target-date-input"
- *   - #description (textarea) — data-testid="milestone-description-input"
- * - Submit button: data-testid="create-milestone-button"
- *   text: t('milestones.create.submit') = "Create Milestone" / t('milestones.create.submitting') = "Creating..."
- * - Cancel: a <Link> to /project/milestones with text t('milestones.create.cancel') = "Cancel"
- * - Error banner (role="alert", class errorBanner) for validation/server errors
+ * The create page is gone: `/project/milestones/new` opens the ObjectForm dialog over the page
+ * the user came from (the Calendar view pre-fills the visible date; a deep link shows the
+ * Milestones list behind it). From 768px it is a Modal, below a full-screen Sheet; both are
+ * role="dialog" named "New milestone".
  *
- * Key DOM observations from source code:
- * - Cancel is also a <Link> (anchor), not a <button>
- * - Submit is a type="submit" <button> disabled during isSubmitting
- * - On success, navigates to /project/milestones/:id (the newly created milestone's detail page)
- * - Client-side validation: empty title → setError(t('milestones.create.form.title.error'))
- *   = "Title is required." — shown as role="alert" errorBanner, NOT inline field error
- * - Client-side validation: empty targetDate → t('milestones.create.form.targetDate.error')
- *   = "Target date is required." — also shown as role="alert" errorBanner
+ * Fields (all essential, no "More details"):
+ * - #title (text, required)           data-testid="milestone-title-input"
+ * - #targetDate (date, required)      data-testid="milestone-target-date-input"
+ * - #description (textarea)           data-testid="milestone-description-input"
+ *
+ * Behaviour:
+ * - Save is `object-form-save`; Cancel is a button (`object-form-cancel`), no longer a link.
+ * - Validation errors are inline field errors (`#title-error`, `#targetDate-error`); the first
+ *   invalid field takes focus. The alert banner is for save failures only.
+ * - On success the URL is replaced with the new milestone (`/project/milestones/:id`).
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
-import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const MILESTONE_CREATE_ROUTE = routeUrl('milestoneNew');
 
@@ -38,10 +32,12 @@ export interface MilestoneFormData {
 
 export class MilestoneCreatePage {
   readonly page: Page;
+  readonly form: ObjectFormDialog;
 
   // Header
-  readonly heading: Locator; // h1 "New milestone"
-  readonly breadcrumbs: BreadcrumbsBar;
+  readonly dialog: Locator;
+  /** The dialog's h2 "New milestone". */
+  readonly heading: Locator;
 
   // Form fields
   readonly titleInput: Locator;
@@ -50,83 +46,58 @@ export class MilestoneCreatePage {
 
   // Form actions
   readonly submitButton: Locator;
-  readonly cancelLink: Locator; // "Cancel" anchor (not a button)
+  readonly cancelButton: Locator;
 
   // Error display
-  readonly errorBanner: Locator; // role="alert", shown for both validation and server errors
+  readonly titleErrorText: Locator;
+  readonly targetDateErrorText: Locator;
+  /** Save-error banner (role="alert"); validation errors are inline per field. */
+  readonly errorBanner: Locator;
 
   constructor(page: Page) {
     this.page = page;
+    this.form = new ObjectFormDialog(page, 'New milestone');
+    this.dialog = this.form.dialog;
+    this.heading = this.form.heading;
 
-    this.heading = page.getByRole('heading', { level: 1, name: 'New milestone', exact: true });
-    this.breadcrumbs = new BreadcrumbsBar(page);
+    this.titleInput = this.form.field('title');
+    this.targetDateInput = this.form.field('targetDate');
+    this.descriptionInput = this.form.field('description');
 
-    // Form fields (by id — matches label htmlFor)
-    this.titleInput = page.locator('#title');
-    this.targetDateInput = page.locator('#targetDate');
-    this.descriptionInput = page.locator('#description');
+    this.submitButton = this.form.saveButton;
+    this.cancelButton = this.form.cancelButton;
 
-    // Submit button: stable via data-testid
-    this.submitButton = page.getByTestId('create-milestone-button');
-
-    // Cancel is a <Link> (anchor) with text "Cancel"
-    this.cancelLink = page.getByRole('link', { name: 'Cancel', exact: true });
-
-    // Error banner: role="alert" + class errorBanner (CSS Modules hashed)
-    this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');
+    this.titleErrorText = this.form.fieldError('title');
+    this.targetDateErrorText = this.form.fieldError('targetDate');
+    this.errorBanner = this.form.errorBanner;
   }
 
-  /**
-   * Navigate to the milestone create page.
-   * Waits for the heading to be visible as the readiness signal.
-   */
+  /** Open the dialog by deep link (the Milestones list renders behind it) and wait for it. */
   async goto(): Promise<void> {
     await this.page.goto(MILESTONE_CREATE_ROUTE);
-    await this.heading.waitFor({ state: 'visible' });
+    await this.form.waitForOpen();
   }
 
-  /**
-   * Fill only the title field.
-   */
+  /** Fill only the title field. */
   async fillTitle(title: string): Promise<void> {
     await this.titleInput.fill(title);
   }
 
-  /**
-   * Fill multiple form fields at once.
-   * Only provided fields are filled; others are left at their defaults.
-   */
+  /** Fill multiple form fields at once. Only provided fields are filled. */
   async fillForm(data: MilestoneFormData): Promise<void> {
-    if (data.title !== undefined) {
-      await this.titleInput.fill(data.title);
-    }
-    if (data.targetDate !== undefined) {
-      await this.targetDateInput.fill(data.targetDate);
-    }
-    if (data.description !== undefined) {
-      await this.descriptionInput.fill(data.description);
-    }
+    if (data.title !== undefined) await this.titleInput.fill(data.title);
+    if (data.targetDate !== undefined) await this.targetDateInput.fill(data.targetDate);
+    if (data.description !== undefined) await this.descriptionInput.fill(data.description);
   }
 
-  /**
-   * Submit the form by clicking the "Create Milestone" button.
-   * Does NOT wait for navigation — caller must do that.
-   */
+  /** Click Save. Does NOT wait for navigation — the caller must do that. */
   async submit(): Promise<void> {
     await this.submitButton.click();
   }
 
-  /**
-   * Get the error banner text. Returns null if not visible.
-   * Uses a 3s probe timeout — intentionally short since we only call this
-   * after an action that might have produced an error.
-   */
-  async getErrorBannerText(): Promise<string | null> {
-    try {
-      await this.errorBanner.waitFor({ state: 'visible', timeout: 3000 });
-      return await this.errorBanner.textContent();
-    } catch {
-      return null;
-    }
+  /** Click Cancel and wait for the dialog to close. */
+  async cancel(): Promise<void> {
+    await this.cancelButton.click();
+    await this.form.waitForClosed();
   }
 }

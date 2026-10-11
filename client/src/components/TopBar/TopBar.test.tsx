@@ -107,8 +107,37 @@ describe('TopBar', () => {
     expect(ids.filter((id) => wanted.includes(id ?? ''))).toEqual(wanted);
   });
 
+  describe('New menu (#2212)', () => {
+    it('is a live menu button named New, collapsed until opened', () => {
+      renderBar();
+      const button = screen.getByTestId('top-bar-new');
+      expect(button).toHaveAttribute('aria-haspopup', 'menu');
+      expect(button).toHaveAttribute('aria-expanded', 'false');
+      expect(button).not.toHaveAttribute('aria-disabled');
+      expect(button).toHaveAttribute('data-create-trigger');
+    });
+
+    it('opens the create entries in menu order on click', () => {
+      renderBar();
+      fireEvent.click(screen.getByTestId('top-bar-new'));
+      expect(screen.getByTestId('top-bar-new')).toHaveAttribute('aria-expanded', 'true');
+      const ids = within(screen.getByRole('menu'))
+        .getAllByRole('menuitem')
+        .map((el) => el.getAttribute('data-testid'));
+      expect(ids).toEqual([
+        'create-menu-diaryEntry',
+        'create-menu-task',
+        'create-menu-purchase',
+        'create-menu-invoice',
+        'create-menu-offer',
+        'create-menu-company',
+        'create-menu-milestone',
+      ]);
+    });
+  });
+
   describe('placeholders', () => {
-    const TEST_IDS = ['top-bar-search', 'top-bar-new', 'top-bar-attention'];
+    const TEST_IDS = ['top-bar-search', 'top-bar-attention'];
 
     it.each(TEST_IDS)('%s is aria-disabled, focusable and not natively disabled', (id) => {
       renderBar();

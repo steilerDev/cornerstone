@@ -43,6 +43,7 @@ import {
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import { REPORT_SKIP_REASONS } from '../lib/reportContent/types.js';
+import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 
 /** i18n namespaces hosting a union key set. Extend when a set targets a new namespace. */
 export type UnionKeyNamespace =
@@ -198,4 +199,6 @@ export const I18N_UNION_KEYS = {
   deleteImpactKind: unionKeySet('common', 'confirmDialog.impact', DELETE_IMPACT_KINDS),
   /** diary — automatic (system) entry type label. Manual types use statusVocabularyDiaryType. */
   diaryAutomaticEntryType: unionKeySet('diary', 'entryTypes', AUTOMATIC_DIARY_ENTRY_TYPES),
+  /** common — New menu / New sheet entry label. */
+  createMenuEntry: unionKeySet('common', 'createMenu.entry', CREATE_MENU_ENTRY_IDS),
 } as const;

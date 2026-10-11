@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
+import { useState, useEffect, useLayoutEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
@@ -24,6 +24,7 @@ import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useCreateQuery } from '../../hooks/useCreateQuery.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './SubsidyProgramsPage.module.css';
@@ -131,6 +132,25 @@ export function SubsidyProgramsPage() {
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const deleteImpact = useDeleteImpact('subsidy_program', deletingProgramId);
   const createButtonRef = useRef<HTMLButtonElement>(null);
+  // Inline create form: focus + scroll target for `?create=1` (also when the form is already open).
+  const createSectionRef = useRef<HTMLElement>(null);
+  const [createFocusSignal, setCreateFocusSignal] = useState(0);
+  useCreateQuery({
+    ready: !isLoading,
+    onOpen: () => {
+      setShowCreateForm(true);
+      setCreateError('');
+      setNewCategoryIds(allCategories.map((c) => c.id));
+      setNewIncludesNoCategoryItems(true);
+      setCreateFocusSignal((n) => n + 1);
+    },
+  });
+  useLayoutEffect(() => {
+    if (createFocusSignal === 0) return;
+    const section = createSectionRef.current;
+    section?.scrollIntoView?.({ block: 'start' });
+    section?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+  }, [createFocusSignal]);
 
   // Documents expansion state
   const [expandedDocsPrograms, setExpandedDocsPrograms] = useState<Set<string>>(() => new Set());
@@ -478,7 +498,7 @@ export function SubsidyProgramsPage() {
 
       {/* Create form */}
       {showCreateForm && (
-        <section className={styles.card}>
+        <section ref={createSectionRef} className={styles.card}>
           <h2 className={styles.cardTitle}>{t('subsidies.newSubsidyProgram')}</h2>
           <p className={styles.cardDescription}>{t('subsidies.subsidyDescription')}</p>
 

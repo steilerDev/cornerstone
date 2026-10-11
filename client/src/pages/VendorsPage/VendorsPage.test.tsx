@@ -6,8 +6,8 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
@@ -942,6 +942,68 @@ describe('VendorsPage', () => {
       }
 
       expect(log.actions).toEqual([]);
+    });
+  });
+
+  // ─── ?create=1 from the New menu (#2212) ─────────────────────────────────────
+
+  describe('?create=1 opens the create modal', () => {
+    function UrlProbe() {
+      const location = useLocation();
+      const [, setSearchParams] = useSearchParams();
+      return (
+        <div>
+          <output data-testid="url-probe">{location.pathname + location.search}</output>
+          <button
+            type="button"
+            data-testid="request-create"
+            onClick={() => setSearchParams({ create: '1' })}
+          >
+            request
+          </button>
+        </div>
+      );
+    }
+
+    function renderAtUrl(url: string) {
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={[url]}>
+            <VendorsPage />
+            <UrlProbe />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('opens the modal and removes only create from the URL', async () => {
+      renderAtUrl('/settings/vendors?create=1&sortBy=name');
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('url-probe').textContent).toBe('/settings/vendors?sortBy=name');
+    });
+
+    it('does not treat create as a table filter (the list request never carries it)', async () => {
+      renderAtUrl('/settings/vendors?create=1');
+      await screen.findByRole('dialog');
+      for (const call of mockFetchVendors.mock.calls) {
+        expect(JSON.stringify(call)).not.toContain('create');
+      }
+    });
+
+    it('opens again for a later request while mounted', async () => {
+      renderAtUrl('/settings/vendors?create=1');
+      const dialog = await screen.findByRole('dialog');
+      fireEvent.click(within(dialog).getByRole('button', { name: /cancel/i }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      fireEvent.click(screen.getByTestId('request-create'));
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(screen.getByTestId('url-probe').textContent).toBe('/settings/vendors');
+    });
+
+    it('opens nothing without ?create=1', async () => {
+      renderAtUrl('/settings/vendors');
+      await waitFor(() => expect(mockFetchVendors).toHaveBeenCalled());
+      expect(screen.queryByRole('dialog')).toBeNull();
     });
   });
 });

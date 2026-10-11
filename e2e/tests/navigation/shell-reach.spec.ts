@@ -25,6 +25,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import type { ServedRouteId } from '../../../shared/src/routes/index.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
+import { CreateMenu } from '../../pages/components/CreateMenu.js';
 
 interface Reach {
   readonly route: ServedRouteId;
@@ -107,14 +108,18 @@ for (const { area, rows } of AREAS) {
 }
 
 test.describe('Shell reach: Site diary New slot', { tag: '@responsive' }, () => {
-  test('Site diary: the New slot opens a new entry', async ({ page }) => {
+  test('Site diary: the New slot opens the New sheet, whose Diary entry row opens a new entry', async ({
+    page,
+  }) => {
     const appShell = new AppShellPage(page);
+    const createMenu = new CreateMenu(page);
     test.skip(!appShell.isCompact(), 'the New slot is phone/tablet only');
 
     await page.goto(ROUTES.home);
     await expect(page.locator('main h1').first()).toBeVisible();
 
-    await appShell.tapBottomBar('new');
+    await createMenu.open();
+    await createMenu.row('diaryEntry').click();
 
     await expect(page).toHaveURL((url) => url.pathname === routeUrl('diaryEntryNew'));
     await expect(appShell.bottomBarSlot('diary')).toHaveAttribute('aria-current', 'page');

@@ -116,6 +116,30 @@
     "attention": "Braucht dich",
     "accountMenu": "Kontomenü für {{name}}"
   },
+  "createMenu": {
+    "entry": {
+      "diaryEntry": "Tagebucheintrag",
+      "task": "Aufgabe",
+      "purchase": "Anschaffung",
+      "invoice": "Rechnung",
+      "offer": "Angebot",
+      "company": "Firma",
+      "milestone": "Meilenstein",
+      "fundingSource": "Finanzierungsquelle",
+      "grant": "Förderprogramm"
+    },
+    "shortcut": "Menü „Neu“ öffnen"
+  },
+  "objectForm": {
+    "required": "(erforderlich)",
+    "moreDetails": "Weitere Details",
+    "fewerDetails": "Weniger Details",
+    "addAnother": "Nach dem Speichern weitere anlegen",
+    "saving": "Wird gespeichert…",
+    "saveFailed": "Speichern nicht möglich. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+    "fieldInvalid": "Prüfen Sie diesen Wert.",
+    "backTo": "Zurück zu {{title}}"
+  },
   "userMenu": {
     "account": "Konto",
     "theme": "Design",

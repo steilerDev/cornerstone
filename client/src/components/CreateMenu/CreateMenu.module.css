@@ -1,0 +1,49 @@
+/* Doubled class: OverflowMenu's own .menu min-width loads later and would win */
+.panel.panel {
+  min-width: calc(var(--spacing-16) * 3.5);
+  max-height: calc(100dvh - var(--topbar-height, 0rem) - var(--spacing-4));
+  overflow-y: auto;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rows > li + li {
+  border-top: 1px solid var(--color-border);
+}
+
+.rowsMoney {
+  margin-block: var(--spacing-2);
+  border-top: 1px solid var(--color-border-strong);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding-inline: var(--spacing-4);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-base);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .row:hover {
+    background-color: var(--color-bg-hover);
+  }
+}
+
+.row:active {
+  background-color: var(--color-bg-tertiary);
+}
+
+.row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}

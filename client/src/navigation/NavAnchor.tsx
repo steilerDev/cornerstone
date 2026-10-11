@@ -9,6 +9,8 @@ export interface NavAnchorProps extends Omit<
   /** In-app path from navHref()/routeUrl(); never a string literal. */
   readonly to: string;
   readonly replace?: boolean;
+  /** Router location state for the in-app navigation (e.g. a dialog background). */
+  readonly state?: unknown;
   /**
    * Runs before the in-app navigation (e.g. close the sheet), only for a plain left click on an
    * anchor without a `target`. Modified and middle clicks open elsewhere and leave the page as is.
@@ -21,12 +23,12 @@ export interface NavAnchorProps extends Omit<
  * Real anchor (middle-click and copy-link work) that navigates in-app on a plain click.
  * Same technique as Breadcrumbs and UserMenu; deliberately not a react-router Link.
  */
-export function NavAnchor({ to, replace, onNavigate, children, ...rest }: NavAnchorProps) {
+export function NavAnchor({ to, replace, state, onNavigate, children, ...rest }: NavAnchorProps) {
   const href = useHref(to);
-  const handleClick = useLinkClickHandler<HTMLAnchorElement>(
-    to,
-    replace === undefined ? {} : { replace },
-  );
+  const handleClick = useLinkClickHandler<HTMLAnchorElement>(to, {
+    ...(replace === undefined ? {} : { replace }),
+    ...(state === undefined ? {} : { state }),
+  });
   return (
     <a
       {...rest}

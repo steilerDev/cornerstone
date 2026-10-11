@@ -12,6 +12,7 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { VendorCreateModal } from '../../components/VendorCreateModal/VendorCreateModal.js';
 import { useTrades } from '../../hooks/useTrades.js';
 import { useTableState } from '../../hooks/useTableState.js';
+import { createReservedParams, useCreateQuery } from '../../hooks/useCreateQuery.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { fetchVendors, deleteVendor } from '../../lib/vendorsApi.js';
@@ -21,6 +22,9 @@ import sharedStyles from '../../styles/shared.module.css';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './VendorsPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
+
+// Create-request params (`?create=1`), consumed by useCreateQuery, not table filters.
+const VENDOR_RESERVED = createReservedParams();
 
 export function VendorsPage() {
   const { t } = useTranslation('budget');
@@ -48,11 +52,13 @@ export function VendorsPage() {
     setFilter: _setFilter,
   } = useTableState({
     defaultPageSize: 25,
+    reservedParams: VENDOR_RESERVED,
   });
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Create vendor modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
+  useCreateQuery({ onOpen: () => setShowCreateModal(true) });
 
   // Delete confirmation state
   const [deletingVendor, setDeletingVendor] = useState<Vendor | null>(null);

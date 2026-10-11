@@ -199,29 +199,21 @@
       "closeDialog": "Close dialog or cancel"
     },
     "create": {
-      "errors": {
-        "createFailed": "Failed to create milestone. Please try again."
-      },
       "form": {
         "title": {
           "label": "Title",
-          "required": "*",
           "placeholder": "Enter milestone title",
           "error": "Title is required."
         },
         "targetDate": {
           "label": "Target Date",
-          "required": "*",
           "error": "Target date is required."
         },
         "description": {
           "label": "Description",
           "placeholder": "Optional description for this milestone"
         }
-      },
-      "cancel": "Cancel",
-      "submit": "Create Milestone",
-      "submitting": "Creating..."
+      }
     },
     "detail": {
       "loading": "Loading milestone...",

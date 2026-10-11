@@ -1,4 +1,12 @@
-import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+  useMemo,
+  useRef,
+  type FormEvent,
+} from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTranslation } from 'react-i18next';
@@ -36,6 +44,7 @@ import { MassMoveModal } from '../../components/MassMoveModal/MassMoveModal.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
+import { useCreateQuery } from '../../hooks/useCreateQuery.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './BudgetSourcesPage.module.css';
@@ -321,6 +330,23 @@ export function BudgetSourcesPage() {
   const [deleteBlocked, setDeleteBlocked] = useState(false);
   const deleteImpact = useDeleteImpact('budget_source', deletingSourceId);
   const createButtonRef = useRef<HTMLButtonElement>(null);
+  // Inline create form: focus + scroll target for `?create=1` (also when the form is already open).
+  const createSectionRef = useRef<HTMLElement>(null);
+  const [createFocusSignal, setCreateFocusSignal] = useState(0);
+  useCreateQuery({
+    ready: !isLoading,
+    onOpen: () => {
+      setShowCreateForm(true);
+      setCreateError('');
+      setCreateFocusSignal((n) => n + 1);
+    },
+  });
+  useLayoutEffect(() => {
+    if (createFocusSignal === 0) return;
+    const section = createSectionRef.current;
+    section?.scrollIntoView?.({ block: 'start' });
+    section?.querySelector<HTMLElement>('input, select, textarea')?.focus();
+  }, [createFocusSignal]);
 
   // Budget lines expansion state
   const [expandedSources, setExpandedSources] = useState<Set<string>>(() => new Set());
@@ -791,7 +817,7 @@ export function BudgetSourcesPage() {
 
       {/* Create form */}
       {showCreateForm && (
-        <section className={styles.card}>
+        <section ref={createSectionRef} className={styles.card}>
           <h2 className={styles.cardTitle}>{t('sources.newBudgetSource')}</h2>
           <p className={styles.cardDescription}>{t('sources.newBudgetSourceDescription')}</p>
 

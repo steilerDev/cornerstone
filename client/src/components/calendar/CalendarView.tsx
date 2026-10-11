@@ -10,6 +10,7 @@
  */
 
 import { routeUrl } from '@cornerstone/shared';
+import { useCreateContext } from '../CreateMenu/CreateMenuContext.js';
 import { useState, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
@@ -453,6 +454,19 @@ export function CalendarView({
   // Week navigation state — store as ISO string to avoid stale reference
   const [weekDateStr, setWeekDateStr] = useState(() => formatIsoDate(todayDate));
   const weekDate = parseIsoDate(weekDateStr);
+
+  // New › Milestone / Diary entry pre-fill the visible date: today when it is on screen, else
+  // the first day of the displayed month or week.
+  const visibleDate = useMemo(() => {
+    if (calendarMode === 'week') {
+      const days = getWeekDates(parseIsoDate(weekDateStr));
+      return (days.find((d) => d.isToday) ?? days[0]!).dateStr;
+    }
+    const todayStr = formatIsoDate(todayDate);
+    if (displayYear === todayYear && displayMonth === todayMonth) return todayStr;
+    return `${String(displayYear).padStart(4, '0')}-${String(displayMonth).padStart(2, '0')}-01`;
+  }, [calendarMode, weekDateStr, displayYear, displayMonth, todayYear, todayMonth, todayDate]);
+  useCreateContext({ date: visibleDate });
 
   // ---------------------------------------------------------------------------
   // Mode switching

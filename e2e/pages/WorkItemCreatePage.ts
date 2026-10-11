@@ -1,38 +1,25 @@
 /**
- * Page Object Model for the Work Item Create page (/project/work-items/new)
+ * Page Object Model for the New task dialog (/project/work-items/new), #2212.
  *
- * The page renders:
- * - Breadcrumbs (Story #2202): trail "Tasks" + optional "Back to {origin}" (no header back button)
- *   and h1 "New task"
- * - A form with all work item fields:
- *   - #title (text, required) — shows .inputError and .errorText when empty on submit
- *   - #description (textarea)
- *   - #status (select)
- *   - #assignedUserId (select)
- *   - #startDate, #endDate (date inputs)
- *   - #durationDays (number)
- *   - #startAfter, #startBefore (date inputs)
- *   - Tags: TagPicker component
- *   - Dependencies: DependencySentenceBuilder
- *   (Budget fields removed in Story 5.9 rework — managed via /api/work-items/:id/budgets)
- * - Submit button (class submitButton): text "Create Work Item" / "Creating..."
- * - Cancel button (class cancelButton): text "Cancel"
- * - Error banner (class errorBanner) for server-side errors
- * - Validation error text (class errorText) per field
+ * The create page is gone: `/project/work-items/new` opens the ObjectForm dialog over the page
+ * the user came from (or over the Tasks list on a deep link). From 768px it is a Modal, below a
+ * full-screen Sheet; both are role="dialog" named "New task" (see ObjectFormDialog).
  *
- * Key DOM observations from source code:
- * - Back button is a <button> with onClick navigate('/project/work-items'), NOT a <Link>
- * - Submit button is type="submit" disabled during isSubmitting
- * - Cancel button is type="button" disabled during isSubmitting
- * - There is no submit-disabled state for empty title at field level — the form
- *   runs validateForm() on submit and shows errorText below #title
- * - The submit button text changes to "Creating..." while submitting
- * - On success, navigates to /project/work-items/:id (the newly created item's detail page)
+ * Fields (ids kept from the page):
+ * - Essentials: #title (required), area picker (label for="area"), #assignment, #durationDays
+ * - Behind "More details": #description, #status, #startAfter, #startBefore, dependencies
+ *
+ * Behaviour:
+ * - Save is `object-form-save` ("Save" / "Saving…"); Cancel is `object-form-cancel`.
+ * - Validation errors are inline field errors (`#title-error`), never an alert; the first
+ *   invalid field takes focus. The alert banner is for save failures only.
+ * - On success the URL is replaced with the new task (`/project/work-items/:id`).
+ * - "Add another after saving" keeps the dialog open and resets it (area is kept).
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
-import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const WORK_ITEM_CREATE_ROUTE = routeUrl('workItemNew');
 
@@ -50,10 +37,13 @@ export interface WorkItemFormData {
 
 export class WorkItemCreatePage {
   readonly page: Page;
+  readonly form: ObjectFormDialog;
 
   // Header
+  /** The dialog (Modal or full-screen Sheet). */
+  readonly dialog: Locator;
+  /** The dialog's h2 "New task". */
   readonly heading: Locator;
-  readonly breadcrumbs: BreadcrumbsBar;
 
   // Form fields
   readonly titleInput: Locator;
@@ -67,21 +57,17 @@ export class WorkItemCreatePage {
   readonly startBeforeInput: Locator;
 
   // Area picker and breadcrumb preview
-  // AreaPicker renders a SearchPicker input with placeholder "Select an area"
-  // When an area is selected, the .areaPreview div shows AreaBreadcrumb (default variant):
-  //   <nav aria-label="Area path"><ol>...</ol></nav>
-  // NOTE: areaPickerInput only exists in the DOM when NO area is selected.
-  // Once an area is selected, SearchPicker replaces the <input> with a selectedDisplay
-  // chip + clear button. Use clearAreaPicker() to clear a selected area.
+  // AreaPicker renders a SearchPicker input with placeholder "Select an area".
+  // NOTE: areaPickerInput only exists in the DOM when NO area is selected. Once an area is
+  // selected, SearchPicker replaces the <input> with a selectedDisplay chip + clear button.
   readonly areaPickerInput: Locator;
   readonly areaBreadcrumbPreview: Locator;
-  // Clear button rendered by SearchPicker when an area is selected (aria-label="Clear selection")
-  // Scoped to the area form group to avoid colliding with WorkItemPicker clear buttons.
   readonly areaClearButton: Locator;
 
   // Form actions
   readonly submitButton: Locator;
   readonly cancelButton: Locator;
+  readonly moreDetailsToggle: Locator;
 
   // Error/validation display
   readonly errorBanner: Locator;
@@ -89,143 +75,97 @@ export class WorkItemCreatePage {
 
   constructor(page: Page) {
     this.page = page;
+    this.form = new ObjectFormDialog(page, 'New task');
+    this.dialog = this.form.dialog;
+    this.heading = this.form.heading;
 
-    // Header
-    this.heading = page.getByRole('heading', { level: 1, name: 'New task', exact: true });
-    this.breadcrumbs = new BreadcrumbsBar(page);
+    this.titleInput = this.form.field('title');
+    this.descriptionInput = this.form.field('description');
+    this.statusSelect = this.form.field('status');
+    this.assignedUserSelect = this.form.field('assignment');
+    this.startDateInput = this.form.field('startDate');
+    this.endDateInput = this.form.field('endDate');
+    this.durationInput = this.form.field('durationDays');
+    this.startAfterInput = this.form.field('startAfter');
+    this.startBeforeInput = this.form.field('startBefore');
 
-    // Form fields
-    this.titleInput = page.locator('#title');
-    this.descriptionInput = page.locator('#description');
-    this.statusSelect = page.locator('#status');
-    this.assignedUserSelect = page.locator('#assignedUserId');
-    this.startDateInput = page.locator('#startDate');
-    this.endDateInput = page.locator('#endDate');
-    this.durationInput = page.locator('#durationDays');
-    this.startAfterInput = page.locator('#startAfter');
-    this.startBeforeInput = page.locator('#startBefore');
-
-    // Area picker input (placeholder from common.json aria.selectArea = "Select an area")
-    this.areaPickerInput = page.getByPlaceholder('Select an area');
-    // Area breadcrumb preview (nav with aria-label "Area path") — only present when areaId truthy
-    this.areaBreadcrumbPreview = page.getByRole('navigation', { name: /area path/i });
-    // Clear button rendered by SearchPicker when an area is selected
-    // (aria-label comes from common.json aria.clearSelection = "Clear selection")
-    // Scoped to the area form group via CSS :has() with child combinator (>) so that only
-    // the direct-parent <div> of <label for="area"> matches — avoids strict-mode violations
-    // caused by .filter({ has: locator }) matching every ancestor <div> of the label.
-    this.areaClearButton = page
+    this.areaPickerInput = this.dialog.getByPlaceholder('Select an area');
+    this.areaBreadcrumbPreview = this.dialog.getByRole('navigation', { name: /area path/i });
+    // Direct-parent <div> of <label for="area"> only (child combinator), so the :has() cannot
+    // match every ancestor <div> of the label.
+    this.areaClearButton = this.dialog
       .locator('div:has(> label[for="area"])')
       .getByRole('button', { name: 'Clear selection', exact: true });
 
-    // Form actions
-    this.submitButton = page.getByRole('button', { name: /Create Work Item|Creating\.\.\./i });
-    this.cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
+    this.submitButton = this.form.saveButton;
+    this.cancelButton = this.form.cancelButton;
+    this.moreDetailsToggle = this.form.moreToggle;
 
-    // Errors
-    this.errorBanner = page.locator('[class*="errorBanner"]');
-    // Validation error text shown below the title field
-    this.titleErrorText = page.locator('[class*="errorText"]').first();
+    this.errorBanner = this.form.errorBanner;
+    this.titleErrorText = this.form.fieldError('title');
   }
 
   /**
-   * Navigate to the work item create page.
+   * Open the dialog by deep link and wait until it is up. The Tasks list renders behind it.
+   * Use this on a fresh page (the test's first navigation); use `page.context().newPage()` for
+   * a second fresh visit, never a same-URL goto.
    */
   async goto(): Promise<void> {
     await this.page.goto(WORK_ITEM_CREATE_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 7000 });
+    await this.form.waitForOpen();
   }
 
-  /**
-   * Fill only the title field.
-   */
+  /** Open the "More details" disclosure. */
+  async expandMoreDetails(): Promise<void> {
+    await this.form.expandMoreDetails();
+  }
+
+  /** Fill only the title field. */
   async fillTitle(title: string): Promise<void> {
     await this.titleInput.fill(title);
   }
 
   /**
-   * Fill multiple form fields at once.
-   * Only provided fields are filled; others are left at their defaults.
+   * Fill multiple form fields at once. Only provided fields are filled; "More details" is
+   * opened first when a non-essential field is given.
    */
   async fillForm(data: WorkItemFormData): Promise<void> {
-    if (data.title !== undefined) {
-      await this.titleInput.fill(data.title);
-    }
-    if (data.description !== undefined) {
-      await this.descriptionInput.fill(data.description);
-    }
-    if (data.status !== undefined) {
-      await this.statusSelect.selectOption(data.status);
-    }
+    const needsMore =
+      data.description !== undefined ||
+      data.status !== undefined ||
+      data.startDate !== undefined ||
+      data.endDate !== undefined ||
+      data.startAfter !== undefined ||
+      data.startBefore !== undefined;
+    if (needsMore) await this.expandMoreDetails();
+
+    if (data.title !== undefined) await this.titleInput.fill(data.title);
+    if (data.description !== undefined) await this.descriptionInput.fill(data.description);
+    if (data.status !== undefined) await this.statusSelect.selectOption(data.status);
     if (data.assignedUserId !== undefined) {
       await this.assignedUserSelect.selectOption(data.assignedUserId);
     }
-    if (data.startDate !== undefined) {
-      await this.startDateInput.fill(data.startDate);
-    }
-    if (data.endDate !== undefined) {
-      await this.endDateInput.fill(data.endDate);
-    }
-    if (data.durationDays !== undefined) {
-      await this.durationInput.fill(data.durationDays);
-    }
-    if (data.startAfter !== undefined) {
-      await this.startAfterInput.fill(data.startAfter);
-    }
-    if (data.startBefore !== undefined) {
-      await this.startBeforeInput.fill(data.startBefore);
-    }
+    if (data.startDate !== undefined) await this.startDateInput.fill(data.startDate);
+    if (data.endDate !== undefined) await this.endDateInput.fill(data.endDate);
+    if (data.durationDays !== undefined) await this.durationInput.fill(data.durationDays);
+    if (data.startAfter !== undefined) await this.startAfterInput.fill(data.startAfter);
+    if (data.startBefore !== undefined) await this.startBeforeInput.fill(data.startBefore);
   }
 
-  /**
-   * Submit the form by clicking the "Create Work Item" button.
-   */
+  /** Click Save. */
   async submit(): Promise<void> {
     await this.submitButton.click();
   }
 
-  /**
-   * Click "Cancel" — navigates back to the work items list.
-   */
+  /** Click Cancel and wait for the dialog to close (the URL then leaves `/new`). */
   async cancel(): Promise<void> {
     await this.cancelButton.click();
-    await this.page.waitForURL('**/project/work-items');
+    await this.form.waitForClosed();
   }
 
   /**
-   * Get the validation error text shown below the title field.
-   * Returns null if not visible.
-   */
-  async getTitleErrorText(): Promise<string | null> {
-    try {
-      await this.titleErrorText.waitFor({ state: 'visible', timeout: 3000 });
-      return await this.titleErrorText.textContent();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Get the error banner text. Returns null if not visible.
-   */
-  async getErrorBannerText(): Promise<string | null> {
-    try {
-      await this.errorBanner.waitFor({ state: 'visible', timeout: 3000 });
-      return await this.errorBanner.textContent();
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Clear the current area selection in the AreaPicker.
-   *
-   * When an area is selected, SearchPicker replaces the <input> with a selectedDisplay
-   * chip and a clear button (aria-label="Clear selection"). This method clicks that
-   * button, which triggers onChange('') and removes the breadcrumb preview.
-   *
-   * Do NOT use areaPickerInput.click() + fill('') to clear — areaPickerInput is absent
-   * from the DOM once an area is selected.
+   * Clear the current area selection. areaPickerInput is absent from the DOM once an area is
+   * selected, so this clicks the chip's "Clear selection" button instead.
    */
   async clearAreaPicker(): Promise<void> {
     await this.areaClearButton.waitFor({ state: 'visible' });

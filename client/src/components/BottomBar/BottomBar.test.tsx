@@ -8,6 +8,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { createRouterLog, RecordingRouter } from '../../test/recordingRouter';
 import { resolveNavActive } from '../../navigation/navActive.js';
 import { navSections } from '../../navigation/navConfig.js';
+import { CreateMenuProvider } from '../CreateMenu/CreateMenuContext.js';
 import { BottomBar } from './BottomBar.js';
 
 const sections = navSections({ role: 'admin', paperlessConfigured: true });
@@ -65,7 +66,7 @@ describe('BottomBar', () => {
       within(nav)
         .getAllByRole('link')
         .map((a) => a.getAttribute('data-testid')),
-    ).toEqual(['bottom-bar-home', 'bottom-bar-diary', 'bottom-bar-new', 'bottom-bar-photos']);
+    ).toEqual(['bottom-bar-home', 'bottom-bar-diary', 'bottom-bar-photos']);
   });
 
   it('links Home, Site diary and Photos to their section routes', () => {
@@ -75,11 +76,62 @@ describe('BottomBar', () => {
     expect(screen.getByTestId('bottom-bar-photos')).toHaveAttribute('href', '/photos');
   });
 
-  it('points the New slot at /diary/new and never marks it current', () => {
+  it('renders the New slot as a button (not a link) that never carries aria-current', () => {
     renderBar('/diary/new');
     const slot = screen.getByTestId('bottom-bar-new');
-    expect(slot).toHaveAttribute('href', '/diary/new');
+    expect(slot.tagName).toBe('BUTTON');
+    expect(slot).toHaveAttribute('type', 'button');
+    expect(slot).not.toHaveAttribute('href');
     expect(slot).not.toHaveAttribute('aria-current');
+    expect(slot).toHaveAttribute('data-create-trigger');
+    expect(slot).toHaveAttribute('aria-haspopup', 'dialog');
+  });
+
+  it('toggles the New sheet through the create menu context', () => {
+    const onSheetOpenChange = jest.fn<(open: boolean) => void>();
+    const { rerender } = render(
+      <RecordingRouter entries={['/']} log={createRouterLog()}>
+        <CreateMenuProvider
+          moneyPage={false}
+          wide={false}
+          sheetOpen={false}
+          onSheetOpenChange={onSheetOpenChange}
+        >
+          <BottomBar
+            active={null}
+            moreOpen={false}
+            moreControlsId="more-id"
+            moreButtonRef={createRef<HTMLButtonElement>()}
+            onMoreClick={() => {}}
+          />
+        </CreateMenuProvider>
+      </RecordingRouter>,
+    );
+    const slot = screen.getByTestId('bottom-bar-new');
+    expect(slot).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(slot);
+    expect(onSheetOpenChange).toHaveBeenLastCalledWith(true);
+    rerender(
+      <RecordingRouter entries={['/']} log={createRouterLog()}>
+        <CreateMenuProvider
+          moneyPage={false}
+          wide={false}
+          sheetOpen
+          onSheetOpenChange={onSheetOpenChange}
+        >
+          <BottomBar
+            active={null}
+            moreOpen={false}
+            moreControlsId="more-id"
+            moreButtonRef={createRef<HTMLButtonElement>()}
+            onMoreClick={() => {}}
+          />
+        </CreateMenuProvider>
+      </RecordingRouter>,
+    );
+    expect(screen.getByTestId('bottom-bar-new')).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByTestId('bottom-bar-new'));
+    expect(onSheetOpenChange).toHaveBeenLastCalledWith(false);
   });
 
   it.each([

@@ -13,6 +13,7 @@ import i18n from '../../i18n/index.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { ViewMenuContext } from '../../navigation/viewMenu.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { useCreateContext } from '../CreateMenu/CreateMenuContext.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
 import type * as AppShellTypes from './AppShell.js';
 
@@ -286,16 +287,94 @@ describe('AppShell', () => {
       expect(within(dialog).getByText('New synthetic task')).toBeInTheDocument();
     });
 
-    it('shows the empty-shortcuts message on a page that registered none', async () => {
+    it("lists the shell's New-menu shortcut on a page that registered none", async () => {
       const user = userEvent.setup();
       renderAt('/', <div>Test Content</div>);
 
       await user.click(screen.getByTestId('user-menu-trigger'));
       await user.click(screen.getByTestId('user-menu-shortcuts'));
 
-      expect(
-        within(screen.getByRole('dialog')).getByText('This page has no shortcuts of its own.'),
-      ).toBeInTheDocument();
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('Open the New menu')).toBeInTheDocument();
+      expect(within(dialog).queryByText('New synthetic task')).toBeNull();
+    });
+
+    it("shows the page's own n row instead of the shell's when the page owns n", async () => {
+      const user = userEvent.setup();
+      renderAt('/', <PageWithShortcuts />);
+
+      await user.click(screen.getByTestId('user-menu-trigger'));
+      await user.click(screen.getByTestId('user-menu-shortcuts'));
+
+      const dialog = screen.getByRole('dialog');
+      expect(within(dialog).getByText('New synthetic task')).toBeInTheDocument();
+      expect(within(dialog).queryByText('Open the New menu')).toBeNull();
+    });
+
+    it('n opens the New menu with focus on the first row; Escape returns focus', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+      screen.getByTestId('top-bar-search').focus();
+
+      await user.keyboard('n');
+
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      expect(screen.getByTestId('create-menu-diaryEntry')).toHaveFocus();
+      await user.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).toBeNull();
+      expect(screen.getByTestId('top-bar-search')).toHaveFocus();
+    });
+
+    it("a page that owns n keeps it: n runs the page's handler and opens no menu", async () => {
+      const user = userEvent.setup();
+      const handler = jest.fn<() => void>();
+      function OwnsN() {
+        useKeyboardShortcuts([{ key: 'n', handler, description: 'page n' }]);
+        return <div>page</div>;
+      }
+      renderAt('/', <OwnsN />);
+
+      await user.keyboard('n');
+
+      expect(handler).toHaveBeenCalledTimes(1);
+      expect(screen.queryByRole('menu')).toBeNull();
+    });
+
+    it('lists the Funding source and Grant rows (after a separator) only on Money pages', async () => {
+      const user = userEvent.setup();
+      const { unmount } = renderAt('/budget/sources', <div>Test Content</div>);
+      await user.click(screen.getByTestId('top-bar-new'));
+      expect(screen.getByTestId('create-menu-fundingSource')).toBeInTheDocument();
+      expect(screen.getByTestId('create-menu-grant')).toBeInTheDocument();
+      expect(screen.getByRole('menu').querySelector('[role="separator"]')).not.toBeNull();
+      unmount();
+
+      renderAt('/', <div>Test Content</div>);
+      await user.click(screen.getByTestId('top-bar-new'));
+      expect(screen.queryByTestId('create-menu-fundingSource')).toBeNull();
+      expect(screen.queryByTestId('create-menu-grant')).toBeNull();
+    });
+
+    it('a page that registers a context pre-fills the New menu links', async () => {
+      const user = userEvent.setup();
+      function WithContext() {
+        useCreateContext({ areaId: 'a1', companyId: 'c1', date: '2026-03-01' });
+        return <div>page</div>;
+      }
+      renderAt('/', <WithContext />);
+      await user.click(screen.getByTestId('top-bar-new'));
+      expect(screen.getByTestId('create-menu-task')).toHaveAttribute(
+        'href',
+        expect.stringContaining('areaId=a1'),
+      );
+      expect(screen.getByTestId('create-menu-milestone')).toHaveAttribute(
+        'href',
+        expect.stringContaining('date=2026-03-01'),
+      );
+      expect(screen.getByTestId('create-menu-milestone')).not.toHaveAttribute(
+        'href',
+        expect.stringContaining('areaId'),
+      );
     });
 
     it('has exactly one Log out, in the user menu', async () => {
@@ -382,6 +461,94 @@ describe('AppShell', () => {
       expect(screen.getByTestId('top-bar').parentElement).toHaveAttribute('inert');
       expect(screen.getByTestId('bottom-bar-more')).toHaveAttribute('aria-expanded', 'true');
       expect(document.documentElement.dataset.scrollLocked).toBe('true');
+    });
+
+    it('the plus button opens the New sheet: dialog role, shell column inert, rows in order', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+
+      await user.click(screen.getByTestId('bottom-bar-new'));
+
+      const dialog = screen.getByRole('dialog', { name: 'New' });
+      expect(dialog).toBe(screen.getByTestId('create-sheet'));
+      expect(screen.getByTestId('top-bar').parentElement).toHaveAttribute('inert');
+      expect(screen.getByTestId('bottom-bar-new')).toHaveAttribute('aria-expanded', 'true');
+      expect(
+        within(dialog)
+          .getAllByRole('link')
+          .map((a) => a.getAttribute('data-testid')),
+      ).toEqual([
+        'create-sheet-diaryEntry',
+        'create-sheet-task',
+        'create-sheet-purchase',
+        'create-sheet-invoice',
+        'create-sheet-offer',
+        'create-sheet-company',
+        'create-sheet-milestone',
+      ]);
+    });
+
+    it('lists Funding source and Grant in the New sheet on Money pages only', async () => {
+      const user = userEvent.setup();
+      renderAt('/budget/sources', <div>Test Content</div>);
+      await user.click(screen.getByTestId('bottom-bar-new'));
+      expect(screen.getByTestId('create-sheet-fundingSource')).toBeInTheDocument();
+      expect(screen.getByTestId('create-sheet-grant')).toBeInTheDocument();
+    });
+
+    it('Escape closes the New sheet and returns focus to the plus button', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+      await user.click(screen.getByTestId('bottom-bar-new'));
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('bottom-bar-new')).toHaveFocus();
+    });
+
+    it('choosing a row navigates and closes the New sheet', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+      await user.click(screen.getByTestId('bottom-bar-new'));
+
+      await user.click(screen.getByTestId('create-sheet-diaryEntry'));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+    });
+
+    it('n opens the New sheet below 1024 px', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+
+      await user.keyboard('n');
+
+      expect(screen.getByTestId('create-sheet')).toHaveAttribute('data-open', 'true');
+    });
+
+    it('any navigation closes an open New sheet', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <Navigator />);
+      await user.click(screen.getByTestId('bottom-bar-new'));
+      expect(screen.getByRole('dialog', { name: 'New' })).toBeInTheDocument();
+
+      act(() => {
+        fireEvent.click(screen.getByTestId('go-photos'));
+      });
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('create-sheet')).toHaveAttribute('data-open', 'false');
+    });
+
+    it('does not reopen the New sheet after a resize round trip', async () => {
+      const user = userEvent.setup();
+      renderAt('/', <div>Test Content</div>);
+      await user.click(screen.getByTestId('bottom-bar-new'));
+
+      resizeTo(true);
+      resizeTo(false);
+
+      expect(screen.queryByTestId('create-sheet')?.getAttribute('data-open')).not.toBe('true');
     });
 
     it('Escape closes the sheet, lifts the inert, and returns focus to More', async () => {

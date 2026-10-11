@@ -35,6 +35,8 @@ import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTableState } from '../../hooks/useTableState.js';
+import { createReservedParams, useCreateQuery } from '../../hooks/useCreateQuery.js';
+import type { CreateRequest } from '../../hooks/useCreateQuery.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
@@ -60,6 +62,8 @@ import styles from './InvoicesPage.module.css';
 
 // URL params owned by this page's "open items" mode, not by useTableState's column filters.
 const OPEN_ONLY_RESERVED = ['openOnly'];
+// Plus the create-request params (`?create=1&kind=offer&companyId=…`), consumed by useCreateQuery.
+const INVOICE_RESERVED = [...OPEN_ONLY_RESERVED, ...createReservedParams(['companyId'])];
 
 interface IntegrationStatus {
   paperless: PaperlessStatusResponse | null;
@@ -208,7 +212,7 @@ export function InvoicesPage() {
   // Table state management with URL sync
   const { tableState, toApiParams } = useTableState({
     defaultPageSize: 25,
-    reservedParams: OPEN_ONLY_RESERVED,
+    reservedParams: INVOICE_RESERVED,
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const openOnly = searchParams.get('openOnly') === 'true';
@@ -232,8 +236,9 @@ export function InvoicesPage() {
   // True once the status load settled, on success AND failure (a failed load leaves
   // paperless === null but autoItemizeEnabled === false, i.e. "manual modal").
   const integrationReady = integrationStatus.autoItemizeEnabled !== null;
-  // Dashboard "Add Invoice" shortcut (?create=1): consumed once, when the status load resolves.
-  const pendingCreateRef = useRef(searchParams.get('create') === '1');
+  // Preset of the last create request (Offer kind, pre-selected company), reused by the manual-entry
+  // fallback of the Paperless picker.
+  const createRequestRef = useRef<CreateRequest | null>(null);
 
   // Form ref for submit button in modal
   const formRef = useRef<HTMLFormElement>(null);
@@ -277,27 +282,29 @@ export function InvoicesPage() {
 
   // Load vendors on mount
   useEffect(() => {
-    void fetchVendors({ pageSize: 100 }).then((res) =>
-      setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
-    );
+    void fetchVendors({ pageSize: 100 }).then((res) => {
+      const loaded = res.vendors.map((v) => ({ id: v.id, name: v.name }));
+      setVendors(loaded);
+      // A pre-selected company that no longer exists is dropped, never submitted.
+      setCreateForm((form) =>
+        form.vendorId && !loaded.some((v) => v.id === form.vendorId)
+          ? { ...form, vendorId: '' }
+          : form,
+      );
+    });
   }, []);
 
-  // Resolution handler for the status load: stores the status and, if the dashboard shortcut
-  // requested it, opens the create flow for that status (an Effect Event, so the mount-only
-  // effect below needs no extra dependencies and no set-state-in-effect continuation).
+  // Resolution handler for the status load (an Effect Event, so the mount-only effect below needs no
+  // extra dependencies).
   const onIntegrationStatusResolved = useEffectEvent((status: IntegrationStatus) => {
     setIntegrationStatus(status);
-    if (!pendingCreateRef.current) return;
-    pendingCreateRef.current = false;
-    setSearchParams(
-      (prev) => {
-        const next = new URLSearchParams(prev);
-        next.delete('create');
-        return next;
-      },
-      { replace: true },
-    );
-    openCreateModalFor(status);
+  });
+
+  // `?create=1` (New menu, dashboard shortcut): opens the create flow once the status load settled.
+  useCreateQuery({
+    ready: integrationReady,
+    prefillKeys: ['companyId'],
+    onOpen: (request) => openCreateModalFor(integrationStatus, request),
   });
 
   // Load Paperless and config status on mount
@@ -405,13 +412,25 @@ export function InvoicesPage() {
     setSearchParams(params, { replace: true });
   };
 
-  const openCreateModalFor = (status: IntegrationStatus) => {
+  const presetCreateForm = (request: CreateRequest | null): InvoiceFormState => ({
+    ...EMPTY_FORM,
+    status: request?.kind === 'offer' ? 'quotation' : 'pending',
+    vendorId:
+      request?.prefill.companyId && vendors.some((v) => v.id === request.prefill.companyId)
+        ? request.prefill.companyId
+        : vendors.length === 0
+          ? (request?.prefill.companyId ?? '')
+          : '',
+  });
+
+  const openCreateModalFor = (status: IntegrationStatus, request: CreateRequest | null = null) => {
+    createRequestRef.current = request;
     // If Paperless and auto-itemize are both configured, open the picker modal
     if (status.paperless?.configured && status.paperless?.reachable && status.autoItemizeEnabled) {
       setShowPaperlessPickerModal(true);
     } else {
       // Otherwise open the manual create modal
-      setCreateForm(EMPTY_FORM);
+      setCreateForm(presetCreateForm(request));
       setCreateError('');
       setShowCreateModal(true);
     }
@@ -428,7 +447,7 @@ export function InvoicesPage() {
 
   const handlePaperlessManualEntry = () => {
     setShowPaperlessPickerModal(false);
-    setCreateForm(EMPTY_FORM);
+    setCreateForm(presetCreateForm(createRequestRef.current));
     setCreateError('');
     setShowCreateModal(true);
   };

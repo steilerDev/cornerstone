@@ -87,11 +87,9 @@
     }
   },
   "create": {
-    "loading": "Wird geladen...",
     "thisItemLabel": "Dieses Element",
     "fields": {
       "title": "Titel",
-      "titleRequired": "*",
       "titlePlaceholder": "Titel des Arbeitspakets eingeben",
       "titleRequiredError": "Titel ist erforderlich",
       "description": "Beschreibung",
@@ -114,15 +112,10 @@
       "otherItemPredecessor": "„{{otherItemTitle}}“ muss {{predecessorVerb}}, bevor dieses Element {{successorVerb}} kann",
       "removeAriaLabel": "Abhängigkeit zu {{otherItemTitle}} entfernen"
     },
-    "actions": {
-      "cancel": "Abbrechen",
-      "creating": "Wird erstellt...",
-      "create": "Arbeitspaket erstellen"
-    },
     "errors": {
-      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen.",
-      "createFailed": "Arbeitspaket konnte nicht erstellt werden. Bitte erneut versuchen."
-    }
+      "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte erneut versuchen."
+    },
+    "added": "Aufgabe „{{title}}“ hinzugefügt."
   },
   "picker": {
     "placeholder": "Arbeitspakete suchen...",

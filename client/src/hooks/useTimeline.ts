@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TimelineResponse } from '@cornerstone/shared';
 import { getTimeline } from '../lib/timelineApi.js';
@@ -9,7 +9,8 @@ export interface UseTimelineResult {
   data: TimelineResponse | null;
   isLoading: boolean;
   error: string | null;
-  refetch: () => void;
+  /** `silent` keeps the current data and the loaded state while reloading. */
+  refetch: (options?: { silent?: boolean }) => void;
 }
 
 /**
@@ -24,12 +25,15 @@ export function useTimeline(): UseTimelineResult {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
+  const silentRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadTimeline() {
-      setIsLoading(true);
+      const silent = silentRef.current;
+      silentRef.current = false;
+      if (!silent) setIsLoading(true);
       setError(null);
 
       try {
@@ -61,7 +65,8 @@ export function useTimeline(): UseTimelineResult {
     };
   }, [fetchCount, t, tCommon, tErrors]);
 
-  function refetch() {
+  function refetch(options?: { silent?: boolean }) {
+    silentRef.current = options?.silent === true;
     setFetchCount((c) => c + 1);
   }
 

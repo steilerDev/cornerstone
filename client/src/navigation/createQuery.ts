@@ -1,0 +1,43 @@
+/** Query vocabulary of the create targets (`?create=1`, `kind`, pre-fill keys). */
+export const CREATE_PARAM = 'create';
+export const CREATE_KIND_PARAM = 'kind';
+export const CREATE_PREFILL_KEYS = ['areaId', 'companyId', 'date'] as const;
+export type CreatePrefillKey = (typeof CREATE_PREFILL_KEYS)[number];
+export type CreatePrefill = Readonly<Partial<Record<CreatePrefillKey, string>>>;
+
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+const ID_PATTERN = /^[A-Za-z0-9_-]+$/;
+const MAX_ID_LENGTH = 64;
+
+function isRealDate(value: string): boolean {
+  if (!DATE_PATTERN.test(value)) return false;
+  const [year, month, day] = value.split('-').map(Number) as [number, number, number];
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  );
+}
+
+function isValidId(value: string): boolean {
+  return value.length > 0 && value.length <= MAX_ID_LENGTH && ID_PATTERN.test(value);
+}
+
+/** Keeps only valid pre-fill keys: `date` is a real YYYY-MM-DD day, ids are short slugs. */
+export function sanitizePrefill(input: Partial<Record<CreatePrefillKey, unknown>>): CreatePrefill {
+  const out: Partial<Record<CreatePrefillKey, string>> = {};
+  for (const key of CREATE_PREFILL_KEYS) {
+    const value = input[key];
+    if (typeof value !== 'string') continue;
+    if (key === 'date' ? isRealDate(value) : isValidId(value)) out[key] = value;
+  }
+  return out;
+}
+
+/** Reads the pre-fill keys from a query string through `sanitizePrefill`. */
+export function prefillFromSearch(params: URLSearchParams): CreatePrefill {
+  return sanitizePrefill({
+    areaId: params.get('areaId') ?? undefined,
+    companyId: params.get('companyId') ?? undefined,
+    date: params.get('date') ?? undefined,
+  });
+}

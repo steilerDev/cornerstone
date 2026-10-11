@@ -1375,4 +1375,39 @@ describe('DashboardPage', () => {
       expect(probedOrigin()).toBeNull();
     });
   });
+
+  describe('Add menu: dialog targets (#2212)', () => {
+    function renderProbed() {
+      return render(
+        <MemoryRouter initialEntries={['/project/overview?x=1']}>
+          <DashboardPage />
+          <OriginProbe />
+        </MemoryRouter>,
+      );
+    }
+    const state = () => JSON.parse(screen.getByTestId('probe-state').textContent ?? 'null');
+
+    it.each([
+      ['dashboard-add-work-item', '/project/work-items/new'],
+      ['dashboard-add-household-item', '/project/household-items/new'],
+      ['dashboard-add-milestone', '/project/milestones/new'],
+    ])('%s opens the dialog over the Home page (background plus origin)', async (testId, path) => {
+      renderProbed();
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId(testId));
+      expect(probedPath()).toBe(path);
+      expect(state()).toMatchObject({
+        origin: { to: '/project/overview?x=1' },
+        background: { pathname: '/project/overview', search: '?x=1' },
+      });
+    });
+
+    it('the diary entry stays a page: origin only, no background', async () => {
+      renderProbed();
+      await userEvent.click(screen.getByTestId('dashboard-add-button'));
+      await userEvent.click(screen.getByTestId('dashboard-add-diary-entry'));
+      expect(probedPath()).toBe('/diary/new');
+      expect(state()).toEqual({ origin: { to: '/project/overview?x=1' } });
+    });
+  });
 });

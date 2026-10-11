@@ -145,6 +145,9 @@ test.describe('User menu', () => {
           .filter({ hasText: new RegExp(`^${key === '?' || key === '/' ? '\\' + key : key}$`) }),
       ).toBeVisible();
     }
+    // #2212: the page's own `n` row wins over the shell's "Open the New menu" fallback
+    await expect(dialog).toContainText('New work item');
+    await expect(dialog).not.toContainText('Open the New menu');
     // #2209: a fixed "Everywhere" section lists the global undo shortcut
     await expect(dialog.getByRole('heading', { name: 'Everywhere' })).toBeVisible();
     await expect(dialog).toContainText('Undo the last change');
@@ -152,12 +155,16 @@ test.describe('User menu', () => {
     await expect(dialog).toBeHidden();
     await expect(appShell.userMenuTrigger).toBeFocused();
 
-    // Home registers no shortcuts of its own
+    // Home registers no shortcuts of its own; the shell's `n` fallback ("Open the New menu")
+    // is the only row (#2212)
     await page.goto(ROUTES.home);
     await expect(appShell.userMenuTrigger).toBeVisible();
     await appShell.openUserMenu();
     await page.getByTestId('user-menu-shortcuts').click();
-    await expect(page.getByRole('dialog')).toContainText('This page has no shortcuts of its own.');
+    await expect(page.getByRole('dialog')).toContainText('Open the New menu');
+    await expect(page.getByRole('dialog')).not.toContainText(
+      'This page has no shortcuts of its own.',
+    );
     await page.keyboard.press('Escape');
     await expect(page.getByRole('dialog')).toBeHidden();
     await expect(appShell.userMenuTrigger).toBeFocused();

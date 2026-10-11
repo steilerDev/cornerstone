@@ -24,6 +24,8 @@ import { listUsers } from '../../lib/usersApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -36,6 +38,7 @@ export function WorkItemsPage() {
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(tCommon('navigation.tasks'));
   const navigate = useNavigate();
+  const openCreate = useOpenCreate();
   const { formatDate } = useFormatters();
   const { areas } = useAreas();
 
@@ -105,8 +108,9 @@ export function WorkItemsPage() {
     tableState.filters,
   ]);
 
-  const loadWorkItems = async () => {
-    setIsLoading(true);
+  const loadWorkItems = async (options?: { silent?: boolean }) => {
+    // A silent reload keeps the rows (and the heading) mounted: no loading flip.
+    if (!options?.silent) setIsLoading(true);
     setError('');
 
     try {
@@ -127,6 +131,9 @@ export function WorkItemsPage() {
       setIsLoading(false);
     }
   };
+
+  // A task created from the dialog over this page shows up without a loading flash.
+  useOnObjectCreated('task', () => void loadWorkItems({ silent: true }));
 
   const handleStateChange = (newState: TableState) => {
     const params = new URLSearchParams(searchParams);
@@ -397,7 +404,7 @@ export function WorkItemsPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate(routeUrl('workItemNew')),
+        handler: () => openCreate('task'),
         description: t('list.shortcuts.newWorkItem')!,
       },
       {
@@ -428,7 +435,7 @@ export function WorkItemsPage() {
       },
     ],
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- closeDeleteConfirm is defined in the component body; the shortcuts array is recomputed to capture current state which is the intended behavior
-    [navigate, showShortcutsHelp, deletingItem, activeMenuId, t],
+    [openCreate, showShortcutsHelp, deletingItem, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -440,7 +447,7 @@ export function WorkItemsPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate(routeUrl('workItemNew'))}
+          onClick={() => openCreate('task')}
           data-testid="new-work-item-button"
         >
           {t('list.newWorkItem')}
@@ -467,7 +474,7 @@ export function WorkItemsPage() {
           description: t('list.empty.noItemsText')!,
           action: {
             label: t('list.empty.createFirst')!,
-            onClick: () => navigate(routeUrl('workItemNew')),
+            onClick: () => openCreate('task'),
           },
         }}
       />

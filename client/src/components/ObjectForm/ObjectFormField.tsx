@@ -1,0 +1,127 @@
+import type { ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
+import { FormError } from '../FormError/FormError.js';
+import { Skeleton } from '../Skeleton/Skeleton.js';
+import styles from './ObjectForm.module.css';
+import type { ObjectFormChild, ObjectFormField as FieldDef } from './types.js';
+
+export interface ObjectFormFieldProps {
+  readonly field: FieldDef;
+  readonly value: unknown;
+  readonly error: string | undefined;
+  readonly busy: boolean;
+  readonly onChange: (value: unknown) => void;
+  readonly createChild: (child: ObjectFormChild) => void;
+}
+
+function cx(...parts: readonly (string | false | undefined)[]): string {
+  return parts.filter(Boolean).join(' ');
+}
+
+/** One labelled field of an ObjectForm: label, control, hint and field-level error. */
+export function ObjectFormField({
+  field,
+  value,
+  error,
+  busy,
+  onChange,
+  createChild,
+}: ObjectFormFieldProps) {
+  const { t } = useTranslation('common');
+  const { name, label, kind, required } = field;
+  const hintId = field.hint ? `${name}-hint` : undefined;
+  const errorId = error ? `${name}-error` : undefined;
+  const noticeId = field.notice ? `${name}-notice` : undefined;
+  const describedBy = [hintId, noticeId, errorId].filter(Boolean).join(' ') || undefined;
+  const invalid = error !== undefined;
+  const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+
+  const common = {
+    id: name,
+    name,
+    'aria-required': required || undefined,
+    'aria-invalid': invalid || undefined,
+    'aria-describedby': describedBy,
+    'data-testid': field.testId,
+  } as const;
+
+  let control: ReactNode;
+  if (field.optionsLoading) {
+    control = <Skeleton lines={1} />;
+  } else if (kind === 'custom') {
+    control = field.render?.({
+      id: name,
+      value,
+      setValue: (next) => {
+        if (!busy) onChange(next);
+      },
+      busy,
+      invalid,
+      describedBy,
+      createChild,
+    });
+  } else if (kind === 'select') {
+    control = (
+      <select
+        {...common}
+        className={cx(styles.select, invalid && styles.inputError)}
+        value={text}
+        onChange={(event) => {
+          if (!busy) onChange(event.target.value);
+        }}
+        aria-disabled={busy || undefined}
+      >
+        {(field.options ?? []).map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    );
+  } else if (kind === 'textarea') {
+    control = (
+      <textarea
+        {...common}
+        className={cx(styles.textarea, invalid && styles.inputError)}
+        rows={3}
+        value={text}
+        maxLength={field.maxLength}
+        placeholder={field.placeholder}
+        readOnly={busy}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    );
+  } else {
+    control = (
+      <input
+        {...common}
+        type={kind}
+        className={cx(styles.input, invalid && styles.inputError)}
+        value={text}
+        min={kind === 'number' ? field.min : undefined}
+        maxLength={field.maxLength}
+        placeholder={field.placeholder}
+        readOnly={busy}
+        onChange={(event) => onChange(event.target.value)}
+        onWheel={kind === 'number' ? (event) => event.currentTarget.blur() : undefined}
+      />
+    );
+  }
+
+  return (
+    <div className={cx(styles.field, field.width === 'half' && styles.fieldHalf)}>
+      <label htmlFor={name} className={styles.label}>
+        {label}
+        {required && <span className={styles.required}> {t('objectForm.required')}</span>}
+      </label>
+      {control}
+      {field.hint && (
+        <p id={hintId} className={styles.hint}>
+          {field.hint}
+        </p>
+      )}
+      <FormError variant="field" id={noticeId} message={field.notice} />
+      <FormError variant="field" id={errorId} message={error} />
+    </div>
+  );
+}

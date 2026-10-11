@@ -701,14 +701,23 @@ describe('TimelinePage', () => {
       ['timeline-add-work-item', '/project/work-items/new'],
       ['timeline-add-household-item', '/project/household-items/new'],
       ['timeline-add-milestone', '/project/milestones/new'],
-    ])('the New menu item %s carries the Gantt URL as origin', (testId, path) => {
+    ])('the New menu item %s carries the Gantt URL as origin and background', (testId, path) => {
       renderWithRouter(['/schedule/gantt?filter=tasks']);
       fireEvent.click(screen.getByTestId('timeline-add-button'));
 
       fireEvent.click(screen.getByTestId(testId));
 
       expect(screen.getByTestId('location-display')).toHaveTextContent(path);
-      expect(stateOf()).toEqual({ origin: { to: '/schedule/gantt?filter=tasks' } });
+      expect(stateOf()).toEqual({
+        origin: { to: '/schedule/gantt?filter=tasks' },
+        background: {
+          pathname: '/schedule/gantt',
+          search: '?filter=tasks',
+          hash: '',
+          state: null,
+          key: expect.any(String),
+        },
+      });
     });
 
     it('does not push a history entry on mount', async () => {

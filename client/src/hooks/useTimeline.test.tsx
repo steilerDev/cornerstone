@@ -24,6 +24,7 @@
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import type * as TimelineApiModule from '../lib/timelineApi.js';
+import type * as UseTimelineModule from './useTimeline.js';
 import type { TimelineResponse } from '@cornerstone/shared';
 import type React from 'react';
 import i18n from '../i18n/index.js';
@@ -257,6 +258,73 @@ describe('useTimeline', () => {
     });
 
     // Should be loading again
+    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
+  });
+});
+
+describe('useTimeline silent refetch (#2212)', () => {
+  const WITH_ITEM: TimelineResponse = {
+    ...EMPTY_TIMELINE,
+    householdItems: [{ id: 'hi-1' } as never],
+  };
+
+  function SilentComponent({ useIt }: { useIt: typeof UseTimelineModule.useTimeline }) {
+    const { data, isLoading, refetch } = useIt();
+    return (
+      <div>
+        <span data-testid="loading">{isLoading ? 'loading' : 'done'}</span>
+        <span data-testid="count">{String(data?.householdItems.length ?? -1)}</span>
+        <button data-testid="silent" onClick={() => refetch({ silent: true })}>
+          silent
+        </button>
+        <button data-testid="loud" onClick={() => refetch()}>
+          loud
+        </button>
+      </div>
+    );
+  }
+
+  async function setup() {
+    mockGetTimeline.mockReset();
+    mockGetTimeline.mockResolvedValue(EMPTY_TIMELINE);
+    const { useTimeline } = await import('./useTimeline.js');
+    render(<SilentComponent useIt={useTimeline} />);
+    await waitFor(() => expect(screen.getByTestId('loading')).toHaveTextContent('done'));
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+  }
+
+  it('keeps the data and never shows the loading state while a silent refetch runs', async () => {
+    await setup();
+    let resolve!: (t: TimelineResponse) => void;
+    mockGetTimeline.mockReturnValueOnce(
+      new Promise<TimelineResponse>((r) => {
+        resolve = r;
+      }),
+    );
+    act(() => screen.getByTestId('silent').click());
+    expect(mockGetTimeline).toHaveBeenCalledTimes(2);
+    expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    expect(screen.getByTestId('count')).toHaveTextContent('0');
+    await act(async () => {
+      resolve(WITH_ITEM);
+    });
+    expect(screen.getByTestId('loading')).toHaveTextContent('done');
+    expect(screen.getByTestId('count')).toHaveTextContent('1');
+  });
+
+  it('a normal refetch still shows the loading state', async () => {
+    await setup();
+    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
+    act(() => screen.getByTestId('loud').click());
+    expect(screen.getByTestId('loading')).toHaveTextContent('loading');
+  });
+
+  it('a silent refetch does not make the next normal refetch silent', async () => {
+    await setup();
+    mockGetTimeline.mockResolvedValueOnce(WITH_ITEM);
+    await act(async () => screen.getByTestId('silent').click());
+    mockGetTimeline.mockReturnValueOnce(new Promise(() => {}));
+    act(() => screen.getByTestId('loud').click());
     expect(screen.getByTestId('loading')).toHaveTextContent('loading');
   });
 });

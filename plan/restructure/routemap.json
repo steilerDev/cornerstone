@@ -44,8 +44,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [],
-    "note": "Opens the New task dialog (ObjectForm) over the Tasks list; Cancel returns to the origin. URL and create E2E entry points stay."
+    "carries": ["areaId"],
+    "note": "Opens the New task dialog (ObjectForm) over the Tasks list; Cancel returns to the origin. URL and create E2E entry points stay. #2212: opens the ObjectForm dialog over the page you came from (history-state background), or over the Tasks list on a deep link; ?areaId= pre-fills the area."
   },
   {
     "from": "/project/work-items/:id",
@@ -80,8 +80,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [],
-    "note": "Opens the New purchase dialog over the Purchases list."
+    "carries": ["areaId", "companyId"],
+    "note": "Opens the New purchase dialog over the Purchases list. #2212: opens the ObjectForm dialog over the page you came from, or over the Purchases list on a deep link; ?areaId= and ?companyId= pre-fill the area and the vendor."
   },
   {
     "from": "/project/household-items/:id",
@@ -116,8 +116,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": [],
-    "note": "Opens the New milestone dialog over the Milestones list."
+    "carries": ["date"],
+    "note": "Opens the New milestone dialog over the Milestones list. #2212: opens the ObjectForm dialog over the page you came from, or over the Milestones list on a deep link; ?date= pre-fills the target date."
   },
   {
     "from": "/project/milestones/:id",
@@ -152,8 +152,19 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "status", "create"],
-    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog."
+    "carries": [
+      "q",
+      "sortBy",
+      "sortOrder",
+      "page",
+      "pageSize",
+      "filters",
+      "status",
+      "create",
+      "kind",
+      "companyId"
+    ],
+    "note": "Money › Invoices (h1 'Invoices'): **offers and invoices in one list** (§2.0 #3) with status chips To pay · Offers · Paid · Submitted · All and paging. ?status= keeps the stored values (pending, quotation, paid, claimed); default To pay. ?create=1 opens the New invoice dialog. #2212 (interim until P4.9): ?create=1 opens today's create modal (or the Paperless picker); kind=offer presets status Offer (quotation); ?companyId= pre-fills the company. The page then removes these keys (replace)."
   },
   {
     "from": "/budget/invoices/new/paperless",
@@ -428,8 +439,8 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "group"],
-    "note": "NEW path for the Companies list (moved from /settings/vendors); flat A–Z by default."
+    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "group", "create"],
+    "note": "NEW path for the Companies list (moved from /settings/vendors); flat A–Z by default. #2212 (interim until 5.10b): ?create=1 opens the create-company modal on the list; the page then removes the key (replace)."
   },
   {
     "from": "/companies/:id",
