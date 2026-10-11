@@ -198,6 +198,9 @@ test.describe('StatusMenu — task status', { tag: '@responsive' }, () => {
       // With focus in a text field the shortcut belongs to the field (text undo), not the toast
       await detail.statusMenu.chooseToday('in_progress');
       await expect(toasts.undoToast).toBeVisible();
+      // Hover pauses the 6 s undo clock, so a slow runner cannot dismiss the toast before the
+      // final cleanup click (it did on CI, #2287).
+      await toasts.undoToast.hover();
       await detail.noteTextarea.fill('typing here');
       await expect(detail.noteTextarea).toBeFocused();
       await page.keyboard.press('Control+z');
