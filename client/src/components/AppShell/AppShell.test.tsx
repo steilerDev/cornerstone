@@ -634,6 +634,57 @@ describe('AppShell', () => {
   });
 
   describe('below 1024 px: compact top bar, bottom bar and More sheet', () => {
+    describe('sheets stay closed when history returns to the location they were opened on', () => {
+      function Walk() {
+        const navigate = useNavigate();
+        return (
+          <>
+            <h1>Walk</h1>
+            <button type="button" data-testid="walk-away" onClick={() => void navigate('/photos')}>
+              away
+            </button>
+            <button type="button" data-testid="walk-back" onClick={() => void navigate(-1)}>
+              back
+            </button>
+            <button type="button" data-testid="walk-forward" onClick={() => void navigate(1)}>
+              forward
+            </button>
+          </>
+        );
+      }
+
+      async function openAndWalk(openerTestId: string, sheetTestId: string) {
+        const user = userEvent.setup();
+        renderAt('/', <Walk />);
+        await user.click(
+          openerTestId === 'more'
+            ? screen.getByRole('button', { name: 'More' })
+            : screen.getByTestId(openerTestId),
+        );
+        await waitFor(() =>
+          expect(screen.getByTestId(sheetTestId)).toHaveAttribute('data-open', 'true'),
+        );
+        fireEvent.click(screen.getByTestId('walk-away'));
+        await waitFor(() =>
+          expect(screen.getByTestId(sheetTestId)).toHaveAttribute('data-open', 'false'),
+        );
+        fireEvent.click(screen.getByTestId('walk-back'));
+        await waitFor(() => expect(screen.getByTestId('walk-forward')).toBeInTheDocument());
+        expect(screen.getByTestId(sheetTestId)).toHaveAttribute('data-open', 'false');
+        fireEvent.click(screen.getByTestId('walk-forward'));
+        await new Promise((resolve) => setTimeout(resolve, 30));
+        expect(screen.getByTestId(sheetTestId)).toHaveAttribute('data-open', 'false');
+      }
+
+      it('keeps the More sheet closed after away, back and forward', async () => {
+        await openAndWalk('more', 'more-sheet');
+      });
+
+      it('keeps the New sheet closed after away, back and forward', async () => {
+        await openAndWalk('bottom-bar-new', 'create-sheet');
+      });
+    });
+
     it('renders one header, one Main navigation (the bottom bar) and no sidebar', () => {
       renderAt('/', <div>Test Content</div>);
 

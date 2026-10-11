@@ -146,7 +146,8 @@ export function CommandSearch({
       skipOpenerRef.current = true;
       returnTargetRef.current = null;
       focusPageHeadingWhenReady();
-      // The real location key does not change for the same URL, so close explicitly.
+      // A same-URL replace also makes a new location key, which closes the search; closing here
+      // too is a safeguard that does not depend on that router behaviour.
       if (target === currentUrl) onClose();
     },
   };

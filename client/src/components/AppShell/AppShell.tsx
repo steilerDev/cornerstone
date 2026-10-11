@@ -47,6 +47,7 @@ export function AppShell() {
   const [slotEl, setSlotEl] = useState<HTMLDivElement | null>(null);
   const [moreOpenKey, setMoreOpenKey] = useState<string | null>(null);
   // Any navigation (a new location key) closes the sheet.
+  if (moreOpenKey !== null && moreOpenKey !== location.key) setMoreOpenKey(null);
   const moreOpen = !wide && moreOpenKey === location.key;
   // Never reopen after a resize round trip: leaving the compact layout forgets the request.
   const [wasWide, setWasWide] = useState(wide);
@@ -57,6 +58,7 @@ export function AppShell() {
   // The New sheet closes on any real navigation (a dialog route keeps the display location).
   const realKey = useRealLocationKey();
   const [createOpenKey, setCreateOpenKey] = useState<string | null>(null);
+  if (createOpenKey !== null && createOpenKey !== realKey) setCreateOpenKey(null);
   const createOpen = !wide && createOpenKey === realKey;
   if (wide && createOpenKey !== null) setCreateOpenKey(null);
   const onCreateSheetOpenChange = useCallback(
