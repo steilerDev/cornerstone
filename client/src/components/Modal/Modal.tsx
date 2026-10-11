@@ -30,6 +30,13 @@ export interface ModalProps {
   skipOpenerRef?: React.RefObject<boolean>;
   /** Rendered before the title inside the header (e.g. a back link). */
   headerStart?: React.ReactNode;
+  /**
+   * `palette`: the command-search surface. No header row and no close button, no padding, a
+   * wide panel in the upper third of the viewport; the title stays as the accessible name.
+   */
+  variant?: 'default' | 'palette';
+  /** Keeps the title as the accessible name but hides it visually. */
+  hideTitle?: boolean;
 }
 
 export function Modal({
@@ -45,6 +52,8 @@ export function Modal({
   returnFocusRef,
   skipOpenerRef,
   headerStart,
+  variant = 'default',
+  hideTitle = false,
 }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
@@ -76,9 +85,17 @@ export function Modal({
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only: initial focus must not re-run when the ref prop identity changes
   }, []);
 
+  const palette = variant === 'palette';
+  const titleClass = hideTitle || palette ? sharedStyles.srOnly : styles.title;
+  const heading = (
+    <h2 id={titleId} className={titleClass}>
+      {title}
+    </h2>
+  );
+
   return createPortal(
     <div
-      className={sharedStyles.modal}
+      className={[sharedStyles.modal, palette && styles.paletteRoot].filter(Boolean).join(' ')}
       role={role}
       aria-modal="true"
       aria-labelledby={titleId}
@@ -86,39 +103,49 @@ export function Modal({
     >
       <div className={sharedStyles.modalBackdrop} onClick={handleClose} />
       <div
-        className={[sharedStyles.modalContent, styles.content, className].filter(Boolean).join(' ')}
+        className={(palette
+          ? [styles.palette, className]
+          : [sharedStyles.modalContent, styles.content, className]
+        )
+          .filter(Boolean)
+          .join(' ')}
         ref={contentRef}
       >
-        <div className={styles.header}>
-          {headerStart ? (
-            <div className={styles.headerStart}>
-              {headerStart}
-              <h2 id={titleId} className={styles.title}>
-                {title}
-              </h2>
+        {palette ? (
+          <>
+            {heading}
+            <div className={styles.paletteBody}>{children}</div>
+          </>
+        ) : (
+          <>
+            <div className={styles.header}>
+              {headerStart ? (
+                <div className={styles.headerStart}>
+                  {headerStart}
+                  {heading}
+                </div>
+              ) : (
+                heading
+              )}
+              <button
+                type="button"
+                className={styles.closeButton}
+                onClick={handleClose}
+                aria-disabled={dismissible ? undefined : true}
+                aria-label={t('aria.closeDialog')}
+              >
+                ×
+              </button>
             </div>
-          ) : (
-            <h2 id={titleId} className={styles.title}>
-              {title}
-            </h2>
-          )}
-          <button
-            type="button"
-            className={styles.closeButton}
-            onClick={handleClose}
-            aria-disabled={dismissible ? undefined : true}
-            aria-label={t('aria.closeDialog')}
-          >
-            ×
-          </button>
-        </div>
 
-        <div className={styles.body}>{children}</div>
+            <div className={styles.body}>{children}</div>
 
-        {footer && (
-          <div className={[sharedStyles.modalActions, styles.footer].filter(Boolean).join(' ')}>
-            {footer}
-          </div>
+            {footer && (
+              <div className={[sharedStyles.modalActions, styles.footer].filter(Boolean).join(' ')}>
+                {footer}
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>,

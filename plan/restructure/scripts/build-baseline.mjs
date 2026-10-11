@@ -456,12 +456,15 @@ export function auditClient(clientSrcDir) {
   const analyse = (file) => {
     if (!analysisCache.has(file)) {
       const rel = relative(src, file).split(sep).join('/');
+      // The global command search is the one app-wide search field (#2211): like the pickers it
+      // is not a page's own list search, so it never counts toward a screen's searchFields.
+      const isGlobalSearch = rel.startsWith('components/CommandSearch/');
       const isPicker = rel.startsWith('components/SearchPicker/') || /Picker[^/]*\.tsx$/.test(rel);
       analysisCache.set(
         file,
         analyzeFile(file, readFileSync(file, 'utf8'), {
           readCss,
-          countSearch: !isPicker,
+          countSearch: !isPicker && !isGlobalSearch,
           countDialogs: !rel.startsWith('components/Modal/'),
         }),
       );

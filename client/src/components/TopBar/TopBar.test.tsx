@@ -6,6 +6,7 @@ import type React from 'react';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as TopBarTypes from './TopBar.js';
+import type * as CommandSearchContextTypes from '../CommandSearch/CommandSearchContext.js';
 
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: () => ({
@@ -43,6 +44,7 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
 
 describe('TopBar', () => {
   let TopBarModule: typeof TopBarTypes;
+  let CommandSearchModule: typeof CommandSearchContextTypes;
   const platformDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'platform');
 
   function setPlatform(value: string) {
@@ -52,6 +54,7 @@ describe('TopBar', () => {
   beforeEach(async () => {
     if (!TopBarModule) {
       TopBarModule = await import('./TopBar.js');
+      CommandSearchModule = await import('../CommandSearch/CommandSearchContext.js');
     }
   });
 
@@ -73,6 +76,23 @@ describe('TopBar', () => {
       </RecordingRouter>,
     );
     return { log, ...utils };
+  }
+
+  function renderWithSearch(isOpen = false) {
+    const onOpen = jest.fn<(o: CommandSearchContextTypes.CommandSearchOpenOptions) => void>();
+    const log = createRouterLog();
+    render(
+      <RecordingRouter entries={['/project/overview']} log={log}>
+        <CommandSearchModule.CommandSearchProvider
+          isOpen={isOpen}
+          onOpen={onOpen}
+          onClose={() => {}}
+        >
+          <TopBarModule.TopBar breadcrumbSlotRef={() => {}} />
+        </CommandSearchModule.CommandSearchProvider>
+      </RecordingRouter>,
+    );
+    return { onOpen };
   }
 
   it('is a single banner landmark containing the bar test id', () => {
@@ -136,8 +156,38 @@ describe('TopBar', () => {
     });
   });
 
+  describe('Search (#2211)', () => {
+    it('is a live dialog trigger, focusable, not aria-disabled', () => {
+      renderBar();
+      const button = screen.getByTestId('top-bar-search');
+      expect(button).not.toHaveAttribute('aria-disabled');
+      expect(button).not.toHaveAttribute('disabled');
+      expect(button).toHaveAttribute('type', 'button');
+      expect(button).toHaveAttribute('aria-haspopup', 'dialog');
+      expect(button).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
+      button.focus();
+      expect(button).toHaveFocus();
+    });
+
+    it('opens the command search on click', () => {
+      const { onOpen } = renderWithSearch();
+      fireEvent.click(screen.getByTestId('top-bar-search'));
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(onOpen).toHaveBeenCalledWith({});
+    });
+
+    it('does nothing, and does not throw, without a command search provider', () => {
+      const error = jest.spyOn(console, 'error').mockImplementation(() => {});
+      const { log } = renderBar();
+      fireEvent.click(screen.getByTestId('top-bar-search'));
+      expect(log.actions).toEqual([]);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(error).not.toHaveBeenCalled();
+    });
+  });
+
   describe('placeholders', () => {
-    const TEST_IDS = ['top-bar-search', 'top-bar-attention'];
+    const TEST_IDS = ['top-bar-attention'];
 
     it.each(TEST_IDS)('%s is aria-disabled, focusable and not natively disabled', (id) => {
       renderBar();

@@ -24,6 +24,8 @@ import { listUsers } from '../../lib/usersApi.js';
 import { fetchVendors } from '../../lib/vendorsApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
+import { useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
 import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
@@ -69,7 +71,8 @@ export function WorkItemsPage() {
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   // Keyboard shortcuts state
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const registry = useShortcutRegistry();
+  const [helpShortcuts, setHelpShortcuts] = useState<KeyboardShortcut[] | null>(null);
 
   // Load users, vendors, and areas on mount
   useEffect(() => {
@@ -408,23 +411,15 @@ export function WorkItemsPage() {
         description: t('list.shortcuts.newWorkItem')!,
       },
       {
-        key: '/',
-        handler: () => {
-          const searchInput = document.querySelector<HTMLInputElement>('input[type="search"]');
-          searchInput?.focus();
-        },
-        description: t('list.shortcuts.focusSearch')!,
-      },
-      {
         key: '?',
-        handler: () => setShowShortcutsHelp(true),
+        handler: () => setHelpShortcuts(registry?.snapshot() ?? shortcuts),
         description: t('list.shortcuts.showShortcuts')!,
       },
       {
         key: 'Escape',
         handler: () => {
-          if (showShortcutsHelp) {
-            setShowShortcutsHelp(false);
+          if (helpShortcuts) {
+            setHelpShortcuts(null);
           } else if (deletingItem) {
             closeDeleteConfirm();
           } else if (activeMenuId) {
@@ -435,7 +430,7 @@ export function WorkItemsPage() {
       },
     ],
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- closeDeleteConfirm is defined in the component body; the shortcuts array is recomputed to capture current state which is the intended behavior
-    [openCreate, showShortcutsHelp, deletingItem, activeMenuId, t],
+    [openCreate, helpShortcuts, registry, deletingItem, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -497,8 +492,8 @@ export function WorkItemsPage() {
       )}
 
       {/* Keyboard shortcuts help */}
-      {showShortcutsHelp && (
-        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
+      {helpShortcuts && (
+        <KeyboardShortcutsHelp shortcuts={helpShortcuts} onClose={() => setHelpShortcuts(null)} />
       )}
     </PageLayout>
   );

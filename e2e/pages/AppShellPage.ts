@@ -209,6 +209,12 @@ export class AppShellPage {
     await this.userMenu.waitFor({ state: 'visible' });
   }
 
+  /** Open the command search from the top bar's Search button (every width, #2211). */
+  async openSearch(): Promise<void> {
+    await this.page.getByTestId('top-bar-search').click();
+    await this.page.getByRole('dialog', { name: 'Search everywhere', exact: true }).waitFor();
+  }
+
   /**
    * A section entry by NavConfig section id. Desktop: `sidebar-section-<id>`. Compact: the
    * bottom-bar slot for home/diary/photos, otherwise the More sheet row (attribute and text

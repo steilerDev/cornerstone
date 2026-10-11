@@ -50,6 +50,16 @@ export function KeyboardShortcutsHelp({
             <td className={styles.keyCell}>
               <kbd className={styles.kbd}>
                 {isApplePlatform()
+                  ? t('topBar.searchShortcutApple')
+                  : t('topBar.searchShortcutOther')}
+              </kbd>
+            </td>
+            <td className={styles.descriptionCell}>{t('commandSearch.shortcutHelp')}</td>
+          </tr>
+          <tr>
+            <td className={styles.keyCell}>
+              <kbd className={styles.kbd}>
+                {isApplePlatform()
                   ? t('undoToast.shortcutKeyApple')
                   : t('undoToast.shortcutKeyOther')}
               </kbd>

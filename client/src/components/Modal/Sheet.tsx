@@ -1,9 +1,10 @@
 import { useEffect, useId, useRef } from 'react';
-import type { ReactNode, RefObject } from 'react';
+import type { CSSProperties, ReactNode, RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
 import { lockScroll } from './scrollLock.js';
 import { useFocusRestore } from './useFocusRestore.js';
+import sharedStyles from '../../styles/shared.module.css';
 import styles from './Sheet.module.css';
 
 export interface SheetProps {
@@ -33,6 +34,13 @@ export interface SheetProps {
   readonly restoreFocusOnUnmount?: boolean;
   /** With restoreFocusOnUnmount: when `.current` is true the opener is not refocused. */
   readonly skipOpenerRef?: RefObject<boolean>;
+  /** Keeps the title as the accessible name but hides it visually (the header holds `headerStart`). */
+  readonly hideTitle?: boolean;
+  /**
+   * `fullScreen` only: a CSS length. Header content and body are centred in a column of at most
+   * this width (the panel and its background still fill the screen). Narrower screens are unchanged.
+   */
+  readonly contentMaxWidth?: string;
 }
 
 function cx(...parts: readonly (string | false | undefined)[]): string {
@@ -58,6 +66,8 @@ export function Sheet({
   headerStart,
   restoreFocusOnUnmount = false,
   skipOpenerRef,
+  hideTitle = false,
+  contentMaxWidth,
 }: SheetProps) {
   const { t } = useTranslation('common');
   const titleId = useId();
@@ -116,20 +126,26 @@ export function Sheet({
           styles.panel,
           open && styles.panelOpen,
           variant === 'fullScreen' && styles.panelFullScreen,
+          variant === 'fullScreen' && contentMaxWidth !== undefined && styles.panelContentWidth,
         )}
+        style={
+          variant === 'fullScreen' && contentMaxWidth !== undefined
+            ? ({ '--sheet-content-max-width': contentMaxWidth } as CSSProperties)
+            : undefined
+        }
         data-open={open ? 'true' : 'false'}
         data-testid={testId}
       >
         <div className={styles.header}>
           {headerStart ? (
-            <div className={styles.headerStart}>
+            <div className={cx(styles.headerStart, hideTitle && styles.headerStartGrow)}>
               {headerStart}
-              <h2 id={titleId} className={styles.title}>
+              <h2 id={titleId} className={hideTitle ? sharedStyles.srOnly : styles.title}>
                 {title}
               </h2>
             </div>
           ) : (
-            <h2 id={titleId} className={styles.title}>
+            <h2 id={titleId} className={hideTitle ? sharedStyles.srOnly : styles.title}>
               {title}
             </h2>
           )}

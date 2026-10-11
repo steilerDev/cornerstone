@@ -22,6 +22,8 @@ import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
+import { ShortcutSnapshot } from '../../test/shortcutSnapshot.js';
+import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -776,5 +778,43 @@ describe('HouseholdItemsPage create openers (#2212)', () => {
     const log = renderAt();
     fireEvent.click(await screen.findByRole('button', { name: 'Create First Item' }));
     expectDialogPush(log);
+  });
+
+  it('the n shortcut opens the same New purchase dialog as the primary button (#2211)', async () => {
+    const log = renderAt();
+    await screen.findByTestId('new-household-item-button');
+    fireEvent.keyDown(document, { key: 'n' });
+    expectDialogPush(log);
+  });
+
+  it('n typed into the list search field does not open the dialog (#2211)', async () => {
+    const log = renderAt();
+    await screen.findByTestId('new-household-item-button');
+    fireEvent.keyDown(screen.getByRole('searchbox'), { key: 'n' });
+    expect(log.actions).toEqual([]);
+  });
+
+  it('n with a modifier key does not open the dialog (#2211)', async () => {
+    const log = renderAt();
+    await screen.findByTestId('new-household-item-button');
+    fireEvent.keyDown(document, { key: 'n', ctrlKey: true });
+    expect(log.actions).toEqual([]);
+  });
+
+  it('registers its n shortcut with the New purchase description (#2211)', async () => {
+    const log = createRouterLog();
+    render(
+      <ShortcutRegistryProvider>
+        <ToastProvider>
+          <RecordingRouter entries={['/project/household-items']} log={log}>
+            <HouseholdItemsPage />
+            <ShortcutSnapshot />
+          </RecordingRouter>
+        </ToastProvider>
+      </ShortcutRegistryProvider>,
+    );
+    await screen.findByTestId('new-household-item-button');
+    fireEvent.click(screen.getByTestId('shortcut-snapshot'));
+    expect(screen.getByTestId('shortcut-snapshot-out').textContent).toContain('n:New purchase');
   });
 });

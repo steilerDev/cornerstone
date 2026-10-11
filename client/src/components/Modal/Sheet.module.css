@@ -79,6 +79,12 @@
   min-width: 0;
 }
 
+/* Fills the header height so a field inside is the whole tap target. */
+.headerStartGrow {
+  flex: 1 1 auto;
+  align-self: stretch;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-lg);
@@ -129,6 +135,11 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: var(--spacing-4);
+}
+
+.panelContentWidth .header,
+.panelContentWidth .bodyFullScreen {
+  padding-inline: max(var(--spacing-4), calc((100% - var(--sheet-content-max-width)) / 2));
 }
 
 .footer {

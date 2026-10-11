@@ -4,9 +4,10 @@
 // The compact (phone and tablet) variant of the top bar (#2207). The scrolled-heading hook and
 // the house name are mocked so the bar's own wiring can be asserted.
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as TopBarTypes from './TopBar.js';
+import type * as CommandSearchContextTypes from '../CommandSearch/CommandSearchContext.js';
 
 let mockHouseName: string | null;
 let mockTitle: string | null;
@@ -25,9 +26,13 @@ jest.unstable_mockModule('../../hooks/useScrolledPastHeading.js', () => ({
 
 describe('TopBar variant="compact"', () => {
   let TopBarModule: typeof TopBarTypes;
+  let CommandSearchModule: typeof CommandSearchContextTypes;
 
   beforeEach(async () => {
-    if (!TopBarModule) TopBarModule = await import('./TopBar.js');
+    if (!TopBarModule) {
+      TopBarModule = await import('./TopBar.js');
+      CommandSearchModule = await import('../CommandSearch/CommandSearchContext.js');
+    }
     mockHouseName = null;
     mockTitle = null;
     mockScrolled.mockClear();
@@ -94,13 +99,32 @@ describe('TopBar variant="compact"', () => {
     expect(key).toEqual(expect.any(String));
   });
 
-  it('offers a disabled Search icon button named Search', () => {
+  it('offers a live Search icon button named Search', () => {
     renderCompact();
     const search = screen.getByRole('button', { name: 'Search' });
     expect(search).toBe(screen.getByTestId('top-bar-search'));
-    expect(search).toHaveAttribute('aria-disabled', 'true');
+    expect(search).not.toHaveAttribute('aria-disabled');
     expect(search).toHaveAttribute('type', 'button');
+    expect(search).toHaveAttribute('aria-haspopup', 'dialog');
+    expect(search).toHaveAttribute('aria-keyshortcuts', 'Control+K Meta+K');
     expect(search.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('opens the command search when the Search icon is pressed', () => {
+    const onOpen = jest.fn<(o: CommandSearchContextTypes.CommandSearchOpenOptions) => void>();
+    render(
+      <RecordingRouter entries={['/project/work-items']} log={createRouterLog()}>
+        <CommandSearchModule.CommandSearchProvider
+          isOpen={false}
+          onOpen={onOpen}
+          onClose={() => {}}
+        >
+          <TopBarModule.TopBar breadcrumbSlotRef={() => {}} variant="compact" />
+        </CommandSearchModule.CommandSearchProvider>
+      </RecordingRouter>,
+    );
+    fireEvent.click(screen.getByTestId('top-bar-search'));
+    expect(onOpen).toHaveBeenCalledWith({});
   });
 
   it('has none of the desktop controls (New, attention, user menu, shortcut hint)', () => {

@@ -78,7 +78,6 @@
     },
     "shortcuts": {
       "newWorkItem": "New work item",
-      "focusSearch": "Focus search",
       "selectNext": "Select next item",
       "selectPrevious": "Select previous item",
       "openSelected": "Open selected item",

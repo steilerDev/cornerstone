@@ -11,6 +11,7 @@ import { DataTablePagination } from './DataTablePagination.js';
 import { DataTableColumnSettings } from './DataTableColumnSettings.js';
 import { useColumnPreferences } from '../../hooks/useColumnPreferences.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
+import { SearchEverywhereRow } from '../CommandSearch/SearchEverywhereRow.js';
 import { Skeleton } from '../Skeleton/Skeleton.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import styles from './DataTable.module.css';
@@ -171,6 +172,11 @@ export interface DataTableProps<T, C = unknown> {
   disabledFilterKeys?: ReadonlyMap<string, string>;
   /** Enables parent/child expandable rows. */
   expandableRows?: ExpandableRowsConfig<T, C>;
+  /**
+   * Shows "Search everywhere for …" under the search field (default true). Off for lists of
+   * non-searchable objects (users).
+   */
+  searchEverywhere?: boolean;
 }
 
 /**
@@ -210,6 +216,7 @@ export function DataTable<T, C = unknown>({
   className,
   disabledFilterKeys,
   expandableRows,
+  searchEverywhere,
 }: DataTableProps<T, C>) {
   const { t } = useTranslation('common');
 
@@ -220,6 +227,7 @@ export function DataTable<T, C = unknown>({
 
   const [searchDraft, setSearchDraft] = useState(tableState.search);
   const searchPendingRef = useRef(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   // True once the first load has finished; afterwards loading never unmounts the toolbar.
   const [hasSettled, setHasSettled] = useState(!isLoading);
   if (!isLoading && !hasSettled) setHasSettled(true);
@@ -499,6 +507,8 @@ export function DataTable<T, C = unknown>({
         <div className={styles.toolbarRow}>
           <div className={styles.searchBox}>
             <input
+              ref={searchInputRef}
+              data-page-search=""
               type="search"
               placeholder={t('dataTable.search.placeholder')}
               value={searchDraft}
@@ -509,6 +519,9 @@ export function DataTable<T, C = unknown>({
               className={styles.searchInput}
               aria-label={t('dataTable.search.ariaLabel')}
             />
+            {searchEverywhere !== false && (
+              <SearchEverywhereRow query={searchDraft} returnFocusRef={searchInputRef} />
+            )}
           </div>
           <div className={styles.toolbarButtons}>
             {hasActiveFilters && (

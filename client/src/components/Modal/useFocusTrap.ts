@@ -1,13 +1,16 @@
 import { useEffect, useRef } from 'react';
 import type { RefObject } from 'react';
 
-/** Focusable descendants of a container (disabled controls excluded). */
+/**
+ * Focusable descendants of a container. Disabled controls and `tabindex="-1"` elements are
+ * excluded (an anchor with `[href]` and `tabindex="-1"` is reachable by pointer only).
+ */
 export function getFocusableElements(container: HTMLElement): HTMLElement[] {
   return Array.from(
     container.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     ),
-  ).filter((el) => !el.hasAttribute('disabled'));
+  ).filter((el) => !el.hasAttribute('disabled') && el.getAttribute('tabindex') !== '-1');
 }
 
 export interface UseFocusTrapOptions {

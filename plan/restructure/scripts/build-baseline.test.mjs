@@ -354,6 +354,65 @@ describe('auditClient', () => {
     assert.equal(audit.screens.BetaPage.searchFields, 1, 'VendorPicker input is excluded');
   });
 
+  describe('the global command search is not a page search field (#2211)', () => {
+    const COMBOBOX = `<input role="combobox" aria-label={t('commandSearch.inputLabel')} />`;
+    const shellWith = (path, name) => ({
+      [`${S}/components/AppShell/AppShell.tsx`]: `import { ${name} } from '../${path}.js';\nexport const AppShell = () => <div><${name} /></div>;`,
+    });
+
+    it('leaves shell.searchFields at 0 for the field in components/CommandSearch/', () => {
+      const exempt = makeRoot({
+        ...shellWith('CommandSearch/CommandSearch', 'CommandSearch'),
+        [`${S}/components/CommandSearch/CommandSearch.tsx`]: `export const CommandSearch = () => ${COMBOBOX};`,
+      });
+      assert.equal(auditClient(join(exempt, S)).screens.shell.searchFields, 0);
+    });
+
+    it('counts the very same input in a non-exempt component (mutation-proof pair)', () => {
+      const counted = makeRoot({
+        ...shellWith('Other/Other', 'Other'),
+        [`${S}/components/Other/Other.tsx`]: `export const Other = () => ${COMBOBOX};`,
+      });
+      assert.equal(auditClient(join(counted, S)).screens.shell.searchFields, 1);
+    });
+
+    it('exempts every file of the folder, not only the component file', () => {
+      const exempt = makeRoot({
+        ...shellWith('CommandSearch/CommandSearch', 'CommandSearch'),
+        [`${S}/components/CommandSearch/CommandSearch.tsx`]: `import { Body } from './CommandSearchBody.js';\nexport const CommandSearch = () => <Body />;`,
+        [`${S}/components/CommandSearch/CommandSearchBody.tsx`]: `export const Body = () => ${COMBOBOX};`,
+      });
+      assert.equal(auditClient(join(exempt, S)).screens.shell.searchFields, 0);
+    });
+
+    it('does not exempt a folder that merely starts with the same letters', () => {
+      const lookalike = makeRoot({
+        ...shellWith('CommandSearchBar/CommandSearchBar', 'CommandSearchBar'),
+        [`${S}/components/CommandSearchBar/CommandSearchBar.tsx`]: `export const CommandSearchBar = () => ${COMBOBOX};`,
+      });
+      assert.equal(auditClient(join(lookalike, S)).screens.shell.searchFields, 1);
+    });
+
+    it('still counts the list search fields of a page that renders the row component', () => {
+      const page = makeRoot({
+        [`${S}/pages/ListPage/ListPage.tsx`]: `import { SearchEverywhereRow } from '../../components/CommandSearch/SearchEverywhereRow.js';\nexport const ListPage = () => <><input type="search" /><SearchEverywhereRow /></>;`,
+        [`${S}/components/CommandSearch/SearchEverywhereRow.tsx`]: `export const SearchEverywhereRow = () => <button type="button" />;`,
+      });
+      assert.equal(auditClient(join(page, S)).screens.ListPage.searchFields, 1);
+    });
+
+    it('registers CommandSearch as one shared component (same basename as its folder)', () => {
+      const root2 = makeRoot({
+        [`${S}/components/CommandSearch/CommandSearch.tsx`]: 'export const CommandSearch = 1;',
+        [`${S}/components/CommandSearch/CommandSearchBody.tsx`]: 'export const Body = 1;',
+        [`${S}/components/CommandSearch/SearchResultRow.tsx`]: 'export const Row = 1;',
+      });
+      assert.deepEqual(auditClient(join(root2, S)).sharedComponents.names, [
+        'CommandSearch/CommandSearch',
+      ]);
+    });
+  });
+
   it('builds the shell screen from AppShell with tab arrays counted as destinations', () => {
     assert.deepEqual(audit.screens.shell, EXPECTED_SCREENS.shell);
   });

@@ -18,6 +18,8 @@ import { listMilestones, deleteMilestone } from '../../lib/milestonesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
+import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
+import { useShortcutRegistry } from '../../hooks/shortcutRegistry.js';
 import { KeyboardShortcutsHelp } from '../../components/KeyboardShortcutsHelp/KeyboardShortcutsHelp.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -50,7 +52,8 @@ export function MilestonesPage() {
   const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
   // Keyboard shortcuts state
-  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
+  const registry = useShortcutRegistry();
+  const [helpShortcuts, setHelpShortcuts] = useState<KeyboardShortcut[] | null>(null);
 
   // Table state
   const [tableState, setTableState] = useState<TableState>(() => ({
@@ -365,14 +368,14 @@ export function MilestonesPage() {
       },
       {
         key: '?',
-        handler: () => setShowShortcutsHelp(true),
+        handler: () => setHelpShortcuts(registry?.snapshot() ?? shortcuts),
         description: t('milestones.keyboard.showShortcuts')!,
       },
       {
         key: 'Escape',
         handler: () => {
-          if (showShortcutsHelp) {
-            setShowShortcutsHelp(false);
+          if (helpShortcuts) {
+            setHelpShortcuts(null);
           } else if (deletingMilestone) {
             setDeletingMilestone(null);
           } else if (activeMenuId !== null) {
@@ -382,7 +385,7 @@ export function MilestonesPage() {
         description: t('milestones.keyboard.closeDialog')!,
       },
     ],
-    [openCreate, showShortcutsHelp, deletingMilestone, activeMenuId, t],
+    [openCreate, helpShortcuts, registry, deletingMilestone, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -443,8 +446,8 @@ export function MilestonesPage() {
       )}
 
       {/* Keyboard shortcuts help */}
-      {showShortcutsHelp && (
-        <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
+      {helpShortcuts && (
+        <KeyboardShortcutsHelp shortcuts={helpShortcuts} onClose={() => setHelpShortcuts(null)} />
       )}
     </PageLayout>
   );

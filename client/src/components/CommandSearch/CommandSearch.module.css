@@ -1,0 +1,362 @@
+/* Command search: palette (Modal variant) and full-screen sheet share these parts. */
+
+/* ---- Input row ---- */
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  box-sizing: border-box;
+  min-height: calc(var(--spacing-12) + var(--spacing-2));
+  padding-inline: var(--spacing-4);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inputRow:focus-within {
+  box-shadow: inset 0 0 0 2px var(--color-border-focus);
+}
+
+/* In the sheet header the header itself is the 56 px row. */
+.inputRowSheet {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  align-self: stretch;
+  padding-inline: 0;
+  border-bottom: 0;
+}
+
+/* Sheet header: a 2px bottom edge in the focus colour (inset, so nothing shifts). */
+.inputRowSheet:focus-within {
+  box-shadow: inset 0 -2px 0 var(--color-border-focus);
+}
+
+.magnifier {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* The input is the tap target: it fills the row height. */
+.input {
+  flex: 1 1 auto;
+  align-self: stretch;
+  min-width: 0;
+  min-height: var(--touch-target-min);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  outline: none;
+  font-family: inherit;
+  font-size: var(--font-size-base);
+  color: var(--color-text-primary);
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.spinner {
+  display: inline-flex;
+  flex: none;
+}
+
+.kbd {
+  composes: kbd from '../KeyboardShortcutsHelp/KeyboardShortcutsHelp.module.css';
+  flex: none;
+}
+
+.clear {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  cursor: pointer;
+  transition: var(--transition-button);
+}
+
+/* Hit area grows to the touch target without growing the visible button. */
+.clear::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--touch-target-min);
+  height: var(--touch-target-min);
+  transform: translate(-50%, -50%);
+}
+
+.clear:hover {
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+}
+
+.clear:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
+}
+
+/* ---- Results region ---- */
+
+.results {
+  box-sizing: border-box;
+  padding: var(--spacing-2);
+  scroll-padding: var(--spacing-2);
+}
+
+.resultsPalette {
+  max-height: min(28rem, 60dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.sheetColumn {
+  width: 100%;
+  margin-inline: auto;
+  padding-bottom: max(env(safe-area-inset-bottom), var(--spacing-4));
+}
+
+.groupHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-muted);
+}
+
+.groupCount {
+  font-weight: var(--font-weight-normal);
+}
+
+/* ---- Rows ---- */
+
+.rowWrap {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.rowWrap > .option {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.option {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+  box-sizing: border-box;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  border-inline-start: 3px solid transparent;
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.option[aria-selected='true'] {
+  background: var(--color-primary-bg);
+  border-inline-start-color: var(--color-primary);
+}
+
+.option:active {
+  background: var(--color-bg-tertiary);
+}
+
+@media (forced-colors: active) {
+  .option[aria-selected='true'] {
+    outline: 2px solid Highlight;
+  }
+}
+
+.optionMore {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+}
+
+.optionDisabled {
+  cursor: default;
+  color: var(--color-text-muted);
+}
+
+.arrow {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.optionMain {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: var(--spacing-1);
+}
+
+.line1Row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
+.line1 {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+}
+
+.optionDisabled .line1 {
+  color: var(--color-text-muted);
+}
+
+.line2 {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  line-height: 1.4;
+  color: var(--color-text-muted);
+}
+
+.partSeparator {
+  color: var(--color-text-muted);
+}
+
+.externalGlyph {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+.mark {
+  background: transparent;
+  color: inherit;
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-decoration-color: var(--color-primary);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.call {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: none;
+  box-sizing: border-box;
+  min-height: var(--spacing-8);
+  padding-block: 0;
+  text-decoration: none;
+}
+
+@media (pointer: coarse) {
+  .call {
+    min-height: var(--touch-target-min);
+  }
+}
+
+/* ---- Notes and states ---- */
+
+.hint,
+.note {
+  margin: 0;
+  padding: var(--spacing-2) var(--spacing-3);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.documentsNote {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+  margin: var(--spacing-1) var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background: var(--color-warning-bg);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+}
+
+.skeleton {
+  padding: var(--spacing-2) var(--spacing-3);
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  padding: var(--spacing-2) var(--spacing-3);
+}
+
+.retry {
+  min-height: var(--touch-target-min);
+}
+
+.footer {
+  padding: var(--spacing-2) var(--spacing-4);
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* ---- "Search everywhere for ..." row under a list's search field ---- */
+
+.everywhereRow {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  box-sizing: border-box;
+  width: 100%;
+  min-height: var(--touch-target-min);
+  padding: var(--spacing-2) var(--spacing-3);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-align: start;
+  color: var(--color-primary);
+  cursor: pointer;
+}
+
+.everywhereRow:hover {
+  background: var(--color-bg-hover);
+  text-decoration: underline;
+}
+
+.everywhereRow:focus-visible {
+  outline: none;
+  border-color: var(--color-border-focus);
+  box-shadow: var(--shadow-focus);
+}
+
+.everywhereText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clear {
+    transition: none;
+  }
+}

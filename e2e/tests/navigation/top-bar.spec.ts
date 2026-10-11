@@ -115,8 +115,9 @@ test.describe('Top bar (desktop)', () => {
       await expect(newButton).toHaveAttribute('aria-haspopup', 'menu');
       await expect(newButton).not.toHaveAttribute('aria-disabled', 'true');
 
-      // Placeholders: named and focusable, but inert
-      await expect(search).toHaveAttribute('aria-disabled', 'true');
+      // Search is live since #2211 (opens the command search); the bell is still a placeholder
+      await expect(search).not.toHaveAttribute('aria-disabled');
+      await expect(search).toHaveAttribute('aria-haspopup', 'dialog');
       await expect(bell).toHaveAttribute('aria-disabled', 'true');
     });
 
@@ -149,6 +150,17 @@ test.describe('Top bar (desktop)', () => {
           .poll(() => stop.evaluate((el) => getComputedStyle(el).boxShadow))
           .not.toBe('none');
       }
+
+      // Enter on the Search button opens the command search (#2211); Escape returns to it
+      const searchPalette = page.getByRole('dialog', { name: 'Search everywhere', exact: true });
+      await page.getByTestId('top-bar-search').focus();
+      await page.keyboard.press('Enter');
+      await expect(searchPalette).toBeVisible();
+      await expect(page.getByTestId('command-search-input')).toBeFocused();
+      await page.keyboard.press('Escape');
+      await expect(searchPalette).toBeHidden();
+      await expect(page.getByTestId('top-bar-search')).toBeFocused();
+      await appShell.userMenuTrigger.focus();
 
       // Menu-button pattern on the avatar (focus is already there)
       await page.keyboard.press('Enter');

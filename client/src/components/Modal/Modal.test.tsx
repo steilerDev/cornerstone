@@ -876,4 +876,120 @@ describe('Modal', () => {
       ).not.toContain('headerStart');
     });
   });
+
+  // ── palette variant and hideTitle (#2211) ─────────────────────────────────
+
+  describe('variant="palette"', () => {
+    it('has no header row and no close button', () => {
+      render(
+        <Modal {...defaultProps} variant="palette">
+          <input aria-label="field" />
+        </Modal>,
+      );
+      expect(screen.queryByRole('button', { name: /close/i })).toBeNull();
+      expect(screen.getByRole('dialog').querySelector('[class*="header"]')).toBeNull();
+    });
+
+    it('keeps the title as a visually hidden heading that names the dialog', () => {
+      render(
+        <Modal {...defaultProps} variant="palette">
+          <p>body</p>
+        </Modal>,
+      );
+      const heading = screen.getByRole('heading', { name: 'Test Modal Title' });
+      expect(heading.className).toContain('srOnly');
+      expect(screen.getByRole('dialog', { name: 'Test Modal Title' })).toBeInTheDocument();
+    });
+
+    it('applies the palette classes instead of the default content classes', () => {
+      render(
+        <Modal {...defaultProps} variant="palette" className="extra">
+          <p data-testid="child">body</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('dialog').className).toContain('paletteRoot');
+      const body = screen.getByTestId('child').parentElement!;
+      expect(body.className).toContain('paletteBody');
+      const content = body.parentElement!;
+      expect(content.className).toContain('palette');
+      expect(content.className).toContain('extra');
+      expect(content.className).not.toContain('modalContent');
+    });
+
+    it('renders no footer', () => {
+      render(
+        <Modal {...defaultProps} variant="palette" footer={<button>Save</button>}>
+          <p>body</p>
+        </Modal>,
+      );
+      expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+    });
+
+    it('closes on Escape', () => {
+      const onClose = jest.fn<() => void>();
+      render(
+        <Modal title="Palette" onClose={onClose} variant="palette">
+          <input aria-label="field" />
+        </Modal>,
+      );
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes when the backdrop is clicked', () => {
+      const onClose = jest.fn<() => void>();
+      render(
+        <Modal title="Palette" onClose={onClose} variant="palette">
+          <p>body</p>
+        </Modal>,
+      );
+      fireEvent.click(document.querySelector('[class*="modalBackdrop"]')!);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not add palette classes to the default variant', () => {
+      render(
+        <Modal {...defaultProps}>
+          <p>body</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('dialog').className).not.toContain('paletteRoot');
+      expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument();
+    });
+  });
+
+  describe('hideTitle', () => {
+    it('hides the title visually but keeps the heading and the close button', () => {
+      render(
+        <Modal {...defaultProps} hideTitle>
+          <p>body</p>
+        </Modal>,
+      );
+      const heading = screen.getByRole('heading', { name: 'Test Modal Title' });
+      expect(heading.className).toContain('srOnly');
+      expect(screen.getByRole('button', { name: /close/i })).toBeInTheDocument();
+    });
+
+    it('shows the title normally by default', () => {
+      render(
+        <Modal {...defaultProps}>
+          <p>body</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('heading', { name: 'Test Modal Title' }).className).not.toContain(
+        'srOnly',
+      );
+    });
+
+    it('also hides the title next to a header slot', () => {
+      render(
+        <Modal {...defaultProps} hideTitle headerStart={<span data-testid="hs" />}>
+          <p>body</p>
+        </Modal>,
+      );
+      expect(screen.getByRole('heading', { name: 'Test Modal Title' }).className).toContain(
+        'srOnly',
+      );
+    });
+  });
 });

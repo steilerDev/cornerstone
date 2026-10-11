@@ -413,7 +413,7 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       expect(logoutCalls).toEqual(['POST']);
     });
 
-    test('S6: the compact top bar is 56px, shows the house name and a disabled search', async ({
+    test('S6: the compact top bar is 56px, shows the house name and a live search', async ({
       page,
     }) => {
       const appShell = new AppShellPage(page);
@@ -429,7 +429,9 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       await expect(appShell.topBarHouseName).toBeVisible();
       await expect(appShell.topBarHouseName).not.toHaveText('');
       await expect(page.getByTestId('top-bar-slot')).toBeEmpty();
-      await expect(page.getByTestId('top-bar-search')).toHaveAttribute('aria-disabled', 'true');
+      // Live since #2211: opens the command search
+      await expect(page.getByTestId('top-bar-search')).not.toHaveAttribute('aria-disabled');
+      await expect(page.getByTestId('top-bar-search')).toHaveAttribute('aria-haspopup', 'dialog');
       await expect(appShell.topBarTitle).toHaveAttribute('data-visible', 'false');
     });
 

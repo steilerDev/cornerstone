@@ -133,6 +133,38 @@ describe('UserManagementPage', () => {
     mockDeactivateUser.mockResolvedValue(undefined);
   });
 
+  describe('no "Search everywhere" row (#2211)', () => {
+    async function renderInShell() {
+      const { CommandSearchProvider } =
+        await import('../../components/CommandSearch/CommandSearchContext.js');
+      return render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/settings/users?search=roof']}>
+            <CommandSearchProvider isOpen={false} onOpen={() => {}} onClose={() => {}}>
+              <UserManagementPage />
+            </CommandSearchProvider>
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+    }
+
+    it('keeps the list search field but shows no row, even inside the shell and with a long draft', async () => {
+      await renderInShell();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+      const field = screen.getByRole('searchbox');
+      fireEvent.change(field, { target: { value: 'roof tiles' } });
+      expect(field).toHaveValue('roof tiles');
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+      expect(screen.queryByText(/Search everywhere/)).toBeNull();
+    });
+
+    it('still marks the field as the target of the shell "/" shortcut', async () => {
+      await renderInShell();
+      await waitFor(() => expect(screen.queryByRole('status')).not.toBeInTheDocument());
+      expect(screen.getByRole('searchbox')).toHaveAttribute('data-page-search');
+    });
+  });
+
   describe('page identity (#2204)', () => {
     it('renders exactly one level-1 heading, "Users", while loading', () => {
       mockListUsers.mockImplementationOnce(() => new Promise(() => {}));

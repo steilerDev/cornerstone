@@ -9,6 +9,7 @@ import {
 } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import type {
   Invoice,
   InvoiceDeposit,
@@ -437,6 +438,24 @@ export function InvoicesPage() {
   };
 
   const openCreateModal = () => openCreateModalFor(integrationStatus);
+
+  // `n` creates like the primary button, including the Paperless-picker gating (read at press time).
+  // The button is disabled until the integration status loads; `n` follows the same rule.
+  const openCreateRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    openCreateRef.current = integrationReady ? openCreateModal : null;
+  });
+  const listShortcuts = useMemo(
+    () => [
+      {
+        key: 'n',
+        handler: () => openCreateRef.current?.(),
+        description: tCommon('listShortcuts.newInvoice'),
+      },
+    ],
+    [tCommon],
+  );
+  useKeyboardShortcuts(listShortcuts);
 
   const handlePaperlessDocumentSelected = (doc: PaperlessDocumentSearchResult) => {
     setShowPaperlessPickerModal(false);

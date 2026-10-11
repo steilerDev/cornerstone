@@ -1,5 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom';
 import { Suspense, useCallback, useId, useMemo, useRef, useState } from 'react';
+import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
@@ -12,6 +13,9 @@ import { useRealLocationKey } from '../../navigation/realLocation.js';
 import { useNavContext } from '../../navigation/useNavContext.js';
 import { ViewMenuContext, viewMenuFor } from '../../navigation/viewMenu.js';
 import { BottomBar } from '../BottomBar/BottomBar.js';
+import { CommandSearch } from '../CommandSearch/CommandSearch.js';
+import { CommandSearchProvider } from '../CommandSearch/CommandSearchContext.js';
+import type { CommandSearchOpenOptions } from '../CommandSearch/CommandSearchContext.js';
 import { CreateMenuProvider } from '../CreateMenu/CreateMenuContext.js';
 import { CreateSheet } from '../CreateMenu/CreateSheet.js';
 import { MoreSheet } from '../MoreSheet/MoreSheet.js';
@@ -43,6 +47,7 @@ export function AppShell() {
   const [slotEl, setSlotEl] = useState<HTMLDivElement | null>(null);
   const [moreOpenKey, setMoreOpenKey] = useState<string | null>(null);
   // Any navigation (a new location key) closes the sheet.
+  if (moreOpenKey !== null && moreOpenKey !== location.key) setMoreOpenKey(null);
   const moreOpen = !wide && moreOpenKey === location.key;
   // Never reopen after a resize round trip: leaving the compact layout forgets the request.
   const [wasWide, setWasWide] = useState(wide);
@@ -53,12 +58,33 @@ export function AppShell() {
   // The New sheet closes on any real navigation (a dialog route keeps the display location).
   const realKey = useRealLocationKey();
   const [createOpenKey, setCreateOpenKey] = useState<string | null>(null);
+  if (createOpenKey !== null && createOpenKey !== realKey) setCreateOpenKey(null);
   const createOpen = !wide && createOpenKey === realKey;
   if (wide && createOpenKey !== null) setCreateOpenKey(null);
   const onCreateSheetOpenChange = useCallback(
     (open: boolean) => setCreateOpenKey(open ? realKey : null),
     [realKey],
   );
+  // Command search: any real navigation (including browser Back) closes it.
+  const [searchRequest, setSearchRequest] = useState<{
+    key: string;
+    query: string;
+    returnFocusRef?: RefObject<HTMLElement | null>;
+  } | null>(null);
+  // A request belongs to the location it was made on: once the real key differs (a result, Go to,
+  // Back or Forward) it is dropped, so a later return to the old key cannot reopen the palette.
+  if (searchRequest !== null && searchRequest.key !== realKey) setSearchRequest(null);
+  const searchOpen = searchRequest !== null && searchRequest.key === realKey;
+  const openSearch = useCallback(
+    (options: CommandSearchOpenOptions) =>
+      setSearchRequest({
+        key: realKey,
+        query: options.query ?? '',
+        ...(options.returnFocusRef ? { returnFocusRef: options.returnFocusRef } : {}),
+      }),
+    [realKey],
+  );
+  const closeSearch = useCallback(() => setSearchRequest(null), []);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const sheetId = useId();
 
@@ -70,45 +96,61 @@ export function AppShell() {
         sheetOpen={createOpen}
         onSheetOpenChange={onCreateSheetOpenChange}
       >
-        <BreadcrumbSlotContext value={slotEl}>
-          <PreviousPathContext value={getPreviousPath}>
-            <ViewMenuContext value={viewMenu}>
-              <div className={wide ? styles.appShell : `${styles.appShell} ${styles.compact}`}>
-                {wide && <Sidebar sections={sections} active={active} />}
-                <div className={styles.shellColumn} inert={moreOpen || createOpen}>
-                  <TopBar breadcrumbSlotRef={setSlotEl} variant={wide ? 'desktop' : 'compact'} />
+        <CommandSearchProvider isOpen={searchOpen} onOpen={openSearch} onClose={closeSearch}>
+          <BreadcrumbSlotContext value={slotEl}>
+            <PreviousPathContext value={getPreviousPath}>
+              <ViewMenuContext value={viewMenu}>
+                <div
+                  className={wide ? styles.appShell : `${styles.appShell} ${styles.compact}`}
+                  inert={searchOpen || undefined}
+                >
+                  {wide && <Sidebar sections={sections} active={active} />}
+                  <div className={styles.shellColumn} inert={moreOpen || createOpen}>
+                    <TopBar breadcrumbSlotRef={setSlotEl} variant={wide ? 'desktop' : 'compact'} />
+                    {!wide && (
+                      <BottomBar
+                        active={active}
+                        moreOpen={moreOpen}
+                        moreControlsId={sheetId}
+                        moreButtonRef={moreButtonRef}
+                        onMoreClick={() => setMoreOpenKey(location.key)}
+                      />
+                    )}
+                    <div className={styles.mainContent}>
+                      <main className={styles.pageContent}>
+                        <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
+                          <Outlet />
+                        </Suspense>
+                      </main>
+                    </div>
+                  </div>
+                  {!wide && <CreateSheet />}
                   {!wide && (
-                    <BottomBar
+                    <MoreSheet
+                      id={sheetId}
+                      open={moreOpen}
+                      onClose={() => setMoreOpenKey(null)}
+                      sections={sections}
                       active={active}
-                      moreOpen={moreOpen}
-                      moreControlsId={sheetId}
-                      moreButtonRef={moreButtonRef}
-                      onMoreClick={() => setMoreOpenKey(location.key)}
+                      returnFocusRef={moreButtonRef}
                     />
                   )}
-                  <div className={styles.mainContent}>
-                    <main className={styles.pageContent}>
-                      <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
-                        <Outlet />
-                      </Suspense>
-                    </main>
-                  </div>
                 </div>
-                {!wide && <CreateSheet />}
-                {!wide && (
-                  <MoreSheet
-                    id={sheetId}
-                    open={moreOpen}
-                    onClose={() => setMoreOpenKey(null)}
+                {searchOpen && (
+                  <CommandSearch
+                    wide={wide}
+                    initialQuery={searchRequest.query}
+                    returnFocusRef={searchRequest.returnFocusRef}
+                    onClose={closeSearch}
+                    navContext={ctx}
                     sections={sections}
                     active={active}
-                    returnFocusRef={moreButtonRef}
                   />
                 )}
-              </div>
-            </ViewMenuContext>
-          </PreviousPathContext>
-        </BreadcrumbSlotContext>
+              </ViewMenuContext>
+            </PreviousPathContext>
+          </BreadcrumbSlotContext>
+        </CommandSearchProvider>
       </CreateMenuProvider>
     </ShortcutRegistryProvider>
   );

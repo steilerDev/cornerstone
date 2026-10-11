@@ -18,6 +18,8 @@ export interface SearchDestination {
   readonly viaFormerName: boolean;
   /** 0 exact, 1 prefix, 2 word-prefix. */
   readonly rank: 0 | 1 | 2;
+  /** NavConfig label key when the destination is a NavConfig entry (localised label). */
+  readonly labelKey?: NavLabelKey;
 }
 
 interface TermExtra {
@@ -163,6 +165,7 @@ export function findSearchDestinations(
       results.push({
         route: entry.route,
         ...(entry.query ? { query: entry.query } : {}),
+        ...(entry.labelKey ? { labelKey: entry.labelKey } : {}),
         term: entry.term,
         matched: best.candidate.text,
         viaFormerName: best.candidate.former,

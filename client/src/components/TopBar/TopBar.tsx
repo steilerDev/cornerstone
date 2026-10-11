@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
 import { useScrolledPastHeading } from '../../hooks/useScrolledPastHeading.js';
 import { isApplePlatform } from '../../lib/platform.js';
+import { useCommandSearch } from '../CommandSearch/CommandSearchContext.js';
 import { CreateMenu } from '../CreateMenu/CreateMenu.js';
 import { UserMenu } from '../UserMenu/UserMenu.js';
 import styles from './TopBar.module.css';
@@ -22,6 +23,7 @@ function CompactTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotR
   const location = useLocation();
   const [headerEl, setHeaderEl] = useState<HTMLElement | null>(null);
   const title = useScrolledPastHeading(headerEl, location.key);
+  const commandSearch = useCommandSearch();
 
   return (
     <header
@@ -43,9 +45,11 @@ function CompactTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotR
       </div>
       <button
         type="button"
-        aria-disabled="true"
+        aria-haspopup="dialog"
+        aria-keyshortcuts="Control+K Meta+K"
         aria-label={t('topBar.search')}
         className={styles.searchIcon}
+        onClick={() => commandSearch.open()}
         data-testid="top-bar-search"
       >
         <svg
@@ -75,6 +79,7 @@ export function TopBar({ breadcrumbSlotRef, variant = 'desktop' }: TopBarProps) 
 function DesktopTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotRef'>) {
   const { t } = useTranslation('common');
   const apple = useMemo(() => isApplePlatform(), []);
+  const commandSearch = useCommandSearch();
 
   return (
     <header className={styles.topBar} data-testid="top-bar">
@@ -82,8 +87,10 @@ function DesktopTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotR
       <div className={styles.actions}>
         <button
           type="button"
-          aria-disabled="true"
+          aria-haspopup="dialog"
+          aria-keyshortcuts="Control+K Meta+K"
           className={styles.search}
+          onClick={() => commandSearch.open()}
           data-testid="top-bar-search"
         >
           <svg

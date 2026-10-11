@@ -8,6 +8,7 @@ import userEvent from '@testing-library/user-event';
 import type { DiaryEntryType } from '@cornerstone/shared';
 import i18n from '../../../i18n/index.js';
 import { DiaryFilterBar } from './DiaryFilterBar.js';
+import { CommandSearchProvider } from '../../CommandSearch/CommandSearchContext.js';
 
 describe('DiaryFilterBar', () => {
   const defaultProps = {
@@ -634,6 +635,70 @@ describe('DiaryFilterBar', () => {
       await user.click(screen.getByTestId('status-filter-drafts'));
       expect(onDraftsVisibleChange).toHaveBeenCalledWith(true);
       expect(onFilterModeChange).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('search everywhere (#2211)', () => {
+    const inShell = (
+      overrides: Partial<ComponentProps<typeof DiaryFilterBar>> = {},
+      onOpen: jest.Mock = jest.fn(),
+    ) =>
+      render(
+        <CommandSearchProvider isOpen={false} onOpen={onOpen} onClose={() => {}}>
+          <DiaryFilterBar {...defaultProps} {...overrides} />
+        </CommandSearchProvider>,
+      );
+
+    it('marks the search field as the page search target', () => {
+      renderFilterBar();
+      expect(screen.getByTestId('diary-search-input')).toHaveAttribute('data-page-search');
+    });
+
+    it('shows the row directly under the field from two characters', () => {
+      inShell({ searchQuery: 'ro' });
+      const row = screen.getByTestId('search-everywhere-row');
+      expect(row).toHaveTextContent('Search everywhere for “ro”');
+      expect(row.previousElementSibling).toBe(screen.getByTestId('diary-search-input'));
+    });
+
+    it.each(['', 'r'])('shows no row for the draft %p', (searchQuery) => {
+      inShell({ searchQuery });
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+    });
+
+    it('shows no row outside the shell', () => {
+      renderFilterBar({ searchQuery: 'roof' });
+      expect(screen.queryByTestId('search-everywhere-row')).toBeNull();
+    });
+
+    it('opens the search with the draft and the search field as the return target', () => {
+      const onOpen = jest.fn();
+      inShell({ searchQuery: 'roof' }, onOpen);
+      fireEvent.click(screen.getByTestId('search-everywhere-row'));
+      const options = onOpen.mock.calls[0]![0] as {
+        query: string;
+        returnFocusRef: { current: HTMLElement | null };
+      };
+      expect(options.query).toBe('roof');
+      expect(options.returnFocusRef.current).toBe(screen.getByTestId('diary-search-input'));
+    });
+
+    it('still opens on Ctrl K typed in the field although the field stops keydown propagation', () => {
+      const onOpen = jest.fn();
+      inShell({}, onOpen);
+      const field = screen.getByTestId('diary-search-input');
+      field.focus();
+      const event = new KeyboardEvent('keydown', {
+        key: 'k',
+        ctrlKey: true,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => {
+        field.dispatchEvent(event);
+      });
+      expect(onOpen).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
     });
   });
 });
