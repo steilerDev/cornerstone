@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useSearchParams } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
@@ -1367,7 +1367,7 @@ describe('InvoicesPage', () => {
     });
 
     // (I) the shortcut is consumed once: re-adding ?create=1 later does not reopen the modal
-    it('(I) opens at most once: a later ?create=1 in the URL does not reopen the modal', async () => {
+    it('(I) opens once per occurrence: a later ?create=1 reopens the modal and is cleared again (#2212)', async () => {
       mockGetPaperlessStatus.mockResolvedValue({
         configured: false,
         reachable: false,
@@ -1412,10 +1412,140 @@ describe('InvoicesPage', () => {
 
       fireEvent.click(screen.getByRole('button', { name: 're-add create' }));
 
+      // The request is consumed again: the modal opens a second time and the param is removed.
+      await screen.findByRole('dialog');
       await waitFor(() => {
-        expect(screen.getByTestId('location-search').textContent).toContain('create=1');
+        expect(screen.getByTestId('location-search').textContent).not.toContain('create=1');
       });
-      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    describe('Offer preset and company pre-fill (#2212 D13, D15)', () => {
+      const unconfigured = {
+        configured: false,
+        reachable: false,
+        error: null,
+        paperlessUrl: null,
+        filterTag: null,
+      };
+
+      function renderAtUrl(url: string) {
+        mockGetPaperlessStatus.mockResolvedValue(unconfigured);
+        mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        mockFetchVendors.mockResolvedValue(vendorsResponse);
+        return render(
+          <ToastProvider>
+            <MemoryRouter initialEntries={[url]}>
+              <Routes>
+                <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              </Routes>
+              <LocationSearchDisplay />
+            </MemoryRouter>
+          </ToastProvider>,
+        );
+      }
+
+      it('kind=offer presets the status to Offer (quotation)', async () => {
+        renderAtUrl('/budget/invoices?create=1&kind=offer');
+        const dialog = await screen.findByRole('dialog');
+        expect((within(dialog).getByLabelText(/status/i) as HTMLSelectElement).value).toBe(
+          'quotation',
+        );
+      });
+
+      it('without kind the status stays on the default (pending)', async () => {
+        renderAtUrl('/budget/invoices?create=1');
+        const dialog = await screen.findByRole('dialog');
+        expect((within(dialog).getByLabelText(/status/i) as HTMLSelectElement).value).toBe(
+          'pending',
+        );
+      });
+
+      it('an unknown kind is ignored (pending)', async () => {
+        renderAtUrl('/budget/invoices?create=1&kind=bogus');
+        const dialog = await screen.findByRole('dialog');
+        expect((within(dialog).getByLabelText(/status/i) as HTMLSelectElement).value).toBe(
+          'pending',
+        );
+      });
+
+      it('pre-selects a known companyId', async () => {
+        renderAtUrl('/budget/invoices?create=1&companyId=v-1');
+        const dialog = await screen.findByRole('dialog');
+        await waitFor(() => {
+          expect((dialog.querySelector('#invoice-vendor') as HTMLSelectElement).value).toBe('v-1');
+        });
+      });
+
+      it('clears a stale companyId once the companies have loaded', async () => {
+        renderAtUrl('/budget/invoices?create=1&companyId=gone-id');
+        const dialog = await screen.findByRole('dialog');
+        await waitFor(() => {
+          expect(mockFetchVendors).toHaveBeenCalled();
+        });
+        await waitFor(() => {
+          expect((dialog.querySelector('#invoice-vendor') as HTMLSelectElement).value).toBe('');
+        });
+      });
+
+      it('clears a company that is not in the list when the companies arrive after the modal opened', async () => {
+        let resolveVendors!: (v: typeof vendorsResponse) => void;
+        mockGetPaperlessStatus.mockResolvedValue(unconfigured);
+        mockFetchConfig.mockResolvedValue({ autoItemizeEnabled: false });
+        mockFetchAllInvoices.mockResolvedValue(emptyResponse);
+        mockFetchVendors.mockReturnValue(
+          new Promise<typeof vendorsResponse>((r) => {
+            resolveVendors = r;
+          }),
+        );
+        render(
+          <ToastProvider>
+            <MemoryRouter initialEntries={['/budget/invoices?create=1&companyId=gone-id']}>
+              <Routes>
+                <Route path="/budget/invoices" element={<InvoicesPageModule.InvoicesPage />} />
+              </Routes>
+            </MemoryRouter>
+          </ToastProvider>,
+        );
+        const dialog = await screen.findByRole('dialog');
+        await act(async () => {
+          resolveVendors(vendorsResponse);
+        });
+        await waitFor(() => {
+          expect((dialog.querySelector('#invoice-vendor') as HTMLSelectElement).value).toBe('');
+        });
+        // A <select> shows its first option for an unknown value, so also prove the stale id is
+        // gone from the form state: with amount and date filled in, Save must stay disabled.
+        fireEvent.change(dialog.querySelector('#invoice-amount') as HTMLInputElement, {
+          target: { value: '10' },
+        });
+        fireEvent.change(dialog.querySelector('#invoice-date') as HTMLInputElement, {
+          target: { value: '2026-03-01' },
+        });
+        const saveButton = within(dialog)
+          .getAllByRole('button')
+          .find((b) => b.className.includes('btnPrimary'))!;
+        expect(saveButton).toBeDisabled();
+      });
+
+      it('removes create, kind and companyId from the URL', async () => {
+        renderAtUrl('/budget/invoices?create=1&kind=offer&companyId=v-1&sortBy=date');
+        await screen.findByRole('dialog');
+        await waitFor(() => {
+          const text = screen.getByTestId('location-search').textContent ?? '';
+          expect(text).not.toContain('create=');
+          expect(text).not.toContain('kind=');
+          expect(text).not.toContain('companyId=');
+          expect(text).toContain('sortBy=date');
+        });
+      });
+
+      it('does not treat companyId as a table filter', async () => {
+        renderAtUrl('/budget/invoices?companyId=v-1');
+        await waitFor(() => expect(mockFetchAllInvoices).toHaveBeenCalled());
+        const lastCall = mockFetchAllInvoices.mock.calls.at(-1);
+        expect(JSON.stringify(lastCall)).not.toContain('companyId');
+      });
     });
   });
 

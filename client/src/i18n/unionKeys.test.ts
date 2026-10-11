@@ -25,6 +25,7 @@ import {
   SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
+import { CREATE_MENU_ENTRY_IDS } from '../navigation/createEntries.js';
 import enBudget from './en/budget.json';
 import enDocuments from './en/documents.json';
 import enDiary from './en/diary.json';
@@ -76,8 +77,8 @@ describe('I18N_UNION_KEYS locale parity (#2029 AC5)', () => {
     expect(missingKeys(set, LOCALE_JSON[set.ns][locale])).toEqual([]);
   });
 
-  it('iterates all 34 registered sets', () => {
-    expect(SETS).toHaveLength(34);
+  it('iterates all 35 registered sets', () => {
+    expect(SETS).toHaveLength(35);
   });
 });
 
@@ -188,6 +189,7 @@ describe('I18N_UNION_KEYS registry', () => {
       'statusActionDefect',
       'deleteImpactKind',
       'diaryAutomaticEntryType',
+      'createMenuEntry',
     ]);
   });
 
@@ -232,6 +234,14 @@ describe('I18N_UNION_KEYS registry', () => {
     ]) {
       expect(set.ns).toBe('common');
     }
+  });
+
+  it('builds the #2212 New menu keys from the entry ids, in the common namespace', () => {
+    expect(I18N_UNION_KEYS.createMenuEntry.members).toBe(CREATE_MENU_ENTRY_IDS);
+    expect(I18N_UNION_KEYS.createMenuEntry.ns).toBe('common');
+    expect(I18N_UNION_KEYS.createMenuEntry.key('fundingSource')).toBe(
+      'createMenu.entry.fundingSource',
+    );
   });
 
   it('no longer registers the legacy status duplicates removed by #2195', () => {

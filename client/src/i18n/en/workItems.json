@@ -87,11 +87,9 @@
     }
   },
   "create": {
-    "loading": "Loading...",
     "thisItemLabel": "This item",
     "fields": {
       "title": "Title",
-      "titleRequired": "*",
       "titlePlaceholder": "Enter work item title",
       "titleRequiredError": "Title is required",
       "description": "Description",
@@ -114,15 +112,10 @@
       "otherItemPredecessor": "\"{{otherItemTitle}}\" must {{predecessorVerb}} before this item can {{successorVerb}}",
       "removeAriaLabel": "Remove dependency involving {{otherItemTitle}}"
     },
-    "actions": {
-      "cancel": "Cancel",
-      "creating": "Creating...",
-      "create": "Create Work Item"
-    },
     "errors": {
-      "loadFailed": "Failed to load form data. Please try again.",
-      "createFailed": "Failed to create work item. Please try again."
-    }
+      "loadFailed": "Failed to load form data. Please try again."
+    },
+    "added": "Task ‘{{title}}’ added."
   },
   "picker": {
     "placeholder": "Search work items...",

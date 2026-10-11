@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
@@ -738,5 +739,105 @@ describe('WorkItemsPage', () => {
 
       expect(log.actions).toEqual(['PUSH /project/work-items/wi-1']);
     });
+  });
+});
+
+describe('WorkItemsPage create openers (#2212)', () => {
+  let Page: typeof WorkItemsPageTypes;
+
+  beforeEach(async () => {
+    mockListWorkItems.mockReset();
+    mockListUsers.mockReset();
+    mockFetchVendors.mockReset();
+    mockListPreferences.mockReset();
+    mockListPreferences.mockResolvedValue([]);
+    mockUseAreas.mockReset();
+    mockListUsers.mockResolvedValue({ users: [] });
+    mockFetchVendors.mockResolvedValue({
+      vendors: [],
+      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
+    });
+    mockUseAreas.mockReturnValue({
+      areas: [],
+      isLoading: false,
+      error: null,
+      refetch: jest.fn(),
+      createArea: jest.fn(),
+      updateArea: jest.fn(),
+      deleteArea: jest.fn(),
+    });
+    if (!Page) Page = await import('./WorkItemsPage.js');
+  });
+
+  function renderAt(entry = '/project/work-items?x=1') {
+    const log = createRouterLog();
+    render(
+      <ToastProvider>
+        <RecordingRouter entries={[entry]} log={log}>
+          <Page.WorkItemsPage />
+        </RecordingRouter>
+      </ToastProvider>,
+    );
+    return log;
+  }
+
+  function expectDialogPush(log: ReturnType<typeof createRouterLog>) {
+    expect(log.actions).toEqual(['PUSH /project/work-items/new']);
+    expect(log.states[0]).toMatchObject({
+      origin: { to: '/project/work-items?x=1' },
+      background: { pathname: '/project/work-items', search: '?x=1' },
+    });
+  }
+
+  it('the primary button opens the New task dialog over the list', async () => {
+    mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+    const log = renderAt();
+    fireEvent.click(await screen.findByTestId('new-work-item-button'));
+    expectDialogPush(log);
+  });
+
+  it('the n shortcut opens the New task dialog over the list', async () => {
+    mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+    const log = renderAt();
+    await screen.findByTestId('new-work-item-button');
+    fireEvent.keyDown(document, { key: 'n' });
+    expectDialogPush(log);
+  });
+
+  it('the empty-state action opens the New task dialog over the list', async () => {
+    mockListWorkItems.mockResolvedValue(makeListResponse([]));
+    const log = renderAt();
+    fireEvent.click(
+      await screen.findByRole('button', { name: enWorkItems.list.empty.createFirst }),
+    );
+    expectDialogPush(log);
+  });
+
+  it('a task created from the dialog reloads the list silently (rows stay, no loading state)', async () => {
+    mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+    renderAt();
+    await screen.findAllByText('Lay Foundation');
+    const calls = mockListWorkItems.mock.calls.length;
+    mockListWorkItems.mockResolvedValue(
+      makeListResponse([
+        makeWorkItemSummary(),
+        makeWorkItemSummary({ id: 'wi-2', title: 'Pour Slab' }),
+      ]),
+    );
+
+    act(() => notifyObjectCreated('task'));
+
+    expect(screen.getAllByText('Lay Foundation').length).toBeGreaterThan(0);
+    await screen.findAllByText('Pour Slab');
+    expect(mockListWorkItems.mock.calls.length).toBe(calls + 1);
+  });
+
+  it('ignores creation events of other kinds', async () => {
+    mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+    renderAt();
+    await screen.findAllByText('Lay Foundation');
+    const calls = mockListWorkItems.mock.calls.length;
+    act(() => notifyObjectCreated('purchase'));
+    expect(mockListWorkItems.mock.calls.length).toBe(calls);
   });
 });

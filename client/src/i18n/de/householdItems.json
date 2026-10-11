@@ -102,12 +102,9 @@
     "errors": {
       "loadFailed": "Formulardaten konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
-    "loading": "Wird geladen...",
-    "errorBanner": "Fehler beim Laden der Formulardaten. Bitte versuchen Sie es erneut.",
     "form": {
       "name": {
         "label": "Name",
-        "required": "*",
         "placeholder": "Artikelnamen eingeben",
         "error": "Name ist erforderlich"
       },
@@ -117,7 +114,6 @@
       },
       "category": {
         "label": "Kategorie",
-        "required": "*",
         "placeholder": "— Kategorie wählen —",
         "error": "Kategorie ist erforderlich"
       },
@@ -164,11 +160,7 @@
       "tags": {
         "label": "Tags"
       }
-    },
-    "cancel": "Abbrechen",
-    "submit": "Artikel erstellen",
-    "submitting": "Wird erstellt...",
-    "success": "Haushaltsartikel erfolgreich erstellt"
+    }
   },
   "edit": {
     "errors": {

@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useHouseName } from '../../contexts/HouseNameContext.js';
 import { useScrolledPastHeading } from '../../hooks/useScrolledPastHeading.js';
 import { isApplePlatform } from '../../lib/platform.js';
+import { CreateMenu } from '../CreateMenu/CreateMenu.js';
 import { UserMenu } from '../UserMenu/UserMenu.js';
 import styles from './TopBar.module.css';
 
@@ -103,15 +104,7 @@ function DesktopTopBar({ breadcrumbSlotRef }: Pick<TopBarProps, 'breadcrumbSlotR
             {apple ? t('topBar.searchShortcutApple') : t('topBar.searchShortcutOther')}
           </kbd>
         </button>
-        <button
-          type="button"
-          aria-disabled="true"
-          className={styles.newButton}
-          data-testid="top-bar-new"
-        >
-          <span>{t('topBar.new')}</span>
-          <span aria-hidden="true">▾</span>
-        </button>
+        <CreateMenu triggerClassName={styles.newButton} />
         <button
           type="button"
           aria-disabled="true"

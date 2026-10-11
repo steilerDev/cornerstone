@@ -141,7 +141,7 @@
       "path": "/project/household-items/new",
       "guard": "member",
       "kind": "page",
-      "element": "HouseholdItemCreatePage"
+      "element": "HouseholdItemsPage"
     },
     {
       "path": "/project/milestones",
@@ -159,7 +159,7 @@
       "path": "/project/milestones/new",
       "guard": "member",
       "kind": "page",
-      "element": "MilestoneCreatePage"
+      "element": "MilestonesPage"
     },
     { "path": "/project/overview", "guard": "member", "kind": "page", "element": "DashboardPage" },
     {
@@ -178,7 +178,7 @@
       "path": "/project/work-items/new",
       "guard": "member",
       "kind": "page",
-      "element": "WorkItemCreatePage"
+      "element": "WorkItemsPage"
     },
     { "path": "/schedule", "guard": "member", "kind": "redirect", "target": "/schedule/gantt" },
     { "path": "/schedule/calendar", "guard": "member", "kind": "page", "element": "TimelinePage" },

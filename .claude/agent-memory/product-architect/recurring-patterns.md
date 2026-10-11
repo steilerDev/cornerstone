@@ -2001,3 +2001,18 @@ Here, rule 4 and `resolveLocation` both accepted a page-base query map (`/diary?
 ignores, so the story that flips one would have passed every check except E2E. Also grep for a second
 derivation of the same "live X" filter: `liveQueryMaps` excluded conditional entries, but the
 `resolveLocation` loop did not.
+
+## SQLite flattens subqueries, so a JS UDF runs once per use, not once per row (PR #2286)
+
+A "fold the column in level 1, compare it in level 2" query (equals, prefix and contains) re-ran the
+`fold()` UDF about 4 times per column, because SQLite's query flattener inlines the subquery. CI blew the
+200 ms budget, which looked like runner noise. The fix was `WITH l1 AS MATERIALIZED (...)` plus a guard
+test that counts UDF calls. **Review step:** any query that layers comparisons on a registered JS
+function needs `MATERIALIZED` (or a stored column) and a call-count test. A timing test alone only
+flakes.
+
+## Second copy of a "single" helper in an older module (PR #2286)
+
+When a PR introduces "the single X" (here `foldSearchText`), grep the older modules that did the same
+job before. `glossary.ts` `findTermsByAlias` had its own normaliser and form-key list, so the documented
+API and the new search disagreed on the same query.

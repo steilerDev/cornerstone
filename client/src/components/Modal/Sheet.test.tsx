@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest, afterEach } from '@jest/globals';
-import { useRef, useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Sheet } from './Sheet.js';
@@ -173,5 +173,129 @@ describe('Sheet', () => {
     expect(screen.getByRole('button', { name: 'Close dialog' })).toBe(
       screen.getByTestId('sheet-close'),
     );
+  });
+});
+
+describe('Sheet (#2212 extensions)', () => {
+  function Basic(props: Partial<React.ComponentProps<typeof Sheet>> & { open?: boolean }) {
+    const ref = useRef<HTMLButtonElement>(null);
+    return (
+      <Sheet
+        id="x"
+        open={props.open ?? true}
+        title="T"
+        onClose={props.onClose ?? (() => {})}
+        returnFocusRef={ref}
+        {...props}
+      >
+        <button type="button">body one</button>
+        <button type="button" data-testid="second">
+          body two
+        </button>
+      </Sheet>
+    );
+  }
+
+  function Cond({ skip, withReturn }: { skip?: boolean; withReturn?: boolean }) {
+    const [open, setOpen] = useState(false);
+    const retRef = useRef<HTMLButtonElement>(null);
+    const skipRef = useRef(skip === true);
+    return (
+      <div>
+        <button type="button" onClick={() => setOpen(true)}>
+          opener
+        </button>
+        <button type="button" ref={retRef}>
+          ret
+        </button>
+        {open && (
+          <Sheet
+            id="c"
+            open
+            title="T"
+            onClose={() => setOpen(false)}
+            returnFocusRef={withReturn ? retRef : undefined}
+            skipOpenerRef={skipRef}
+            restoreFocusOnUnmount
+          >
+            <button type="button">in</button>
+          </Sheet>
+        )}
+      </div>
+    );
+  }
+
+  it('fullScreen adds the full-screen panel and body classes; bottom does not', () => {
+    const { rerender } = render(<Basic variant="fullScreen" />);
+    expect(screen.getByTestId('sheet').className).toContain('panelFullScreen');
+    expect(screen.getByText('body one').parentElement?.className).toContain('bodyFullScreen');
+    rerender(<Basic />);
+    expect(screen.getByTestId('sheet').className).not.toContain('panelFullScreen');
+    expect(screen.getByText('body one').parentElement?.className).not.toContain('bodyFullScreen');
+  });
+
+  it('renders the footer slot below the body only when given', () => {
+    const { rerender } = render(<Basic />);
+    expect(screen.queryByTestId('foot')).toBeNull();
+    rerender(<Basic footer={<button data-testid="foot">save</button>} />);
+    expect(screen.getByTestId('foot').parentElement?.className).toContain('footer');
+  });
+
+  it('renders headerStart before the title', () => {
+    render(<Basic headerStart={<span data-testid="hs">back</span>} />);
+    const hs = screen.getByTestId('hs');
+    expect(hs.nextElementSibling).toBe(screen.getByRole('heading', { name: 'T' }));
+  });
+
+  it('focuses initialFocusRef instead of the first control', () => {
+    function WithRef() {
+      const ref = useRef<HTMLButtonElement>(null);
+      return (
+        <Sheet id="x" open title="T" onClose={() => {}} initialFocusRef={ref}>
+          <button type="button">first</button>
+          <button type="button" ref={ref}>
+            wanted
+          </button>
+        </Sheet>
+      );
+    }
+    render(<WithRef />);
+    expect(screen.getByText('wanted')).toHaveFocus();
+  });
+
+  it('dismissible=false: Escape, backdrop and Close do nothing; Close is aria-disabled', async () => {
+    const spy = jest.fn();
+    render(<Basic dismissible={false} onClose={spy} />);
+    await userEvent.keyboard('{Escape}');
+    await userEvent.click(screen.getByTestId('sheet-backdrop'));
+    await userEvent.click(screen.getByTestId('sheet-close'));
+    expect(spy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('sheet-close')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('dismissible (default) leaves Close without aria-disabled', () => {
+    render(<Basic />);
+    expect(screen.getByTestId('sheet-close')).not.toHaveAttribute('aria-disabled');
+  });
+
+  it('restoreFocusOnUnmount returns focus to the opener when the sheet unmounts', async () => {
+    render(<Cond />);
+    await userEvent.click(screen.getByText('opener'));
+    expect(screen.getByText('in')).toHaveFocus();
+    await userEvent.keyboard('{Escape}');
+    expect(screen.queryByText('in')).toBeNull();
+    expect(screen.getByText('opener')).toHaveFocus();
+  });
+
+  it('skipOpenerRef sends focus to returnFocusRef instead of the opener', async () => {
+    render(<Cond skip withReturn />);
+    await userEvent.click(screen.getByText('opener'));
+    await userEvent.keyboard('{Escape}');
+    expect(screen.getByText('ret')).toHaveFocus();
+  });
+
+  it('works without a returnFocusRef (optional)', () => {
+    render(<Basic open={false} />);
+    expect(screen.getByTestId('sheet')).toHaveAttribute('inert');
   });
 });

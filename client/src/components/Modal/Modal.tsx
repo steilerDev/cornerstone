@@ -1,10 +1,10 @@
-import { focusPageHeading } from '../../lib/focusPageHeading.js';
 import { createPortal } from 'react-dom';
-import { useEffect, useLayoutEffect, useRef, useId } from 'react';
+import { useEffect, useRef, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import sharedStyles from '../../styles/shared.module.css';
 import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
 import { lockScroll } from './scrollLock.js';
+import { useFocusRestore } from './useFocusRestore.js';
 import styles from './Modal.module.css';
 
 export interface ModalProps {
@@ -28,6 +28,8 @@ export interface ModalProps {
    * just acted on and may be removed later): focus goes to `returnFocusRef`, else the heading.
    */
   skipOpenerRef?: React.RefObject<boolean>;
+  /** Rendered before the title inside the header (e.g. a back link). */
+  headerStart?: React.ReactNode;
 }
 
 export function Modal({
@@ -42,16 +44,11 @@ export function Modal({
   dismissible = true,
   returnFocusRef,
   skipOpenerRef,
+  headerStart,
 }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const { t } = useTranslation('common');
-
-  const openerRef = useRef<HTMLElement | null>(null);
-  const latestReturnFocusRef = useRef(returnFocusRef);
-  latestReturnFocusRef.current = returnFocusRef;
-  const latestSkipOpenerRef = useRef(skipOpenerRef);
-  latestSkipOpenerRef.current = skipOpenerRef;
 
   const handleClose = () => {
     if (dismissible) onClose();
@@ -63,43 +60,8 @@ export function Modal({
   // Page scroll is locked for the lifetime of the modal.
   useEffect(() => lockScroll(), []);
 
-  // Focus restore (D20): only when focus is still inside the modal or has fallen to the body,
-  // so hosts that move focus themselves keep working. The chain (opener, returnFocusRef, page
-  // heading) runs once at unmount and again after the commit has settled: a host may remove the
-  // opener in the same commit that closes the dialog, which drops focus to the body afterwards.
-  useLayoutEffect(() => {
-    const content = contentRef.current;
-    // Captured before the initial-focus effect (passive) moves focus into the modal.
-    openerRef.current = document.activeElement as HTMLElement | null;
-
-    // Each candidate is tried in turn; focus() is a no-op on a disabled or hidden element, so
-    // success is checked by reading activeElement. Last resort: the page heading, never body.
-    const restore = () => {
-      const opener = latestSkipOpenerRef.current?.current ? null : openerRef.current;
-      if (opener && opener !== document.body && opener.isConnected) {
-        opener.focus();
-        if (document.activeElement === opener) return;
-      }
-      const fallback = latestReturnFocusRef.current?.current;
-      if (fallback?.isConnected) {
-        fallback.focus();
-        if (document.activeElement === fallback) return;
-      }
-      focusPageHeading();
-    };
-
-    return () => {
-      const active = document.activeElement;
-      const lost = !active || active === document.body || (content?.contains(active) ?? false);
-      if (!lost) return;
-      restore();
-      // After the commit: if the element just focused was removed, focus is on the body again.
-      queueMicrotask(() => {
-        const now = document.activeElement;
-        if (!now || now === document.body) restore();
-      });
-    };
-  }, []);
+  // Focus restore (D20): opener, returnFocusRef, then the page heading; never <body>.
+  useFocusRestore(contentRef, { active: true, returnFocusRef, skipOpenerRef });
 
   // Focus management: focus first focusable element on mount
   useEffect(() => {
@@ -128,9 +90,18 @@ export function Modal({
         ref={contentRef}
       >
         <div className={styles.header}>
-          <h2 id={titleId} className={styles.title}>
-            {title}
-          </h2>
+          {headerStart ? (
+            <div className={styles.headerStart}>
+              {headerStart}
+              <h2 id={titleId} className={styles.title}>
+                {title}
+              </h2>
+            </div>
+          ) : (
+            <h2 id={titleId} className={styles.title}>
+              {title}
+            </h2>
+          )}
           <button
             type="button"
             className={styles.closeButton}

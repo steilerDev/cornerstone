@@ -1,73 +1,132 @@
 /**
- * E2E tests for Work Item Create page (/project/work-items/new)
+ * E2E tests for the New task dialog (/project/work-items/new)
+ *
+ * The create page was replaced by an ObjectForm dialog in #2212: the URL stays, the dialog opens
+ * over the page you came from, and a deep link shows the Tasks list behind it.
  *
  * Scenarios covered:
- * 1. Page loads with h1 "New task"
- * 2. "Tasks" breadcrumb navigates to /project/work-items
+ * 1. Dialog opens named "New task" with the Tasks list behind it
+ * 2. Cancel, Escape and the close button return to the Tasks list, focus never on <body>
  * 3. Create work item with title only — success, redirects to detail
  * 4. Create work item with all major fields
- * 5. Submit without title shows validation error
- * 6. Cancel navigates back to the list
- * 7. Responsive — no horizontal scroll on current viewport
+ * 5. Submit without title shows an inline field error
+ * 6. Cancel closes the dialog without creating anything
+ * 7. Responsive — no horizontal scroll on current viewport, dark mode
  */
 
 import { test, expect } from '../../fixtures/auth.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { WorkItemCreatePage, WORK_ITEM_CREATE_ROUTE } from '../../pages/WorkItemCreatePage.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 import { deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 
+const LIST_PATH = routeUrl('workItems');
+const WORK_ITEM_PATH =
+  /\/project\/work-items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 1: Page loads with h1 "New task"
+// Scenario 1: Dialog opens over the Tasks list
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Page load (Scenario 1)', { tag: '@responsive' }, () => {
-  test('New task page loads with correct heading', async ({ page }) => {
+test.describe('Dialog open (Scenario 1)', { tag: '@responsive' }, () => {
+  test('New task dialog opens with the Tasks list behind it', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
     await expect(createPage.heading).toBeVisible();
     await expect(createPage.heading).toHaveText('New task');
+    // A deep link renders the parent list behind the dialog (a view: no breadcrumb trail).
+    await expect(page.getByRole('heading', { level: 1, name: 'Tasks', exact: true })).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(WORK_ITEM_CREATE_ROUTE);
   });
 
-  test('"Tasks" breadcrumb and Cancel button are visible on page load', async ({ page }) => {
-    const createPage = new WorkItemCreatePage(page);
-
-    await createPage.goto();
-
-    // #2202: the header back button is gone; the trail holds the parent only, and a fresh
-    // navigation has no origin, so there is no "Back to" link.
-    await createPage.breadcrumbs.expectTrail(['Tasks']);
-    await createPage.breadcrumbs.expectNoBack();
-    await expect(createPage.cancelButton).toBeVisible();
-  });
-
-  test('All primary form fields are visible on page load', async ({ page }) => {
+  test('All primary form fields are visible; "More details" reveals the rest', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
     await expect(createPage.titleInput).toBeVisible();
+    await expect(createPage.durationInput).toBeVisible();
+    await expect(createPage.submitButton).toBeVisible();
+    await expect(createPage.cancelButton).toBeVisible();
+
+    await expect(createPage.descriptionInput).toBeHidden();
+    await createPage.expandMoreDetails();
     await expect(createPage.descriptionInput).toBeVisible();
     await expect(createPage.statusSelect).toBeVisible();
-    await expect(createPage.submitButton).toBeVisible();
+    await expect(createPage.startAfterInput).toBeVisible();
+    await expect(createPage.startBeforeInput).toBeVisible();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 2: "Tasks" breadcrumb navigates to /project/work-items
+// Scenario 2: Cancel / Escape / Close return to the list
 // ─────────────────────────────────────────────────────────────────────────────
-test.describe('Breadcrumb navigation (Scenario 2)', { tag: '@responsive' }, () => {
-  test('"Tasks" breadcrumb navigates to /project/work-items', async ({ page }) => {
+test.describe('Close paths (Scenario 2)', { tag: '@responsive' }, () => {
+  test('Escape closes the dialog back to the Tasks list and focuses its heading', async ({
+    page,
+  }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
+    await page.keyboard.press('Escape');
 
-    await createPage.breadcrumbs.trailLink('Tasks').click();
+    await page.waitForURL((url) => url.pathname === LIST_PATH);
+    await createPage.form.waitForClosed();
+    await expect(page.getByRole('heading', { level: 1, name: 'Tasks', exact: true })).toBeFocused();
+  });
 
-    await page.waitForURL('**/project/work-items');
-    expect(page.url()).toContain('/project/work-items');
-    // Verify we're on the list page (not the create page)
-    expect(page.url()).not.toContain('/project/work-items/new');
+  test('The close button closes the dialog back to the Tasks list', async ({ page }) => {
+    const createPage = new WorkItemCreatePage(page);
+
+    await createPage.goto();
+    await createPage.form.settled();
+    await createPage.form.closeButton.click();
+
+    await page.waitForURL((url) => url.pathname === LIST_PATH);
+    await createPage.form.waitForClosed();
+  });
+});
+
+test.describe('Unknown pre-fill area (Scenario 2b)', { tag: '@responsive' }, () => {
+  test('An unknown areaId is dropped: the task saves with no area and no error', async ({
+    page,
+    testPrefix,
+  }) => {
+    const fresh = await page.context().newPage();
+    let createdId: string | null = null;
+    try {
+      const createPage = new WorkItemCreatePage(fresh);
+      await fresh.goto(routeUrl('workItemNew', undefined, { areaId: 'unknown-area' }));
+      await createPage.form.waitForOpen();
+      // The area picker is empty (the unknown id never shows as a selection)
+      await expect(createPage.areaPickerInput).toBeVisible();
+
+      await createPage.fillTitle(`${testPrefix} Unknown Area Task`);
+      const responsePromise = fresh.waitForResponse(
+        (resp) => resp.url().includes('/api/work-items') && resp.request().method() === 'POST',
+      );
+      await createPage.submit();
+      const response = await responsePromise;
+      expect(response.ok()).toBeTruthy();
+      const body = (await response.json()) as {
+        id?: string;
+        areaId?: string | null;
+        workItem?: { id: string; areaId?: string | null };
+      };
+      const item = body.workItem ?? body;
+      createdId = item.id ?? null;
+      expect(item.areaId ?? null).toBeNull();
+
+      await fresh.waitForURL(WORK_ITEM_PATH);
+      await expect(createPage.errorBanner).toHaveCount(0);
+      await expect(fresh.getByRole('heading', { level: 1 })).toHaveText(
+        `${testPrefix} Unknown Area Task`,
+      );
+    } finally {
+      if (createdId) await deleteWorkItemViaApi(page, createdId);
+      await fresh.close();
+    }
   });
 });
 
@@ -100,20 +159,12 @@ test.describe('Create with title only — happy path (Scenario 3)', { tag: '@res
         const body = (await response.json()) as { workItem?: { id: string }; id?: string };
         createdId = body.workItem?.id ?? body.id ?? null;
 
-        // Should redirect to /project/work-items/:id (UUID form).
-        // Use a UUID-specific regex to avoid the race where
-        // waitForURL('**/project/work-items/**') resolves immediately because
-        // the current URL /project/work-items/new already matches the glob
-        // (the '**' suffix matches 'new'). The UUID pattern explicitly excludes
-        // the /new path and only resolves once the redirect completes.
-        // No explicit timeout — uses project-level navigationTimeout (10s).
-        await page.waitForURL(
-          /\/project\/work-items\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
-        );
-        expect(page.url()).toMatch(/\/project\/work-items\/[a-z0-9-]+$/);
-        expect(page.url()).not.toContain('/project/work-items/new');
+        // Should land on /project/work-items/:id (UUID form). The UUID pattern excludes the
+        // dialog's own /new URL, which a '**' glob would match immediately.
+        await page.waitForURL(WORK_ITEM_PATH);
+        expect(new URL(page.url()).pathname).not.toBe(WORK_ITEM_CREATE_ROUTE);
 
-        // Detail page shows the correct title — use project-level expect timeout
+        // Detail page shows the correct title
         await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
       } finally {
         if (createdId) await deleteWorkItemViaApi(page, createdId);
@@ -160,10 +211,10 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
       createdId = body.workItem?.id ?? body.id ?? null;
 
       // Redirect to detail page
-      await page.waitForURL('**/project/work-items/**', { timeout: 7000 });
+      await page.waitForURL(WORK_ITEM_PATH);
 
       // Title visible on detail page
-      await expect(page.getByRole('heading', { level: 1 })).toHaveText(title, { timeout: 7000 });
+      await expect(page.getByRole('heading', { level: 1 })).toHaveText(title);
     } finally {
       if (createdId) await deleteWorkItemViaApi(page, createdId);
     }
@@ -173,6 +224,7 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
+    await createPage.expandMoreDetails();
 
     // Verify status select has the 3 expected options (create form does not include "Blocked")
     const options = await createPage.statusSelect.locator('option').allTextContents();
@@ -186,54 +238,46 @@ test.describe('Create with all fields (Scenario 4)', { tag: '@responsive' }, () 
 // Scenario 5: Submit without title shows validation error
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Validation — title required (Scenario 5)', { tag: '@responsive' }, () => {
-  test('Submitting form with empty title shows a validation error', async ({ page }) => {
+  test('Submitting form with empty title shows an inline error and focuses the title', async ({
+    page,
+  }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
-    // Ensure title is empty
-    await createPage.titleInput.fill('');
-
-    // Submit the form
     await createPage.submitButton.click();
 
-    // Validation error should appear below the title field
-    const errorText = await createPage.getTitleErrorText();
-    expect(errorText).toBeTruthy();
-    expect(errorText?.toLowerCase()).toMatch(/title is required/i);
+    await expect(createPage.titleErrorText).toBeVisible();
+    await expect(createPage.titleErrorText).toContainText(/title is required/i);
+    await expect(createPage.titleInput).toHaveAttribute('aria-invalid', 'true');
+    await expect(createPage.titleInput).toBeFocused();
+    // Field errors are not alerts
+    await expect(createPage.errorBanner).toHaveCount(0);
 
-    // We should still be on the create page
-    expect(page.url()).toContain('/project/work-items/new');
+    // The dialog stays open on /new
+    expect(new URL(page.url()).pathname).toBe(WORK_ITEM_CREATE_ROUTE);
   });
 
-  test('Validation error clears when title is filled', async ({ page }) => {
+  test('Validation error clears when the title is filled', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
-    // Submit empty to trigger validation error
     await createPage.submitButton.click();
-    const errorBefore = await createPage.getTitleErrorText();
-    expect(errorBefore).toBeTruthy();
+    await expect(createPage.titleErrorText).toBeVisible();
 
-    // Now fill a title — error should clear on next submit attempt (React state updates)
     await createPage.titleInput.fill('Now Has a Title');
 
-    // Submit again should NOT show the title error
-    // (Note: we don't click to avoid creating a real work item — just verify UI feedback)
-    // Verify title input no longer has the inputError class
-    const titleClasses = await createPage.titleInput.getAttribute('class');
-    // After filling, the inputError class should no longer be applied
-    // (It clears only after validateForm re-runs on next submit — this verifies the field state)
-    expect(titleClasses).toBeDefined();
+    await expect(createPage.titleErrorText).toHaveCount(0);
+    await expect(createPage.titleInput).not.toHaveAttribute('aria-invalid', 'true');
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 6: Cancel navigates back to the list
+// Scenario 6: Cancel closes the dialog without creating anything
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
-  test('Cancel button navigates to /project/work-items without creating a work item', async ({
+  test('Cancel closes the dialog (after the discard prompt) without creating a work item', async ({
     page,
     testPrefix,
   }) => {
@@ -242,42 +286,32 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
 
     await createPage.goto();
 
-    // Fill a title but cancel
+    // Fill a title but cancel: typed input asks before it is discarded
     const title = `${testPrefix} Cancelled Work Item`;
     await createPage.fillTitle(title);
 
     await createPage.cancelButton.click();
+    await createPage.form.discardConfirm.waitForOpen();
+    await createPage.form.discardConfirm.confirm();
 
-    // Should navigate to the list
-    await page.waitForURL('**/project/work-items');
-    expect(page.url()).toContain('/project/work-items');
-    expect(page.url()).not.toContain('/project/work-items/new');
+    await page.waitForURL((url) => url.pathname === LIST_PATH);
+    await createPage.form.waitForClosed();
 
     // Verify the cancelled item was NOT created
     await workItemsPage.waitForLoaded();
     await workItemsPage.search(title);
     const titles = await workItemsPage.getWorkItemTitles();
     expect(titles).not.toContain(title);
-
-    // Cleanup: unroute any interceptors (none in this test)
-    // No API cleanup needed — nothing was created
   });
 
-  test('Tasks breadcrumb navigates to /project/work-items without creating a work item', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Cancel on an untouched form closes without a prompt', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
+    await createPage.cancel();
 
-    // Partially fill then use the breadcrumb
-    await createPage.fillTitle(`${testPrefix} Breadcrumb Cancelled`);
-    await createPage.breadcrumbs.trailLink('Tasks').click();
-
-    await page.waitForURL('**/project/work-items');
-    expect(page.url()).toContain('/project/work-items');
-    expect(page.url()).not.toContain('/project/work-items/new');
+    await page.waitForURL((url) => url.pathname === LIST_PATH);
+    await expect(createPage.form.discardConfirm.dialog).toHaveCount(0);
   });
 });
 
@@ -285,7 +319,9 @@ test.describe('Cancel navigation (Scenario 6)', { tag: '@responsive' }, () => {
 // Scenario 7: Responsive — no horizontal scroll
 // ─────────────────────────────────────────────────────────────────────────────
 test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
-  test('New task page renders without horizontal scroll on current viewport', async ({ page }) => {
+  test('New task dialog renders without horizontal scroll on current viewport', async ({
+    page,
+  }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
@@ -297,31 +333,24 @@ test.describe('Responsive layout (Scenario 7)', { tag: '@responsive' }, () => {
     expect(hasHorizontalScroll).toBe(false);
   });
 
-  test('All form fields are accessible on current viewport', async ({ page }) => {
+  test('Save and Cancel are reachable on current viewport', async ({ page }) => {
     const createPage = new WorkItemCreatePage(page);
 
     await createPage.goto();
 
-    // Core required field
     await expect(createPage.titleInput).toBeVisible();
-
-    // Submit and cancel accessible
     await expect(createPage.submitButton).toBeVisible();
     await expect(createPage.cancelButton).toBeVisible();
-
-    // Breadcrumb accessible
-    await createPage.breadcrumbs.trailLink('Tasks').scrollIntoViewIfNeeded();
-    await expect(createPage.breadcrumbs.trailLink('Tasks')).toBeVisible();
+    await expect(createPage.submitButton).toBeInViewport();
+    await expect(createPage.cancelButton).toBeInViewport();
   });
 
-  test('New task form renders in dark mode without horizontal scroll', async ({ page }) => {
-    await page.goto(WORK_ITEM_CREATE_ROUTE);
+  test('New task dialog renders in dark mode without horizontal scroll', async ({ page }) => {
+    const createPage = new WorkItemCreatePage(page);
+    await createPage.goto();
     await page.evaluate(() => {
       document.documentElement.setAttribute('data-theme', 'dark');
     });
-
-    const createPage = new WorkItemCreatePage(page);
-    await createPage.heading.waitFor({ state: 'visible', timeout: 7000 });
 
     await expect(createPage.heading).toBeVisible();
 

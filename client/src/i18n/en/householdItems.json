@@ -102,12 +102,9 @@
     "errors": {
       "loadFailed": "Failed to load form data. Please try again."
     },
-    "loading": "Loading...",
-    "errorBanner": "Failed to load form data. Please try again.",
     "form": {
       "name": {
         "label": "Name",
-        "required": "*",
         "placeholder": "Enter item name",
         "error": "Name is required"
       },
@@ -117,7 +114,6 @@
       },
       "category": {
         "label": "Category",
-        "required": "*",
         "placeholder": "— Select Category —",
         "error": "Category is required"
       },
@@ -164,11 +160,7 @@
       "tags": {
         "label": "Tags"
       }
-    },
-    "cancel": "Cancel",
-    "submit": "Create Item",
-    "submitting": "Creating...",
-    "success": "Household item created successfully"
+    }
   },
   "edit": {
     "errors": {

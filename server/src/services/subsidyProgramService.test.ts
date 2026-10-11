@@ -9,6 +9,35 @@ import * as subsidyProgramService from './subsidyProgramService.js';
 import { NotFoundError, ValidationError, SubsidyProgramInUseError } from '../errors/AppError.js';
 import type { CreateSubsidyProgramRequest, UpdateSubsidyProgramRequest } from '@cornerstone/shared';
 
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('Subsidy Program Service', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
@@ -963,8 +992,11 @@ describe('Subsidy Program Service', () => {
       const id = insertRawProgram({ name: 'Timestamp Test' });
       const before = subsidyProgramService.getSubsidyProgramById(db, id);
 
-      // Wait long enough for Date.now() to advance (ISO strings have millisecond resolution)
-      await new Promise((resolve) => setTimeout(resolve, 5));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const data: UpdateSubsidyProgramRequest = { name: 'Updated Timestamp' };
       const result = subsidyProgramService.updateSubsidyProgram(db, id, data);

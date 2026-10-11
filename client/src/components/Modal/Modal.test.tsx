@@ -852,4 +852,28 @@ describe('Modal', () => {
       expect(elsewhere).toHaveFocus();
     });
   });
+
+  describe('headerStart', () => {
+    it('renders the slot before the title inside the header', () => {
+      render(
+        <Modal {...defaultProps} headerStart={<button data-testid="hs">back</button>}>
+          <p>body</p>
+        </Modal>,
+      );
+      const hs = screen.getByTestId('hs');
+      expect(hs.nextElementSibling).toBe(screen.getByRole('heading', { name: 'Test Modal Title' }));
+      expect(hs.parentElement?.className).toContain('headerStart');
+    });
+
+    it('renders the bare title when no slot is given', () => {
+      render(
+        <Modal {...defaultProps}>
+          <p>body</p>
+        </Modal>,
+      );
+      expect(
+        screen.getByRole('heading', { name: 'Test Modal Title' }).parentElement?.className,
+      ).not.toContain('headerStart');
+    });
+  });
 });

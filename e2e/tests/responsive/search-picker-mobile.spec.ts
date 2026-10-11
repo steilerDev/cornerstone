@@ -61,11 +61,14 @@ test.describe('SearchPicker mobile anchor regression (Scenario 1)', { tag: '@res
       try {
         areaId = await createAreaViaApi(page, { name: areaName });
 
-        // Navigate to Work Item Create — a stable, fully-implemented page with
-        // an AreaPicker (SearchPicker<TreeNode> with showItemsOnFocus=true) that
-        // opens its dropdown without requiring any search text.
+        // Open the New task dialog — a stable surface with an AreaPicker
+        // (SearchPicker<TreeNode> with showItemsOnFocus=true) that opens its dropdown
+        // without requiring any search text. On a phone the dialog is a full-screen sheet
+        // (#2212); the dropdown portal sits above it (--z-modal + 100).
         const createPage = new WorkItemCreatePage(page);
         await createPage.goto();
+        // Measure the settled sheet, not mid slide-in.
+        await createPage.form.settled();
 
         // The area picker input is the SearchPicker trigger.
         const areaInput = createPage.areaPickerInput;
@@ -116,11 +119,13 @@ test.describe('SearchPicker mobile anchor regression (Scenario 1)', { tag: '@res
         await areaOption.click();
         await expect(dropdown).not.toBeVisible();
 
-        // Verify the picker shows the selected area (selectedDisplay chip).
-        // After selection SearchPicker renders a selectedDisplay div, not the
-        // input, so the input is no longer in the DOM.
-        const selectedDisplay = page.locator('[class*="selectedDisplay"]').first();
-        await expect(selectedDisplay).toContainText(areaName);
+        // Verify the picker shows the selected area (selected chip + clear button).
+        // After selection SearchPicker renders a chip, not the input, so the input is
+        // no longer in the DOM.
+        await expect(createPage.areaClearButton).toBeVisible();
+        await expect(createPage.dialog.locator('div:has(> label[for="area"])')).toContainText(
+          areaName,
+        );
       } finally {
         if (areaId) await deleteAreaViaApi(page, areaId);
       }

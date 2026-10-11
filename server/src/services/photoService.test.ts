@@ -115,6 +115,35 @@ function createTestUser(
 
 // ─── Test suite ───────────────────────────────────────────────────────────────
 
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('photoService', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
@@ -831,8 +860,9 @@ describe('photoService', () => {
       );
 
       const before = new Date(uploaded.updatedAt).getTime();
-      // Small delay to ensure timestamp differs
-      await new Promise((r) => setTimeout(r, 10));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const result = photoService.updatePhoto(db, uploaded.id, { caption: 'new' });
       const after = new Date(result!.updatedAt).getTime();

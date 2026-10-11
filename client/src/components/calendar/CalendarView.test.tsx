@@ -27,6 +27,7 @@ import type {
 import type * as I18nTypes from '../../i18n/index.js';
 import type * as FormattersTypes from '../../lib/formatters.js';
 import type * as CalendarViewTypes from './CalendarView.js';
+import { CreateMenuProvider, useCreatePrefill } from '../CreateMenu/CreateMenuContext.js';
 
 // ─── Mock: LocaleContext — CalendarView uses useLocale() directly ─────────────
 
@@ -1074,5 +1075,85 @@ describe('CalendarView', () => {
       });
       expect(screen.getByTestId('gantt-tooltip')).toHaveTextContent('Test Prep');
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// New menu context (#2212): the visible date pre-fills New > Milestone / Diary entry
+// ---------------------------------------------------------------------------
+
+describe('CalendarView create context (#2212)', () => {
+  function PrefillProbe() {
+    return <output data-testid="prefill">{JSON.stringify(useCreatePrefill())}</output>;
+  }
+
+  function renderWithMenu(searchParams = '') {
+    return render(
+      <MemoryRouter initialEntries={[searchParams ? `/?${searchParams}` : '/']}>
+        <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
+          <CalendarView workItems={[]} milestones={[]} />
+          <PrefillProbe />
+        </CreateMenuProvider>
+      </MemoryRouter>,
+    );
+  }
+
+  const prefill = () => JSON.parse(screen.getByTestId('prefill').textContent ?? '{}');
+
+  beforeEach(() => {
+    jest.useFakeTimers({ now: new Date(2026, 2, 18, 12, 0, 0) });
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('month mode on the current month: today', () => {
+    renderWithMenu();
+    expect(prefill()).toEqual({ date: '2026-03-18' });
+  });
+
+  it('month mode on another month: the first day of the displayed month', () => {
+    renderWithMenu();
+    fireEvent.click(screen.getByRole('button', { name: /previous month/i }));
+    expect(prefill()).toEqual({ date: '2026-02-01' });
+    fireEvent.click(screen.getByRole('button', { name: /next month/i }));
+    fireEvent.click(screen.getByRole('button', { name: /next month/i }));
+    expect(prefill()).toEqual({ date: '2026-04-01' });
+  });
+
+  it('returns to today when navigating back to the current month', () => {
+    renderWithMenu();
+    fireEvent.click(screen.getByRole('button', { name: /previous month/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^today$/i }));
+    expect(prefill()).toEqual({ date: '2026-03-18' });
+  });
+
+  it('week mode on the current week: today', () => {
+    renderWithMenu('calendarMode=week');
+    expect(prefill()).toEqual({ date: '2026-03-18' });
+  });
+
+  it('week mode on another week: the first day of the displayed week', () => {
+    renderWithMenu('calendarMode=week');
+    fireEvent.click(screen.getByRole('button', { name: /previous week/i }));
+    expect(prefill()).toEqual({ date: '2026-03-08' });
+  });
+
+  it('never carries an area or a company (the calendar has neither)', () => {
+    renderWithMenu();
+    expect(Object.keys(prefill())).toEqual(['date']);
+  });
+
+  it('clears the context when the calendar unmounts', () => {
+    const { rerender } = renderWithMenu();
+    rerender(
+      <MemoryRouter>
+        <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
+          <PrefillProbe />
+        </CreateMenuProvider>
+      </MemoryRouter>,
+    );
+    expect(prefill()).toEqual({});
   });
 });

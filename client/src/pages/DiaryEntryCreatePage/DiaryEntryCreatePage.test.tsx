@@ -440,4 +440,66 @@ describe('DiaryEntryCreatePage', () => {
       });
     });
   });
+
+  // ─── Pre-filled entry date from a create link (#2212) ────────────────────────
+
+  describe('date pre-fill', () => {
+    const renderAt = (url: string) =>
+      render(
+        <ToastProvider>
+          <AuthProvider>
+            <MemoryRouter initialEntries={[url]}>
+              <Routes>
+                <Route path="/diary/new" element={<DiaryEntryCreatePage />} />
+                <Route path="/diary/:id/edit" element={<div>Edit</div>} />
+              </Routes>
+            </MemoryRouter>
+          </AuthProvider>
+        </ToastProvider>,
+      );
+
+    it('creates the draft with the entry date from ?date=', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      renderAt('/diary/new?date=2026-03-01');
+      await user.click(screen.getByTestId('type-card-daily_log'));
+      await waitFor(() =>
+        expect(mockCreateDiaryEntry).toHaveBeenCalledWith({
+          entryType: 'daily_log',
+          status: 'draft',
+          entryDate: '2026-03-01',
+        }),
+      );
+    });
+
+    it('sends no entry date without ?date=', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      renderAt('/diary/new');
+      await user.click(screen.getByTestId('type-card-daily_log'));
+      await waitFor(() => expect(mockCreateDiaryEntry).toHaveBeenCalledTimes(1));
+      expect(mockCreateDiaryEntry.mock.calls[0]![0]).not.toHaveProperty('entryDate');
+    });
+
+    it.each(['2026-02-30', 'not-a-date', '2026-3-1', ''])(
+      'drops an invalid date (%p)',
+      async (bad) => {
+        const user = userEvent.setup();
+        mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+        renderAt(`/diary/new?date=${bad}`);
+        await user.click(screen.getByTestId('type-card-daily_log'));
+        await waitFor(() => expect(mockCreateDiaryEntry).toHaveBeenCalledTimes(1));
+        expect(mockCreateDiaryEntry.mock.calls[0]![0]).not.toHaveProperty('entryDate');
+      },
+    );
+
+    it('ignores an areaId (diary entries have no area field)', async () => {
+      const user = userEvent.setup();
+      mockCreateDiaryEntry.mockResolvedValueOnce(draftEntry);
+      renderAt('/diary/new?areaId=a1');
+      await user.click(screen.getByTestId('type-card-daily_log'));
+      await waitFor(() => expect(mockCreateDiaryEntry).toHaveBeenCalledTimes(1));
+      expect(JSON.stringify(mockCreateDiaryEntry.mock.calls[0]![0])).not.toContain('a1');
+    });
+  });
 });

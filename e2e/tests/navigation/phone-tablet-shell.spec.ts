@@ -7,8 +7,9 @@
  * the section's views. Below 1024px the bottom bar and the More sheet are the only navigation.
  *
  * Scenarios (all but S10 run below 1024px only; the tablet and mobile projects cover them):
- * - S1  (AC2, AC3) bar slots in order, label size, touch size, 64px row; Home current; New opens
- *                  /diary/new where Site diary (not New) is current
+ * - S1  (AC2, AC3) bar slots in order, label size, touch size, 64px row; Home current; New is a
+ *                  button that opens the New sheet (#2212), whose Diary entry row opens /diary/new
+ *                  where Site diary (not New) is current
  * - S2  (AC6)      More is highlighted on a page that lives in the sheet (Tasks)
  * - S3  (AC4)      the sheet: closed = inert, hidden, no dialog role; open = rows in groups, user
  *                  block order, new-tab links, version; focus; Escape/backdrop/Close; a tap on a
@@ -38,6 +39,7 @@ import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createWorkItemViaApi, deleteWorkItemViaApi } from '../../fixtures/apiHelpers.js';
 import { ROUTES } from '../../fixtures/testData.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
+import { CreateMenu } from '../../pages/components/CreateMenu.js';
 import { WorkItemsPage } from '../../pages/WorkItemsPage.js';
 
 test.use({
@@ -98,10 +100,11 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       );
     });
 
-    test('S1: the bar reads Home, Site diary, New, Photos, More; New opens /diary/new', async ({
+    test('S1: the bar reads Home, Site diary, New, Photos, More; New opens the New sheet', async ({
       page,
     }) => {
       const appShell = new AppShellPage(page);
+      const createMenu = new CreateMenu(page);
       await page.goto(ROUTES.home);
       await expect(appShell.bottomBar).toBeVisible();
 
@@ -138,8 +141,12 @@ test.describe('Phone and tablet shell', { tag: '@responsive' }, () => {
       // On Home, Home is the page's entry
       await expect(appShell.bottomBarSlot('home')).toHaveAttribute('aria-current', 'page');
 
-      // New opens the diary entry form; there Site diary (not New) is the current slot
-      await appShell.bottomBarSlot('new').click();
+      // New is a button that opens the New sheet; its first row opens the diary entry form,
+      // where Site diary (not New) is the current slot
+      await expect(appShell.bottomBarSlot('new')).toHaveAttribute('aria-haspopup', 'dialog');
+      await createMenu.open();
+      await expect(createMenu.rows().first()).toHaveText('Diary entry');
+      await createMenu.row('diaryEntry').click();
       await expect(page).toHaveURL((url) => url.pathname === routeUrl('diaryEntryNew'));
       await expect(appShell.bottomBarSlot('diary')).toHaveAttribute('aria-current', 'page');
       await expect(appShell.bottomBarSlot('new')).not.toHaveAttribute('aria-current', /.+/);

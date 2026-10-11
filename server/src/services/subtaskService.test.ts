@@ -13,6 +13,35 @@ import type {
   ReorderSubtasksRequest,
 } from '@cornerstone/shared';
 
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('Subtask Service', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
@@ -451,8 +480,11 @@ describe('Subtask Service', () => {
         .where(eq(schema.workItemSubtasks.id, subtaskId))
         .get();
 
-      // Wait 1ms to ensure timestamp will be different
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       // When: Updating subtask
       const data: UpdateSubtaskRequest = { title: 'Updated title' };
@@ -567,8 +599,11 @@ describe('Subtask Service', () => {
         .where(eq(schema.workItemSubtasks.id, subtask0Id))
         .get();
 
-      // Wait 1ms to ensure timestamp will be different
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       // When: Reordering
       const data: ReorderSubtasksRequest = { subtaskIds: [subtask1Id, subtask0Id] };

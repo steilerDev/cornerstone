@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { ManualDiaryEntryType } from '@cornerstone/shared';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
@@ -7,6 +7,7 @@ import { createDiaryEntry } from '../../lib/diaryApi.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { forwardOriginState } from '../../navigation/origin.js';
+import { prefillFromSearch } from '../../navigation/createQuery.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './DiaryEntryCreatePage.module.css';
 import { routeUrl } from '@cornerstone/shared';
@@ -40,6 +41,9 @@ function TypeCard({ type, emoji, label, description, disabled, onSelect }: TypeC
 export default function DiaryEntryCreatePage() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
+  // Day pre-filled by a create link (`?date=YYYY-MM-DD`); invalid values are dropped.
+  const { date: prefillDate } = prefillFromSearch(searchParams);
   const { t } = useTranslation('diary');
   const { t: tCommon } = useTranslation('common');
   const pageTitle = tCommon('navigation.newDiaryEntry');
@@ -53,7 +57,11 @@ export default function DiaryEntryCreatePage() {
     draftCreatingRef.current = true;
     setIsCreating(true);
     try {
-      const draft = await createDiaryEntry({ entryType: type, status: 'draft' });
+      const draft = await createDiaryEntry({
+        entryType: type,
+        status: 'draft',
+        ...(prefillDate ? { entryDate: prefillDate } : {}),
+      });
       navigate(routeUrl('diaryEntryEdit', { id: draft.id }), {
         replace: true,
         state: forwardOriginState(location.state),

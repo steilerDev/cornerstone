@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -23,6 +23,35 @@ import type {
  *
  * Tests use distinct names (e.g., "Test HIC *") to avoid UNIQUE constraint violations.
  */
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Household Item Category Service', () => {
   let sqlite: Database.Database;
@@ -429,7 +458,9 @@ describe('Household Item Category Service', () => {
 
     it('sets updatedAt to a new timestamp on update', async () => {
       const cat = createTestCategory('Test HIC Loveseat');
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
       const data: UpdateHouseholdItemCategoryRequest = { name: 'Test HIC Settee' };
       const result = householdItemCategoryService.updateHouseholdItemCategory(db, cat.id, data);
       expect(result.updatedAt).not.toBe(cat.updatedAt);

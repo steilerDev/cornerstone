@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import type { MilestoneSummary } from '@cornerstone/shared';
 import type { ColumnDef, TableState } from '../../components/DataTable/DataTable.js';
@@ -31,6 +32,7 @@ export function MilestonesPage() {
   const { t: tErrors } = useTranslation('errors');
   useDocumentTitle(tCommon('navigation.milestones'));
   const navigate = useNavigate();
+  const openCreate = useOpenCreate();
 
   // Data state
   const [milestones, setMilestones] = useState<MilestoneSummary[]>([]);
@@ -358,7 +360,7 @@ export function MilestonesPage() {
     () => [
       {
         key: 'n',
-        handler: () => navigate(routeUrl('milestoneNew')),
+        handler: () => openCreate('milestone'),
         description: t('milestones.keyboard.newMilestone')!,
       },
       {
@@ -380,7 +382,7 @@ export function MilestonesPage() {
         description: t('milestones.keyboard.closeDialog')!,
       },
     ],
-    [navigate, showShortcutsHelp, deletingMilestone, activeMenuId, t],
+    [openCreate, showShortcutsHelp, deletingMilestone, activeMenuId, t],
   );
 
   useKeyboardShortcuts(shortcuts);
@@ -392,7 +394,7 @@ export function MilestonesPage() {
         <button
           type="button"
           className={sharedStyles.btnPrimary}
-          onClick={() => navigate(routeUrl('milestoneNew'))}
+          onClick={() => openCreate('milestone')}
           data-testid="new-milestone-button"
         >
           {t('milestones.newButton')}
@@ -418,7 +420,7 @@ export function MilestonesPage() {
           description: t('milestones.empty.noItemsMessage')!,
           action: {
             label: t('milestones.empty.createFirst')!,
-            onClick: () => navigate(routeUrl('milestoneNew')),
+            onClick: () => openCreate('milestone'),
           },
         }}
       />

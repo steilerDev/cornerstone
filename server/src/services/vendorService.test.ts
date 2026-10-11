@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -8,6 +8,35 @@ import * as schema from '../db/schema.js';
 import * as vendorService from './vendorService.js';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
 import type { CreateVendorRequest, UpdateVendorRequest } from '@cornerstone/shared';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Vendor Service', () => {
   let sqlite: Database.Database;
@@ -1032,7 +1061,11 @@ describe('Vendor Service', () => {
     it('sets updatedAt to a new timestamp on update', async () => {
       const vendor = createTestVendor('Timestamp Vendor');
 
-      await new Promise((resolve) => setTimeout(resolve, 2));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const result = vendorService.updateVendor(db, vendor.id, {
         name: 'Updated Timestamp Vendor',

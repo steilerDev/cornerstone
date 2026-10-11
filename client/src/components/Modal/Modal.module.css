@@ -13,6 +13,13 @@
   margin-bottom: var(--spacing-6);
 }
 
+.headerStart {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-width: 0;
+}
+
 .title {
   margin: 0;
   font-size: var(--font-size-lg);

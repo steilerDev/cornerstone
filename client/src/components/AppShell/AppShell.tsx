@@ -1,5 +1,5 @@
 import { Outlet, useLocation } from 'react-router-dom';
-import { Suspense, useId, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext.js';
 import { ShortcutRegistryProvider } from '../../hooks/shortcutRegistry.js';
@@ -8,9 +8,12 @@ import { BreadcrumbSlotContext, TOP_BAR_MEDIA_QUERY } from '../../navigation/bre
 import { resolveNavActive } from '../../navigation/navActive.js';
 import { navSections } from '../../navigation/navConfig.js';
 import { PreviousPathContext, useTrackPreviousPath } from '../../navigation/previousPath.js';
+import { useRealLocationKey } from '../../navigation/realLocation.js';
 import { useNavContext } from '../../navigation/useNavContext.js';
 import { ViewMenuContext, viewMenuFor } from '../../navigation/viewMenu.js';
 import { BottomBar } from '../BottomBar/BottomBar.js';
+import { CreateMenuProvider } from '../CreateMenu/CreateMenuContext.js';
+import { CreateSheet } from '../CreateMenu/CreateSheet.js';
 import { MoreSheet } from '../MoreSheet/MoreSheet.js';
 import { Sidebar } from '../Sidebar/Sidebar.js';
 import { TopBar } from '../TopBar/TopBar.js';
@@ -47,49 +50,66 @@ export function AppShell() {
     setWasWide(wide);
     if (wide) setMoreOpenKey(null);
   }
+  // The New sheet closes on any real navigation (a dialog route keeps the display location).
+  const realKey = useRealLocationKey();
+  const [createOpenKey, setCreateOpenKey] = useState<string | null>(null);
+  const createOpen = !wide && createOpenKey === realKey;
+  if (wide && createOpenKey !== null) setCreateOpenKey(null);
+  const onCreateSheetOpenChange = useCallback(
+    (open: boolean) => setCreateOpenKey(open ? realKey : null),
+    [realKey],
+  );
   const moreButtonRef = useRef<HTMLButtonElement>(null);
   const sheetId = useId();
 
   return (
     <ShortcutRegistryProvider>
-      <BreadcrumbSlotContext value={slotEl}>
-        <PreviousPathContext value={getPreviousPath}>
-          <ViewMenuContext value={viewMenu}>
-            <div className={wide ? styles.appShell : `${styles.appShell} ${styles.compact}`}>
-              {wide && <Sidebar sections={sections} active={active} />}
-              <div className={styles.shellColumn} inert={moreOpen}>
-                <TopBar breadcrumbSlotRef={setSlotEl} variant={wide ? 'desktop' : 'compact'} />
+      <CreateMenuProvider
+        moneyPage={active?.sectionId === 'money'}
+        wide={wide}
+        sheetOpen={createOpen}
+        onSheetOpenChange={onCreateSheetOpenChange}
+      >
+        <BreadcrumbSlotContext value={slotEl}>
+          <PreviousPathContext value={getPreviousPath}>
+            <ViewMenuContext value={viewMenu}>
+              <div className={wide ? styles.appShell : `${styles.appShell} ${styles.compact}`}>
+                {wide && <Sidebar sections={sections} active={active} />}
+                <div className={styles.shellColumn} inert={moreOpen || createOpen}>
+                  <TopBar breadcrumbSlotRef={setSlotEl} variant={wide ? 'desktop' : 'compact'} />
+                  {!wide && (
+                    <BottomBar
+                      active={active}
+                      moreOpen={moreOpen}
+                      moreControlsId={sheetId}
+                      moreButtonRef={moreButtonRef}
+                      onMoreClick={() => setMoreOpenKey(location.key)}
+                    />
+                  )}
+                  <div className={styles.mainContent}>
+                    <main className={styles.pageContent}>
+                      <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
+                        <Outlet />
+                      </Suspense>
+                    </main>
+                  </div>
+                </div>
+                {!wide && <CreateSheet />}
                 {!wide && (
-                  <BottomBar
+                  <MoreSheet
+                    id={sheetId}
+                    open={moreOpen}
+                    onClose={() => setMoreOpenKey(null)}
+                    sections={sections}
                     active={active}
-                    moreOpen={moreOpen}
-                    moreControlsId={sheetId}
-                    moreButtonRef={moreButtonRef}
-                    onMoreClick={() => setMoreOpenKey(location.key)}
+                    returnFocusRef={moreButtonRef}
                   />
                 )}
-                <div className={styles.mainContent}>
-                  <main className={styles.pageContent}>
-                    <Suspense fallback={<div className={styles.loading}>{t('loading')}</div>}>
-                      <Outlet />
-                    </Suspense>
-                  </main>
-                </div>
               </div>
-              {!wide && (
-                <MoreSheet
-                  id={sheetId}
-                  open={moreOpen}
-                  onClose={() => setMoreOpenKey(null)}
-                  sections={sections}
-                  active={active}
-                  returnFocusRef={moreButtonRef}
-                />
-              )}
-            </div>
-          </ViewMenuContext>
-        </PreviousPathContext>
-      </BreadcrumbSlotContext>
+            </ViewMenuContext>
+          </PreviousPathContext>
+        </BreadcrumbSlotContext>
+      </CreateMenuProvider>
     </ShortcutRegistryProvider>
   );
 }

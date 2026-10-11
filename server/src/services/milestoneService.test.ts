@@ -9,6 +9,35 @@ import * as milestoneService from './milestoneService.js';
 import { NotFoundError, ValidationError, DuplicateDependencyError } from '../errors/AppError.js';
 import type { CreateMilestoneRequest } from '@cornerstone/shared';
 
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
+
 describe('Milestone Service', () => {
   let sqlite: Database.Database;
   let db: BetterSQLite3Database<typeof schema>;
@@ -689,8 +718,11 @@ describe('Milestone Service', () => {
       );
       const originalUpdatedAt = created.updatedAt;
 
-      // Small delay to ensure timestamp changes
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const updated = milestoneService.updateMilestone(db, created.id, { title: 'New Title' });
       expect(updated.updatedAt).not.toBe(originalUpdatedAt);

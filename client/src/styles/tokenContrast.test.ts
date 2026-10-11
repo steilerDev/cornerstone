@@ -1210,3 +1210,33 @@ describe('grammar foundations rule pins (#2209)', () => {
     expect(decls.get('justify-content')).toBe('flex-end');
   });
 });
+
+describe('ObjectForm "added" confirmation (#2212)', () => {
+  const objectForm = readCss('components', 'ObjectForm', 'ObjectForm.module.css');
+
+  it('pairs the success badge tokens (no hardcoded colours)', () => {
+    const decls = ruleFor(objectForm, '.status');
+    expect(decls.get('background-color')).toBe('var(--color-success-badge-bg)');
+    expect(decls.get('color')).toBe('var(--color-success-badge-text)');
+  });
+
+  it.each(['light', 'dark'] as const)(
+    'the success badge text on its (composited) wash over the page is at least 4.5:1 in %s',
+    (theme) => {
+      const raw = tokens[theme].get('--color-success-badge-bg') ?? '';
+      const bg = raw.startsWith('rgba(')
+        ? compositeOver(theme, '--color-success-badge-bg', '--color-bg-primary')
+        : resolve(theme, '--color-success-badge-bg');
+      expect(ratio(resolve(theme, '--color-success-badge-text'), bg)).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+
+  it.each(['light', 'dark'] as const)(
+    'the success badge text on the plain page background is at least 4.5:1 in %s',
+    (theme) => {
+      expect(
+        tokenRatio(theme, '--color-success-badge-text', '--color-bg-primary'),
+      ).toBeGreaterThanOrEqual(4.5);
+    },
+  );
+});

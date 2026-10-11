@@ -91,6 +91,28 @@ session (task didn't need it — pure E2E test-file edits, no app change), so th
 2026-07-30 finding is unverified this round; re-attempt it fresh next time a task needs it rather
 than assuming either outcome.
 
+## WORKING live run recipe (2026-10-11, Story #2212) — supersedes "no usable browser" above
+
+A full desktop/tablet/mobile live run IS possible when the local docker daemon already has
+`mcr.microsoft.com/playwright:v1.63.0-noble` (check `docker images`). The host lacks browser shared
+libs and the browser download is blocked, so run the Playwright CLI **inside that image** with the
+host docker socket shared for testcontainers:
+
+1. Build the app image from a node_modules-free copy of the worktree (a direct `docker build .` fails
+   with "cannot replace to directory .../client/node_modules/.bin"): tar with `--exclude=node_modules
+--exclude=./.git --exclude=./wiki --exclude=./.claude` into `<jobtmp>/ctx`, then
+   `docker build -t cornerstone:e2e --build-arg APP_VERSION=pr-<n> .` there (~3 min).
+2. Run `docker run --rm --network host --ipc=host -e NO_PROXY=localhost,127.0.0.1
+-v /var/run/docker.sock:/var/run/docker.sock -v /usr/bin/docker:/usr/bin/docker -v $WT:$WT
+-v $DEPS:$DEPS -v $DEPS/node_modules:$WT/node_modules -w $WT/e2e <image>
+node $WT/node_modules/@playwright/test/cli.js test <args>` (wrap in a script file in the job tmp).
+   Gotchas: mount the SAME absolute paths (testcontainers bind-mounts by host path); the worktree
+   `node_modules` points into the job-tmp `deps` dir, so mount that too; start the CLI from
+   `$WT/node_modules/...`, not `$DEPS/...`, or Playwright loads two copies ("did not expect
+   test.describe()"); mount the host `docker` binary (global teardown shells out to it).
+3. ~550 tests across 3 projects ran in ~3 minutes. After an aborted run `docker rm -f` the leftover
+   containers and `docker network rm` the network before retrying.
+
 ## Practical technique: overriding the browser executable without touching committed config
 
 If a real Chromium binary ever IS available (e.g. `sbx policy allow` was granted, or a cached

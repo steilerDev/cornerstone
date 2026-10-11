@@ -21,6 +21,7 @@ import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 
 // ─── Mock modules BEFORE importing component ────────────────────────────────
 
@@ -741,5 +742,39 @@ describe('HouseholdItemsPage', () => {
       await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
       expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
     });
+  });
+});
+
+describe('HouseholdItemsPage create openers (#2212)', () => {
+  function renderAt(entry = '/project/household-items?x=1') {
+    const log = createRouterLog();
+    render(
+      <ToastProvider>
+        <RecordingRouter entries={[entry]} log={log}>
+          <HouseholdItemsPage />
+        </RecordingRouter>
+      </ToastProvider>,
+    );
+    return log;
+  }
+
+  function expectDialogPush(log: ReturnType<typeof createRouterLog>) {
+    expect(log.actions).toEqual(['PUSH /project/household-items/new']);
+    expect(log.states[0]).toMatchObject({
+      origin: { to: '/project/household-items?x=1' },
+      background: { pathname: '/project/household-items', search: '?x=1' },
+    });
+  }
+
+  it('the primary button opens the New purchase dialog over the list', async () => {
+    const log = renderAt();
+    fireEvent.click(await screen.findByTestId('new-household-item-button'));
+    expectDialogPush(log);
+  });
+
+  it('the empty-state action opens the New purchase dialog over the list', async () => {
+    const log = renderAt();
+    fireEvent.click(await screen.findByRole('button', { name: 'Create First Item' }));
+    expectDialogPush(log);
   });
 });

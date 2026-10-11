@@ -13,6 +13,8 @@ import {
 } from '../../components/GanttChart/ganttUtils.js';
 import { barDates } from '../../lib/scheduleDates.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import { useOpenCreate } from '../../navigation/useOpenCreate.js';
+import { useOnObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageTitle } from '../../components/PageLayout/PageTitle.js';
 import styles from './TimelinePage.module.css';
@@ -189,6 +191,8 @@ export function TimelinePage() {
   const newRef = useRef<HTMLDivElement>(null);
   const { data, isLoading, error, refetch } = useTimeline();
   const navigate = useNavigate();
+  const openCreate = useOpenCreate();
+  useOnObjectCreated('task', () => refetch({ silent: true }));
   const [searchParams, setSearchParams] = useSearchParams();
 
   const zoomOptions: { value: ZoomLevel; label: string }[] = [
@@ -535,7 +539,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('workItemNew'), { state: originState });
+                    openCreate('task');
                   }}
                   data-testid="timeline-add-work-item"
                 >
@@ -547,7 +551,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('householdItemNew'), { state: originState });
+                    openCreate('purchase');
                   }}
                   data-testid="timeline-add-household-item"
                 >
@@ -559,7 +563,7 @@ export function TimelinePage() {
                   role="menuitem"
                   onClick={() => {
                     setNewOpen(false);
-                    void navigate(routeUrl('milestoneNew'), { state: originState });
+                    openCreate('milestone');
                   }}
                   data-testid="timeline-add-milestone"
                 >
@@ -593,7 +597,7 @@ export function TimelinePage() {
               />
             </svg>
             <span>{error}</span>
-            <button type="button" className={styles.errorBannerRetry} onClick={refetch}>
+            <button type="button" className={styles.errorBannerRetry} onClick={() => refetch()}>
               {t('timeline.errorBanner.tryAgain')}
             </button>
           </div>

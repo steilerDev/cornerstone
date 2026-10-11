@@ -1,0 +1,85 @@
+import type { ReactNode } from 'react';
+import type { CreatePrefillKey } from '../../navigation/createQuery.js';
+
+export type ObjectFormValues = Readonly<Record<string, unknown>>;
+export type ObjectFormErrors = Readonly<Record<string, string | undefined>>;
+
+export interface ObjectFormOption {
+  readonly value: string;
+  readonly label: string;
+}
+
+export interface ObjectFormResult {
+  readonly id: string;
+  /** In-app URL of the created object (from routeUrl). */
+  readonly href: string;
+  /** Display name, used by the Add-another confirmation. */
+  readonly label: string;
+}
+
+export interface ObjectFormChild {
+  readonly schema: ObjectFormSchema;
+  readonly prefill?: ObjectFormValues;
+  /** Called with the child's result after its Save; the field sets its own value. */
+  readonly onCreated: (result: ObjectFormResult) => void;
+}
+
+export interface ObjectFormRenderContext {
+  /** DOM id (= field name). */
+  readonly id: string;
+  readonly value: unknown;
+  readonly setValue: (value: unknown) => void;
+  readonly busy: boolean;
+  readonly invalid: boolean;
+  /** Hint and error ids for aria-describedby. */
+  readonly describedBy: string | undefined;
+  /** Opens a child form (create from a picker); the parent's values stay in memory. */
+  readonly createChild: (child: ObjectFormChild) => void;
+}
+
+export interface ObjectFormField {
+  readonly name: string;
+  /** Already translated. */
+  readonly label: string;
+  readonly kind: 'text' | 'textarea' | 'number' | 'date' | 'url' | 'select' | 'custom';
+  /** Shown before "More details". */
+  readonly essential?: boolean;
+  readonly required?: boolean;
+  readonly width?: 'half' | 'full';
+  readonly hint?: string;
+  /** A field-level problem not caused by the value (e.g. its options failed to load). */
+  readonly notice?: string;
+  readonly placeholder?: string;
+  /** Select options. */
+  readonly options?: readonly ObjectFormOption[];
+  /** A Skeleton replaces the control while options load. */
+  readonly optionsLoading?: boolean;
+  /** When options arrive and the value is untouched: 'first' picks the first option. */
+  readonly defaultFromOptions?: 'first';
+  /** Kept by "Add another". */
+  readonly keep?: boolean;
+  /** Hidden by the host when Paperless is off (no field uses it yet). */
+  readonly gate?: 'paperless';
+  readonly min?: number;
+  readonly maxLength?: number;
+  readonly testId?: string;
+  /** For kind 'custom'. */
+  readonly render?: (ctx: ObjectFormRenderContext) => ReactNode;
+}
+
+export interface ObjectFormSchema {
+  /** 'task' | 'purchase' | 'milestone' | test ids. */
+  readonly id: string;
+  /** Translated, e.g. "New task". */
+  readonly title: string;
+  readonly fields: readonly ObjectFormField[];
+  readonly initialValues: ObjectFormValues;
+  readonly addAnother?: boolean;
+  /** Pre-fill key to field name (D12). */
+  readonly prefill?: Partial<Record<CreatePrefillKey, string>>;
+  /** Cross-field validation; errors are keyed to a field name and already translated. */
+  readonly validate: (values: ObjectFormValues) => ObjectFormErrors;
+  readonly submit: (values: ObjectFormValues) => Promise<ObjectFormResult>;
+  /** Text of the Add-another confirmation, e.g. "Task ‘X’ added." */
+  readonly addedMessage?: (result: ObjectFormResult) => string;
+}

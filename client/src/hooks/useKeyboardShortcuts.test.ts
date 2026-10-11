@@ -217,3 +217,96 @@ describe('useKeyboardShortcuts registry integration', () => {
     expect(handler).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useKeyboardShortcuts (#2212 fallback and modal guard)', () => {
+  const press = (key: string, init: KeyboardEventInit = {}) =>
+    act(() => {
+      document.dispatchEvent(new KeyboardEvent('keydown', { key, ...init }));
+    });
+
+  const wrapper = ({ children }: { children: ReactNode }) =>
+    createElement(ShortcutRegistryProvider, null, children);
+
+  afterEach(() => {
+    document.body.innerHTML = '';
+  });
+
+  it('a fallback shortcut fires when no other owner has the key', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(
+      () =>
+        useKeyboardShortcuts([{ key: 'n', handler, description: 'fallback' }], { fallback: true }),
+      { wrapper },
+    );
+    press('n');
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('a page n beats the fallback n (only the page handler runs)', () => {
+    const fallback = jest.fn<() => void>();
+    const page = jest.fn<() => void>();
+    renderHook(
+      () => {
+        useKeyboardShortcuts([{ key: 'n', handler: fallback, description: 'shell' }], {
+          fallback: true,
+        });
+        useKeyboardShortcuts([{ key: 'n', handler: page, description: 'page' }]);
+      },
+      { wrapper },
+    );
+    press('n');
+    expect(page).toHaveBeenCalledTimes(1);
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it('the fallback fires again once the page owner unmounts', () => {
+    const fallback = jest.fn<() => void>();
+    const page = jest.fn<() => void>();
+    const both = renderHook(
+      ({ withPage }: { withPage: boolean }) => {
+        useKeyboardShortcuts([{ key: 'n', handler: fallback, description: 'shell' }], {
+          fallback: true,
+        });
+        useKeyboardShortcuts(withPage ? [{ key: 'n', handler: page, description: 'page' }] : []);
+      },
+      { wrapper, initialProps: { withPage: true } },
+    );
+    press('n');
+    expect(fallback).not.toHaveBeenCalled();
+    both.rerender({ withPage: false });
+    press('n');
+    expect(fallback).toHaveBeenCalledTimes(1);
+  });
+
+  it('page shortcuts are off while an aria-modal element exists', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(() => useKeyboardShortcuts([{ key: 'n', handler, description: 'n' }]));
+    const modal = document.createElement('div');
+    modal.setAttribute('aria-modal', 'true');
+    document.body.appendChild(modal);
+    press('n');
+    expect(handler).not.toHaveBeenCalled();
+    modal.remove();
+    press('n');
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a key pressed with a modifier', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(() => useKeyboardShortcuts([{ key: 'n', handler, description: 'n' }]));
+    press('n', { ctrlKey: true });
+    press('n', { metaKey: true });
+    press('n', { altKey: true });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it('aria-modal="false" does not pause shortcuts', () => {
+    const handler = jest.fn<() => void>();
+    renderHook(() => useKeyboardShortcuts([{ key: 'n', handler, description: 'n' }]));
+    const el = document.createElement('div');
+    el.setAttribute('aria-modal', 'false');
+    document.body.appendChild(el);
+    press('n');
+    expect(handler).toHaveBeenCalledTimes(1);
+  });
+});

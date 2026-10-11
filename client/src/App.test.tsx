@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import type * as AuthApiTypes from './lib/authApi.js';
 import type * as BudgetCategoriesApiTypes from './lib/budgetCategoriesApi.js';
 import type * as MilestonesApiTypes from './lib/milestonesApi.js';
@@ -41,6 +41,8 @@ jest.unstable_mockModule('./lib/authApi.js', () => ({
   getAuthMe: mockGetAuthMe,
   login: mockLogin,
   logout: mockLogout,
+  // LoginPage (lazy) imports it; the signed-out redirect test renders it.
+  oidcLoginUrl: jest.fn(),
 }));
 
 jest.unstable_mockModule('./lib/budgetCategoriesApi.js', () => ({
@@ -692,5 +694,126 @@ describe('App', () => {
       { timeout: 5000 },
     );
     expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
+  });
+
+  // ── Dialog routes (#2212): /…/new opens the ObjectForm over its list or the page you came from ──
+
+  describe('signed-out visit to a dialog route (#2287)', () => {
+    it('redirects to /login with next = the full create URL, search included (not the list)', async () => {
+      mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: false, oidcEnabled: false });
+      window.history.pushState({}, '', '/project/work-items/new?areaId=x');
+      render(<App />);
+
+      await waitFor(() => expect(window.location.pathname).toBe('/login'), { timeout: 5000 });
+      const next = new URLSearchParams(window.location.search).get('next');
+      expect(next).toBe('/project/work-items/new?areaId=x');
+    }, 15000);
+  });
+
+  describe('dialog routes', () => {
+    function pushDialog(path: string, usr?: unknown) {
+      window.history.pushState(
+        usr === undefined ? {} : { usr, key: 'dialogkey', idx: 1 },
+        '',
+        path,
+      );
+    }
+
+    it('a deep link to /project/work-items/new shows the Tasks list behind the New task dialog', async () => {
+      pushDialog('/project/work-items/new');
+      render(<App />);
+
+      const dialog = await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
+      expect(dialog).toBeInTheDocument();
+      expect(
+        await screen.findByRole('heading', { name: /^tasks$/i, level: 1 }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(window.location.pathname).toBe('/project/work-items/new');
+    }, 15000);
+
+    it('Cancel on a deep link replaces the entry with the list and closes the dialog', async () => {
+      pushDialog('/project/work-items/new');
+      render(<App />);
+      const dialog = await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
+
+      fireEvent.click(within(dialog).getByTestId('object-form-cancel'));
+
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(window.location.pathname).toBe('/project/work-items');
+    }, 15000);
+
+    it('with a background, the page you came from renders behind the dialog', async () => {
+      pushDialog('/project/work-items/new', {
+        background: {
+          pathname: '/project/household-items',
+          search: '',
+          hash: '',
+          state: null,
+          key: 'bg',
+        },
+      });
+      render(<App />);
+
+      await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
+      expect(
+        await screen.findByRole('heading', { name: /^purchases$/i, level: 1 }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: /^tasks$/i, level: 1 })).toBeNull();
+    }, 15000);
+
+    it('an unsafe background is ignored: the parent list renders instead', async () => {
+      pushDialog('/project/work-items/new', {
+        background: { pathname: '//evil.example', search: '', hash: '', state: null, key: 'bg' },
+      });
+      render(<App />);
+
+      await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
+      expect(
+        await screen.findByRole('heading', { name: /^tasks$/i, level: 1 }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+    }, 15000);
+
+    it('a background that is itself a dialog route is ignored (no dialog behind a dialog)', async () => {
+      pushDialog('/project/milestones/new', {
+        background: {
+          pathname: '/project/work-items/new',
+          search: '',
+          hash: '',
+          state: null,
+          key: 'bg',
+        },
+      });
+      render(<App />);
+
+      await screen.findByRole('dialog', { name: 'New milestone' }, { timeout: 5000 });
+      expect(
+        await screen.findByRole('heading', { name: /^milestones$/i, level: 1 }, { timeout: 5000 }),
+      ).toBeInTheDocument();
+    }, 15000);
+
+    it.each([
+      ['/project/household-items/new', 'New purchase', /^purchases$/i],
+      ['/project/milestones/new', 'New milestone', /^milestones$/i],
+    ])(
+      '%s opens %s over its own list',
+      async (path, dialogName, listHeading) => {
+        pushDialog(path);
+        render(<App />);
+
+        await screen.findByRole('dialog', { name: dialogName }, { timeout: 5000 });
+        expect(
+          await screen.findByRole('heading', { name: listHeading, level: 1 }, { timeout: 5000 }),
+        ).toBeInTheDocument();
+      },
+      15000,
+    );
+
+    it('renders exactly one dialog and one page heading in the tab title of the page behind', async () => {
+      pushDialog('/project/work-items/new');
+      render(<App />);
+      await screen.findByRole('dialog', { name: 'New task' }, { timeout: 5000 });
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      await waitFor(() => expect(document.title).toContain('New task'));
+    }, 15000);
   });
 });

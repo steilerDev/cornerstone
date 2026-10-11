@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation, useSearchParams } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as SubsidyProgramsApiTypes from '../../lib/subsidyProgramsApi.js';
@@ -2302,6 +2302,85 @@ describe('SubsidyProgramsPage', () => {
         '/budget/overview',
       );
       expect(log.actions).toEqual([]);
+    });
+  });
+
+  // ─── ?create=1 from the New menu (#2212) ─────────────────────────────────────
+
+  describe('?create=1 opens the inline create form', () => {
+    function UrlProbe() {
+      const location = useLocation();
+      const [, setSearchParams] = useSearchParams();
+      return (
+        <div>
+          <output data-testid="url-probe">{location.pathname + location.search}</output>
+          <button
+            type="button"
+            data-testid="request-create"
+            onClick={() => setSearchParams({ create: '1' })}
+          >
+            request
+          </button>
+        </div>
+      );
+    }
+
+    function renderAtUrl(url: string) {
+      return render(
+        <LocaleProvider>
+          <MemoryRouter initialEntries={[url]}>
+            <SubsidyProgramsPage />
+            <UrlProbe />
+          </MemoryRouter>
+        </LocaleProvider>,
+      );
+    }
+
+    it('shows the form, focuses its first field and removes the param', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue(emptyProgramsResponse);
+      renderAtUrl('/budget/subsidies?create=1&x=1');
+      const heading = await screen.findByRole('heading', { name: 'New Subsidy Program' });
+      const first = heading.closest('section')!.querySelector('input, select, textarea');
+      await waitFor(() => expect(first).toHaveFocus());
+      expect(screen.getByTestId('url-probe').textContent).toBe('/budget/subsidies?x=1');
+    });
+
+    it('waits for the list to load before opening', async () => {
+      let resolve!: (r: SubsidyProgramListResponse) => void;
+      mockFetchSubsidyPrograms.mockReturnValue(
+        new Promise<SubsidyProgramListResponse>((r) => {
+          resolve = r;
+        }),
+      );
+      renderAtUrl('/budget/subsidies?create=1');
+      expect(screen.queryByRole('heading', { name: 'New Subsidy Program' })).toBeNull();
+      expect(screen.getByTestId('url-probe').textContent).toBe('/budget/subsidies?create=1');
+      await act(async () => {
+        resolve(emptyProgramsResponse);
+      });
+      await screen.findByRole('heading', { name: 'New Subsidy Program' });
+      expect(screen.getByTestId('url-probe').textContent).toBe('/budget/subsidies');
+    });
+
+    it('a later request while the form is already open focuses it again', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue(emptyProgramsResponse);
+      renderAtUrl('/budget/subsidies?create=1');
+      const heading = await screen.findByRole('heading', { name: 'New Subsidy Program' });
+      const first = heading
+        .closest('section')!
+        .querySelector('input, select, textarea') as HTMLElement;
+      await waitFor(() => expect(first).toHaveFocus());
+      first.blur();
+      fireEvent.click(screen.getByTestId('request-create'));
+      await waitFor(() => expect(first).toHaveFocus());
+      expect(screen.getAllByRole('heading', { name: 'New Subsidy Program' })).toHaveLength(1);
+    });
+
+    it('opens nothing without ?create=1', async () => {
+      mockFetchSubsidyPrograms.mockResolvedValue(emptyProgramsResponse);
+      renderAtUrl('/budget/subsidies');
+      await waitFor(() => expect(mockFetchSubsidyPrograms).toHaveBeenCalled());
+      expect(screen.queryByRole('heading', { name: 'New Subsidy Program' })).toBeNull();
     });
   });
 });

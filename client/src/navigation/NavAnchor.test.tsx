@@ -83,3 +83,27 @@ describe('NavAnchor', () => {
     });
   });
 });
+
+describe('NavAnchor state (#2212)', () => {
+  it('passes the state to the pushed navigation', () => {
+    const { log, anchor } = setup({
+      state: { background: { pathname: '/x' }, createOpener: true },
+    });
+    fireEvent.click(anchor);
+    expect(log.actions).toEqual(['PUSH /tasks']);
+    expect(log.states).toEqual([{ background: { pathname: '/x' }, createOpener: true }]);
+  });
+
+  it('passes the state with replace too', () => {
+    const { log, anchor } = setup({ state: { a: 1 }, replace: true });
+    fireEvent.click(anchor);
+    expect(log.actions).toEqual(['REPLACE /tasks']);
+    expect(log.states).toEqual([{ a: 1 }]);
+  });
+
+  it('pushes no state when none is given', () => {
+    const { log, anchor } = setup();
+    fireEvent.click(anchor);
+    expect(log.states[0] ?? null).toBeNull();
+  });
+});

@@ -241,3 +241,106 @@ describe('useDocumentTitle', () => {
     });
   });
 });
+
+describe('useDocumentTitle real-location key (#2212)', () => {
+  beforeEach(() => {
+    houseState.name = null;
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('re-asserts the title when only the real location key changes (a dialog opens over the page)', async () => {
+    const { RealLocationKeyContext } = await import('../navigation/realLocation.js');
+    const tree = (key: string) => (
+      <MemoryRouter initialEntries={['/project/work-items']}>
+        <RealLocationKeyContext value={key}>
+          <Page title="Tasks" />
+        </RealLocationKeyContext>
+      </MemoryRouter>
+    );
+    const { rerender } = render(tree('k1'));
+    expect(document.title).toBe('Tasks · Cornerstone');
+
+    // A root fallback resets the title while the display location stays the same.
+    document.title = 'reset by someone else';
+    rerender(tree('k1'));
+    expect(document.title).toBe('reset by someone else');
+
+    rerender(tree('k2'));
+    expect(document.title).toBe('Tasks · Cornerstone');
+  });
+});
+
+describe('useDocumentTitle overlay (#2212)', () => {
+  beforeEach(() => {
+    houseState.name = null;
+    document.title = 'initial';
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  const tree = (parts: { overlay?: boolean; page?: boolean; key?: string }) => (
+    <MemoryRouter initialEntries={['/project/work-items']}>
+      {parts.page ? <Page title="Tasks" /> : null}
+      {parts.overlay ? <Page title="New task" options={{ overlay: true }} /> : null}
+    </MemoryRouter>
+  );
+
+  it('an overlay writes its own title', () => {
+    render(tree({ overlay: true }));
+    expect(document.title).toBe('New task · Tasks · Cornerstone');
+  });
+
+  it('a page that mounts late does not overwrite the overlay title', () => {
+    const { rerender } = render(tree({ overlay: true }));
+    rerender(tree({ overlay: true, page: true }));
+    expect(document.title).toBe('New task · Tasks · Cornerstone');
+  });
+
+  it('a page mounted before the overlay is overridden by it', () => {
+    const { rerender } = render(tree({ page: true }));
+    expect(document.title).toBe('Tasks · Cornerstone');
+    rerender(tree({ page: true, overlay: true }));
+    expect(document.title).toBe('New task · Tasks · Cornerstone');
+  });
+
+  it('after the overlay unmounts the page title is written again on the next navigation', async () => {
+    const { RealLocationKeyContext } = await import('../navigation/realLocation.js');
+    const withKey = (key: string, overlay: boolean) => (
+      <MemoryRouter initialEntries={['/project/work-items']}>
+        <RealLocationKeyContext value={key}>
+          <Page title="Tasks" />
+          {overlay ? <Page title="New task" options={{ overlay: true }} /> : null}
+        </RealLocationKeyContext>
+      </MemoryRouter>
+    );
+    const { rerender } = render(withKey('k1', true));
+    expect(document.title).toBe('New task · Tasks · Cornerstone');
+
+    rerender(withKey('k1', false));
+    // Silent until something re-asserts: the page effect has not re-run.
+    expect(document.title).toBe('New task · Tasks · Cornerstone');
+
+    rerender(withKey('k2', false));
+    expect(document.title).toBe('Tasks · Cornerstone');
+  });
+
+  it('two overlays keep pages silent until both are gone', () => {
+    const both = (a: boolean, b: boolean, page: boolean) => (
+      <MemoryRouter initialEntries={['/project/work-items']}>
+        {a ? <Page title="A" options={{ overlay: true }} /> : null}
+        {b ? <Page title="B" options={{ overlay: true }} /> : null}
+        {page ? <Page title="Tasks" /> : null}
+      </MemoryRouter>
+    );
+    const { rerender } = render(both(true, true, false));
+    rerender(both(false, true, true));
+    expect(document.title).not.toBe('Tasks · Cornerstone');
+    rerender(both(false, false, true));
+    expect(document.title).not.toBe('Tasks · Cornerstone');
+  });
+});

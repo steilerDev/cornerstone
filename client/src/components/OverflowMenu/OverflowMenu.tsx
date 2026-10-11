@@ -2,6 +2,7 @@ import {
   useState,
   useRef,
   useEffect,
+  useCallback,
   useId,
   useLayoutEffect,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -110,6 +111,14 @@ function menuPlacementClass(placement: OverflowMenuPlacement): string | undefine
   return placement === 'bottom-start' ? styles.menuBottomStart : styles.menuBottom;
 }
 
+/** Imperative handle for opening the menu from outside (the `n` shortcut). */
+export interface OverflowMenuControl {
+  /** Opens with focus on the first or last row; Escape/Tab then return focus to `returnTo` (default the trigger). */
+  open(focus: 'first' | 'last', returnTo?: HTMLElement | null): void;
+  close(): void;
+  readonly isOpen: () => boolean;
+}
+
 export interface OverflowMenuProps {
   items: readonly OverflowMenuEntry[];
   triggerAriaLabel: string;
@@ -138,6 +147,8 @@ export interface OverflowMenuProps {
   'data-testid'?: string;
   /** Test id of the panel. */
   menuTestId?: string;
+  /** Receives an imperative open/close handle. */
+  controlRef?: RefObject<OverflowMenuControl | null>;
 }
 
 export function OverflowMenu({
@@ -156,6 +167,7 @@ export function OverflowMenu({
   usePortal = false,
   'data-testid': dataTestId,
   menuTestId,
+  controlRef,
 }: OverflowMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [openedAt, setOpenedAt] = useState<unknown>(undefined);
@@ -169,6 +181,8 @@ export function OverflowMenu({
   const triggerRef = externalTriggerRef ?? internalTriggerRef;
   const menuRef = useRef<HTMLDivElement>(null);
   const pendingFocusRef = useRef<'first' | 'last' | null>(null);
+  const returnToRef = useRef<HTMLElement | null>(null);
+  const openRef = useRef(false);
   const triggerId = useId();
   const menuId = useId();
   const headerId = useId();
@@ -177,6 +191,15 @@ export function OverflowMenu({
   const open = isOpen && Object.is(openedAt, closeSignal);
 
   const close = () => setIsOpen(false);
+  openRef.current = open;
+
+  // Escape and Tab return focus here: a caller-supplied element, else the trigger.
+  const focusReturnTarget = useCallback(() => {
+    const target = returnToRef.current;
+    returnToRef.current = null;
+    if (target?.isConnected) target.focus();
+    else triggerRef.current?.focus();
+  }, [triggerRef]);
 
   // Close menu on outside click
   useClickOutside([wrapperRef, menuRef], close, open);
@@ -219,13 +242,13 @@ export function OverflowMenu({
       if (e.key === 'Escape') {
         e.preventDefault();
         setIsOpen(false);
-        triggerRef.current?.focus();
+        focusReturnTarget();
       }
     };
 
     document.addEventListener('keydown', handleEscape);
     return () => document.removeEventListener('keydown', handleEscape);
-  }, [open, triggerRef]);
+  }, [open, focusReturnTarget]);
 
   // Move focus into the menu after a keyboard open
   useLayoutEffect(() => {
@@ -240,6 +263,7 @@ export function OverflowMenu({
 
   const openMenu = (focus: 'first' | 'last' | null) => {
     pendingFocusRef.current = focus;
+    returnToRef.current = null;
     if (usePortal) {
       const rect = triggerRef.current!.getBoundingClientRect();
       setTriggerRect(rect);
@@ -253,6 +277,24 @@ export function OverflowMenu({
     setOpenedAt(closeSignal);
     setIsOpen(true);
   };
+
+  useLayoutEffect(() => {
+    if (!controlRef) return;
+    controlRef.current = {
+      open: (focus, returnTo) => {
+        openMenu(focus);
+        returnToRef.current = returnTo ?? null;
+      },
+      close: () => {
+        returnToRef.current = null;
+        setIsOpen(false);
+      },
+      isOpen: () => openRef.current,
+    };
+    return () => {
+      controlRef.current = null;
+    };
+  });
 
   const handleTriggerKeyDown = (e: ReactKeyboardEvent) => {
     if (open) return;
@@ -269,13 +311,13 @@ export function OverflowMenu({
     if (e.key === 'Tab') {
       // Close and return to the trigger; the browser then moves on from there.
       setIsOpen(false);
-      triggerRef.current?.focus();
+      focusReturnTarget();
       return;
     }
     if (e.key === 'Escape') {
       e.preventDefault();
       setIsOpen(false);
-      triggerRef.current?.focus();
+      focusReturnTarget();
       return;
     }
     if (e.key === ' ' && e.target instanceof HTMLAnchorElement) {

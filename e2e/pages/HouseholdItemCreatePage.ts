@@ -1,36 +1,25 @@
 /**
- * Page Object Model for the Household Item Create page (/project/household-items/new)
+ * Page Object Model for the New purchase dialog (/project/household-items/new), #2212.
  *
- * EPIC-04 Story 4.4: Create & Edit Form
- * Updated in EPIC-18: room field removed, replaced by AreaPicker (select with aria-label="Select an area");
- *                     tags removed; categories updated (hic-outdoor + hic-storage removed, hic-equipment added)
+ * The create page is gone: `/project/household-items/new` opens the ObjectForm dialog over the
+ * page the user came from (or over the Purchases list on a deep link). From 768px it is a
+ * Modal, below a full-screen Sheet; both are role="dialog" named "New purchase".
  *
- * The page renders:
- * - Breadcrumbs (Story #2202): trail "Purchases" + optional "Back to {origin}" (no header back button)
- *   and h1 "New purchase"
- * - A form with household item fields:
- *   - #name (text, required) — shows validation error when empty on submit
- *   - #description (textarea)
- *   - #category (select) — options loaded from API via fetchHouseholdItemCategories()
- *   - #status (select) — options: planned, purchased, scheduled, arrived
- *   - #quantity (number, min 1)
- *   - AreaPicker (select, aria-label="Select an area") — replaces the old #room text input
- *   - #vendorId (select)
- *   - #url (text)
- *   - #orderDate, #earliestDeliveryDate, #latestDeliveryDate, #actualDeliveryDate (date inputs)
- * - Submit button: text "Create Item" / "Creating..."
- * - Cancel button: text "Cancel"
- * - Error banner for server-side errors
+ * Fields (ids kept from the page):
+ * - Essentials: #name (required), #category (required, select), #status, #quantity, the area
+ *   picker (label for="area"), #vendorId
+ * - Behind "More details": #description, #url, #orderDate, #earliestDeliveryDate,
+ *   #latestDeliveryDate, #actualDeliveryDate
  *
- * Key DOM observations from source code:
- * - Back button is a <button> with onClick navigate('/project/household-items')
- * - Submit button is type="submit", disabled during isSubmitting
- * - On success, navigates to /project/household-items/:id (the detail page)
+ * Behaviour:
+ * - Category defaults to the first category once the options load.
+ * - Save is `object-form-save`; validation errors are inline field errors (`#name-error`, ...).
+ * - On success the URL is replaced with the new item (`/project/household-items/:id`).
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
-import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const HOUSEHOLD_ITEM_CREATE_ROUTE = routeUrl('householdItemNew');
 
@@ -42,7 +31,7 @@ export interface HouseholdItemFormData {
   quantity?: string;
   vendorId?: string;
   url?: string;
-  /** areaId — value of the AreaPicker select (area ID from /api/areas). room field removed in EPIC-18. */
+  /** areaId — value of the AreaPicker select (area ID from /api/areas). */
   areaId?: string;
   orderDate?: string;
   earliestDeliveryDate?: string;
@@ -52,10 +41,12 @@ export interface HouseholdItemFormData {
 
 export class HouseholdItemCreatePage {
   readonly page: Page;
+  readonly form: ObjectFormDialog;
 
   // Header
+  readonly dialog: Locator;
+  /** The dialog's h2 "New purchase". */
   readonly heading: Locator;
-  readonly breadcrumbs: BreadcrumbsBar;
 
   // Form fields
   readonly nameInput: Locator;
@@ -65,7 +56,7 @@ export class HouseholdItemCreatePage {
   readonly quantityInput: Locator;
   readonly vendorSelect: Locator;
   readonly urlInput: Locator;
-  /** AreaPicker select — replaces the old room text input (EPIC-18) */
+  /** AreaPicker select (aria-label="Select an area") */
   readonly areaSelect: Locator;
   readonly orderDateInput: Locator;
   readonly earliestDeliveryDateInput: Locator;
@@ -75,80 +66,77 @@ export class HouseholdItemCreatePage {
   // Form actions
   readonly submitButton: Locator;
   readonly cancelButton: Locator;
+  readonly moreDetailsToggle: Locator;
 
   // Error/validation display
+  /** Save-error banner (role="alert"); validation errors are inline per field. */
   readonly errorBanner: Locator;
 
   constructor(page: Page) {
     this.page = page;
+    this.form = new ObjectFormDialog(page, 'New purchase');
+    this.dialog = this.form.dialog;
+    this.heading = this.form.heading;
 
-    // Header
-    this.heading = page.getByRole('heading', {
-      level: 1,
-      name: 'New purchase',
-      exact: true,
-    });
-    this.breadcrumbs = new BreadcrumbsBar(page);
+    this.nameInput = this.form.field('name');
+    this.descriptionInput = this.form.field('description');
+    this.categorySelect = this.form.field('category');
+    this.statusSelect = this.form.field('status');
+    this.quantityInput = this.form.field('quantity');
+    this.vendorSelect = this.form.field('vendorId');
+    this.urlInput = this.form.field('url');
+    this.areaSelect = this.dialog.getByLabel('Select an area');
+    this.orderDateInput = this.form.field('orderDate');
+    this.earliestDeliveryDateInput = this.form.field('earliestDeliveryDate');
+    this.latestDeliveryDateInput = this.form.field('latestDeliveryDate');
+    this.actualDeliveryDateInput = this.form.field('actualDeliveryDate');
 
-    // Form fields
-    this.nameInput = page.locator('#name');
-    this.descriptionInput = page.locator('#description');
-    this.categorySelect = page.locator('#category');
-    this.statusSelect = page.locator('#status');
-    this.quantityInput = page.locator('#quantity');
-    this.vendorSelect = page.locator('#vendorId');
-    this.urlInput = page.locator('#url');
-    // AreaPicker renders a <select> with aria-label="Select an area" (no id attribute)
-    this.areaSelect = page.getByLabel('Select an area');
-    this.orderDateInput = page.locator('#orderDate');
-    this.earliestDeliveryDateInput = page.locator('#earliestDeliveryDate');
-    this.latestDeliveryDateInput = page.locator('#latestDeliveryDate');
-    this.actualDeliveryDateInput = page.locator('#actualDeliveryDate');
+    this.submitButton = this.form.saveButton;
+    this.cancelButton = this.form.cancelButton;
+    this.moreDetailsToggle = this.form.moreToggle;
 
-    // Form actions
-    this.submitButton = page.getByRole('button', { name: /Create Item|Creating\.\.\./i });
-    this.cancelButton = page.getByRole('button', { name: 'Cancel', exact: true });
-
-    // Errors
-    this.errorBanner = page.locator('[class*="errorBanner"]');
+    this.errorBanner = this.form.errorBanner;
   }
 
-  /**
-   * Navigate to the household item create page and wait for the heading.
-   */
+  /** Open the dialog by deep link (the Purchases list renders behind it) and wait for it. */
   async goto(): Promise<void> {
     await this.page.goto(HOUSEHOLD_ITEM_CREATE_ROUTE);
-    await this.heading.waitFor({ state: 'visible', timeout: 10000 });
+    await this.form.waitForOpen();
+  }
+
+  /** Open the "More details" disclosure. */
+  async expandMoreDetails(): Promise<void> {
+    await this.form.expandMoreDetails();
+  }
+
+  /** Inline error text under a field (`#<name>-error`). */
+  fieldError(name: string): Locator {
+    return this.form.fieldError(name);
   }
 
   /**
-   * Fill multiple form fields at once.
+   * Fill multiple form fields at once. "More details" is opened first when a non-essential
+   * field is given.
    */
   async fillForm(data: HouseholdItemFormData): Promise<void> {
-    if (data.name !== undefined) {
-      await this.nameInput.fill(data.name);
-    }
-    if (data.description !== undefined) {
-      await this.descriptionInput.fill(data.description);
-    }
-    if (data.category !== undefined) {
-      await this.categorySelect.selectOption(data.category);
-    }
-    if (data.status !== undefined) {
-      await this.statusSelect.selectOption(data.status);
-    }
-    if (data.quantity !== undefined) {
-      await this.quantityInput.fill(data.quantity);
-    }
-    if (data.url !== undefined) {
-      await this.urlInput.fill(data.url);
-    }
-    if (data.areaId !== undefined) {
-      await this.areaSelect.selectOption(data.areaId);
-    }
-    if (data.orderDate !== undefined) {
-      await this.orderDateInput.fill(data.orderDate);
-    }
+    const needsMore =
+      data.description !== undefined ||
+      data.url !== undefined ||
+      data.orderDate !== undefined ||
+      data.earliestDeliveryDate !== undefined ||
+      data.latestDeliveryDate !== undefined ||
+      data.actualDeliveryDate !== undefined;
+    if (needsMore) await this.expandMoreDetails();
+
+    if (data.name !== undefined) await this.nameInput.fill(data.name);
+    if (data.description !== undefined) await this.descriptionInput.fill(data.description);
+    if (data.category !== undefined) await this.categorySelect.selectOption(data.category);
+    if (data.status !== undefined) await this.statusSelect.selectOption(data.status);
+    if (data.quantity !== undefined) await this.quantityInput.fill(data.quantity);
+    if (data.vendorId !== undefined) await this.vendorSelect.selectOption(data.vendorId);
+    if (data.url !== undefined) await this.urlInput.fill(data.url);
+    if (data.areaId !== undefined) await this.areaSelect.selectOption(data.areaId);
+    if (data.orderDate !== undefined) await this.orderDateInput.fill(data.orderDate);
     if (data.earliestDeliveryDate !== undefined) {
       await this.earliestDeliveryDateInput.fill(data.earliestDeliveryDate);
     }
@@ -170,28 +158,26 @@ export class HouseholdItemCreatePage {
         resp.url().includes('/api/household-items') &&
         resp.request().method() === 'POST' &&
         resp.status() === 201,
-      { timeout: 30000 },
     );
     await this.submitButton.click();
     await responsePromise;
     // Wait for navigation to the detail page — exclude /new to avoid
-    // resolving immediately on the create page URL.
-    await this.page.waitForURL(
-      (url) => {
-        const path = url.pathname;
-        return path.startsWith(`${routeUrl('householdItems')}/`) && !path.endsWith('/new');
-      },
-      { timeout: 30000 },
-    );
-    // Extract the ID from the URL path
-    const url = this.page.url();
-    const match = url.match(/\/project\/household-items\/([^/]+)$/);
+    // resolving immediately on the dialog's own URL.
+    await this.page.waitForURL((url) => {
+      const path = url.pathname;
+      return path.startsWith(`${routeUrl('householdItems')}/`) && !path.endsWith('/new');
+    });
+    const match = new URL(this.page.url()).pathname.match(/\/project\/household-items\/([^/]+)$/);
     return match?.[1] ?? '';
   }
 
-  /**
-   * Submit the form without waiting for navigation (used for error cases).
-   */
+  /** Click Cancel and wait for the dialog to close. */
+  async cancel(): Promise<void> {
+    await this.cancelButton.click();
+    await this.form.waitForClosed();
+  }
+
+  /** Click Save without waiting for navigation (used for error cases). */
   async submit(): Promise<void> {
     await this.submitButton.click();
   }

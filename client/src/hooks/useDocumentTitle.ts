@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { matchLocation } from '@cornerstone/shared';
 import { useHouseName } from '../contexts/HouseNameContext.js';
 import { composeDocumentTitle, navSectionForRoute } from '../navigation/pageIdentity.js';
+import { useRealLocationKey } from '../navigation/realLocation.js';
 
 /** Section label (translated) of the route at `pathname`, or null outside a section. */
 export function useSectionLabel(pathname: string): string | null {
@@ -18,7 +19,16 @@ export interface DocumentTitleOptions {
   readonly section?: boolean;
   /** Include the house name (default true); false uses the product name. */
   readonly house?: boolean;
+  /**
+   * A dialog's title: while it is mounted, the titles of the pages behind it do not write
+   * `document.title`, however late (lazy) they mount. The page re-asserts its own title when
+   * the overlay unmounts (its effect re-runs on the navigation that closes the dialog).
+   */
+  readonly overlay?: boolean;
 }
+
+/** Number of mounted overlay titles; page titles stay silent while it is above zero. */
+let overlayCount = 0;
 
 /**
  * Sets document.title to "<page> · <section> · <house>". Pass the h1 text; null = no page segment.
@@ -30,6 +40,9 @@ export function useDocumentTitle(
 ): void {
   const { pathname } = useLocation();
   const { houseName } = useHouseName();
+  // A navigation that keeps the display location (opening or closing a dialog) re-asserts the
+  // title after the root fallback has reset it.
+  const realKey = useRealLocationKey();
   const sectionLabel = useSectionLabel(pathname);
   const withSection = options?.section !== false;
   const withHouse = options?.house !== false;
@@ -39,7 +52,15 @@ export function useDocumentTitle(
     house: withHouse ? houseName : null,
   });
 
+  const overlay = options?.overlay === true;
   useEffect(() => {
-    document.title = title;
-  }, [title, pathname, withSection, withHouse]);
+    if (overlay) {
+      overlayCount += 1;
+      document.title = title;
+      return () => {
+        overlayCount -= 1;
+      };
+    }
+    if (overlayCount === 0) document.title = title;
+  }, [title, pathname, withSection, withHouse, realKey, overlay]);
 }

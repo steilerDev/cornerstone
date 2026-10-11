@@ -1,0 +1,238 @@
+.dialog.dialog {
+  width: min(40rem, 100vw - 2rem);
+  max-width: none;
+  max-height: calc(100dvh - var(--spacing-16));
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-2xl);
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  min-width: 0;
+}
+
+.status {
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-md);
+  background-color: var(--color-success-badge-bg);
+  color: var(--color-success-badge-text);
+  font-size: var(--font-size-sm);
+}
+
+/* Empty: stays in the accessibility tree (a live region must exist before it speaks) but takes
+   no space, not even the form's flex gap */
+.status:empty {
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  margin-block-end: calc(-1 * var(--spacing-4));
+}
+
+.fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--spacing-4);
+}
+
+.more {
+  padding-top: var(--spacing-1);
+}
+
+.more[hidden] {
+  display: none;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+
+.fieldHalf {
+  grid-column: auto;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.required {
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-normal);
+  color: var(--color-text-muted);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+  font-size: var(--font-size-base);
+}
+
+.select {
+  composes: select from '../../styles/shared.module.css';
+  font-size: var(--font-size-base);
+}
+
+.textarea {
+  composes: textarea from '../../styles/shared.module.css';
+  font-size: var(--font-size-base);
+}
+
+.inputError {
+  border-color: var(--color-danger-input-border);
+}
+
+.inputError:focus-visible {
+  box-shadow: var(--shadow-focus-danger);
+}
+
+.disclosure {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--spacing-1);
+  min-height: var(--touch-target-min);
+  padding-inline: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.disclosure:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
+  border-radius: var(--radius-sm);
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform var(--transition-fast);
+}
+
+.chevronOpen {
+  transform: rotate(180deg);
+}
+
+.backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-1);
+  min-height: var(--touch-target-min);
+  padding-inline: 0;
+  border: 0;
+  background: none;
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.backLink:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
+  border-radius: var(--radius-sm);
+}
+
+.addAnother {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.cancel {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.save {
+  composes: btnPrimary from '../../styles/shared.module.css';
+}
+
+.cancel[aria-disabled='true'],
+.save[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cancel[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.save[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
+
+@media (max-width: 1023px) {
+  .cancel,
+  .save {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (min-width: 1024px) {
+  .cancel,
+  .save {
+    min-height: var(--spacing-10);
+  }
+}
+
+@media (max-width: 767px) {
+  .fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .fieldHalf {
+    grid-column: 1 / -1;
+  }
+
+  .addAnother {
+    flex: 1 1 100%;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .cancel,
+  .save {
+    flex: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+@media print {
+  .dialog {
+    display: none;
+  }
+}

@@ -1,6 +1,7 @@
 import { routeUrl } from '@cornerstone/shared';
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useRealLocation } from '../../navigation/realLocation.js';
 import { loginUrlFor } from '../../navigation/nextParam.js';
 import { getAuthMe } from '../../lib/authApi.js';
 import { useState, useEffect } from 'react';
@@ -8,7 +9,8 @@ import styles from './AuthGuard.module.css';
 
 export function AuthGuard() {
   const { t } = useTranslation('common');
-  const location = useLocation();
+  // The real URL, not the page displayed behind a dialog route: `next` is what was requested.
+  const location = useRealLocation();
   const [authState, setAuthState] = useState<{
     isLoading: boolean;
     setupRequired: boolean;

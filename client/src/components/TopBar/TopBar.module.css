@@ -127,6 +127,10 @@
   padding-block: 0;
 }
 
+.newButton[aria-expanded='true'] {
+  background-color: var(--color-bg-hover);
+}
+
 .bell {
   composes: btnIcon from '../../styles/shared.module.css';
 }
@@ -136,14 +140,12 @@
   border-color: var(--color-border-focus);
 }
 
-.search[aria-disabled='true'],
-.newButton[aria-disabled='true'] {
+.search[aria-disabled='true'] {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-.search[aria-disabled='true']:hover,
-.newButton[aria-disabled='true']:hover {
+.search[aria-disabled='true']:hover {
   background-color: var(--color-bg-tertiary);
 }
 

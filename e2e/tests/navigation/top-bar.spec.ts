@@ -111,9 +111,12 @@ test.describe('Top bar (desktop)', () => {
       await expect(bell).toBeVisible();
       await expect(appShell.userMenuTrigger).toHaveAccessibleName(/^Account menu for /);
 
+      // New is live since #2212: a menu button (the menu itself is covered by new-menu.spec.ts)
+      await expect(newButton).toHaveAttribute('aria-haspopup', 'menu');
+      await expect(newButton).not.toHaveAttribute('aria-disabled', 'true');
+
       // Placeholders: named and focusable, but inert
       await expect(search).toHaveAttribute('aria-disabled', 'true');
-      await expect(newButton).toHaveAttribute('aria-disabled', 'true');
       await expect(bell).toHaveAttribute('aria-disabled', 'true');
     });
 

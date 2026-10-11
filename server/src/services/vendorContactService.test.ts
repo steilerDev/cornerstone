@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -7,6 +7,35 @@ import { buildApp } from '../app.js';
 import * as vendorContactService from './vendorContactService.js';
 import { vendors, vendorContacts } from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('vendorContactService', () => {
   let app: FastifyInstance;
@@ -61,7 +90,9 @@ describe('vendorContactService', () => {
         firstName: 'Alice',
         lastName: 'Smith',
       });
-      await new Promise((r) => setTimeout(r, 5));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
       vendorContactService.createContact(app.db, vendorId, { firstName: 'Bob', lastName: 'Jones' });
 
       const contacts = vendorContactService.listContacts(app.db, vendorId);
@@ -259,7 +290,11 @@ describe('vendorContactService', () => {
       const contact = vendorContactService.createContact(app.db, vendorId, { firstName: 'Alice' });
       const originalUpdatedAt = contact.updatedAt;
 
-      await new Promise((r) => setTimeout(r, 5));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
       const updated = vendorContactService.updateContact(app.db, vendorId, contact.id, {
         lastName: 'Updated',
       });

@@ -5,6 +5,10 @@ import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
+import {
+  CreateMenuProvider,
+  useCreatePrefill,
+} from '../../components/CreateMenu/CreateMenuContext.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
@@ -1919,6 +1923,47 @@ describe('VendorDetailPage', () => {
       await waitFor(() =>
         expect(document.title).toBe(`${sampleVendor.name} · Companies · Cornerstone`),
       );
+    });
+  });
+
+  // ─── New menu context (#2212) ───────────────────────────────────────────────
+
+  describe('create context', () => {
+    function PrefillProbe() {
+      return <output data-testid="prefill">{JSON.stringify(useCreatePrefill())}</output>;
+    }
+
+    function renderWithMenu(vendorId = 'vendor-1') {
+      return render(
+        <MemoryRouter initialEntries={[`/settings/vendors/${vendorId}`]}>
+          <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
+            <Routes>
+              <Route path="/settings/vendors/:id" element={<VendorDetailPage />} />
+              <Route path="/settings/vendors" element={<div>Vendors List Page</div>} />
+            </Routes>
+            <PrefillProbe />
+          </CreateMenuProvider>
+        </MemoryRouter>,
+      );
+    }
+
+    it('provides the company id once the company has loaded, so New > Invoice starts from it', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      renderWithMenu();
+      await waitFor(() =>
+        expect(JSON.parse(screen.getByTestId('prefill').textContent ?? '{}')).toEqual({
+          companyId: sampleVendor.id,
+        }),
+      );
+    });
+
+    it('provides nothing while loading or when the company is not found', async () => {
+      mockFetchVendor.mockRejectedValueOnce(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+      );
+      renderWithMenu();
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalled());
+      expect(screen.getByTestId('prefill').textContent).toBe('{}');
     });
   });
 });

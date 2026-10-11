@@ -158,6 +158,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       /** null: the h1 is intentionally not asserted (Home / Companies keep their own). */
       h1: (() => string) | string | null;
       title: (() => string) | string;
+      /** #2212: a create URL renders its list (h1) with this dialog open over it. */
+      dialog?: string;
     }
 
     const CASES: IdentityCase[] = [
@@ -170,7 +172,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       {
         name: 'New task',
         path: () => routeUrl('workItemNew'),
-        h1: 'New task',
+        h1: 'Tasks',
+        dialog: 'New task',
         title: `New task · Tasks · ${HOUSE}`,
       },
       {
@@ -188,7 +191,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       {
         name: 'New purchase',
         path: () => routeUrl('householdItemNew'),
-        h1: 'New purchase',
+        h1: 'Purchases',
+        dialog: 'New purchase',
         title: `New purchase · Purchases · ${HOUSE}`,
       },
       {
@@ -212,7 +216,8 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       {
         name: 'New milestone',
         path: () => routeUrl('milestoneNew'),
-        h1: 'New milestone',
+        h1: 'Milestones',
+        dialog: 'New milestone',
         title: `New milestone · Tasks · ${HOUSE}`,
       },
       {
@@ -259,6 +264,9 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
           const headings = page.getByRole('heading', { level: 1 });
           await expect(headings).toHaveCount(1);
           await expect(headings).toHaveText(h1);
+        }
+        if (c.dialog !== undefined) {
+          await expect(page.getByRole('dialog', { name: c.dialog, exact: true })).toBeVisible();
         }
         await expect(page).toHaveTitle(title);
       });
@@ -372,17 +380,27 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
       );
     });
 
-    test('E3: the create pages show their parents', async ({ page }) => {
-      const bc = new BreadcrumbsBar(page);
-
-      await page.goto(routeUrl('workItemNew'));
-      await bc.expectTrail(['Tasks']);
-
-      await page.goto(routeUrl('householdItemNew'));
-      await bc.expectTrail(['Purchases']);
-
-      await page.goto(routeUrl('milestoneNew'));
-      await bc.expectTrail(['Tasks', 'Milestones']);
+    test('E3: a create URL shows its list (a view: no trail) with the dialog open', async ({
+      page,
+    }) => {
+      for (const [route, list, dialog] of [
+        [routeUrl('workItemNew'), 'Tasks', 'New task'],
+        [routeUrl('householdItemNew'), 'Purchases', 'New purchase'],
+        [routeUrl('milestoneNew'), 'Milestones', 'New milestone'],
+      ] as const) {
+        // Fresh visit per URL: a second goto in the same page would be a same-document load.
+        const fresh = await page.context().newPage();
+        try {
+          await fresh.goto(route);
+          await expect(fresh.getByRole('dialog', { name: dialog, exact: true })).toBeVisible();
+          await expect(
+            fresh.getByRole('heading', { level: 1, name: list, exact: true }),
+          ).toBeVisible();
+          await new BreadcrumbsBar(fresh).expectNoTrail();
+        } finally {
+          await fresh.close();
+        }
+      }
     });
 
     for (const [label, route] of [
@@ -730,9 +748,10 @@ test.describe('Page identity: Tasks, Purchases, Milestones (#2202)', () => {
         await timeline.addButton.click();
         await page.getByTestId('timeline-add-work-item').click();
 
+        // The dialog opens over the Schedule (which stays rendered behind it)
         await expect(createPage.heading).toBeVisible();
-        await bc.expectBack('Schedule');
-        await bc.expectTrail(['Tasks']);
+        await expect(timeline.heading).toBeVisible();
+        expect(new URL(page.url()).pathname).toBe(routeUrl('workItemNew'));
 
         await createPage.fillTitle(NAMES.created);
         await createPage.submitButton.click();
