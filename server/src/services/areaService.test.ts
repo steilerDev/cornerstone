@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -13,6 +13,35 @@ import {
   AreaInUseError,
 } from '../errors/AppError.js';
 import type { CreateAreaRequest, UpdateAreaRequest } from '@cornerstone/shared';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Area Service', () => {
   let sqlite: Database.Database;
@@ -640,7 +669,11 @@ describe('Area Service', () => {
     it('sets updatedAt to a new timestamp on update', async () => {
       const area = createTestArea('Timestamp Test');
 
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const data: UpdateAreaRequest = { name: 'Updated Name' };
       const result = areaService.updateArea(db, area.id, data);

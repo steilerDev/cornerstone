@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -8,6 +8,35 @@ import * as schema from '../db/schema.js';
 import * as noteService from './noteService.js';
 import { NotFoundError, ValidationError, ForbiddenError } from '../errors/AppError.js';
 import type { CreateNoteRequest, UpdateNoteRequest } from '@cornerstone/shared';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Note Service', () => {
   let sqlite: Database.Database;
@@ -382,8 +411,11 @@ describe('Note Service', () => {
         .where(eq(schema.workItemNotes.id, noteId))
         .get();
 
-      // Wait 1ms to ensure timestamp will be different
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       // When: Updating note
       const data: UpdateNoteRequest = { content: 'Updated content' };

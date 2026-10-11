@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { randomUUID } from 'node:crypto';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
@@ -14,6 +14,35 @@ import {
 } from '../errors/AppError.js';
 import type { CreateBudgetSourceRequest, UpdateBudgetSourceRequest } from '@cornerstone/shared';
 import { CONFIDENCE_MARGINS } from '@cornerstone/shared';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Budget Source Service', () => {
   let sqlite: Database.Database;
@@ -1256,7 +1285,11 @@ describe('Budget Source Service', () => {
         totalAmount: 100,
       });
 
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const data: UpdateBudgetSourceRequest = { name: 'Updated Timestamp' };
       const result = budgetSourceService.updateBudgetSource(db, raw.id, data, 0.19);

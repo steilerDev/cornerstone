@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -22,6 +22,35 @@ import type { CreateBudgetCategoryRequest, UpdateBudgetCategoryRequest } from '@
  * Test-specific names use a prefix like "Test Cat" or "Custom Cat"
  * to avoid collisions with the seeded defaults.
  */
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Budget Category Service', () => {
   let sqlite: Database.Database;
@@ -569,7 +598,11 @@ describe('Budget Category Service', () => {
     it('sets updatedAt to a new timestamp on update', async () => {
       const cat = createTestCategory('Custom Spa');
 
-      await new Promise((resolve) => setTimeout(resolve, 1));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const data: UpdateBudgetCategoryRequest = { name: 'Custom Hot Tub' };
       const result = budgetCategoryService.updateBudgetCategory(db, cat.id, data);

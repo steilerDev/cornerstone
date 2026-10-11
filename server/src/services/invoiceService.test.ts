@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
@@ -7,6 +7,35 @@ import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as invoiceService from './invoiceService.js';
 import { NotFoundError, ValidationError } from '../errors/AppError.js';
+
+// Only Date is faked: timers, microtasks and nextTick stay real so async hooks (app.close) still run.
+const DO_NOT_FAKE_TIMERS: Array<
+  | 'setTimeout'
+  | 'clearTimeout'
+  | 'setInterval'
+  | 'clearInterval'
+  | 'setImmediate'
+  | 'clearImmediate'
+  | 'nextTick'
+  | 'queueMicrotask'
+  | 'performance'
+  | 'hrtime'
+> = [
+  'setTimeout',
+  'clearTimeout',
+  'setInterval',
+  'clearInterval',
+  'setImmediate',
+  'clearImmediate',
+  'nextTick',
+  'queueMicrotask',
+  'performance',
+  'hrtime',
+];
+
+afterEach(() => {
+  jest.useRealTimers();
+});
 
 describe('Invoice Service', () => {
   let sqlite: Database.Database;
@@ -748,7 +777,11 @@ describe('Invoice Service', () => {
 
       const before = invoiceService.listInvoices(db, vendorId)[0]!.updatedAt;
 
-      await new Promise((resolve) => setTimeout(resolve, 2));
+      // Deterministic clock: ms-precision ISO timestamps can collide on a fast runner, so jump the
+
+      // system time forward instead of sleeping (restored by the file-level afterEach).
+
+      jest.useFakeTimers({ now: Date.now() + 60_000, doNotFake: DO_NOT_FAKE_TIMERS });
 
       const result = invoiceService.updateInvoice(db, vendorId, invoiceId, { amount: 750 });
 
