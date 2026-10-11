@@ -70,3 +70,115 @@ describe('searchDigits', () => {
     expect(searchDigits('１２3')).toBe('3');
   });
 });
+
+describe('foldSearchText fast path equivalence', () => {
+  /** Reference implementation: the original, unconditional slow path. */
+  function slowFold(value: string): string {
+    return value
+      .normalize('NFD')
+      .toLowerCase()
+      .replace(/ß/g, 'ss')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/ae/g, 'a')
+      .replace(/oe/g, 'o')
+      .replace(/ue/g, 'u');
+  }
+
+  const FIXED = [
+    '',
+    ' ',
+    '   \t\n ',
+    'plain',
+    'PLAIN TEXT 123',
+    'no vowels here? rhythm',
+    'Mueller',
+    'MUELLER',
+    'Baecker',
+    'Schoen',
+    'aeoeue',
+    'AEOEUE',
+    'ae',
+    'e',
+    'E',
+    'eae',
+    'ueue',
+    'queue',
+    'Michael',
+    'Müller',
+    'Mueller Müller',
+    'Straße STRASSE Strasse',
+    'GROẞ',
+    'Café é',
+    'u\u0308',
+    'U\u0308e',
+    'Mu\u0308ller',
+    '\u0308',
+    'a\u0308e',
+    'ö + oe + o\u0308',
+    'x_y%z\\w',
+    '日本語 text',
+    '😀 emoji ue',
+    'İstanbul',
+  ];
+
+  it.each(FIXED.map((v) => [JSON.stringify(v), v] as const))(
+    'matches the reference for %s',
+    (_label, input) => {
+      expect(foldSearchText(input)).toBe(slowFold(input));
+    },
+  );
+
+  it('matches the reference for a deterministic pseudo-random corpus', () => {
+    const alphabet = [
+      'a',
+      'e',
+      'o',
+      'u',
+      'A',
+      'E',
+      'O',
+      'U',
+      'b',
+      'k',
+      'z',
+      'Z',
+      '1',
+      '9',
+      ' ',
+      '-',
+      '_',
+      '%',
+      'ä',
+      'ö',
+      'ü',
+      'Ä',
+      'Ö',
+      'Ü',
+      'ß',
+      'ẞ',
+      'é',
+      'è',
+      'ñ',
+      '\u0308',
+      '\u0301',
+      '😀',
+    ];
+    let seed = 20210;
+    const next = (n: number) => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed % n;
+    };
+    for (let i = 0; i < 5000; i++) {
+      const len = next(21);
+      let str = '';
+      for (let j = 0; j < len; j++) str += alphabet[next(alphabet.length)];
+      expect(foldSearchText(str)).toBe(slowFold(str));
+    }
+  });
+
+  it('still folds digraphs in pure ASCII (the fast path must not skip them)', () => {
+    expect(foldSearchText('Mueller')).toBe('muller');
+    expect(foldSearchText('Baecker')).toBe('backer');
+    expect(foldSearchText('Schoen')).toBe('schon');
+  });
+});

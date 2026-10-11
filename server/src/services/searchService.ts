@@ -288,7 +288,7 @@ function buildQuery(spec: QuerySpec, needles: Needles, limit: number): SQL {
       WHEN ${col} LIKE ${needles.contains} ${raw(LIKE_ESCAPE)} THEN 2${digitMatch}
       ELSE ${raw(String(NO_MATCH_RANK))} END AS r${raw(String(i))}`;
   });
-  const level2 = sql`SELECT l1.*, ${sql.join(rankCols, sql`, `)} FROM (${level1}) l1`;
+  const level2 = sql`SELECT l1.*, ${sql.join(rankCols, sql`, `)} FROM l1`;
 
   const ranks = spec.fields.map((_, i) => `r${i}`);
   const best = `MIN(${ranks.join(', ')}, ${NO_MATCH_RANK})`;
@@ -298,7 +298,10 @@ function buildQuery(spec: QuerySpec, needles: Needles, limit: number): SQL {
     .join(' ')} END`;
   const columns = BASE_COLUMNS.map((c) => `l2."${c}"`).join(', ');
 
-  return sql`SELECT ${raw(columns)}, ${raw(rank)} AS "rnk", ${raw(matchedCase)} AS "matchedField",
+  // MATERIALIZED: stops SQLite from flattening level 1 into level 2, which would re-run the
+  // fold() UDF for every use of a folded column (equals, prefix, contains) instead of once per row.
+  return sql`WITH l1 AS MATERIALIZED (${level1})
+    SELECT ${raw(columns)}, ${raw(rank)} AS "rnk", ${raw(matchedCase)} AS "matchedField",
       COUNT(*) OVER () AS "total"
     FROM (${level2}) l2
     WHERE ${raw(best)} < ${raw(String(NO_MATCH_RANK))}

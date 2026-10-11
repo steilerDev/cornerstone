@@ -1,3 +1,5 @@
+const NON_ASCII = /[\u0080-\uffff]/;
+
 /**
  * Case-, accent- and German-digraph-insensitive form used by search on both the server
  * (SQLite `fold()` function) and the client.
@@ -6,14 +8,18 @@
  * `ß` -> `ss` step.
  */
 export function foldSearchText(value: string): string {
-  return value
-    .normalize('NFD')
-    .toLowerCase()
-    .replace(/ß/g, 'ss')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/ae/g, 'a')
-    .replace(/oe/g, 'o')
-    .replace(/ue/g, 'u');
+  // Fast path (this runs once per searched column per row in SQLite): pure ASCII needs no
+  // normalisation, sharp-s or combining-mark handling, only lowercasing and the digraphs.
+  const lowered = NON_ASCII.test(value)
+    ? value
+        .normalize('NFD')
+        .toLowerCase()
+        .replace(/ß/g, 'ss')
+        .replace(/[\u0300-\u036f]/g, '')
+    : value.toLowerCase();
+  // Digraphs all need an "e"; most strings have none.
+  if (!lowered.includes('e')) return lowered;
+  return lowered.replace(/ae/g, 'a').replace(/oe/g, 'o').replace(/ue/g, 'u');
 }
 
 /** Digits only: strips spaces, "+", "-", "(", ")" and every other non-digit. */

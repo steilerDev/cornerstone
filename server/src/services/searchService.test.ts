@@ -8,7 +8,7 @@ import { describe, it, expect, beforeAll, beforeEach, afterEach, jest } from '@j
 import Database from 'better-sqlite3';
 import { drizzle } from 'drizzle-orm/better-sqlite3';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
-import { SEARCH_RESULT_TYPES } from '@cornerstone/shared';
+import { SEARCH_RESULT_TYPES, foldSearchText } from '@cornerstone/shared';
 import type { SearchGroup, SearchResultType } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import { registerSqlFunctions } from '../db/sqlFunctions.js';
@@ -407,6 +407,35 @@ describe('searchService', () => {
   });
 
   // ─── Groups and order ──────────────────────────────────────────────────────
+
+  describe('fold() evaluation count (guards the MATERIALIZED level 1)', () => {
+    function countFoldCalls(run: () => void): number {
+      let calls = 0;
+      sqlite.function('fold', { deterministic: true }, (v: unknown) => {
+        calls++;
+        return v == null ? null : foldSearchText(String(v));
+      });
+      run();
+      return calls;
+    }
+
+    it.each(['zzz', 'task', 'task 3'])(
+      'folds each searched column exactly once per row (work items, query "%s")',
+      (q) => {
+        for (let i = 0; i < 20; i++) workItem(`task ${i}`, { description: `desc ${i}` });
+        // 2 searched fields (title, description) x 20 rows; match or no match makes no difference
+        expect(countFoldCalls(() => group(q, 'work_item'))).toBe(40);
+      },
+    );
+
+    it('folds each searched column exactly once per row (vendors, 7 fields)', () => {
+      for (let i = 0; i < 10; i++) {
+        const v = vendor(`Vendor ${i}`, { phone: `1-${i}`, email: `v${i}@x.test` });
+        contact(v, `Contact ${i}`, { phone: `2-${i}`, email: `c${i}@x.test` });
+      }
+      expect(countFoldCalls(() => group('vendor', 'vendor'))).toBe(70);
+    });
+  });
 
   describe('groups', () => {
     it('returns every database group in tuple order, empty groups present', () => {
