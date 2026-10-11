@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within, fireEvent } from '@testing-library/react';
+import { screen, waitFor, render, within, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
@@ -1639,6 +1639,41 @@ describe('VendorDetailPage', () => {
   });
 
   // ─── Delete invoice modal ─────────────────────────────────────────────────
+
+  describe('deleting an invoice keeps the page mounted (#2209 final fix)', () => {
+    it('the stats reload is silent: no skeleton swap, the h1 stays mounted and the invoices heading keeps focus', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      // every later fetch (the reload) stays in flight
+      mockFetchVendor.mockImplementation(() => new Promise(() => {}));
+      mockFetchInvoices.mockResolvedValueOnce([sampleInvoice]);
+      mockDeleteInvoice.mockResolvedValueOnce(undefined);
+
+      const user = userEvent.setup();
+      renderPage();
+      const h1 = await screen.findByRole('heading', { level: 1, name: sampleVendor.name });
+      await user.click(
+        (await screen.findAllByRole('button', { name: /delete invoice INV-001/i }))[0]!,
+      );
+      const confirm = await screen.findByTestId('vendor-invoice-delete-confirm');
+      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+      await user.click(confirm);
+
+      await waitFor(() => expect(mockDeleteInvoice).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+      expect(h1.isConnected).toBe(true);
+      expect(screen.getByRole('heading', { level: 1, name: sampleVendor.name })).toBe(h1);
+      const invoicesHeading = document.querySelector<HTMLElement>('h2[tabindex="-1"]')!;
+      expect(invoicesHeading.isConnected).toBe(true);
+      await waitFor(() => expect(document.activeElement).toBe(invoicesHeading));
+      expect(document.body).not.toHaveFocus();
+    });
+  });
 
   describe('delete invoice modal', () => {
     it('opens delete invoice modal when Delete button is clicked on an invoice row', async () => {

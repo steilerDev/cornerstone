@@ -69,6 +69,16 @@ const MANAGE_TABS = [
 
 type Tab = (typeof MANAGE_TABS)[number];
 
+/**
+ * True only until the first load has finished. Later reloads (after a delete, say) keep the
+ * section mounted, so the focused heading and the list are not replaced by a skeleton.
+ */
+function useInitialLoading(isLoading: boolean): boolean {
+  const [loaded, setLoaded] = useState(false);
+  if (!isLoading && !loaded) setLoaded(true);
+  return !loaded;
+}
+
 function parseTab(value: string | null): Tab {
   return MANAGE_TABS.find((tab) => tab === value) ?? 'areas';
 }
@@ -426,7 +436,8 @@ function AreasTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -958,7 +969,8 @@ function TradesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -1450,7 +1462,8 @@ function OrientationsTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -1935,7 +1948,8 @@ function BudgetCategoriesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -2476,7 +2490,8 @@ function HouseholdItemCategoriesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 

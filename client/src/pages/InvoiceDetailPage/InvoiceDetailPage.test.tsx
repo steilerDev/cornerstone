@@ -171,13 +171,14 @@ class MockApiClientError extends Error {
 }
 
 const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockDel = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
 
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   get: jest.fn(),
   post: mockPost,
   patch: mockPatch,
-  del: jest.fn(),
+  del: mockDel,
   put: jest.fn(),
   setBaseUrl: jest.fn(),
   getBaseUrl: jest.fn().mockReturnValue('/api'),
@@ -363,6 +364,8 @@ beforeEach(async () => {
   mockFetchConfig.mockReset();
   mockShowToast.mockReset();
   mockShowUndoToast.mockReset();
+  mockDel.mockReset();
+  mockDel.mockResolvedValue(undefined);
   mockFetchDeleteImpact.mockReset();
   mockFetchDeleteImpact.mockResolvedValue({ entityType: 'invoice', id: 'inv-001', effects: [] });
   budgetLinesMounts = 0;
@@ -433,6 +436,77 @@ describe('InvoiceDetailPage', () => {
       expect(props.mode).toBe('add');
       expect(props.invoiceAmount).toBe(1500);
       expect(props.existingEntryIds).toEqual(['dep-1']);
+    });
+  });
+
+  describe('deleting a deposit refreshes silently (#2209 final fix)', () => {
+    const skeleton = () => document.querySelector('[aria-busy="true"]');
+
+    async function deleteFirstDeposit() {
+      renderPage();
+      const h1 = await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+      await screen.findByTestId('invoice-budget-lines-section');
+      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(kebab);
+      fireEvent.click(
+        screen
+          .getAllByRole('menuitem')
+          .filter((m) => !m.closest('[inert]'))
+          .find((m) => m.textContent?.toLowerCase().includes('delete'))!,
+      );
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('deposit-delete'));
+      });
+      return h1;
+    }
+
+    beforeEach(() => {
+      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, deposits: [paidDeposit(400)] });
+    });
+
+    it('uses the silent refresh: no skeleton, the h1 stays mounted and focused while it is in flight', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockImplementation(() => new Promise(() => {}));
+      const h1 = await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockDel).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(skeleton()).toBeNull();
+      expect(h1.isConnected).toBe(true);
+      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
+      await waitFor(() => expect(document.activeElement).toBe(h1));
+    });
+
+    it('the refreshed invoice replaces the deposits without a full reload', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
+      const h1 = await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
+      await screen.findByText('No deposits yet');
+      expect(skeleton()).toBeNull();
+      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
+    });
+
+    it('falls back to a full loadInvoice when the silent refresh fails', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
+      await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(3));
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: /Acme Construction/ }),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/offline/i)).toBeNull();
     });
   });
 

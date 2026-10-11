@@ -2,7 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, within } from '@testing-library/react';
+import { screen, waitFor, render, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
@@ -2770,6 +2770,153 @@ describe('ManagePage', () => {
         await screen.findByText(enSettings.manage.budgetCategories.messages.deleteError),
       ).toBeInTheDocument();
       expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+    });
+  });
+
+  // ─── Reloads keep the section mounted (#2209 final fix) ─────────────────────────
+
+  describe('a reload after a delete keeps the section mounted', () => {
+    const skeleton = () => document.querySelector('[aria-busy="true"]');
+    const sectionHeading = () => document.querySelector<HTMLElement>('h2[tabindex="-1"]');
+    const NEVER = () => new Promise<never>(() => {});
+
+    interface Case {
+      label: string;
+      path: string;
+      rowButton: string;
+      prefix: string;
+      /** Makes the data source report "loading" again once the delete has been issued. */
+      arrange: () => void;
+      /** Makes the first load stay pending. */
+      arrangeFirstLoad: () => void;
+    }
+
+    let reloading = false;
+
+    // Areas, trades and orientations reload through their hook (isLoading goes true again after a
+    // delete). The two category sections drop the row locally and do not refetch, so for them the
+    // "reload" arrangement only proves the heading survives the delete; the skeleton regression is
+    // pinned by the first three.
+    const cases: Case[] = [
+      {
+        label: 'areas',
+        path: '/settings/manage?tab=areas',
+        rowButton: 'Delete',
+        prefix: 'area-delete',
+        arrange: () => {
+          mockUseAreas.mockImplementation(() =>
+            makeAreasHookResult({
+              isLoading: reloading,
+              deleteArea: jest.fn(async () => {
+                reloading = true;
+              }),
+            }),
+          );
+        },
+        arrangeFirstLoad: () =>
+          mockUseAreas.mockImplementation(() => makeAreasHookResult({ isLoading: true })),
+      },
+      {
+        label: 'trades',
+        path: '/settings/manage?tab=trades',
+        rowButton: 'Delete',
+        prefix: 'trade-delete',
+        arrange: () => {
+          mockUseTrades.mockImplementation(() =>
+            makeTradesHookResult({
+              isLoading: reloading,
+              deleteTrade: jest.fn(async () => {
+                reloading = true;
+              }),
+            }),
+          );
+        },
+        arrangeFirstLoad: () =>
+          mockUseTrades.mockImplementation(() => makeTradesHookResult({ isLoading: true })),
+      },
+      {
+        label: 'orientations',
+        path: '/settings/manage?tab=orientations',
+        rowButton: 'Delete North',
+        prefix: 'orientation-delete',
+        arrange: () => {
+          mockUseOrientations.mockImplementation(() =>
+            makeOrientationsHookResult({
+              isLoading: reloading,
+              deleteOrientation: jest.fn(async () => {
+                reloading = true;
+              }),
+            }),
+          );
+        },
+        arrangeFirstLoad: () =>
+          mockUseOrientations.mockImplementation(() =>
+            makeOrientationsHookResult({ isLoading: true }),
+          ),
+      },
+      {
+        label: 'budget categories',
+        path: '/settings/manage?tab=budget-categories',
+        rowButton: 'Delete Materials',
+        prefix: 'budget-category-delete',
+        arrange: () => {
+          mockFetchBudgetCategories
+            .mockResolvedValueOnce({ categories: [sampleBudgetCat1, sampleBudgetCat2] })
+            .mockImplementation(NEVER);
+          mockDeleteBudgetCategory.mockResolvedValue(undefined);
+        },
+        arrangeFirstLoad: () => mockFetchBudgetCategories.mockImplementation(NEVER),
+      },
+      {
+        label: 'household item categories',
+        path: '/settings/manage?tab=hi-categories',
+        rowButton: 'Delete Furniture',
+        prefix: 'hi-category-delete',
+        arrange: () => {
+          mockFetchHICCategories
+            .mockResolvedValueOnce({ categories: [sampleHICat1, sampleHICat2] })
+            .mockImplementation(NEVER);
+          mockDeleteHICCategory.mockResolvedValue(undefined);
+        },
+        arrangeFirstLoad: () => mockFetchHICCategories.mockImplementation(NEVER),
+      },
+    ];
+
+    beforeEach(() => {
+      reloading = false;
+    });
+
+    describe.each(cases)('$label', (c) => {
+      it('shows the skeleton on the first load only', async () => {
+        c.arrangeFirstLoad();
+        renderManagePage(c.path);
+        await waitFor(() => expect(skeleton()).not.toBeNull());
+        expect(sectionHeading()).toBeNull();
+      });
+
+      it('after a confirmed delete the h2 stays mounted and focused while the reload is in flight', async () => {
+        c.arrange();
+        const user = userEvent.setup();
+        renderManagePage(c.path);
+        await waitFor(() => expect(sectionHeading()).not.toBeNull());
+        expect(skeleton()).toBeNull();
+        const heading = sectionHeading()!;
+
+        const deleteButton = (await screen.findAllByRole('button', { name: c.rowButton }))[0]!;
+        await user.click(deleteButton);
+        await user.click(await enabledConfirm(c.prefix));
+        await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+        await act(async () => {
+          await Promise.resolve();
+        });
+
+        // the reload is in flight now: no skeleton replaced the section
+        expect(skeleton()).toBeNull();
+        expect(heading.isConnected).toBe(true);
+        expect(sectionHeading()).toBe(heading);
+        await waitFor(() => expect(document.activeElement).toBe(heading));
+        expect(document.body).not.toHaveFocus();
+      });
     });
   });
 });

@@ -102,9 +102,10 @@ export function VendorDetailPage() {
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadVendor is defined in the component body; the effect re-runs only when id changes, which is the intended trigger
   }, [id]);
 
-  const loadVendor = async () => {
+  /** `silent` keeps the page mounted (no skeleton), so focus is not lost on a background refresh. */
+  const loadVendor = async (silent = false) => {
     if (!id) return;
-    setIsLoading(true);
+    if (!silent) setIsLoading(true);
     setError(null);
 
     try {
@@ -289,8 +290,8 @@ export function VendorDetailPage() {
       });
       setInvoices((prev) => [newInvoice, ...prev]);
       setShowCreateModal(false);
-      // Re-fetch vendor to update stats cards
-      void loadVendor();
+      // Re-fetch vendor to update stats cards (silently: keep the page, and focus, in place)
+      void loadVendor(true);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setCreateError(translateApiError(err.error.code, tErrors));
@@ -326,8 +327,8 @@ export function VendorDetailPage() {
       await deleteInvoice(id, deletingInvoice.id);
       setInvoices((prev) => prev.filter((inv) => inv.id !== deletingInvoice.id));
       setDeletingInvoice(null);
-      // Re-fetch vendor to update stats cards
-      void loadVendor();
+      // Re-fetch vendor to update stats cards (silently: keep the page, and focus, in place)
+      void loadVendor(true);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setDeleteInvoiceBlocked(err.statusCode === 409);

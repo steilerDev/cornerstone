@@ -427,7 +427,7 @@ export function InvoiceDetailPage() {
           invoiceAmount={invoice.amount}
           deposits={invoice.deposits}
           finalPaymentAmount={invoice.finalPaymentAmount}
-          onDepositMutated={() => void loadInvoice()}
+          onDepositMutated={() => void refreshInvoice().catch(() => loadInvoice())}
         />
 
         <InvoiceBudgetLinesSection
