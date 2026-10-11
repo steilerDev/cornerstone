@@ -7,6 +7,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import i18n from '../../i18n/index.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { OriginProbe } from '../../test/originProbe.js';
+import { RealLocationContext } from '../../navigation/realLocation.js';
 import type * as AuthApiTypes from '../../lib/authApi.js';
 import type * as AuthGuardTypes from './AuthGuard.js';
 
@@ -181,6 +182,40 @@ describe('AuthGuard', () => {
       );
       // Mutation: navigate without `replace` would record PUSH here.
       expect(log.actions).toEqual(['REPLACE /login?next=%2Fsettings%2Fusers%3Fx%3D1']);
+    });
+
+    it('names the real URL in next when the routes render a different display location (dialog route)', async () => {
+      mockGetAuthMe.mockResolvedValue(SIGNED_OUT);
+      const log = createRouterLog();
+      const display = {
+        pathname: '/project/work-items',
+        search: '',
+        hash: '',
+        state: null,
+        key: 'd',
+      };
+      render(
+        <RecordingRouter entries={['/project/work-items/new?areaId=x']} log={log}>
+          <RealLocationContext
+            value={{
+              pathname: '/project/work-items/new',
+              search: '?areaId=x',
+              hash: '',
+              key: 'real',
+            }}
+          >
+            <Routes location={display}>
+              <Route path="/login" element={<OriginProbe />} />
+              <Route element={<AuthGuard />}>
+                <Route path="*" element={<div>Protected Content</div>} />
+              </Route>
+            </Routes>
+          </RealLocationContext>
+        </RecordingRouter>,
+      );
+
+      await waitFor(() => expect(log.actions).toHaveLength(1));
+      expect(log.actions[0]).toBe('REPLACE /login?next=%2Fproject%2Fwork-items%2Fnew%3FareaId%3Dx');
     });
 
     it('keeps the hash in next', async () => {

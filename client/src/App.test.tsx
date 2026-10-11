@@ -41,6 +41,8 @@ jest.unstable_mockModule('./lib/authApi.js', () => ({
   getAuthMe: mockGetAuthMe,
   login: mockLogin,
   logout: mockLogout,
+  // LoginPage (lazy) imports it; the signed-out redirect test renders it.
+  oidcLoginUrl: jest.fn(),
 }));
 
 jest.unstable_mockModule('./lib/budgetCategoriesApi.js', () => ({
@@ -695,6 +697,18 @@ describe('App', () => {
   });
 
   // ── Dialog routes (#2212): /…/new opens the ObjectForm over its list or the page you came from ──
+
+  describe('signed-out visit to a dialog route (#2287)', () => {
+    it('redirects to /login with next = the full create URL, search included (not the list)', async () => {
+      mockGetAuthMe.mockResolvedValue({ user: null, setupRequired: false, oidcEnabled: false });
+      window.history.pushState({}, '', '/project/work-items/new?areaId=x');
+      render(<App />);
+
+      await waitFor(() => expect(window.location.pathname).toBe('/login'), { timeout: 5000 });
+      const next = new URLSearchParams(window.location.search).get('next');
+      expect(next).toBe('/project/work-items/new?areaId=x');
+    }, 15000);
+  });
 
   describe('dialog routes', () => {
     function pushDialog(path: string, usr?: unknown) {

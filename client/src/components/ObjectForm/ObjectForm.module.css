@@ -21,8 +21,13 @@
   font-size: var(--font-size-sm);
 }
 
+/* Empty: stays in the accessibility tree (a live region must exist before it speaks) but takes
+   no space, not even the form's flex gap */
 .status:empty {
-  display: none;
+  height: 0;
+  padding: 0;
+  overflow: hidden;
+  margin-block-end: calc(-1 * var(--spacing-4));
 }
 
 .fields {
@@ -109,7 +114,9 @@
 
 .disclosure:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
   border-radius: var(--radius-sm);
 }
 
@@ -126,7 +133,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-1);
-  min-height: var(--spacing-8);
+  min-height: var(--touch-target-min);
   padding-inline: 0;
   border: 0;
   background: none;
@@ -139,7 +146,9 @@
 
 .backLink:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
   border-radius: var(--radius-sm);
 }
 
