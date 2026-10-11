@@ -46,7 +46,7 @@ export type NavLabelKey = (typeof NAV_LABEL_KEYS)[number];
 export interface NavView {
   readonly route: RouteId;
   readonly labelKey: NavLabelKey;
-  /** Glossary canon term (search aliases via getSearchAliases). */
+  /** Glossary canon term (search names via getSearchableNames in i18n/glossary.ts). */
   readonly term: string;
   /** Interim view: shown only while this route is NOT served (staging, like the route map's `interim`). */
   readonly interimUntil?: RouteId;

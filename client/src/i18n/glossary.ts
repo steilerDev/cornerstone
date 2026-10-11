@@ -1,9 +1,10 @@
 /**
  * Typed, validated accessor over glossary.json (schema v2, glossary v1, #2192).
  *
- * Pure data: no i18next / react-i18next import. Consumers (search aliases in NavConfig / the
+ * No i18next / react-i18next import; the only dependency besides glossary.json is foldSearchText from @cornerstone/shared. Consumers (search aliases in NavConfig / the
  * search UI, banned-synonym checks) read the parsed glossary through the helpers below.
  */
+import { foldSearchText } from '@cornerstone/shared';
 import rawGlossary from './glossary.json';
 
 export const GLOSSARY_GROUPS = [
@@ -273,7 +274,7 @@ export function parseGlossary(raw: unknown): Glossary {
 export const GLOSSARY: Glossary = parseGlossary(rawGlossary);
 
 function normalizeQuery(value: string): string {
-  return value.trim().normalize('NFC').toLocaleLowerCase('de');
+  return foldSearchText(value.trim());
 }
 
 /** canon → former names, for every term (terms with no former names map to []). */
@@ -286,9 +287,33 @@ export function getSearchAliases(
 /** Forms that count as searchable names (notes, chips and sentence templates do not). */
 const ALIAS_FORM_KEYS = ['singular', 'plural', 'verb', 'noun', 'shortForm'] as const;
 
+export interface SearchableName {
+  readonly text: string;
+  /** True for a former name (a permanent alias, never shown as a label). */
+  readonly former: boolean;
+}
+
 /**
- * Terms whose canon, its singular/plural/verb/noun/shortForm in any locale, or a former name equals the query, case-insensitively after
- * trim + NFC + toLocaleLowerCase('de'). Empty/blank query → [].
+ * Every searchable name of a term: the canon, its singular/plural/verb/noun/shortForm in every
+ * locale, and its former names. The single source for alias matching (findTermsByAlias and the
+ * search destinations).
+ */
+export function getSearchableNames(term: GlossaryTerm): readonly SearchableName[] {
+  const names: SearchableName[] = [{ text: term.canon, former: false }];
+  for (const forms of [term.en, term.de]) {
+    for (const key of ALIAS_FORM_KEYS) {
+      const form = forms[key];
+      if (form !== undefined) names.push({ text: form, former: false });
+    }
+  }
+  for (const name of term.formerly) names.push({ text: name, former: true });
+  return names;
+}
+
+/**
+ * Terms with a searchable name (see getSearchableNames) equal to the query, compared after
+ * foldSearchText (case-, accent- and German-digraph-insensitive) of the trimmed query.
+ * Empty/blank query → [].
  */
 export function findTermsByAlias(
   query: string,
@@ -296,16 +321,9 @@ export function findTermsByAlias(
 ): readonly GlossaryTerm[] {
   const needle = normalizeQuery(query);
   if (needle === '') return [];
-  return glossary.terms.filter((term) => {
-    const candidates: string[] = [term.canon, ...term.formerly];
-    for (const forms of [term.en, term.de]) {
-      for (const key of ALIAS_FORM_KEYS) {
-        const form = forms[key];
-        if (form !== undefined) candidates.push(form);
-      }
-    }
-    return candidates.some((candidate) => normalizeQuery(candidate) === needle);
-  });
+  return glossary.terms.filter((term) =>
+    getSearchableNames(term).some((name) => normalizeQuery(name.text) === needle),
+  );
 }
 
 /** Every doNotUse entry of every term, flattened, with `use` = the owning term's canon. */

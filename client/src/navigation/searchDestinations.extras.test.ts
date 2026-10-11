@@ -1,8 +1,9 @@
 import { describe, it, expect } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
+import { foldSearchText } from '@cornerstone/shared';
 import { fileURLToPath } from 'node:url';
-import { GLOSSARY } from '../i18n/glossary.js';
+import { GLOSSARY, findTermsByAlias, getSearchableNames } from '../i18n/glossary.js';
 import type { NavContext, NavLabelKey } from './navConfig.js';
 import { TERMS_WITHOUT_DESTINATION, findSearchDestinations } from './searchDestinations.js';
 import type { SearchDestination } from './searchDestinations.js';
@@ -16,6 +17,10 @@ const ADMIN: NavContext = { role: 'admin', paperlessConfigured: true };
 
 type Finder = (word: string) => readonly SearchDestination[];
 const realFinder: Finder = (word) => findSearchDestinations(word, ADMIN, EN);
+
+const fold = (value: string) => foldSearchText(value.trim());
+const getTermNames = (canon: string): string[] =>
+  getSearchableNames(GLOSSARY.terms.find((t) => t.canon === canon)!).map((n) => n.text);
 
 /** Former names of terms (not in the exemption map) for which no destination of that term is found. */
 function unresolvedFormerNames(find: Finder): string[] {
@@ -129,6 +134,64 @@ describe('TERMS_WITHOUT_DESTINATION', () => {
   it('gives every entry a non-empty reason', () => {
     for (const reason of TERMS_WITHOUT_DESTINATION.values()) {
       expect(reason.trim().length).toBeGreaterThan(10);
+    }
+  });
+});
+
+describe('destinations agree with findTermsByAlias', () => {
+  // Terms that have at least one destination for an admin with Paperless.
+  const withDestination = new Set(
+    GLOSSARY.terms
+      .filter((t) => realFinder(t.canon).some((d) => d.term === t.canon))
+      .map((t) => t.canon),
+  );
+
+  const SAMPLE = [
+    'Zeitplan',
+    'ZEITPLAN',
+    'zeitplan',
+    'Gantt',
+    'Gantt-Diagramm',
+    'Timeline',
+    'vendor',
+    'Auftragnehmer',
+    'Arbeitspaket',
+    'claimed',
+    'Eingereicht',
+    'Mängel',
+    'Maengel',
+    'Mangel',
+    'Begehung',
+    'Förderprogramm',
+    'Foerderprogramm',
+    'Forderprogramm',
+    'Gewerke',
+    'Kostenposition',
+    'Tagesprotokoll',
+    'Inspection',
+  ];
+
+  it.each(SAMPLE)('"%s": same term as findTermsByAlias (for terms with a destination)', (word) => {
+    const viaAlias = findTermsByAlias(word)
+      .map((t) => t.canon)
+      .filter((canon) => withDestination.has(canon))
+      .sort();
+    const viaDestinations = [
+      ...new Set(
+        realFinder(word)
+          .filter((d) => d.rank === 0 && getTermNames(d.term).some((n) => fold(n) === fold(word)))
+          .map((d) => d.term),
+      ),
+    ].sort();
+    expect(viaAlias.length).toBeGreaterThan(0);
+    expect(viaDestinations).toEqual(viaAlias);
+  });
+
+  it('resolves verb and noun forms the same way as the shared names helper', () => {
+    for (const t of GLOSSARY.terms.filter((x) => withDestination.has(x.canon))) {
+      for (const name of getSearchableNames(t)) {
+        expect(realFinder(name.text).some((d) => d.term === t.canon)).toBe(true);
+      }
     }
   });
 });

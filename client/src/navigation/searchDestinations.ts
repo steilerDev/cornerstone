@@ -1,7 +1,7 @@
 import { foldSearchText, isRouteServed } from '@cornerstone/shared';
 import type { RouteId, RouteQuery } from '@cornerstone/shared';
-import { GLOSSARY } from '../i18n/glossary.js';
-import type { Glossary, GlossaryTerm } from '../i18n/glossary.js';
+import { GLOSSARY, getSearchableNames } from '../i18n/glossary.js';
+import type { Glossary, GlossaryTerm, SearchableName } from '../i18n/glossary.js';
 import { isRouteVisible, navSections } from './navConfig.js';
 import type { NavContext, NavLabelKey } from './navConfig.js';
 
@@ -104,28 +104,14 @@ interface Entry {
   readonly labelKey?: NavLabelKey;
 }
 
-interface Candidate {
-  readonly text: string;
-  readonly former: boolean;
-}
-
-const FORM_KEYS = ['singular', 'plural', 'shortForm'] as const;
-
 function candidatesOf(
   entry: Entry,
   glossaryTerm: GlossaryTerm | undefined,
   labelOf: (key: NavLabelKey) => string,
-): Candidate[] {
-  const list: Candidate[] = [{ text: entry.term, former: false }];
-  if (glossaryTerm) {
-    for (const forms of [glossaryTerm.en, glossaryTerm.de]) {
-      for (const key of FORM_KEYS) {
-        const form = forms[key];
-        if (form !== undefined) list.push({ text: form, former: false });
-      }
-    }
-    for (const name of glossaryTerm.formerly) list.push({ text: name, former: true });
-  }
+): readonly SearchableName[] {
+  const list: SearchableName[] = glossaryTerm
+    ? [...getSearchableNames(glossaryTerm)]
+    : [{ text: entry.term, former: false }];
   if (entry.labelKey !== undefined) list.push({ text: labelOf(entry.labelKey), former: false });
   return list;
 }
@@ -168,7 +154,7 @@ export function findSearchDestinations(
   const byCanon = new Map(glossary.terms.map((term) => [term.canon, term]));
   const results: SearchDestination[] = [];
   for (const entry of entries) {
-    let best: { rank: 0 | 1 | 2; candidate: Candidate } | null = null;
+    let best: { rank: 0 | 1 | 2; candidate: SearchableName } | null = null;
     for (const candidate of candidatesOf(entry, byCanon.get(entry.term), labelOf)) {
       const rank = rankOf(needle, candidate.text);
       if (rank !== null && (best === null || rank < best.rank)) best = { rank, candidate };
