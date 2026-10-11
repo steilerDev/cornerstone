@@ -823,13 +823,6 @@
 }
 
 /* ---- Modal actions ---- */
-
-.modalActions {
-  display: flex;
-  gap: var(--spacing-3);
-  justify-content: flex-end;
-}
-
 .cancelButton {
   padding: var(--spacing-2) var(--spacing-3);
   background-color: var(--color-bg-tertiary);
@@ -966,11 +959,6 @@
     min-height: 0;
   }
 
-  .modalActions {
-    flex-direction: column-reverse;
-  }
-
-  .modalActions .cancelButton,
   .deleteButton {
     width: 100%;
     text-align: center;
@@ -1028,10 +1016,4 @@
   font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   margin: 0 0 var(--spacing-4) 0;
-}
-
-.deleteConfirmText {
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  margin: 0;
 }

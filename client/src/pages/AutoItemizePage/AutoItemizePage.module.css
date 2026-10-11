@@ -204,13 +204,6 @@
   gap: var(--spacing-2);
 }
 
-.modalActions {
-  display: flex;
-  gap: var(--spacing-2);
-  margin-top: var(--spacing-4);
-  justify-content: flex-end;
-}
-
 /* PDF Preview Styles */
 
 .pdfPreviewWrapper {

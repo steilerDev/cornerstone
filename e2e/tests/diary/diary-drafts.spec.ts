@@ -16,7 +16,7 @@
  * 8.  Photo upload failure → retry (page.route() intercept)
  * 9.  Promote draft — happy path (fill required fields, Save → detail page, no Draft badge)
  * 10. Promote draft — validation error (empty body, Save → error, still on edit, still draft)
- * 11. Discard draft (Discard Draft → confirm modal → /diary, entry gone)
+ * 11. Discard draft (Discard Draft → "Discard this entry?" dialog → /diary, entry gone)
  * 12. [smoke] Draft badge in list (create via API → /diary → Draft badge visible)
  * 13. Drafts chip (default pressed; click → hides drafts, saved visible; click again → drafts restored)
  * 14. Clicking draft in list navigates to /diary/:id/edit
@@ -689,8 +689,9 @@ test.describe('Discard draft (Scenario 11)', { tag: '@responsive' }, () => {
       // Open discard confirmation modal
       await editPage.openDiscardModal();
       await expect(editPage.discardModal).toBeVisible();
-      await expect(editPage.discardModalConfirm).toBeVisible();
-      await expect(editPage.discardModalCancel).toBeVisible();
+      await expect(editPage.discardModal).toHaveAccessibleName('Discard this entry?');
+      await expect(editPage.discardModalConfirm).toHaveText('Discard');
+      await expect(editPage.discardModalCancel).toHaveText('Keep entry');
 
       // Confirm discard
       await editPage.confirmDiscard();
@@ -732,7 +733,7 @@ test.describe('Discard draft (Scenario 11)', { tag: '@responsive' }, () => {
       await editPage.openDiscardModal();
       await expect(editPage.discardModal).toBeVisible();
 
-      // Click "Keep Draft" to cancel
+      // Click "Keep entry" to cancel
       await editPage.discardModalCancel.click();
 
       // Modal should be gone

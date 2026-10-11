@@ -59,7 +59,7 @@
     "closeDocumentPicker": "Dokumentauswahl schließen",
     "thisDocument": "Dieses Dokument",
     "unnamedDocument": "Dokument",
-    "unlinkDocument": "Dokumentverknüpfung aufheben?",
+    "unlinkTitle": "Verknüpfung von {{name}} aufheben?",
     "unlinkConfirmation": "„{{title}}“ wird aus {{entity}} entfernt. Das Dokument bleibt in Paperless-ngx.",
     "unlinkButton": "Verknüpfung aufheben",
     "unlinking": "Verknüpfung wird aufgehoben…",

@@ -273,6 +273,7 @@ export function updateSubsidyProgram(
   id: string,
   data: UpdateSubsidyProgramRequest,
   diaryAutoEvents: boolean = true,
+  actorUserId: string | null = null,
 ): SubsidyProgram {
   // Check program exists
   const existing = db.select().from(subsidyPrograms).where(eq(subsidyPrograms.id, id)).get();
@@ -323,11 +324,15 @@ export function updateSubsidyProgram(
     if (typeof data.reductionValue !== 'number' || data.reductionValue <= 0) {
       throw new ValidationError('Reduction value must be a positive number');
     }
-    const effectiveReductionType = data.reductionType ?? existing.reductionType;
-    if (effectiveReductionType === 'percentage' && data.reductionValue > 100) {
-      throw new ValidationError('Percentage reduction value must not exceed 100');
-    }
     updates.reductionValue = data.reductionValue;
+  }
+
+  // The 100% cap applies to the resulting type and value, so switching only the type to
+  // percentage is checked against the stored value.
+  const resultingReductionType = data.reductionType ?? existing.reductionType;
+  const resultingReductionValue = data.reductionValue ?? existing.reductionValue;
+  if (resultingReductionType === 'percentage' && resultingReductionValue > 100) {
+    throw new ValidationError('Percentage reduction value must not exceed 100');
   }
 
   let statusChanged = false;
@@ -405,7 +410,15 @@ export function updateSubsidyProgram(
 
   // Log applicationStatus change to diary if enabled
   if (statusChanged && previousStatus !== undefined && newStatus !== undefined) {
-    onSubsidyStatusChanged(db, diaryAutoEvents, id, existing.name, previousStatus, newStatus);
+    onSubsidyStatusChanged(
+      db,
+      diaryAutoEvents,
+      id,
+      existing.name,
+      previousStatus,
+      newStatus,
+      actorUserId,
+    );
   }
 
   return getSubsidyProgramById(db, id);

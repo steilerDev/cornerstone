@@ -1,0 +1,179 @@
+/* ---- Chip trigger: the status badge look on a real button ---- */
+
+.chip {
+  composes: badge from '../Badge/Badge.module.css';
+  position: relative;
+}
+
+/* Raised specificity so these beat the composed .badge rules (cursor: default, ...). */
+button.chip {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Extends the hit area to the touch minimum without growing the chip. */
+.chip::before {
+  content: '';
+  position: absolute;
+  inset: calc(-1 * var(--spacing-3)) calc(-1 * var(--spacing-2));
+}
+
+@media (hover: hover) {
+  .chip:hover:not([aria-disabled='true']) {
+    box-shadow: inset 0 0 0 1px currentColor;
+  }
+}
+
+.chip[aria-expanded='true'] {
+  box-shadow: inset 0 0 0 1px currentColor;
+}
+
+/* A borderless chip needs the two-ring focus form to stay visible on any background. */
+.chip:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
+}
+
+.chip[aria-disabled='true'],
+.plainButton[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+button.plainButton[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.plainButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.caret {
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+[aria-expanded='true'] > .caret {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .caret {
+    transition: none;
+  }
+}
+
+/* ---- Menu step ---- */
+
+.content {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  composes: header from '../OverflowMenu/OverflowMenu.module.css';
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+.separator {
+  composes: separator from '../OverflowMenu/OverflowMenu.module.css';
+}
+
+.row {
+  composes: item from '../OverflowMenu/OverflowMenu.module.css';
+  min-height: var(--spacing-10);
+  justify-content: space-between;
+}
+
+.rowLabel {
+  flex: 1;
+}
+
+.rowChevron {
+  color: var(--color-text-muted);
+}
+
+/* ---- Date step ---- */
+
+.dateStep {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3) var(--spacing-4);
+}
+
+.dateQuestion {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--color-text-primary);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.dateChip {
+  composes: chip from '../FilterChipGroup/FilterChipGroup.module.css';
+}
+
+button.dateChip:focus-visible {
+  border-color: var(--color-border-focus);
+}
+
+.chipDate {
+  color: var(--color-text-muted);
+}
+
+.pick {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.pickLabel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.dateInput {
+  composes: input from '../../styles/shared.module.css';
+}
+
+.setDateButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.backButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+  align-self: flex-start;
+}
+
+@media (max-width: 1023px) {
+  .row {
+    min-height: var(--touch-target-min);
+    font-size: var(--font-size-base);
+  }
+
+  .setDateButton,
+  .backButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media print {
+  .content {
+    display: none;
+  }
+}

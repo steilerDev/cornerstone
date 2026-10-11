@@ -137,15 +137,14 @@ export class VendorsPage {
     this.createCancelButton = this.createModal.getByRole('button', { name: 'Cancel', exact: true });
     this.createErrorBanner = this.createModal.locator('[role="alert"]');
 
-    // Delete modal — Modal uses useId() for its title, so no stable #id selector.
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
-    // deleteModalTitle: the <h2> inside the delete modal
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title
+    // "Delete <name>?", testid prefix vendor-list-delete.
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('vendor-list-delete-cancel') });
+    // deleteModalTitle: the <h2> inside the delete dialog
     this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
-    // i18n: button label is now just "Delete" / "Deleting..." (not "Delete Vendor")
-    // See budget.json vendors.buttons.delete = "Delete"
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /^Delete$|Deleting\.\.\./,
-    });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('vendor-list-delete-confirm');
     this.deleteCancelButton = this.deleteModal.getByRole('button', {
       name: 'Cancel',
       exact: true,

@@ -8,9 +8,11 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type { DiaryEntryDetail, Photo } from '@cornerstone/shared';
 import type React from 'react';
 import { DIARY_SOURCE_ENTITY_TYPES } from '@cornerstone/shared';
+import { ApiClientError } from '../../lib/apiClient.js';
 import enDiary from '../../i18n/en/diary.json';
 import enErrors from '../../i18n/en/errors.json';
 
@@ -18,6 +20,19 @@ import enErrors from '../../i18n/en/errors.json';
 
 const mockGetDiaryEntry = jest.fn<typeof DiaryApiTypes.getDiaryEntry>();
 const mockDeleteDiaryEntry = jest.fn<typeof DiaryApiTypes.deleteDiaryEntry>();
+
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(): Promise<HTMLElement> {
+  const btn = await screen.findByTestId('diary-delete-confirm');
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
   getDiaryEntry: mockGetDiaryEntry,
@@ -28,8 +43,15 @@ jest.unstable_mockModule('../../lib/diaryApi.js', () => ({
 }));
 
 // Mock ToastContext to avoid dual-React instance issues
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
   ToastProvider: ({ children }: { children: unknown }) => children,
 }));
 
@@ -71,6 +93,8 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
 }));
 
 // Mock usePhotos to avoid real API calls
+let viewerDeleteResult: Promise<unknown> | undefined;
+
 const photosState = {
   photos: [] as Photo[],
   deletePhoto: jest.fn(),
@@ -138,7 +162,13 @@ jest.unstable_mockModule('../../components/photos/PhotoViewer.js', () => ({
       <button type="button" onClick={onClose}>
         close-viewer
       </button>
-      <button type="button" onClick={() => onDelete('p1')}>
+      <button
+        type="button"
+        onClick={() => {
+          viewerDeleteResult = Promise.resolve(onDelete('p1'));
+          viewerDeleteResult.catch(() => undefined);
+        }}
+      >
         delete-in-viewer
       </button>
       <button type="button" onClick={() => onPhotoChanged({ id: 'p1' } as Photo)}>
@@ -232,6 +262,10 @@ describe('DiaryEntryDetailPage', () => {
     }
     mockGetDiaryEntry.mockReset();
     mockDeleteDiaryEntry.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'diary_entry', id: 'de-1', effects: [] });
     photosState.photos = [];
     photosState.deletePhoto = jest.fn();
     photosState.updatePhotoInList = jest.fn();
@@ -780,7 +814,7 @@ describe('DiaryEntryDetailPage', () => {
       mockGetDiaryEntry.mockResolvedValueOnce(signedSaved);
       renderDetailPage();
       await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
-      expect(await screen.findByRole('dialog', { name: 'Delete Diary Entry' })).toBeInTheDocument();
+      expect(await screen.findByRole('alertdialog', { name: /^Delete / })).toBeInTheDocument();
     });
 
     it('signed saved with no photos: the photo section is hidden', async () => {
@@ -820,20 +854,20 @@ describe('DiaryEntryDetailPage', () => {
   // ─── Delete dialog uses the shared Modal (F13) ──────────────────────────────
 
   describe('delete dialog (shared Modal)', () => {
-    const DELETE = { name: 'Delete Diary Entry' };
+    const DELETE = { name: /^Delete / };
 
     const openDelete = async () => {
       mockGetDiaryEntry.mockResolvedValueOnce(baseDetail);
       renderDetailPage();
       await userEvent.setup().click(await screen.findByRole('button', { name: 'Delete' }));
-      return screen.findByRole('dialog', DELETE);
+      return screen.findByRole('alertdialog', DELETE);
     };
 
     it('portals to document.body and has no fixed #delete-modal-title', async () => {
       const dialog = await openDelete();
       expect(dialog.parentElement).toBe(document.body);
       expect(document.getElementById('delete-modal-title')).toBeNull();
-      expect(within(dialog).getByText(/this action cannot be undone/i)).toBeInTheDocument();
+      expect(within(dialog).getByText(/this can't be undone/i)).toBeInTheDocument();
     });
 
     it.each([
@@ -845,7 +879,7 @@ describe('DiaryEntryDetailPage', () => {
       [
         'the backdrop',
         async () =>
-          fireEvent.click(screen.getByRole('dialog', DELETE).firstElementChild as HTMLElement),
+          fireEvent.click(screen.getByRole('alertdialog', DELETE).firstElementChild as HTMLElement),
       ],
       [
         'Cancel',
@@ -854,7 +888,9 @@ describe('DiaryEntryDetailPage', () => {
     ])('closes via %s', async (_label, close) => {
       await openDelete();
       await close();
-      await waitFor(() => expect(screen.queryByRole('dialog', DELETE)).not.toBeInTheDocument());
+      await waitFor(() =>
+        expect(screen.queryByRole('alertdialog', DELETE)).not.toBeInTheDocument(),
+      );
     });
 
     it('Escape does not close the dialog while the delete is in flight', async () => {
@@ -865,11 +901,11 @@ describe('DiaryEntryDetailPage', () => {
         }),
       );
       const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
-      await within(dialog).findByRole('button', { name: 'Deleting...' });
+      await userEvent.setup().click(await enabledConfirm());
+      await within(dialog).findByRole('button', { name: 'Deleting…' });
 
       fireEvent.keyDown(document, { key: 'Escape' });
-      expect(screen.getByRole('dialog', DELETE)).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', DELETE)).toBeInTheDocument();
 
       await act(async () => {
         resolveDelete();
@@ -878,20 +914,45 @@ describe('DiaryEntryDetailPage', () => {
 
     it('confirming deletes the entry and navigates to /diary', async () => {
       mockDeleteDiaryEntry.mockResolvedValueOnce(undefined);
-      const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      await openDelete();
+      await userEvent.setup().click(await enabledConfirm());
       expect(mockDeleteDiaryEntry).toHaveBeenCalledWith('de-1');
       expect(await screen.findByTestId('diary-list')).toBeInTheDocument();
     });
 
-    it('a delete failure shows the error inside the dialog and hides the confirm button', async () => {
+    it('a 409 hides the confirm button and keeps Cancel', async () => {
+      mockDeleteDiaryEntry.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      const dialog = await openDelete();
+      await userEvent.setup().click(await enabledConfirm());
+      await waitFor(() => expect(within(dialog).queryByTestId('diary-delete-confirm')).toBeNull());
+      expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    });
+
+    it('lists what the delete also removes', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'diary_entry',
+        id: 'de-1',
+        effects: [{ kind: 'photos', count: 4 }],
+      });
+      await openDelete();
+      await waitFor(() =>
+        expect(screen.getByTestId('diary-delete-consequences')).toHaveTextContent(
+          'Photos deleted with it: 4',
+        ),
+      );
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('diary_entry', 'de-1');
+    });
+
+    it('a non-409 delete failure shows the error inside the dialog and keeps the confirm button for a retry', async () => {
       mockDeleteDiaryEntry.mockRejectedValueOnce(new Error('boom'));
       const dialog = await openDelete();
-      await userEvent.setup().click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+      await userEvent.setup().click(await enabledConfirm());
 
       const alert = await within(dialog).findByText(/failed to delete diary entry/i);
       expect(dialog).toContainElement(alert);
-      expect(within(dialog).queryByRole('button', { name: 'Delete Entry' })).toBeNull();
+      expect(within(dialog).getByTestId('diary-delete-confirm')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     });
   });
@@ -974,6 +1035,36 @@ describe('DiaryEntryDetailPage', () => {
       await user.click(await screen.findByText('delete-in-viewer'));
       expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
       expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('awaits the photo delete: the viewer stays open while it is pending and closes on success', async () => {
+      await withPhotos();
+      let resolveDelete!: () => void;
+      photosState.deletePhoto = jest.fn(() => new Promise<void>((r) => (resolveDelete = r)));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      expect(photosState.deletePhoto).toHaveBeenCalledWith('p1');
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
+
+      await act(async () => {
+        resolveDelete();
+        await viewerDeleteResult;
+      });
+      expect(screen.queryByTestId('photo-viewer-mock')).not.toBeInTheDocument();
+    });
+
+    it('a failed photo delete rejects to the viewer and keeps it open', async () => {
+      await withPhotos();
+      const failure = new Error('boom');
+      photosState.deletePhoto = jest.fn(() => Promise.reject(failure));
+      const user = userEvent.setup();
+      await user.click(screen.getByText('open-photo'));
+      await user.click(await screen.findByText('delete-in-viewer'));
+
+      await expect(viewerDeleteResult).rejects.toBe(failure);
+      expect(screen.getByTestId('photo-viewer-mock')).toBeInTheDocument();
     });
 
     it('photo changes made in the viewer are forwarded to the photo list', async () => {
@@ -1122,10 +1213,156 @@ describe('DiaryEntryDetailPage', () => {
     );
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
-    const dialog = await screen.findByRole('dialog', { name: /delete/i });
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Entry' }));
+    await user.click(await enabledConfirm());
     // Mutation: navigate(...) without replace logs PUSH and keeps the deleted entry in history.
     await waitFor(() => expect(log.actions).toEqual(['REPLACE /diary']));
     expect(log.entries).toEqual(['/diary', '/diary']);
+  });
+
+  // ─── Defect status menu (#2209 round 2) ──────────────────────────────────────
+
+  describe('defect status menu', () => {
+    const TOKEN = { token: `u_${'9'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    const defect = (over: Partial<DiaryEntryDetail> = {}): DiaryEntryDetail => ({
+      ...baseDetail,
+      entryType: 'issue',
+      title: 'Crack in wall',
+      metadata: { severity: 'high', resolutionStatus: 'open', location: 'East wall' },
+      ...over,
+    });
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+    const respond = (body: unknown) =>
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    async function load(entry: DiaryEntryDetail) {
+      mockGetDiaryEntry.mockResolvedValue(entry);
+      renderDetailPage();
+      await screen.findByText(entry.title ?? entry.body);
+    }
+
+    it('an open defect shows the defect-status menu chip, once (the summary badge is hidden)', async () => {
+      await load(defect());
+      const chip = screen.getByTestId('defect-status');
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Open');
+      expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+      expect(screen.getByTestId('severity-high')).toBeInTheDocument();
+    });
+
+    it('lists only the allowed transitions', async () => {
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      expect(rows()).toEqual(['Mark being fixed', 'Mark fixed']);
+    });
+
+    it('Mark fixed PATCHes the whole metadata with only resolutionStatus changed, and offers Undo', async () => {
+      respond({
+        ...defect({
+          metadata: { severity: 'high', resolutionStatus: 'resolved', location: 'East wall' },
+        }),
+        undo: TOKEN,
+      });
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite()).toEqual({
+        url: '/api/diary-entries/de-1',
+        method: 'PATCH',
+        body: {
+          metadata: { severity: 'high', resolutionStatus: 'resolved', location: 'East wall' },
+        },
+      });
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: 'Crack in wall is now “Fixed”.',
+        dedupeKey: 'diary_entry:de-1',
+      });
+      await waitFor(() => expect(screen.getByTestId('defect-status')).toHaveTextContent('Fixed'));
+    });
+
+    it('Undo posts the token and reloads the entry', async () => {
+      respond({ ...defect(), undo: TOKEN });
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockGetDiaryEntry.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockGetDiaryEntry.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      await load(defect());
+      fireEvent.click(screen.getByTestId('defect-status'));
+      fireEvent.click(screen.getByTestId('defect-status-option-resolved'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('defect-status')).toHaveTextContent('Open');
+    });
+
+    it('a signed, saved defect is locked: a plain Badge, no menu', async () => {
+      await load(defect({ isSigned: true, status: 'saved' }));
+      const chip = screen.getByTestId('defect-status');
+      expect(chip.tagName).toBe('SPAN');
+      expect(chip).toHaveTextContent('Open');
+      expect(screen.queryByRole('menuitem')).toBeNull();
+    });
+
+    it('an automatic defect is locked: a plain Badge, no menu', async () => {
+      await load(defect({ isAutomatic: true }));
+      expect(screen.getByTestId('defect-status').tagName).toBe('SPAN');
+      expect(screen.queryByRole('menuitem')).toBeNull();
+    });
+
+    it('a signed DRAFT is not locked (the signature lock applies to saved entries)', async () => {
+      await load(defect({ isSigned: true, status: 'draft' }));
+      expect(screen.getByTestId('defect-status').tagName).toBe('BUTTON');
+    });
+
+    it('non-issue entries render no defect menu', async () => {
+      await load({ ...baseDetail, entryType: 'daily_log', metadata: { weather: 'sunny' } });
+      expect(screen.queryByTestId('defect-status')).toBeNull();
+      expect(screen.queryByTestId('defect-status-badge')).toBeNull();
+    });
+
+    it('an issue without a stored resolution status renders no defect status', async () => {
+      await load(defect({ metadata: { severity: 'low' } }));
+      expect(screen.queryByTestId('defect-status')).toBeNull();
+    });
   });
 });

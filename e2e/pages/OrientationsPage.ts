@@ -31,10 +31,9 @@
  *   - input#edit-sortOrder-{id}
  *   - Save button (text "Save"), Cancel button (text "Cancel")
  *   - Edit error: div[class*="errorBanner"][role="alert"]
- * - Delete confirmation modal (role="dialog"):
- *   - h2 "Delete orientation"
- *   - confirm button class*="confirmDeleteButton"
- *   - cancel button text "Cancel"
+ * - Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209):
+ *   - h2 "Delete <name>?"
+ *   - confirm button testid orientation-delete-confirm, cancel orientation-delete-cancel
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -211,13 +210,15 @@ export class OrientationsPage {
   async deleteOrientation(name: string): Promise<void> {
     await this.panel.getByRole('button', { name: `Delete ${name}`, exact: true }).click();
 
-    const modal = this.page.locator('[role="dialog"]');
+    const modal = this.page
+      .getByRole('alertdialog')
+      .filter({ has: this.page.getByTestId('orientation-delete-cancel') });
     await modal.waitFor({ state: 'visible' });
 
     const responsePromise = this.page.waitForResponse(
       (resp) => resp.url().includes('/api/orientations/') && resp.request().method() === 'DELETE',
     );
-    await modal.locator('[class*="confirmDeleteButton"]').click();
+    await modal.getByTestId('orientation-delete-confirm').click();
     await responsePromise;
     await modal.waitFor({ state: 'hidden' });
   }

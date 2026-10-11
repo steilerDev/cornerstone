@@ -548,12 +548,8 @@ test.describe('Delete category (Scenario 11)', { tag: '@responsive' }, () => {
       // Then: The modal is visible
       await expect(categoriesPage.deleteModal).toBeVisible();
 
-      // And: The modal title says "Delete Category"
-      await expect(categoriesPage.deleteModalTitle).toHaveText('Delete Category');
-
-      // And: The modal text mentions the category name
-      const modalText = await categoriesPage.deleteModalText.textContent();
-      expect(modalText).toContain(categoryName);
+      // And: The dialog title asks "Delete <name>?" (names the category)
+      await expect(categoriesPage.deleteModalTitle).toHaveText(`Delete ${categoryName}?`);
     } finally {
       if (createdId) {
         await deleteCategoryViaApi(page, createdId);

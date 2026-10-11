@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceService from '../services/invoiceService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import * as vendorService from '../services/vendorService.js';
 import { onInvoiceCreated } from '../services/diaryAutoEventService.js';
 import type { CreateInvoiceRequest, UpdateInvoiceRequest } from '@cornerstone/shared';
@@ -144,14 +145,22 @@ export default async function invoiceRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const invoice = invoiceService.updateInvoice(
+      const userId = request.user.id;
+      const { result: invoice, undo } = runUndoable(
         fastify.db,
-        request.params.vendorId,
-        request.params.invoiceId,
-        request.body,
-        fastify.config.diaryAutoEvents,
+        undoStore,
+        { userId, subject: { type: 'invoice', id: request.params.invoiceId }, reschedules: false },
+        () =>
+          invoiceService.updateInvoice(
+            fastify.db,
+            request.params.vendorId,
+            request.params.invoiceId,
+            request.body,
+            fastify.config.diaryAutoEvents,
+            userId,
+          ),
       );
-      return reply.status(200).send({ invoice });
+      return reply.status(200).send(undo ? { invoice, undo } : { invoice });
     },
   );
 

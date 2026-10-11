@@ -6,12 +6,13 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as UseTradesTypes from '../../hooks/useTrades.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
@@ -48,6 +49,11 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 const mockCreateVendor = jest.fn<typeof VendorsApiTypes.createVendor>();
 const mockDeleteVendor = jest.fn<typeof VendorsApiTypes.deleteVendor>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
@@ -187,6 +193,8 @@ describe('VendorsPage', () => {
     mockFetchVendors.mockReset();
     mockCreateVendor.mockReset();
     mockDeleteVendor.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({ entityType: 'vendor', id: 'vendor-1', effects: [] });
     mockListPreferencesVendors.mockReset();
 
     // Default: admin user so all Settings SubNav tabs are visible
@@ -701,6 +709,85 @@ describe('VendorsPage', () => {
   });
 
   describe('delete vendor', () => {
+    async function confirmDelete() {
+      const btn = await screen.findByTestId('vendor-list-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      fireEvent.click(btn);
+    }
+
+    async function openDialog() {
+      const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
+      mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('vendor-menu-button-vendor-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
+      fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
+    }
+
+    it('opens an alertdialog titled with the vendor, Cancel focused, nothing deleted yet', async () => {
+      await openDialog();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Acme Construction?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('vendor-list-delete-cancel')).toHaveFocus();
+      expect(mockDeleteVendor).not.toHaveBeenCalled();
+    });
+
+    it('lists what the delete also changes, omitting zero counts', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'vendor',
+        id: 'vendor-1',
+        effects: [
+          { kind: 'contacts', count: 3 },
+          { kind: 'tasksUnassigned', count: 0 },
+        ],
+      });
+      await openDialog();
+      await waitFor(() =>
+        expect(screen.getByTestId('vendor-list-delete-consequences')).toHaveTextContent(
+          'Contact persons deleted with it: 3',
+        ),
+      );
+      expect(screen.queryByText(/Tasks that lose this company/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('vendor', 'vendor-1');
+    });
+
+    it('Cancel closes without deleting', async () => {
+      await openDialog();
+      fireEvent.click(await screen.findByTestId('vendor-list-delete-cancel'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
+      expect(mockDeleteVendor).not.toHaveBeenCalled();
+    });
+
+    it('a 409 hides the action; a non-409 keeps it', async () => {
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openDialog();
+      await confirmDelete();
+      await waitFor(() => expect(screen.queryByTestId('vendor-list-delete-confirm')).toBeNull());
+    });
+
+    it('a non-409 API failure (500) keeps the action for a retry', async () => {
+      mockDeleteVendor.mockRejectedValueOnce(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      await openDialog();
+      await confirmDelete();
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('vendor-list-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('a non-409 failure keeps the action for a retry', async () => {
+      mockDeleteVendor.mockRejectedValueOnce(new Error('boom'));
+      await openDialog();
+      await confirmDelete();
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('vendor-list-delete-confirm')).toBeInTheDocument();
+    });
+
     it('calls deleteVendor API when delete is confirmed', async () => {
       const vendor = makeVendor({ id: 'vendor-1', name: 'Acme Construction' });
       mockFetchVendors.mockResolvedValueOnce(defaultFetchResponse([vendor]));
@@ -762,8 +849,7 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
       fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      await confirmDelete();
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('This vendor cannot be deleted');
@@ -784,8 +870,7 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
       fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      await confirmDelete();
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent(enErrors.INTERNAL_ERROR);
@@ -805,8 +890,7 @@ describe('VendorsPage', () => {
       fireEvent.click(screen.getByTestId('vendor-menu-button-vendor-1'));
       fireEvent.click(screen.getByTestId('vendor-delete-vendor-1'));
 
-      const dialog = await screen.findByRole('dialog');
-      fireEvent.click(within(dialog).getByRole('button', { name: 'Delete' }));
+      await confirmDelete();
 
       const alert = await screen.findByRole('alert');
       expect(alert).toHaveTextContent('Failed to delete vendor. Please try again.');

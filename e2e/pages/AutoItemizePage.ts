@@ -34,10 +34,11 @@
  * - Error state:
  *   - errorBanner: FormError with variant="banner" → role="alert"
  *   - retryButton: button with t('autoItemize.retry') = "Retry"
- * - Cancel confirmation modal:
- *   - title: t('autoItemize.cancelConfirmTitle') = "Discard Changes?"
- *   - discardButton: t('autoItemize.discardChanges') = "Discard Changes"
- *   - keepEditingButton: t('autoItemize.keepEditing') = "Keep Editing"
+ * - Cancel confirmation (#2209: the shared ConfirmDialog, role="alertdialog", testid prefix
+ *   auto-itemize-discard):
+ *   - title: common confirmDialog.discardChangesTitle = "Discard changes?"
+ *   - discardButton: "Discard" (auto-itemize-discard-confirm)
+ *   - keepEditingButton: "Keep editing" (auto-itemize-discard-cancel)
  * - Budget line picker modal (updated in story #1597 — ParentPicker reuse):
  *   - Step 1: "Assign to Work Item or Household Item"
  *       Uses ParentPicker with role="tablist": "Work Item" tab + "Household Item" tab
@@ -266,17 +267,16 @@ export class AutoItemizePage {
     // Rendered when iframe fires onError. t('autoItemize.previewUnavailable') = "PDF preview unavailable"
     this.pdfFallback = page.locator('[role="region"][aria-label="PDF preview unavailable"]');
 
-    // Cancel confirmation modal (Modal component renders with role="dialog")
-    // Title: "Discard Changes?" (t('autoItemize.cancelConfirmTitle'))
-    this.cancelModal = page.locator('[role="dialog"]').filter({
-      has: page.locator('h2', { hasText: /Discard Changes/i }),
-    });
+    // Cancel confirmation: the shared ConfirmDialog (role="alertdialog"), title "Discard changes?"
+    this.cancelModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('auto-itemize-discard-cancel') });
 
-    // Discard button inside the cancel modal
-    this.discardButton = this.cancelModal.getByRole('button', { name: /Discard Changes/i });
+    // "Discard" action inside the cancel dialog
+    this.discardButton = this.cancelModal.getByTestId('auto-itemize-discard-confirm');
 
-    // Keep Editing button inside the cancel modal
-    this.keepEditingButton = this.cancelModal.getByRole('button', { name: /Keep Editing/i });
+    // "Keep editing" button inside the cancel dialog
+    this.keepEditingButton = this.cancelModal.getByTestId('auto-itemize-discard-cancel');
 
     // Live region for a11y announcements (role="status" aria-atomic="true")
     this.liveRegion = page.locator('[role="status"][aria-atomic="true"]');

@@ -86,14 +86,6 @@
     "previous": "← Zurück",
     "next": "Weiter →"
   },
-  "delete": {
-    "confirm": "Haushaltsartikel löschen",
-    "message": "Möchten Sie wirklich löschen",
-    "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-    "cancel": "Abbrechen",
-    "delete": "Artikel löschen",
-    "deleting": "Wird gelöscht..."
-  },
   "loading": "Haushaltsartikel werden geladen...",
   "error": "Fehler beim Laden der Haushaltsartikel. Bitte versuchen Sie es erneut.",
   "deleteError": "Fehler beim Löschen des Haushaltsartikels. Bitte versuchen Sie es erneut.",
@@ -261,7 +253,6 @@
     },
     "datesDelivery": {
       "title": "Daten & Lieferung",
-      "purchaseStatus": "Kaufstatus",
       "actualDate": "Tatsächliches Datum",
       "targetDate": "Zieldatum",
       "orderDate": "Bestelldatum",
@@ -283,8 +274,9 @@
       "workItem": "Arbeitspaket",
       "milestone": "Meilenstein",
       "removeDependency": "Abhängigkeit entfernen von",
-      "confirm": "Bestätigen",
-      "cancel": "Abbrechen",
+      "removeTitle": "Abhängigkeit entfernen?",
+      "confirm": "Entfernen",
+      "removing": "Wird entfernt…",
       "search": "Arbeitspakete oder Meilensteine zum Hinzufügen durchsuchen...",
       "noMatches": "Keine Artikel entsprechen Ihrer Suche",
       "failedAdd": "Fehler beim Hinzufügen der Abhängigkeit",
@@ -298,18 +290,11 @@
       "updatedAt": "Aktualisiert am"
     },
     "delete": {
-      "confirm": "Haushaltsartikel löschen",
-      "message": "Möchten Sie wirklich löschen",
-      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "cancel": "Abbrechen",
       "delete": "Artikel löschen",
-      "deleting": "Wird gelöscht...",
       "deleted": "Haushaltsartikel erfolgreich gelöscht"
     },
     "status": {
-      "late": "Verspätet",
-      "updated": "Status aktualisiert",
-      "updateFailed": "Fehler beim Aktualisieren des Status. Bitte versuchen Sie es erneut."
+      "late": "Verspätet"
     },
     "budget": {
       "title": "Budget",

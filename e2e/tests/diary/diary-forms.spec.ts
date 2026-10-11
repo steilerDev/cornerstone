@@ -863,7 +863,8 @@ test.describe('Shared Modal on the edit page (Scenario 14)', { tag: '@responsive
     try {
       await editPage.goto(id);
       await editPage.openDiscardModal();
-      await expect(editPage.discardModal.locator(':focus')).toHaveCount(1);
+      // #2209: the safe action (Cancel / Keep entry) takes the initial focus
+      await expect(editPage.discardModalCancel).toBeFocused();
     } finally {
       await deleteDiaryEntryViaApi(page, id);
     }

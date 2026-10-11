@@ -6,7 +6,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { screen, waitFor, render, fireEvent, within, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { ReactNode } from 'react';
@@ -816,6 +816,103 @@ describe('UserManagementPage', () => {
         expect(screen.getByText(enErrors.LAST_ADMIN)).toBeInTheDocument();
       });
       expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('deactivate dialog (#2209)', () => {
+    async function openDialog(overrides: Partial<UserResponse> = {}) {
+      mockListUsers.mockResolvedValue({
+        users: [makeUser({ id: 'user-1', displayName: 'Alice Admin', ...overrides })],
+      });
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('user-menu-button-user-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-deactivate-user-1'));
+      return screen.findByRole('alertdialog', { name: 'Deactivate Alice Admin?' });
+    }
+
+    it('opens an alertdialog named "Deactivate <name>?" with Cancel focused and the lead text', async () => {
+      const dialog = await openDialog();
+      expect(dialog).toBeInTheDocument();
+      expect(screen.getByTestId('user-deactivate-cancel')).toHaveFocus();
+      expect(
+        within(dialog).getByText('Their sessions are terminated immediately.'),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('user-deactivate-confirm')).toHaveTextContent('Deactivate');
+      expect(mockDeactivateUser).not.toHaveBeenCalled();
+    });
+
+    it('Confirm calls deactivateUser once with the user id', async () => {
+      await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+      await waitFor(() => expect(mockDeactivateUser).toHaveBeenCalledTimes(1));
+      expect(mockDeactivateUser).toHaveBeenCalledWith('user-1');
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+    });
+
+    it('shows the busy label while deactivating and ignores a second press', async () => {
+      let resolve!: () => void;
+      mockDeactivateUser.mockImplementation(() => new Promise<void>((r) => (resolve = r)));
+      await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+      await waitFor(() =>
+        expect(screen.getByTestId('user-deactivate-confirm')).toHaveTextContent('Deactivating...'),
+      );
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+      expect(mockDeactivateUser).toHaveBeenCalledTimes(1);
+      await act(async () => resolve());
+    });
+
+    it('an API error shows inside the dialog, keeps it open, and never leaks the server text', async () => {
+      mockDeactivateUser.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'LAST_ADMIN', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      const dialog = await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+
+      await waitFor(() =>
+        expect(within(dialog).getByRole('alert')).toHaveTextContent(enErrors.LAST_ADMIN),
+      );
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
+    });
+
+    it('a non-API failure shows the generic message inside the open dialog', async () => {
+      mockDeactivateUser.mockRejectedValueOnce(new Error('RAW-LOCAL'));
+      const dialog = await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+      await waitFor(() =>
+        expect(within(dialog).getByRole('alert')).toHaveTextContent(
+          'Failed to deactivate user. Please try again.',
+        ),
+      );
+      expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
+    });
+
+    it('Cancel closes the dialog without deactivating and focus never lands on body', async () => {
+      await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(mockDeactivateUser).not.toHaveBeenCalled();
+      expect(document.body).not.toHaveFocus();
+    });
+
+    it('reopening after an error starts clean', async () => {
+      mockDeactivateUser.mockRejectedValueOnce(new Error('x'));
+      const dialog = await openDialog();
+      fireEvent.click(screen.getByTestId('user-deactivate-confirm'));
+      await waitFor(() => expect(within(dialog).getByRole('alert')).toBeInTheDocument());
+      fireEvent.click(screen.getByTestId('user-deactivate-cancel'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      fireEvent.click(screen.getByTestId('user-menu-button-user-1'));
+      fireEvent.click(screen.getByTestId('user-deactivate-user-1'));
+      const reopened = await screen.findByRole('alertdialog');
+      expect(within(reopened).queryByRole('alert')).toBeNull();
     });
   });
 

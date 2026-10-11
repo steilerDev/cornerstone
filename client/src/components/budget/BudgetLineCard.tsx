@@ -12,9 +12,6 @@ export interface BudgetLineCardProps {
   confidenceLabels: Record<ConfidenceLevel, string>;
   onEdit: () => void;
   onDelete: () => void;
-  isDeleting: boolean;
-  onConfirmDelete: () => void;
-  onCancelDelete: () => void;
   children?: ReactNode;
   unlinkAction?: ReactNode;
 }
@@ -24,9 +21,6 @@ export function BudgetLineCard({
   confidenceLabels,
   onEdit,
   onDelete,
-  isDeleting,
-  onConfirmDelete,
-  onCancelDelete,
   children,
   unlinkAction,
 }: BudgetLineCardProps) {
@@ -95,46 +89,34 @@ export function BudgetLineCard({
       </div>
 
       <div className={styles.actions}>
-        {isDeleting ? (
-          <>
-            <button
-              type="button"
-              className={styles.deleteConfirmButton}
-              onClick={onConfirmDelete}
-              title={t('vendorDetail.confirmDelete')}
-            >
-              Confirm
-            </button>
-            <button
-              type="button"
-              className={styles.cancelDeleteButton}
-              onClick={onCancelDelete}
-              title={t('vendorDetail.cancelDelete')}
-            >
-              Cancel
-            </button>
-          </>
-        ) : (
-          <>
-            <button
-              type="button"
-              className={styles.editButton}
-              onClick={onEdit}
-              aria-label={`Edit budget line${line.description ? ': ' + line.description : ''}`}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className={styles.deleteButton}
-              onClick={onDelete}
-              aria-label={`Delete budget line${line.description ? ': ' + line.description : ''}`}
-            >
-              Delete
-            </button>
-            {unlinkAction}
-          </>
-        )}
+        <button
+          type="button"
+          className={styles.editButton}
+          onClick={onEdit}
+          aria-label={
+            line.description
+              ? t('budgetLine.editAriaNamed', { description: line.description })
+              : t('budgetLine.editAria')
+          }
+        >
+          {t('budgetLine.edit')}
+        </button>
+        <button
+          type="button"
+          className={styles.deleteButton}
+          onClick={onDelete}
+          aria-label={
+            line.description
+              ? t('budgetLine.deleteAriaNamed', {
+                  item: t('budgetLine.item'),
+                  description: line.description,
+                })
+              : t('budgetLine.deleteAria', { item: t('budgetLine.item') })
+          }
+        >
+          {t('budgetLine.delete')}
+        </button>
+        {unlinkAction}
       </div>
     </div>
   );

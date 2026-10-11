@@ -6,6 +6,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as MilestonesApiTypes from '../../lib/milestonesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import type { MilestoneSummary } from '@cornerstone/shared';
@@ -16,6 +17,11 @@ import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 
 const mockListMilestones = jest.fn<typeof MilestonesApiTypes.listMilestones>();
 const mockDeleteMilestone = jest.fn<typeof MilestonesApiTypes.deleteMilestone>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 
 jest.unstable_mockModule('../../lib/milestonesApi.js', () => ({
   listMilestones: mockListMilestones,
@@ -118,6 +124,12 @@ describe('MilestonesPage', () => {
   beforeEach(async () => {
     mockListMilestones.mockReset();
     mockDeleteMilestone.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'milestone',
+      id: '1',
+      effects: [{ kind: 'tasksUnlinked', count: 3 }],
+    });
 
     if (!MilestonesPageModule) {
       MilestonesPageModule = await import('./MilestonesPage.js');
@@ -357,8 +369,64 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      // Modal should show milestone title
-      expect(screen.getAllByText('Foundation Complete')[0]!).toBeInTheDocument();
+      expect(
+        screen.getByRole('alertdialog', { name: 'Delete Foundation Complete?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('milestone-list-delete-cancel')).toHaveFocus();
+    });
+
+    async function confirmDelete() {
+      const btn = await screen.findByTestId('milestone-list-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      fireEvent.click(btn);
+    }
+
+    async function openDeleteDialog() {
+      mockListMilestones.mockResolvedValueOnce([sampleMilestone1]);
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('milestone-menu-button-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
+      fireEvent.click(screen.getByTestId('milestone-delete-1'));
+    }
+
+    it('asks the delete-impact endpoint for this milestone and lists the counts', async () => {
+      await openDeleteDialog();
+      await waitFor(() =>
+        expect(screen.getByTestId('milestone-list-delete-consequences')).toHaveTextContent(
+          'Tasks no longer linked to it: 3',
+        ),
+      );
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('milestone', 1);
+    });
+
+    it('keeps the action disabled while the counts load and when they fail, until Retry works', async () => {
+      mockFetchDeleteImpact.mockRejectedValueOnce(new Error('offline'));
+      await openDeleteDialog();
+      const retry = await screen.findByTestId('milestone-list-delete-retry');
+      expect(screen.getByTestId('milestone-list-delete-confirm')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      fireEvent.click(retry);
+      await waitFor(() =>
+        expect(screen.getByTestId('milestone-list-delete-confirm')).not.toHaveAttribute(
+          'aria-disabled',
+        ),
+      );
+      expect(mockDeleteMilestone).not.toHaveBeenCalled();
+    });
+
+    it('a 409 from the delete hides the action and shows the reason', async () => {
+      mockDeleteMilestone.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      await openDeleteDialog();
+      await confirmDelete();
+      await waitFor(() => expect(screen.queryByTestId('milestone-list-delete-confirm')).toBeNull());
+      expect(screen.getByRole('alertdialog')).toHaveTextContent(enErrors.CONFLICT);
+      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
     });
 
     it('closes modal when cancel button is clicked', async () => {
@@ -373,13 +441,9 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      // Click cancel button (first secondary button in the modal)
-      const cancelButtons = screen.getAllByRole('button');
-      const cancelBtn = cancelButtons.find((btn) => btn.textContent?.match(/cancel/i));
-      expect(cancelBtn).toBeTruthy();
-      if (cancelBtn) fireEvent.click(cancelBtn);
-
-      // After cancel, the title (in context of deletion) should have gone away from the modal
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      fireEvent.click(screen.getByTestId('milestone-list-delete-cancel'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
     });
 
     it('calls deleteMilestone and reloads on confirm', async () => {
@@ -397,11 +461,7 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      // Find the confirm delete button
-      const buttons = screen.getAllByRole('button');
-      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/delete milestone/i));
-      expect(deleteConfirmBtn).toBeTruthy();
-      if (deleteConfirmBtn) fireEvent.click(deleteConfirmBtn);
+      await confirmDelete();
 
       await waitFor(() => {
         expect(mockDeleteMilestone).toHaveBeenCalledWith(1);
@@ -424,10 +484,7 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      const deleteConfirmBtn = screen
-        .getAllByRole('button')
-        .find((btn) => btn.textContent?.match(/delete milestone/i));
-      fireEvent.click(deleteConfirmBtn!);
+      await confirmDelete();
 
       await waitFor(() => {
         expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();
@@ -449,10 +506,7 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      const deleteConfirmBtn = screen
-        .getAllByRole('button')
-        .find((btn) => btn.textContent?.match(/delete milestone/i));
-      fireEvent.click(deleteConfirmBtn!);
+      await confirmDelete();
 
       await waitFor(() => {
         expect(screen.getAllByRole('alert')).toHaveLength(1);
@@ -475,9 +529,7 @@ describe('MilestonesPage', () => {
       fireEvent.click(screen.getByTestId('milestone-menu-button-1'));
       fireEvent.click(screen.getByTestId('milestone-delete-1'));
 
-      const buttons = screen.getAllByRole('button');
-      const deleteConfirmBtn = buttons.find((btn) => btn.textContent?.match(/delete milestone/i));
-      if (deleteConfirmBtn) fireEvent.click(deleteConfirmBtn);
+      await confirmDelete();
 
       await waitFor(() => {
         expect(screen.getAllByText(enErrors.INTERNAL_ERROR)[0]!).toBeInTheDocument();

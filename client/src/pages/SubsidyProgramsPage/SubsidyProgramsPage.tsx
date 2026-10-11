@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useRef, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import type {
   SubsidyProgram,
@@ -20,13 +20,19 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './SubsidyProgramsPage.module.css';
 import { SUBSIDY_APPLICATION_STATUSES } from '@cornerstone/shared';
-import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { grantTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeGrantStatus } from '../../lib/statusChangeApi.js';
 
 // ---- Display helpers ----
 
@@ -43,20 +49,6 @@ function formatReduction(
   return formatCurrency(reductionValue);
 }
 
-function getStatusClassName(
-  cssStyles: Record<string, string>,
-  status: SubsidyApplicationStatus,
-): string {
-  const map: Record<SubsidyApplicationStatus, string> = {
-    eligible: cssStyles.statusEligible ?? '',
-    applied: cssStyles.statusApplied ?? '',
-    approved: cssStyles.statusApproved ?? '',
-    received: cssStyles.statusReceived ?? '',
-    rejected: cssStyles.statusRejected ?? '',
-  };
-  return map[status] ?? '';
-}
-
 // ---- Editing state shape ----
 
 type EditingProgram = {
@@ -66,7 +58,6 @@ type EditingProgram = {
   eligibility: string;
   reductionType: SubsidyReductionType;
   reductionValue: string;
-  applicationStatus: SubsidyApplicationStatus;
   applicationDeadline: string;
   notes: string;
   categoryIds: string[];
@@ -82,7 +73,6 @@ function programToEditState(program: SubsidyProgram): EditingProgram {
     eligibility: program.eligibility ?? '',
     reductionType: program.reductionType,
     reductionValue: String(program.reductionValue),
-    applicationStatus: program.applicationStatus,
     applicationDeadline: program.applicationDeadline
       ? program.applicationDeadline.substring(0, 10)
       : '',
@@ -103,6 +93,8 @@ export function SubsidyProgramsPage() {
   useDocumentTitle(pageTitle);
   const { t: tSettings } = useTranslation('settings');
   const { formatCurrency, formatDate } = useFormatters();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const [programs, setPrograms] = useState<SubsidyProgram[]>([]);
   const [oversubscribedIds, setOversubscribedIds] = useState<Set<string>>(() => new Set());
   const [allCategories, setAllCategories] = useState<BudgetCategory[]>([]);
@@ -136,6 +128,9 @@ export function SubsidyProgramsPage() {
   const [deletingProgramId, setDeletingProgramId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('subsidy_program', deletingProgramId);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
 
   // Documents expansion state
   const [expandedDocsPrograms, setExpandedDocsPrograms] = useState<Set<string>>(() => new Set());
@@ -171,6 +166,26 @@ export function SubsidyProgramsPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Quiet reload after a status change or its Undo (no loading skeleton). */
+  const refreshPrograms = async () => {
+    try {
+      const [programsResponse, overviewData] = await Promise.all([
+        fetchSubsidyPrograms(),
+        fetchBudgetOverview(),
+      ]);
+      setPrograms(programsResponse.subsidyPrograms);
+      setOversubscribedIds(
+        new Set<string>(
+          (overviewData.subsidySummary.oversubscribedSubsidies ?? []).map(
+            (o: OversubscribedSubsidy) => o.subsidyProgramId,
+          ),
+        ),
+      );
+    } catch {
+      // The list keeps its last state; the next full load corrects it.
     }
   };
 
@@ -331,7 +346,6 @@ export function SubsidyProgramsPage() {
         eligibility: editingProgram.eligibility.trim() || null,
         reductionType: editingProgram.reductionType,
         reductionValue: reductionValueNum,
-        applicationStatus: editingProgram.applicationStatus,
         applicationDeadline: editingProgram.applicationDeadline || null,
         notes: editingProgram.notes.trim() || null,
         maximumAmount: editingProgram.maximumAmount.trim()
@@ -357,6 +371,7 @@ export function SubsidyProgramsPage() {
   const openDeleteConfirm = (programId: string) => {
     setDeletingProgramId(programId);
     setDeleteError('');
+    setDeleteBlocked(false);
     setSuccessMessage('');
   };
 
@@ -364,6 +379,7 @@ export function SubsidyProgramsPage() {
     if (!isDeleting) {
       setDeletingProgramId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -379,6 +395,7 @@ export function SubsidyProgramsPage() {
       setSuccessMessage(t('subsidies.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('subsidies.modal.deleteError'));
         } else {
@@ -432,6 +449,7 @@ export function SubsidyProgramsPage() {
       breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
+          ref={createButtonRef}
           type="button"
           className={styles.button}
           onClick={() => {
@@ -551,7 +569,7 @@ export function SubsidyProgramsPage() {
                 >
                   {SUBSIDY_APPLICATION_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
+                      {statusVariants.grant[value].label}
                     </option>
                   ))}
                 </select>
@@ -746,7 +764,7 @@ export function SubsidyProgramsPage() {
                   <form
                     onSubmit={handleUpdateProgram}
                     className={styles.editForm}
-                    aria-label={`Edit ${program.name}`}
+                    aria-label={t('subsidies.buttons.editAria', { name: program.name })}
                   >
                     {updateError && (
                       <div className={styles.errorBanner} role="alert">
@@ -834,33 +852,9 @@ export function SubsidyProgramsPage() {
                         />
                       </div>
 
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${program.id}`} className={styles.label}>
-                          Status
-                        </label>
-                        <select
-                          id={`edit-status-${program.id}`}
-                          value={editingProgram.applicationStatus}
-                          onChange={(e) =>
-                            setEditingProgram({
-                              ...editingProgram,
-                              applicationStatus: e.target.value as SubsidyApplicationStatus,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating}
-                        >
-                          {SUBSIDY_APPLICATION_STATUSES.map((value) => (
-                            <option key={value} value={value}>
-                              {tCommon(I18N_UNION_KEYS.statusVocabularyGrant.key(value))}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
                       <div className={styles.fieldNarrow}>
                         <label htmlFor={`edit-deadline-${program.id}`} className={styles.label}>
-                          Deadline
+                          {t('subsidies.form.deadline')}
                         </label>
                         <input
                           type="date"
@@ -1058,13 +1052,26 @@ export function SubsidyProgramsPage() {
                       <div className={styles.programMain}>
                         <span className={styles.programName}>{program.name}</span>
                         <div className={styles.programBadges}>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClassName(styles, program.applicationStatus)}`}
-                          >
-                            {tCommon(
-                              I18N_UNION_KEYS.statusVocabularyGrant.key(program.applicationStatus),
-                            )}
-                          </span>
+                          <StatusMenu
+                            transitions={grantTransitions(tCommon, program)}
+                            badge={{
+                              variants: statusVariants.grant,
+                              value: program.applicationStatus,
+                            }}
+                            currentLabel={statusVariants.grant[program.applicationStatus].label}
+                            focusFallbackRef={createButtonRef}
+                            testId={`grant-status-${program.id}`}
+                            onApply={(to) =>
+                              runStatusChange({
+                                request: () => changeGrantStatus(program.id, to),
+                                recordName: program.name,
+                                statusLabel: statusVariants.grant[to].label,
+                                dedupeKey: `subsidy_program:${program.id}`,
+                                onChanged: () => void refreshPrograms(),
+                                onUndone: () => refreshPrograms(),
+                              })
+                            }
+                          />
                           <span className={styles.reductionBadge}>
                             {formatReduction(
                               program.reductionType,
@@ -1087,7 +1094,9 @@ export function SubsidyProgramsPage() {
 
                       {program.applicationDeadline && (
                         <div className={styles.programDeadline}>
-                          <span className={styles.deadlineLabel}>Deadline:</span>{' '}
+                          <span className={styles.deadlineLabel}>
+                            {t('subsidies.form.deadline')}:
+                          </span>{' '}
                           <span className={styles.deadlineValue}>
                             {formatDate(program.applicationDeadline)}
                           </span>
@@ -1162,18 +1171,18 @@ export function SubsidyProgramsPage() {
                         className={styles.editButton}
                         onClick={() => startEdit(program)}
                         disabled={!!editingProgram}
-                        aria-label={`Edit ${program.name}`}
+                        aria-label={t('subsidies.buttons.editAria', { name: program.name })}
                       >
-                        Edit
+                        {t('subsidies.buttons.edit')}
                       </button>
                       <button
                         type="button"
                         className={styles.deleteButton}
                         onClick={() => openDeleteConfirm(program.id)}
                         disabled={!!editingProgram}
-                        aria-label={`Delete ${program.name}`}
+                        aria-label={t('subsidies.buttons.deleteAria', { name: program.name })}
                       >
-                        Delete
+                        {t('subsidies.buttons.delete')}
                       </button>
                     </div>
                   </>
@@ -1194,55 +1203,23 @@ export function SubsidyProgramsPage() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingProgramId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('subsidies.modal.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('subsidies.modal.deleteConfirm', {
-                name: programs.find((p) => p.id === deletingProgramId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('subsidies.modal.deleteWarning')}</p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('subsidies.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteProgram(deletingProgramId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('subsidies.buttons.deleting') : t('subsidies.buttons.delete')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: programs.find((p) => p.id === deletingProgramId)?.name ?? '',
+          })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteProgram(deletingProgramId)}
+          onCancel={closeDeleteConfirm}
+          testIdPrefix="subsidy-delete"
+        />
       )}
     </PageLayout>
   );

@@ -86,14 +86,6 @@
     "previous": "← Previous",
     "next": "Next →"
   },
-  "delete": {
-    "confirm": "Delete Household Item",
-    "message": "Are you sure you want to delete",
-    "warning": "This action cannot be undone.",
-    "cancel": "Cancel",
-    "delete": "Delete Item",
-    "deleting": "Deleting..."
-  },
   "loading": "Loading household items...",
   "error": "Failed to load household items. Please try again.",
   "deleteError": "Failed to delete household item. Please try again.",
@@ -261,7 +253,6 @@
     },
     "datesDelivery": {
       "title": "Dates & Delivery",
-      "purchaseStatus": "Purchase Status",
       "actualDate": "Actual Date",
       "targetDate": "Target Date",
       "orderDate": "Order Date",
@@ -283,8 +274,9 @@
       "workItem": "Work Item",
       "milestone": "Milestone",
       "removeDependency": "Remove dependency on",
-      "confirm": "Confirm",
-      "cancel": "Cancel",
+      "removeTitle": "Remove dependency?",
+      "confirm": "Remove",
+      "removing": "Removing…",
       "search": "Search work items or milestones to add...",
       "noMatches": "No items match your search",
       "failedAdd": "Failed to add dependency",
@@ -298,18 +290,11 @@
       "updatedAt": "Updated at"
     },
     "delete": {
-      "confirm": "Delete Household Item",
-      "message": "Are you sure you want to delete",
-      "warning": "This action cannot be undone.",
-      "cancel": "Cancel",
       "delete": "Delete Item",
-      "deleting": "Deleting...",
       "deleted": "Household item deleted successfully"
     },
     "status": {
-      "late": "Late",
-      "updated": "Status updated",
-      "updateFailed": "Failed to update status. Please try again."
+      "late": "Late"
     },
     "budget": {
       "title": "Budget",

@@ -30,6 +30,7 @@ import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { pathnameOf, readOrigin } from '../../navigation/origin.js';
 import { useAutoItemizeLines } from '../../hooks/useAutoItemizeLines.js';
 import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { Spinner } from '../../components/Spinner/Spinner.js';
 import { FormError } from '../../components/FormError/FormError.js';
 import { SuggestionBadge } from '../../components/SuggestionBadge/SuggestionBadge.js';
@@ -877,26 +878,19 @@ export function AutoItemizePage() {
         </Modal>
       )}
 
-      {/* Cancel confirmation modal */}
+      {/* Discard confirmation */}
       {showCancelConfirm && (
-        <Modal
-          title={t('autoItemize.cancelConfirmTitle')}
-          onClose={() => setShowCancelConfirm(false)}
-        >
-          <p>{t('autoItemize.cancelConfirmBody')}</p>
-          <div className={styles.modalActions}>
-            <button type="button" className={sharedStyles.btnPrimary} onClick={handleConfirmCancel}>
-              {t('autoItemize.discardChanges')}
-            </button>
-            <button
-              type="button"
-              className={sharedStyles.btnSecondary}
-              onClick={() => setShowCancelConfirm(false)}
-            >
-              {t('autoItemize.keepEditing')}
-            </button>
-          </div>
-        </Modal>
+        <ConfirmDialog
+          title={tc('confirmDialog.discardChangesTitle')}
+          lead={t('autoItemize.cancelConfirmBody')}
+          confirmLabel={tc('confirmDialog.discard')}
+          busyLabel={tc('confirmDialog.discarding')}
+          cancelLabel={tc('confirmDialog.keepEditing')}
+          busy={false}
+          onConfirm={handleConfirmCancel}
+          onCancel={() => setShowCancelConfirm(false)}
+          testIdPrefix="auto-itemize-discard"
+        />
       )}
     </>
   );

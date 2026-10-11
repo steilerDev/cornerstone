@@ -283,10 +283,12 @@ test.describe('Orientations tab — delete (Scenario 7)', { tag: '@responsive' }
         .getByRole('button', { name: `Delete ${orientationName}`, exact: true })
         .click();
 
-      const modal = page.locator('[role="dialog"]');
+      const modal = page.getByRole('alertdialog', { name: `Delete ${orientationName}?` });
       await modal.waitFor({ state: 'visible' });
-      // Modal title
-      await expect(modal.getByRole('heading', { name: 'Delete orientation' })).toBeVisible();
+      // Dialog title names the orientation
+      await expect(
+        modal.getByRole('heading', { name: `Delete ${orientationName}?` }),
+      ).toBeVisible();
 
       // Confirm deletion
       const responsePromise = page.waitForResponse(
@@ -294,7 +296,7 @@ test.describe('Orientations tab — delete (Scenario 7)', { tag: '@responsive' }
           resp.url().includes(`/api/orientations/${orientationId}`) &&
           resp.request().method() === 'DELETE',
       );
-      await modal.locator('[class*="confirmDeleteButton"]').click();
+      await modal.getByTestId('orientation-delete-confirm').click();
       await responsePromise;
       await modal.waitFor({ state: 'hidden' });
 

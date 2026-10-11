@@ -21,15 +21,16 @@
  *   - #title — data-testid="milestone-title-input"
  *   - #targetDate — data-testid="milestone-target-date-input"
  *   - #description — data-testid="milestone-description-input"
- *   - #isCompleted checkbox — data-testid="milestone-completed-checkbox"
  * - Save button: data-testid="save-milestone-button", text "Save Changes" / "Saving..."
  * - Cancel button: class cancelButton, text "Cancel"
  *
- * **Delete confirmation modal** (role="dialog", aria-modal="true"):
- * - h2: t('milestones.detail.deleteConfirm') = "Delete Milestone"
- * - Cancel: class modalCancelButton
- * - Confirm: data-testid="confirm-delete-milestone", class modalDeleteButton
- *   text: "Delete Milestone" / "Deleting..."
+ * **Status** (#2209): the header chip is a StatusMenu (data-testid="milestone-status"); "Mark
+ * reached" (date step) and "Back to “Upcoming”" live there. The Edit form no longer has a
+ * "Mark as completed" checkbox.
+ *
+ * **Delete confirmation** (shared ConfirmDialog, role="alertdialog", testid prefix milestone-delete):
+ * - title: "Delete <title>?"
+ * - Cancel: milestone-delete-cancel; Confirm: milestone-delete-confirm ("Delete" / "Deleting…")
  *
  * **Not found state** (is404 = true):
  * - div.notFound with the page h1 t('milestones.detail.notFound') = "Milestone not found"
@@ -38,7 +39,7 @@
  * **Error banner** (role="alert", class errorBanner) — shown for API errors
  *
  * Key DOM observations from source code:
- * - Delete modal uses role="dialog" with aria-modal="true" (own implementation, not shared Modal)
+ * - Delete dialog is the shared ConfirmDialog (alertdialog)
  * - Edit button and save button use data-testid for stable selection
  * - The page h1 = milestone.title (not a fixed string)
  */
@@ -46,6 +47,7 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { StatusMenuControl } from './components/StatusMenuControl.js';
 
 export class MilestoneDetailPage {
   readonly page: Page;
@@ -58,13 +60,14 @@ export class MilestoneDetailPage {
   readonly editButton: Locator; // data-testid="edit-milestone-button"
   readonly deleteButton: Locator; // data-testid="delete-milestone-button"
   readonly viewCard: Locator;
+  readonly statusMenu: StatusMenuControl;
+  /** The status chip trigger/badge (data-testid="milestone-status"). */
   readonly statusBadge: Locator;
 
   // Edit mode elements
   readonly titleInput: Locator; // data-testid="milestone-title-input"
   readonly targetDateInput: Locator; // data-testid="milestone-target-date-input"
   readonly descriptionInput: Locator; // data-testid="milestone-description-input"
-  readonly isCompletedCheckbox: Locator; // data-testid="milestone-completed-checkbox"
   readonly saveButton: Locator; // data-testid="save-milestone-button"
   readonly cancelEditButton: Locator; // "Cancel" in edit mode (class cancelButton)
 
@@ -73,10 +76,10 @@ export class MilestoneDetailPage {
   readonly depSearchInput: Locator; // data-testid="dep-search-input"
   readonly dependentItemsSection: Locator; // data-testid="dependent-items-section"
 
-  // Delete confirmation modal (own role="dialog" implementation, not shared Modal)
+  // Delete confirmation (shared ConfirmDialog, role="alertdialog")
   readonly deleteModal: Locator;
-  readonly deleteConfirmButton: Locator; // data-testid="confirm-delete-milestone"
-  readonly deleteCancelButton: Locator; // class modalCancelButton
+  readonly deleteConfirmButton: Locator; // data-testid="milestone-delete-confirm"
+  readonly deleteCancelButton: Locator; // data-testid="milestone-delete-cancel"
 
   // Error / not-found states
   readonly errorBanner: Locator; // role="alert", class errorBanner
@@ -93,14 +96,14 @@ export class MilestoneDetailPage {
     this.editButton = page.getByTestId('edit-milestone-button');
     this.deleteButton = page.getByTestId('delete-milestone-button');
     this.viewCard = page.locator('[class*="viewCard"]');
-    // Status badge uses class statusBadge + statusCompleted or statusPending
-    this.statusBadge = page.locator('[class*="statusBadge"]');
+    // Status chip: StatusMenu (testid milestone-status)
+    this.statusMenu = new StatusMenuControl(page, 'milestone-status');
+    this.statusBadge = this.statusMenu.trigger;
 
     // Edit mode form fields — same data-testids used in both create and edit forms
     this.titleInput = page.getByTestId('milestone-title-input');
     this.targetDateInput = page.getByTestId('milestone-target-date-input');
     this.descriptionInput = page.getByTestId('milestone-description-input');
-    this.isCompletedCheckbox = page.getByTestId('milestone-completed-checkbox');
     this.saveButton = page.getByTestId('save-milestone-button');
     // Cancel edit button: class cancelButton (in editActions div)
     this.cancelEditButton = page.locator('[class*="cancelButton"]').filter({ hasText: 'Cancel' });
@@ -110,13 +113,12 @@ export class MilestoneDetailPage {
     this.depSearchInput = page.getByTestId('dep-search-input');
     this.dependentItemsSection = page.getByTestId('dependent-items-section');
 
-    // Delete confirmation modal: own implementation with role="dialog" aria-modal="true"
-    // Scoped by role="dialog" to avoid matching the shared Modal if it exists
-    this.deleteModal = page.locator('[role="dialog"][aria-modal="true"]');
-    // Confirm button uses data-testid="confirm-delete-milestone"
-    this.deleteConfirmButton = page.getByTestId('confirm-delete-milestone');
-    // Cancel button uses class modalCancelButton (CSS Modules hashed)
-    this.deleteCancelButton = this.deleteModal.locator('[class*="modalCancelButton"]');
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('milestone-delete-cancel') });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('milestone-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('milestone-delete-cancel');
 
     // Error / load states
     this.errorBanner = page.locator('[role="alert"][class*="errorBanner"]');

@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDavToken } from '../../hooks/useDavToken.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { FormError } from '../FormError/FormError.js';
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import styles from './DavAccessCard.module.css';
 
 export function DavAccessCard() {
@@ -12,6 +13,8 @@ export function DavAccessCard() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
+  const generateButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -23,13 +26,14 @@ export function DavAccessCard() {
   };
 
   const handleRevoke = async () => {
-    if (window.confirm(t('dav.revokeConfirm'))) {
-      setIsRevoking(true);
-      try {
-        await revoke();
-      } finally {
-        setIsRevoking(false);
-      }
+    setIsRevoking(true);
+    try {
+      await revoke();
+    } catch {
+      // The hook shows the translated error on the card.
+    } finally {
+      setIsRevoking(false);
+      setShowRevokeConfirm(false);
     }
   };
 
@@ -119,7 +123,7 @@ export function DavAccessCard() {
             <button
               type="button"
               className={styles.revokeButton}
-              onClick={() => void handleRevoke()}
+              onClick={() => setShowRevokeConfirm(true)}
               disabled={isGenerating || isRevoking}
             >
               {isRevoking ? t('dav.revoking') : t('dav.revokeToken')}
@@ -127,6 +131,7 @@ export function DavAccessCard() {
           </>
         ) : (
           <button
+            ref={generateButtonRef}
             type="button"
             className={styles.generateButton}
             onClick={() => void handleGenerate()}
@@ -136,6 +141,21 @@ export function DavAccessCard() {
           </button>
         )}
       </div>
+
+      {showRevokeConfirm && (
+        <ConfirmDialog
+          title={t('dav.revokeTitle')}
+          lead={t('dav.revokeLead')}
+          irreversible
+          confirmLabel={t('dav.revokeAction')}
+          busyLabel={t('dav.revoking')}
+          busy={isRevoking}
+          onConfirm={() => void handleRevoke()}
+          onCancel={() => setShowRevokeConfirm(false)}
+          returnFocusRef={generateButtonRef}
+          testIdPrefix="dav-revoke"
+        />
+      )}
 
       {/* Download Profile Link */}
       {status?.hasToken && (

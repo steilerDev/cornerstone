@@ -104,18 +104,16 @@ export class UserManagementPage {
     this.editSaveButton = this.editModal.getByRole('button', { name: /Save Changes|Saving/ });
     this.editModalError = this.editModal.locator('[role="alert"]');
 
-    // Deactivate modal (uses role="dialog" with aria-label)
-    this.deactivateModal = page.getByRole('dialog', { name: 'Deactivate User' });
-    this.deactivateModalHeading = this.deactivateModal.getByRole('heading', {
-      level: 2,
-      name: 'Deactivate User',
-    });
+    // Deactivate dialog: the shared ConfirmDialog (role="alertdialog", #2209),
+    // title "Deactivate <name>?", testid prefix user-deactivate
+    this.deactivateModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('user-deactivate-cancel') });
+    this.deactivateModalHeading = this.deactivateModal.getByRole('heading', { level: 2 });
     this.deactivateModalCloseButton = this.deactivateModal.getByRole('button', { name: 'Close' });
-    this.deactivateConfirmationText = this.deactivateModal.getByText(/Are you sure/);
-    this.deactivateCancelButton = this.deactivateModal.getByRole('button', { name: 'Cancel' });
-    this.deactivateButton = this.deactivateModal.getByRole('button', {
-      name: /Deactivate|Deactivating/,
-    });
+    this.deactivateConfirmationText = this.deactivateModal.getByText(/sessions are terminated/);
+    this.deactivateCancelButton = this.deactivateModal.getByTestId('user-deactivate-cancel');
+    this.deactivateButton = this.deactivateModal.getByTestId('user-deactivate-confirm');
     this.deactivateModalError = this.deactivateModal.locator('[role="alert"]');
   }
 

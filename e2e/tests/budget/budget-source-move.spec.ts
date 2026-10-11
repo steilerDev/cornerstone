@@ -506,7 +506,7 @@ test.describe(
           await expect(sourcesPage.moveModal).not.toBeVisible();
 
           // Success toast must appear
-          const toast = page.locator('[role="alert"]').filter({ hasText: /Moved 1 line to/ });
+          const toast = page.getByTestId('toast-success').filter({ hasText: /Moved 1 line to/ });
           await expect(toast).toBeVisible();
           await expect(toast).toContainText(sourceBName);
         } finally {

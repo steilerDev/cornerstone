@@ -39,8 +39,8 @@
  *   issue-metadata) set by DiaryMetadataSummary component
  * - Outcome badge: data-testid="outcome-{pass|fail|conditional}" (DiaryOutcomeBadge)
  * - Severity badge: data-testid="severity-{low|medium|high|critical}" (DiarySeverityBadge)
- * - Delete modal: conditionally rendered, role="dialog"
- * - Confirm delete button: class styles.confirmDeleteButton, hidden after deleteError
+ * - Delete dialog (#2209): shared ConfirmDialog, role="alertdialog", testid prefix diary-delete;
+ *   the Delete action is hidden after a 409
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -118,18 +118,15 @@ export class DiaryEntryDetailPage {
     // "Edit" is a <Link> rendered as an anchor — only visible for non-automatic entries
     this.editButton = page.getByRole('link', { name: 'Edit', exact: true });
 
-    // "Delete" is a <button> in the top bar — opens the delete modal
-    // Note: "Delete Entry" is the button inside the modal — use exact match to distinguish
+    // "Delete" is a <button> in the top bar — opens the delete dialog
     this.deleteButton = page.getByRole('button', { name: 'Delete', exact: true });
 
-    // Delete confirmation modal (role="dialog")
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Diary Entry' });
-    // Confirm inside the modal: "Delete Entry" / "Deleting..."
-    this.confirmDeleteButton = this.deleteModal.getByRole('button', {
-      name: /Delete Entry|Deleting\.\.\./i,
-    });
-    // Cancel inside the modal
-    this.cancelDeleteButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", title "Delete <title>?")
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('diary-delete-cancel') });
+    this.confirmDeleteButton = this.deleteModal.getByTestId('diary-delete-confirm');
+    this.cancelDeleteButton = this.deleteModal.getByTestId('diary-delete-cancel');
 
     // Entry title h1 (conditional — only rendered when entry.title is set)
     this.entryTitle = page

@@ -111,24 +111,15 @@ export function useVendorContacts(vendorId: string): UseVendorContactsResult {
     [vendorId, refresh, t, tErrors],
   );
 
+  // Errors are not written to the shared banner: the caller (the delete confirmation dialog)
+  // shows them inside the dialog.
   const removeContact = useCallback(
     async (contactId: string) => {
-      setError(null);
-
-      try {
-        await deleteVendorContact(vendorId, contactId);
-        setContacts((prev) => prev.filter((c) => c.id !== contactId));
-        refresh();
-      } catch (err) {
-        if (err instanceof ApiClientError) {
-          setError(translateApiError(err.error.code, tErrors));
-        } else {
-          setError(t('vendors.contacts.errors.deleteFailed'));
-        }
-        throw err;
-      }
+      await deleteVendorContact(vendorId, contactId);
+      setContacts((prev) => prev.filter((c) => c.id !== contactId));
+      refresh();
     },
-    [vendorId, refresh, t, tErrors],
+    [vendorId, refresh],
   );
 
   return {

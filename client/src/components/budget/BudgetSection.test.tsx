@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react';
+import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import enBudget from '../../i18n/en/budget.json';
 import type { BaseBudgetLine, BudgetLineInvoiceLink } from '@cornerstone/shared';
 import type { UseBudgetSectionReturn } from '../../hooks/useBudgetSection.js';
@@ -27,10 +28,19 @@ jest.unstable_mockModule('../../contexts/LocaleContext.js', () => {
 });
 
 jest.unstable_mockModule('./BudgetLineCard.js', () => ({
-  BudgetLineCard: ({ line, children }: { line: BaseBudgetLine; children?: React.ReactNode }) => (
+  BudgetLineCard: ({
+    line,
+    children,
+    onDelete,
+  }: {
+    line: BaseBudgetLine;
+    children?: React.ReactNode;
+    onDelete?: () => void;
+  }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
       {children}
+      <button type="button" data-testid={`card-delete-${line.id}`} onClick={onDelete} />
     </div>
   ),
 }));
@@ -193,7 +203,7 @@ function buildProps(
     vendors: [],
     onLinkSubsidy: jest.fn(),
     onUnlinkSubsidy: jest.fn(),
-    onConfirmDeleteBudgetLine: jest.fn(),
+    onConfirmDeleteBudgetLine: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
     ...overrides,
   };
 }
@@ -436,5 +446,144 @@ describe('BudgetSection', () => {
     render(<BudgetSection {...buildProps(lines)} />);
 
     expect(screen.getByTestId('invoice-group-state-inv-1')).toHaveTextContent('null');
+  });
+});
+
+describe('BudgetSection cost-line delete dialog (one host dialog)', () => {
+  beforeEach(async () => {
+    jest.clearAllMocks();
+    const module = await import('./BudgetSection.js');
+    BudgetSection = module.BudgetSection;
+  });
+
+  function setup(opts?: {
+    deleting?: string | null;
+    onConfirm?: () => Promise<void>;
+    lines?: BaseBudgetLine[];
+  }) {
+    const hook = buildHookReturn({
+      deletingBudgetId: opts && 'deleting' in opts ? opts.deleting : 'line-1',
+    });
+    const onConfirm =
+      opts?.onConfirm ?? jest.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const lines = opts?.lines ?? [buildLine('line-1')];
+    render(
+      <BudgetSection
+        {...buildProps(lines, { budgetSectionHook: hook, onConfirmDeleteBudgetLine: onConfirm })}
+      />,
+    );
+    return { hook, onConfirm };
+  }
+
+  it('card Delete asks the hook to start deleting that line', () => {
+    const hook = buildHookReturn();
+    render(<BudgetSection {...buildProps([buildLine('line-1')], { budgetSectionHook: hook })} />);
+    fireEvent.click(screen.getByTestId('card-delete-line-1'));
+    expect(hook.handleDeleteBudgetLine).toHaveBeenCalledWith('line-1');
+  });
+
+  it('renders no dialog while nothing is being deleted', () => {
+    setup({ deleting: null });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('renders exactly one alertdialog named after the line, with the irreversible note', () => {
+    setup();
+    expect(screen.getAllByRole('alertdialog')).toHaveLength(1);
+    expect(screen.getByRole('alertdialog', { name: 'Delete Line line-1?' })).toBeInTheDocument();
+    expect(screen.getByText("This can't be undone.")).toBeInTheDocument();
+    expect(screen.getByTestId('cost-line-delete-cancel')).toHaveFocus();
+  });
+
+  it('uses the generic name for a line without a description', () => {
+    const line = { ...buildLine('line-1'), description: null };
+    setup({ lines: [line] });
+    expect(
+      screen.getByRole('alertdialog', {
+        name: `Delete ${enBudget.invoiceDetail.budgetLines.picker.budgetLineGeneric}?`,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it('renders no dialog when the id no longer matches a line', () => {
+    setup({ deleting: 'ghost' });
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+  });
+
+  it('Cancel clears the hook state', () => {
+    const { hook } = setup();
+    fireEvent.click(screen.getByTestId('cost-line-delete-cancel'));
+    expect(hook.setDeletingBudgetId).toHaveBeenCalledWith(null);
+  });
+
+  it('Delete runs the confirm callback and moves focus to the page heading', async () => {
+    document.body.insertAdjacentHTML('afterbegin', '<main><h1 id="page-h1">Task</h1></main>');
+    const { onConfirm } = setup();
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() => expect(onConfirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(document.getElementById('page-h1')).toHaveFocus());
+    document.querySelector('main')?.remove();
+  });
+
+  it('is busy while deleting: the action shows the busy label and Cancel is ignored', async () => {
+    let resolve!: () => void;
+    const { hook } = setup({ onConfirm: () => new Promise<void>((r) => (resolve = r)) });
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    expect(screen.getByTestId('cost-line-delete-confirm')).toHaveTextContent('Deleting…');
+    fireEvent.click(screen.getByTestId('cost-line-delete-cancel'));
+    expect(hook.setDeletingBudgetId).not.toHaveBeenCalled();
+    resolve();
+    await waitFor(() =>
+      expect(screen.getByTestId('cost-line-delete-confirm')).toHaveTextContent('Delete'),
+    );
+  });
+
+  it('a 409 shows the translated error and hides the action (line in use)', async () => {
+    setup({
+      onConfirm: jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(
+          new ApiClientError(409, { code: 'BUDGET_LINE_IN_USE', message: 'RAW-SENTINEL' }),
+        ),
+    });
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() => expect(screen.queryByTestId('cost-line-delete-confirm')).toBeNull());
+    const dialog = screen.getByRole('alertdialog');
+    expect(dialog).toHaveTextContent('This budget line is linked to an invoice');
+    expect(dialog).not.toHaveTextContent('RAW-SENTINEL');
+    expect(screen.getByTestId('cost-line-delete-cancel')).toBeInTheDocument();
+  });
+
+  it('a non-409 API error keeps the action available for a retry', async () => {
+    setup({
+      onConfirm: jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' })),
+    });
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() => expect(screen.getByRole('alert')).toBeInTheDocument());
+    expect(screen.getByTestId('cost-line-delete-confirm')).toBeInTheDocument();
+  });
+
+  it('a network failure shows the connection message', async () => {
+    setup({
+      onConfirm: jest
+        .fn<() => Promise<void>>()
+        .mockRejectedValue(new NetworkError('offline', null)),
+    });
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent("Can't reach the server"),
+    );
+  });
+
+  it('an unknown failure shows the generic delete error', async () => {
+    setup({ onConfirm: jest.fn<() => Promise<void>>().mockRejectedValue(new Error('boom')) });
+    fireEvent.click(screen.getByTestId('cost-line-delete-confirm'));
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        enBudget.budgetLineForm.errors.deleteFailed,
+      ),
+    );
   });
 });

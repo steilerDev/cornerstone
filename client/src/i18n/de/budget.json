@@ -119,9 +119,7 @@
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "deleting": "Wird gelöscht...",
-      "deleteConfirm": "Quelle Löschen"
+      "delete": "Löschen"
     },
     "sourcesList": {
       "title": "Quellen",
@@ -129,9 +127,6 @@
       "system": "System"
     },
     "deleteModal": {
-      "title": "Budgetquelle Löschen",
-      "confirm": "Sind Sie sicher, dass Sie die Budgetquelle „{{name}}“ löschen möchten?",
-      "warning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Quelle wird dauerhaft entfernt.",
       "conflictError": "Diese Budgetquelle kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
     },
     "messages": {
@@ -148,11 +143,6 @@
       "savings": "Ersparnisse",
       "other": "Sonstiges",
       "discretionary": "Diskretionär"
-    },
-    "sourceStatus": {
-      "active": "Aktiv",
-      "exhausted": "Erschöpft",
-      "closed": "Geschlossen"
     },
     "barChart": {
       "claimed": "Eingereicht",
@@ -297,7 +287,6 @@
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "deleting": "Wird gelöscht...",
       "view": "Anzeigen",
       "viewDetails": "Details Anzeigen",
       "retry": "Erneut versuchen"
@@ -315,9 +304,6 @@
     "modal": {
       "title": "Auftragnehmer Hinzufügen",
       "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
-      "deleteTitle": "Auftragnehmer Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitspakete hat. Entfernen Sie zuerst diese Verweise."
     },
     "messages": {
@@ -325,6 +311,20 @@
       "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
     }
+  },
+  "budgetLine": {
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "editAria": "Kostenposition bearbeiten",
+    "editAriaNamed": "Kostenposition bearbeiten: {{description}}",
+    "item": "Kostenposition",
+    "deleteAria": "{{item}} löschen",
+    "deleteAriaNamed": "{{item}} löschen: {{description}}"
+  },
+  "budgetSection": {
+    "noBudgetLines": "Noch keine Kostenpositionen. Fügen Sie die erste hinzu, um Kosten zu erfassen.",
+    "linkToInvoice": "Mit Rechnung verknüpfen",
+    "subsidies": "Förderprogramme"
   },
   "vendorDetail": {
     "loading": "Auftragnehmer wird geladen...",
@@ -378,13 +378,6 @@
       "editRow": "Bearbeiten",
       "deleteRow": "Löschen"
     },
-    "deleteModal": {
-      "title": "Auftragnehmer Löschen",
-      "confirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
-      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "delete": "Auftragnehmer Löschen",
-      "deleting": "Wird gelöscht..."
-    },
     "invoiceForm": {
       "title": "Rechnung Hinzufügen",
       "invoiceNumber": "Rechnung #",
@@ -398,12 +391,7 @@
       "adding": "Wird hinzugefügt..."
     },
     "deleteInvoiceModal": {
-      "title": "Rechnung Löschen",
-      "confirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} über {{amount}} löschen möchten?",
-      "noNumber": "diese Rechnung",
-      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "delete": "Rechnung Löschen",
-      "deleting": "Wird gelöscht..."
+      "noNumber": "diese Rechnung"
     },
     "quotedLabel": "Angebot",
     "quotedAmount": "Angebotsbetrag",
@@ -433,8 +421,6 @@
       "invoiceUpdateError": "Rechnung konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
       "invoiceDeleteError": "Rechnung konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
     },
-    "confirmDelete": "Löschen bestätigen",
-    "cancelDelete": "Löschen abbrechen",
     "unlinkFromInvoice": "Von Rechnung trennen"
   },
   "invoiceDetail": {
@@ -481,14 +467,10 @@
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
       "cancel": "Abbrechen",
-      "deleting": "Wird gelöscht...",
       "convertToFinal": "In Endrechnung umwandeln"
     },
     "modal": {
       "editTitle": "Rechnung Bearbeiten",
-      "deleteTitle": "Rechnung Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Rechnung {{number}} für {{amount}} löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
       "deleteConfirmShort": "Sind Sie sicher, dass Sie diese Rechnung löschen möchten?"
     },
     "messages": {
@@ -525,7 +507,7 @@
       },
       "modal": {
         "editTitle": "Budgetposition Bearbeiten",
-        "removeTitle": "Budgetposition Entfernen",
+        "removeTitle": "Diese Kostenposition aus der Rechnung entfernen?",
         "removeConfirm": "Diese Budgetposition wird von der Rechnung getrennt. Die Budgetposition selbst verbleibt im Arbeitspaket oder Haushaltsartikel.",
         "removeConfirmButton": "Entfernen",
         "removing": "Wird entfernt…"
@@ -607,10 +589,6 @@
         "claimed": "Eingereicht"
       },
       "menu": {
-        "markPaid": "Als bezahlt markieren…",
-        "markClaimed": "Als eingereicht markieren…",
-        "revertToPending": "Status auf „Zu zahlen“ zurücksetzen",
-        "revertToPaid": "Auf bezahlt zurücksetzen",
         "edit": "Bearbeiten",
         "delete": "Löschen",
         "ariaLabel": "Aktionen für Abschlagszahlung {{description}}"
@@ -618,11 +596,7 @@
       "modal": {
         "addTitle": "Abschlagszahlung Hinzufügen",
         "editTitle": "Abschlagszahlung Bearbeiten",
-        "deleteTitle": "Abschlagszahlung Löschen",
-        "deleteConfirm": "Diese Abschlagszahlung löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-        "deleteWarningPaidClaimed": "Diese Abschlagszahlung ist als bezahlt oder eingereicht markiert. Beim Löschen entfällt ihr Beitrag zu den Budgetsummen.",
-        "markPaidTitle": "Als bezahlt markieren",
-        "markClaimedTitle": "Als eingereicht markieren"
+        "deleteWarningPaidClaimed": "Diese Abschlagszahlung ist als bezahlt oder eingereicht markiert. Beim Löschen entfällt ihr Beitrag zu den Budgetsummen."
       },
       "form": {
         "amount": "Betrag",
@@ -656,17 +630,10 @@
         "loadError": "Abschlagszahlungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
         "saveError": "Abschlagszahlung konnte nicht gespeichert werden. Bitte versuchen Sie es erneut.",
         "deleteError": "Abschlagszahlung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "revertError": "Status der Abschlagszahlung konnte nicht zurückgesetzt werden. Bitte versuchen Sie es erneut.",
-        "revertNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht zurückgesetzt werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
-        "stateConfirmNetworkError": "Der Server ist nicht erreichbar, daher konnte der Status der Abschlagszahlung nicht aktualisiert werden. Bitte prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         "paidDateRequired": "„Bezahlt am“ ist erforderlich.",
         "claimedDateRequired": "Einreichungsdatum ist erforderlich.",
         "amountRequired": "Betrag muss eine positive Zahl sein.",
         "dueDateRequired": "Fälligkeitsdatum ist erforderlich."
-      },
-      "stateConfirm": {
-        "paidDateLabel": "Bezahlt am",
-        "claimedDateLabel": "Einreichungsdatum"
       }
     },
     "convertModal": {
@@ -839,14 +806,12 @@
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "deleting": "Wird gelöscht...",
+      "editAria": "{{name}} bearbeiten",
+      "deleteAria": "{{name}} löschen",
       "selectAll": "Alle Auswählen",
       "deselectAll": "Alle Abwählen"
     },
     "modal": {
-      "deleteTitle": "Förderprogramm Löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie das Programm „{{name}}“ löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Das Programm wird dauerhaft entfernt.",
       "deleteError": "Dieses Förderprogramm kann nicht gelöscht werden, da es derzeit von einem oder mehreren Budgeteinträgen referenziert wird."
     },
     "messages": {
@@ -1164,10 +1129,7 @@
     "save": "Speichern",
     "saving": "Wird gespeichert...",
     "cancel": "Abbrechen",
-    "cancelConfirmTitle": "Änderungen verwerfen?",
     "cancelConfirmBody": "Sie haben nicht gespeicherte Änderungen. Sind Sie sicher, dass Sie diese verwerfen möchten?",
-    "discardChanges": "Änderungen verwerfen",
-    "keepEditing": "Weiter bearbeiten",
     "invalidDocumentId": "Ungültige Dokument-ID",
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmer suchen…",

@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "measured": {
     "screens": {
-      "AutoItemizePage": { "destinations": 1, "primaryButtons": 12, "searchFields": 0 },
+      "AutoItemizePage": { "destinations": 1, "primaryButtons": 11, "searchFields": 0 },
       "BackupsPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "BudgetOverviewPage": { "destinations": 2, "primaryButtons": 3, "searchFields": 0 },
       "BudgetSourcesPage": { "destinations": 2, "primaryButtons": 7, "searchFields": 1 },
@@ -15,7 +15,7 @@
       "HouseholdItemDetailPage": { "destinations": 3, "primaryButtons": 13, "searchFields": 3 },
       "HouseholdItemEditPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "HouseholdItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 },
-      "InvoiceDetailPage": { "destinations": 2, "primaryButtons": 17, "searchFields": 1 },
+      "InvoiceDetailPage": { "destinations": 2, "primaryButtons": 16, "searchFields": 1 },
       "InvoicesPage": { "destinations": 3, "primaryButtons": 7, "searchFields": 2 },
       "LoginPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "ManagePage": { "destinations": 0, "primaryButtons": 11, "searchFields": 0 },
@@ -41,7 +41,7 @@
       "WorkItemsPage": { "destinations": 1, "primaryButtons": 6, "searchFields": 1 }
     },
     "sharedComponents": {
-      "count": 111,
+      "count": 113,
       "names": [
         "AppShell/AppShell",
         "AreaBreadcrumb/AreaBreadcrumb",
@@ -56,6 +56,7 @@
         "BudgetHealthIndicator/BudgetHealthIndicator",
         "BudgetSummaryCard/BudgetSummaryCard",
         "ChunkLoadErrorBoundary/ChunkLoadErrorBoundary",
+        "ConfirmDialog/ConfirmDialog",
         "CostBreakdownTable/CostBreakdownTable",
         "DashboardCard/DashboardCard",
         "DataTable/DataTable",
@@ -92,6 +93,7 @@
         "SourceUtilizationCard/SourceUtilizationCard",
         "Spinner/Spinner",
         "SpotThumbnail/SpotThumbnail",
+        "StatusMenu/StatusMenu",
         "SubNav/SubNav",
         "SubsidyPipelineCard/SubsidyPipelineCard",
         "SuggestionBadge/SuggestionBadge",
@@ -157,7 +159,7 @@
       ]
     },
     "moneyLabels": {
-      "count": 185,
+      "count": 178,
       "values": [
         "% allocated",
         "(refund)",
@@ -208,10 +210,6 @@
         "create new budget category",
         "create new budget line",
         "days remaining",
-        "delete budget line?",
-        "delete budget source",
-        "delete deposit",
-        "delete subsidy program",
         "deposit",
         "deposit /",
         "deposit actions for",
@@ -258,7 +256,6 @@
         "loading cost breakdown",
         "loading deposits...",
         "loading subsidy programs...",
-        "mark as paid",
         "mark paid",
         "maximum amount (€)",
         "net",
@@ -315,8 +312,6 @@
         "remaining amount",
         "remaining budget",
         "remaining to allocate",
-        "remove budget line",
-        "revert to paid",
         "select a budget source",
         "select budget line for",
         "select subsidy program...",
@@ -346,8 +341,8 @@
         "view budget overview →"
       ]
     },
-    "windowConfirm": 2,
-    "handRolledDialogs": 18
+    "windowConfirm": 0,
+    "handRolledDialogs": 6
   },
   "allowedAdditions": {
     "sharedComponents": [
@@ -369,9 +364,7 @@
       "TagChips",
       "RapidCamera",
       "ObjectTabs",
-      "StatusMenu",
       "UndoToast",
-      "ConfirmDialog",
       "EntityPicker",
       "ObjectList",
       "ReferenceList",

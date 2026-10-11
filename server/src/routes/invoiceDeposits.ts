@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as invoiceDepositService from '../services/invoiceDepositService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import type { CreateDepositRequest, UpdateDepositRequest } from '@cornerstone/shared';
 
 // JSON schema for GET /api/invoices/:invoiceId/deposits
@@ -137,14 +138,22 @@ export default async function invoiceDepositRoutes(fastify: FastifyInstance) {
       throw new UnauthorizedError();
     }
 
-    const result = invoiceDepositService.updateDeposit(
+    const userId = request.user.id;
+    const { result: deposit, undo } = runUndoable(
       fastify.db,
-      request.params.invoiceId,
-      request.params.id,
-      request.body,
-      fastify.config.diaryAutoEvents,
+      undoStore,
+      { userId, subject: { type: 'invoice_deposit', id: request.params.id }, reschedules: false },
+      () =>
+        invoiceDepositService.updateDeposit(
+          fastify.db,
+          request.params.invoiceId,
+          request.params.id,
+          request.body,
+          fastify.config.diaryAutoEvents,
+          userId,
+        ),
     );
-    return reply.status(200).send({ deposit: result });
+    return reply.status(200).send(undo ? { deposit, undo } : { deposit });
   });
 
   /**

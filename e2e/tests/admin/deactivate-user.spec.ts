@@ -24,10 +24,12 @@ test.describe('Deactivate User', () => {
     await expect(userManagementPage.deactivateModal).toBeVisible();
     await expect(userManagementPage.deactivateModalHeading).toBeVisible();
 
-    // And: Confirmation text should mention the user
-    const confirmText = await userManagementPage.deactivateConfirmationText.textContent();
-    expect(confirmText).toBeTruthy();
-    expect(confirmText?.toLowerCase()).toContain('sure');
+    // And: The title asks "Deactivate <name>?" and the lead explains the consequence
+    await expect(userManagementPage.deactivateModalHeading).toHaveText(/^Deactivate .+\?$/);
+    await expect(userManagementPage.deactivateConfirmationText).toBeVisible();
+
+    // And: Initial focus is on the safe action (Cancel)
+    await expect(userManagementPage.deactivateCancelButton).toBeFocused();
   });
 
   test('Cannot deactivate self', async ({ page }) => {

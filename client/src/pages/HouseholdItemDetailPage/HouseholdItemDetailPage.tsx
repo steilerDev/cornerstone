@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { HOUSEHOLD_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
@@ -57,14 +57,18 @@ import { roundMoney } from '../../lib/money.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import { effectivePlannedAmount } from '../../lib/budgetConstants.js';
 import { useAreas } from '../../hooks/useAreas.js';
-import { Badge } from '../../components/Badge/Badge.js';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetSection } from '../../components/budget/BudgetSection.js';
-import { Modal } from '../../components/Modal/Modal.js';
-import sharedStyles from '../../styles/shared.module.css';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { purchaseTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeHouseholdItemStatus, householdItemStatusBody } from '../../lib/statusChangeApi.js';
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
@@ -115,7 +119,11 @@ export function HouseholdItemDetailPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
-  const deleteCancelRef = useRef<HTMLButtonElement>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact(
+    'household_item',
+    showDeleteModal ? (id ?? null) : null,
+  );
 
   // Add Dependency inline search
   const depDropdownRef = useRef<HTMLDivElement>(null);
@@ -147,7 +155,9 @@ export function HouseholdItemDetailPage() {
   const [showDepDropdown, setShowDepDropdown] = useState(false);
   const [depError, setDepError] = useState<string | null>(null);
   const [isAddingDep, setIsAddingDep] = useState(false);
-  const [removingDepKey, setRemovingDepKey] = useState<string | null>(null);
+  const [removingDep, setRemovingDep] = useState<HouseholdItemDepDetail | null>(null);
+  const [isRemovingDep, setIsRemovingDep] = useState(false);
+  const [removeDepError, setRemoveDepError] = useState<string | null>(null);
   // For inline search results
   const [allWorkItems, setAllWorkItems] = useState<WorkItemSummary[]>([]);
   const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
@@ -155,7 +165,6 @@ export function HouseholdItemDetailPage() {
   // Inline error for budget/subsidy/dependency operations
   const [inlineError, setInlineError] = useState<string | null>(null);
   const [dateInlineError, setDateInlineError] = useState<string | null>(null);
-  const [isChangingStatus, setIsChangingStatus] = useState(false);
 
   // Auto-scroll to top when error appears
   useEffect(() => {
@@ -391,23 +400,29 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  const handleRemoveDep = async (dep: HouseholdItemDepDetail) => {
-    if (!id) return;
+  const handleRemoveDep = async () => {
+    if (!id || !removingDep) return;
+    setIsRemovingDep(true);
+    setRemoveDepError(null);
     try {
-      await deleteHouseholdItemDep(id, dep.predecessorType, dep.predecessorId);
+      await deleteHouseholdItemDep(id, removingDep.predecessorType, removingDep.predecessorId);
       const updated = await fetchHouseholdItemDeps(id);
       setDependencies(updated);
       const newItem = await getHouseholdItem(id);
       setItem(newItem);
-      setRemovingDepKey(null);
+      focusPageHeading();
+      setRemovingDep(null);
       showToast('success', t('detail.dependencies.removedSuccess'));
     } catch {
-      showToast('error', t('detail.dependencies.failedRemove'));
+      setRemoveDepError(t('detail.dependencies.failedRemove'));
+    } finally {
+      setIsRemovingDep(false);
     }
   };
 
   const openDeleteModal = () => {
     setDeleteError('');
+    setDeleteBlocked(false);
     setShowDeleteModal(true);
   };
 
@@ -426,21 +441,6 @@ export function HouseholdItemDetailPage() {
     handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
     selectedSubsidyId,
   } = budgetSection;
-
-  // Handle delete confirmation with inline error management
-  const handleConfirmDeleteBudgetLine = async () => {
-    try {
-      await confirmDeleteBudgetLine();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setInlineError(translateApiError(err.error.code, tErrors));
-      } else if (err instanceof NetworkError) {
-        setInlineError(tCommon('requestErrors.network'));
-      } else {
-        setInlineError(tBudget('budgetLineForm.errors.deleteFailed'));
-      }
-    }
-  };
 
   // ─── Subsidy linking handlers (delegates to hook after API calls) ──────────
 
@@ -682,20 +682,18 @@ export function HouseholdItemDetailPage() {
     }
   };
 
-  const handleStatusChange = async (newStatus: HouseholdItemStatus) => {
+  const { run: runStatusChange } = useUndoableStatusChange();
+  const handleStatusChange = async (newStatus: HouseholdItemStatus, date: string | null) => {
     if (!id || !item) return;
-    setIsChangingStatus(true);
     setInlineError(null);
-    try {
-      const updated = await updateHouseholdItem(id, { status: newStatus });
-      setItem(updated);
-      showToast('success', t('detail.status.updated'));
-    } catch (err) {
-      showToast('error', t('detail.status.updateFailed'));
-      console.error('Failed to update status:', err);
-    } finally {
-      setIsChangingStatus(false);
-    }
+    await runStatusChange({
+      request: () => changeHouseholdItemStatus(id, householdItemStatusBody(newStatus, date)),
+      recordName: item.name.trim() || tCommon('navigation.untitledPurchase'),
+      statusLabel: statusVariants.purchase[newStatus].label,
+      dedupeKey: `purchase:${id}`,
+      onChanged: (record) => setItem(record),
+      onUndone: async () => setItem(await getHouseholdItem(id)),
+    });
   };
 
   const handleAreaChange = async (areaId: string) => {
@@ -721,6 +719,7 @@ export function HouseholdItemDetailPage() {
       navigate(routeUrl('householdItems'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setDeleteError(translateApiError(err.error.code, tErrors));
       } else if (err instanceof NetworkError) {
         setDeleteError(tCommon('requestErrors.network'));
@@ -825,7 +824,13 @@ export function HouseholdItemDetailPage() {
               {categoryDisplayName && (
                 <span className={styles.categoryBadge}>{categoryDisplayName}</span>
               )}
-              <Badge variants={statusVariants.purchase} value={item.status} />
+              <StatusMenu
+                testId="purchase-status"
+                transitions={purchaseTransitions(tCommon, item)}
+                badge={{ variants: statusVariants.purchase, value: item.status }}
+                currentLabel={statusVariants.purchase[item.status].label}
+                onApply={handleStatusChange}
+              />
             </div>
           </div>
           <div className={styles.pageActions}>
@@ -928,26 +933,6 @@ export function HouseholdItemDetailPage() {
               </button>
             </div>
           )}
-          {/* Inline status selector */}
-          <div className={styles.statusSection}>
-            <label htmlFor="hi-status-select" className={styles.infoLabel}>
-              {t('detail.datesDelivery.purchaseStatus')}
-            </label>
-            <select
-              id="hi-status-select"
-              className={styles.statusSelect}
-              value={item.status}
-              disabled={isChangingStatus}
-              aria-label={t('detail.datesDelivery.purchaseStatus')}
-              onChange={(e) => void handleStatusChange(e.target.value as HouseholdItemStatus)}
-            >
-              {HOUSEHOLD_ITEM_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {statusVariants.purchase[status].label}
-                </option>
-              ))}
-            </select>
-          </div>
           <dl className={styles.infoList}>
             {/* Schedule row showing target or actual date */}
             <div className={styles.infoRow}>
@@ -1226,29 +1211,14 @@ export function HouseholdItemDetailPage() {
                     <button
                       type="button"
                       className={styles.unlinkButton}
-                      onClick={() => setRemovingDepKey(depKey)}
+                      onClick={() => {
+                        setRemoveDepError(null);
+                        setRemovingDep(dep);
+                      }}
                       aria-label={`${t('detail.dependencies.removeDependency')} ${dep.predecessor.title}`}
                     >
                       ×
                     </button>
-                    {removingDepKey === depKey && (
-                      <>
-                        <button
-                          type="button"
-                          className={styles.deleteButton}
-                          onClick={() => void handleRemoveDep(dep)}
-                        >
-                          {t('detail.dependencies.confirm')}
-                        </button>
-                        <button
-                          type="button"
-                          className={styles.cancelButton}
-                          onClick={() => setRemovingDepKey(null)}
-                        >
-                          {t('detail.dependencies.cancel')}
-                        </button>
-                      </>
-                    )}
                   </li>
                 );
               })}
@@ -1369,7 +1339,7 @@ export function HouseholdItemDetailPage() {
             staticCategoryLabel="Household Items"
             onLinkSubsidy={handleLinkSubsidy}
             onUnlinkSubsidy={handleUnlinkSubsidy}
-            onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+            onConfirmDeleteBudgetLine={confirmDeleteBudgetLine}
             budgetLineType="household_item"
             onLinkInvoice={handleLinkInvoice}
             onUnlinkInvoice={handleUnlinkInvoice}
@@ -1406,47 +1376,38 @@ export function HouseholdItemDetailPage() {
         </section>
       </div>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteModal && (
-        <Modal
-          title={t('detail.delete.confirm')}
-          onClose={closeDeleteModal}
-          initialFocusRef={deleteCancelRef}
-          footer={
-            <>
-              <button
-                ref={deleteCancelRef}
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-              >
-                {t('detail.delete.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={sharedStyles.btnConfirmDelete}
-                  onClick={() => void handleDelete()}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('detail.delete.deleting') : t('detail.delete.delete')}
-                </button>
-              )}
-            </>
-          }
-        >
-          <p className={styles.modalText}>
-            {t('detail.delete.message')} <strong>{item.name}</strong>?
-          </p>
-          {deleteError ? (
-            <div className={sharedStyles.bannerError} role="alert">
-              {deleteError}
-            </div>
-          ) : (
-            <p className={styles.modalWarning}>{t('detail.delete.warning')}</p>
-          )}
-        </Modal>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: displayName })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError || null}
+          blocked={deleteBlocked}
+          onConfirm={() => void handleDelete()}
+          onCancel={closeDeleteModal}
+          testIdPrefix="purchase-delete"
+        />
+      )}
+
+      {/* Dependency removal confirmation */}
+      {removingDep && (
+        <ConfirmDialog
+          title={t('detail.dependencies.removeTitle')}
+          lead={removingDep.predecessor.title}
+          confirmLabel={t('detail.dependencies.confirm')}
+          busyLabel={t('detail.dependencies.removing')}
+          busy={isRemovingDep}
+          error={removeDepError}
+          onConfirm={() => void handleRemoveDep()}
+          onCancel={() => {
+            if (!isRemovingDep) setRemovingDep(null);
+          }}
+          testIdPrefix="purchase-dependency-remove"
+        />
       )}
 
       {/* Invoice link modal */}

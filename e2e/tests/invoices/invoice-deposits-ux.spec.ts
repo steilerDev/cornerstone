@@ -17,7 +17,8 @@
  * Scenarios covered:
  *   1. Add deposit modal shows "Cancel" and "Save" button text (not raw keys)
  *   2. Edit deposit modal shows "Cancel" and "Save" button text
- *   3. State confirm modal shows "Confirm" button text (not raw key)
+ *   3. Status menu date step shows translated labels (not raw keys); the old state-confirm
+ *      modal is gone (#2209)
  *   4. Portal: last deposit row kebab menu bounding box fully within viewport
  *
  * Refund entries (Issue #1876) — responsive + dark-mode rendering:
@@ -198,20 +199,14 @@ test.describe('Deposit modal i18n — Edit deposit buttons (#1424)', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 3 (#1424): State confirm modal — translated "Confirm" button
+// Scenario 3 (#1424, #2209): status menu date step — translated labels
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Deposit modal i18n — State confirm button (#1424)', () => {
-  test('Mark-paid state confirm modal shows "Confirm" button (not raw i18n key)', async ({
+test.describe('Deposit status menu i18n — date step (#1424, #2209)', () => {
+  test('Mark paid date step shows translated chips and Back (not raw i18n keys)', async ({
     page,
     testPrefix,
   }) => {
-    const viewportWidth = page.viewportSize()?.width ?? 1440;
-    if (viewportWidth < 1024) {
-      test.skip(true, 'i18n label test — desktop only');
-      return;
-    }
-
     const detailPage = new InvoiceDetailPage(page);
     let vendorId = '';
 
@@ -231,29 +226,23 @@ test.describe('Deposit modal i18n — State confirm button (#1424)', () => {
       await detailPage.goto(invoiceId);
       await expect(detailPage.heading).toBeVisible();
 
-      // Open overflow menu → "Mark paid…"
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark paid/);
+      // Open the status chip → "Mark paid" (leads to the date step)
+      const menu = await detailPage.depositStatusMenu();
+      await menu.pickRow('paid');
 
-      // State confirm modal appears
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
-      ).toBeVisible();
+      // The date step shows translated chips (not raw keys such as "statusMenu.today")
+      await expect(menu.dateToday).toHaveText('Today');
+      await expect(menu.datePick).toHaveText('Pick a date');
+      await expect(menu.back).toContainText('Back');
+      await expect(menu.panel).not.toContainText(/statusMenu\./);
 
-      // The Confirm button must show "Confirm", not "buttons.confirm"
-      const confirmBtn = page.getByTestId('state-confirm-button');
-      await expect(confirmBtn).toBeVisible();
-      await expect(confirmBtn).toHaveText('Confirm');
-      await expect(confirmBtn).not.toHaveText(/^buttons\./);
+      // The old state-confirm modal no longer exists
+      await expect(page.getByTestId('state-confirm-button')).toHaveCount(0);
 
-      // The Cancel button in the state confirm modal should also be translated
-      const stateConfirmCancelBtn = page.getByTestId('state-confirm-cancel');
-      await expect(stateConfirmCancelBtn).toBeVisible();
-      await expect(stateConfirmCancelBtn).toHaveText('Cancel');
-      await expect(stateConfirmCancelBtn).not.toHaveText(/^buttons\./);
-
-      // Cancel out of the state confirm
-      await stateConfirmCancelBtn.click();
+      // Back returns to the list without changing the status
+      await menu.back.click();
+      await expect(menu.option('paid')).toBeVisible();
+      await page.keyboard.press('Escape');
     } finally {
       if (vendorId) await deleteVendorViaApi(page, vendorId);
     }

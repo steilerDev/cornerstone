@@ -11,6 +11,7 @@ import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as HouseholdItemCategoriesApiTypes from '../../lib/householdItemCategoriesApi.js';
 import type * as UseAreasTypes from '../../hooks/useAreas.js';
 import type * as PreferencesApiTypes from '../../lib/preferencesApi.js';
@@ -39,6 +40,11 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 
 jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
   listHouseholdItems: mockListHouseholdItems,
@@ -188,6 +194,12 @@ describe('HouseholdItemsPage', () => {
     // Reset mocks to clear call history AND queued Once implementations from prior tests.
     mockListHouseholdItems.mockReset();
     mockDeleteHouseholdItem.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'household_item',
+      id: 'hi-1',
+      effects: [],
+    });
     mockFetchVendors.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
     mockListPreferencesHI.mockReset();
@@ -455,6 +467,68 @@ describe('HouseholdItemsPage', () => {
   });
 
   describe('delete household item', () => {
+    async function confirmDelete() {
+      const btn = await screen.findByTestId('purchase-list-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      fireEvent.click(btn);
+    }
+
+    async function openDialog() {
+      const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
+      mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByTestId('hi-menu-button-hi-1')).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
+      fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
+    }
+
+    it('opens an alertdialog titled with the purchase, Cancel focused', async () => {
+      await openDialog();
+      expect(
+        await screen.findByRole('alertdialog', { name: 'Delete Living Room Sofa?' }),
+      ).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-list-delete-cancel')).toHaveFocus();
+    });
+
+    it('lists what the delete also changes', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'household_item',
+        id: 'hi-1',
+        effects: [
+          { kind: 'costLines', count: 2 },
+          { kind: 'documentLinks', count: 0 },
+        ],
+      });
+      await openDialog();
+      await waitFor(() =>
+        expect(screen.getByTestId('purchase-list-delete-consequences')).toHaveTextContent(
+          'Cost lines deleted with it: 2',
+        ),
+      );
+      expect(screen.queryByText(/Linked documents/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'hi-1');
+    });
+
+    it('a 409 hides the action', async () => {
+      mockDeleteHouseholdItem.mockRejectedValueOnce(
+        new ApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openDialog();
+      await confirmDelete();
+      await waitFor(() => expect(screen.queryByTestId('purchase-list-delete-confirm')).toBeNull());
+      expect(screen.getByTestId('purchase-list-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('a non-409 failure keeps the action for a retry', async () => {
+      mockDeleteHouseholdItem.mockRejectedValueOnce(new Error('boom'));
+      await openDialog();
+      await confirmDelete();
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('purchase-list-delete-confirm')).toBeInTheDocument();
+    });
+
     it('calls deleteHouseholdItem API when deletion is confirmed', async () => {
       const item = makeHouseholdItem({ id: 'hi-1', name: 'Living Room Sofa' });
       mockListHouseholdItems.mockResolvedValueOnce(defaultListResponse([item]));
@@ -474,17 +548,7 @@ describe('HouseholdItemsPage', () => {
         expect(boldItems.length).toBeGreaterThan(0);
       });
 
-      // Click the modal footer "Delete Item" button (more specific than menu's "Delete" button).
-      // The menu may still be open so we need to distinguish the modal footer button.
-      const buttons = screen.getAllByRole('button');
-      const confirmBtn = buttons.find(
-        (btn) =>
-          btn.textContent?.toLowerCase().includes('delete item') &&
-          !btn.textContent?.toLowerCase().includes('cancel'),
-      );
-      if (confirmBtn) {
-        fireEvent.click(confirmBtn);
-      }
+      await confirmDelete();
 
       await waitFor(() => {
         expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('hi-1');
@@ -518,14 +582,7 @@ describe('HouseholdItemsPage', () => {
         fireEvent.click(screen.getByTestId('hi-menu-button-hi-1'));
         fireEvent.click(screen.getByTestId('hi-delete-hi-1'));
 
-        const confirmBtn = await waitFor(() => {
-          const btn = screen
-            .getAllByRole('button')
-            .find((b) => b.textContent?.toLowerCase().includes('delete item'));
-          expect(btn).toBeDefined();
-          return btn!;
-        });
-        fireEvent.click(confirmBtn);
+        await confirmDelete();
 
         await waitFor(() => {
           expect(screen.getByRole('alert')).toHaveTextContent(expected);
@@ -557,15 +614,7 @@ describe('HouseholdItemsPage', () => {
         expect(boldItems.length).toBeGreaterThan(0);
       });
 
-      const buttons = screen.getAllByRole('button');
-      const confirmBtn = buttons.find(
-        (btn) =>
-          btn.textContent?.toLowerCase().includes('delete item') &&
-          !btn.textContent?.toLowerCase().includes('cancel'),
-      );
-      if (confirmBtn) {
-        fireEvent.click(confirmBtn);
-      }
+      await confirmDelete();
 
       await waitFor(() => {
         expect(screen.getByRole('alert')).toBeInTheDocument();
@@ -593,11 +642,8 @@ describe('HouseholdItemsPage', () => {
         expect(boldItems.length).toBeGreaterThan(0);
       });
 
-      const cancelBtn = screen
-        .getAllByRole('button')
-        .find((btn) => btn.textContent?.toLowerCase() === 'cancel');
-      expect(cancelBtn).toBeDefined();
-      fireEvent.click(cancelBtn!);
+      fireEvent.click(screen.getByTestId('purchase-list-delete-cancel'));
+      expect(screen.queryByRole('alertdialog')).toBeNull();
 
       // Delete API should NOT have been called
       expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();

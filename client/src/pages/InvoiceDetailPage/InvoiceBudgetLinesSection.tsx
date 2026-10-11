@@ -30,7 +30,7 @@ import { HouseholdItemPicker } from '../../components/HouseholdItemPicker/Househ
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { OverflowMenu } from '../../components/OverflowMenu/index.js';
 import { Modal } from '../../components/Modal/Modal.js';
-import { FormError } from '../../components/FormError/FormError.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import { Badge, type BadgeVariantMap } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import { useBudgetLinePicker } from '../../hooks/useBudgetLinePicker.js';
@@ -1200,37 +1200,16 @@ function DeleteBudgetLineModal({
   t,
 }: DeleteBudgetLineModalProps) {
   return (
-    <Modal
+    <ConfirmDialog
       title={t('invoiceDetail.budgetLines.modal.removeTitle')}
-      onClose={onClose}
-      footer={
-        <div className={styles.modalActions}>
-          <button
-            type="button"
-            className={sharedStyles.btnSecondary}
-            onClick={onClose}
-            disabled={isMutating}
-          >
-            {t('common:button.cancel')}
-          </button>
-          <button
-            type="button"
-            className={sharedStyles.btnConfirmDelete}
-            onClick={onConfirm}
-            disabled={isMutating}
-          >
-            {isMutating
-              ? t('invoiceDetail.budgetLines.modal.removing')
-              : t('invoiceDetail.budgetLines.modal.removeConfirmButton')}
-          </button>
-        </div>
-      }
-    >
-      {error && <FormError message={error} />}
-
-      <p className={styles.deleteConfirmText}>
-        {t('invoiceDetail.budgetLines.modal.removeConfirm')}
-      </p>
-    </Modal>
+      lead={t('invoiceDetail.budgetLines.modal.removeConfirm')}
+      confirmLabel={t('invoiceDetail.budgetLines.modal.removeConfirmButton')}
+      busyLabel={t('invoiceDetail.budgetLines.modal.removing')}
+      busy={isMutating}
+      error={error || null}
+      onConfirm={onConfirm}
+      onCancel={onClose}
+      testIdPrefix="invoice-line-remove"
+    />
   );
 }

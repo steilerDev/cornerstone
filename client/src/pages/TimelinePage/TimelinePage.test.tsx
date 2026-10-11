@@ -5,7 +5,7 @@
  * in a router context. Comprehensive tests for the Gantt chart functionality
  * are owned by the qa-integration-tester agent.
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ownNavigations } from '../../test/navLandmarks.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
@@ -542,15 +542,51 @@ describe('TimelinePage', () => {
   // ── Page identity and origin (#2202) ───────────────────────────────────────
 
   describe('page identity and origin (#2202)', () => {
-    function thisMonthDate(day: number): string {
-      const now = new Date();
-      return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-    }
+    // The calendar opens on the Sun-Sat week that contains "today", so fixtures anchored to fixed
+    // days of the month only appeared when today's week happened to contain them (they vanished on
+    // Sunday 11 Oct). Pin the clock and place every fixture on pinned-today or the day after.
+    // Only Date is faked; timers stay real so findBy/waitFor keep working.
+    const PINNED_NOW = new Date(2026, 9, 14, 12, 0, 0); // a Wednesday in mid-month
+
+    const pinnedDay = (offset: number): string => {
+      const d = new Date(
+        PINNED_NOW.getFullYear(),
+        PINNED_NOW.getMonth(),
+        PINNED_NOW.getDate() + offset,
+      );
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+
+    beforeEach(() => {
+      jest.useFakeTimers({
+        now: PINNED_NOW,
+        doNotFake: [
+          'setTimeout',
+          'clearTimeout',
+          'setInterval',
+          'clearInterval',
+          'setImmediate',
+          'clearImmediate',
+          'requestAnimationFrame',
+          'cancelAnimationFrame',
+          'queueMicrotask',
+          'nextTick',
+          'performance',
+          'requestIdleCallback',
+          'cancelIdleCallback',
+          'hrtime',
+        ],
+      } as never);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
 
     const MILESTONE: TimelineResponse['milestones'][number] = {
       id: 42,
       title: 'Origin Milestone',
-      targetDate: thisMonthDate(10),
+      targetDate: pinnedDay(0),
       isCompleted: false,
       completedAt: null,
       color: null,
@@ -567,10 +603,10 @@ describe('TimelinePage', () => {
       id: 'wi-origin',
       title: 'Origin Task',
       status: 'not_started',
-      startDate: thisMonthDate(5),
-      endDate: thisMonthDate(6),
-      projectedStartDate: thisMonthDate(5),
-      projectedEndDate: thisMonthDate(6),
+      startDate: pinnedDay(0),
+      endDate: pinnedDay(1),
+      projectedStartDate: pinnedDay(0),
+      projectedEndDate: pinnedDay(1),
       isLate: false,
       lateDays: null,
       isHeldUp: false,
@@ -589,9 +625,9 @@ describe('TimelinePage', () => {
       name: 'Origin Purchase',
       category: 'furniture',
       status: 'planned',
-      targetDeliveryDate: thisMonthDate(8),
-      earliestDeliveryDate: thisMonthDate(8),
-      latestDeliveryDate: thisMonthDate(9),
+      targetDeliveryDate: pinnedDay(0),
+      earliestDeliveryDate: pinnedDay(0),
+      latestDeliveryDate: pinnedDay(1),
       actualDeliveryDate: null,
       isLate: false,
       dependencyIds: [],

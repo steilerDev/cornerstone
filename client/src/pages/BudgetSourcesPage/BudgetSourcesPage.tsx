@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,13 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { fundingSourceTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeFundingSourceStatus } from '../../lib/statusChangeApi.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { BudgetBar, BUDGET_BAR_OVERFLOW_KEY } from '../../components/BudgetBar/BudgetBar.js';
 import { overAllocatedAmount } from '../../lib/money.js';
 import type { BudgetBarSegment } from '../../components/BudgetBar/BudgetBar.js';
@@ -32,7 +39,7 @@ import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { PAGE_LABEL_KEYS } from '../../navigation/pageIdentity.js';
 import styles from './BudgetSourcesPage.module.css';
-import { routeUrl } from '@cornerstone/shared';
+import { BUDGET_SOURCE_STATUSES, routeUrl } from '@cornerstone/shared';
 
 // ---- Display helpers ----
 
@@ -47,15 +54,6 @@ function getSourceTypeClass(styles: Record<string, string>, sourceType: BudgetSo
   return map[sourceType] ?? '';
 }
 
-function getStatusClass(styles: Record<string, string>, status: BudgetSourceStatus): string {
-  const map: Record<BudgetSourceStatus, string> = {
-    active: styles.statusActive ?? '',
-    exhausted: styles.statusExhausted ?? '',
-    closed: styles.statusClosed ?? '',
-  };
-  return map[status] ?? '';
-}
-
 // ---- Editing state shape ----
 
 type EditingSource = {
@@ -68,7 +66,6 @@ type EditingSource = {
   reference: string;
   contactAddress: string;
   notes: string;
-  status: BudgetSourceStatus;
 };
 
 function sourceToEditState(source: BudgetSource): EditingSource {
@@ -82,7 +79,6 @@ function sourceToEditState(source: BudgetSource): EditingSource {
     reference: source.reference ?? '',
     contactAddress: source.contactAddress ?? '',
     notes: source.notes ?? '',
-    status: source.status,
   };
 }
 
@@ -292,6 +288,8 @@ export function BudgetSourcesPage() {
   const originState = useOriginState();
   const { formatCurrency, formatPercent } = useFormatters();
   const { showToast } = useToast();
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
   const [sources, setSources] = useState<BudgetSource[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -320,6 +318,9 @@ export function BudgetSourcesPage() {
   const [deletingSourceId, setDeletingSourceId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('budget_source', deletingSourceId);
+  const createButtonRef = useRef<HTMLButtonElement>(null);
 
   // Budget lines expansion state
   const [expandedSources, setExpandedSources] = useState<Set<string>>(() => new Set());
@@ -347,12 +348,6 @@ export function BudgetSourcesPage() {
     discretionary: t('sources.sourceTypes.discretionary'),
   };
 
-  const STATUS_LABELS: Record<BudgetSourceStatus, string> = {
-    active: t('sources.sourceStatus.active'),
-    exhausted: t('sources.sourceStatus.exhausted'),
-    closed: t('sources.sourceStatus.closed'),
-  };
-
   useEffect(() => {
     void loadSources();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- loadSources is defined in component body; effect runs only once on mount
@@ -373,6 +368,16 @@ export function BudgetSourcesPage() {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  /** Quiet reload after an Undo (no loading skeleton). */
+  const refreshSources = async () => {
+    try {
+      const response = await fetchBudgetSources();
+      setSources(response.budgetSources);
+    } catch {
+      // The list keeps its last state.
     }
   };
 
@@ -497,7 +502,6 @@ export function BudgetSourcesPage() {
         reference: editingSource.reference.trim() || null,
         contactAddress: editingSource.contactAddress.trim() || null,
         notes: editingSource.notes.trim() || null,
-        status: editingSource.status,
       });
       setSources(sources.map((s) => (s.id === updated.id ? updated : s)));
       setEditingSource(null);
@@ -516,6 +520,7 @@ export function BudgetSourcesPage() {
   const openDeleteConfirm = (sourceId: string) => {
     setDeletingSourceId(sourceId);
     setDeleteError('');
+    setDeleteBlocked(false);
     setSuccessMessage('');
   };
 
@@ -523,6 +528,7 @@ export function BudgetSourcesPage() {
     if (!isDeleting) {
       setDeletingSourceId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
@@ -538,6 +544,7 @@ export function BudgetSourcesPage() {
       setSuccessMessage(t('sources.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('sources.deleteModal.conflictError'));
         } else {
@@ -757,6 +764,7 @@ export function BudgetSourcesPage() {
       breadcrumbs={<PageBreadcrumbs />}
       action={
         <button
+          ref={createButtonRef}
           type="button"
           className={styles.button}
           onClick={() => {
@@ -846,9 +854,9 @@ export function BudgetSourcesPage() {
                   className={styles.select}
                   disabled={isCreating}
                 >
-                  {Object.entries(STATUS_LABELS).map(([value, label]) => (
+                  {BUDGET_SOURCE_STATUSES.map((value) => (
                     <option key={value} value={value}>
-                      {label}
+                      {statusVariants.fundingSource[value].label}
                     </option>
                   ))}
                 </select>
@@ -1048,30 +1056,6 @@ export function BudgetSourcesPage() {
                           ))}
                         </select>
                       </div>
-
-                      <div className={styles.fieldSelect}>
-                        <label htmlFor={`edit-status-${source.id}`} className={styles.label}>
-                          {t('sources.form.status')}
-                        </label>
-                        <select
-                          id={`edit-status-${source.id}`}
-                          value={editingSource.status}
-                          onChange={(e) =>
-                            setEditingSource({
-                              ...editingSource,
-                              status: e.target.value as BudgetSourceStatus,
-                            })
-                          }
-                          className={styles.select}
-                          disabled={isUpdating}
-                        >
-                          {Object.entries(STATUS_LABELS).map(([value, label]) => (
-                            <option key={value} value={value}>
-                              {label}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
                     </div>
 
                     <div className={styles.editFormRow}>
@@ -1220,11 +1204,26 @@ export function BudgetSourcesPage() {
                           >
                             {SOURCE_TYPE_LABELS[source.sourceType]}
                           </span>
-                          <span
-                            className={`${styles.statusBadge} ${getStatusClass(styles, source.status)}`}
-                          >
-                            {STATUS_LABELS[source.status]}
-                          </span>
+                          <StatusMenu
+                            transitions={fundingSourceTransitions(tCommon, source)}
+                            badge={{ variants: statusVariants.fundingSource, value: source.status }}
+                            currentLabel={statusVariants.fundingSource[source.status].label}
+                            focusFallbackRef={createButtonRef}
+                            testId={`funding-source-status-${source.id}`}
+                            onApply={(to) =>
+                              runStatusChange({
+                                request: () => changeFundingSourceStatus(source.id, to),
+                                recordName: source.name,
+                                statusLabel: statusVariants.fundingSource[to].label,
+                                dedupeKey: `budget_source:${source.id}`,
+                                onChanged: (record) =>
+                                  setSources((prev) =>
+                                    prev.map((x) => (x.id === record.id ? record : x)),
+                                  ),
+                                onUndone: () => refreshSources(),
+                              })
+                            }
+                          />
                           {source.isDiscretionary && (
                             <span className={styles.systemBadge}>
                               {t('sources.sourcesList.system')}
@@ -1392,55 +1391,23 @@ export function BudgetSourcesPage() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingSourceId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('sources.deleteModal.title')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('sources.deleteModal.confirm', {
-                name: sources.find((s) => s.id === deletingSourceId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('sources.deleteModal.warning')}</p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('sources.buttons.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteSource(deletingSourceId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('sources.buttons.deleting') : t('sources.buttons.deleteConfirm')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: sources.find((s) => s.id === deletingSourceId)?.name ?? '',
+          })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteSource(deletingSourceId)}
+          onCancel={closeDeleteConfirm}
+          testIdPrefix="budget-source-delete"
+        />
       )}
 
       {/* Mass-move modal */}

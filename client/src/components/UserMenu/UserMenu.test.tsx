@@ -411,7 +411,8 @@ describe('UserMenu', () => {
       expect(
         within(dialog).getByText('This page has no shortcuts of its own.'),
       ).toBeInTheDocument();
-      expect(within(dialog).queryByRole('table')).toBeNull();
+      // Only the "Everywhere" table remains.
+      expect(within(dialog).getAllByRole('table')).toHaveLength(1);
     });
 
     it('shows the empty message when rendered without a registry provider', async () => {

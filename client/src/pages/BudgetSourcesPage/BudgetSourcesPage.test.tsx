@@ -1,14 +1,15 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { screen, waitFor, render, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import { OriginProbe, probedOrigin } from '../../test/originProbe.js';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type React from 'react';
 import type * as BudgetSourcesApiTypes from '../../lib/budgetSourcesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import enErrors from '../../i18n/en/errors.json';
 import enBudget from '../../i18n/en/budget.json';
@@ -24,6 +25,11 @@ const mockFetchBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetSo
 const mockCreateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.createBudgetSource>();
 const mockUpdateBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.updateBudgetSource>();
 const mockDeleteBudgetSource = jest.fn<typeof BudgetSourcesApiTypes.deleteBudgetSource>();
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
 const mockFetchBudgetLinesForSource =
   jest.fn<typeof BudgetSourcesApiTypes.fetchBudgetLinesForSource>();
 
@@ -61,8 +67,16 @@ jest.unstable_mockModule('../../components/documents/LinkedDocumentsSection.js',
 
 // ─── Mock: ToastContext — provides useToast() hook without a real ToastProvider ───
 
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+
 jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
-  useToast: () => ({ toasts: [], showToast: jest.fn(), dismissToast: jest.fn() }),
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
   ToastProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -154,6 +168,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number, digits = 2) => `${n.toFixed(digits)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -243,7 +258,15 @@ describe('BudgetSourcesPage', () => {
     mockFetchBudgetSource.mockReset();
     mockCreateBudgetSource.mockReset();
     mockUpdateBudgetSource.mockReset();
+    mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
     mockDeleteBudgetSource.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'budget_source',
+      id: 'src-1',
+      effects: [],
+    });
     mockFetchBudgetLinesForSource.mockReset();
     _capturedLinkedDocsSectionProps = null;
   });
@@ -515,7 +538,8 @@ describe('BudgetSourcesPage', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Active')).toBeInTheDocument();
-        expect(screen.getByText('Exhausted')).toBeInTheDocument();
+        expect(screen.getByText('Used up')).toBeInTheDocument();
+        expect(screen.queryByText('Exhausted')).toBeNull();
         expect(screen.getByText('Closed')).toBeInTheDocument();
       });
     });
@@ -959,6 +983,139 @@ describe('BudgetSourcesPage', () => {
       expect(optionValues).toContain('active');
       expect(optionValues).toContain('exhausted');
       expect(optionValues).toContain('closed');
+      // Labels come from the canonical vocabulary
+      expect(Array.from(options).map((o) => o.textContent)).toEqual([
+        'Active',
+        'Used up',
+        'Closed',
+      ]);
+    });
+  });
+
+  // ─── Row StatusMenu (#2209 round 2) ────────────────────────────────────────────
+
+  describe('funding source status menu', () => {
+    const TOKEN = { token: `u_${'8'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    let realFetch: typeof globalThis.fetch;
+    let mockFetch: jest.MockedFunction<typeof globalThis.fetch>;
+    const writes = () =>
+      mockFetch.mock.calls.filter(
+        ([, init]) => init?.method === 'PATCH' || init?.method === 'POST',
+      );
+    const lastWrite = () => {
+      const [url, init] = writes()[writes().length - 1]!;
+      return { url, method: init?.method, body: init?.body ? JSON.parse(String(init.body)) : null };
+    };
+    const rows = () =>
+      screen
+        .getAllByRole('menuitem')
+        .filter((r) => !r.closest('[inert]'))
+        .map((r) => r.textContent);
+    const respond = (body: unknown) =>
+      mockFetch.mockResolvedValue({ ok: true, status: 200, json: async () => body } as Response);
+
+    beforeEach(() => {
+      realFetch = globalThis.fetch;
+      mockFetch = jest.fn<typeof globalThis.fetch>();
+      globalThis.fetch = mockFetch;
+      mockFetchBudgetSources.mockResolvedValue(listResponse);
+    });
+
+    afterEach(() => {
+      globalThis.fetch = realFetch;
+    });
+
+    it('each row renders a StatusMenu chip with its own test id and canonical label', async () => {
+      renderPage();
+      const chip = await screen.findByTestId(`funding-source-status-${sampleSource1.id}`);
+      expect(chip.tagName).toBe('BUTTON');
+      expect(chip).toHaveTextContent('Active');
+    });
+
+    it('an active source offers Mark used up and Mark closed; a closed one only the way back', async () => {
+      mockFetchBudgetSources.mockResolvedValue({
+        budgetSources: [
+          { ...sampleSource1, id: 'a1', name: 'A', status: 'active' },
+          { ...sampleSource1, id: 'c1', name: 'C', status: 'closed' },
+        ],
+      });
+      renderPage();
+      fireEvent.click(await screen.findByTestId('funding-source-status-a1'));
+      expect(rows()).toEqual(['Mark used up', 'Mark closed']);
+      fireEvent.click(screen.getByTestId('funding-source-status-a1'));
+      fireEvent.click(screen.getByTestId('funding-source-status-c1'));
+      expect(rows()).toEqual(['Back to “Active”']);
+    });
+
+    it('Mark used up PATCHes status, updates the row in place and offers Undo', async () => {
+      respond({ budgetSource: { ...sampleSource1, status: 'exhausted' }, undo: TOKEN });
+      renderPage();
+      const id = sampleSource1.id;
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${id}`));
+      const loadsBefore = mockFetchBudgetSources.mock.calls.length;
+      fireEvent.click(screen.getByTestId(`funding-source-status-${id}-option-exhausted`));
+
+      await waitFor(() => expect(writes()).toHaveLength(1));
+      expect(lastWrite()).toEqual({
+        url: `/api/budget-sources/${id}`,
+        method: 'PATCH',
+        body: { status: 'exhausted' },
+      });
+      await waitFor(() =>
+        expect(screen.getByTestId(`funding-source-status-${id}`)).toHaveTextContent('Used up'),
+      );
+      // the PATCH response replaces the row: no list reload on change
+      expect(mockFetchBudgetSources.mock.calls.length).toBe(loadsBefore);
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect(mockShowUndoToast.mock.calls[0]![0]).toMatchObject({
+        message: `${sampleSource1.name} is now “Used up”.`,
+        dedupeKey: `budget_source:${id}`,
+      });
+    });
+
+    it('Undo posts the token and reloads the list', async () => {
+      respond({ budgetSource: { ...sampleSource1 }, undo: TOKEN });
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${sampleSource1.id}`));
+      fireEvent.click(
+        screen.getByTestId(`funding-source-status-${sampleSource1.id}-option-closed`),
+      );
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockFetchBudgetSources.mock.calls.length;
+      respond({ restored: [], retractedEventIds: [] });
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(lastWrite().url).toBe(`/api/undo/${TOKEN.token}`);
+      expect(mockFetchBudgetSources.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+
+    it('a failed change toasts the generic copy and shows no Undo', async () => {
+      mockFetch.mockRejectedValue(new Error('RAW-LOCAL'));
+      renderPage();
+      fireEvent.click(await screen.findByTestId(`funding-source-status-${sampleSource1.id}`));
+      fireEvent.click(
+        screen.getByTestId(`funding-source-status-${sampleSource1.id}-option-closed`),
+      );
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+    });
+
+    it('the inline edit form has no status select and its payload carries no status', async () => {
+      mockUpdateBudgetSource.mockResolvedValueOnce({ ...sampleSource1 });
+      const user = userEvent.setup();
+      renderPage();
+      await user.click(await screen.findByRole('button', { name: /edit home loan/i }));
+      expect(screen.queryByLabelText(/^status/i)).toBeNull();
+      await user.click(screen.getByRole('button', { name: /^save/i }));
+
+      await waitFor(() => expect(mockUpdateBudgetSource).toHaveBeenCalledTimes(1));
+      const body = mockUpdateBudgetSource.mock.calls[0]![1] as Record<string, unknown>;
+      expect('status' in body).toBe(false);
     });
   });
 
@@ -1283,6 +1440,53 @@ describe('BudgetSourcesPage', () => {
   // ─── Delete confirmation modal ───────────────────────────────────────────────
 
   describe('delete confirmation modal', () => {
+    async function enabledConfirm() {
+      const btn = await screen.findByTestId('budget-source-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      return btn;
+    }
+
+    it('lists what the delete also changes and asks the impact endpoint for this source', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'budget_source',
+        id: 'src-1',
+        effects: [
+          { kind: 'progressPaymentsUnassigned', count: 2 },
+          { kind: 'costLinesUnassigned', count: 0 },
+        ],
+      });
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await waitFor(() =>
+        expect(screen.getByTestId('budget-source-delete-consequences')).toHaveTextContent(
+          'Progress payments that lose this funding source: 2',
+        ),
+      );
+      expect(screen.queryByText(/Cost lines that lose this company/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('budget_source', 'src-1');
+    });
+
+    it('keeps the action disabled when the counts fail to load', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockFetchDeleteImpact.mockRejectedValue(new Error('offline'));
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await screen.findByTestId('budget-source-delete-retry');
+      expect(screen.getByTestId('budget-source-delete-confirm')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+    });
+
     it('shows delete confirmation modal when Delete button is clicked', async () => {
       mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
 
@@ -1295,8 +1499,9 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: /delete budget source/i })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Delete Home Loan?' })).toBeInTheDocument();
+      expect(screen.getByTestId('budget-source-delete-cancel')).toHaveFocus();
     });
 
     it('shows the source name in the confirmation modal body text', async () => {
@@ -1311,7 +1516,7 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('Home Loan');
     });
 
@@ -1327,8 +1532,8 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
-      expect(dialog).toContainElement(screen.getByRole('button', { name: /delete source/i }));
+      const dialog = screen.getByRole('alertdialog');
+      expect(dialog).toContainElement(screen.getByTestId('budget-source-delete-confirm'));
     });
 
     it('closes the modal when Cancel is clicked', async () => {
@@ -1343,12 +1548,12 @@ describe('BudgetSourcesPage', () => {
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
 
-      const dialog = screen.getByRole('dialog');
+      const dialog = screen.getByRole('alertdialog');
       const cancelButton = dialog.querySelector('button') as HTMLButtonElement;
       await user.click(cancelButton);
 
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
     });
 
@@ -1364,7 +1569,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteBudgetSource).toHaveBeenCalledWith('src-1');
@@ -1375,6 +1580,22 @@ describe('BudgetSourcesPage', () => {
           screen.getByText(/budget source "home loan" deleted successfully/i),
         ).toBeInTheDocument();
       });
+    });
+
+    it('after deleting a source focus lands on the page heading (h1), never on <body>', async () => {
+      mockFetchBudgetSources.mockResolvedValueOnce(listResponse);
+      mockDeleteBudgetSource.mockResolvedValueOnce(undefined);
+      const user = userEvent.setup();
+      renderPage();
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: /delete home loan/i })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: /delete home loan/i }));
+      await user.click(await enabledConfirm());
+      await waitFor(() => expect(mockDeleteBudgetSource).toHaveBeenCalledWith('src-1'));
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull());
+      // no returnFocusRef any more: the chain skips the deleted row and ends on the page h1
+      await waitFor(() => expect(document.activeElement?.tagName).toBe('H1'));
     });
 
     it('removes the deleted source from the list', async () => {
@@ -1389,7 +1610,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.queryByText('Home Loan')).not.toBeInTheDocument();
@@ -1416,7 +1637,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1444,7 +1665,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(
@@ -1455,7 +1676,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       // Confirm delete button should no longer be visible
-      expect(screen.queryByRole('button', { name: /delete source/i })).not.toBeInTheDocument();
+      expect(screen.queryByTestId('budget-source-delete-confirm')).not.toBeInTheDocument();
     });
 
     it('shows generic error for non-409 delete failures', async () => {
@@ -1470,7 +1691,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(/failed to delete budget source/i)).toBeInTheDocument();
@@ -1491,7 +1712,7 @@ describe('BudgetSourcesPage', () => {
       });
 
       await user.click(screen.getByRole('button', { name: /delete home loan/i }));
-      await user.click(screen.getByRole('button', { name: /delete source/i }));
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(screen.getByText(enErrors.INTERNAL_ERROR)).toBeInTheDocument();

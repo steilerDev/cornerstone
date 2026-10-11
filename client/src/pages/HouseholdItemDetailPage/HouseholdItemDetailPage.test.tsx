@@ -2,10 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as HouseholdItemDetailPageTypes from './HouseholdItemDetailPage.js';
 import type {
   HouseholdItemDetail,
@@ -13,7 +14,6 @@ import type {
   HouseholdItemCategory,
 } from '@cornerstone/shared';
 import type React from 'react';
-import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enErrors from '../../i18n/en/errors.json';
 import enCommon from '../../i18n/en/common.json';
 import enHouseholdItems from '../../i18n/en/householdItems.json';
@@ -27,6 +27,10 @@ const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdI
 const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
 const mockDeleteHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.deleteHouseholdItem>();
 const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
 const mockNavigate = jest.fn();
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockFetchHouseholdItemDeps =
@@ -93,9 +97,9 @@ jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   NetworkError: MockNetworkError,
   ApiClientError: MockApiClientError,
   get: jest.fn(),
-  post: jest.fn(),
+  post: mockPost,
   put: jest.fn(),
-  patch: jest.fn(),
+  patch: mockPatch,
   del: jest.fn(),
 }));
 
@@ -105,8 +109,13 @@ jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
   useToast: () => ({
     toasts: [],
     showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
     dismissToast: jest.fn(),
   }),
+}));
+
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
 }));
 
 jest.unstable_mockModule('../../lib/householdItemWorkItemsApi.js', () => ({
@@ -273,6 +282,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       formatTime: fmtTime,
       formatDateTime: fmtDateTime,
       formatPercent: (n: number) => `${n.toFixed(2)}%`,
+      formatDayMonth: (d: string | null | undefined) => d ?? '',
     }),
   };
 });
@@ -327,6 +337,15 @@ describe('HouseholdItemDetailPage', () => {
     mockUpdateHouseholdItem.mockReset();
     mockDeleteHouseholdItem.mockReset();
     mockShowToast.mockReset();
+    mockShowUndoToast.mockReset();
+    mockPatch.mockReset();
+    mockPost.mockReset();
+    mockFetchDeleteImpact.mockReset();
+    mockFetchDeleteImpact.mockResolvedValue({
+      entityType: 'household_item',
+      id: 'item-1',
+      effects: [],
+    });
     mockUseAreas.mockReset();
     mockUseAreas.mockReturnValue({
       areas: [],
@@ -791,407 +810,205 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  describe('delete flow — success', () => {
-    it('opens delete modal on Delete button click', async () => {
+  describe('delete dialog (#2209)', () => {
+    async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
+      await waitFor(() => {
+        expect(screen.getByRole('button', { name: 'Delete Item' })).toBeInTheDocument();
+      });
+      await user.click(screen.getByRole('button', { name: 'Delete Item' }));
+      return screen.findByRole('alertdialog');
+    }
+
+    async function enabledConfirm() {
+      const btn = await screen.findByTestId('purchase-delete-confirm');
+      await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+      return btn;
+    }
+
+    it('opens an alertdialog titled "Delete <name>?" with Cancel focused and the irreversible note', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
+      const dialog = await openDeleteDialog(user);
 
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
+      expect(dialog).toHaveAccessibleName('Delete Standing Desk?');
+      expect(within(dialog).getByText("This can't be undone.")).toBeInTheDocument();
       await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
+        expect(screen.getByTestId('purchase-delete-cancel')).toHaveFocus();
       });
     });
 
-    it('shows confirmation text with item name in delete modal', async () => {
+    it('asks the delete-impact endpoint for this purchase and lists the counts', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'household_item',
+        id: 'item-1',
+        effects: [
+          { kind: 'costLines', count: 2 },
+          { kind: 'documentLinks', count: 0 },
+        ],
+      });
       renderPage();
+      await openDeleteDialog(user);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText(/are you sure you want to delete/i)).toBeInTheDocument();
-      });
-
-      // Verify the item name is in the modal (it's wrapped in <strong>)
-      expect(screen.getByRole('dialog')).toBeInTheDocument();
-      const modalText = screen.getByRole('dialog').textContent;
-      expect(modalText).toMatch(/Standing Desk/);
+      await waitFor(() =>
+        expect(screen.getByTestId('purchase-delete-consequences')).toHaveTextContent(
+          'Cost lines deleted with it: 2',
+        ),
+      );
+      expect(screen.queryByText(/Linked documents/)).not.toBeInTheDocument();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('household_item', 'item-1');
     });
 
-    it('shows "This action cannot be undone" warning in delete modal', async () => {
+    it('keeps the action disabled until the counts have loaded', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-
+      mockFetchDeleteImpact.mockReturnValue(new Promise(() => {}));
       renderPage();
+      await openDeleteDialog(user);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument();
-      });
+      await user.click(screen.getByTestId('purchase-delete-confirm'));
+      expect(screen.getByTestId('purchase-delete-confirm')).toHaveAttribute(
+        'aria-disabled',
+        'true',
+      );
+      expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
     });
 
-    it('deletes item and navigates on Delete Item confirmation', async () => {
+    it('confirm calls the delete API, toasts, and navigates to the list with REPLACE', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockDeleteHouseholdItem.mockResolvedValue(undefined);
-
       renderPage();
+      await openDeleteDialog(user);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-1');
       });
-
       await waitFor(() => {
         expect(mockShowToast).toHaveBeenCalledWith(
           'success',
           'Household item deleted successfully',
         );
       });
-
       await waitFor(() => {
         expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
       });
       expect(screen.getByTestId('location-type')).toHaveTextContent('REPLACE');
     });
 
-    it('calls deleteHouseholdItem with correct item id', async () => {
+    it('calls deleteHouseholdItem with the correct item id', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem({ id: 'item-abc-123' }));
       mockDeleteHouseholdItem.mockResolvedValue(undefined);
-
       renderPage('item-abc-123');
+      await openDeleteDialog(user);
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
         expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-abc-123');
       });
     });
 
-    it('shows "Deleting..." text while deletion is in progress', async () => {
+    it('shows the busy label and ignores Escape while the deletion is in progress', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockImplementation(() => new Promise(() => {})); // Never resolves
-
+      mockDeleteHouseholdItem.mockImplementation(() => new Promise(() => {}));
       renderPage();
+      await openDeleteDialog(user);
+
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
+        expect(screen.getByTestId('purchase-delete-confirm')).toHaveTextContent('Deleting…');
       });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /deleting/i })).toBeInTheDocument();
-      });
-    });
-  });
-
-  describe('delete flow — error', () => {
-    it('handles delete failure by showing error state in modal', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      // Note: Component checks instanceof ApiClientError to display error message.
-      // Plain Error objects show generic fallback message instead.
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
-
-      // Modal remains open after error
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-    });
-
-    it('modal stays open and does not navigate on delete failure', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValue(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
-
-      // Modal should still be open
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-
-      // Should NOT have navigated
-      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/item-1');
-    });
-
-    it('hides confirm button after delete error so user must re-open modal to retry', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockRejectedValueOnce(new Error('Network error'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(
-          within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-        ).toBeInTheDocument();
-      });
-
-      // First attempt fails
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', { name: /delete item/i }),
-      );
-
-      await waitFor(() => {
-        // Error message shows and confirm button is hidden
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-
-      // Verify deleteHouseholdItem was called once
-      expect(mockDeleteHouseholdItem).toHaveBeenCalledTimes(1);
-      // Confirm button should be hidden after error (user must close and re-open to retry)
-      expect(
-        within(screen.getByRole('dialog')).queryByRole('button', { name: /delete item/i }),
-      ).not.toBeInTheDocument();
-    });
-  });
-
-  describe('delete modal cancel', () => {
-    it('closes delete modal on Cancel click', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-
-      const cancelButton = screen.getByRole('button', { name: /cancel/i });
-      await user.click(cancelButton);
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-
-    it('closes delete modal on Escape key', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-
-      await waitFor(() => {
-        expect(screen.getByRole('dialog')).toBeInTheDocument();
-      });
-
       await user.keyboard('{Escape}');
-
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-    });
-  });
-
-  // ─── #2196 AC1: delete dialog is the shared Modal (jsdom applies no CSS, so stacking
-  // above the backdrop is asserted in the E2E visual-defects spec) ─────────────────────────
-
-  describe('delete dialog via shared Modal (#2196 AC1)', () => {
-    async function openDeleteDialog(user: ReturnType<typeof userEvent.setup>) {
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument();
-      });
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-      return screen.findByRole('dialog');
-    }
-
-    it('opens a dialog named by detail.delete.confirm with Cancel focused initially', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-      renderPage();
-
-      const dialog = await openDeleteDialog(user);
-
-      expect(dialog).toHaveAccessibleName(enHouseholdItems.detail.delete.confirm);
-      await waitFor(() => {
-        expect(
-          within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.cancel }),
-        ).toHaveFocus();
-      });
+      expect(screen.getByRole('alertdialog')).toBeInTheDocument();
     });
 
-    it('Escape closes the dialog without deleting', async () => {
+    it('Cancel and Escape close the dialog without deleting', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       renderPage();
       await openDeleteDialog(user);
 
-      await user.keyboard('{Escape}');
-
+      await user.click(screen.getByTestId('purchase-delete-cancel'));
       await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      });
+
+      await openDeleteDialog(user);
+      await user.keyboard('{Escape}');
+      await waitFor(() => {
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
       });
       expect(mockDeleteHouseholdItem).not.toHaveBeenCalled();
     });
 
-    it('confirm calls the delete API and navigates to the list', async () => {
+    it('a non-409 failure keeps the dialog open with the action available for a retry, no navigation', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
-      mockDeleteHouseholdItem.mockResolvedValue(undefined);
+      mockDeleteHouseholdItem.mockRejectedValueOnce(new Error('Network error'));
       renderPage();
-      const dialog = await openDeleteDialog(user);
+      await openDeleteDialog(user);
 
-      await user.click(
-        within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
-      );
+      await user.click(await enabledConfirm());
 
       await waitFor(() => {
-        expect(mockDeleteHouseholdItem).toHaveBeenCalledWith('item-1');
-        expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items');
+        expect(within(screen.getByRole('alertdialog')).getByRole('alert')).toBeInTheDocument();
       });
+      expect(mockDeleteHouseholdItem).toHaveBeenCalledTimes(1);
+      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
+      expect(screen.getByTestId('location')).toHaveTextContent('/project/household-items/item-1');
     });
 
-    it('on API failure shows the translated error, hides confirm, and reopening shows no stale error', async () => {
+    it('a 409 hides the action, shows the translated error, and reopening is clean', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockDeleteHouseholdItem.mockRejectedValueOnce(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      renderPage();
+      await openDeleteDialog(user);
+
+      await user.click(await enabledConfirm());
+
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
+        enErrors.CONFLICT,
+      );
+      expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('purchase-delete-confirm')).not.toBeInTheDocument();
+
+      await user.click(screen.getByTestId('purchase-delete-cancel'));
+      await waitFor(() => {
+        expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+      });
+      const reopened = await openDeleteDialog(user);
+      expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
+    });
+
+    it('a 404 failure shows the translated error and never the server text', async () => {
       const user = userEvent.setup();
       mockGetHouseholdItem.mockResolvedValue(makeItem());
       mockDeleteHouseholdItem.mockRejectedValueOnce(
         new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
       );
       renderPage();
-      const dialog = await openDeleteDialog(user);
+      await openDeleteDialog(user);
+      await user.click(await enabledConfirm());
 
-      await user.click(
-        within(dialog).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
-      );
-
-      // Error text is visible (not just "dialog stays open") and the raw server text never leaks
-      expect(await within(screen.getByRole('dialog')).findByRole('alert')).toHaveTextContent(
+      expect(await within(screen.getByRole('alertdialog')).findByRole('alert')).toHaveTextContent(
         enErrors.NOT_FOUND,
       );
       expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
-      expect(
-        within(screen.getByRole('dialog')).queryByRole('button', {
-          name: enHouseholdItems.detail.delete.delete,
-        }),
-      ).not.toBeInTheDocument();
-
-      // Close, reopen: no stale error, confirm is back
-      await user.click(
-        within(screen.getByRole('dialog')).getByRole('button', {
-          name: enHouseholdItems.detail.delete.cancel,
-        }),
-      );
-      await waitFor(() => {
-        expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
-      });
-      const reopened = await openDeleteDialog(user);
-      expect(within(reopened).queryByRole('alert')).not.toBeInTheDocument();
-      expect(
-        within(reopened).getByRole('button', { name: enHouseholdItems.detail.delete.delete }),
-      ).toBeInTheDocument();
+      // Only a 409 blocks the action; any other API failure stays retryable.
+      expect(screen.getByTestId('purchase-delete-confirm')).toBeInTheDocument();
     });
   });
 
@@ -1213,112 +1030,166 @@ describe('HouseholdItemDetailPage', () => {
     });
   });
 
-  describe('inline status selector', () => {
-    it('renders the status select with correct current value', async () => {
-      const _user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+  describe('status menu (#2209)', () => {
+    const TOKEN = { token: `u_${'c'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
 
+    async function loadItem(status: HouseholdItemStatus = 'purchased') {
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status }));
       renderPage();
-
       await waitFor(() => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
+    }
 
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-      expect(statusSelect).toHaveValue('purchased');
+    it('renders the current status as a menu button, not a select', async () => {
+      await loadItem('purchased');
+      const chip = screen.getByTestId('purchase-status');
+      expect(chip).toHaveTextContent(enCommon.statusVocabulary.purchase.purchased);
+      expect(chip).toHaveAttribute('aria-haspopup', 'menu');
+      expect(screen.queryByRole('combobox', { name: /purchase status/i })).toBeNull();
     });
 
-    it('status dropdown lists HOUSEHOLD_ITEM_STATUSES in order with translated labels', async () => {
-      mockGetHouseholdItem.mockResolvedValue(makeItem());
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-
-      const options = Array.from(statusSelect.querySelectorAll('option')).map((o) => [
-        o.getAttribute('value'),
-        o.textContent,
+    it('lists only the allowed transitions, forward before backward', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      await user.click(screen.getByTestId('purchase-status'));
+      const labels = screen.getAllByRole('menuitem').map((r) => r.textContent);
+      expect(labels).toEqual([
+        enCommon.statusAction.purchase.markDeliveryScheduled,
+        `${enCommon.statusAction.purchase.markDelivered}›`,
+        `Back to “${enCommon.statusVocabulary.purchase.planned}”`,
       ]);
-      expect(options).toEqual(
-        HOUSEHOLD_ITEM_STATUSES.map((status) => [
-          status,
-          enCommon.statusVocabulary.purchase[status],
-        ]),
-      );
     });
 
-    it('selecting a new status calls updateHouseholdItem', async () => {
+    it('a dateless transition PATCHes the status and offers Undo', async () => {
       const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      mockUpdateHouseholdItem.mockResolvedValue(
-        makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
+      await loadItem('purchased');
+      mockPatch.mockResolvedValue({
+        householdItem: makeItem({ status: 'scheduled' }),
+        undo: TOKEN,
       });
 
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-      await user.selectOptions(statusSelect, 'arrived');
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
 
       await waitFor(() => {
-        expect(mockUpdateHouseholdItem).toHaveBeenCalledWith('item-1', { status: 'arrived' });
+        expect(mockPatch).toHaveBeenCalledWith('/household-items/item-1', { status: 'scheduled' });
       });
-    });
-
-    it('shows success toast on successful status change', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      mockUpdateHouseholdItem.mockResolvedValue(
-        makeItem({ status: 'scheduled', actualDeliveryDate: null }),
-      );
-
-      renderPage();
-
       await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-      await user.selectOptions(statusSelect, 'scheduled');
-
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith('success', 'Status updated');
-      });
-    });
-
-    it('shows an error toast (not a budget banner) on a status update failure', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      mockUpdateHouseholdItem.mockRejectedValue(new Error('RAW-LOCAL'));
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-      await user.selectOptions(statusSelect, 'arrived');
-
-      await waitFor(() => {
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
-          enHouseholdItems.detail.status.updateFailed,
+        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
+          enCommon.statusVocabulary.purchase.scheduled,
         );
       });
-      // Nothing is rendered inline (the budget banner is not used for status failures)
-      expect(screen.queryByText(enHouseholdItems.detail.status.updateFailed)).toBeNull();
+      expect(mockShowUndoToast).toHaveBeenCalledTimes(1);
+      expect(mockShowUndoToast).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message: 'Standing Desk is now “Delivery scheduled”.',
+          dedupeKey: 'purchase:item-1',
+        }),
+      );
+    });
+
+    it('marking delivered asks for the date and sends it as the actual delivery date', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      mockPatch.mockResolvedValue({
+        householdItem: makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
+        undo: TOKEN,
+      });
+
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-arrived'));
+      expect(screen.getByRole('dialog', { name: 'When did it arrive?' })).toBeInTheDocument();
+      await user.click(screen.getByTestId('purchase-status-date-today'));
+
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      const [url, body] = mockPatch.mock.calls[0] as [
+        string,
+        { status: string; actualDeliveryDate: string },
+      ];
+      expect(url).toBe('/household-items/item-1');
+      expect(body.status).toBe('arrived');
+      expect(body.actualDeliveryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    });
+
+    it('shows no Undo toast when the server issued no token', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      mockPatch.mockResolvedValue({ householdItem: makeItem({ status: 'scheduled' }) });
+
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
+
+      await waitFor(() => {
+        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
+          enCommon.statusVocabulary.purchase.scheduled,
+        );
+      });
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+    });
+
+    it('Undo posts the token and reloads the purchase', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      mockPatch.mockResolvedValue({
+        householdItem: makeItem({ status: 'scheduled' }),
+        undo: TOKEN,
+      });
+      mockPost.mockResolvedValue({ restored: [], retractedEventIds: [] });
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+
+      expect(mockPost).toHaveBeenCalledWith(`/undo/${TOKEN.token}`);
+      await waitFor(() => {
+        expect(screen.getByTestId('purchase-status')).toHaveTextContent(
+          enCommon.statusVocabulary.purchase.purchased,
+        );
+      });
+    });
+
+    it('a failed change shows an error toast, no Undo, and the chip keeps its status', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      mockPatch.mockRejectedValue(new Error('RAW-LOCAL'));
+
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('error', enCommon.statusMenu.changeFailed);
+      });
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('purchase-status')).toHaveTextContent(
+        enCommon.statusVocabulary.purchase.purchased,
+      );
       expect(screen.queryByText(/RAW-LOCAL/)).toBeNull();
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
     });
 
+    it('a failed change with an API error toasts the translated message', async () => {
+      const user = userEvent.setup();
+      await loadItem('purchased');
+      mockPatch.mockRejectedValue(
+        new MockApiClientError(404, { code: 'NOT_FOUND', message: 'RAW-SERVER-SENTINEL' }),
+      );
+
+      await user.click(screen.getByTestId('purchase-status'));
+      await user.click(screen.getByTestId('purchase-status-option-scheduled'));
+
+      await waitFor(() => {
+        expect(mockShowToast).toHaveBeenCalledWith('error', enErrors.NOT_FOUND);
+      });
+    });
+  });
+
+  describe('inline area update', () => {
     it('shows an error toast (not a budget banner) on an area update failure', async () => {
       const user = userEvent.setup();
       mockUseAreas.mockReturnValue({
@@ -1350,30 +1221,6 @@ describe('HouseholdItemDetailPage', () => {
       });
       expect(screen.queryByText(enHouseholdItems.detail.area.updateFailed)).toBeNull();
       expect(screen.queryAllByRole('alert')).toHaveLength(0);
-    });
-
-    it('updates rendered item state from API response after status change', async () => {
-      const user = userEvent.setup();
-      mockGetHouseholdItem.mockResolvedValue(makeItem({ status: 'purchased' }));
-      mockUpdateHouseholdItem.mockResolvedValue(
-        makeItem({ status: 'arrived', actualDeliveryDate: '2026-03-04' }),
-      );
-
-      renderPage();
-
-      await waitFor(() => {
-        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
-      });
-
-      const statusSelect = screen.getByRole('combobox', { name: /purchase status/i });
-      await user.selectOptions(statusSelect, 'arrived');
-
-      await waitFor(() => {
-        expect(statusSelect).toHaveValue('arrived');
-        // Actual Delivery date should reflect auto-set value from API response
-        // Date appears in both "Dates & Delivery" card and "Schedule" section
-        expect(screen.getAllByText('Mar 4, 2026').length).toBeGreaterThanOrEqual(1);
-      });
     });
   });
 
@@ -1709,8 +1556,9 @@ describe('HouseholdItemDetailPage', () => {
       });
       await user.click(removeButton);
 
-      expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+      expect(screen.getByRole('alertdialog', { name: 'Remove dependency?' })).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-dependency-remove-confirm')).toBeInTheDocument();
+      expect(screen.getByTestId('purchase-dependency-remove-cancel')).toHaveFocus();
     });
 
     it('confirming removal calls deleteHouseholdItemDep', async () => {
@@ -1743,7 +1591,7 @@ describe('HouseholdItemDetailPage', () => {
       });
       await user.click(removeButton);
 
-      const confirmButton = screen.getByRole('button', { name: 'Confirm' });
+      const confirmButton = screen.getByTestId('purchase-dependency-remove-confirm');
       await user.click(confirmButton);
 
       await waitFor(() => {
@@ -2196,7 +2044,7 @@ describe('HouseholdItemDetailPage', () => {
       await user.click(
         screen.getByRole('button', { name: /Remove dependency on Foundation Work/i }),
       );
-      await user.click(screen.getByRole('button', { name: 'Confirm' }));
+      await user.click(screen.getByTestId('purchase-dependency-remove-confirm'));
     }
 
     it('a successful remove dependency toasts the translated success copy', async () => {
@@ -2209,14 +2057,17 @@ describe('HouseholdItemDetailPage', () => {
       );
     });
 
-    it('a failed remove dependency toasts the translated failure copy, not the server text', async () => {
+    it('a failed remove dependency shows the translated failure copy in the dialog, not the server text', async () => {
       await removeDependency(apiError(500, 'INTERNAL_ERROR'));
+      // #2209: the failure is shown inside the open confirm dialog, not as a toast.
+      const dialog = await screen.findByRole('alertdialog', { name: 'Remove dependency?' });
       await waitFor(() =>
-        expect(mockShowToast).toHaveBeenCalledWith(
-          'error',
+        expect(within(dialog).getByRole('alert')).toHaveTextContent(
           enHouseholdItems.detail.dependencies.failedRemove,
         ),
       );
+      expect(within(dialog).queryByText(new RegExp(SENTINEL))).toBeNull();
+      expect(mockShowToast).not.toHaveBeenCalledWith('error', expect.anything());
     });
 
     it('load failure with an ApiClientError shows the translated code copy only', async () => {
@@ -2241,12 +2092,10 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() =>
         expect(screen.getByRole('button', { name: /delete/i })).toBeInTheDocument(),
       );
-      await user.click(screen.getByRole('button', { name: /delete/i }));
-      await user.click(
-        await within(await screen.findByRole('dialog')).findByRole('button', {
-          name: /delete item/i,
-        }),
-      );
+      await user.click(screen.getByRole('button', { name: 'Delete Item' }));
+      const confirm = await screen.findByTestId('purchase-delete-confirm');
+      await waitFor(() => expect(confirm).not.toHaveAttribute('aria-disabled'));
+      await user.click(confirm);
     }
 
     it('delete failure with ApiClientError shows translated copy, not the server text', async () => {

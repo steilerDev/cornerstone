@@ -584,12 +584,8 @@ test.describe('Delete vendor — no references (Scenario 8)', { tag: '@responsiv
     // Then: The modal is visible
     await expect(vendorsPage.deleteModal).toBeVisible();
 
-    // And: The modal title says "Delete Vendor"
-    await expect(vendorsPage.deleteModalTitle).toHaveText('Delete Vendor');
-
-    // And: The modal text mentions the vendor name
-    const modalText = await vendorsPage.deleteModal.textContent();
-    expect(modalText).toContain(vendorName);
+    // And: The dialog title asks "Delete <name>?" (names the vendor)
+    await expect(vendorsPage.deleteModalTitle).toHaveText(`Delete ${vendorName}?`);
 
     // When: I confirm deletion
     await vendorsPage.confirmDelete();
@@ -702,7 +698,7 @@ test.describe('Delete blocked by 409 (Scenario 9)', { tag: '@responsive' }, () =
       expect(errorText).toBeTruthy();
       expect(errorText?.toLowerCase()).toMatch(/cannot be deleted|invoices|in use/);
 
-      // And: The "Delete Vendor" confirm button is hidden (replaced by error state)
+      // And: The "Delete" confirm button is hidden (409 blocks the action)
       await expect(vendorsPage.deleteConfirmButton).not.toBeVisible({ timeout: 3000 });
 
       // And: The modal remains open

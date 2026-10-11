@@ -1,4 +1,11 @@
-import { useState, useEffect, useCallback, type FormEvent, type KeyboardEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type FormEvent,
+  type KeyboardEvent,
+} from 'react';
 import { useSearchParams } from 'react-router-dom';
 import type {
   BudgetCategory,
@@ -26,6 +33,8 @@ import { useTranslation } from 'react-i18next';
 import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { Skeleton } from '../../components/Skeleton/Skeleton.js';
 import { EmptyState } from '../../components/EmptyState/EmptyState.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { buildTree } from '../../lib/areaTreeUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
@@ -59,6 +68,16 @@ const MANAGE_TABS = [
 ] as const;
 
 type Tab = (typeof MANAGE_TABS)[number];
+
+/**
+ * True only until the first load has finished. Later reloads (after a delete, say) keep the
+ * section mounted, so the focused heading and the list are not replaced by a skeleton.
+ */
+function useInitialLoading(isLoading: boolean): boolean {
+  const [loaded, setLoaded] = useState(false);
+  if (!isLoading && !loaded) setLoaded(true);
+  return !loaded;
+}
 
 function parseTab(value: string | null): Tab {
   return MANAGE_TABS.find((tab) => tab === value) ?? 'areas';
@@ -235,6 +254,7 @@ type EditingArea = {
 function AreasTab() {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const {
     areas,
     isLoading,
@@ -264,6 +284,9 @@ function AreasTab() {
   const [deletingAreaId, setDeletingAreaId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('area', deletingAreaId);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateArea = async (event: FormEvent) => {
     event.preventDefault();
@@ -382,11 +405,13 @@ function AreasTab() {
     if (!isDeleting) {
       setDeletingAreaId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
   const handleDeleteArea = async (areaId: string) => {
     setIsDeleting(true);
+    setDeleteBlocked(false);
     setSuccessMessage('');
     setDeleteError('');
 
@@ -397,6 +422,7 @@ function AreasTab() {
       setSuccessMessage(t('manage.areas.messages.deleted', { name: deletedArea?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('manage.areas.messages.deleteConflict'));
         } else {
@@ -410,7 +436,8 @@ function AreasTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -428,7 +455,9 @@ function AreasTab() {
 
       {/* Create new area */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.areas.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.areas.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.areas.createDescription')}</p>
 
         {createError && (
@@ -725,46 +754,25 @@ function AreasTab() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingAreaId && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
-          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('manage.areas.deleteTitle')}</h2>
-            <p className={styles.modalText}>
-              {t('manage.areas.deleteConfirm', {
-                name: areas.find((a) => a.id === deletingAreaId)?.name,
-              })}
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('manage.areas.deleteWarning')}</p>
-            )}
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteDialog}
-                disabled={isDeleting}
-              >
-                {t('manage.areas.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteArea(deletingAreaId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('manage.areas.deleting') : t('manage.areas.deleteButton')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: areas.find((x) => x.id === deletingAreaId)?.name ?? '',
+          })}
+          lead={t('manage.areas.deleteWarning')}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteArea(deletingAreaId)}
+          onCancel={closeDeleteDialog}
+          returnFocusRef={sectionHeadingRef}
+          testIdPrefix="area-delete"
+        />
       )}
     </>
   );
@@ -785,6 +793,7 @@ type EditingTrade = {
 function TradesTab() {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const {
     trades,
     isLoading,
@@ -813,6 +822,8 @@ function TradesTab() {
   const [deletingTradeId, setDeletingTradeId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateTrade = async (event: FormEvent) => {
     event.preventDefault();
@@ -927,11 +938,13 @@ function TradesTab() {
     if (!isDeleting) {
       setDeletingTradeId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
   const handleDeleteTrade = async (tradeId: string) => {
     setIsDeleting(true);
+    setDeleteBlocked(false);
     setSuccessMessage('');
     setDeleteError('');
 
@@ -942,6 +955,7 @@ function TradesTab() {
       setSuccessMessage(t('manage.trades.messages.deleted', { name: deletedTrade?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('manage.trades.messages.deleteConflict'));
         } else {
@@ -955,7 +969,8 @@ function TradesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -973,7 +988,9 @@ function TradesTab() {
 
       {/* Create new trade */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.trades.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.trades.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.trades.createDescription')}</p>
 
         {createError && (
@@ -1238,46 +1255,24 @@ function TradesTab() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingTradeId && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
-          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('manage.trades.deleteTitle')}</h2>
-            <p className={styles.modalText}>
-              {t('manage.trades.deleteConfirm', {
-                name: trades.find((t) => t.id === deletingTradeId)?.name,
-              })}
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('manage.trades.deleteWarning')}</p>
-            )}
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteDialog}
-                disabled={isDeleting}
-              >
-                {t('manage.trades.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteTrade(deletingTradeId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting ? t('manage.trades.deleting') : t('manage.trades.deleteButton')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: trades.find((x) => x.id === deletingTradeId)?.name ?? '',
+          })}
+          lead={t('manage.trades.deleteWarning')}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteTrade(deletingTradeId)}
+          onCancel={closeDeleteDialog}
+          returnFocusRef={sectionHeadingRef}
+          testIdPrefix="trade-delete"
+        />
       )}
     </>
   );
@@ -1297,6 +1292,7 @@ type EditingOrientation = {
 function OrientationsTab() {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const {
     orientations,
     isLoading,
@@ -1324,6 +1320,9 @@ function OrientationsTab() {
   const [deletingOrientationId, setDeletingOrientationId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteImpact = useDeleteImpact('orientation', deletingOrientationId);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   const handleCreateOrientation = async (event: FormEvent) => {
     event.preventDefault();
@@ -1434,11 +1433,13 @@ function OrientationsTab() {
     if (!isDeleting) {
       setDeletingOrientationId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
   const handleDeleteOrientation = async (orientationId: string) => {
     setIsDeleting(true);
+    setDeleteBlocked(false);
     setSuccessMessage('');
     setDeleteError('');
 
@@ -1451,6 +1452,7 @@ function OrientationsTab() {
       );
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
         setDeleteError(t('manage.orientations.messages.deleteError'));
@@ -1460,7 +1462,8 @@ function OrientationsTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -1478,7 +1481,9 @@ function OrientationsTab() {
 
       {/* Create new orientation */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.orientations.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.orientations.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.orientations.createDescription')}</p>
 
         {createError && (
@@ -1703,48 +1708,24 @@ function OrientationsTab() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingOrientationId && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
-          <div className={styles.modalBackdrop} onClick={closeDeleteDialog} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('manage.orientations.deleteTitle')}</h2>
-            <p className={styles.modalText}>
-              {t('manage.orientations.deleteConfirm', {
-                name: orientations.find((o) => o.id === deletingOrientationId)?.name,
-              })}
-            </p>
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('manage.orientations.deleteWarning')}</p>
-            )}
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteDialog}
-                disabled={isDeleting}
-              >
-                {t('manage.orientations.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteOrientation(deletingOrientationId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting
-                    ? t('manage.orientations.deleting')
-                    : t('manage.orientations.deleteButton')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: orientations.find((x) => x.id === deletingOrientationId)?.name ?? '',
+          })}
+          consequences={deleteImpact}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteOrientation(deletingOrientationId)}
+          onCancel={closeDeleteDialog}
+          returnFocusRef={sectionHeadingRef}
+          testIdPrefix="orientation-delete"
+        />
       )}
     </>
   );
@@ -1765,6 +1746,7 @@ type EditingBudgetCategory = {
 function BudgetCategoriesTab() {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -1781,6 +1763,8 @@ function BudgetCategoriesTab() {
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     void loadCategories();
@@ -1933,11 +1917,13 @@ function BudgetCategoriesTab() {
     if (!isDeleting) {
       setDeletingCategoryId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
     setIsDeleting(true);
+    setDeleteBlocked(false);
     setDeleteError('');
 
     try {
@@ -1948,6 +1934,7 @@ function BudgetCategoriesTab() {
       setSuccessMessage(t('manage.budgetCategories.messages.deleted', { name: deleted?.name }));
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('manage.budgetCategories.messages.deleteConflict'));
         } else {
@@ -1961,7 +1948,8 @@ function BudgetCategoriesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -1985,7 +1973,9 @@ function BudgetCategoriesTab() {
 
       {/* Create form */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.budgetCategories.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.budgetCategories.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>{t('manage.budgetCategories.createDescription')}</p>
 
         {createError && (
@@ -2261,57 +2251,23 @@ function BudgetCategoriesTab() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingCategoryId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('manage.budgetCategories.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('manage.budgetCategories.deleteConfirm', {
-                name: categories.find((c) => c.id === deletingCategoryId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>{t('manage.budgetCategories.deleteWarning')}</p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('manage.budgetCategories.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteCategory(deletingCategoryId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting
-                    ? t('manage.budgetCategories.deleting')
-                    : t('manage.budgetCategories.deleteButton')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: categories.find((x) => x.id === deletingCategoryId)?.name ?? '',
+          })}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteCategory(deletingCategoryId)}
+          onCancel={closeDeleteConfirm}
+          returnFocusRef={sectionHeadingRef}
+          testIdPrefix="budget-category-delete"
+        />
       )}
     </>
   );
@@ -2331,6 +2287,7 @@ type EditingHICategory = {
 function HouseholdItemCategoriesTab() {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
+  const { t: tCommon } = useTranslation('common');
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -2346,6 +2303,8 @@ function HouseholdItemCategoriesTab() {
   const [deletingCategoryId, setDeletingCategoryId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string>('');
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const sectionHeadingRef = useRef<HTMLHeadingElement>(null);
 
   useEffect(() => {
     void loadCategories();
@@ -2498,11 +2457,13 @@ function HouseholdItemCategoriesTab() {
     if (!isDeleting) {
       setDeletingCategoryId(null);
       setDeleteError('');
+      setDeleteBlocked(false);
     }
   };
 
   const handleDeleteCategory = async (categoryId: string) => {
     setIsDeleting(true);
+    setDeleteBlocked(false);
     setDeleteError('');
 
     try {
@@ -2515,6 +2476,7 @@ function HouseholdItemCategoriesTab() {
       );
     } catch (err) {
       if (err instanceof ApiClientError) {
+        setDeleteBlocked(err.statusCode === 409);
         if (err.statusCode === 409) {
           setDeleteError(t('manage.householdItemCategories.messages.deleteConflict'));
         } else {
@@ -2528,7 +2490,8 @@ function HouseholdItemCategoriesTab() {
     }
   };
 
-  if (isLoading) {
+  const initialLoading = useInitialLoading(isLoading);
+  if (initialLoading) {
     return <Skeleton lines={5} />;
   }
 
@@ -2552,7 +2515,9 @@ function HouseholdItemCategoriesTab() {
 
       {/* Create form */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('manage.householdItemCategories.createTitle')}</h2>
+        <h2 className={styles.cardTitle} ref={sectionHeadingRef} tabIndex={-1}>
+          {t('manage.householdItemCategories.createTitle')}
+        </h2>
         <p className={styles.cardDescription}>
           {t('manage.householdItemCategories.createDescription')}
         </p>
@@ -2791,59 +2756,23 @@ function HouseholdItemCategoriesTab() {
         )}
       </section>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {deletingCategoryId && (
-        <div
-          className={styles.modal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="delete-modal-title"
-        >
-          <div className={styles.modalBackdrop} onClick={closeDeleteConfirm} />
-          <div className={styles.modalContent}>
-            <h2 id="delete-modal-title" className={styles.modalTitle}>
-              {t('manage.householdItemCategories.deleteTitle')}
-            </h2>
-            <p className={styles.modalText}>
-              {t('manage.householdItemCategories.deleteConfirm', {
-                name: categories.find((c) => c.id === deletingCategoryId)?.name,
-              })}
-            </p>
-
-            {deleteError ? (
-              <div className={styles.errorBanner} role="alert">
-                {deleteError}
-              </div>
-            ) : (
-              <p className={styles.modalWarning}>
-                {t('manage.householdItemCategories.deleteWarning')}
-              </p>
-            )}
-
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={closeDeleteConfirm}
-                disabled={isDeleting}
-              >
-                {t('manage.householdItemCategories.cancel')}
-              </button>
-              {!deleteError && (
-                <button
-                  type="button"
-                  className={styles.confirmDeleteButton}
-                  onClick={() => void handleDeleteCategory(deletingCategoryId)}
-                  disabled={isDeleting}
-                >
-                  {isDeleting
-                    ? t('manage.householdItemCategories.deleting')
-                    : t('manage.householdItemCategories.deleteButton')}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: categories.find((x) => x.id === deletingCategoryId)?.name ?? '',
+          })}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          blocked={deleteBlocked}
+          error={deleteError || null}
+          onConfirm={() => void handleDeleteCategory(deletingCategoryId)}
+          onCancel={closeDeleteConfirm}
+          returnFocusRef={sectionHeadingRef}
+          testIdPrefix="hi-category-delete"
+        />
       )}
     </>
   );

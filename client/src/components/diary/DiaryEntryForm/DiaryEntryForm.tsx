@@ -9,11 +9,13 @@ import type {
   DiarySignatureEntry,
 } from '@cornerstone/shared';
 import _shared from '../../../styles/shared.module.css';
+import { DIARY_ISSUE_RESOLUTIONS } from '@cornerstone/shared';
 import { SignatureSection } from '../SignatureSection/index.js';
 import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
 import { fetchVendors } from '../../../lib/vendorsApi.js';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
+import { useStatusBadgeVariants } from '../../../hooks/useStatusBadgeVariants.js';
 import styles from './DiaryEntryForm.module.css';
 
 export interface DiaryEntryFormProps {
@@ -60,6 +62,8 @@ export interface DiaryEntryFormProps {
   onIssueSeverityChange?: (severity: DiaryIssueSeverity | null) => void;
   issueResolutionStatus?: DiaryIssueResolution | null;
   onIssueResolutionStatusChange?: (status: DiaryIssueResolution | null) => void;
+  /** Show the defect status select (capture and drafts). Saved entries change it from the status menu. */
+  showResolutionStatus?: boolean;
   issueSignatures?: DiarySignatureEntry[] | null;
   onIssueSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
   /** Signature UX enhancements */
@@ -112,17 +116,14 @@ function useSeverityOptions() {
 }
 
 function useResolutionStatusOptions() {
-  const { t } = useTranslation('diary');
+  const statusVariants = useStatusBadgeVariants();
   return useMemo(
-    () => [
-      { value: 'open' as DiaryIssueResolution, label: t('form.resolutionOptions.open') },
-      {
-        value: 'in_progress' as DiaryIssueResolution,
-        label: t('form.resolutionOptions.in_progress')!,
-      },
-      { value: 'resolved' as DiaryIssueResolution, label: t('form.resolutionOptions.resolved') },
-    ],
-    [t],
+    () =>
+      DIARY_ISSUE_RESOLUTIONS.map((value) => ({
+        value,
+        label: statusVariants.defect[value].label,
+      })),
+    [statusVariants],
   );
 }
 
@@ -170,6 +171,7 @@ export function DiaryEntryForm({
   onIssueSeverityChange,
   issueResolutionStatus,
   onIssueResolutionStatusChange,
+  showResolutionStatus = true,
   issueSignatures,
   onIssueSignaturesChange,
   // signature enhancements
@@ -678,40 +680,42 @@ export function DiaryEntryForm({
               )}
             </div>
 
-            <div className={styles.formGroup}>
-              <label htmlFor="resolution-status" className={styles.label}>
-                {t('form.resolutionStatus')}{' '}
-                <span className={styles.required}>{t('entryForm.required')}</span>
-              </label>
-              <select
-                id="resolution-status"
-                className={`${styles.select} ${validationErrors.issueResolutionStatus ? styles.selectError : ''}`}
-                value={issueResolutionStatus || ''}
-                onChange={(e) =>
-                  onIssueResolutionStatusChange?.(
-                    e.target.value ? (e.target.value as DiaryIssueResolution) : null,
-                  )
-                }
-                disabled={disabled}
-                required
-                aria-invalid={!!validationErrors.issueResolutionStatus}
-                aria-describedby={
-                  validationErrors.issueResolutionStatus ? 'resolution-error' : undefined
-                }
-              >
-                <option value="">— {t('form.resolutionStatusRequired')} —</option>
-                {resolutionStatusOptions.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-              {validationErrors.issueResolutionStatus && (
-                <div id="resolution-error" className={styles.errorText} role="alert">
-                  {validationErrors.issueResolutionStatus}
-                </div>
-              )}
-            </div>
+            {showResolutionStatus && (
+              <div className={styles.formGroup}>
+                <label htmlFor="resolution-status" className={styles.label}>
+                  {t('form.resolutionStatus')}{' '}
+                  <span className={styles.required}>{t('entryForm.required')}</span>
+                </label>
+                <select
+                  id="resolution-status"
+                  className={`${styles.select} ${validationErrors.issueResolutionStatus ? styles.selectError : ''}`}
+                  value={issueResolutionStatus || ''}
+                  onChange={(e) =>
+                    onIssueResolutionStatusChange?.(
+                      e.target.value ? (e.target.value as DiaryIssueResolution) : null,
+                    )
+                  }
+                  disabled={disabled}
+                  required
+                  aria-invalid={!!validationErrors.issueResolutionStatus}
+                  aria-describedby={
+                    validationErrors.issueResolutionStatus ? 'resolution-error' : undefined
+                  }
+                >
+                  <option value="">— {t('form.resolutionStatusRequired')} —</option>
+                  {resolutionStatusOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                {validationErrors.issueResolutionStatus && (
+                  <div id="resolution-error" className={styles.errorText} role="alert">
+                    {validationErrors.issueResolutionStatus}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <SignatureSection

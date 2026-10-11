@@ -24,6 +24,14 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { I18N_UNION_KEYS } from '../../i18n/unionKeys.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { milestoneTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeMilestoneStatus, milestoneStatusBody } from '../../lib/statusChangeApi.js';
+import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
@@ -57,13 +65,20 @@ export function MilestoneDetailPage() {
     title: '',
     targetDate: '',
     description: '',
-    isCompleted: false,
   });
   const [isSaving, setIsSaving] = useState(false);
 
   // Delete confirmation
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteBlocked, setDeleteBlocked] = useState(false);
+  const deleteConsequences = useDeleteImpact(
+    'milestone',
+    showDeleteConfirm && milestone ? milestone.id : null,
+  );
+  const statusVariants = useStatusBadgeVariants();
+  const { run: runStatusChange } = useUndoableStatusChange();
 
   // Linked items management
   const [itemSearchInput, setItemSearchInput] = useState('');
@@ -127,7 +142,6 @@ export function MilestoneDetailPage() {
           title: data.title,
           targetDate: data.targetDate,
           description: data.description || '',
-          isCompleted: data.isCompleted,
         });
       } catch (err) {
         if (err instanceof ApiClientError && err.statusCode === 404) {
@@ -379,14 +393,33 @@ export function MilestoneDetailPage() {
   }, [showDepDropdown]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    const { name, value, type } = e.target as HTMLInputElement | HTMLTextAreaElement;
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
-    if (type === 'checkbox') {
-      const checked = (e.target as HTMLInputElement).checked;
-      setFormData((prev) => ({ ...prev, [name]: checked }));
-    } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+  const reloadMilestone = async () => {
+    if (!milestone) return;
+    try {
+      setMilestone(await getMilestone(milestone.id));
+    } catch (err) {
+      console.error('Failed to reload milestone:', err);
     }
+  };
+
+  // Status change (StatusMenu): Mark reached asks for the date; the PATCH may issue an undo token
+  const handleStatusChange = async (to: 'reached' | 'not_reached', date: string | null) => {
+    if (!milestone) return;
+    await runStatusChange({
+      request: () => changeMilestoneStatus(milestone.id, milestoneStatusBody(to, date)),
+      recordName: milestone.title,
+      statusLabel: tCommon(
+        I18N_UNION_KEYS.statusVocabularyMilestone.key(to === 'reached' ? 'reached' : 'upcoming'),
+        { days: 0 },
+      ),
+      dedupeKey: `milestone:${milestone.id}`,
+      onChanged: () => void reloadMilestone(),
+      onUndone: reloadMilestone,
+    });
   };
 
   const handleSave = async (e: FormEvent<HTMLFormElement>) => {
@@ -412,7 +445,6 @@ export function MilestoneDetailPage() {
         title: formData.title,
         targetDate: formData.targetDate,
         description: formData.description || null,
-        isCompleted: formData.isCompleted,
       });
 
       setIsEditing(false);
@@ -434,21 +466,32 @@ export function MilestoneDetailPage() {
     if (!milestone) return;
 
     setIsDeleting(true);
-    setError('');
+    setDeleteError(null);
 
     try {
       await deleteMilestone(milestone.id);
       navigate(routeUrl('milestones'), { replace: true });
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(translateApiError(err.error.code, tErrors));
+        setDeleteBlocked(err.statusCode === 409);
+        setDeleteError(translateApiError(err.error.code, tErrors));
       } else {
-        setError(t('milestones.detail.failedDelete'));
+        setDeleteError(t('milestones.detail.failedDelete'));
       }
       setIsDeleting(false);
     }
   };
 
+  const displayStatus = milestoneDisplayStatus({
+    isCompleted: milestone?.isCompleted ?? false,
+    targetDate: milestone?.targetDate ?? '',
+    projectedDate,
+  });
+  const displayStatusLabel = milestoneStatusLabel(tCommon, {
+    isCompleted: milestone?.isCompleted ?? false,
+    targetDate: milestone?.targetDate ?? '',
+    projectedDate,
+  });
   const displayTitle = milestone?.title.trim() || tCommon('navigation.untitledMilestone');
   const h1Text = isLoading
     ? tCommon('navigation.milestone')
@@ -502,17 +545,25 @@ export function MilestoneDetailPage() {
           <div className={styles.viewHeader}>
             <div className={styles.viewTitle}>
               <h2 className={styles.milestoneTitle}>{milestone.title}</h2>
-              <span
-                className={`${styles.statusBadge} ${
-                  milestone.isCompleted ? styles.statusCompleted : styles.statusPending
-                }`}
-              >
-                {tCommon(
-                  I18N_UNION_KEYS.statusVocabularyMilestone.key(
-                    milestone.isCompleted ? 'reached' : 'upcoming',
-                  ),
-                )}
-              </span>
+              <StatusMenu
+                testId="milestone-status"
+                transitions={milestoneTransitions(tCommon, {
+                  isCompleted: milestone.isCompleted,
+                  targetDate: milestone.targetDate,
+                })}
+                badge={{
+                  variants: {
+                    ...statusVariants.milestone,
+                    [displayStatus.status]: {
+                      ...statusVariants.milestone[displayStatus.status],
+                      label: displayStatusLabel,
+                    },
+                  },
+                  value: displayStatus.status,
+                }}
+                currentLabel={displayStatusLabel}
+                onApply={handleStatusChange}
+              />
             </div>
             <button
               type="button"
@@ -860,20 +911,6 @@ export function MilestoneDetailPage() {
             />
           </div>
 
-          <div className={styles.formGroup}>
-            <label htmlFor="isCompleted" className={styles.checkboxLabel}>
-              <input
-                type="checkbox"
-                id="isCompleted"
-                name="isCompleted"
-                checked={formData.isCompleted}
-                onChange={handleInputChange}
-                data-testid="milestone-completed-checkbox"
-              />
-              <span>{t('milestones.detail.form.markCompleted')}</span>
-            </label>
-          </div>
-
           <div className={styles.editActions}>
             <button
               type="submit"
@@ -895,39 +932,21 @@ export function MilestoneDetailPage() {
         </form>
       )}
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteConfirm && (
-        <div className={styles.modal} role="dialog" aria-modal="true">
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
-          />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('milestones.detail.deleteConfirm')}</h2>
-            <p className={styles.modalText}>
-              {t('milestones.detail.deleteMessage')} &quot;<strong>{milestone.title}</strong>&quot;?
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-              >
-                {t('milestones.detail.deleteCancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={handleDelete}
-                disabled={isDeleting}
-                data-testid="confirm-delete-milestone"
-              >
-                {isDeleting ? t('milestones.detail.deleting') : t('milestones.detail.deleteButton')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: milestone.title })}
+          consequences={deleteConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteError}
+          blocked={deleteBlocked}
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setShowDeleteConfirm(false)}
+          testIdPrefix="milestone-delete"
+        />
       )}
     </div>
   );

@@ -1,16 +1,22 @@
 import type { ReactNode } from 'react';
 import type {
+  BudgetSourceStatus,
+  DiaryIssueResolution,
   HouseholdItemStatus,
   MilestoneDisplayStatus,
   InvoiceDepositStatus,
   InvoiceStatus,
+  SubsidyApplicationStatus,
   WorkItemStatus,
 } from '@cornerstone/shared';
 import {
+  BUDGET_SOURCE_STATUSES,
+  DIARY_ISSUE_RESOLUTIONS,
   HOUSEHOLD_ITEM_STATUSES,
   INVOICE_DEPOSIT_STATUSES,
   INVOICE_STATUSES,
   MILESTONE_DISPLAY_STATUSES,
+  SUBSIDY_APPLICATION_STATUSES,
   WORK_ITEM_STATUSES,
 } from '@cornerstone/shared';
 import type { ScheduleSignalState, ShownScheduleSignal } from '../../lib/scheduleDates.js';
@@ -68,6 +74,26 @@ const MILESTONE_STATUS_CLASS: Record<MilestoneDisplayStatus, string> = {
   late: badgeStyles.milestoneLate!,
   early: badgeStyles.milestoneEarly!,
   reached: badgeStyles.milestoneReached!,
+};
+
+const GRANT_STATUS_CLASS: Record<SubsidyApplicationStatus, string> = {
+  eligible: badgeStyles.grantEligible!,
+  applied: badgeStyles.grantApplied!,
+  approved: badgeStyles.grantApproved!,
+  received: badgeStyles.grantReceived!,
+  rejected: badgeStyles.grantRejected!,
+};
+
+const FUNDING_SOURCE_STATUS_CLASS: Record<BudgetSourceStatus, string> = {
+  active: badgeStyles.fundingActive!,
+  exhausted: badgeStyles.fundingExhausted!,
+  closed: badgeStyles.fundingClosed!,
+};
+
+const DEFECT_STATUS_CLASS: Record<DiaryIssueResolution, string> = {
+  open: badgeStyles.defectOpen!,
+  in_progress: badgeStyles.defectInProgress!,
+  resolved: badgeStyles.defectFixed!,
 };
 
 export function buildInvoiceStatusVariants(t: StatusLabelT): Record<InvoiceStatus, BadgeVariant> {
@@ -184,4 +210,46 @@ export function buildRefundVariants(t: StatusLabelT): { refund: BadgeVariant } {
   return {
     refund: { label: t(set.key('refund'), { ns: set.ns }), className: badgeStyles.refund! },
   };
+}
+
+export function buildGrantStatusVariants(
+  t: StatusLabelT,
+): Record<SubsidyApplicationStatus, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyGrant;
+  const result = {} as Record<SubsidyApplicationStatus, BadgeVariant>;
+  for (const status of SUBSIDY_APPLICATION_STATUSES) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns }),
+      className: GRANT_STATUS_CLASS[status],
+    };
+  }
+  return result;
+}
+
+export function buildFundingSourceStatusVariants(
+  t: StatusLabelT,
+): Record<BudgetSourceStatus, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyFundingSource;
+  const result = {} as Record<BudgetSourceStatus, BadgeVariant>;
+  for (const status of BUDGET_SOURCE_STATUSES) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns }),
+      className: FUNDING_SOURCE_STATUS_CLASS[status],
+    };
+  }
+  return result;
+}
+
+export function buildDefectStatusVariants(
+  t: StatusLabelT,
+): Record<DiaryIssueResolution, BadgeVariant> {
+  const set = I18N_UNION_KEYS.statusVocabularyDefect;
+  const result = {} as Record<DiaryIssueResolution, BadgeVariant>;
+  for (const status of DIARY_ISSUE_RESOLUTIONS) {
+    result[status] = {
+      label: t(set.key(status), { ns: set.ns }),
+      className: DEFECT_STATUS_CLASS[status],
+    };
+  }
+  return result;
 }

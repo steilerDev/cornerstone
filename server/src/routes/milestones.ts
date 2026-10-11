@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as milestoneService from '../services/milestoneService.js';
+import { runUndoable, undoStore } from '../services/undoService.js';
 import * as householdItemDepService from '../services/householdItemDepService.js';
 import type {
   CreateMilestoneRequest,
@@ -188,12 +189,17 @@ export default async function milestoneRoutes(fastify: FastifyInstance) {
       if (!request.user) {
         throw new UnauthorizedError();
       }
-      const milestone = milestoneService.updateMilestone(
+      const { result: milestone, undo } = runUndoable(
         fastify.db,
-        request.params.id,
-        request.body,
+        undoStore,
+        {
+          userId: request.user.id,
+          subject: { type: 'milestone', id: String(request.params.id) },
+          reschedules: false,
+        },
+        () => milestoneService.updateMilestone(fastify.db, request.params.id, request.body),
       );
-      return reply.status(200).send(milestone);
+      return reply.status(200).send(undo ? { ...milestone, undo } : milestone);
     },
   );
 

@@ -11,7 +11,6 @@
   z-index: var(--z-modal);
   display: flex;
   flex-direction: column;
-  gap: var(--spacing-3);
   pointer-events: none;
   /* Constrain width for readability */
   max-width: 380px;
@@ -32,7 +31,7 @@
   font-size: var(--font-size-sm);
   line-height: 1.5;
   /* Slide in from right */
-  animation: slideIn 0.2s ease forwards;
+  animation: slideIn var(--transition-medium) forwards;
 }
 
 @keyframes slideIn {
@@ -44,6 +43,25 @@
     transform: translateX(0);
     opacity: 1;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+/* ---- Live regions (persistent; layout is the container's) ---- */
+
+.region {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+}
+
+/* The regions are spaced only when both have toasts, so a lone toast sits where it always did. */
+.region:not(:empty) + .region:not(:empty) {
+  margin-top: var(--spacing-3);
 }
 
 /* ---- Variants ---- */
@@ -80,6 +98,38 @@
 .message {
   flex: 1;
   font-weight: var(--font-weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* ---- Undo button (undo variant) ---- */
+
+.undoButton {
+  flex-shrink: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  padding: var(--spacing-1) var(--spacing-3);
+  min-height: var(--spacing-8);
+  cursor: pointer;
+}
+
+.undoButton:hover:not([aria-disabled='true']) {
+  background: var(--color-overlay-light);
+}
+
+.undoButton:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+  box-shadow: var(--shadow-focus);
+}
+
+.undoButton[aria-disabled='true'] {
+  opacity: 0.6;
+  cursor: progress;
 }
 
 /* ---- Dismiss button ---- */
@@ -111,6 +161,25 @@
 }
 
 /* ---- Responsive ---- */
+
+@media (max-width: 1023px) {
+  .dismiss {
+    /* Keep the visual icon size; the hit area grows to the touch minimum. */
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    margin: calc(-1 * var(--spacing-3));
+  }
+
+  .undoButton {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media print {
+  .container {
+    display: none;
+  }
+}
 
 @media (max-width: 767px) {
   .container {

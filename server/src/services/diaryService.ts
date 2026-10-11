@@ -927,7 +927,7 @@ export function createAutomaticDiaryEntry(
   body: string,
   sourceEntityType: string | null,
   sourceEntityId: string | null,
-): void {
+): string {
   const id = randomUUID();
   const now = new Date().toISOString();
 
@@ -948,6 +948,8 @@ export function createAutomaticDiaryEntry(
       updatedAt: now,
     })
     .run();
+
+  return id;
 }
 
 /**

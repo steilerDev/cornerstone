@@ -436,32 +436,6 @@
   cursor: not-allowed;
 }
 
-.confirmDeleteButton {
-  padding: var(--spacing-2-5) var(--spacing-4);
-  background-color: var(--color-danger);
-  color: var(--color-danger-text);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: background-color var(--transition-normal);
-}
-
-.confirmDeleteButton:hover:not(:disabled) {
-  background-color: var(--color-danger-hover);
-}
-
-.confirmDeleteButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus-danger);
-}
-
-.confirmDeleteButton:disabled {
-  background-color: var(--color-text-disabled);
-  cursor: not-allowed;
-}
-
 /* ---- Modal ---- */
 
 .modal {
@@ -507,18 +481,6 @@
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
   margin: 0 0 var(--spacing-4) 0;
-}
-
-.modalText {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-secondary);
-  margin: 0 0 var(--spacing-3) 0;
-}
-
-.modalWarning {
-  font-size: var(--font-size-sm);
-  color: var(--color-danger);
-  margin: 0 0 var(--spacing-6) 0;
 }
 
 .modalActions {
@@ -608,7 +570,6 @@
   }
 
   .modalActions .cancelButton,
-  .confirmDeleteButton,
   .saveButton {
     width: 100%;
     text-align: center;
@@ -630,8 +591,7 @@
   .saveButton,
   .editButton,
   .deleteButton,
-  .cancelButton,
-  .confirmDeleteButton {
+  .cancelButton {
     min-height: 44px;
   }
 }

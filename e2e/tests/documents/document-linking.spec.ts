@@ -671,12 +671,14 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       // We already confirmed visibility above, so force is safe here.
       await unlinkOverlayButton.click({ force: true });
 
-      // Unlink confirmation dialog appears
-      const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
+      // Unlink confirmation dialog (ConfirmDialog, alertdialog) appears
+      const unlinkModal = page
+        .getByRole('alertdialog')
+        .filter({ has: page.getByTestId('document-unlink-cancel') });
       await expect(unlinkModal).toBeVisible();
 
       // Confirm by clicking the "Unlink" button inside the dialog
-      const confirmButton = unlinkModal.getByRole('button', { name: /^Unlink$/i });
+      const confirmButton = unlinkModal.getByTestId('document-unlink-confirm');
       await confirmButton.click();
 
       // Modal closes after confirmation
@@ -731,7 +733,9 @@ test.describe('Document Linking — Unlink via Overlay Button (Scenario 4)', () 
       await unlinkOverlayButton.click({ force: true });
 
       // Confirmation modal opens
-      const unlinkModal = page.getByRole('dialog', { name: 'Unlink Document?' });
+      const unlinkModal = page
+        .getByRole('alertdialog')
+        .filter({ has: page.getByTestId('document-unlink-cancel') });
       await expect(unlinkModal).toBeVisible();
 
       // Dismiss via Cancel button. Use Escape key — the component's keydown handler

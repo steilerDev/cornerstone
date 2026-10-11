@@ -56,11 +56,11 @@ describe('ToastList', () => {
   });
 
   describe('empty state', () => {
-    it('renders nothing when there are no toasts', () => {
+    it('renders the two live regions but no toast when there are none', () => {
       renderApp();
-      // No toast container should be in the document
-      const container = document.querySelector('[role="status"]');
-      expect(container).not.toBeInTheDocument();
+      expect(document.querySelector('[role="status"]')).toBeInTheDocument();
+      expect(document.querySelector('[aria-live="assertive"]')).toBeInTheDocument();
+      expect(document.querySelector('[data-toast-id]')).toBeNull();
     });
 
     it('does not throw when rendered with no toasts', () => {
@@ -156,31 +156,30 @@ describe('ToastList', () => {
       expect(document.querySelector('[role="status"]')).toBeInTheDocument();
     });
 
-    it('container has aria-live="polite"', () => {
+    it('errors go to the assertive region, which carries no role', () => {
       renderApp();
       act(() => {
-        fireEvent.click(screen.getByTestId('show-success'));
+        fireEvent.click(screen.getByTestId('show-error'));
       });
-      const container = document.querySelector('[role="status"]');
-      expect(container).toHaveAttribute('aria-live', 'polite');
+      const assertive = document.querySelector('[aria-live="assertive"]')!;
+      expect(assertive).not.toHaveAttribute('role');
+      expect(assertive).toContainElement(screen.getByTestId('toast-error'));
     });
 
-    it('container has aria-atomic="false"', () => {
+    it('success toasts live in the polite status region', () => {
       renderApp();
       act(() => {
         fireEvent.click(screen.getByTestId('show-success'));
       });
-      const container = document.querySelector('[role="status"]');
-      expect(container).toHaveAttribute('aria-atomic', 'false');
+      expect(screen.getByRole('status')).toContainElement(screen.getByTestId('toast-success'));
     });
 
-    it('each toast item has role="alert"', () => {
+    it('individual toasts carry no role', () => {
       renderApp();
       act(() => {
         fireEvent.click(screen.getByTestId('show-success'));
       });
-      const toast = screen.getByTestId('toast-success');
-      expect(toast).toHaveAttribute('role', 'alert');
+      expect(screen.getByTestId('toast-success')).not.toHaveAttribute('role');
     });
 
     it('dismiss button has accessible aria-label', () => {
@@ -220,7 +219,7 @@ describe('ToastList', () => {
       expect(screen.queryByTestId('toast-success')).not.toBeInTheDocument();
     });
 
-    it('removes container when the last toast is dismissed', () => {
+    it('removes the toast but keeps the live regions when the last toast is dismissed', () => {
       renderApp();
       act(() => {
         fireEvent.click(screen.getByTestId('show-success'));
@@ -229,7 +228,8 @@ describe('ToastList', () => {
         fireEvent.click(screen.getByRole('button', { name: /dismiss notification/i }));
       });
 
-      expect(document.querySelector('[role="status"]')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('toast-success')).toBeNull();
+      expect(document.querySelector('[role="status"]')).toBeInTheDocument();
     });
 
     it('removes only the dismissed toast when multiple are visible', () => {
@@ -336,7 +336,7 @@ describe('ToastList', () => {
   // ---------------------------------------------------------------------------
 
   describe('data-testid contract', () => {
-    const variants: ToastVariant[] = ['success', 'info', 'error'];
+    const variants: Exclude<ToastVariant, 'undo'>[] = ['success', 'info', 'error'];
 
     variants.forEach((variant) => {
       it(`toast-${variant} data-testid is set on the correct variant`, () => {

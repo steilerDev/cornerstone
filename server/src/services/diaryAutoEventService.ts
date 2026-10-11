@@ -13,7 +13,15 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import { diaryEntries, milestones } from '../db/schema.js';
+import { UNDO_WINDOW_MS } from '@cornerstone/shared';
 import { createAutomaticDiaryEntry } from './diaryService.js';
+import {
+  activeCollection,
+  dropLedgerEntry,
+  getLedgerEntry,
+  recordLedgerEntry,
+  subjectKey,
+} from './statusEventLedger.js';
 
 type DbType = BetterSQLite3Database<typeof schemaTypes>;
 
@@ -64,12 +72,12 @@ function tryCreateDiaryEntry(
   body: string,
   sourceEntityType: string | null,
   sourceEntityId: string | null,
-): void {
-  if (!enabled) return;
+): string | null {
+  if (!enabled) return null;
 
   try {
     const entryDate = new Date().toISOString().slice(0, 10);
-    createAutomaticDiaryEntry(
+    const id = createAutomaticDiaryEntry(
       db,
       entryType,
       entryDate,
@@ -78,11 +86,92 @@ function tryCreateDiaryEntry(
       sourceEntityType,
       sourceEntityId,
     );
+    activeCollection()?.written.push(id);
+    return id;
   } catch (err) {
     console.warn('[diaryAutoEvent] Failed to create diary entry', {
       entryType,
       error: err instanceof Error ? err.message : String(err),
     });
+    return null;
+  }
+}
+
+/**
+ * Write (or, for a manual reverse inside the undo window, retract) a status event.
+ *
+ * W1: from === to writes nothing. W3: when the ledger's latest event for the subject is
+ * `to -> from` by the same user inside UNDO_WINDOW_MS, that event is deleted and nothing is
+ * written. `writeRow: false` (progress payments moving to pending) runs W1/W3 but never inserts.
+ * Fire-and-forget: errors are logged, never propagated.
+ */
+function recordStatusEvent(
+  db: DbType,
+  enabled: boolean,
+  entryType: string,
+  sourceEntityType: string,
+  sourceEntityId: string,
+  from: string,
+  to: string,
+  actorUserId: string | null,
+  title: string,
+  body: string,
+  writeRow = true,
+): void {
+  if (!enabled) return;
+  if (from === to) return;
+
+  const key = subjectKey(entryType, sourceEntityType, sourceEntityId);
+  const now = Date.now();
+
+  try {
+    const latest = getLedgerEntry(key);
+    if (
+      actorUserId !== null &&
+      latest &&
+      latest.userId === actorUserId &&
+      latest.from === to &&
+      latest.to === from &&
+      now - latest.at < UNDO_WINDOW_MS
+    ) {
+      const row = db
+        .select()
+        .from(diaryEntries)
+        .where(and(eq(diaryEntries.id, latest.eventId), eq(diaryEntries.isAutomatic, true)))
+        .get();
+      dropLedgerEntry(key);
+      if (row) {
+        db.delete(diaryEntries)
+          .where(and(eq(diaryEntries.id, latest.eventId), eq(diaryEntries.isAutomatic, true)))
+          .run();
+        activeCollection()?.retracted.push({
+          row: row as unknown as Record<string, unknown>,
+          key,
+          entry: latest,
+        });
+      }
+      return;
+    }
+  } catch (err) {
+    console.warn('[diaryAutoEvent] status-event retraction failed', {
+      entryType,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  if (!writeRow) return;
+
+  const eventId = tryCreateDiaryEntry(
+    db,
+    enabled,
+    entryType,
+    title,
+    body,
+    sourceEntityType,
+    sourceEntityId,
+  );
+  if (eventId) {
+    recordLedgerEntry(key, { eventId, from, to, userId: actorUserId, at: now });
   }
 }
 
@@ -103,13 +192,25 @@ export function onWorkItemStatusChanged(
   workItemTitle: string,
   previousStatus: string,
   newStatus: string,
+  actorUserId: string | null = null,
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
   const title = `Status changed from ${previousLabel} to ${newLabel}`;
   const body = `"${workItemTitle}" status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'work_item_status', title, body, 'work_item', workItemId);
+  recordStatusEvent(
+    db,
+    enabled,
+    'work_item_status',
+    'work_item',
+    workItemId,
+    previousStatus,
+    newStatus,
+    actorUserId,
+    title,
+    body,
+  );
 }
 
 /**
@@ -129,13 +230,25 @@ export function onInvoiceStatusChanged(
   invoiceNumber: string,
   previousStatus: string,
   newStatus: string,
+  actorUserId: string | null = null,
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
   const title = `Status changed from ${previousLabel} to ${newLabel}`;
   const body = `${invoiceNumber || 'N/A'} status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'invoice_status', title, body, 'invoice', invoiceId);
+  recordStatusEvent(
+    db,
+    enabled,
+    'invoice_status',
+    'invoice',
+    invoiceId,
+    previousStatus,
+    newStatus,
+    actorUserId,
+    title,
+    body,
+  );
 }
 
 /**
@@ -155,13 +268,28 @@ export function onDepositStatusChanged(
   invoiceNumber: string,
   previousStatus: string,
   newStatus: string,
+  actorUserId: string | null = null,
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
   const title = `Deposit status changed from ${previousLabel} to ${newLabel}`;
   const body = `Deposit for invoice ${invoiceNumber || 'N/A'} changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'invoice_status', title, body, 'invoice_deposit', depositId);
+  // A row is written only for paid / claimed targets (AC-17); a move back to pending still
+  // runs W1/W3 so it can retract the event it reverses.
+  recordStatusEvent(
+    db,
+    enabled,
+    'invoice_status',
+    'invoice_deposit',
+    depositId,
+    previousStatus,
+    newStatus,
+    actorUserId,
+    title,
+    body,
+    newStatus === 'paid' || newStatus === 'claimed',
+  );
 }
 
 /**
@@ -295,13 +423,25 @@ export function onSubsidyStatusChanged(
   subsidyName: string,
   previousStatus: string,
   newStatus: string,
+  actorUserId: string | null = null,
 ): void {
   const previousLabel = toLabel(previousStatus);
   const newLabel = toLabel(newStatus);
   const title = `Application status changed from ${previousLabel} to ${newLabel}`;
   const body = `${subsidyName} application status changed from ${previousLabel} to ${newLabel}`;
 
-  tryCreateDiaryEntry(db, enabled, 'subsidy_status', title, body, 'subsidy_program', subsidyId);
+  recordStatusEvent(
+    db,
+    enabled,
+    'subsidy_status',
+    'subsidy_program',
+    subsidyId,
+    previousStatus,
+    newStatus,
+    actorUserId,
+    title,
+    body,
+  );
 }
 
 /**

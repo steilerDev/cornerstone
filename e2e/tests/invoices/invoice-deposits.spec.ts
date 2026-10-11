@@ -45,6 +45,7 @@ import { test, expect } from '../../fixtures/auth.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
 import type { Page } from '@playwright/test';
+import { ToastRegion } from '../../pages/components/ToastRegion.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // API helpers
@@ -299,45 +300,21 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
       await expect(detailPage.depositsSection).toContainText('150');
       await expect(detailPage.finalPaymentAmount).toContainText('350');
 
-      // ── Step 2: Mark paid (overflow menu → "Mark paid…") ──
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark paid/);
-
-      // State confirm modal opens with "Mark as paid" title
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
-      ).toBeVisible();
-
-      // Confirm (date is pre-filled with today)
-      await detailPage.confirmStateTransition();
+      // ── Step 2: Mark paid (status chip → "Mark paid" → date chip "Today") ──
+      await detailPage.changeDepositStatus('paid', { date: 'today' });
 
       // Badge now shows "Paid" — the deposit row's badge class changes to statusPaid
       // We verify by checking the status badge text via the badge component's visible text.
       // The section should contain "Paid" text after the re-render.
       await expect(detailPage.depositsSection).toContainText('Paid');
 
-      // ── Step 3: Mark claimed (overflow menu → "Mark submitted…") ──
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark submitted/);
-
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as submitted') }),
-      ).toBeVisible();
-
-      await detailPage.confirmStateTransition();
+      // ── Step 3: Mark claimed (status chip → "Mark submitted" → "Today") ──
+      await detailPage.changeDepositStatus('claimed', { date: 'today' });
 
       await expect(detailPage.depositsSection).toContainText('Submitted');
 
-      // ── Step 4: Revert to paid (overflow menu → "Revert to paid") ──
-      await detailPage.openDepositMenu();
-      const revertToPaidResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/deposits/') &&
-          resp.request().method() === 'PATCH' &&
-          resp.status() === 200,
-      );
-      await detailPage.clickDepositMenuItem(/Revert to paid/);
-      await revertToPaidResponsePromise;
+      // ── Step 4: Revert to paid (status chip → Back to “Paid”, no date step) ──
+      await detailPage.changeDepositStatus('paid');
 
       // Badge reverts to "Paid".
       // Note: we do NOT assert not.toContainText('Submitted') here because the table
@@ -364,15 +341,7 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
       await expect(detailPage.finalPaymentAmount).toContainText('300');
 
       // ── Step 6: Revert to pending (so we can delete without paid warning) ──
-      await detailPage.openDepositMenu();
-      const revertToPendingResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/deposits/') &&
-          resp.request().method() === 'PATCH' &&
-          resp.status() === 200,
-      );
-      await detailPage.clickDepositMenuItem(/Set status back to/);
-      await revertToPendingResponsePromise;
+      await detailPage.changeDepositStatus('pending');
       await expect(detailPage.depositsSection).toContainText('To pay');
 
       // ── Step 7: Delete the deposit ──
@@ -380,9 +349,7 @@ test.describe('Deposits — full lifecycle (Scenario 3)', () => {
       await detailPage.clickDepositMenuItem(/Delete/);
 
       // Delete modal opens — for a pending deposit no warning banner
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
-      ).toBeVisible();
+      await expect(detailPage.deleteDepositModal).toBeVisible();
       await expect(detailPage.deleteDepositWarning).not.toBeVisible();
 
       await detailPage.confirmDepositDelete();
@@ -444,9 +411,7 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
       await detailPage.clickDepositMenuItem(/Delete/);
 
       // Delete modal opens
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
-      ).toBeVisible();
+      await expect(detailPage.deleteDepositModal).toBeVisible();
 
       // Warning banner IS visible for a paid deposit
       await expect(detailPage.deleteDepositWarning).toBeVisible();
@@ -518,9 +483,7 @@ test.describe('Deposits — delete paid deposit warning (Scenario 4)', () => {
       // Open Delete dialog
       await detailPage.openDepositMenu();
       await detailPage.clickDepositMenuItem(/Delete/);
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Delete deposit') }),
-      ).toBeVisible();
+      await expect(detailPage.deleteDepositModal).toBeVisible();
 
       // Warning banner visible for claimed deposit too
       await expect(detailPage.deleteDepositWarning).toBeVisible();
@@ -716,17 +679,8 @@ test.describe('Deposits — mobile card layout (Scenario 7)', { tag: '@responsiv
         await expect(mobileCard).toContainText('250');
       }
 
-      // ── "Mark paid" flow via overflow menu ──
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark paid/);
-
-      // State confirm modal opens
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
-      ).toBeVisible();
-
-      // Confirm state transition
-      await detailPage.confirmStateTransition();
+      // ── "Mark paid" flow via the status chip (Sheet below 1024 px) ──
+      await detailPage.changeDepositStatus('paid', { date: 'today' });
 
       // Badge updates to "Paid"
       await expect(detailPage.depositsSection).toContainText('Paid');
@@ -835,11 +789,11 @@ test.describe('Deposits — multiple deposits and sum invariant', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Scenario 8: Revert to pending fails — section-level error banner shown
+// Scenario 8: Revert to pending fails — error toast shown (#2209)
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Deposits — revert-to-pending API error (Scenario 8)', () => {
-  test('Revert to pending fails with INVALID_DEPOSIT_STATUS_TRANSITION → section-level error banner is shown', async ({
+  test('Revert to pending fails with INVALID_DEPOSIT_STATUS_TRANSITION → an error toast is shown and the status is unchanged', async ({
     page,
     testPrefix,
   }) => {
@@ -910,16 +864,16 @@ test.describe('Deposits — revert-to-pending API error (Scenario 8)', () => {
 
       // ── Action ───────────────────────────────────────────────────────────
       // Open overflow menu for the paid deposit and click "Set status back to “To pay”".
-      // The menu for a 'paid' deposit contains: "Mark submitted…", "Set status back to “To pay”",
-      // "Edit", "Delete" — no confirm dialog for "Set status back to “To pay”".
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Set status back to/);
+      // The status chip of a 'paid' deposit offers "Mark submitted" and Back to “To pay”
+      // (no date step). The PATCH is mocked to fail (400), so no PATCH 200 is awaited here.
+      const menu = await detailPage.depositStatusMenu();
+      await menu.pickRow('pending');
 
       // ── Assert ───────────────────────────────────────────────────────────
-      // The section-level error banner should appear after the mocked 400 response.
-      // The InvoiceDepositsSection renders API errors in a role="alert" element
-      // outside the add/edit modal context.
-      await expect(page.getByRole('alert')).toBeVisible();
+      // #2209: a failed status change reports through the error toast (the old section-level
+      // banner is gone) and the chip still shows the previous status.
+      await expect(new ToastRegion(page).errorToast).toBeVisible();
+      await expect(detailPage.depositsSection).toContainText('Paid');
     } finally {
       // ── Teardown ─────────────────────────────────────────────────────────
       // Remove the route interceptor so subsequent tests are unaffected.
@@ -980,12 +934,7 @@ test.describe(
           await expect(detailPage.finalPaymentAmount).toContainText('2,000');
 
           // Mark the refund paid — now it reduces the final payment amount
-          await detailPage.openDepositMenu();
-          await detailPage.clickDepositMenuItem(/Mark paid/);
-          await expect(
-            page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
-          ).toBeVisible();
-          await detailPage.confirmStateTransition();
+          await detailPage.changeDepositStatus('paid', { date: 'today' });
 
           // Status badge updates to Paid; entry-type badge + negative amount persist
           await expect(detailPage.depositsSection).toContainText('Paid');
@@ -1182,41 +1131,23 @@ test.describe('Refund entries — status lifecycle reuses deposit menu/badges (S
       // Pending refund does not yet reduce the final payment amount
       await expect(detailPage.finalPaymentAmount).toContainText('1,000');
 
-      // ── Mark paid — same menu item text as a regular deposit ("Mark paid…") ──
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark paid/);
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as paid') }),
-      ).toBeVisible();
-      await detailPage.confirmStateTransition();
+      // ── Mark paid — same status chip and date step as a regular deposit ──
+      await detailPage.changeDepositStatus('paid', { date: 'today' });
 
       await expect(detailPage.depositsSection).toContainText('Paid');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       await expect(detailPage.finalPaymentAmount).toContainText('900');
 
-      // ── Mark claimed — same menu item text as a regular deposit ("Mark submitted…") ──
-      await detailPage.openDepositMenu();
-      await detailPage.clickDepositMenuItem(/Mark submitted/);
-      await expect(
-        page.getByRole('dialog').filter({ has: page.getByText('Mark as submitted') }),
-      ).toBeVisible();
-      await detailPage.confirmStateTransition();
+      // ── Mark claimed — same status chip and date step as a regular deposit ──
+      await detailPage.changeDepositStatus('claimed', { date: 'today' });
 
       await expect(detailPage.depositsSection).toContainText('Submitted');
       await expect(detailPage.refundBadge.first()).toBeVisible();
       // Claimed refunds still count as "received" in the final payment formula
       await expect(detailPage.finalPaymentAmount).toContainText('900');
 
-      // ── Revert to paid — same menu item text as a regular deposit ("Revert to paid") ──
-      await detailPage.openDepositMenu();
-      const revertResponsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/deposits/') &&
-          resp.request().method() === 'PATCH' &&
-          resp.status() === 200,
-      );
-      await detailPage.clickDepositMenuItem(/Revert to paid/);
-      await revertResponsePromise;
+      // ── Back to “Paid” — same chip as a regular deposit (no date step) ──
+      await detailPage.changeDepositStatus('paid');
 
       await expect(detailPage.depositsSection).toContainText('Paid');
       await expect(detailPage.refundBadge.first()).toBeVisible();

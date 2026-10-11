@@ -67,7 +67,6 @@ export class BudgetCategoriesPage {
   // Delete confirmation modal
   readonly deleteModal: Locator;
   readonly deleteModalTitle: Locator;
-  readonly deleteModalText: Locator;
   readonly deleteModalWarning: Locator;
   readonly deleteModalErrorBanner: Locator;
   readonly deleteConfirmButton: Locator;
@@ -129,16 +128,16 @@ export class BudgetCategoriesPage {
     this.categoriesList = tabPanel.locator('[class*="itemsList"]');
     this.emptyState = tabPanel.getByText(/No budget categories yet/);
 
-    // Delete confirmation modal — rendered at root level (outside the tab panel)
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Category' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
-    this.deleteModalText = this.deleteModal.locator('p').first();
-    this.deleteModalWarning = this.deleteModal.locator('[class*="modalWarning"]');
+    // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209), rendered at root
+    // level. Title is "Delete <name>?"; the "This can't be undone." line is the warning.
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('budget-category-delete-cancel') });
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
+    this.deleteModalWarning = this.deleteModal.getByText("This can't be undone.");
     this.deleteModalErrorBanner = this.deleteModal.locator('[role="alert"]');
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /Delete Category|Deleting\.\.\./,
-    });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('budget-category-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('budget-category-delete-cancel');
   }
 
   async goto(): Promise<void> {

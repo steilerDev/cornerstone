@@ -9,6 +9,7 @@ import { dataTableTestId } from '../../components/DataTable/dataTableTestId.js';
 import type { DataTableSurface } from '../../components/DataTable/dataTableTestId.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import { Modal } from '../../components/Modal/Modal.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
 import {
   listUsers,
@@ -639,10 +640,6 @@ export function UserManagementPage() {
     );
   };
 
-  const deactivateModalMessageParts = deactivatingUser
-    ? t('userManagement.deactivateModal.message', { name: '\u0000' }).split('\u0000')
-    : null;
-
   return (
     <PageLayout
       maxWidth="narrow"
@@ -968,49 +965,19 @@ export function UserManagementPage() {
         </Modal>
       )}
 
-      {/* Deactivate Confirmation Modal */}
+      {/* Deactivate confirmation */}
       {deactivatingUser && (
-        <Modal
-          title={t('userManagement.deactivateModal.title')}
-          onClose={() => !isDeactivating && closeDeactivateModal()}
-          footer={
-            <>
-              <button
-                type="button"
-                className={sharedStyles.btnSecondary}
-                onClick={closeDeactivateModal}
-                disabled={isDeactivating}
-              >
-                {t('userManagement.deactivateModal.cancel')}
-              </button>
-              <button
-                type="button"
-                className={sharedStyles.btnConfirmDelete}
-                onClick={handleDeactivateConfirm}
-                disabled={isDeactivating}
-              >
-                {isDeactivating
-                  ? t('userManagement.deactivateModal.confirming')
-                  : t('userManagement.deactivateModal.confirm')}
-              </button>
-            </>
-          }
-        >
-          {deactivateError && (
-            <div className={sharedStyles.bannerError} role="alert">
-              {deactivateError}
-            </div>
-          )}
-          <p>
-            {deactivateModalMessageParts && (
-              <>
-                {deactivateModalMessageParts[0]}
-                <strong>{deactivatingUser!.displayName}</strong>
-                {deactivateModalMessageParts[1]}
-              </>
-            )}
-          </p>
-        </Modal>
+        <ConfirmDialog
+          title={t('userManagement.deactivateModal.title', { name: deactivatingUser.displayName })}
+          lead={t('userManagement.deactivateModal.message')}
+          confirmLabel={t('userManagement.deactivateModal.confirm')}
+          busyLabel={t('userManagement.deactivateModal.confirming')}
+          busy={isDeactivating}
+          error={deactivateError || null}
+          onConfirm={() => void handleDeactivateConfirm()}
+          onCancel={closeDeactivateModal}
+          testIdPrefix="user-deactivate"
+        />
       )}
     </PageLayout>
   );

@@ -4,7 +4,7 @@
  * Each budget line row in InvoiceBudgetLinesSection now has an OverflowMenu
  * (kebab ⋮) with two actions:
  *   - "Edit"   → opens "Edit Budget Line" modal scoped to the itemized amount field
- *   - "Remove" → opens "Remove Budget Line" confirmation modal
+ *   - "Remove" → opens the "Remove this cost line from the invoice?" confirmation dialog
  *
  * Scenarios covered:
  *   1. Edit budget line — open modal, change amount, submit → row and remaining update
@@ -123,9 +123,10 @@ async function createAndLinkBudgetLine(
 //         "Save Changes" (budgetLineForm.submitSave) or "Saving…" (budgetLineForm.submitSaving)
 //   Cancel: btnSecondary with text "Cancel" (common:button.cancel)
 //
-// Remove modal: Modal with title="Remove Budget Line" (i18n: ...modal.removeTitle)
-//   Confirm: btnConfirmDelete with text "Remove" / "Removing…"
-//   Cancel:  btnSecondary with text "Cancel"
+// Remove dialog (#2209): ConfirmDialog (role="alertdialog") titled
+//   "Remove this cost line from the invoice?" (i18n: ...modal.removeTitle)
+//   Confirm: testid invoice-line-remove-confirm, text "Remove" / "Removing…"
+//   Cancel:  testid invoice-line-remove-cancel, text "Cancel"
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -311,8 +312,8 @@ test.describe('Budget line remove modal (Scenario 2)', { tag: '@responsive' }, (
         // Click "Remove"
         await clickMenuItemByText(page, 'Remove');
 
-        // Remove modal opens with title "Remove Budget Line"
-        const removeModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
+        // Remove dialog opens (ConfirmDialog, alertdialog)
+        const removeModal = detailPage.removeBudgetLineModal;
         await expect(removeModal).toBeVisible();
 
         // Confirmation text is visible
@@ -325,7 +326,7 @@ test.describe('Budget line remove modal (Scenario 2)', { tag: '@responsive' }, (
             resp.request().method() === 'DELETE' &&
             resp.status() === 204,
         );
-        const confirmButton = removeModal.getByRole('button', { name: /Remove|Removing/i });
+        const confirmButton = removeModal.getByTestId('invoice-line-remove-confirm');
         await confirmButton.click();
         await deletePromise;
 
@@ -471,11 +472,11 @@ test.describe('Budget line remove modal — cancel (Scenario 4)', () => {
       await openBudgetLineMenu(page, detailPage.budgetLinesSection);
       await clickMenuItemByText(page, 'Remove');
 
-      const removeModal = page.getByRole('dialog', { name: 'Remove Budget Line' });
+      const removeModal = detailPage.removeBudgetLineModal;
       await expect(removeModal).toBeVisible();
 
       // Cancel
-      const cancelButton = removeModal.getByRole('button', { name: 'Cancel' });
+      const cancelButton = removeModal.getByTestId('invoice-line-remove-cancel');
       await cancelButton.click();
 
       // Modal closes

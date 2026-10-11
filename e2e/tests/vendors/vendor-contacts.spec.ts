@@ -106,7 +106,8 @@ test.describe('Edit vendor contact (Scenario 2)', () => {
     // Given: A vendor with an existing contact
     await vendorPage.goto(vendorId);
 
-    // Verify the contact is present before editing
+    // Verify the contact is present before editing (the list loads after the title)
+    await expect(vendorPage.contactsList.getByText('Jane Smith')).toBeVisible();
     const contactsBefore = await vendorPage.getContactItems();
     expect(contactsBefore.some((c) => c.name === 'Jane Smith')).toBe(true);
 

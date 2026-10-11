@@ -723,7 +723,7 @@ describe('AutoItemizePage', () => {
         expect(screen.getByText(/Discard Changes\?/i)).toBeInTheDocument();
       });
 
-      fireEvent.click(screen.getByRole('button', { name: /^Discard Changes$/i }));
+      fireEvent.click(screen.getByRole('button', { name: /^Discard$/i }));
 
       await waitFor(() => {
         expect(screen.getByTestId('invoice-detail-page')).toBeInTheDocument();
@@ -3585,7 +3585,7 @@ describe('AutoItemizePage', () => {
       fireEvent.change(await screen.findByLabelText(/Notes/i), { target: { value: 'note' } });
 
       fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
-      fireEvent.click(await screen.findByRole('button', { name: /^Discard Changes$/i }));
+      fireEvent.click(await screen.findByRole('button', { name: /^Discard$/i }));
 
       expect(log.actions).toEqual(['GO -1']);
     });

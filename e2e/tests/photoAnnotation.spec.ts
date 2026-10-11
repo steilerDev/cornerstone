@@ -309,7 +309,7 @@ test(
       await viewer.clearAnnotationsButton.click();
 
       // Confirmation Modal appears
-      const clearModal = page.getByRole('dialog');
+      const clearModal = page.getByRole('alertdialog');
       await expect(clearModal).toBeVisible();
 
       // Register waitForResponse BEFORE clicking confirm (race-condition safety)
@@ -319,8 +319,8 @@ test(
             resp.url().includes(`/api/photos/${photoId}/annotation`) &&
             resp.request().method() === 'DELETE',
         ),
-        // The Modal footer's last button is the danger confirm action
-        clearModal.getByRole('button').last().click(),
+        // ConfirmDialog (alertdialog): the danger action is photo-markup-clear-confirm
+        clearModal.getByTestId('photo-markup-clear-confirm').click(),
       ]);
 
       expect(deleteResponse.status()).toBe(204);
@@ -1845,7 +1845,7 @@ test(
 
       // Clear Annotations
       await viewer.clearAnnotationsButton.click();
-      const clearModal = page.getByRole('dialog');
+      const clearModal = page.getByRole('alertdialog');
       await expect(clearModal).toBeVisible();
 
       const [deleteResponse] = await Promise.all([
@@ -1854,7 +1854,7 @@ test(
             resp.url().includes(`/api/photos/${photoId}/annotation`) &&
             resp.request().method() === 'DELETE',
         ),
-        clearModal.getByRole('button').last().click(),
+        clearModal.getByTestId('photo-markup-clear-confirm').click(),
       ]);
       expect(deleteResponse.status()).toBe(204);
 

@@ -16,6 +16,7 @@ import { fetchConfig } from '../../lib/configApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
+import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
 import { LinkedDocumentCard } from './LinkedDocumentCard.js';
 import { DocumentBrowser } from './DocumentBrowser.js';
 import { DocumentDetailPanel } from './DocumentDetailPanel.js';
@@ -111,7 +112,6 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
   const [pendingAttachmentType, setPendingAttachmentType] = useState<AttachmentType | null>(null);
   const addButtonRef = useRef<HTMLButtonElement>(null);
   const pickerModalRef = useRef<HTMLDivElement>(null);
-  const cancelButtonRef = useRef<HTMLButtonElement>(null);
 
   // Load Paperless status on mount
   useEffect(() => {
@@ -155,16 +155,6 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- systemLinkedIds.fetch is a new reference each render; adding it would cause an infinite re-fetch loop
   }, [showPicker, systemLinkedIds.fetch]);
 
-  // Focus Cancel button when unlink confirmation opens
-  useEffect(() => {
-    if (unlinkTarget && cancelButtonRef.current) {
-      const timer = setTimeout(() => {
-        cancelButtonRef.current?.focus();
-      }, 0);
-      return () => clearTimeout(timer);
-    }
-  }, [unlinkTarget]);
-
   const closePicker = useCallback(() => {
     setShowPicker(false);
     setPendingAttachmentType(null);
@@ -183,9 +173,6 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         if (showPicker) {
           closePicker();
           return;
-        }
-        if (unlinkTarget && !isUnlinking) {
-          setUnlinkTarget(null);
         }
         return;
       }
@@ -216,7 +203,7 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [showPicker, unlinkTarget, isUnlinking, closePicker]);
+  }, [showPicker, closePicker]);
 
   const handleDocumentSelect = useCallback(
     async (doc: PaperlessDocumentSearchResult) => {
@@ -515,49 +502,26 @@ export function LinkedDocumentsSection({ entityType, entityId }: LinkedDocuments
         </div>
       )}
 
-      {/* Unlink confirmation modal */}
+      {/* Unlink confirmation */}
       {unlinkTarget && (
-        <div className={styles.modal}>
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isUnlinking && setUnlinkTarget(null)}
-          />
-          <div
-            className={styles.modalContent}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="unlink-title"
-          >
-            <h2 id="unlink-title" className={styles.modalTitle}>
-              {t('linkedDocuments.unlinkDocument')}
-            </h2>
-            <p className={styles.modalText}>
-              &ldquo;{unlinkTarget.document?.title ?? t('linkedDocuments.thisDocument')}&rdquo;{' '}
-              {t('linkedDocuments.unlinkConfirmation', {
-                entity: entityLabel,
-              })}
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                ref={cancelButtonRef}
-                className={styles.modalCancelButton}
-                onClick={() => setUnlinkTarget(null)}
-                disabled={isUnlinking}
-              >
-                {t('common:button.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={handleUnlink}
-                disabled={isUnlinking}
-              >
-                {isUnlinking ? t('linkedDocuments.unlinking') : t('linkedDocuments.unlinkButton')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t('linkedDocuments.unlinkTitle', {
+            name: unlinkTarget.document?.title ?? t('linkedDocuments.thisDocument'),
+          })}
+          lead={t('linkedDocuments.unlinkConfirmation', {
+            title: unlinkTarget.document?.title ?? t('linkedDocuments.thisDocument'),
+            entity: entityLabel,
+          })}
+          confirmLabel={t('linkedDocuments.unlinkButton')}
+          busyLabel={t('linkedDocuments.unlinking')}
+          busy={isUnlinking}
+          onConfirm={() => void handleUnlink()}
+          onCancel={() => {
+            if (!isUnlinking) setUnlinkTarget(null);
+          }}
+          returnFocusRef={addButtonRef}
+          testIdPrefix="document-unlink"
+        />
       )}
     </section>
   );

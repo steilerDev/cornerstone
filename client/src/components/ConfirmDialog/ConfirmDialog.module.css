@@ -1,0 +1,97 @@
+.dialog {
+  max-width: calc(var(--spacing-16) * 7);
+}
+
+.description {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-3);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-primary);
+}
+
+.lead {
+  color: var(--color-text-secondary);
+}
+
+.intro {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.list {
+  margin: 0;
+  padding-left: var(--spacing-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.irreversible {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.countsError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.retryButton {
+  composes: btnSecondaryCompact from '../../styles/shared.module.css';
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+  width: 100%;
+}
+
+.cancelButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+}
+
+.confirmButton {
+  composes: btnDanger from '../../styles/shared.module.css';
+}
+
+.confirmButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+button.confirmButton[aria-disabled='true']:hover {
+  background-color: var(--color-danger-bg);
+}
+
+button.cancelButton[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+.cancelButton[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+@media (max-width: 639px) {
+  .footer {
+    flex-direction: column;
+  }
+
+  .cancelButton,
+  .confirmButton {
+    width: 100%;
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 1023px) {
+  .cancelButton,
+  .confirmButton,
+  .retryButton {
+    min-height: var(--touch-target-min);
+  }
+}

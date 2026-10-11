@@ -39,9 +39,9 @@
  * - Auto-save indicator: data-testid="autosave-status" — only visible when saveStatus !== 'idle'
  * - "Discard Draft" button is type="button" with text from t('editPage.discardDraftButton')
  * - Promote (Save) button is type="submit" in draft mode
- * - Discard modal: shared Modal named "Discard Draft", confirm = "Discard Draft", cancel = "Keep Draft"
- * - Delete modal cancel button text: t('editPage.deleteCancel') = "Cancel"
- * - Confirm delete button: class styles.confirmDeleteButton
+ * - Discard dialog (#2209): shared ConfirmDialog (role="alertdialog") "Discard this entry?",
+ *   confirm = "Discard" (diary-discard-confirm), cancel = "Keep entry" (diary-discard-cancel)
+ * - Delete dialog (#2209): shared ConfirmDialog "Delete <title>?" (diary-edit-delete-*)
  * - On successful promote: navigates to /diary/:id (detail)
  * - On successful discard: navigates to /diary (list)
  * - The modal is conditionally rendered: {showDeleteModal && (...)}
@@ -201,26 +201,19 @@ export class DiaryEntryEditPage {
     // Server error banner
     this.errorBanner = page.locator('[class*="errorBanner"]').first();
 
-    // Delete modal — shared Modal (auto-generated title id); located by accessible name
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Diary Entry' });
-    // Confirm delete inside the modal: text "Delete Entry" / "Deleting..."
-    this.confirmDeleteButton = this.deleteModal.getByRole('button', {
-      name: /Delete Entry|Deleting\.\.\./i,
-    });
-    // Cancel inside the delete modal: "Cancel"
-    this.cancelDeleteButton = this.deleteModal.getByRole('button', { name: 'Cancel', exact: true });
+    // Delete dialog — shared ConfirmDialog (role="alertdialog"), testid prefix diary-edit-delete
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('diary-edit-delete-cancel') });
+    this.confirmDeleteButton = this.deleteModal.getByTestId('diary-edit-delete-confirm');
+    this.cancelDeleteButton = this.deleteModal.getByTestId('diary-edit-delete-cancel');
 
-    // Discard draft modal — shared Modal; located by accessible name
-    this.discardModal = page.getByRole('dialog', { name: 'Discard Draft' });
-    // "Discard Draft" confirm button inside discard modal
-    this.discardModalConfirm = this.discardModal.getByRole('button', {
-      name: /Discard Draft|Discarding\.\.\./i,
-    });
-    // "Keep Draft" cancel button inside discard modal
-    this.discardModalCancel = this.discardModal.getByRole('button', {
-      name: 'Keep Draft',
-      exact: true,
-    });
+    // Discard dialog — shared ConfirmDialog "Discard this entry?", testid prefix diary-discard
+    this.discardModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('diary-discard-cancel') });
+    this.discardModalConfirm = this.discardModal.getByTestId('diary-discard-confirm');
+    this.discardModalCancel = this.discardModal.getByTestId('diary-discard-cancel');
   }
 
   /**

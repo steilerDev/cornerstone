@@ -17,6 +17,7 @@ import type {
 import { INVOICE_STATUSES } from '@cornerstone/shared';
 import enCommon from '../../i18n/en/common.json';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
+import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as ConfigApiTypes from '../../lib/configApi.js';
@@ -169,17 +170,47 @@ class MockApiClientError extends Error {
   }
 }
 
+const mockPatch = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockDel = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+const mockPost = jest.fn() as jest.Mock<(...args: unknown[]) => Promise<unknown>>;
+
 jest.unstable_mockModule('../../lib/apiClient.js', () => ({
   get: jest.fn(),
-  post: jest.fn(),
-  patch: jest.fn(),
-  del: jest.fn(),
+  post: mockPost,
+  patch: mockPatch,
+  del: mockDel,
   put: jest.fn(),
   setBaseUrl: jest.fn(),
   getBaseUrl: jest.fn().mockReturnValue('/api'),
   ApiClientError: MockApiClientError,
   NetworkError: class MockNetworkError extends Error {},
 }));
+
+// ─── Mock: Toast + delete impact (#2209) ──────────────────────────────────────
+
+const mockShowToast = jest.fn();
+const mockShowUndoToast = jest.fn();
+jest.unstable_mockModule('../../components/Toast/ToastContext.js', () => ({
+  ToastProvider: ({ children }: { children: unknown }) => children,
+  useToast: () => ({
+    toasts: [],
+    showToast: mockShowToast,
+    showUndoToast: mockShowUndoToast,
+    dismissToast: jest.fn(),
+  }),
+}));
+
+const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
+jest.unstable_mockModule('../../lib/deleteImpactApi.js', () => ({
+  fetchDeleteImpact: mockFetchDeleteImpact,
+}));
+
+/** The delete action is aria-disabled until the "also affects" counts have loaded. */
+async function enabledConfirm(prefix: string): Promise<HTMLElement> {
+  const btn = await screen.findByTestId(`${prefix}-confirm`);
+  await waitFor(() => expect(btn).not.toHaveAttribute('aria-disabled'));
+  return btn;
+}
 
 // ─── Mock: formatters (pure utility — avoids Intl issues in jsdom) ────────────
 
@@ -197,6 +228,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
     formatTime: (d: string | null | undefined) => d ?? '—',
     formatDateTime: (d: string | null | undefined) => d ?? '—',
     formatPercent: (n: number) => `${n.toFixed(2)}%`,
+    formatDayMonth: (d: string | null | undefined) => d ?? '',
   }),
 }));
 
@@ -330,6 +362,12 @@ beforeEach(async () => {
   mockConvertQuotation.mockReset();
   mockGetPaperlessStatus.mockReset();
   mockFetchConfig.mockReset();
+  mockShowToast.mockReset();
+  mockShowUndoToast.mockReset();
+  mockDel.mockReset();
+  mockDel.mockResolvedValue(undefined);
+  mockFetchDeleteImpact.mockReset();
+  mockFetchDeleteImpact.mockResolvedValue({ entityType: 'invoice', id: 'inv-001', effects: [] });
   budgetLinesMounts = 0;
   linkedDocumentsMounts = 0;
 
@@ -398,6 +436,77 @@ describe('InvoiceDetailPage', () => {
       expect(props.mode).toBe('add');
       expect(props.invoiceAmount).toBe(1500);
       expect(props.existingEntryIds).toEqual(['dep-1']);
+    });
+  });
+
+  describe('deleting a deposit refreshes silently (#2209 final fix)', () => {
+    const skeleton = () => document.querySelector('[aria-busy="true"]');
+
+    async function deleteFirstDeposit() {
+      renderPage();
+      const h1 = await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+      await screen.findByTestId('invoice-budget-lines-section');
+      const kebab = screen.getAllByRole('button').find((b) => b.textContent?.includes('⋮'))!;
+      fireEvent.click(kebab);
+      fireEvent.click(
+        screen
+          .getAllByRole('menuitem')
+          .filter((m) => !m.closest('[inert]'))
+          .find((m) => m.textContent?.toLowerCase().includes('delete'))!,
+      );
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('deposit-delete'));
+      });
+      return h1;
+    }
+
+    beforeEach(() => {
+      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, deposits: [paidDeposit(400)] });
+    });
+
+    it('uses the silent refresh: no skeleton, the h1 stays mounted and focused while it is in flight', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockImplementation(() => new Promise(() => {}));
+      const h1 = await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockDel).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(skeleton()).toBeNull();
+      expect(h1.isConnected).toBe(true);
+      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
+      await waitFor(() => expect(document.activeElement).toBe(h1));
+    });
+
+    it('the refreshed invoice replaces the deposits without a full reload', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
+      const h1 = await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(2));
+      await screen.findByText('No deposits yet');
+      expect(skeleton()).toBeNull();
+      expect(screen.getByRole('heading', { level: 1, name: /Acme Construction/ })).toBe(h1);
+    });
+
+    it('falls back to a full loadInvoice when the silent refresh fails', async () => {
+      mockFetchInvoiceById
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [paidDeposit(400)] })
+        .mockRejectedValueOnce(new Error('offline'))
+        .mockResolvedValueOnce({ ...mockInvoice, deposits: [] });
+      await deleteFirstDeposit();
+
+      await waitFor(() => expect(mockFetchInvoiceById).toHaveBeenCalledTimes(3));
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { level: 1, name: /Acme Construction/ }),
+        ).toBeInTheDocument(),
+      );
+      expect(screen.queryByText(/offline/i)).toBeNull();
     });
   });
 
@@ -474,12 +583,15 @@ describe('InvoiceDetailPage', () => {
       renderPage();
 
       await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
-      for (const testId of ['invoice-status-badge', 'invoice-detail-status-badge']) {
-        const chip = screen.getByTestId(testId);
-        expect(chip).toHaveTextContent('To pay');
-        expect(chip.className).toContain('badge');
-        expect(chip.className).toContain('pending');
-      }
+      // The header status is the interactive StatusMenu chip; the details row is a plain Badge.
+      const header = screen.getByTestId('invoice-status-badge');
+      expect(header.tagName).toBe('BUTTON');
+      expect(header).toHaveTextContent('To pay');
+      expect(header.className).toContain('pending');
+      const details = screen.getByTestId('invoice-detail-status-badge');
+      expect(details).toHaveTextContent('To pay');
+      expect(details.className).toContain('badge');
+      expect(details.className).toContain('pending');
     });
 
     it('D-07: a quotation shows "Offer" with the offer class (info pair), never a quotation class', async () => {
@@ -487,7 +599,9 @@ describe('InvoiceDetailPage', () => {
       renderPage();
 
       await waitFor(() => expect(screen.getByTestId('invoice-status-badge')).toBeInTheDocument());
+      // A quotation has no status transitions, so the header shows a plain Badge.
       const chip = screen.getByTestId('invoice-status-badge');
+      expect(chip.tagName).toBe('SPAN');
       expect(chip).toHaveTextContent('Offer');
       expect(chip.className).toContain('offer');
       expect(chip.className).not.toContain('quotation');
@@ -563,6 +677,147 @@ describe('InvoiceDetailPage', () => {
         const section = screen.getByTestId('invoice-budget-lines-section');
         expect(section).toHaveAttribute('data-invoice-total', '1500');
       });
+    });
+  });
+
+  describe('status menu (#2209)', () => {
+    const TOKEN = { token: `u_${'a'.repeat(32)}`, expiresAt: '2026-08-07T10:00:30.000Z' };
+    beforeEach(() => {
+      mockPatch.mockReset();
+      mockPost.mockReset();
+    });
+
+    async function loaded(status: Invoice['status'] = 'pending') {
+      mockFetchInvoiceById.mockResolvedValue({ ...mockInvoice, status });
+      renderPage();
+      await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+    }
+
+    it('a pending invoice offers "Mark paid" with no date step', async () => {
+      await loaded('pending');
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual(['Mark paid']);
+    });
+
+    it('Mark paid applies at once (AC3: no date step) and offers Undo', async () => {
+      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'paid' }, undo: TOKEN });
+      await loaded('pending');
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
+
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(mockPatch).toHaveBeenCalledWith(
+        `/vendors/${mockInvoice.vendorId}/invoices/${mockInvoice.id}`,
+        { status: 'paid' },
+      );
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalledTimes(1));
+      expect((mockShowUndoToast.mock.calls[0]![0] as { dedupeKey: string }).dedupeKey).toBe(
+        `invoice:${mockInvoice.id}`,
+      );
+    });
+
+    it('a paid invoice offers the way back to "To pay"', async () => {
+      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'pending' } });
+      await loaded('paid');
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      expect(screen.getAllByRole('menuitem').map((r) => r.textContent)).toEqual([
+        'Back to “To pay”',
+      ]);
+      fireEvent.click(screen.getByTestId('invoice-status-badge-option-pending'));
+      await waitFor(() => expect(mockPatch).toHaveBeenCalledTimes(1));
+      expect(mockPatch.mock.calls[0]![1]).toEqual({ status: 'pending' });
+    });
+
+    it.each(['claimed', 'quotation'] as const)(
+      'a %s invoice has no transitions: a plain badge, not a button',
+      async (status) => {
+        await loaded(status);
+        expect(screen.getByTestId('invoice-status-badge').tagName).toBe('SPAN');
+        expect(screen.queryByRole('menuitem')).toBeNull();
+      },
+    );
+
+    it('a failed change toasts the generic copy and keeps the status', async () => {
+      mockPatch.mockRejectedValue(new Error('RAW-LOCAL'));
+      await loaded('pending');
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
+      await waitFor(() =>
+        expect(mockShowToast).toHaveBeenCalledWith('error', 'The status could not be changed.'),
+      );
+      expect(mockShowUndoToast).not.toHaveBeenCalled();
+      expect(screen.getByTestId('invoice-status-badge')).toHaveTextContent('To pay');
+    });
+
+    it('Undo posts the token and reloads the invoice', async () => {
+      mockPatch.mockResolvedValue({ invoice: { ...mockInvoice, status: 'paid' }, undo: TOKEN });
+      mockPost.mockResolvedValue({ restored: [], retractedEventIds: [] });
+      await loaded('pending');
+      fireEvent.click(screen.getByTestId('invoice-status-badge'));
+      fireEvent.click(screen.getByTestId('invoice-status-badge-option-paid'));
+      await waitFor(() => expect(mockShowUndoToast).toHaveBeenCalled());
+
+      const loadsBefore = mockFetchInvoiceById.mock.calls.length;
+      const options = mockShowUndoToast.mock.calls[0]![0] as { onUndo: () => Promise<void> };
+      await act(async () => {
+        await options.onUndo();
+      });
+      expect(mockPost).toHaveBeenCalledWith(`/undo/${TOKEN.token}`);
+      expect(mockFetchInvoiceById.mock.calls.length).toBeGreaterThan(loadsBefore);
+    });
+  });
+
+  describe('delete dialog (#2209)', () => {
+    async function openDialog() {
+      renderPage();
+      await screen.findByRole('heading', { level: 1, name: /Acme Construction/ });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
+      });
+    }
+
+    it('opens an alertdialog with Cancel focused and loads what the delete also removes', async () => {
+      mockFetchDeleteImpact.mockResolvedValue({
+        entityType: 'invoice',
+        id: 'inv-001',
+        effects: [
+          { kind: 'progressPayments', count: 2 },
+          { kind: 'documentLinks', count: 0 },
+        ],
+      });
+      await openDialog();
+      expect(await screen.findByRole('alertdialog')).toHaveAccessibleName(/^Delete /);
+      expect(screen.getByTestId('invoice-delete-cancel')).toHaveFocus();
+      await waitFor(() =>
+        expect(screen.getByTestId('invoice-delete-consequences')).toHaveTextContent(
+          'Progress payments deleted with it: 2',
+        ),
+      );
+      expect(screen.queryByText(/Linked documents/)).toBeNull();
+      expect(mockFetchDeleteImpact).toHaveBeenCalledWith('invoice', 'inv-001');
+    });
+
+    it('a 409 hides the action', async () => {
+      mockDeleteInvoice.mockRejectedValue(
+        new MockApiClientError(409, { code: 'CONFLICT', message: 'x' }),
+      );
+      await openDialog();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await waitFor(() => expect(screen.queryByTestId('invoice-delete-confirm')).toBeNull());
+      expect(screen.getByTestId('invoice-delete-cancel')).toBeInTheDocument();
+    });
+
+    it('a non-409 failure keeps the action for a retry', async () => {
+      mockDeleteInvoice.mockRejectedValue(new Error('boom'));
+      await openDialog();
+      await act(async () => {
+        fireEvent.click(await enabledConfirm('invoice-delete'));
+      });
+      await screen.findByRole('alert');
+      expect(screen.getByTestId('invoice-delete-confirm')).toBeInTheDocument();
     });
   });
 
@@ -1110,7 +1365,7 @@ describe('InvoiceDetailPage', () => {
       await act(async () => {
         fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
       });
-      const confirm = await screen.findByRole('button', { name: 'Delete Invoice' });
+      const confirm = await enabledConfirm('invoice-delete');
       await act(async () => {
         fireEvent.click(confirm);
       });
@@ -1135,7 +1390,7 @@ describe('InvoiceDetailPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
       });
       await act(async () => {
-        fireEvent.click(await screen.findByRole('button', { name: 'Delete Invoice' }));
+        fireEvent.click(await enabledConfirm('invoice-delete'));
       });
 
       await waitFor(() =>
@@ -1256,7 +1511,7 @@ describe('InvoiceDetailPage', () => {
         fireEvent.click(screen.getByRole('button', { name: /^Delete$/i }));
       });
       await act(async () => {
-        fireEvent.click(await screen.findByRole('button', { name: 'Delete Invoice' }));
+        fireEvent.click(await enabledConfirm('invoice-delete'));
       });
 
       await waitFor(() => expect(log.actions).toEqual(['REPLACE /budget/invoices']));

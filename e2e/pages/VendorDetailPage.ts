@@ -12,12 +12,14 @@
  * - An inline edit form inside the info card when isEditing is true
  * - A Contacts section with add/edit/delete contact modals
  * - An Invoices placeholder section ("coming soon")
- * - A delete confirmation modal (role="dialog", aria-labelledby="delete-modal-title")
+ * - A delete ConfirmDialog (role="alertdialog", testid prefix vendor-delete); contact delete
+ *   (contact-delete) and invoice-row delete (vendor-invoice-delete) use the same component
  */
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 
 export interface EditVendorData {
   name?: string;
@@ -100,6 +102,10 @@ export class VendorDetailPage {
   readonly deleteConfirmButton: Locator;
   readonly deleteCancelButton: Locator;
   readonly deleteErrorBanner: Locator;
+  /** ConfirmDialog for deleting a contact person (testid prefix contact-delete). */
+  readonly contactDeleteDialog: ConfirmDialogControl;
+  /** ConfirmDialog for deleting an invoice from the Invoices section (vendor-invoice-delete). */
+  readonly invoiceDeleteDialog: ConfirmDialogControl;
 
   constructor(page: Page) {
     this.page = page;
@@ -194,18 +200,16 @@ export class VendorDetailPage {
     // not a descendant, so use a combined CSS selector instead of { has: ... }
     this.errorCard = page.locator('[class*="errorCard"][role="alert"]');
 
-    // Delete modal
-    this.deleteModal = page.getByRole('dialog', { name: 'Delete Vendor' });
-    this.deleteModalTitle = page.locator('#delete-modal-title');
-    // The delete button text is hardcoded "Delete Vendor" / "Deleting..." in VendorDetailPage.tsx
-    this.deleteConfirmButton = this.deleteModal.getByRole('button', {
-      name: /Delete Vendor|Deleting\.\.\./,
-    });
-    this.deleteCancelButton = this.deleteModal.getByRole('button', {
-      name: 'Cancel',
-      exact: true,
-    });
+    // Delete dialog: the shared ConfirmDialog (role="alertdialog", #2209), title "Delete <name>?"
+    this.deleteModal = page
+      .getByRole('alertdialog')
+      .filter({ has: page.getByTestId('vendor-delete-cancel') });
+    this.deleteModalTitle = this.deleteModal.getByRole('heading', { level: 2 });
+    this.deleteConfirmButton = this.deleteModal.getByTestId('vendor-delete-confirm');
+    this.deleteCancelButton = this.deleteModal.getByTestId('vendor-delete-cancel');
     this.deleteErrorBanner = this.deleteModal.locator('[role="alert"]');
+    this.contactDeleteDialog = new ConfirmDialogControl(page, 'contact-delete');
+    this.invoiceDeleteDialog = new ConfirmDialogControl(page, 'vendor-invoice-delete');
   }
 
   async goto(vendorId: string): Promise<void> {
@@ -485,21 +489,22 @@ export class VendorDetailPage {
 
   /**
    * Delete the contact with the given name by clicking its "Delete Contact" button
-   * and confirming the browser dialog.
+   * and confirming the ConfirmDialog.
    */
   async deleteContactByName(contactName: string): Promise<void> {
     const card = this.contactsList
       .locator('[class*="contactCard"]')
       .filter({ has: this.page.locator('[class*="contactName"]', { hasText: contactName }) });
 
-    // The delete uses window.confirm — accept it before clicking
-    this.page.once('dialog', (dialog) => void dialog.accept());
+    // #2209: the delete asks via the shared ConfirmDialog (no native window.confirm)
     const responsePromise = this.page.waitForResponse(
       (r) => r.url().includes('/contacts/') && r.request().method() === 'DELETE',
     );
     // aria-label is "Delete Contact <name>" (includes contact name), so omit exact:true
     await card.getByRole('button', { name: 'Delete Contact' }).click();
+    await this.contactDeleteDialog.confirm();
     await responsePromise;
+    await this.contactDeleteDialog.dialog.waitFor({ state: 'hidden' });
   }
 
   // ─── Money truth (#2194) ──────────────────────────────────────────────────

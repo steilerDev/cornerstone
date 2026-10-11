@@ -250,18 +250,14 @@ export function useBudgetSection<T extends BaseBudgetLine>(
     setDeletingBudgetId(budgetId);
   };
 
+  // On failure the id stays set so the confirmation dialog can show the error (and retry);
+  // the rejection is translated by the dialog host.
   const confirmDeleteBudgetLine = async () => {
     if (!deletingBudgetId) return;
 
-    try {
-      await api.deleteBudget(entityId, deletingBudgetId);
-      setDeletingBudgetId(null);
-      await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
-    } catch (err) {
-      setDeletingBudgetId(null);
-      // Rethrow the original error; the page translates it for display.
-      throw err;
-    }
+    await api.deleteBudget(entityId, deletingBudgetId);
+    setDeletingBudgetId(null);
+    await Promise.all([reloadBudgetLines(), reloadSubsidyPayback()]);
   };
 
   // Helper to update form with partial updates (merges with existing state)

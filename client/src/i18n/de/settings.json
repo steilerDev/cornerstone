@@ -116,10 +116,9 @@
       "emailInvalid": "Bitte geben Sie eine gültige E-Mail-Adresse ein"
     },
     "deactivateModal": {
-      "title": "Benutzer deaktivieren",
+      "title": "{{name}} deaktivieren?",
       "closeAriaLabel": "Schließen",
-      "message": "Möchten Sie {{name}} wirklich deaktivieren? Die Sitzungen werden sofort beendet.",
-      "cancel": "Abbrechen",
+      "message": "Die Sitzungen werden sofort beendet.",
       "confirm": "Deaktivieren",
       "confirming": "Wird deaktiviert...",
       "error": "Benutzer konnte nicht deaktiviert werden. Bitte versuchen Sie es erneut."
@@ -173,11 +172,7 @@
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "deleteTitle": "Bereich löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie den Bereich „{{name}}“ löschen möchten?",
       "deleteWarning": "Seine Unterbereiche werden mit ihm gelöscht, und Fotos in diesen Bereichen verlieren ihre Bereichszuordnung. Ein Bereich, den eine Aufgabe oder Anschaffung direkt oder über einen Unterbereich verwendet, kann nicht gelöscht werden.",
-      "deleting": "Wird gelöscht...",
-      "deleteButton": "Bereich löschen",
       "validation": {
         "nameRequired": "Bereichsname ist erforderlich",
         "nameTooLong": "Bereichsname darf maximal 100 Zeichen lang sein"
@@ -215,11 +210,7 @@
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
       "delete": "Löschen",
-      "deleteTitle": "Gewerk löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie das Gewerk „{{name}}“ löschen möchten?",
       "deleteWarning": "Ein Gewerk, das eine Firma verwendet, kann nicht gelöscht werden. Ändern Sie zuerst das Gewerk dieser Firmen.",
-      "deleting": "Wird gelöscht...",
-      "deleteButton": "Gewerk löschen",
       "validation": {
         "nameRequired": "Gewerkname ist erforderlich",
         "nameTooLong": "Gewerkname darf maximal 100 Zeichen lang sein"
@@ -253,11 +244,6 @@
       "save": "Speichern",
       "saving": "Wird gespeichert…",
       "cancel": "Abbrechen",
-      "deleteTitle": "Ausrichtung löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie „{{name}}“ löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "deleteButton": "Löschen",
-      "deleting": "Wird gelöscht…",
       "validation": {
         "nameRequired": "Name ist erforderlich.",
         "nameTooLong": "Name darf maximal 100 Zeichen lang sein."
@@ -298,11 +284,6 @@
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "sortOrderTitle": "Sortierreihenfolge",
-      "deleteTitle": "Kategorie löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie „{{name}}“ löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
-      "deleting": "Wird gelöscht...",
-      "deleteButton": "Kategorie löschen",
       "validation": {
         "nameRequired": "Kategoriename ist erforderlich",
         "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
@@ -341,11 +322,6 @@
       "edit": "Bearbeiten",
       "delete": "Löschen",
       "sortOrderTitle": "Sortierreihenfolge",
-      "deleteTitle": "Kategorie löschen",
-      "deleteConfirm": "Sind Sie sicher, dass Sie die Kategorie „{{name}}“ löschen möchten?",
-      "deleteWarning": "Diese Aktion kann nicht rückgängig gemacht werden. Die Kategorie wird dauerhaft entfernt.",
-      "deleting": "Wird gelöscht...",
-      "deleteButton": "Kategorie löschen",
       "validation": {
         "nameRequired": "Kategoriename ist erforderlich",
         "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
@@ -368,7 +344,9 @@
     "generateToken": "Token generieren",
     "regenerateToken": "Token neu generieren",
     "revokeToken": "Token widerrufen",
-    "revokeConfirm": "Möchten Sie das DAV-Token wirklich widerrufen? Verbundene Apps werden nicht mehr synchronisiert.",
+    "revokeTitle": "Kalenderzugriff widerrufen?",
+    "revokeLead": "Kalender- und Kontakt-Apps synchronisieren nicht mehr, bis Sie ein neues Token erstellen.",
+    "revokeAction": "Widerrufen",
     "tokenActive": "Token aktiv seit {{date}}",
     "tokenWarning": "Kopieren Sie dieses Token jetzt – es wird nicht erneut angezeigt.",
     "copyToken": "Kopieren",
@@ -445,21 +423,13 @@
       "restore": "Wiederherstellen"
     },
     "deleteModal": {
-      "title": "Sicherung löschen",
-      "message": "Möchten Sie {{filename}} wirklich löschen?",
-      "warning": "Diese Aktion kann nicht rückgängig gemacht werden.",
-      "cancel": "Abbrechen",
-      "confirm": "Löschen",
-      "confirming": "Wird gelöscht...",
       "error": "Sicherung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
     },
     "restoreModal": {
-      "title": "Sicherung wiederherstellen",
-      "message": "Sie sind dabei, eine Wiederherstellung aus folgender Sicherung durchzuführen:",
+      "title": "{{name}} wiederherstellen?",
       "warning": "Dadurch werden alle aktuellen Anwendungsdaten unwiderruflich durch den Inhalt der Sicherung ersetzt. Der Server wird automatisch neu gestartet. Alle aktuellen Daten gehen verloren.",
-      "cancel": "Abbrechen",
-      "confirm": "Wiederherstellen & Neu starten",
-      "confirming": "Wird wiederhergestellt...",
+      "confirm": "Wiederherstellen",
+      "confirming": "Wird wiederhergestellt…",
       "error": "Wiederherstellung konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
     },
     "restartingMessage": "Der Server wird neu gestartet. Bitte warten Sie einen Moment und laden Sie dann die Seite neu.",
@@ -487,7 +457,6 @@
       "addContact": "Kontakt hinzufügen",
       "editContact": "Kontakt bearbeiten",
       "deleteContact": "Kontakt löschen",
-      "deleteConfirm": "Möchten Sie diesen Kontakt wirklich löschen?",
       "empty": "Noch keine Kontakte hinzugefügt.",
       "emptyAction": "Ersten Kontakt hinzufügen",
       "firstName": "Vorname",
@@ -511,8 +480,7 @@
       "errors": {
         "loadFailed": "Kontakte konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
         "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteFailed": "Kontakt konnte nicht gelöscht werden. Bitte versuchen Sie es erneut."
+        "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
       }
     }
   }

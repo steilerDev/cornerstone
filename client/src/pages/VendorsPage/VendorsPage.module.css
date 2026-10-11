@@ -164,9 +164,3 @@
     transition: none;
   }
 }
-
-.modalWarning {
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
-  margin: var(--spacing-3) 0 0 0;
-}

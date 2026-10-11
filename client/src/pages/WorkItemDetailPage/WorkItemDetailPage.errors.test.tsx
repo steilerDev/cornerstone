@@ -8,6 +8,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, waitFor, act, screen } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { WorkItemDetail, ErrorCode } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
 import { LocalizedError } from '../../lib/localizedError.js';
@@ -417,11 +418,14 @@ describe('WorkItemDetailPage', () => {
 
   function renderPage(id = 'work-1') {
     return render(
-      <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
-        <Routes>
-          <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
-        </Routes>
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
+          <Routes>
+            <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+          </Routes>
+        </MemoryRouter>
+        ,
+      </ToastProvider>,
     );
   }
 
@@ -498,27 +502,33 @@ describe('WorkItemDetailPage', () => {
     });
   }
 
-  describe('delete budget line', () => {
-    it('ApiClientError shows the code copy, never the server text', async () => {
-      await load();
-      mockDeleteWorkItemBudget.mockRejectedValue(apiError(409, 'CONFLICT'));
-      await confirmDelete();
-      await expectBudgetError(enErrors.CONFLICT);
-    });
-
-    it('NetworkError shows the network copy', async () => {
-      await load();
-      mockDeleteWorkItemBudget.mockRejectedValue(new NetworkError('RAW-LOCAL', new Error('c')));
-      await confirmDelete();
-      await expectBudgetError(enCommon.requestErrors.network);
-    });
-
-    it('any other error shows the deleteFailed copy', async () => {
-      await load();
-      mockDeleteWorkItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
-      await confirmDelete();
-      await expectBudgetError(enBudget.budgetLineForm.errors.deleteFailed);
-    });
+  describe('delete budget line (#2209: the host dialog translates and shows the failure)', () => {
+    it.each([
+      ['ApiClientError', () => apiError(409, 'CONFLICT')],
+      ['NetworkError', () => new NetworkError('RAW-LOCAL', new Error('c'))],
+      ['plain Error', () => new Error('RAW-LOCAL')],
+    ])(
+      '%s: the page rethrows the very same error and shows no banner of its own',
+      async (_n, make) => {
+        await load();
+        const failure = make();
+        mockDeleteWorkItemBudget.mockRejectedValue(failure);
+        await act(async () => {
+          capturedBudgetSectionProps.budgetSectionHook.handleDeleteBudgetLine('bl-1');
+        });
+        let thrown: unknown;
+        await act(async () => {
+          try {
+            await capturedBudgetSectionProps.onConfirmDeleteBudgetLine();
+          } catch (err) {
+            thrown = err;
+          }
+        });
+        expect(thrown).toBe(failure);
+        expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
+        expect(screen.queryByTestId('budget-banner')).toBeNull();
+      },
+    );
   });
 
   describe('subsidy linking', () => {
@@ -601,12 +611,18 @@ describe('WorkItemDetailPage', () => {
 
   describe('a new budget action clears a stale budget error', () => {
     async function failDelete() {
-      mockDeleteWorkItemBudget.mockRejectedValue(new Error('RAW-LOCAL'));
-      await confirmDelete();
-      await expectBudgetError(enBudget.budgetLineForm.errors.deleteFailed);
+      // Any failed budget action leaves a banner; a failed subsidy link is the simplest.
+      mockLinkWorkItemSubsidy.mockRejectedValue(new Error('RAW-LOCAL'));
+      await act(async () => {
+        capturedBudgetSectionProps.budgetSectionHook.setSelectedSubsidyId('sub-1');
+      });
+      await act(async () => {
+        await capturedBudgetSectionProps.onLinkSubsidy();
+      });
+      await expectBudgetError(enWorkItems.detail.inlineErrors.linkSubsidy);
     }
 
-    it('a successful move clears the banner left by a failed delete', async () => {
+    it('a successful move clears the banner left by a failed action', async () => {
       await load();
       await failDelete();
 
@@ -621,7 +637,7 @@ describe('WorkItemDetailPage', () => {
       expect(capturedBudgetSectionProps.inlineError ?? null).toBeNull();
     });
 
-    it('a successful invoice-line edit clears the banner left by a failed delete', async () => {
+    it('a successful invoice-line edit clears the banner left by a failed action', async () => {
       await load(true);
       await failDelete();
 

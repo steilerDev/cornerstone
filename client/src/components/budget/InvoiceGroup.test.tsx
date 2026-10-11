@@ -83,16 +83,12 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
     unlinkAction,
     onEdit,
     onDelete,
-    onConfirmDelete,
-    onCancelDelete,
   }: {
     line: BaseBudgetLine;
     children?: React.ReactNode;
     unlinkAction?: React.ReactNode;
     onEdit?: () => void;
     onDelete?: () => void;
-    onConfirmDelete?: () => void;
-    onCancelDelete?: () => void;
   }) => (
     <div data-testid={`budget-line-card-${line.id}`}>
       <span>{line.description ?? 'no-description'}</span>
@@ -100,8 +96,6 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
       {unlinkAction}
       <button type="button" data-testid={`stub-edit-${line.id}`} onClick={onEdit} />
       <button type="button" data-testid={`stub-delete-${line.id}`} onClick={onDelete} />
-      <button type="button" data-testid={`stub-confirm-${line.id}`} onClick={onConfirmDelete} />
-      <button type="button" data-testid={`stub-cancel-${line.id}`} onClick={onCancelDelete} />
     </div>
   ),
 }));
@@ -167,9 +161,6 @@ function buildProps(
     lines: [line],
     onEdit: jest.fn(),
     onDelete: jest.fn(),
-    isDeleting: {},
-    onConfirmDelete: jest.fn(),
-    onCancelDelete: jest.fn(),
     onUnlink: jest.fn(),
     isUnlinking: {},
     confidenceLabels: {
@@ -588,7 +579,7 @@ describe('InvoiceGroup', () => {
 
   // ─── Line callbacks, link click, keyboard, amount label (#2195 coverage) ────
 
-  it('forwards the card edit / delete / confirm / cancel callbacks with the line', () => {
+  it('forwards the card edit / delete callbacks with the line', () => {
     const props = buildProps();
     renderGroup(<InvoiceGroup {...props} />);
     fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
@@ -600,16 +591,6 @@ describe('InvoiceGroup', () => {
     expect(props.onEdit).toHaveBeenCalledWith(line);
     fireEvent.click(screen.getByTestId('stub-delete-line-1'));
     expect(props.onDelete).toHaveBeenCalledWith('line-1');
-    fireEvent.click(screen.getByTestId('stub-confirm-line-1'));
-    expect(props.onConfirmDelete).toHaveBeenCalledWith('line-1');
-    fireEvent.click(screen.getByTestId('stub-cancel-line-1'));
-    expect(props.onCancelDelete).toHaveBeenCalledWith('line-1');
-  });
-
-  it('passes the per-line isDeleting flag through (missing key is false)', () => {
-    renderGroup(<InvoiceGroup {...buildProps({ isDeleting: { 'line-1': true } })} />);
-    fireEvent.click(screen.getByRole('button', { name: /INV-001/ }));
-    expect(screen.getByTestId('budget-line-card-line-1')).toBeInTheDocument();
   });
 
   it('clicking the invoice link does not toggle the group (propagation stopped)', () => {

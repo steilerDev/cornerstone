@@ -187,13 +187,6 @@
       "edit": "Bearbeiten",
       "delete": "Löschen"
     },
-    "delete": {
-      "confirm": "Meilenstein löschen",
-      "message": "Möchten Sie wirklich löschen",
-      "cancel": "Abbrechen",
-      "delete": "Meilenstein löschen",
-      "deleting": "Wird gelöscht..."
-    },
     "loading": "Meilensteine werden geladen...",
     "error": "Fehler beim Laden der Meilensteine. Bitte versuchen Sie es erneut.",
     "deleteError": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
@@ -260,13 +253,6 @@
         "saving": "Wird gespeichert...",
         "cancel": "Abbrechen"
       },
-      "delete": {
-        "confirm": "Meilenstein löschen",
-        "message": "Möchten Sie wirklich löschen",
-        "cancel": "Abbrechen",
-        "delete": "Meilenstein löschen",
-        "deleting": "Wird gelöscht..."
-      },
       "delay": {
         "late": "verspätet",
         "ahead": "im Voraus",
@@ -291,7 +277,6 @@
         "titleLabel": "Titel",
         "targetDateLabel": "Zieldatum",
         "descriptionLabel": "Beschreibung",
-        "markCompleted": "Als abgeschlossen markieren",
         "placeholderTitle": "Meilensteintitel",
         "placeholderDescription": "Optionale Beschreibung",
         "save": "Änderungen speichern",
@@ -310,11 +295,7 @@
       "failedRemoveDependent": "Fehler beim Entfernen des abhängigen Arbeitspakets. Bitte versuchen Sie es erneut.",
       "failedSave": "Fehler beim Speichern des Meilensteins. Bitte versuchen Sie es erneut.",
       "failedDelete": "Fehler beim Löschen des Meilensteins. Bitte versuchen Sie es erneut.",
-      "deleteConfirm": "Meilenstein löschen",
-      "deleteMessage": "Möchten Sie wirklich löschen",
-      "deleteCancel": "Abbrechen",
-      "deleteButton": "Meilenstein löschen",
-      "deleting": "Wird gelöscht..."
+      "deleteButton": "Meilenstein löschen"
     }
   }
 }

@@ -578,12 +578,8 @@ test.describe('Delete program', { tag: '@responsive' }, () => {
     await subsidyPage.openDeleteModal(programName);
     await expect(subsidyPage.deleteModal).toBeVisible();
 
-    // Modal title
-    await expect(subsidyPage.deleteModalTitle).toHaveText('Delete Subsidy Program');
-
-    // Modal body mentions the program name
-    const modalText = await subsidyPage.deleteModal.textContent();
-    expect(modalText).toContain(programName);
+    // Dialog title asks "Delete <name>?" (names the program)
+    await expect(subsidyPage.deleteModalTitle).toHaveText(`Delete ${programName}?`);
 
     // Confirm deletion
     await subsidyPage.confirmDelete();

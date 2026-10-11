@@ -174,11 +174,6 @@
     },
     "resolutionStatus": "Lösungsstatus",
     "resolutionStatusRequired": "Lösungsstatus ist erforderlich",
-    "resolutionOptions": {
-      "open": "Offen",
-      "in_progress": "In Bearbeitung",
-      "resolved": "Gelöst"
-    },
     "signatures": "Unterschriften",
     "addSignatureButton": "Unterschrift hinzufügen",
     "photos": "Fotos",
@@ -204,11 +199,7 @@
     "workStart": "Beginn:",
     "workEnd": "Ende:",
     "materials": "Materialien",
-    "severity": "Schweregrad",
-    "resolutionStatus": "Lösungsstatus",
-    "resolutionStatusOpen": "🔴 Offen",
-    "resolutionStatusInProgress": "🟡 In Bearbeitung",
-    "resolutionStatusResolved": "✅ Gelöst"
+    "severity": "Schweregrad"
   },
   "entryTypeBadge": {
     "ariaLabel": "Eintragstyp: {{type}}"
@@ -257,11 +248,6 @@
     "relatedTo": "Bezogen auf:",
     "created": "Erstellt:",
     "updated": "Aktualisiert:",
-    "deleteTitle": "Tagebucheintrag löschen",
-    "deleteMessage": "Möchten Sie diesen Tagebucheintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteCancel": "Abbrechen",
-    "deleteConfirm": "Eintrag löschen",
-    "deleting": "Wird gelöscht...",
     "deleteSuccess": "Tagebucheintrag erfolgreich gelöscht",
     "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
     "sourceType": {
@@ -287,20 +273,11 @@
     "updateError": "Fehler beim Aktualisieren des Tagebucheintrags. Bitte versuchen Sie es erneut.",
     "deleteSuccess": "Tagebucheintrag erfolgreich gelöscht",
     "deleteError": "Fehler beim Löschen des Tagebucheintrags. Bitte versuchen Sie es erneut.",
-    "deleteTitle": "Tagebucheintrag löschen",
-    "deleteMessage": "Möchten Sie diesen Tagebucheintrag wirklich löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
-    "deleteCancel": "Abbrechen",
-    "deleteConfirm": "Eintrag löschen",
-    "deleting": "Wird gelöscht...",
     "autoSaveSaving": "Wird gespeichert...",
     "autoSaveSaved": "Gespeichert",
     "autoSaveError": "Speichern fehlgeschlagen – wird beim nächsten Ändern erneut versucht",
     "discardDraftButton": "Entwurf verwerfen",
-    "discardDraftTitle": "Entwurf verwerfen",
     "discardDraftMessage": "Möchten Sie diesen Entwurf wirklich verwerfen? Alle eingegebenen Inhalte und hochgeladenen Fotos werden dauerhaft gelöscht.",
-    "discardDraftCancel": "Entwurf behalten",
-    "discardDraftConfirm": "Entwurf verwerfen",
-    "discarding": "Wird verworfen...",
     "promoteButton": "Speichern",
     "promoting": "Wird gespeichert..."
   },

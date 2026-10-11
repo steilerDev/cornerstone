@@ -17,6 +17,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type { WorkItemDetail } from '@cornerstone/shared';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
@@ -381,11 +382,14 @@ describe('WorkItemDetailPage — UI Harmonization (Story #501)', () => {
 
   function renderPage(id = 'work-1') {
     return render(
-      <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
-        <Routes>
-          <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
-        </Routes>
-      </MemoryRouter>,
+      <ToastProvider>
+        <MemoryRouter initialEntries={[`/project/work-items/${id}`]}>
+          <Routes>
+            <Route path="/project/work-items/:id" element={<WorkItemDetailPageModule.default />} />
+          </Routes>
+        </MemoryRouter>
+        ,
+      </ToastProvider>,
     );
   }
 

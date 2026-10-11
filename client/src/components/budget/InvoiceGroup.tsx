@@ -20,9 +20,6 @@ export interface InvoiceGroupProps<T extends BaseBudgetLine> {
   lines: T[];
   onEdit: (line: T) => void;
   onDelete: (lineId: string) => void;
-  isDeleting: Record<string, boolean>;
-  onConfirmDelete: (lineId: string) => void;
-  onCancelDelete: (lineId: string) => void;
   onUnlink: (lineId: string, invoiceBudgetLineId: string) => void;
   isUnlinking: Record<string, boolean>;
   confidenceLabels: Record<string, string>;
@@ -40,9 +37,6 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
   lines,
   onEdit,
   onDelete,
-  isDeleting,
-  onConfirmDelete,
-  onCancelDelete,
   onUnlink,
   isUnlinking,
   confidenceLabels,
@@ -157,9 +151,6 @@ export function InvoiceGroup<T extends BaseBudgetLine>({
                 confidenceLabels={confidenceLabels}
                 onEdit={() => onEdit(line)}
                 onDelete={() => onDelete(line.id)}
-                isDeleting={isDeleting[line.id] || false}
-                onConfirmDelete={() => onConfirmDelete(line.id)}
-                onCancelDelete={() => onCancelDelete(line.id)}
                 unlinkAction={
                   line.invoiceLink ? (
                     <button

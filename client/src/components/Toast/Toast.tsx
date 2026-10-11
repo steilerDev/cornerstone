@@ -1,7 +1,7 @@
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useToast } from './ToastContext.js';
-import type { ToastVariant } from './ToastContext.js';
+import type { Toast, ToastVariant } from './ToastContext.js';
 import styles from './Toast.module.css';
 
 // ---------------------------------------------------------------------------
@@ -81,48 +81,107 @@ const TOAST_ICONS: Record<ToastVariant, React.ComponentType> = {
   success: SuccessIcon,
   info: InfoIcon,
   error: ErrorIcon,
+  undo: SuccessIcon,
 };
 
 const TOAST_VARIANT_CLASS: Record<ToastVariant, string> = {
   success: styles.toastSuccess!,
   info: styles.toastInfo!,
   error: styles.toastError!,
+  undo: styles.toastSuccess!,
 };
+
+// ---------------------------------------------------------------------------
+// ToastItem
+// ---------------------------------------------------------------------------
+
+interface ToastItemProps {
+  readonly toast: Toast;
+}
+
+function ToastItem({ toast }: ToastItemProps) {
+  const { t } = useTranslation('common');
+  const { dismissToast, pauseToast, resumeToast, undoToast } = useToast();
+  const Icon = TOAST_ICONS[toast.variant];
+  const isUndo = toast.variant === 'undo';
+
+  const pauseProps = isUndo
+    ? {
+        onMouseEnter: () => pauseToast(toast.id),
+        onMouseLeave: () => resumeToast(toast.id),
+        onFocus: (e: React.FocusEvent<HTMLDivElement>) => {
+          // Only the first focus entering the toast pauses.
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) pauseToast(toast.id);
+        },
+        onBlur: (e: React.FocusEvent<HTMLDivElement>) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) resumeToast(toast.id);
+        },
+      }
+    : {};
+
+  return (
+    <div
+      className={`${styles.toast} ${TOAST_VARIANT_CLASS[toast.variant]}`}
+      data-testid={`toast-${toast.variant}`}
+      data-toast-id={toast.id}
+      {...pauseProps}
+    >
+      <Icon />
+      <span className={styles.message}>{toast.message}</span>
+      {isUndo && (
+        <button
+          type="button"
+          className={styles.undoButton}
+          aria-keyshortcuts="Control+Z Meta+Z"
+          aria-disabled={toast.busy ? 'true' : undefined}
+          data-testid="toast-undo-button"
+          onClick={() => {
+            if (!toast.busy) void undoToast(toast.id);
+          }}
+        >
+          {toast.busy ? t('undoToast.undoing') : t('undoToast.undo')}
+        </button>
+      )}
+      <button
+        type="button"
+        className={styles.dismiss}
+        aria-label={t('toast.dismissAriaLabel')}
+        onClick={() => dismissToast(toast.id)}
+      >
+        <DismissIcon />
+      </button>
+    </div>
+  );
+}
 
 // ---------------------------------------------------------------------------
 // ToastList — rendered via portal to document.body
 // ---------------------------------------------------------------------------
 
+/**
+ * Two persistent live regions (they must exist before a toast arrives to be announced):
+ * polite status for success / info / undo, assertive for errors. Individual toasts carry no
+ * role (D14).
+ */
 export function ToastList() {
-  const { t } = useTranslation('common');
-  const { toasts, dismissToast } = useToast();
-
-  if (toasts.length === 0) return null;
+  const { toasts } = useToast();
 
   return createPortal(
-    <div className={styles.container} role="status" aria-live="polite" aria-atomic="false">
-      {toasts.map((toast) => {
-        const Icon = TOAST_ICONS[toast.variant];
-        return (
-          <div
-            key={toast.id}
-            className={`${styles.toast} ${TOAST_VARIANT_CLASS[toast.variant]}`}
-            role="alert"
-            data-testid={`toast-${toast.variant}`}
-          >
-            <Icon />
-            <span className={styles.message}>{toast.message}</span>
-            <button
-              type="button"
-              className={styles.dismiss}
-              aria-label={t('toast.dismissAriaLabel')}
-              onClick={() => dismissToast(toast.id)}
-            >
-              <DismissIcon />
-            </button>
-          </div>
-        );
-      })}
+    <div className={styles.container}>
+      <div role="status" className={styles.region}>
+        {toasts
+          .filter((toast) => toast.variant !== 'error')
+          .map((toast) => (
+            <ToastItem key={toast.id} toast={toast} />
+          ))}
+      </div>
+      <div aria-live="assertive" className={styles.region}>
+        {toasts
+          .filter((toast) => toast.variant === 'error')
+          .map((toast) => (
+            <ToastItem key={toast.id} toast={toast} />
+          ))}
+      </div>
     </div>,
     document.body,
   );

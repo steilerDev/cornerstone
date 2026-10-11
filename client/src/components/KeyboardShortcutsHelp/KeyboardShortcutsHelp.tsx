@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
+import { isApplePlatform } from '../../lib/platform.js';
 import { EmptyState } from '../EmptyState/EmptyState.js';
 import { Modal } from '../Modal/Modal.js';
 import styles from './KeyboardShortcutsHelp.module.css';
@@ -42,6 +43,21 @@ export function KeyboardShortcutsHelp({
           </tbody>
         </table>
       )}
+      <h3 className={styles.sectionHeading}>{t('keyboardShortcuts.everywhere')}</h3>
+      <table className={styles.shortcutsTable}>
+        <tbody>
+          <tr>
+            <td className={styles.keyCell}>
+              <kbd className={styles.kbd}>
+                {isApplePlatform()
+                  ? t('undoToast.shortcutKeyApple')
+                  : t('undoToast.shortcutKeyOther')}
+              </kbd>
+            </td>
+            <td className={styles.descriptionCell}>{t('undoToast.shortcutHelp')}</td>
+          </tr>
+        </tbody>
+      </table>
     </Modal>
   );
 }

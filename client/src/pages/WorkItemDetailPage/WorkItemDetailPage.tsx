@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, type FormEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
+import { routeUrl } from '@cornerstone/shared';
 import type {
   WorkItemDetail,
   WorkItemStatus,
@@ -91,6 +91,13 @@ import type { AutosaveState } from '../../components/AutosaveIndicator/AutosaveI
 import { LinkedDocumentsSection } from '../../components/documents/LinkedDocumentsSection.js';
 import { useBudgetSection, type BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { Badge } from '../../components/Badge/Badge.js';
+import { ConfirmDialog } from '../../components/ConfirmDialog/ConfirmDialog.js';
+import { StatusMenu } from '../../components/StatusMenu/StatusMenu.js';
+import { taskTransitions } from '../../components/StatusMenu/statusVocabularies.js';
+import { focusPageHeading } from '../../lib/focusPageHeading.js';
+import { useDeleteImpact } from '../../hooks/useDeleteImpact.js';
+import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js';
+import { changeWorkItemStatus, workItemStatusBody } from '../../lib/statusChangeApi.js';
 import { scheduleSignalBadgeProps } from '../../components/Badge/statusBadgeVariants.js';
 import {
   barDates,
@@ -222,6 +229,11 @@ export default function WorkItemDetailPage() {
 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteWorkItemError, setDeleteWorkItemError] = useState<string | null>(null);
+  const [deleteWorkItemBlocked, setDeleteWorkItemBlocked] = useState(false);
+  // Shared by the note / subtask / dependency confirmations (only one is open at a time)
+  const [confirmBusy, setConfirmBusy] = useState(false);
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
@@ -338,6 +350,10 @@ export default function WorkItemDetailPage() {
   const [deletingNoteId, setDeletingNoteId] = useState<string | null>(null);
   const [deletingSubtaskId, setDeletingSubtaskId] = useState<string | null>(null);
   const [deletingDependency, setDeletingDependency] = useState<DeletingDependency | null>(null);
+  const deleteWorkItemConsequences = useDeleteImpact(
+    'work_item',
+    showDeleteConfirm ? (id ?? null) : null,
+  );
 
   // Load all data on mount
   useEffect(() => {
@@ -482,25 +498,8 @@ export default function WorkItemDetailPage() {
     confirmDeleteBudgetLine,
     handleLinkSubsidy: hookHandleLinkSubsidy,
     handleUnlinkSubsidy: hookHandleUnlinkSubsidy,
-    deletingBudgetId,
     selectedSubsidyId,
-    setDeletingBudgetId,
   } = budgetSection;
-
-  // Handle delete confirmation with inline error management
-  const handleConfirmDeleteBudgetLine = async () => {
-    try {
-      await confirmDeleteBudgetLine();
-    } catch (err) {
-      if (err instanceof ApiClientError) {
-        setBudgetError(translateApiError(err.error.code, tErrors));
-      } else if (err instanceof NetworkError) {
-        setBudgetError(tCommon('requestErrors.network'));
-      } else {
-        setBudgetError(tBudget('budgetLineForm.errors.deleteFailed'));
-      }
-    }
-  };
 
   // ─── Subsidy linking handlers (delegates to hook after API calls) ──────────
 
@@ -783,17 +782,19 @@ export default function WorkItemDetailPage() {
     setEditedDescription('');
   };
 
-  // Status change
-  const handleStatusChange = async (newStatus: WorkItemStatus) => {
-    if (!id) return;
+  // Status change (StatusMenu): the PATCH may return an undo token for the toast
+  const { run: runStatusChange } = useUndoableStatusChange();
+  const handleStatusChange = async (newStatus: WorkItemStatus, date: string | null) => {
+    if (!id || !workItem) return;
     setInlineError(null);
-    try {
-      await updateWorkItem(id, { status: newStatus });
-      await reloadWorkItem();
-    } catch (err) {
-      setInlineError(t('detail.inlineErrors.updateStatus'));
-      console.error('Failed to update status:', err);
-    }
+    await runStatusChange({
+      request: () => changeWorkItemStatus(id, workItemStatusBody(newStatus, date)),
+      recordName: workItem.title,
+      statusLabel: statusVariants.task[newStatus].label,
+      dedupeKey: `task:${id}`,
+      onChanged: () => void reloadWorkItem(),
+      onUndone: reloadWorkItem,
+    });
   };
 
   // Assigned user change
@@ -949,19 +950,25 @@ export default function WorkItemDetailPage() {
 
   const handleDeleteNote = async (noteId: string) => {
     if (!id) return;
+    setConfirmError(null);
     setDeletingNoteId(noteId);
   };
 
   const confirmDeleteNote = async () => {
     if (!id || !deletingNoteId) return;
     setInlineError(null);
+    setConfirmError(null);
+    setConfirmBusy(true);
     try {
       await deleteNote(id, deletingNoteId);
+      focusPageHeading();
       setDeletingNoteId(null);
       await reloadNotes();
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.deleteNote'));
+      setConfirmError(t('detail.inlineErrors.deleteNote'));
       console.error('Failed to delete note:', err);
+    } finally {
+      setConfirmBusy(false);
     }
   };
 
@@ -1022,19 +1029,25 @@ export default function WorkItemDetailPage() {
 
   const handleDeleteSubtask = async (subtaskId: string) => {
     if (!id) return;
+    setConfirmError(null);
     setDeletingSubtaskId(subtaskId);
   };
 
   const confirmDeleteSubtask = async () => {
     if (!id || !deletingSubtaskId) return;
     setInlineError(null);
+    setConfirmError(null);
+    setConfirmBusy(true);
     try {
       await deleteSubtask(id, deletingSubtaskId);
+      focusPageHeading();
       setDeletingSubtaskId(null);
       await reloadSubtasks();
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.deleteSubtask'));
+      setConfirmError(t('detail.inlineErrors.deleteSubtask'));
       console.error('Failed to delete subtask:', err);
+    } finally {
+      setConfirmBusy(false);
     }
   };
 
@@ -1104,12 +1117,15 @@ export default function WorkItemDetailPage() {
     title: string,
   ) => {
     if (!id) return;
+    setConfirmError(null);
     setDeletingDependency({ type, workItemId, title });
   };
 
   const confirmDeleteDependency = async () => {
     if (!id || !deletingDependency) return;
     setInlineError(null);
+    setConfirmError(null);
+    setConfirmBusy(true);
     try {
       if (deletingDependency.type === 'predecessor') {
         await deleteDependency(id, deletingDependency.workItemId);
@@ -1117,11 +1133,14 @@ export default function WorkItemDetailPage() {
         // For successors, swap: delete from the successor's perspective
         await deleteDependency(deletingDependency.workItemId, id);
       }
+      focusPageHeading();
       setDeletingDependency(null);
       await reloadDependencies();
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.removeDependency'));
+      setConfirmError(t('detail.inlineErrors.removeDependency'));
       console.error('Failed to remove dependency:', err);
+    } finally {
+      setConfirmBusy(false);
     }
   };
 
@@ -1130,11 +1149,19 @@ export default function WorkItemDetailPage() {
     if (!id) return;
     setIsDeleting(true);
     setInlineError(null);
+    setDeleteWorkItemError(null);
     try {
       await deleteWorkItem(id);
       navigate(routeUrl('workItems'), { replace: true });
     } catch (err) {
-      setInlineError(t('detail.inlineErrors.deleteWorkItem'));
+      if (err instanceof ApiClientError) {
+        setDeleteWorkItemBlocked(err.statusCode === 409);
+        setDeleteWorkItemError(translateApiError(err.error.code, tErrors));
+      } else if (err instanceof NetworkError) {
+        setDeleteWorkItemError(tCommon('requestErrors.network'));
+      } else {
+        setDeleteWorkItemError(t('detail.inlineErrors.deleteWorkItem'));
+      }
       console.error('Failed to delete work item:', err);
       setIsDeleting(false);
     }
@@ -1420,17 +1447,13 @@ export default function WorkItemDetailPage() {
                 testId="work-item-schedule-signal"
               />
             )}
-            <select
-              className={styles.statusSelect}
-              value={workItem.status}
-              onChange={(e) => handleStatusChange(e.target.value as WorkItemStatus)}
-            >
-              {WORK_ITEM_STATUSES.map((status) => (
-                <option key={status} value={status}>
-                  {statusVariants.task[status].label}
-                </option>
-              ))}
-            </select>
+            <StatusMenu
+              testId="work-item-status"
+              transitions={taskTransitions(tCommon, workItem)}
+              badge={{ variants: statusVariants.task, value: workItem.status }}
+              currentLabel={statusVariants.task[workItem.status].label}
+              onApply={handleStatusChange}
+            />
           </div>
         </div>
       </div>
@@ -1558,7 +1581,7 @@ export default function WorkItemDetailPage() {
               budgetCategories={budgetCategories}
               onLinkSubsidy={handleLinkSubsidy}
               onUnlinkSubsidy={handleUnlinkSubsidy}
-              onConfirmDeleteBudgetLine={handleConfirmDeleteBudgetLine}
+              onConfirmDeleteBudgetLine={confirmDeleteBudgetLine}
               budgetLineType="work_item"
               onLinkInvoice={handleLinkInvoice}
               onUnlinkInvoice={handleUnlinkInvoice}
@@ -2142,40 +2165,21 @@ export default function WorkItemDetailPage() {
         </button>
       </footer>
 
-      {/* Delete confirmation modal */}
+      {/* Delete confirmation */}
       {showDeleteConfirm && (
-        <div className={styles.modal}>
-          <div
-            className={styles.modalBackdrop}
-            onClick={() => !isDeleting && setShowDeleteConfirm(false)}
-          />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('detail.modals.deleteWorkItem.title')}</h2>
-            <p className={styles.modalText}>
-              {t('detail.modals.deleteWorkItem.text', { title: workItem.title })}
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setShowDeleteConfirm(false)}
-                disabled={isDeleting}
-              >
-                {t('detail.modals.deleteWorkItem.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={handleDeleteWorkItem}
-                disabled={isDeleting}
-              >
-                {isDeleting
-                  ? t('detail.modals.deleteWorkItem.deleting')
-                  : t('detail.modals.deleteWorkItem.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', { name: workItem.title })}
+          consequences={deleteWorkItemConsequences}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={isDeleting}
+          error={deleteWorkItemError}
+          blocked={deleteWorkItemBlocked}
+          onConfirm={() => void handleDeleteWorkItem()}
+          onCancel={() => setShowDeleteConfirm(false)}
+          testIdPrefix="work-item-delete"
+        />
       )}
 
       {/* Keyboard shortcuts help */}
@@ -2183,120 +2187,59 @@ export default function WorkItemDetailPage() {
         <KeyboardShortcutsHelp shortcuts={shortcuts} onClose={() => setShowShortcutsHelp(false)} />
       )}
 
-      {/* Note deletion confirmation modal */}
+      {/* Note deletion confirmation */}
       {deletingNoteId && (
-        <div className={styles.modal}>
-          <div className={styles.modalBackdrop} onClick={() => setDeletingNoteId(null)} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('detail.modals.deleteNote.title')}</h2>
-            <p className={styles.modalText}>{t('detail.modals.deleteNote.text')}</p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setDeletingNoteId(null)}
-              >
-                {t('detail.modals.deleteNote.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={confirmDeleteNote}
-              >
-                {t('detail.modals.deleteNote.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t('detail.modals.deleteNote.title')}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={confirmBusy}
+          error={confirmError}
+          onConfirm={() => void confirmDeleteNote()}
+          onCancel={() => setDeletingNoteId(null)}
+          testIdPrefix="note-delete"
+        />
       )}
 
-      {/* Subtask deletion confirmation modal */}
+      {/* Subtask deletion confirmation */}
       {deletingSubtaskId && (
-        <div className={styles.modal}>
-          <div className={styles.modalBackdrop} onClick={() => setDeletingSubtaskId(null)} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('detail.modals.deleteSubtask.title')}</h2>
-            <p className={styles.modalText}>{t('detail.modals.deleteSubtask.text')}</p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setDeletingSubtaskId(null)}
-              >
-                {t('detail.modals.deleteSubtask.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={confirmDeleteSubtask}
-              >
-                {t('detail.modals.deleteSubtask.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={tCommon('confirmDialog.deleteTitle', {
+            name: subtasks.find((subtask) => subtask.id === deletingSubtaskId)?.title ?? '',
+          })}
+          irreversible
+          confirmLabel={tCommon('button.delete')}
+          busyLabel={tCommon('confirmDialog.deleting')}
+          busy={confirmBusy}
+          error={confirmError}
+          onConfirm={() => void confirmDeleteSubtask()}
+          onCancel={() => setDeletingSubtaskId(null)}
+          testIdPrefix="subtask-delete"
+        />
       )}
 
-      {/* Dependency deletion confirmation modal */}
+      {/* Dependency removal confirmation */}
       {deletingDependency && (
-        <div className={styles.modal}>
-          <div className={styles.modalBackdrop} onClick={() => setDeletingDependency(null)} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('detail.modals.removeDependency.title')}</h2>
-            <p className={styles.modalText}>
-              {deletingDependency.type === 'predecessor'
-                ? t('detail.modals.removeDependency.textPredecessor', {
-                    title: deletingDependency.title,
-                  })
-                : t('detail.modals.removeDependency.textSuccessor', {
-                    title: deletingDependency.title,
-                  })}
-            </p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setDeletingDependency(null)}
-              >
-                {t('detail.modals.removeDependency.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={confirmDeleteDependency}
-              >
-                {t('detail.modals.removeDependency.remove')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Budget line deletion confirmation modal */}
-      {deletingBudgetId && (
-        <div className={styles.modal}>
-          <div className={styles.modalBackdrop} onClick={() => setDeletingBudgetId(null)} />
-          <div className={styles.modalContent}>
-            <h2 className={styles.modalTitle}>{t('detail.modals.deleteBudgetLine.title')}</h2>
-            <p className={styles.modalText}>{t('detail.modals.deleteBudgetLine.text')}</p>
-            <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.modalCancelButton}
-                onClick={() => setDeletingBudgetId(null)}
-              >
-                {t('detail.modals.deleteBudgetLine.cancel')}
-              </button>
-              <button
-                type="button"
-                className={styles.modalDeleteButton}
-                onClick={handleConfirmDeleteBudgetLine}
-              >
-                {t('detail.modals.deleteBudgetLine.delete')}
-              </button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDialog
+          title={t('detail.modals.removeDependency.title')}
+          lead={
+            deletingDependency.type === 'predecessor'
+              ? t('detail.modals.removeDependency.textPredecessor', {
+                  title: deletingDependency.title,
+                })
+              : t('detail.modals.removeDependency.textSuccessor', {
+                  title: deletingDependency.title,
+                })
+          }
+          confirmLabel={t('detail.modals.removeDependency.remove')}
+          busyLabel={t('detail.modals.removeDependency.removing')}
+          busy={confirmBusy}
+          error={confirmError}
+          onConfirm={() => void confirmDeleteDependency()}
+          onCancel={() => setDeletingDependency(null)}
+          testIdPrefix="dependency-remove"
+        />
       )}
 
       {/* Invoice link modal */}
