@@ -1047,7 +1047,6 @@ describe('Trade Routes', () => {
     it.each([
       ['a missing targetTradeId', {}],
       ['an empty targetTradeId', { targetTradeId: '' }],
-      ['an unknown extra property', { targetTradeId: 'x', extra: 1 }],
       ['a non-string targetTradeId', { targetTradeId: 5 }],
     ])('returns 400 VALIDATION_ERROR for %s', async (_label, body) => {
       const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
@@ -1056,6 +1055,32 @@ describe('Trade Routes', () => {
       expect(res.statusCode).toBe(400);
       expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
       expect(app.db.select().from(trades).all()).toHaveLength(1);
+    });
+
+    it('strips an unknown extra property: a real target still merges (200)', async () => {
+      const { cookie } = await createUserWithSession('u@test.com', 'User', 'password');
+      const a = createTestTrade('Source Trade');
+      const b = createTestTrade('Target Trade');
+      const v = createTestVendor(a.id);
+
+      const res = await merge(a.id, { targetTradeId: b.id, extra: 1 }, cookie);
+
+      expect(res.statusCode).toBe(200);
+      expect(res.json<{ movedVendorCount: number }>().movedVendorCount).toBe(1);
+      expect(
+        app.db
+          .select()
+          .from(trades)
+          .all()
+          .map((t) => t.id),
+      ).toEqual([b.id]);
+      expect(
+        app.db
+          .select()
+          .from(vendors)
+          .all()
+          .find((r) => r.id === v)!.tradeId,
+      ).toBe(b.id);
     });
 
     it('returns 400 when the target is the same trade', async () => {

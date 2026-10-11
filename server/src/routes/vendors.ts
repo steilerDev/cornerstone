@@ -2,7 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as vendorService from '../services/vendorService.js';
 import { parseTradeIds } from '../services/shared/tradeIdsParam.js';
-import { VENDOR_SORT_FIELDS } from '@cornerstone/shared';
+import { SEARCH_QUERY_RAW_MAX_LENGTH, VENDOR_SORT_FIELDS } from '@cornerstone/shared';
 import type {
   CreateVendorRequest,
   UpdateVendorRequest,
@@ -16,7 +16,7 @@ const listVendorsSchema = {
     properties: {
       page: { type: 'integer', minimum: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
-      q: { type: 'string' },
+      q: { type: 'string', maxLength: SEARCH_QUERY_RAW_MAX_LENGTH },
       // Count and id length limits are enforced by parseTradeIds; this only caps the raw string.
       tradeIds: { type: 'string', maxLength: 8000 },
       tradeId: { type: 'string' },

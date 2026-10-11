@@ -110,7 +110,9 @@
 
 .textButton:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
   border-radius: var(--radius-sm);
 }
 

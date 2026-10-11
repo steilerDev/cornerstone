@@ -2,7 +2,8 @@
  * @jest-environment jsdom
  */
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { act, render, screen, fireEvent } from '@testing-library/react';
+import i18n from '../../i18n/index.js';
 import { CallButton } from './CallButton.js';
 
 describe('CallButton', () => {
@@ -113,6 +114,42 @@ describe('CallButton', () => {
     it('hides the icon from assistive technology', () => {
       const { container } = render(<CallButton phone="555-0142" name="Sample Roofing Co" />);
       expect(container.querySelector('svg')).toHaveAttribute('aria-hidden', 'true');
+    });
+  });
+});
+
+describe('CallButton in German (WCAG 2.5.3)', () => {
+  const inGerman = async (fn: () => void) => {
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+    try {
+      fn();
+    } finally {
+      await act(async () => {
+        await i18n.changeLanguage('en');
+      });
+    }
+  };
+
+  it('plain variant: the accessible name starts with the visible text "Anrufen"', async () => {
+    await inGerman(() => {
+      render(<CallButton phone="555-0142" name="Muster Dach GmbH" />);
+      const link = screen.getByRole('link');
+
+      expect(link.textContent).toBe('Anrufen');
+      expect(link).toHaveAccessibleName('Anrufen, Muster Dach GmbH, 555-0142');
+      expect(link.getAttribute('aria-label')!.startsWith('Anrufen')).toBe(true);
+    });
+  });
+
+  it('number variant: the accessible name starts with the visible text', async () => {
+    await inGerman(() => {
+      render(<CallButton phone="555-0142" name="Muster Dach GmbH" showNumber />);
+      const link = screen.getByRole('link');
+
+      expect(link.textContent).toBe('555-0142 anrufen');
+      expect(link.getAttribute('aria-label')!.startsWith(link.textContent!)).toBe(true);
     });
   });
 });

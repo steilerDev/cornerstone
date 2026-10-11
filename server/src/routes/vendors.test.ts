@@ -552,6 +552,16 @@ describe('Vendor Routes', () => {
         expect(body.error.details).toHaveProperty('tradeIds');
       });
 
+      it('accepts a q of exactly 500 characters', async () => {
+        expect((await list(`q=${'a'.repeat(500)}`)).statusCode).toBe(200);
+      });
+
+      it('rejects a q of 501 characters with VALIDATION_ERROR', async () => {
+        const res = await list(`q=${'a'.repeat(501)}`);
+        expect(res.statusCode).toBe(400);
+        expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      });
+
       it('rejects an id longer than 64 characters', async () => {
         const res = await list(`q=a&tradeIds=${'x'.repeat(65)}`);
         expect(res.statusCode).toBe(400);

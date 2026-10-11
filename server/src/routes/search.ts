@@ -3,6 +3,7 @@ import {
   SEARCH_DEFAULT_LIMIT,
   SEARCH_MAX_LIMIT,
   SEARCH_QUERY_MAX_LENGTH,
+  SEARCH_QUERY_RAW_MAX_LENGTH,
   SEARCH_QUERY_MIN_LENGTH,
   SEARCH_RESULT_TYPES,
 } from '@cornerstone/shared';
@@ -19,7 +20,7 @@ const searchSchema = {
     required: ['q'],
     properties: {
       // Generous upper bound here; the trimmed length is checked in the handler (2-100).
-      q: { type: 'string', maxLength: 500 },
+      q: { type: 'string', maxLength: SEARCH_QUERY_RAW_MAX_LENGTH },
       types: { type: 'string', maxLength: 300 },
       limit: { type: 'integer', minimum: 1, maximum: SEARCH_MAX_LIMIT },
       // Count and id length limits are enforced by parseTradeIds; this only caps the raw string.

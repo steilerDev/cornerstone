@@ -35,6 +35,8 @@ export type SearchMatchedField = (typeof SEARCH_MATCHED_FIELDS)[number];
 
 export const SEARCH_QUERY_MIN_LENGTH = 2;
 export const SEARCH_QUERY_MAX_LENGTH = 100;
+/** Cap on the raw (untrimmed) q parameter of list and search endpoints. */
+export const SEARCH_QUERY_RAW_MAX_LENGTH = 500;
 export const SEARCH_DEFAULT_LIMIT = 5;
 export const SEARCH_MAX_LIMIT = 20;
 

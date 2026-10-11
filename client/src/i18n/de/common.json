@@ -433,7 +433,7 @@
   "callButton": {
     "call": "Anrufen",
     "callNumber": "{{number}} anrufen",
-    "aria": "{{name}} unter {{number}} anrufen",
+    "aria": "Anrufen, {{name}}, {{number}}",
     "ariaNumberFirst": "{{number}} anrufen, {{name}}"
   },
   "commandSearch": {

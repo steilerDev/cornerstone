@@ -4,7 +4,7 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, useLocation } from 'react-router-dom';
+import { MemoryRouter, useLocation, useNavigate } from 'react-router-dom';
 import { installMatchMedia } from '../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormSchema } from '../components/ObjectForm/types.js';
@@ -222,5 +222,100 @@ describe('CompanyCreateProvider', () => {
     await second.result;
 
     expect(screen.getByTestId('loc')).toHaveTextContent('/diary/new?date=2026-03-01');
+  });
+
+  describe('leaving the page while the form is open (#2213)', () => {
+    function Nav() {
+      const navigate = useNavigate();
+      const location = useLocation();
+      return (
+        <>
+          <output data-testid="where">{`${location.pathname}${location.search}`}</output>
+          <button type="button" data-testid="go-other" onClick={() => void navigate('/other')} />
+          <button
+            type="button"
+            data-testid="replace-query"
+            onClick={() => void navigate('/diary/new?date=2026-03-01', { replace: true })}
+          />
+          <button type="button" data-testid="push-query" onClick={() => void navigate('?x=1')} />
+        </>
+      );
+    }
+
+    function setupNav() {
+      latest = null;
+      return render(
+        <MemoryRouter initialEntries={['/diary/new']}>
+          <Provider>
+            <Probe />
+            <Nav />
+          </Provider>
+        </MemoryRouter>,
+      );
+    }
+
+    it('a pathname change resolves the request to null and unmounts the form', async () => {
+      const user = userEvent.setup();
+      setupNav();
+      const { result } = open('Brand New Co');
+      await screen.findByRole('dialog');
+
+      await user.click(screen.getByTestId('go-other'));
+
+      await expect(result).resolves.toBeNull();
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(mockSubmit).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByTestId('creating')).toHaveTextContent('false'));
+    });
+
+    it('a query-only replace on the same pathname keeps the form open', async () => {
+      const user = userEvent.setup();
+      setupNav();
+      open('Brand New Co');
+      await screen.findByRole('dialog');
+
+      await user.click(screen.getByTestId('replace-query'));
+
+      expect(screen.getByTestId('where')).toHaveTextContent('/diary/new?date=2026-03-01');
+      expect(screen.getByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+      expect(nameInput()).toHaveValue('Brand New Co');
+    });
+
+    it('a query-only push on the same pathname keeps the form open too', async () => {
+      const user = userEvent.setup();
+      setupNav();
+      open('Brand New Co');
+      await screen.findByRole('dialog');
+
+      await user.click(screen.getByTestId('push-query'));
+
+      expect(screen.getByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+    });
+
+    it('a pathname change with no request open does nothing and a later request still works', async () => {
+      const user = userEvent.setup();
+      setupNav();
+
+      await user.click(screen.getByTestId('go-other'));
+      open('Later Co');
+
+      expect(await screen.findByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+      expect(nameInput()).toHaveValue('Later Co');
+    });
+
+    it('after the page change the form can be opened again on the new page', async () => {
+      const user = userEvent.setup();
+      setupNav();
+      const first = open('First Co');
+      await screen.findByRole('dialog');
+      await user.click(screen.getByTestId('go-other'));
+      await first.result;
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+
+      open('Second Co');
+
+      expect(await screen.findByRole('dialog')).toBeInTheDocument();
+      expect(nameInput()).toHaveValue('Second Co');
+    });
   });
 });
