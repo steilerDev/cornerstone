@@ -1,5 +1,22 @@
 import { describe, it, expect } from '@jest/globals';
-import { toLikeContainsPattern } from './likePattern.js';
+import { toLikeContainsPattern, toLikePrefixPattern } from './likePattern.js';
+
+describe('toLikePrefixPattern', () => {
+  it('appends a percent wildcard only at the end', () => {
+    expect(toLikePrefixPattern('abc')).toBe('abc%');
+  });
+
+  it('escapes percent, underscore and backslash', () => {
+    expect(toLikePrefixPattern('50%')).toBe('50\\%%');
+    expect(toLikePrefixPattern('a_b')).toBe('a\\_b%');
+    expect(toLikePrefixPattern('a\\b')).toBe('a\\\\b%');
+    expect(toLikePrefixPattern('%_\\')).toBe('\\%\\_\\\\%');
+  });
+
+  it('returns a match-all pattern for an empty term', () => {
+    expect(toLikePrefixPattern('')).toBe('%');
+  });
+});
 
 describe('toLikeContainsPattern', () => {
   it('wraps a plain term in percent wildcards', () => {

@@ -63,6 +63,7 @@ import davRoutes from './routes/dav.js';
 import backupRoutes from './routes/backups.js';
 import undoRoutes from './routes/undo.js';
 import deleteImpactRoutes from './routes/deleteImpact.js';
+import searchRoutes from './routes/search.js';
 import * as backupService from './services/backupService.js';
 import * as draftCleanupService from './services/draftCleanupService.js';
 import { hashPassword, verifyPassword } from './services/userService.js';
@@ -275,6 +276,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // Undo snapshots and delete-impact counts (EPIC-21 story 1.3)
   await app.register(undoRoutes, { prefix: '/api/undo' });
   await app.register(deleteImpactRoutes, { prefix: '/api/delete-impact' });
+  await app.register(searchRoutes, { prefix: '/api/search' });
 
   // Initialize automatic backup scheduler (if configured)
   backupService.initScheduler(app.db, app.config, app.log);

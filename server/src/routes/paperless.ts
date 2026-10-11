@@ -176,7 +176,12 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       }
 
       const { baseUrl, token } = requirePaperless(fastify);
-      const document = await paperlessService.getDocument(baseUrl, token, request.params.id);
+      const document = await paperlessService.getDocument(
+        baseUrl,
+        token,
+        request.params.id,
+        fastify.config.paperlessFilterTag,
+      );
       return reply.status(200).send({ document });
     },
   );
@@ -199,6 +204,12 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       }
 
       const { baseUrl, token } = requirePaperless(fastify);
+      await paperlessService.assertDocumentReadable(
+        baseUrl,
+        token,
+        request.params.id,
+        fastify.config.paperlessFilterTag,
+      );
       const upstream = await paperlessService.fetchBinary(
         baseUrl,
         token,
@@ -239,6 +250,12 @@ export default async function paperlessRoutes(fastify: FastifyInstance) {
       }
 
       const { baseUrl, token } = requirePaperless(fastify);
+      await paperlessService.assertDocumentReadable(
+        baseUrl,
+        token,
+        request.params.id,
+        fastify.config.paperlessFilterTag,
+      );
       const upstream = await paperlessService.fetchBinary(
         baseUrl,
         token,

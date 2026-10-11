@@ -101,10 +101,18 @@ function upstreamErrorMessage(response: Response): string {
  * Perform an authenticated JSON request to Paperless-ngx.
  * Throws AppError with appropriate codes on failure.
  */
-async function fetchPaperless<T>(baseUrl: string, token: string, path: string): Promise<T> {
+async function fetchPaperless<T>(
+  baseUrl: string,
+  token: string,
+  path: string,
+  init?: { signal?: AbortSignal },
+): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl}${path}`, { headers: makeHeaders(token) });
+    response = await fetch(`${baseUrl}${path}`, {
+      headers: makeHeaders(token),
+      signal: init?.signal,
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     throw new AppError('PAPERLESS_UNREACHABLE', 502, `Cannot connect to Paperless-ngx: ${message}`);
@@ -287,6 +295,7 @@ export async function resolveFilterTagId(
   baseUrl: string,
   token: string,
   tagName: string,
+  init?: { signal?: AbortSignal },
 ): Promise<number | null> {
   if (resolvedFilterTagName === tagName && resolvedFilterTagId !== null) {
     return resolvedFilterTagId;
@@ -296,11 +305,12 @@ export async function resolveFilterTagId(
       baseUrl,
       token,
       '/api/tags/?page_size=1000',
+      init,
     );
     const match = data.results.find((t) => t.name.toLowerCase() === tagName.toLowerCase());
     if (!match) {
       console.warn(
-        `[paperlessService] PAPERLESS_FILTER_TAG="${tagName}" not found in Paperless-ngx. All documents will be shown.`,
+        `[paperlessService] PAPERLESS_FILTER_TAG="${tagName}" not found in Paperless-ngx. Document listing, search and reads will fail until the tag exists.`,
       );
       resolvedFilterTagId = null;
       resolvedFilterTagName = tagName;
@@ -312,6 +322,99 @@ export async function resolveFilterTagId(
   } catch {
     return null;
   }
+}
+
+/**
+ * Resolve the configured filter tag, failing closed: when a filter tag is configured but cannot
+ * be resolved (not found, lookup error, timeout), throw instead of exposing untagged documents.
+ * Returns null only when no filter tag is configured.
+ * @throws AppError('PAPERLESS_ERROR', 502)
+ */
+async function requireFilterTagId(
+  baseUrl: string,
+  token: string,
+  filterTagName: string | null | undefined,
+  init?: { signal?: AbortSignal },
+): Promise<number | null> {
+  if (!filterTagName) return null;
+  const id = await resolveFilterTagId(baseUrl, token, filterTagName, init);
+  if (id == null) {
+    throw new AppError('PAPERLESS_ERROR', 502, 'Paperless-ngx filter tag could not be resolved');
+  }
+  return id;
+}
+
+/**
+ * Enforce the filter tag on a by-id read: a document that does not carry the configured tag is
+ * reported exactly like a missing one, so existence is not leaked.
+ */
+function assertCarriesFilterTag(tagIds: number[], filterTagId: number | null): void {
+  if (filterTagId !== null && !tagIds.includes(filterTagId)) {
+    throw new AppError('NOT_FOUND', 404, 'Document not found in Paperless-ngx');
+  }
+}
+
+/**
+ * Check, via one metadata request, that a document is readable under the configured filter tag
+ * before its binary (thumbnail, preview) is streamed. No-op when no filter tag is configured.
+ * @throws AppError('NOT_FOUND') for a missing document or one without the tag
+ * @throws AppError('PAPERLESS_ERROR') when the filter tag cannot be resolved
+ */
+export async function assertDocumentReadable(
+  baseUrl: string,
+  token: string,
+  id: number,
+  filterTagName: string | null | undefined,
+): Promise<void> {
+  const filterTagId = await requireFilterTagId(baseUrl, token, filterTagName);
+  if (filterTagId === null) return;
+  const rawDoc = await fetchPaperless<{ tags: number[] }>(baseUrl, token, `/api/documents/${id}/`);
+  assertCarriesFilterTag(rawDoc.tags ?? [], filterTagId);
+}
+
+/**
+ * Full-text search over Paperless-ngx documents for the global search.
+ * One request, no per-document enrichment (no tag/correspondent/type lookups), results in
+ * Paperless rank order. The caller owns the timeout via `signal`. Errors thrown here carry
+ * neither the token nor the query.
+ */
+export async function searchPaperlessDocuments(
+  baseUrl: string,
+  token: string,
+  query: string,
+  limit: number,
+  filterTagName: string | null | undefined,
+  signal: AbortSignal,
+): Promise<{
+  total: number;
+  documents: { id: number; title: string | null; created: string | null }[];
+}> {
+  const params = new URLSearchParams();
+  params.set('query', query);
+  params.set('page', '1');
+  params.set('page_size', String(limit));
+
+  // Fail closed: never return documents outside the configured filter tag.
+  const filterTagId = await requireFilterTagId(baseUrl, token, filterTagName, { signal });
+  if (filterTagId !== null) {
+    params.set('tags__id__all', String(filterTagId));
+  }
+
+  const raw = await fetchPaperless<RawPaperlessListResponse>(
+    baseUrl,
+    token,
+    `/api/documents/?${params.toString()}`,
+    { signal },
+  );
+
+  return {
+    total: raw.count,
+    documents: raw.results.map((doc) => ({
+      id: doc.id,
+      title: doc.title ?? null,
+      created: doc.created ?? null,
+    })),
+  };
 }
 
 /**
@@ -369,14 +472,11 @@ export async function listDocuments(
 
   // Handle tag filtering: merge filter tag with client-specified tags
   if (filterTagName) {
-    const filterTagId = await resolveFilterTagId(baseUrl, token, filterTagName);
-    if (filterTagId != null) {
-      const clientTagIds = query.tags ? query.tags.split(',').map((s) => s.trim()) : [];
-      const allTagIds = Array.from(new Set([...clientTagIds, String(filterTagId)]));
-      params.set('tags__id__all', allTagIds.join(','));
-    } else if (query.tags) {
-      params.set('tags__id__all', query.tags);
-    }
+    // Fail closed: throws when the configured tag cannot be resolved.
+    const filterTagId = await requireFilterTagId(baseUrl, token, filterTagName);
+    const clientTagIds = query.tags ? query.tags.split(',').map((s) => s.trim()) : [];
+    const allTagIds = Array.from(new Set([...clientTagIds, String(filterTagId)]));
+    params.set('tags__id__all', allTagIds.join(','));
   } else if (query.tags) {
     params.set('tags__id__all', query.tags);
   }
@@ -474,18 +574,22 @@ export async function listDocuments(
 
 /**
  * Fetch metadata for a single Paperless-ngx document (includes full text content).
+ * When a filter tag is configured, a document without it is reported as NOT_FOUND.
  * @throws AppError('NOT_FOUND') if the document does not exist in Paperless-ngx
  */
 export async function getDocument(
   baseUrl: string,
   token: string,
   id: number,
+  filterTagName?: string | null,
 ): Promise<PaperlessDocument> {
+  const filterTagId = await requireFilterTagId(baseUrl, token, filterTagName);
   const rawDoc = await fetchPaperless<RawPaperlessDocument>(
     baseUrl,
     token,
     `/api/documents/${id}/`,
   );
+  assertCarriesFilterTag(rawDoc.tags ?? [], filterTagId);
 
   const tagsMap = await fetchTagsMap(baseUrl, token);
   const [correspondentName, documentTypeName] = await Promise.all([
@@ -504,7 +608,8 @@ export async function getDocument(
  * request, combined with a single tag-list fetch. Unique correspondents and document
  * types are resolved once per batch.
  *
- * Documents that no longer exist in Paperless-ngx are simply absent from the returned map.
+ * Documents that no longer exist in Paperless-ngx, or that lack the configured filter tag, are
+ * simply absent from the returned map.
  *
  * @returns A map of paperless document ID → PaperlessDocument (content is null — list view)
  */
@@ -512,8 +617,17 @@ export async function getDocuments(
   baseUrl: string,
   token: string,
   ids: number[],
+  filterTagName?: string | null,
 ): Promise<Map<number, PaperlessDocument>> {
   if (ids.length === 0) return new Map();
+
+  // Fail closed without failing the caller: when the configured tag cannot be resolved, return
+  // no metadata at all (every document is treated as missing) so enrichment still degrades to null.
+  let filterTagId: number | null = null;
+  if (filterTagName) {
+    filterTagId = await resolveFilterTagId(baseUrl, token, filterTagName);
+    if (filterTagId === null) return new Map();
+  }
 
   const params = new URLSearchParams();
   params.set('id__in', ids.join(','));
@@ -529,7 +643,9 @@ export async function getDocuments(
     ),
   ]);
 
-  const presentDocs = raw.results;
+  // Documents without the configured tag are treated like missing ones (absent from the map).
+  const presentDocs =
+    filterTagId === null ? raw.results : raw.results.filter((d) => d.tags?.includes(filterTagId));
 
   // Resolve unique correspondents and document types in one pass
   const correspondentIds = new Set<number>();
@@ -587,11 +703,9 @@ export async function uploadDocument(
   token: string,
   input: UploadDocumentInput,
 ): Promise<PaperlessUploadResponse> {
-  let tagId: number | null = null;
-  if (input.filterTagName) {
-    tagId = await resolveFilterTagId(baseUrl, token, input.filterTagName);
-    // resolveFilterTagId already warns+returns null on failure — upload proceeds untagged.
-  }
+  // Fail closed: an untagged upload would be invisible in Cornerstone, so nothing is sent
+  // to Paperless-ngx when the configured tag cannot be resolved.
+  const tagId = await requireFilterTagId(baseUrl, token, input.filterTagName);
 
   const form = new FormData();
   form.append(

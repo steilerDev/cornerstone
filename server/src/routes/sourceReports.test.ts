@@ -8,13 +8,14 @@
  * - POST /api/source-reports/mark-claimed (auth, body validation, 409 with details, 200 success)
  */
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { buildApp } from '../app.js';
 import * as userService from '../services/userService.js';
+import { _resetFilterTagCache } from '../services/paperlessService.js';
 import * as sessionService from '../services/sessionService.js';
 import * as schema from '../db/schema.js';
 import type { FastifyInstance } from 'fastify';
@@ -490,6 +491,131 @@ describe('Source Report Routes', () => {
       });
 
       expect(response.statusCode).toBe(200);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // Paperless filter tag (fail-closed enrichment)
+  // ═══════════════════════════════════════════════════════════════════════
+
+  describe('GET /api/source-reports with PAPERLESS_FILTER_TAG', () => {
+    const mockFetch = jest.fn<typeof fetch>();
+    let originalFetch: typeof fetch;
+
+    function json(body: unknown): Response {
+      return {
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () => Promise.resolve(body),
+        headers: { get: () => null },
+      } as unknown as Response;
+    }
+
+    const TAGS = {
+      count: 1,
+      results: [{ id: 5, name: 'house', color: '#112233', document_count: 1 }],
+    };
+    const rawDoc = (tags: number[]) => ({
+      id: 42,
+      title: 'Synthetic scan',
+      content: null,
+      tags,
+      created: '2026-01-15',
+      added: '2026-01-16T08:30:00Z',
+      modified: '2026-01-16T08:30:00Z',
+      correspondent: null,
+      document_type: null,
+      archive_serial_number: 77,
+      original_file_name: 'scan.pdf',
+      page_count: 1,
+    });
+
+    async function seedReport(): Promise<{ cookie: string; sourceId: string }> {
+      await app.close();
+      process.env.PAPERLESS_URL = 'http://paperless:8000';
+      process.env.PAPERLESS_API_TOKEN = 'test-token';
+      process.env.PAPERLESS_FILTER_TAG = 'house';
+      app = await buildApp();
+      const { cookie } = await createUserWithSession();
+      const sourceId = insertSource();
+      const budgetId = insertWorkItemBudget(sourceId);
+      const invId = insertInvoice(insertVendor(), { status: 'paid', amount: 500 });
+      insertInvoiceBudgetLine(invId, budgetId, 500);
+      app.db
+        .insert(schema.documentLinks)
+        .values({
+          id: randomUUID(),
+          entityType: 'invoice',
+          entityId: invId,
+          paperlessDocumentId: 42,
+          attachmentType: null,
+          createdAt: ts(),
+        })
+        .run();
+      return { cookie, sourceId };
+    }
+
+    async function report(cookie: string, sourceId: string) {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/source-reports?type=claim&sourceId=${sourceId}`,
+        headers: { cookie },
+      });
+      expect(response.statusCode).toBe(200);
+      return response.json<{ report: SourceReportResponse }>().report.invoices[0]!.documents[0]!;
+    }
+
+    beforeEach(() => {
+      originalFetch = global.fetch;
+      global.fetch = mockFetch as unknown as typeof fetch;
+      mockFetch.mockReset();
+      _resetFilterTagCache();
+    });
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
+    it('enriches a document that carries the configured tag', async () => {
+      const { cookie, sourceId } = await seedReport();
+      mockFetch
+        .mockResolvedValueOnce(json(TAGS)) // filter tag lookup
+        .mockResolvedValueOnce(json(TAGS)) // tags map
+        .mockResolvedValueOnce(json({ count: 1, results: [rawDoc([5])] }));
+
+      const doc = await report(cookie, sourceId);
+
+      expect(doc.documentId).toBe(42);
+      expect(doc.archiveSerialNumber).toBe(77);
+      expect(doc.title).toBe('Synthetic scan');
+    });
+
+    it('leaves ASN and title null for a document without the configured tag', async () => {
+      const { cookie, sourceId } = await seedReport();
+      mockFetch
+        .mockResolvedValueOnce(json(TAGS))
+        .mockResolvedValueOnce(json(TAGS))
+        .mockResolvedValueOnce(json({ count: 1, results: [rawDoc([9])] }));
+
+      const doc = await report(cookie, sourceId);
+
+      expect(doc.documentId).toBe(42);
+      expect(doc.archiveSerialNumber).toBeNull();
+      expect(doc.title).toBeNull();
+    });
+
+    it('leaves ASN and title null, and requests no documents, when the tag cannot be resolved', async () => {
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      const { cookie, sourceId } = await seedReport();
+      mockFetch.mockResolvedValueOnce(json({ count: 0, results: [] }));
+
+      const doc = await report(cookie, sourceId);
+
+      expect(doc.archiveSerialNumber).toBeNull();
+      expect(doc.title).toBeNull();
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      warn.mockRestore();
     });
   });
 });

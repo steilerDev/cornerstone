@@ -589,3 +589,25 @@ export type {
   StatusTransition,
   StatusTransitionMap,
 } from './lib/statusTransitions.js';
+
+// Global search (story #2210)
+export { foldSearchText, searchDigits } from './lib/searchFold.js';
+export {
+  SEARCH_RESULT_TYPES,
+  SEARCH_MATCHED_FIELDS,
+  SEARCH_QUERY_MIN_LENGTH,
+  SEARCH_QUERY_MAX_LENGTH,
+  SEARCH_DEFAULT_LIMIT,
+  SEARCH_MAX_LIMIT,
+} from './types/search.js';
+export type {
+  SearchResultType,
+  SearchMatchedField,
+  SearchAreaRef,
+  SearchParentRef,
+  SearchResultItem,
+  SearchGroupStatus,
+  SearchGroup,
+  SearchResponse,
+  SearchQuery,
+} from './types/search.js';

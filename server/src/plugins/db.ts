@@ -6,6 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { basename, dirname } from 'node:path';
 import { recoverInterruptedRestore } from '../services/restoreSwap.js';
 import { runMigrations } from '../db/migrate.js';
+import { registerSqlFunctions } from '../db/sqlFunctions.js';
 import * as schema from '../db/schema.js';
 
 // Type augmentation: makes fastify.db available across all routes/plugins
@@ -30,6 +31,9 @@ export default fp(
     fastify.log.info({ dbPath }, 'Opening SQLite database');
 
     const sqlite = new Database(dbPath);
+
+    // Search helpers (fold(), digits()) must exist before any query that uses them
+    registerSqlFunctions(sqlite);
 
     // Enable WAL mode for better concurrent read performance
     sqlite.pragma('journal_mode = WAL');

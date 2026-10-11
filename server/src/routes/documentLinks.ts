@@ -137,6 +137,7 @@ export default async function documentLinksRoutes(fastify: FastifyInstance) {
         paperlessEnabled: fastify.config.paperlessEnabled,
         paperlessUrl: fastify.config.paperlessUrl,
         paperlessApiToken: fastify.config.paperlessApiToken,
+        paperlessFilterTag: fastify.config.paperlessFilterTag,
       });
       return reply.status(200).send({ documentLinks: links });
     },

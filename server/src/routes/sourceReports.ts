@@ -51,6 +51,7 @@ export default async function sourceReportRoutes(fastify: FastifyInstance) {
           paperlessEnabled: fastify.config.paperlessEnabled,
           paperlessUrl: fastify.config.paperlessUrl,
           paperlessApiToken: fastify.config.paperlessApiToken,
+          paperlessFilterTag: fastify.config.paperlessFilterTag,
         },
       );
 

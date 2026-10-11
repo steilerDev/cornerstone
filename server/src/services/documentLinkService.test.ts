@@ -22,6 +22,7 @@ import * as schema from '../db/schema.js';
 import * as documentLinkService from './documentLinkService.js';
 import { type AppError, NotFoundError } from '../errors/AppError.js';
 import type { DocumentLinkEntityType } from '@cornerstone/shared';
+import { _resetFilterTagCache } from './paperlessService.js';
 
 // ─── Mock global fetch (used by paperlessService.getDocument) ─────────────────
 
@@ -670,6 +671,69 @@ describe('documentLinkService', () => {
 
       expect(result).toHaveLength(1);
       expect(result[0]!.document).toBeNull();
+    });
+
+    describe('with a configured filter tag', () => {
+      beforeEach(() => _resetFilterTagCache());
+      const CONFIG_TAGGED = { ...PAPERLESS_CONFIG_ENABLED, paperlessFilterTag: 'invoice' };
+
+      it('keeps a document that carries the tag', async () => {
+        const workItemId = insertTestWorkItem();
+        insertRawDocumentLink('work_item', workItemId, 42);
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)) // filter tag lookup
+          .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE)) // tags map
+          .mockResolvedValueOnce(mockJsonResponse({ count: 1, results: [RAW_DOCUMENT] }));
+
+        const result = await documentLinkService.getLinksForEntity(
+          db,
+          'work_item',
+          workItemId,
+          CONFIG_TAGGED,
+        );
+
+        expect(result[0]!.document?.id).toBe(42);
+      });
+
+      it('returns document: null for a document without the tag', async () => {
+        const workItemId = insertTestWorkItem();
+        insertRawDocumentLink('work_item', workItemId, 42);
+        mockFetch
+          .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+          .mockResolvedValueOnce(mockJsonResponse(RAW_TAGS_RESPONSE))
+          .mockResolvedValueOnce(
+            mockJsonResponse({ count: 1, results: [{ ...RAW_DOCUMENT, tags: [99] }] }),
+          );
+
+        const result = await documentLinkService.getLinksForEntity(
+          db,
+          'work_item',
+          workItemId,
+          CONFIG_TAGGED,
+        );
+
+        expect(result).toHaveLength(1);
+        expect(result[0]!.paperlessDocumentId).toBe(42);
+        expect(result[0]!.document).toBeNull();
+      });
+
+      it('returns document: null without a documents request when the tag cannot be resolved', async () => {
+        const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const workItemId = insertTestWorkItem();
+        insertRawDocumentLink('work_item', workItemId, 42);
+        mockFetch.mockResolvedValueOnce(mockJsonResponse({ count: 0, results: [] }));
+
+        const result = await documentLinkService.getLinksForEntity(
+          db,
+          'work_item',
+          workItemId,
+          CONFIG_TAGGED,
+        );
+
+        expect(result[0]!.document).toBeNull();
+        expect(mockFetch).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
+      });
     });
 
     it('only returns links for the specified entity, not others', async () => {
