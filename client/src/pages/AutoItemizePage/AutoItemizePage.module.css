@@ -312,3 +312,11 @@
     min-height: 44px;
   }
 }
+
+/* Phones: content edge 16px from the viewport edge, like every other page */
+@media (max-width: 767px) {
+  .pageHeader,
+  .pageBody {
+    padding-inline: var(--spacing-4);
+  }
+}

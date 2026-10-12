@@ -134,10 +134,6 @@
 }
 
 @media (max-width: 767px) {
-  .page {
-    padding: var(--spacing-4);
-  }
-
   .pageTitle {
     font-size: var(--font-size-xl);
   }

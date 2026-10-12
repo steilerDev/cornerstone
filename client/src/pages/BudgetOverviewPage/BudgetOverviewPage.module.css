@@ -166,10 +166,6 @@
  * ============================================================ */
 
 @media (min-width: 768px) and (max-width: 1024px) {
-  .container {
-    padding: var(--spacing-6);
-  }
-
   .retryButton {
     min-height: 44px;
   }
@@ -184,10 +180,6 @@
  * ============================================================ */
 
 @media (max-width: 767px) {
-  .container {
-    padding: var(--spacing-4);
-  }
-
   .pageHeader {
     flex-direction: column;
     align-items: stretch;

@@ -51,6 +51,10 @@ const TERM_EXTRAS: readonly TermExtra[] = [
   { term: 'Trade', route: 'settingsManage', query: { tab: 'trades' } },
   { term: 'Cost category', route: 'settingsManage', query: { tab: 'budget-categories' } },
   { term: 'Purchase category', route: 'settingsManage', query: { tab: 'hi-categories' } },
+  // Settings › Account sections (#2214); the route has no per-section destination.
+  { term: 'Calendar & contacts sync', route: 'settingsProfile' },
+  { term: 'Sign-in method', route: 'settingsProfile' },
+  { term: 'Single sign-on', route: 'settingsProfile' },
 ];
 
 /**
