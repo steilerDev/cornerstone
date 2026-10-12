@@ -25,7 +25,7 @@
       "PaperlessInvoiceReviewPage": { "destinations": 0, "primaryButtons": 11, "searchFields": 0 },
       "PhotosPage": { "destinations": 1, "primaryButtons": 1, "searchFields": 0 },
       "PhotoSpotViewerPage": { "destinations": 2, "primaryButtons": 1, "searchFields": 0 },
-      "ProfilePage": { "destinations": 0, "primaryButtons": 5, "searchFields": 0 },
+      "ProfilePage": { "destinations": 0, "primaryButtons": 2, "searchFields": 0 },
       "ReportWizardPage": { "destinations": 4, "primaryButtons": 13, "searchFields": 0 },
       "SetupPage": { "destinations": 0, "primaryButtons": 1, "searchFields": 0 },
       "shell": { "destinations": 2, "primaryButtons": 0, "searchFields": 0 },

@@ -383,7 +383,7 @@ test.describe('i18n: Language Switching', () => {
     await expect(languageSelect.locator('option[value="en"]')).toHaveText('English');
     await expect(languageSelect.locator('option[value="de"]')).toHaveText('Deutsch');
     await expect(languageSelect.locator('option[value="system"]')).toHaveText(
-      'System (auto-detect)',
+      'System (browser language)',
     );
   });
 });

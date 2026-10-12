@@ -148,3 +148,4 @@ General rule: when a glossary term overshoots a measured PDF column, prefer the 
 ## En-diff key sync (Issue #2209)
 
 - [En-diff key sync](en-diff-key-sync-2209.md) — script de edits from an en diff; keep de order (no full reorder); Budget line → Kostenposition
+- [Glossary proposals pending approval](glossary-proposals-pending-approval.md) — deSource must be approved|shipped; mark proposals via de.note; edit glossary.json surgically

@@ -3239,11 +3239,11 @@
   "PLT-005": {
     "name": "Cycle the colour theme Light -> Dark -> System from the sidebar",
     "from": "Sidebar > footer > theme toggle (icon + label of the CURRENT mode, e.g. \"System\")",
-    "to": "Global > User menu > Theme (Light / Dark / System, toggled in place); Settings > Account > Preferences",
+    "to": "Global > User menu > Theme (Light / Dark / System, toggled in place); Settings > Account > Preferences > Theme",
     "change": "moved",
     "gate": "none",
     "acceptance": "Same control and behaviour on its new home (Global > User menu); every old URL redirects there in one hop.",
-    "note": "Out of the sidebar footer (GLB-13). #2206: Theme is a Light / Dark / System choice in the user menu (top bar, 1024 px and wider). #2207: below 1024 px in the More sheet's user block; the sidebar footer toggle is gone."
+    "note": "Out of the sidebar footer (GLB-13). #2206: Theme is a Light / Dark / System choice in the user menu (top bar, 1024 px and wider). #2207: below 1024 px in the More sheet's user block; the sidebar footer toggle is gone. #2214: Settings › Account › Preferences › Theme (a select, built in this story)."
   },
   "PLT-006": {
     "name": "Follow the operating-system light/dark setting automatically",
@@ -3446,26 +3446,26 @@
   "PLT-030": {
     "name": "View own account details (email, role, authentication method, member since)",
     "from": "/settings/profile > \"Profile Information\" card",
-    "to": "Settings > Account > Profile",
+    "to": "Settings > Account > Your details",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2214: Settings › Account › Your details."
   },
   "PLT-031": {
     "name": "See whether the own account is linked to single sign-on",
     "from": "/settings/profile > Profile Information > \"Authentication\": \"Local Account\" | \"Local Account + Single Sign-On (OIDC)\" | \"Single Sign-On (OIDC)\"",
-    "to": "Settings > Account > Profile > Sign-in method (SSO only)",
+    "to": "Settings > Account > Your details > Sign-in method (SSO only)",
     "change": "same",
     "gate": "oidc",
-    "note": "Shown only when single sign-on (OIDC) is configured. #2204: h1 \"Account\", tab title \"Account · Settings · ‹house›\"."
+    "note": "Shown only when single sign-on (OIDC) is configured. #2204: h1 \"Account\", tab title \"Account · Settings · ‹house›\". #2214: Settings › Account › Your details › Sign-in method (a row of the details list, shown when single sign-on is configured or the account uses or is linked to it)."
   },
   "PLT-032": {
     "name": "Change own display name",
     "from": "/settings/profile > \"Display Name\" card > text field > \"Save Changes\"",
-    "to": "Settings > Account > Profile > Display name",
+    "to": "Settings > Account > Your details > Display name",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2214: Settings › Account › Your details › Display name (no card of its own any more; Save sits in the same section)."
   },
   "PLT-033": {
     "name": "Change own password",
@@ -3473,7 +3473,7 @@
     "to": "Settings > Account > Password",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2214: Settings › Account › Password (last section; secondary \"Change password\" button)."
   },
   "PLT-034": {
     "name": "See that the password is managed by the identity provider (SSO accounts)",
@@ -3481,7 +3481,7 @@
     "to": "Settings > Account > Password (SSO only: note instead of the form)",
     "change": "same",
     "gate": "oidc",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2214: Settings › Account › Password (a note replaces the form for single-sign-on accounts)."
   },
   "PLT-035": {
     "name": "Choose the interface language (English, Deutsch, or System auto-detect)",
@@ -3489,7 +3489,7 @@
     "to": "Settings > Account > Preferences > Language; Global > User menu > Language (toggled in place)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch). #2207: below 1024 px toggled in place in the More sheet's user block."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2206: also toggled in place in the user menu (English / Deutsch). #2207: below 1024 px toggled in place in the More sheet's user block. #2214: Settings › Account › Preferences › Language (a select; the last option is \"System (browser language)\")."
   },
   "PLT-036": {
     "name": "See dates, numbers and money formatted for the chosen language",
@@ -3497,7 +3497,7 @@
     "to": "Global > locale formatting (dates without 'at h:mm PM' in German)",
     "change": "same",
     "gate": "none",
-    "note": "D-25 formatter fix. #2196: date-time uses one locale-native format (24-hour in German, no joiner word)."
+    "note": "D-25 formatter fix. #2196: date-time uses one locale-native format (24-hour in German, no joiner word). #2214: Global (verified by the language-switch E2E on Settings › Account)."
   },
   "PLT-037": {
     "name": "Read API error messages in the chosen language",
@@ -3505,7 +3505,7 @@
     "to": "Global > translated API errors",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (weekly use)."
+    "note": "Kept as it works today, inside Global; only the shared page template, the words and the navigation around it change (weekly use). #2214: Global (verified by the language-switch E2E on Settings › Account)."
   },
   "PLT-038": {
     "name": "See whether a calendar/contacts (DAV) access token exists and since when",
@@ -3513,7 +3513,7 @@
     "to": "Settings > Account > Calendar & contacts sync",
     "change": "same",
     "gate": "none",
-    "note": "Card moved up (VRS-20)."
+    "note": "Card moved up (VRS-20). #2214: Settings › Account › Calendar & contacts sync (2nd section, after Your details)."
   },
   "PLT-039": {
     "name": "Generate a personal DAV access token for calendar and contacts apps",
@@ -3521,7 +3521,7 @@
     "to": "Settings > Account > Calendar & contacts sync > Generate token (also linked from Tasks > Schedule ⋯ and Companies > Companies list ⋯)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2214: Settings › Account › Calendar & contacts sync › Generate token (the deep link #calendar-sync focuses the section)."
   },
   "PLT-040": {
     "name": "Copy the new DAV token to the clipboard, then hide it",
@@ -3529,15 +3529,15 @@
     "to": "Settings > Account > Calendar & contacts sync > Copy / Hide token",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2214: Settings › Account › Calendar & contacts sync › Copy / Hide token."
   },
   "PLT-041": {
     "name": "Regenerate the DAV token (invalidating the previous one)",
     "from": "/settings/profile > DAV Access card > \"Regenerate Token\" (shown when a token exists)",
-    "to": "Settings > Account > Calendar & contacts sync > Regenerate",
+    "to": "Settings > Account > Calendar & contacts sync > Regenerate (ConfirmDialog)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2214: Settings › Account › Calendar & contacts sync › Regenerate token (ConfirmDialog, because the old token stops working)."
   },
   "PLT-042": {
     "name": "Revoke the DAV token so connected apps stop syncing",
@@ -3545,7 +3545,7 @@
     "to": "Settings > Account > Calendar & contacts sync > Revoke (modal instead of window.confirm)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Account › Calendar & contacts sync › Revoke (ConfirmDialog, replaces window.confirm)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Account › Calendar & contacts sync › Revoke (ConfirmDialog, replaces window.confirm). #2214: Settings › Account › Calendar & contacts sync › Revoke token."
   },
   "PLT-043": {
     "name": "Download an iOS/macOS configuration profile that sets up calendar and contacts sync",
@@ -3553,7 +3553,7 @@
     "to": "Settings > Account > Calendar & contacts sync > Download Apple profile",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2214: Settings › Account › Calendar & contacts sync › Download Apple profile."
   },
   "PLT-044": {
     "name": "See the server URL for manual DAV setup",
@@ -3561,7 +3561,7 @@
     "to": "Settings > Account > Calendar & contacts sync > Server URL",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2214: Settings › Account › Calendar & contacts sync › Server URL."
   },
   "PLT-045": {
     "name": "Subscribe to the project schedule (work items, milestones, household-item deliveries) in an external calendar app (CalDAV, read-only)",

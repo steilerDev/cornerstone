@@ -1,6 +1,8 @@
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { jest } from '@jest/globals';
+import i18n from 'i18next';
 import enErrors from '../i18n/en/errors.json';
+import deErrors from '../i18n/de/errors.json';
 
 const mockGetDavTokenStatus = jest.fn<() => Promise<unknown>>();
 const mockGenerateDavToken = jest.fn<() => Promise<unknown>>();
@@ -377,5 +379,143 @@ describe('useDavToken', () => {
 
       expect(result.current.newToken).toBeNull();
     });
+  });
+});
+
+describe('useDavToken load-once and render-time translation (#2214)', () => {
+  afterEach(async () => {
+    await act(async () => {
+      await i18n.changeLanguage('en');
+    });
+  });
+
+  it('does not refetch and never returns to loading when the language changes', async () => {
+    mockGetDavTokenStatus.mockResolvedValue({
+      hasToken: true,
+      createdAt: '2026-01-15T10:00:00.000Z',
+    });
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    const statusBefore = result.current.status;
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+
+    expect(mockGetDavTokenStatus).toHaveBeenCalledTimes(1);
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.status).toBe(statusBefore);
+  });
+
+  it('keeps an issued token through a language change', async () => {
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    mockGenerateDavToken.mockResolvedValueOnce({ token: 'c'.repeat(64) });
+    await act(async () => {
+      await result.current.generate();
+    });
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+
+    expect(result.current.newToken).toBe('c'.repeat(64));
+  });
+
+  it('re-translates a stored API error code after a language change', async () => {
+    mockGetDavTokenStatus.mockRejectedValueOnce(
+      new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+    );
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() => expect(result.current.error).toBe(enErrors.INTERNAL_ERROR));
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+
+    expect(result.current.error).toBe(deErrors.INTERNAL_ERROR);
+    expect(mockGetDavTokenStatus).toHaveBeenCalledTimes(1);
+  });
+
+  it('re-translates a generic failure message after a language change', async () => {
+    mockGetDavTokenStatus.mockRejectedValueOnce(new Error('offline'));
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() =>
+      expect(result.current.error).toBe('Failed to load token status. Please try again.'),
+    );
+
+    await act(async () => {
+      await i18n.changeLanguage('de');
+    });
+
+    expect(result.current.error).toBe(i18n.t('dav.errors.loadFailed', { ns: 'settings' }));
+    expect(result.current.error).not.toBe('Failed to load token status. Please try again.');
+  });
+
+  it('maps a non-API failure of generate and revoke to their own messages', async () => {
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    mockGenerateDavToken.mockRejectedValueOnce(new Error('x'));
+    await act(async () => {
+      await expect(result.current.generate()).rejects.toThrow('x');
+    });
+    expect(result.current.error).toBe('Failed to generate token. Please try again.');
+
+    mockRevokeDavToken.mockRejectedValueOnce(new Error('y'));
+    await act(async () => {
+      await expect(result.current.revoke()).rejects.toThrow('y');
+    });
+    expect(result.current.error).toBe('Failed to revoke token. Please try again.');
+  });
+
+  it('generate does not set isLoading back to true while it runs', async () => {
+    const { result } = renderHook(() => useDavToken());
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    let resolveGenerate!: (value: { token: string }) => void;
+    mockGenerateDavToken.mockImplementationOnce(
+      () => new Promise<{ token: string }>((r) => (resolveGenerate = r)),
+    );
+
+    let pending!: Promise<void>;
+    act(() => {
+      pending = result.current.generate();
+    });
+    expect(result.current.isLoading).toBe(false);
+    await act(async () => {
+      resolveGenerate({ token: 'd'.repeat(64) });
+      await pending;
+    });
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('does not set state or warn when unmounted before the load resolves', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    let resolveStatus!: (value: unknown) => void;
+    mockGetDavTokenStatus.mockImplementationOnce(() => new Promise((r) => (resolveStatus = r)));
+    const { unmount } = renderHook(() => useDavToken());
+    unmount();
+
+    await act(async () => {
+      resolveStatus({ hasToken: true });
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
+  });
+
+  it('ignores a rejected load after unmount', async () => {
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    let rejectStatus!: (reason: unknown) => void;
+    mockGetDavTokenStatus.mockImplementationOnce(
+      () => new Promise((_, rej) => (rejectStatus = rej)),
+    );
+    const { unmount } = renderHook(() => useDavToken());
+    unmount();
+
+    await act(async () => {
+      rejectStatus(new Error('late'));
+    });
+
+    expect(errorSpy).not.toHaveBeenCalled();
   });
 });

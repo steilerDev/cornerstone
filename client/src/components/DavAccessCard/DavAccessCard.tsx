@@ -1,27 +1,93 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useDavToken } from '../../hooks/useDavToken.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { FormError } from '../FormError/FormError.js';
 import { ConfirmDialog } from '../ConfirmDialog/ConfirmDialog.js';
+import { Skeleton } from '../Skeleton/Skeleton.js';
 import styles from './DavAccessCard.module.css';
+
+/** Deep-link anchor of the section heading (`/settings/profile#calendar-sync`). */
+export const CALENDAR_SYNC_ANCHOR = 'calendar-sync';
+
+type PendingFocus = 'copy' | 'regenerate' | null;
 
 export function DavAccessCard() {
   const { t } = useTranslation('settings');
   const { formatDate } = useFormatters();
+  const { hash } = useLocation();
   const { status, isLoading, error, newToken, generate, revoke, clearNewToken } = useDavToken();
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
   const [copySuccess, setCopySuccess] = useState(false);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
-  const generateButtonRef = useRef<HTMLButtonElement>(null);
+  const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const copyRef = useRef<HTMLButtonElement>(null);
+  const regenerateRef = useRef<HTMLButtonElement>(null);
+  const pendingFocusRef = useRef<PendingFocus>(null);
+  const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Move focus to the control the last action calls for, once it is in the DOM.
+  useEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    const element = target === 'copy' ? copyRef.current : regenerateRef.current;
+    if (element?.isConnected) {
+      element.focus();
+      pendingFocusRef.current = null;
+    }
+  }, [newToken, status, showRegenerateConfirm]);
+
+  // Deep link: focus and scroll to the heading.
+  useEffect(() => {
+    if (hash !== `#${CALENDAR_SYNC_ANCHOR}`) return;
+    // After focusPageHeadingWhenReady's first frame, so this focus wins.
+    const frame = requestAnimationFrame(() => {
+      const heading = headingRef.current;
+      if (!heading) return;
+      const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      heading.focus({ preventScroll: true });
+      heading.scrollIntoView?.({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash]);
+
+  useEffect(
+    () => () => {
+      if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    },
+    [],
+  );
+
+  const busy = isGenerating || isRevoking;
 
   const handleGenerate = async () => {
+    if (busy) return;
+    setIsGenerating(true);
+    pendingFocusRef.current = 'copy';
+    try {
+      await generate();
+    } catch {
+      // The hook shows the translated error on the section; focus stays on Generate.
+      pendingFocusRef.current = null;
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  const handleRegenerateConfirm = async () => {
     setIsGenerating(true);
     try {
       await generate();
+      // Set after the await so focus never leaves the open dialog early.
+      pendingFocusRef.current = 'copy';
+    } catch {
+      // The hook shows the translated error on the section.
     } finally {
       setIsGenerating(false);
+      setShowRegenerateConfirm(false);
     }
   };
 
@@ -30,11 +96,22 @@ export function DavAccessCard() {
     try {
       await revoke();
     } catch {
-      // The hook shows the translated error on the card.
+      // The hook shows the translated error on the section.
     } finally {
       setIsRevoking(false);
       setShowRevokeConfirm(false);
     }
+  };
+
+  const handleHideToken = () => {
+    pendingFocusRef.current = 'regenerate';
+    clearNewToken();
+  };
+
+  const markCopied = () => {
+    setCopySuccess(true);
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
+    copyTimerRef.current = setTimeout(() => setCopySuccess(false), 2000);
   };
 
   const handleCopyToken = async () => {
@@ -42,8 +119,6 @@ export function DavAccessCard() {
 
     try {
       await navigator.clipboard.writeText(newToken);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
     } catch {
       // Fallback for older browsers
       const textarea = document.createElement('textarea');
@@ -52,95 +127,137 @@ export function DavAccessCard() {
       textarea.select();
       document.execCommand('copy');
       document.body.removeChild(textarea);
-      setCopySuccess(true);
-      setTimeout(() => setCopySuccess(false), 2000);
     }
+    markCopied();
   };
 
-  if (isLoading) {
-    return (
-      <section className={styles.card}>
-        <h2 className={styles.cardTitle}>{t('dav.heading')}</h2>
-        <div className={styles.loading}>{t('dav.loading')}</div>
-      </section>
-    );
-  }
-
   return (
-    <section className={styles.card}>
-      <h2 className={styles.cardTitle}>{t('dav.heading')}</h2>
-      <p className={styles.cardDescription}>{t('dav.description')}</p>
+    <section
+      className={styles.card}
+      aria-labelledby={CALENDAR_SYNC_ANCHOR}
+      data-testid="account-sync"
+    >
+      <h2 id={CALENDAR_SYNC_ANCHOR} ref={headingRef} tabIndex={-1} className={styles.cardTitle}>
+        {t('dav.heading')}
+      </h2>
+      <p className={styles.description}>{t('dav.description')}</p>
 
-      {error && <FormError message={error} />}
+      {/* Always mounted so the announcement is reliable; deliberately not atomic. */}
+      <span role="status" className={styles.srOnly} data-testid="account-sync-copy-status">
+        {copySuccess ? t('dav.tokenCopiedAnnouncement') : ''}
+      </span>
 
-      {/* Token Status */}
-      <div className={styles.statusSection}>
-        {status?.hasToken && status.createdAt ? (
-          <div className={styles.statusMessage}>
-            {t('dav.tokenActive', { date: formatDate(status.createdAt) })}
+      {isLoading ? (
+        <Skeleton lines={2} />
+      ) : (
+        <>
+          {error && <FormError message={error} />}
+
+          <div className={styles.statusPanel}>
+            {status?.hasToken && status.createdAt
+              ? t('dav.tokenActive', { date: formatDate(status.createdAt) })
+              : t('dav.noTokenInfo')}
           </div>
-        ) : (
-          <div className={styles.statusMessage}>{t('dav.noTokenInfo')}</div>
-        )}
-      </div>
 
-      {/* New Token Display */}
-      {newToken && (
-        <div className={styles.tokenDisplaySection} role="status" aria-atomic="true">
-          <div className={styles.tokenWarning}>{t('dav.tokenWarning')}</div>
-          <div className={styles.tokenDisplayBox}>
-            <code className={styles.tokenValue}>{newToken}</code>
-            <button
-              type="button"
-              className={styles.copyButton}
-              onClick={() => void handleCopyToken()}
-              aria-label={t('dav.copyToken')}
-            >
-              {copySuccess ? t('dav.tokenCopied') : t('dav.copyToken')}
-            </button>
+          {newToken && (
+            <div className={styles.tokenPanel} data-testid="account-sync-token-panel">
+              <div role="status" aria-atomic="true" className={styles.tokenMessage}>
+                <p className={styles.warning}>{t('dav.tokenWarning')}</p>
+                <code className={styles.tokenValue} data-testid="account-sync-token">
+                  {newToken}
+                </code>
+              </div>
+              <div className={styles.tokenActions}>
+                <button
+                  ref={copyRef}
+                  type="button"
+                  className={styles.compactButton}
+                  data-testid="account-sync-copy"
+                  onClick={() => void handleCopyToken()}
+                >
+                  {copySuccess ? t('dav.tokenCopied') : t('dav.copyToken')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.compactButton}
+                  data-testid="account-sync-hide"
+                  onClick={handleHideToken}
+                >
+                  {t('dav.hideToken')}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className={styles.urlPanel}>
+            <div className={styles.urlLabel}>{t('dav.serverUrl')}</div>
+            <div className={styles.url}>{window.location.origin}/dav/</div>
           </div>
-        </div>
+
+          <div className={styles.actions}>
+            {status?.hasToken ? (
+              <>
+                <a
+                  href="/api/users/me/dav/profile"
+                  download="Cornerstone-DAV.mobileconfig"
+                  className={styles.linkButton}
+                  data-testid="account-sync-download"
+                >
+                  {t('dav.downloadProfile')}
+                </a>
+                <button
+                  ref={regenerateRef}
+                  type="button"
+                  className={styles.secondaryButton}
+                  data-testid="account-sync-regenerate"
+                  aria-disabled={busy ? 'true' : undefined}
+                  onClick={() => {
+                    if (!busy) setShowRegenerateConfirm(true);
+                  }}
+                >
+                  {isGenerating ? t('dav.generating') : t('dav.regenerateToken')}
+                </button>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  data-testid="account-sync-revoke"
+                  aria-disabled={busy ? 'true' : undefined}
+                  onClick={() => {
+                    if (!busy) setShowRevokeConfirm(true);
+                  }}
+                >
+                  {isRevoking ? t('dav.revoking') : t('dav.revokeToken')}
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                className={styles.primaryButton}
+                data-testid="account-sync-generate"
+                aria-disabled={isGenerating ? 'true' : undefined}
+                onClick={() => void handleGenerate()}
+              >
+                {isGenerating ? t('dav.generating') : t('dav.generateToken')}
+              </button>
+            )}
+          </div>
+        </>
       )}
 
-      {/* Server URL for Manual Setup */}
-      <div className={styles.serverUrlSection}>
-        <div className={styles.serverUrlLabel}>{t('dav.serverUrl')}:</div>
-        <div className={styles.serverUrl}>{window.location.origin}/dav/</div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className={styles.actionButtons}>
-        {status?.hasToken ? (
-          <>
-            <button
-              type="button"
-              className={styles.regenerateButton}
-              onClick={() => void handleGenerate()}
-              disabled={isGenerating || isRevoking}
-            >
-              {isGenerating ? t('dav.generating') : t('dav.regenerateToken')}
-            </button>
-            <button
-              type="button"
-              className={styles.revokeButton}
-              onClick={() => setShowRevokeConfirm(true)}
-              disabled={isGenerating || isRevoking}
-            >
-              {isRevoking ? t('dav.revoking') : t('dav.revokeToken')}
-            </button>
-          </>
-        ) : (
-          <button
-            ref={generateButtonRef}
-            type="button"
-            className={styles.generateButton}
-            onClick={() => void handleGenerate()}
-            disabled={isGenerating}
-          >
-            {isGenerating ? t('dav.generating') : t('dav.generateToken')}
-          </button>
-        )}
-      </div>
+      {showRegenerateConfirm && (
+        <ConfirmDialog
+          title={t('dav.regenerateTitle')}
+          lead={t('dav.regenerateLead')}
+          irreversible
+          confirmLabel={t('dav.regenerateAction')}
+          busyLabel={t('dav.generating')}
+          busy={isGenerating}
+          onConfirm={() => void handleRegenerateConfirm()}
+          onCancel={() => setShowRegenerateConfirm(false)}
+          returnFocusRef={headingRef}
+          testIdPrefix="dav-regenerate"
+        />
+      )}
 
       {showRevokeConfirm && (
         <ConfirmDialog
@@ -152,34 +269,9 @@ export function DavAccessCard() {
           busy={isRevoking}
           onConfirm={() => void handleRevoke()}
           onCancel={() => setShowRevokeConfirm(false)}
-          returnFocusRef={generateButtonRef}
+          returnFocusRef={headingRef}
           testIdPrefix="dav-revoke"
         />
-      )}
-
-      {/* Download Profile Link */}
-      {status?.hasToken && (
-        <div className={styles.downloadSection}>
-          <a
-            href="/api/users/me/dav/profile"
-            download="Cornerstone-DAV.mobileconfig"
-            className={styles.downloadLink}
-          >
-            {t('dav.downloadProfile')}
-          </a>
-        </div>
-      )}
-
-      {/* Clear the token display after it's been seen */}
-      {newToken && (
-        <button
-          type="button"
-          className={styles.hideTokenButton}
-          onClick={clearNewToken}
-          title={t('dav.hideTokenDisplay')}
-        >
-          ×
-        </button>
       )}
     </section>
   );

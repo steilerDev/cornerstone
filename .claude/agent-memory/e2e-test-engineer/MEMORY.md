@@ -51,3 +51,4 @@
 - [story-2206-top-bar.md](story-2206-top-bar.md) — #2206 top bar/user menu: 1024 breakpoint, viewport-aware logout(), shared isolated user, Gantt-origin Back.
 - [story-2213-companies-trades.md](story-2213-companies-trades.md) — #2213 Companies list/Trades sheet/company pickers: POMs, `localeUser` fixture, 6 live-run defects, patched-image verification trick.
 - [story-2209-grammar-foundations.md](story-2209-grammar-foundations.md) — #2209 StatusMenu/UndoToast/ConfirmDialog: component POMs, test-id conventions, disabled-fallback focus hazard, sandbox python-heredoc quirk.
+- [story-2214-account-relayout.md](story-2214-account-relayout.md) — #2214 Account POM/testids, token+preference mocking, aria-disabled assertion traps, DAV lock, phone gutter defect.

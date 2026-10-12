@@ -382,6 +382,10 @@ describe('glossary.json (real file)', () => {
       ['Over-allocated', 'Overflow'],
       ['Split', 'Itemize'],
       ['Split', 'Itemization'],
+      ['Calendar & contacts sync', 'DAV access'],
+      ['Sign-in method', 'Authentication'],
+      ['Single sign-on', 'OIDC'],
+      ['Single sign-on', 'SSO'],
     ];
 
     it('lists every current former name (the literal list cannot fall behind)', () => {

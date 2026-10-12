@@ -17,6 +17,13 @@
   background: var(--color-bg-secondary);
 }
 
+/* Phones: the shell's pageContent padding is 16px, not 2rem */
+@media (max-width: 767px) {
+  .page {
+    margin: calc(-1 * var(--spacing-4));
+  }
+}
+
 /* ---- Page header: title + zoom toggle ---- */
 
 .pageHeader {

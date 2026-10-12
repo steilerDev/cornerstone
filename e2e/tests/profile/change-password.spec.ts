@@ -1,7 +1,8 @@
 /**
- * E2E tests for changing password (Story #36)
+ * E2E tests for changing password (Story #36, labels and focus rules reworked in #2214)
  */
 
+import type { Locator } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { ProfilePage } from '../../pages/ProfilePage.js';
 import { LoginPage } from '../../pages/LoginPage.js';
@@ -113,34 +114,67 @@ test.describe('Change Password', { tag: '@responsive' }, () => {
     await profilePage.confirmPasswordInput.fill('different-password-123!');
     await profilePage.changePasswordButton.click();
 
-    // Then: Should show validation error or button disabled
-    const isDisabled = await profilePage.changePasswordButton.isDisabled();
-    const errorBanner = await profilePage.getPasswordErrorBanner();
-
-    // Either client-side validation prevents submit OR server returns error
-    expect(isDisabled || errorBanner).toBeTruthy();
+    // Then: The confirm field shows the error and takes focus; the server was not asked
+    await expect(page.locator('#confirmPassword-error')).toHaveText('Passwords do not match');
+    await expect(profilePage.confirmPasswordInput).toHaveAttribute('aria-invalid', 'true');
+    await expect(profilePage.confirmPasswordInput).toBeFocused();
+    await expect(profilePage.passwordErrorBanner).toHaveCount(1); // the field error only
   });
 
-  test('Password form requires all fields', async ({ page }) => {
+  test('Password form requires all fields; focus goes to the first invalid field', async ({
+    page,
+  }) => {
     const profilePage = new ProfilePage(page);
 
     // Given: User is on profile page
     await profilePage.goto();
 
-    // When: User tries to submit with empty fields
+    // When: User submits with empty fields
     await profilePage.changePasswordButton.click();
 
-    // Then: Submit button should be disabled or remain on page
-    const url = page.url();
-    expect(url).toContain(ROUTES.profile);
+    // Then: Every empty field reports its error, and focus is on the first (current password)
+    await expect(page.locator('#currentPassword-error')).toHaveText('Current password is required');
+    await expect(page.locator('#newPassword-error')).toHaveText('New password is required');
+    await expect(page.locator('#confirmPassword-error')).toHaveText(
+      'Please confirm your new password',
+    );
+    await expect(profilePage.currentPasswordInput).toBeFocused();
+    await expect(page).toHaveURL((url) => url.pathname === ROUTES.profile);
   });
 
-  /**
-   * TODO: OIDC user test requires an OIDC-authenticated user session.
-   * This will be testable after the oidc.spec.ts tests run and create an OIDC user.
-   *
-   * Expected behavior:
-   * - OIDC user sees message: "Your credentials are managed by your identity provider."
-   * - No password change form visible
-   */
+  test('A too-short new password focuses the new password field', async ({ page }) => {
+    const profilePage = new ProfilePage(page);
+    await profilePage.goto();
+
+    await profilePage.currentPasswordInput.fill('e2e-secure-password-123!');
+    await profilePage.newPasswordInput.fill('short');
+    await profilePage.confirmPasswordInput.fill('short');
+    await profilePage.changePasswordButton.click();
+
+    await expect(page.locator('#newPassword-error')).toHaveText(
+      'New password must be at least 12 characters',
+    );
+    await expect(profilePage.newPasswordInput).toBeFocused();
+  });
+
+  test('Change password is a secondary button; the hint states the minimum length', async ({
+    page,
+  }) => {
+    const profilePage = new ProfilePage(page);
+    await profilePage.goto();
+
+    await expect(
+      profilePage.passwordSection.getByText('Use at least 12 characters.'),
+    ).toBeVisible();
+    await expect(profilePage.changePasswordButton).toHaveText('Change password');
+    // Secondary, not the page's primary action (the primary is Save in the Profile section)
+    const background = (locator: Locator) =>
+      locator.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(await background(profilePage.changePasswordButton)).not.toBe(
+      await background(profilePage.saveDisplayNameButton),
+    );
+  });
+
+  // The single sign-on note for SSO-only accounts is covered in account-layout.spec.ts
+  // (mocked `GET /api/auth/me`), because no real SSO user exists in this suite.
 });
