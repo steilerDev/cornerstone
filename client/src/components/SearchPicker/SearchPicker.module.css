@@ -206,7 +206,7 @@
 .createOption {
   position: sticky;
   bottom: 0;
-  min-height: 44px;
+  min-height: var(--touch-target-min);
   background: var(--color-bg-secondary);
   border-top: 1px solid var(--color-border);
 }
@@ -226,7 +226,11 @@
 }
 
 .createOptionLabel {
-  color: var(--color-text-primary);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-primary);
   font-weight: var(--font-weight-medium);
 }
 

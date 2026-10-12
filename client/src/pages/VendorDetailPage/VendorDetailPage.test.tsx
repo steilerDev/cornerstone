@@ -14,8 +14,15 @@ import type * as DeleteImpactApiTypes from '../../lib/deleteImpactApi.js';
 import type * as InvoicesApiTypes from '../../lib/invoicesApi.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
+import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import enErrors from '../../i18n/en/errors.json';
 import type { VendorDetail, Invoice } from '@cornerstone/shared';
+
+const mockWhenReady = jest.fn<() => () => void>(() => () => {});
+jest.unstable_mockModule('../../lib/focusPageHeading.js', () => ({
+  focusPageHeading: jest.fn(),
+  focusPageHeadingWhenReady: mockWhenReady,
+}));
 
 // Mock the vendor API module BEFORE importing the component
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
@@ -223,11 +230,11 @@ describe('VendorDetailPage', () => {
    */
   function renderPage(vendorId: string = 'vendor-1', options: { probe?: boolean } = {}) {
     return render(
-      <MemoryRouter initialEntries={[`/settings/vendors/${vendorId}`]}>
+      <MemoryRouter initialEntries={[`/companies/${vendorId}`]}>
         {options.probe ? <OriginProbe /> : null}
         <Routes>
-          <Route path="/settings/vendors/:id" element={<VendorDetailPage />} />
-          <Route path="/settings/vendors" element={<div>Vendors List Page</div>} />
+          <Route path="/companies/:id" element={<VendorDetailPage />} />
+          <Route path="/companies" element={<div>Vendors List Page</div>} />
           <Route
             path="/budget/invoices/:id"
             element={<div data-testid="invoice-detail-page">Invoice Detail</div>}
@@ -235,6 +242,14 @@ describe('VendorDetailPage', () => {
         </Routes>
       </MemoryRouter>,
     );
+  }
+
+  /** Delete lives in the header "Actions for ‹name›" menu (#2213), never as a stand-alone button. */
+  async function openDeleteFromMenu(user: ReturnType<typeof userEvent.setup>) {
+    const trigger = await screen.findByRole('button', { name: 'Actions for Smith Plumbing' });
+    await user.click(trigger);
+    await user.click(await screen.findByRole('menuitem', { name: 'Delete' }));
+    await screen.findByRole('alertdialog');
   }
 
   // ─── Loading state ─────────────────────────────────────────────────────────
@@ -259,7 +274,7 @@ describe('VendorDetailPage', () => {
       const trail = screen.getByRole('navigation', { name: 'You are here' });
       expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
         'href',
-        '/settings/vendors',
+        '/companies',
       );
       expect(screen.queryByText(/back to vendors/i)).toBeNull();
     });
@@ -400,15 +415,42 @@ describe('VendorDetailPage', () => {
       });
     });
 
-    it('renders Edit and Delete buttons when not in edit mode', async () => {
+    it('renders Edit and the header ⋯ menu when not in edit mode, with no stand-alone Delete button', async () => {
       mockFetchVendor.mockResolvedValueOnce(sampleVendor);
 
       renderPage();
 
       await waitFor(() => {
         expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: 'Actions for Smith Plumbing' }),
+        ).toBeInTheDocument();
       });
+      expect(screen.queryByRole('button', { name: /^delete$/i })).not.toBeInTheDocument();
+    });
+
+    it('offers Delete as the destructive item of the header menu', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: 'Actions for Smith Plumbing' }));
+
+      const items = await screen.findAllByRole('menuitem');
+      expect(items.map((i) => i.textContent)).toEqual(['Delete']);
+      expect(screen.getByTestId('company-header-delete')).toBe(items[0]);
+    });
+
+    it('hides the header menu while editing', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      const user = userEvent.setup();
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: /^edit$/i }));
+
+      expect(
+        screen.queryByRole('button', { name: 'Actions for Smith Plumbing' }),
+      ).not.toBeInTheDocument();
     });
 
     it('renders "Vendor Information" section heading', async () => {
@@ -431,7 +473,7 @@ describe('VendorDetailPage', () => {
       const trail = screen.getByRole('navigation', { name: 'You are here' });
       expect(within(trail).getByRole('link', { name: /Companies/ })).toHaveAttribute(
         'href',
-        '/settings/vendors',
+        '/companies',
       );
       expect(screen.queryByRole('button', { name: /back to vendors/i })).toBeNull();
       expect(screen.queryByText(/back to vendors/i)).toBeNull();
@@ -805,11 +847,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       expect(screen.getByRole('alertdialog')).toBeInTheDocument();
       expect(
@@ -824,11 +862,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       const dialog = screen.getByRole('alertdialog');
       expect(dialog).toHaveTextContent('Smith Plumbing');
@@ -840,11 +874,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
       await user.click(screen.getByRole('button', { name: /cancel/i }));
 
       await waitFor(() => {
@@ -859,11 +889,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       await user.click(await enabledConfirm('vendor-delete'));
 
@@ -875,6 +901,82 @@ describe('VendorDetailPage', () => {
       await waitFor(() => {
         expect(screen.getByText('Vendors List Page')).toBeInTheDocument();
       });
+    });
+
+    it('goes to the companies list with a replace, so Back never lands on the deleted company', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockDeleteVendor.mockResolvedValueOnce(undefined);
+      const log = createRouterLog();
+      const user = userEvent.setup();
+      render(
+        <RecordingRouter entries={['/companies/vendor-1']} log={log}>
+          <Routes>
+            <Route path="/companies/:id" element={<VendorDetailPage />} />
+            <Route path="/companies" element={<div>Vendors List Page</div>} />
+          </Routes>
+        </RecordingRouter>,
+      );
+
+      await openDeleteFromMenu(user);
+      await user.click(await enabledConfirm('vendor-delete'));
+
+      await waitFor(() => expect(screen.getByText('Vendors List Page')).toBeInTheDocument());
+      expect(log.actions).toEqual(['REPLACE /companies']);
+      expect(log.entries).toEqual(['/companies']);
+    });
+
+    it('asks the new page to take focus once it renders (focusPageHeadingWhenReady)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockDeleteVendor.mockResolvedValueOnce(undefined);
+      mockWhenReady.mockClear();
+      const user = userEvent.setup();
+      renderPage();
+
+      await openDeleteFromMenu(user);
+      await user.click(await enabledConfirm('vendor-delete'));
+
+      await waitFor(() => expect(mockWhenReady).toHaveBeenCalledTimes(1));
+    });
+
+    it('does not navigate or move focus when the delete fails', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      mockDeleteVendor.mockRejectedValueOnce(new Error('Network error'));
+      mockWhenReady.mockClear();
+      const user = userEvent.setup();
+      renderPage();
+
+      await openDeleteFromMenu(user);
+      await user.click(await enabledConfirm('vendor-delete'));
+
+      await screen.findByText(/failed to delete vendor/i);
+      expect(mockWhenReady).not.toHaveBeenCalled();
+      expect(screen.queryByText('Vendors List Page')).not.toBeInTheDocument();
+    });
+
+    it('Cancel returns focus to the header ⋯ that opened the confirm (#2213)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      const user = userEvent.setup();
+      renderPage();
+      await openDeleteFromMenu(user);
+
+      await user.click(screen.getByTestId('vendor-delete-cancel'));
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Actions for Smith Plumbing' })).toHaveFocus(),
+      );
+    });
+
+    it('Escape also returns focus to the header ⋯ (#2213)', async () => {
+      mockFetchVendor.mockResolvedValueOnce(sampleVendor);
+      const user = userEvent.setup();
+      renderPage();
+      await openDeleteFromMenu(user);
+
+      await user.keyboard('{Escape}');
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Actions for Smith Plumbing' })).toHaveFocus(),
+      );
     });
 
     it('shows VENDOR_IN_USE error (409) in delete modal', async () => {
@@ -890,18 +992,18 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       const dialog = screen.getByRole('alertdialog');
       await user.click(await enabledConfirm('vendor-delete'));
 
       await waitFor(() => {
         expect(within(dialog).getByRole('alert')).toBeInTheDocument();
-        expect(within(dialog).getByText(/associated invoices or work items/i)).toBeInTheDocument();
+        expect(
+          within(dialog).getByText(
+            "This company can't be deleted while invoices or cost lines use it. Remove those first.",
+          ),
+        ).toBeInTheDocument();
       });
     });
 
@@ -918,11 +1020,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       const dialog = screen.getByRole('alertdialog');
       await user.click(await enabledConfirm('vendor-delete'));
@@ -943,11 +1041,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       const dialog = screen.getByRole('alertdialog');
       await user.click(await enabledConfirm('vendor-delete'));
@@ -965,11 +1059,7 @@ describe('VendorDetailPage', () => {
       const user = userEvent.setup();
       renderPage();
 
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /^delete$/i })).toBeInTheDocument();
-      });
-
-      await user.click(screen.getByRole('button', { name: /^delete$/i }));
+      await openDeleteFromMenu(user);
 
       const dialog = screen.getByRole('alertdialog');
       await user.click(await enabledConfirm('vendor-delete'));
@@ -1606,7 +1696,7 @@ describe('VendorDetailPage', () => {
       });
       expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
       expect(probedOrigin()).toEqual({
-        to: '/settings/vendors/vendor-1',
+        to: '/companies/vendor-1',
         name: sampleVendor.name,
       });
 
@@ -1634,7 +1724,7 @@ describe('VendorDetailPage', () => {
       });
       expect(probedPath()).toBe(`/budget/invoices/${sampleInvoice.id}`);
       expect(probedOrigin()).toEqual({
-        to: '/settings/vendors/vendor-1',
+        to: '/companies/vendor-1',
         name: sampleVendor.name,
       });
 
@@ -1935,11 +2025,11 @@ describe('VendorDetailPage', () => {
 
     function renderWithMenu(vendorId = 'vendor-1') {
       return render(
-        <MemoryRouter initialEntries={[`/settings/vendors/${vendorId}`]}>
+        <MemoryRouter initialEntries={[`/companies/${vendorId}`]}>
           <CreateMenuProvider moneyPage={false} wide sheetOpen={false} onSheetOpenChange={() => {}}>
             <Routes>
-              <Route path="/settings/vendors/:id" element={<VendorDetailPage />} />
-              <Route path="/settings/vendors" element={<div>Vendors List Page</div>} />
+              <Route path="/companies/:id" element={<VendorDetailPage />} />
+              <Route path="/companies" element={<div>Vendors List Page</div>} />
             </Routes>
             <PrefillProbe />
           </CreateMenuProvider>

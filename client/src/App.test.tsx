@@ -541,36 +541,55 @@ describe('App', () => {
     expect(screen.getAllByRole('link', { name: 'Go to Home' })).toHaveLength(1);
   });
 
-  it('navigates to VendorsPage at /settings/vendors', async () => {
-    window.history.pushState({}, 'Vendors', '/settings/vendors');
+  it('navigates to the Companies page at /companies', async () => {
+    window.history.pushState({}, 'Companies', '/companies');
     render(<App />);
 
-    // Wait for the lazy-loaded VendorsPage to resolve and render its heading
     const heading = await screen.findByRole(
       'heading',
-      { level: 1, name: 'Vendors' },
+      { level: 1, name: 'Companies' },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/companies');
   });
 
-  it('navigates to VendorDetailPage at /settings/vendors/:id', async () => {
-    window.history.pushState({}, 'Vendor Detail', '/settings/vendors/vendor-1');
+  it('redirects /settings/vendors to /companies in one hop, keeping the query', async () => {
+    window.history.pushState({}, 'Vendors', '/settings/vendors?q=roof');
     render(<App />);
 
-    // VendorDetailPage shows a "loading vendor" text immediately and then the
-    // "Back to Vendors" button once the loading state settles.
-    // Since the API is mocked to never resolve (no fetchVendor mock), we check
-    // that the page renders without crashing by verifying the loading indicator.
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 1, name: 'Companies' },
+      { timeout: 5000 },
+    );
+    expect(heading).toBeInTheDocument();
+    expect(window.location.pathname).toBe('/companies');
+    expect(window.location.search).toBe('?q=roof');
+  });
+
+  it('navigates to VendorDetailPage at /companies/:id', async () => {
+    window.history.pushState({}, 'Company Detail', '/companies/vendor-1');
+    render(<App />);
+
+    // fetchVendor never resolves, so the page stays in its loading state; no 404 appears.
     await waitFor(
       () => {
         expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
       },
       { timeout: 5000 },
     );
-    // VendorDetailPage is the active route — the loading vendor text appears
-    // from the page itself (before the API call settles)
-    // The page title is set dynamically; confirm the route rendered (no 404)
+    expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/companies/vendor-1');
+  });
+
+  it('redirects /settings/vendors/:id to /companies/:id (keeps the id)', async () => {
+    window.history.pushState({}, 'Vendor Detail', '/settings/vendors/vendor-7');
+    render(<App />);
+
+    await waitFor(() => expect(window.location.pathname).toBe('/companies/vendor-7'), {
+      timeout: 5000,
+    });
     expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
   });
 
@@ -667,32 +686,26 @@ describe('App', () => {
     });
   });
 
-  it('redirects /budget/vendors to /settings/vendors', async () => {
+  it('redirects /budget/vendors to /companies', async () => {
     window.history.pushState({}, 'Budget Vendors', '/budget/vendors');
     render(<App />);
 
-    // After the redirect, VendorsPage at /settings/vendors renders its heading
     const heading = await screen.findByRole(
       'heading',
-      { level: 1, name: 'Vendors' },
+      { level: 1, name: 'Companies' },
       { timeout: 5000 },
     );
     expect(heading).toBeInTheDocument();
-    expect(window.location.pathname).toBe('/settings/vendors');
+    expect(window.location.pathname).toBe('/companies');
   });
 
-  it('redirects /budget/vendors/:id to /settings/vendors/:id (preserves id param)', async () => {
+  it('redirects /budget/vendors/:id to /companies/:id (preserves id param)', async () => {
     window.history.pushState({}, 'Budget Vendor Detail', '/budget/vendors/vendor-42');
     render(<App />);
 
-    // After the route-map redirect, VendorDetailPage at /settings/vendors/vendor-42 renders
-    // without crashing and without showing a 404
-    await waitFor(
-      () => {
-        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
-      },
-      { timeout: 5000 },
-    );
+    await waitFor(() => expect(window.location.pathname).toBe('/companies/vendor-42'), {
+      timeout: 5000,
+    });
     expect(screen.queryByRole('heading', { name: /page not found/i })).not.toBeInTheDocument();
   });
 
@@ -794,6 +807,7 @@ describe('App', () => {
     it.each([
       ['/project/household-items/new', 'New purchase', /^purchases$/i],
       ['/project/milestones/new', 'New milestone', /^milestones$/i],
+      ['/companies/new', 'New company', /^companies$/i],
     ])(
       '%s opens %s over its own list',
       async (path, dialogName, listHeading) => {

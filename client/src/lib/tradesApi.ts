@@ -6,6 +6,7 @@ import type {
   CreateTradeRequest,
   UpdateTradeRequest,
   TradeListQuery,
+  TradeMergeResponse,
 } from '@cornerstone/shared';
 
 /**
@@ -51,4 +52,11 @@ export function updateTrade(id: string, data: UpdateTradeRequest): Promise<Trade
  */
 export function deleteTrade(id: string): Promise<void> {
   return del<void>(`/trades/${id}`);
+}
+
+/**
+ * Merges trade `id` into `targetTradeId`: its companies move to the target and `id` is deleted.
+ */
+export function mergeTrade(id: string, targetTradeId: string): Promise<TradeMergeResponse> {
+  return post<TradeMergeResponse>(`/trades/${id}/merge`, { targetTradeId });
 }

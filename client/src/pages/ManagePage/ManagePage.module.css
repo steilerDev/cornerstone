@@ -558,3 +558,34 @@
     min-height: 44px;
   }
 }
+
+/* ---- Trades tab: pointer to the Companies page ---- */
+
+.movedNotice {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  color: var(--color-text-secondary);
+}
+
+.movedNotice p {
+  margin: 0;
+}
+
+.movedLink {
+  color: var(--color-primary);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.movedLink:hover {
+  color: var(--color-primary-hover);
+}
+
+.movedLink:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-radius: var(--radius-sm);
+}

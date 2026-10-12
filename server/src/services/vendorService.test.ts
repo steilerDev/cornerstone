@@ -6,6 +6,8 @@ import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import { runMigrations } from '../db/migrate.js';
 import * as schema from '../db/schema.js';
 import * as vendorService from './vendorService.js';
+import { searchDatabase } from './searchService.js';
+import { registerSqlFunctions } from '../db/sqlFunctions.js';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
 import type { CreateVendorRequest, UpdateVendorRequest } from '@cornerstone/shared';
 
@@ -52,6 +54,7 @@ describe('Vendor Service', () => {
     const sqliteDb = new Database(':memory:');
     sqliteDb.pragma('journal_mode = WAL');
     sqliteDb.pragma('foreign_keys = ON');
+    registerSqlFunctions(sqliteDb);
     runMigrations(sqliteDb);
     return { sqlite: sqliteDb, db: drizzle(sqliteDb, { schema }) };
   }
@@ -587,6 +590,475 @@ describe('Vendor Service', () => {
       expect(vendorService.listVendors(db, { q: '\\' }).vendors.map((v) => v.name)).toEqual([
         'Back\\slash Co',
       ]);
+    });
+  });
+
+  // ─── listVendors() companies list (#2213) ───────────────────────────────────
+
+  describe('listVendors() companies list (#2213)', () => {
+    let seq = 0;
+
+    function addContact(
+      vendorId: string,
+      options: { name?: string; phone?: string | null; email?: string | null } = {},
+    ) {
+      seq += 1;
+      const at = '2026-01-01T00:00:00.000Z';
+      db.insert(schema.vendorContacts)
+        .values({
+          id: `c2213-${seq}`,
+          vendorId,
+          name: options.name ?? `Contact ${seq}`,
+          phone: options.phone ?? null,
+          email: options.email ?? null,
+          createdAt: at,
+          updatedAt: at,
+        })
+        .run();
+    }
+
+    function addDiary(
+      options: {
+        vendorId?: string;
+        entryDate?: string;
+        entryType?: 'daily_log' | 'delivery' | 'general_note';
+        status?: 'draft' | 'saved';
+        isAutomatic?: boolean;
+        metadata?: Record<string, unknown> | null;
+      } = {},
+    ) {
+      seq += 1;
+      const at = '2026-01-01T00:00:00.000Z';
+      const metadata =
+        options.metadata !== undefined
+          ? options.metadata
+          : options.vendorId
+            ? { vendorId: options.vendorId }
+            : null;
+      db.insert(schema.diaryEntries)
+        .values({
+          id: `d2213-${seq}`,
+          entryType: options.entryType ?? 'daily_log',
+          entryDate: options.entryDate ?? '2026-03-01',
+          body: 'On site',
+          metadata: metadata ? JSON.stringify(metadata) : null,
+          status: options.status ?? 'saved',
+          isAutomatic: options.isAutomatic ?? false,
+          createdAt: at,
+          updatedAt: at,
+        })
+        .run();
+    }
+
+    const names = (q: Parameters<typeof vendorService.listVendors>[1], ids: string[] = []) =>
+      vendorService.listVendors(db, q, ids).vendors.map((v) => v.name);
+
+    describe('folded q across name, trade, phone, e-mail and contact persons', () => {
+      it('finds a name with an umlaut by its plain, digraph and accented spellings', () => {
+        createTestVendor('Müller Bau');
+        createTestVendor('Other Co');
+
+        expect(names({ q: 'Muller' })).toEqual(['Müller Bau']);
+        expect(names({ q: 'Mueller' })).toEqual(['Müller Bau']);
+        expect(names({ q: 'MÜLLER' })).toEqual(['Müller Bau']);
+      });
+
+      it('finds a sharp s by its ss spelling', () => {
+        createTestVendor('Fußboden Profis');
+        createTestVendor('Other Co');
+
+        expect(names({ q: 'fussboden' })).toEqual(['Fußboden Profis']);
+      });
+
+      it("matches the trade's stored name", () => {
+        const trade = createTestTrade('Elektrik');
+        createTestVendor('Alpha Co', { tradeId: trade.id });
+        createTestVendor('Beta Co');
+
+        expect(names({ q: 'elektr' })).toEqual(['Alpha Co']);
+      });
+
+      it('matches the company e-mail', () => {
+        createTestVendor('Alpha Co', { email: 'office@alpha.example.com' });
+        createTestVendor('Beta Co', { email: 'info@beta.example.com' });
+
+        expect(names({ q: 'alpha.example' })).toEqual(['Alpha Co']);
+      });
+
+      it('matches a contact person name, e-mail and phone', () => {
+        const a = createTestVendor('Alpha Co').id;
+        const b = createTestVendor('Beta Co').id;
+        createTestVendor('Gamma Co');
+        addContact(a, { name: 'Renate Zimmermann', email: 'renate@alpha.example.com' });
+        addContact(b, { name: 'Other Person', phone: '+49 30 5550142' });
+
+        expect(names({ q: 'zimmermann' })).toEqual(['Alpha Co']);
+        expect(names({ q: 'renate@alpha' })).toEqual(['Alpha Co']);
+        expect(names({ q: '5550142' })).toEqual(['Beta Co']);
+      });
+
+      it('lists a company once even when several contacts match', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addContact(a, { name: 'Sam Rivers' });
+        addContact(a, { name: 'Sami Rivers' });
+
+        const result = vendorService.listVendors(db, { q: 'rivers' });
+        expect(result.vendors.map((v) => v.name)).toEqual(['Alpha Co']);
+        expect(result.pagination.totalItems).toBe(1);
+      });
+
+      it('matches phone digits when q has at least 3 digits', () => {
+        createTestVendor('Alpha Co', { phone: '555-0123' });
+        createTestVendor('Beta Co', { phone: '555-0999' });
+
+        expect(names({ q: '555 01' })).toEqual(['Alpha Co']);
+      });
+
+      it('matches digits of a contact phone', () => {
+        const a = createTestVendor('Alpha Co').id;
+        createTestVendor('Beta Co');
+        addContact(a, { phone: '(030) 555 01 77' });
+
+        expect(names({ q: '03055501' })).toEqual(['Alpha Co']);
+      });
+
+      it('does not use digit matching for fewer than 3 digits', () => {
+        createTestVendor('Alpha Co', { phone: '1-2-3' });
+        createTestVendor('Beta Co');
+
+        // Digits of the phone are "123": "12" would match them, so a hit would prove the rule broke.
+        expect(names({ q: '12' })).toEqual([]);
+        expect(names({ q: '1 23' })).toEqual(['Alpha Co']);
+      });
+
+      it('treats % and _ as literal characters', () => {
+        createTestVendor('Half% Co');
+        createTestVendor('Under_score Co');
+        createTestVendor('Plain Co');
+
+        expect(names({ q: '%' })).toEqual(['Half% Co']);
+        expect(names({ q: '_' })).toEqual(['Under_score Co']);
+      });
+
+      it.each(['', '   '])('treats q=%j as no filter', (q) => {
+        createTestVendor('Alpha Co');
+        createTestVendor('Beta Co');
+
+        expect(names({ q })).toHaveLength(2);
+      });
+
+      it('filters and never ranks: the order stays the requested sort', () => {
+        createTestVendor('Zeta Bau');
+        createTestVendor('Alpha Bau');
+        createTestVendor('Bau Mitte');
+
+        expect(names({ q: 'bau', sortBy: 'name', sortOrder: 'asc' })).toEqual([
+          'Alpha Bau',
+          'Bau Mitte',
+          'Zeta Bau',
+        ]);
+        expect(names({ q: 'bau', sortBy: 'name', sortOrder: 'desc' })).toEqual([
+          'Zeta Bau',
+          'Bau Mitte',
+          'Alpha Bau',
+        ]);
+      });
+    });
+
+    describe('shares one matcher with the vendor group of the command search', () => {
+      it('returns the same company ids as searchDatabase for the same q and data', () => {
+        const trade = createTestTrade('Fliesen');
+        createTestVendor('Müller Bau', { phone: '555-0123', email: 'm@example.com' });
+        const b = createTestVendor('Beta Co', { tradeId: trade.id });
+        const c = createTestVendor('Gamma Co');
+        createTestVendor('Unrelated Co');
+        addContact(c.id, { name: 'Frau Müller', phone: '+49 555 0123' });
+        addContact(b.id, { name: 'Zed', email: 'zed@fliesen.example.com' });
+
+        for (const q of ['mueller', 'fliesen', '555 01', 'example.com', 'zed', 'none-such']) {
+          const list = vendorService
+            .listVendors(db, { q, pageSize: 100 })
+            .vendors.map((v) => v.id)
+            .sort();
+          const group = searchDatabase(db, { q, types: ['vendor'], limit: 100 }).find(
+            (g) => g.type === 'vendor',
+          );
+          const search = (group?.items ?? []).map((i) => i.id).sort();
+          expect(list).toEqual(search);
+        }
+      });
+    });
+
+    describe('tradeIds', () => {
+      it("finds a company whose trade's name does not contain q when its trade id is listed", () => {
+        const tile = createTestTrade('Fliesen');
+        const wood = createTestTrade('Holz');
+        createTestVendor('Alpha Co', { tradeId: tile.id });
+        createTestVendor('Beta Co', { tradeId: wood.id });
+
+        // "tile" is what an English user typed; the stored name is German.
+        expect(names({ q: 'tile' }, [])).toEqual([]);
+        expect(names({ q: 'tile' }, [tile.id])).toEqual(['Alpha Co']);
+      });
+
+      it('widens the text match instead of replacing it', () => {
+        const tile = createTestTrade('Fliesen');
+        createTestVendor('Alpha Co', { tradeId: tile.id });
+        createTestVendor('Tile Depot');
+        createTestVendor('Beta Co');
+
+        expect(names({ q: 'tile', sortBy: 'name', sortOrder: 'asc' }, [tile.id])).toEqual([
+          'Alpha Co',
+          'Tile Depot',
+        ]);
+      });
+
+      it('ignores unknown ids without an error or extra rows', () => {
+        createTestVendor('Alpha Co');
+        createTestVendor('Beta Co');
+
+        expect(names({ q: 'alpha' }, ['no-such-trade'])).toEqual(['Alpha Co']);
+      });
+
+      it('is ignored when q is missing or blank: all rows come back', () => {
+        const tile = createTestTrade('Fliesen');
+        createTestVendor('Alpha Co', { tradeId: tile.id });
+        createTestVendor('Beta Co');
+
+        expect(names({}, [tile.id])).toHaveLength(2);
+        expect(names({ q: '  ' }, [tile.id])).toHaveLength(2);
+      });
+
+      it('keeps tradeId as an AND filter', () => {
+        const a = createTestTrade('Fliesen');
+        const b = createTestTrade('Holz');
+        createTestVendor('Alpha Tile', { tradeId: a.id });
+        createTestVendor('Beta Tile', { tradeId: b.id });
+        createTestVendor('Tile Depot', { tradeId: a.id });
+
+        // tradeId=A & q=tile & tradeIds=B: only trade-A companies that match by text.
+        expect(names({ tradeId: a.id, q: 'tile', sortBy: 'name' }, [b.id])).toEqual([
+          'Alpha Tile',
+          'Tile Depot',
+        ]);
+      });
+    });
+
+    describe('contactCount', () => {
+      it('is 0 without contacts and counts every contact otherwise', () => {
+        createTestVendor('Alpha Co');
+        const b = createTestVendor('Beta Co').id;
+        addContact(b);
+        addContact(b, { phone: '555-0101' });
+
+        const rows = vendorService.listVendors(db, {}).vendors;
+        expect(rows.find((v) => v.name === 'Alpha Co')?.contactCount).toBe(0);
+        expect(rows.find((v) => v.name === 'Beta Co')?.contactCount).toBe(2);
+      });
+
+      it('does not count the contacts of other companies', () => {
+        const a = createTestVendor('Alpha Co').id;
+        const b = createTestVendor('Beta Co').id;
+        addContact(a);
+        addContact(b);
+        addContact(b);
+        addContact(b);
+
+        const rows = vendorService.listVendors(db, {}).vendors;
+        expect(rows.find((v) => v.name === 'Alpha Co')?.contactCount).toBe(1);
+      });
+
+      it('is a list-only field: detail responses do not carry it', () => {
+        const id = createTestVendor('Detail Co').id;
+        expect(vendorService.getVendorById(db, id)).not.toHaveProperty('contactCount');
+        expect(vendorService.getVendorById(db, id)).not.toHaveProperty('lastOnSite');
+      });
+    });
+
+    describe('lastOnSite', () => {
+      const lastOnSiteOf = (name: string) =>
+        vendorService.listVendors(db, {}).vendors.find((v) => v.name === name)?.lastOnSite;
+
+      it('is null when the company has no daily log', () => {
+        createTestVendor('Alpha Co');
+        expect(lastOnSiteOf('Alpha Co')).toBeNull();
+      });
+
+      it('is the latest entry date of its saved manual daily logs', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({ vendorId: a, entryDate: '2026-02-01' });
+        addDiary({ vendorId: a, entryDate: '2026-04-15' });
+        addDiary({ vendorId: a, entryDate: '2026-03-01' });
+
+        expect(lastOnSiteOf('Alpha Co')).toBe('2026-04-15');
+      });
+
+      it('ignores drafts', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({ vendorId: a, entryDate: '2026-02-01' });
+        addDiary({ vendorId: a, entryDate: '2026-05-01', status: 'draft' });
+
+        expect(lastOnSiteOf('Alpha Co')).toBe('2026-02-01');
+      });
+
+      it('ignores automatic entries', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({ vendorId: a, entryDate: '2026-02-01' });
+        addDiary({ vendorId: a, entryDate: '2026-05-01', isAutomatic: true });
+
+        expect(lastOnSiteOf('Alpha Co')).toBe('2026-02-01');
+      });
+
+      it('ignores deliveries, even with vendor text or an id in their metadata', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({
+          entryType: 'delivery',
+          entryDate: '2026-05-01',
+          metadata: { vendor: 'Alpha Co', vendorId: a },
+        });
+        addDiary({
+          entryType: 'delivery',
+          entryDate: '2026-05-02',
+          metadata: { vendor: 'Alpha Co' },
+        });
+
+        expect(lastOnSiteOf('Alpha Co')).toBeNull();
+      });
+
+      it('ignores other entry types and logs without a company', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({ entryType: 'general_note', entryDate: '2026-05-01', metadata: { vendorId: a } });
+        addDiary({ entryDate: '2026-05-02', metadata: null });
+        addDiary({ entryDate: '2026-05-03', metadata: { vendorId: null } });
+
+        expect(lastOnSiteOf('Alpha Co')).toBeNull();
+      });
+
+      it("does not take another company's daily log", () => {
+        const a = createTestVendor('Alpha Co').id;
+        const b = createTestVendor('Beta Co').id;
+        addDiary({ vendorId: a, entryDate: '2026-03-01' });
+        addDiary({ vendorId: b, entryDate: '2026-04-01' });
+
+        expect(lastOnSiteOf('Alpha Co')).toBe('2026-03-01');
+        expect(lastOnSiteOf('Beta Co')).toBe('2026-04-01');
+      });
+
+      it('returns a future date as stored', () => {
+        const a = createTestVendor('Alpha Co').id;
+        addDiary({ vendorId: a, entryDate: '2099-12-31' });
+
+        expect(lastOnSiteOf('Alpha Co')).toBe('2099-12-31');
+      });
+    });
+
+    describe('sorting', () => {
+      function seedLastOnSite() {
+        const a = createTestVendor('Alpha Co').id;
+        const b = createTestVendor('Beta Co').id;
+        createTestVendor('Gamma Co');
+        createTestVendor('Delta Co');
+        addDiary({ vendorId: a, entryDate: '2026-01-10' });
+        addDiary({ vendorId: b, entryDate: '2026-03-10' });
+      }
+
+      it('sorts by last_on_site ascending with companies without a value last', () => {
+        seedLastOnSite();
+        expect(names({ sortBy: 'last_on_site', sortOrder: 'asc' })).toEqual([
+          'Alpha Co',
+          'Beta Co',
+          'Delta Co',
+          'Gamma Co',
+        ]);
+      });
+
+      it('sorts by last_on_site descending with companies without a value still last', () => {
+        seedLastOnSite();
+        expect(names({ sortBy: 'last_on_site', sortOrder: 'desc' })).toEqual([
+          'Beta Co',
+          'Alpha Co',
+          'Delta Co',
+          'Gamma Co',
+        ]);
+      });
+
+      it('breaks last_on_site ties by name, then id', () => {
+        const x1 = createTestVendor('Same Name');
+        const x2 = createTestVendor('Same Name');
+        const other = createTestVendor('Aaa Co');
+        for (const v of [x1, x2, other]) addDiary({ vendorId: v.id, entryDate: '2026-02-02' });
+
+        const rows = vendorService.listVendors(db, {
+          sortBy: 'last_on_site',
+          sortOrder: 'desc',
+        }).vendors;
+        const sameIds = [x1.id, x2.id].sort();
+        expect(rows.map((v) => v.id)).toEqual([other.id, ...sameIds]);
+      });
+
+      it('sorts by name with equal names ordered by id in both directions', () => {
+        const ids = [createTestVendor('Twin').id, createTestVendor('Twin').id].sort();
+        const asc = vendorService.listVendors(db, { sortBy: 'name', sortOrder: 'asc' });
+        const desc = vendorService.listVendors(db, { sortBy: 'name', sortOrder: 'desc' });
+
+        expect(asc.vendors.map((v) => v.id)).toEqual(ids);
+        expect(desc.vendors.map((v) => v.id)).toEqual(ids);
+      });
+
+      it('breaks trade ties by name, then id', () => {
+        const trade = createTestTrade('Fliesen');
+        createTestVendor('Charlie', { tradeId: trade.id });
+        createTestVendor('Alpha', { tradeId: trade.id });
+        createTestVendor('Bravo', { tradeId: trade.id });
+
+        expect(names({ sortBy: 'trade', sortOrder: 'asc' })).toEqual(['Alpha', 'Bravo', 'Charlie']);
+        expect(names({ sortBy: 'trade', sortOrder: 'desc' })).toEqual([
+          'Alpha',
+          'Bravo',
+          'Charlie',
+        ]);
+      });
+
+      it.each(['created_at', 'updated_at'] as const)(
+        'breaks %s ties by name, then id',
+        (sortBy) => {
+          const at = '2026-01-01T00:00:00.000Z';
+          const base = { createdAt: at, updatedAt: at };
+          db.insert(schema.vendors)
+            .values([
+              { id: 'v-3', name: 'Same', ...base },
+              { id: 'v-1', name: 'Same', ...base },
+              { id: 'v-2', name: 'Aardvark', ...base },
+            ])
+            .run();
+
+          const ids = vendorService
+            .listVendors(db, { sortBy, sortOrder: 'desc' })
+            .vendors.map((v) => v.id);
+          expect(ids).toEqual(['v-2', 'v-1', 'v-3']);
+        },
+      );
+
+      it('pages a tie stably: page 1 and page 2 together hold every company exactly once', () => {
+        const at = '2026-01-01T00:00:00.000Z';
+        const rows = Array.from({ length: 7 }, (_, i) => ({
+          id: `tie-${i}`,
+          name: 'Identical',
+          createdAt: at,
+          updatedAt: at,
+        }));
+        db.insert(schema.vendors).values(rows).run();
+
+        const pages = [1, 2, 3, 4].map((page) =>
+          vendorService
+            .listVendors(db, { sortBy: 'created_at', sortOrder: 'asc', page, pageSize: 2 })
+            .vendors.map((v) => v.id),
+        );
+        const all = pages.flat();
+        expect(all).toHaveLength(7);
+        expect(new Set(all).size).toBe(7);
+        expect(all).toEqual([...all].sort());
+      });
     });
   });
 

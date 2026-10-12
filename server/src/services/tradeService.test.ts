@@ -835,4 +835,222 @@ describe('Trade Service', () => {
       expect(result.translationKey).toBeNull();
     });
   });
+
+  // ─── vendorCount, rename rule and merge (#2213) ────────────────────────────
+
+  describe('listTrades() vendorCount (#2213)', () => {
+    it('counts the companies of each trade, 0 when none, and keeps the order', () => {
+      const a = createTestTrade('Alpha Trade', { sortOrder: 2 });
+      createTestTrade('Beta Trade', { sortOrder: 1 });
+      const c = createTestTrade('Gamma Trade', { sortOrder: 3 });
+      createTestVendor(a.id);
+      createTestVendor(a.id);
+      createTestVendor(a.id);
+      createTestVendor(c.id);
+
+      const result = tradeService.listTrades(db);
+
+      expect(result.map((t) => [t.name, t.vendorCount])).toEqual([
+        ['Beta Trade', 0],
+        ['Alpha Trade', 3],
+        ['Gamma Trade', 1],
+      ]);
+    });
+
+    it('does not count companies without a trade', () => {
+      createTestTrade('Alpha Trade');
+      const now = new Date().toISOString();
+      db.insert(schema.vendors)
+        .values({
+          id: 'v-none',
+          name: 'No Trade Co',
+          tradeId: null,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+
+      expect(tradeService.listTrades(db)[0]!.vendorCount).toBe(0);
+    });
+
+    it('keeps vendorCount when a search filters the list', () => {
+      const a = createTestTrade('Alpha Trade');
+      createTestTrade('Beta Trade');
+      createTestVendor(a.id);
+
+      expect(tradeService.listTrades(db, 'alpha').map((t) => t.vendorCount)).toEqual([1]);
+    });
+  });
+
+  describe('updateTrade() rename rule (#2213)', () => {
+    function builtIn(name = 'Plumbing') {
+      const now = new Date().toISOString();
+      db.insert(schema.trades)
+        .values({
+          id: 'trade-built-in',
+          name,
+          translationKey: 'trades.plumbing',
+          sortOrder: 1,
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return 'trade-built-in';
+    }
+
+    it('clears translationKey when the name changes', () => {
+      const id = builtIn();
+      expect(tradeService.updateTrade(db, id, { name: 'Sanitary' }).translationKey).toBeNull();
+      expect(tradeService.getTradeById(db, id).translationKey).toBeNull();
+    });
+
+    it('keeps translationKey when the name is unchanged', () => {
+      const id = builtIn();
+      expect(tradeService.updateTrade(db, id, { name: 'Plumbing' }).translationKey).toBe(
+        'trades.plumbing',
+      );
+    });
+
+    it('clears translationKey for a change in case only (case-sensitive comparison)', () => {
+      const id = builtIn();
+      expect(tradeService.updateTrade(db, id, { name: 'plumbing' }).translationKey).toBeNull();
+    });
+
+    it('keeps translationKey when surrounding spaces trim to the stored name', () => {
+      const id = builtIn();
+      const result = tradeService.updateTrade(db, id, { name: '  Plumbing  ' });
+      expect(result.translationKey).toBe('trades.plumbing');
+      expect(result.name).toBe('Plumbing');
+    });
+
+    it('keeps translationKey for a PATCH without a name', () => {
+      const id = builtIn();
+      const result = tradeService.updateTrade(db, id, { color: '#112233' });
+      expect(result.translationKey).toBe('trades.plumbing');
+    });
+  });
+
+  describe('mergeTrade() (#2213)', () => {
+    it('moves every company to the target, bumps their updated_at and deletes the source', () => {
+      const source = createTestTrade('Source Trade');
+      const target = createTestTrade('Target Trade', { color: '#336699', description: 'Kept' });
+      const moved = [createTestVendor(source.id), createTestVendor(source.id)];
+      const staying = createTestVendor(target.id);
+      const before = '2020-01-01T00:00:00.000Z';
+      db.update(schema.vendors).set({ updatedAt: before }).run();
+
+      const result = tradeService.mergeTrade(db, source.id, target.id);
+
+      expect(result.movedVendorCount).toBe(2);
+      expect(result.trade).toMatchObject({
+        id: target.id,
+        name: 'Target Trade',
+        color: '#336699',
+        description: 'Kept',
+        vendorCount: 3,
+      });
+      const rows = db.select().from(schema.vendors).all();
+      for (const id of moved) {
+        const row = rows.find((r) => r.id === id)!;
+        expect(row.tradeId).toBe(target.id);
+        expect(row.updatedAt > before).toBe(true);
+      }
+      expect(rows.find((r) => r.id === staying)!.updatedAt).toBe(before);
+      expect(
+        db
+          .select()
+          .from(schema.trades)
+          .all()
+          .map((t) => t.id),
+      ).toEqual([target.id]);
+    });
+
+    it('leaves the kept trade row unchanged', () => {
+      const source = createTestTrade('Source Trade');
+      const target = createTestTrade('Target Trade');
+      createTestVendor(source.id);
+      const before = db
+        .select()
+        .from(schema.trades)
+        .all()
+        .find((t) => t.id === target.id);
+
+      tradeService.mergeTrade(db, source.id, target.id);
+
+      const after = db
+        .select()
+        .from(schema.trades)
+        .all()
+        .find((t) => t.id === target.id);
+      expect(after).toEqual(before);
+    });
+
+    it('merges a trade without companies: movedVendorCount 0', () => {
+      const source = createTestTrade('Source Trade');
+      const target = createTestTrade('Target Trade');
+
+      const result = tradeService.mergeTrade(db, source.id, target.id);
+
+      expect(result.movedVendorCount).toBe(0);
+      expect(result.trade.vendorCount).toBe(0);
+      expect(db.select().from(schema.trades).all()).toHaveLength(1);
+    });
+
+    it('throws NotFoundError for a missing source, and for an already merged one', () => {
+      const source = createTestTrade('Source Trade');
+      const target = createTestTrade('Target Trade');
+
+      expect(() => tradeService.mergeTrade(db, 'nope', target.id)).toThrow(NotFoundError);
+      tradeService.mergeTrade(db, source.id, target.id);
+      expect(() => tradeService.mergeTrade(db, source.id, target.id)).toThrow(NotFoundError);
+    });
+
+    it.each([
+      ['empty', ''],
+      ['blank', '   '],
+      ['unknown', 'no-such-trade'],
+    ])('throws ValidationError for a %s target', (_label, targetId) => {
+      const source = createTestTrade('Source Trade');
+      createTestVendor(source.id);
+
+      expect(() => tradeService.mergeTrade(db, source.id, targetId)).toThrow(ValidationError);
+      expect(db.select().from(schema.trades).all()).toHaveLength(1);
+    });
+
+    it('throws ValidationError when the target is the source, and changes nothing', () => {
+      const source = createTestTrade('Source Trade');
+      const v = createTestVendor(source.id);
+
+      expect(() => tradeService.mergeTrade(db, source.id, source.id)).toThrow(ValidationError);
+      expect(
+        db
+          .select()
+          .from(schema.vendors)
+          .all()
+          .find((r) => r.id === v)!.tradeId,
+      ).toBe(source.id);
+      expect(db.select().from(schema.trades).all()).toHaveLength(1);
+    });
+
+    it('rolls back the company move when the delete fails (one transaction)', () => {
+      const source = createTestTrade('Source Trade');
+      const target = createTestTrade('Target Trade');
+      const v = createTestVendor(source.id);
+      sqlite.exec(
+        `CREATE TRIGGER block_trade_delete BEFORE DELETE ON trades
+         BEGIN SELECT RAISE(ABORT, 'delete blocked'); END;`,
+      );
+
+      expect(() => tradeService.mergeTrade(db, source.id, target.id)).toThrow('delete blocked');
+
+      expect(
+        db
+          .select()
+          .from(schema.vendors)
+          .all()
+          .find((r) => r.id === v)!.tradeId,
+      ).toBe(source.id);
+      expect(db.select().from(schema.trades).all()).toHaveLength(2);
+    });
+  });
 });

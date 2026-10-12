@@ -51,7 +51,7 @@ export function QuickActionsCard() {
           {t('cards.quickActions.invoices')}
         </Link>
         <Link
-          to={routeUrl('vendors')}
+          to={routeUrl('companies')}
           className={styles.quickLink}
           aria-label={t('cards.quickActions.vendors')}
         >

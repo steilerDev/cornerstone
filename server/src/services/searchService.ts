@@ -25,6 +25,8 @@ export interface SearchParams {
   q: string;
   types: readonly SearchResultType[];
   limit: number;
+  /** Trade ids whose translated name matched `q` client-side; widens the vendor group only. */
+  tradeIds?: readonly string[];
 }
 
 export interface PaperlessSearchDeps {
@@ -58,6 +60,8 @@ interface FieldSpec {
   text: string;
   /** SQL expression yielding digits only, for phone number matching. */
   digits?: string;
+  /** SQL expression of the row's trade id, compared with `tradeIds` (vendor group only). */
+  ids?: string;
 }
 
 type AreaMode = 'self' | 'ancestors';
@@ -142,7 +146,7 @@ const SPECS: QuerySpec[] = [
       NULL AS "parentType", NULL AS "parentId", NULL AS "parentLabel"`,
     fields: [
       { name: 'name', text: 'v.name' },
-      { name: 'tradeName', text: 't.name' },
+      { name: 'tradeName', text: 't.name', ids: 'v.trade_id' },
       { name: 'phone', text: 'v.phone', digits: 'digits(v.phone)' },
       { name: 'email', text: 'v.email' },
       {
@@ -235,6 +239,7 @@ interface Needles {
   prefix: string;
   contains: string;
   digitsContains: string | null;
+  tradeIds: readonly string[];
 }
 
 interface RawRow {
@@ -265,16 +270,20 @@ interface RawRow {
  * the label matches (0 equals, 1 starts with, 2 contains), else 3 (matched only through another
  * field). `matchedField` is the first field in array order that matches.
  */
-function buildQuery(spec: QuerySpec, needles: Needles, limit: number): SQL {
+function buildRanked(spec: QuerySpec, needles: Needles) {
   const withDigits = needles.digitsContains !== null;
+  const withIds = needles.tradeIds.length > 0;
   const raw = (s: string) => sql.raw(s);
 
   const foldCols = spec.fields.map((f, i) => `fold(${f.text}) AS f${i}`);
   const digitCols = spec.fields
     .map((f, i) => (withDigits && f.digits ? `${f.digits} AS d${i}` : null))
     .filter((c): c is string => c !== null);
+  const idCols = spec.fields
+    .map((f, i) => (withIds && f.ids ? `${f.ids} AS k${i}` : null))
+    .filter((c): c is string => c !== null);
 
-  const level1 = sql`SELECT ${raw(spec.select)}, ${raw([...foldCols, ...digitCols].join(', '))}
+  const level1 = sql`SELECT ${raw(spec.select)}, ${raw([...foldCols, ...digitCols, ...idCols].join(', '))}
     FROM ${raw(spec.from)}${spec.where ? sql` WHERE ${raw(spec.where)}` : sql``}`;
 
   const rankCols = spec.fields.map((f, i) => {
@@ -282,31 +291,83 @@ function buildQuery(spec: QuerySpec, needles: Needles, limit: number): SQL {
       withDigits && f.digits
         ? sql` WHEN d${raw(String(i))} LIKE ${needles.digitsContains} ${raw(LIKE_ESCAPE)} THEN 2`
         : sql``;
+    const idMatch =
+      withIds && f.ids
+        ? sql` WHEN k${raw(String(i))} IN (${sql.join(
+            needles.tradeIds.map((id) => sql`${id}`),
+            sql`, `,
+          )}) THEN 2`
+        : sql``;
     const col = raw(`f${i}`);
     return sql`CASE WHEN ${col} = ${needles.folded} THEN 0
       WHEN ${col} LIKE ${needles.prefix} ${raw(LIKE_ESCAPE)} THEN 1
-      WHEN ${col} LIKE ${needles.contains} ${raw(LIKE_ESCAPE)} THEN 2${digitMatch}
+      WHEN ${col} LIKE ${needles.contains} ${raw(LIKE_ESCAPE)} THEN 2${digitMatch}${idMatch}
       ELSE ${raw(String(NO_MATCH_RANK))} END AS r${raw(String(i))}`;
   });
   const level2 = sql`SELECT l1.*, ${sql.join(rankCols, sql`, `)} FROM l1`;
 
   const ranks = spec.fields.map((_, i) => `r${i}`);
   const best = `MIN(${ranks.join(', ')}, ${NO_MATCH_RANK})`;
+
+  // MATERIALIZED: stops SQLite from flattening level 1 into level 2, which would re-run the
+  // fold() UDF for every use of a folded column (equals, prefix, contains) instead of once per row.
+  return { withClause: sql`WITH l1 AS MATERIALIZED (${level1})`, level2, best };
+}
+
+function buildQuery(spec: QuerySpec, needles: Needles, limit: number): SQL {
+  const raw = (s: string) => sql.raw(s);
+  const { withClause, level2, best } = buildRanked(spec, needles);
   const rank = `CASE WHEN r0 < ${NO_MATCH_RANK} THEN r0 ELSE ${OTHER_FIELD_RANK} END`;
   const matchedCase = `CASE ${spec.fields
     .map((f, i) => `WHEN r${i} < ${NO_MATCH_RANK} THEN '${f.name}'`)
     .join(' ')} END`;
   const columns = BASE_COLUMNS.map((c) => `l2."${c}"`).join(', ');
 
-  // MATERIALIZED: stops SQLite from flattening level 1 into level 2, which would re-run the
-  // fold() UDF for every use of a folded column (equals, prefix, contains) instead of once per row.
-  return sql`WITH l1 AS MATERIALIZED (${level1})
+  return sql`${withClause}
     SELECT ${raw(columns)}, ${raw(rank)} AS "rnk", ${raw(matchedCase)} AS "matchedField",
       COUNT(*) OVER () AS "total"
     FROM (${level2}) l2
     WHERE ${raw(best)} < ${raw(String(NO_MATCH_RANK))}
     ORDER BY "rnk" ASC, l2."updatedAt" DESC, l2."id" ASC
     LIMIT ${limit}`;
+}
+
+/** Ids of the rows of `spec` that match, unordered and unlimited. */
+function buildMatchIds(spec: QuerySpec, needles: Needles): SQL {
+  const { withClause, level2, best } = buildRanked(spec, needles);
+  return sql`${withClause}
+    SELECT l2."id" FROM (${level2}) l2
+    WHERE ${sql.raw(best)} < ${sql.raw(String(NO_MATCH_RANK))}`;
+}
+
+/**
+ * Folds and escapes the query once for every use. Null when the folded query is empty.
+ */
+function buildNeedles(q: string, tradeIds: readonly string[]): Needles | null {
+  const trimmed = q.trim();
+  const folded = foldSearchText(trimmed);
+  if (folded === '') return null;
+  const qDigits = searchDigits(trimmed);
+  return {
+    folded,
+    prefix: toLikePrefixPattern(folded),
+    contains: toLikeContainsPattern(folded),
+    digitsContains:
+      qDigits.length >= MIN_DIGITS_FOR_PHONE_MATCH ? toLikeContainsPattern(qDigits) : null,
+    tradeIds,
+  };
+}
+
+/**
+ * WHERE predicate for GET /api/vendors `q` (#2213): the vendor group's matcher and field list,
+ * shared with GET /api/search. Null when q folds to '' (no filter).
+ */
+export function vendorTextMatch(q: string, tradeIds: readonly string[]): SQL | null {
+  const needles = buildNeedles(q, tradeIds);
+  if (!needles) return null;
+  const spec = SPECS.find((s) => s.type === 'vendor');
+  if (!spec) throw new Error('vendor search spec missing');
+  return sql`"vendors"."id" IN (${buildMatchIds(spec, needles)})`;
 }
 
 function runSpec(
@@ -368,24 +429,14 @@ function toItem(
  * The query is folded first, then LIKE-escaped, then bound as a parameter.
  */
 export function searchDatabase(db: DbType, params: SearchParams): SearchGroup[] {
-  const trimmed = params.q.trim();
-  const folded = foldSearchText(trimmed);
+  const needles = buildNeedles(params.q, params.tradeIds ?? []);
   const requested = SEARCH_RESULT_TYPES.filter(
     (t) => t !== 'paperless_document' && params.types.includes(t),
   );
 
-  if (folded === '') {
+  if (!needles) {
     return requested.map((type) => ({ type, total: 0, status: 'ok', items: [] }));
   }
-
-  const qDigits = searchDigits(trimmed);
-  const needles: Needles = {
-    folded,
-    prefix: toLikePrefixPattern(folded),
-    contains: toLikeContainsPattern(folded),
-    digitsContains:
-      qDigits.length >= MIN_DIGITS_FOR_PHONE_MATCH ? toLikeContainsPattern(qDigits) : null,
-  };
 
   let areaMap: Map<string, AreaMapEntry> | null = null;
   const getAreaMap = () => (areaMap ??= loadAreaMap(db));

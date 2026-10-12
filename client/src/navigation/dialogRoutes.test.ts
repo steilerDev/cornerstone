@@ -22,8 +22,16 @@ const bg = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('matchDialogRoute / dialogParentRoute', () => {
-  it('matches the three dialog routes and nothing else', () => {
-    expect(DIALOG_ROUTE_IDS).toEqual(['workItemNew', 'householdItemNew', 'milestoneNew']);
+  it('matches the four dialog routes and nothing else', () => {
+    expect(DIALOG_ROUTE_IDS).toEqual([
+      'workItemNew',
+      'householdItemNew',
+      'milestoneNew',
+      'companyNew',
+    ]);
+    expect(matchDialogRoute('/companies/new')).toBe('companyNew');
+    expect(matchDialogRoute('/companies')).toBeNull();
+    expect(matchDialogRoute('/companies/abc')).toBeNull();
     expect(matchDialogRoute('/project/work-items/new')).toBe('workItemNew');
     expect(matchDialogRoute('/project/work-items')).toBeNull();
     expect(matchDialogRoute('/nowhere/at/all')).toBeNull();
@@ -33,6 +41,7 @@ describe('matchDialogRoute / dialogParentRoute', () => {
     expect(dialogParentRoute('workItemNew')).toBe('workItems');
     expect(dialogParentRoute('householdItemNew')).toBe('householdItems');
     expect(dialogParentRoute('milestoneNew')).toBe('milestones');
+    expect(dialogParentRoute('companyNew')).toBe('companies');
   });
 });
 
@@ -129,6 +138,18 @@ describe('displayLocationFor', () => {
     expect(d.hash).toBe('');
     expect(d.state).toBe(state);
     expect(d.key).toBe('real');
+  });
+
+  it('renders the companies list behind /companies/new, over the background or in deep-link mode (#2213)', () => {
+    const over = displayLocationFor(
+      real('/companies/new', bg({ pathname: '/companies', search: '?trades=1' })),
+    );
+    expect(over.pathname).toBe('/companies');
+    expect(over.search).toBe('?trades=1');
+
+    const deep = displayLocationFor(real('/companies/new'));
+    expect(deep.pathname).toBe('/companies');
+    expect(deep.search).toBe('');
   });
 
   it('treats an unsafe background as deep-link mode', () => {

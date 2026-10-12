@@ -22,6 +22,13 @@ import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as ConfigApiTypes from '../../lib/configApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
+import userEvent from '@testing-library/user-event';
+import { installMatchMedia } from '../../test/matchMediaControl.js';
+import type { MatchMediaControl } from '../../test/matchMediaControl.js';
+import type * as ProviderTypes from '../../objectForms/CompanyCreateProvider.js';
+import { CompanyCreateContext } from '../../objectForms/companyCreateContext.js';
+import type { RequestCompanyCreate } from '../../objectForms/companyCreateContext.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 
 // ─── Module-scope mock functions ──────────────────────────────────────────────
 
@@ -242,6 +249,22 @@ jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   deleteVendor: jest.fn(),
 }));
 
+jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
+  useAuth: () => ({ user: { id: 'u1' } }),
+}));
+
+const stubCompanySchema = {
+  id: 'company',
+  title: 'New company',
+  initialValues: { name: '' },
+  fields: [{ name: 'name', label: 'Name', kind: 'text', essential: true, required: true }],
+  validate: () => ({}),
+  submit: async () => ({ id: 'c-new', href: '/companies/c-new', label: 'Brand New Co' }),
+};
+jest.unstable_mockModule('../../objectForms/companyForm.js', () => ({
+  useCompanyFormSchema: () => stubCompanySchema,
+}));
+
 // ─── Mock: SearchPicker (#1736) ───────────────────────────────────────────────
 // The real SearchPicker requires floating-ui portal and getBoundingClientRect
 // which are problematic in jsdom. Stub it with a simple element that captures
@@ -252,17 +275,37 @@ jest.unstable_mockModule('../../components/SearchPicker/SearchPicker.js', () => 
     onChange,
     initialTitle,
     id,
+    createAction,
   }: {
     value: string;
     onChange: (id: string) => void;
     initialTitle?: string;
     id?: string;
+    createAction?: {
+      show?: string;
+      getLabel: (query: string) => string;
+      onCreate: (query: string) => Promise<{ id: string; name: string } | null>;
+    };
     [key: string]: unknown;
   }) => {
     capturedSearchPickerOnChange = onChange;
     return (
       <div data-testid={`search-picker-${id ?? 'default'}`} data-initial-title={initialTitle}>
         <span data-testid="search-picker-title">{initialTitle ?? ''}</span>
+        {createAction && (
+          <button
+            type="button"
+            data-testid="search-picker-create"
+            data-show={createAction.show}
+            onClick={() =>
+              void createAction.onCreate('Brand New Co').then((company) => {
+                if (company) onChange(company.id);
+              })
+            }
+          >
+            {createAction.getLabel('Brand New Co')}
+          </button>
+        )}
         <input
           data-testid={`search-picker-input-${id ?? 'default'}`}
           onChange={(e) => onChange(e.target.value)}
@@ -1482,12 +1525,12 @@ describe('InvoiceDetailPage', () => {
     it('offers Back to the company the invoice was opened from', async () => {
       renderRouted({
         url: '/budget/invoices/inv-001',
-        state: { origin: { to: '/settings/vendors/vendor-1', name: 'Acme Construction' } },
+        state: { origin: { to: '/companies/vendor-1', name: 'Acme Construction' } },
       });
 
       const back = await screen.findByTestId('breadcrumbs-back');
       expect(back).toHaveTextContent('Back to Acme Construction');
-      expect(back).toHaveAttribute('href', '/settings/vendors/vendor-1');
+      expect(back).toHaveAttribute('href', '/companies/vendor-1');
     });
 
     it('the error action "Back to Invoices" navigates to the Invoices list', async () => {
@@ -1550,6 +1593,289 @@ describe('InvoiceDetailPage', () => {
         to: '/budget/invoices/inv-001',
         name: 'Acme Construction · INV-2026-001',
       });
+    });
+  });
+
+  describe('company create row in the edit modal (#2213)', () => {
+    function renderWithCompanyCreate(request: RequestCompanyCreate | null) {
+      return render(
+        <CompanyCreateContext value={request}>
+          <MemoryRouter initialEntries={[`/budget/invoices/${MOCK_INVOICE_ID}`]}>
+            <Routes>
+              <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+              <Route path="/budget/invoices" element={<div>Invoice List Page</div>} />
+            </Routes>
+          </MemoryRouter>
+        </CompanyCreateContext>,
+      );
+    }
+
+    async function openEdit() {
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+      });
+      await screen.findByRole('heading', { name: 'Edit Invoice', level: 2 });
+    }
+
+    it('gives the company picker a "New company ‹text›" row that hides on an exact match', async () => {
+      renderWithCompanyCreate(jest.fn<RequestCompanyCreate>());
+      await openEdit();
+
+      const row = screen.getByTestId('search-picker-create');
+      expect(row).toHaveTextContent('New company Brand New Co');
+      expect(row).toHaveAttribute('data-show', 'noExactMatch');
+    });
+
+    it('gives the picker no row outside a CompanyCreateProvider', async () => {
+      renderWithCompanyCreate(null);
+      await openEdit();
+      expect(screen.queryByTestId('search-picker-create')).not.toBeInTheDocument();
+    });
+
+    it('saves the invoice with the created company', async () => {
+      const request = jest
+        .fn<RequestCompanyCreate>()
+        .mockResolvedValue({ id: 'vendor-new', name: 'Brand New Co' });
+      mockUpdateInvoice.mockResolvedValue({
+        ...mockInvoice,
+        vendorId: 'vendor-new',
+        vendorName: 'Brand New Co',
+      });
+      renderWithCompanyCreate(request);
+      await openEdit();
+
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('search-picker-create'));
+      });
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+
+      expect(request).toHaveBeenCalledWith('Brand New Co');
+      await waitFor(() => expect(mockUpdateInvoice).toHaveBeenCalledTimes(1));
+      const [pathVendorId, , body] = mockUpdateInvoice.mock.calls[0] as [
+        string,
+        string,
+        Record<string, unknown>,
+      ];
+      expect(pathVendorId).toBe('vendor-1');
+      expect(body.vendorId).toBe('vendor-new');
+    });
+
+    describe('while the New company form is open (stacked dialog)', () => {
+      let finish: (company: CompanyOption | null) => void;
+
+      async function openWithPendingCreate() {
+        const request = jest.fn<RequestCompanyCreate>(
+          () => new Promise<CompanyOption | null>((resolve) => (finish = resolve)),
+        );
+        renderWithCompanyCreate(request);
+        await openEdit();
+        await act(async () => {
+          fireEvent.click(screen.getByTestId('search-picker-create'));
+        });
+      }
+
+      const editOpen = () => screen.queryByRole('heading', { name: 'Edit Invoice', level: 2 });
+
+      it('ignores a click on the backdrop', async () => {
+        await openWithPendingCreate();
+        const backdrop = document.querySelector('[class*="modalBackdrop"]') as HTMLElement;
+
+        await act(async () => {
+          fireEvent.click(backdrop);
+        });
+
+        expect(editOpen()).toBeInTheDocument();
+      });
+
+      it('ignores Cancel', async () => {
+        await openWithPendingCreate();
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+        });
+
+        expect(editOpen()).toBeInTheDocument();
+      });
+
+      it('closes normally again once the New company form is done', async () => {
+        await openWithPendingCreate();
+        await act(async () => {
+          finish(null);
+        });
+
+        await act(async () => {
+          fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+        });
+
+        expect(editOpen()).not.toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('edit dialog is the shared Modal (#2213)', () => {
+    async function openEdit() {
+      renderPage();
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      screen.getByRole('button', { name: /^Edit$/i }).focus();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+      });
+      await screen.findByRole('dialog', { name: 'Edit Invoice' });
+    }
+
+    const closeButton = () =>
+      within(screen.getByRole('dialog', { name: 'Edit Invoice' })).getByRole('button', {
+        name: 'Close dialog',
+      });
+
+    it('is one dialog named by its title, with a Close dialog button', async () => {
+      await openEdit();
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toHaveAttribute(
+        'aria-modal',
+        'true',
+      );
+      expect(closeButton()).not.toHaveAttribute('aria-disabled');
+    });
+
+    it('the close button closes it', async () => {
+      await openEdit();
+      fireEvent.click(closeButton());
+      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
+    });
+
+    it('Escape closes it', async () => {
+      await openEdit();
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
+    });
+
+    it('a click on the backdrop closes it', async () => {
+      await openEdit();
+      fireEvent.click(document.querySelector('[class*="modalBackdrop"]') as HTMLElement);
+      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
+    });
+
+    it('Cancel closes it and returns focus to the Edit button', async () => {
+      await openEdit();
+      fireEvent.click(screen.getByRole('button', { name: /^Cancel$/i }));
+      expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByRole('button', { name: /^Edit$/i })).toHaveFocus());
+    });
+
+    it('is not dismissible while the save is running: Escape, close button and backdrop do nothing', async () => {
+      let finish: (inv: Invoice) => void = () => {};
+      mockUpdateInvoice.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      await openEdit();
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Save Changes$/i }));
+      });
+      const close = closeButton();
+
+      expect(close).toHaveAttribute('aria-disabled', 'true');
+      await userEvent.keyboard('{Escape}');
+      fireEvent.click(close);
+      fireEvent.click(document.querySelector('[class*="modalBackdrop"]') as HTMLElement);
+      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
+
+      await act(async () => {
+        finish({ ...mockInvoice });
+      });
+    });
+  });
+
+  describe('company create stacked over the edit dialog (real provider, #2213)', () => {
+    let Provider: (typeof ProviderTypes)['CompanyCreateProvider'];
+    let media: MatchMediaControl;
+
+    beforeEach(async () => {
+      ({ CompanyCreateProvider: Provider } =
+        (await import('../../objectForms/CompanyCreateProvider.js')) as typeof ProviderTypes);
+      media = installMatchMedia({ '(min-width: 768px)': true });
+    });
+    afterEach(() => media.restore());
+
+    async function openStack() {
+      render(
+        <MemoryRouter initialEntries={[`/budget/invoices/${MOCK_INVOICE_ID}`]}>
+          <Provider>
+            <Routes>
+              <Route path="/budget/invoices/:id" element={<InvoiceDetailPage />} />
+            </Routes>
+          </Provider>
+        </MemoryRouter>,
+      );
+      await waitFor(() =>
+        expect(
+          screen.getByRole('heading', { name: /Acme Construction · INV-2026-001/i, level: 1 }),
+        ).toBeInTheDocument(),
+      );
+      await act(async () => {
+        fireEvent.click(screen.getByRole('button', { name: /^Edit$/i }));
+      });
+      await screen.findByRole('dialog', { name: 'Edit Invoice' });
+      await act(async () => {
+        fireEvent.click(screen.getByTestId('search-picker-create'));
+      });
+      await screen.findByRole('dialog', { name: 'New company' });
+    }
+
+    it('shows both dialogs, the company form on top', async () => {
+      await openStack();
+      expect(screen.getAllByRole('dialog')).toHaveLength(2);
+      expect(screen.getByRole('dialog', { name: 'New company' }).getAttribute('style')).toContain(
+        'var(--z-modal) + 2',
+      );
+      expect(
+        screen.getByRole('dialog', { name: 'Edit Invoice' }).getAttribute('style') ?? '',
+      ).not.toContain('z-modal');
+    });
+
+    it('one Escape closes only the company form; the edit dialog stays', async () => {
+      await openStack();
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument(),
+      );
+      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
+    });
+
+    it('the edit dialog cannot be dismissed while the company form is open', async () => {
+      await openStack();
+      const editDialog = screen.getByRole('dialog', { name: 'Edit Invoice' });
+      const close = within(editDialog).getByRole('button', { name: 'Close dialog' });
+
+      expect(close).toHaveAttribute('aria-disabled', 'true');
+      fireEvent.click(close);
+      fireEvent.click(within(editDialog).getByRole('button', { name: /^Cancel$/i }));
+      expect(screen.getByRole('dialog', { name: 'Edit Invoice' })).toBeInTheDocument();
+    });
+
+    it('a second Escape then closes the edit dialog (it is dismissible again)', async () => {
+      await openStack();
+      await userEvent.keyboard('{Escape}');
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'New company' })).not.toBeInTheDocument(),
+      );
+
+      await userEvent.keyboard('{Escape}');
+
+      await waitFor(() =>
+        expect(screen.queryByRole('dialog', { name: 'Edit Invoice' })).not.toBeInTheDocument(),
+      );
     });
   });
 });

@@ -421,4 +421,214 @@ describe('SearchPicker createAction (Story #2148)', () => {
       expect(input).not.toHaveAttribute('aria-describedby');
     });
   });
+
+  describe("show: 'noExactMatch' (#2213)", () => {
+    function renderNoExact(items: TestItem[] = sampleItems) {
+      mockSearchFn.mockResolvedValue(items);
+      return renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'noExactMatch' },
+      });
+    }
+    const createRow = () => screen.queryByRole('option', { name: /^Add / });
+
+    it('hides the row for an empty query', async () => {
+      renderNoExact();
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      await screen.findByText('Alpha Widget');
+      expect(createRow()).not.toBeInTheDocument();
+      expect(screen.getAllByRole('option')).toHaveLength(2);
+    });
+
+    it('hides the row for a whitespace-only query', async () => {
+      renderNoExact([]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), '   ');
+
+      await waitFor(() => expect(mockSearchFn).toHaveBeenCalled());
+      expect(createRow()).not.toBeInTheDocument();
+    });
+
+    it('hides the row while the search is loading', async () => {
+      mockSearchFn.mockReturnValue(new Promise(() => {}));
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'noExactMatch' },
+      });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
+
+      await waitFor(() => expect(mockSearchFn).toHaveBeenCalledWith('Gamma', []));
+      expect(createRow()).not.toBeInTheDocument();
+    });
+
+    it('hides the row when the search failed', async () => {
+      mockSearchFn.mockRejectedValue(new Error('boom'));
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'noExactMatch' },
+      });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
+
+      await waitFor(() => expect(mockSearchFn).toHaveBeenCalledWith('Gamma', []));
+      expect(await screen.findByText('Failed to search items')).toBeInTheDocument();
+      expect(createRow()).not.toBeInTheDocument();
+    });
+
+    it.each(['alpha widget', 'ALPHA WIDGET', '  Alpha Widget  '])(
+      'hides the row when a result equals the query ignoring case and spaces (%j)',
+      async (typed) => {
+        renderNoExact();
+
+        await user.type(screen.getByPlaceholderText('Search...'), typed);
+
+        await screen.findByText('Alpha Widget');
+        expect(createRow()).not.toBeInTheDocument();
+      },
+    );
+
+    it('hides the row when a result equals the query ignoring umlauts and digraphs', async () => {
+      renderNoExact([{ id: 'u1', label: 'Müller Bau' }]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'mueller bau');
+
+      await screen.findByText('Müller Bau');
+      expect(createRow()).not.toBeInTheDocument();
+    });
+
+    it('shows the row last when there are results but none is exact', async () => {
+      renderNoExact();
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Alpha');
+
+      const options = await screen.findAllByRole('option');
+      expect(options).toHaveLength(3);
+      expect(options[2]).toHaveAccessibleName('Add "Alpha"');
+    });
+
+    it('does not count a partial match as exact', async () => {
+      renderNoExact([{ id: 'p1', label: 'Alpha Widget Deluxe' }]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Alpha Widget');
+
+      expect(await screen.findByRole('option', { name: 'Add "Alpha Widget"' })).toBeInTheDocument();
+    });
+
+    it('replaces the "no results" line when there are zero results', async () => {
+      renderNoExact([]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Zzz');
+
+      expect(await screen.findByRole('option', { name: 'Add "Zzz"' })).toBeInTheDocument();
+      expect(screen.queryByText('No matching items found')).not.toBeInTheDocument();
+    });
+
+    it('shows the full label as the row tooltip', async () => {
+      mockGetLabel.mockImplementation((q) => `New company ${q}`);
+      renderNoExact([]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Acme');
+
+      const row = await screen.findByRole('option', { name: 'New company Acme' });
+      expect(row).toHaveAttribute('title', 'New company Acme');
+    });
+
+    it('still creates from the row with the trimmed query', async () => {
+      mockOnCreate.mockResolvedValue(null);
+      renderNoExact([]);
+
+      await user.type(screen.getByPlaceholderText('Search...'), '  Acme ');
+      await user.click(await screen.findByRole('option', { name: 'Add "Acme"' }));
+
+      expect(mockOnCreate).toHaveBeenCalledWith('Acme');
+    });
+
+    it("keeps 'no results' and the row when show is 'always'", async () => {
+      mockSearchFn.mockResolvedValue([]);
+      renderPicker({
+        createAction: { getLabel: mockGetLabel, onCreate: mockOnCreate, show: 'always' },
+      });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'Zzz');
+
+      expect(await screen.findByText('No matching items found')).toBeInTheDocument();
+      expect(await screen.findByRole('option', { name: 'Add "Zzz"' })).toBeInTheDocument();
+    });
+  });
+
+  describe('showWhenEmpty with noExactMatch (#2213)', () => {
+    const action = (over: Partial<SearchPickerCreateAction<TestItem>> = {}) => ({
+      getLabel: mockGetLabel,
+      onCreate: mockOnCreate,
+      show: 'noExactMatch' as const,
+      showWhenEmpty: true,
+      ...over,
+    });
+
+    it('shows the row for an empty query once the results have loaded, labelled by getLabel("")', async () => {
+      renderPicker({ createAction: action() });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      await screen.findByText('Alpha Widget');
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+      expect(mockGetLabel).toHaveBeenCalledWith('');
+    });
+
+    it('creates with an empty query from that row', async () => {
+      mockOnCreate.mockResolvedValue(null);
+      renderPicker({ createAction: action() });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+      await user.click(await screen.findByRole('option', { name: 'Add new' }));
+
+      expect(mockOnCreate).toHaveBeenCalledWith('');
+    });
+
+    it('keeps the row hidden while the first search is loading', async () => {
+      mockSearchFn.mockReturnValue(new Promise(() => {}));
+      renderPicker({ createAction: action() });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      await waitFor(() => expect(mockSearchFn).toHaveBeenCalled());
+      expect(screen.queryByRole('option', { name: 'Add new' })).not.toBeInTheDocument();
+    });
+
+    it('keeps the row hidden when the search failed', async () => {
+      mockSearchFn.mockRejectedValue(new Error('boom'));
+      renderPicker({ createAction: action() });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      expect(await screen.findByText('Failed to load items')).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'Add new' })).not.toBeInTheDocument();
+    });
+
+    it('still hides the row for a typed query that equals a result', async () => {
+      renderPicker({ createAction: action() });
+
+      await user.type(screen.getByPlaceholderText('Search...'), 'alpha widget');
+
+      await screen.findByRole('option', { name: 'Alpha Widget' });
+      expect(screen.queryByRole('option', { name: /^Add / })).not.toBeInTheDocument();
+    });
+
+    it('without showWhenEmpty the empty query shows no row', async () => {
+      renderPicker({ createAction: action({ showWhenEmpty: false }) });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      await screen.findByText('Alpha Widget');
+      expect(screen.queryByRole('option', { name: 'Add new' })).not.toBeInTheDocument();
+    });
+
+    it('showWhenEmpty has no effect on show "always"', async () => {
+      renderPicker({ createAction: action({ show: 'always' }) });
+
+      await user.click(screen.getByPlaceholderText('Search...'));
+
+      expect(await screen.findByRole('option', { name: 'Add new' })).toBeInTheDocument();
+    });
+  });
 });

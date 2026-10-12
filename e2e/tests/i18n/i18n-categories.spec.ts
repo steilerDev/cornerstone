@@ -26,12 +26,14 @@
 import type { Browser, BrowserContext, Page } from '@playwright/test';
 import { test, expect } from '../../fixtures/auth.js';
 import { createLocalUserViaApi, deleteUserViaApi } from '../../fixtures/apiHelpers.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Route helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
-const MANAGE_TRADES_URL = '/settings/manage?tab=trades';
+// Trades are managed in the Trades sheet on the Companies page since #2213
+const MANAGE_TRADES_URL = routeUrl('companies', undefined, { trades: 1 });
 const MANAGE_BUDGET_CATEGORIES_URL = '/settings/manage?tab=budget-categories';
 const MANAGE_HI_CATEGORIES_URL = '/settings/manage?tab=hi-categories';
 
@@ -99,7 +101,7 @@ test.describe('i18n: Predefined category name translations', () => {
   // Trades tab
   // ───────────────────────────────────────────────────────────────────────────
 
-  test('English baseline: Manage trades tab shows "Plumbing"', async ({ browser }) => {
+  test('English baseline: the Trades sheet shows "Plumbing"', async ({ browser }) => {
     const { context, page: scopedPage } = await loginAsUserInNewContext(
       browser,
       dedicatedUser!.email,
@@ -107,12 +109,11 @@ test.describe('i18n: Predefined category name translations', () => {
       'en',
     );
     try {
-      // When: User navigates to the Manage page trades tab
+      // When: User opens the Trades sheet
       await scopedPage.goto(MANAGE_TRADES_URL);
-      await scopedPage.locator('#trades-panel').waitFor({ state: 'attached' });
-
-      const tradesPanel = scopedPage.locator('#trades-panel');
-      await tradesPanel.locator('[class*="itemRow"]').first().waitFor({ state: 'visible' });
+      const tradesPanel = scopedPage.getByRole('dialog', { name: 'Trades', exact: true });
+      await tradesPanel.waitFor({ state: 'visible' });
+      await tradesPanel.getByRole('listitem').first().waitFor({ state: 'visible' });
 
       // Then: The predefined "Plumbing" trade is visible with its English name
       await expect(tradesPanel.getByText('Plumbing', { exact: true }).first()).toBeVisible();
@@ -121,7 +122,7 @@ test.describe('i18n: Predefined category name translations', () => {
     }
   });
 
-  test('German locale: Manage trades tab shows "Sanitär" instead of "Plumbing"', async ({
+  test('German locale: the Trades sheet shows "Sanitär" instead of "Plumbing"', async ({
     browser,
   }) => {
     // Extend timeout: i18next cold-start locale initialization from localStorage
@@ -142,15 +143,13 @@ test.describe('i18n: Predefined category name translations', () => {
       await scopedPage.goto(MANAGE_TRADES_URL, { waitUntil: 'networkidle' });
       await scopedPage.reload({ waitUntil: 'networkidle' });
 
-      const tradesPanel = scopedPage.locator('#trades-panel');
+      const tradesPanel = scopedPage.getByRole('dialog', { name: 'Gewerke', exact: true });
       await expect(tradesPanel.getByText('Sanitär', { exact: true }).first()).toBeVisible({
         timeout: 30000,
       });
 
-      // And: The raw English name "Plumbing" is NOT shown as a category name
-      await expect(
-        tradesPanel.locator('[class*="itemName"]').filter({ hasText: 'Plumbing' }),
-      ).not.toBeVisible();
+      // And: The raw English name "Plumbing" is NOT shown as a trade name
+      await expect(tradesPanel.getByText('Plumbing', { exact: true })).toHaveCount(0);
     } finally {
       await context.close();
     }

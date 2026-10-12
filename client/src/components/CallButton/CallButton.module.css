@@ -1,0 +1,40 @@
+.button {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  flex: none;
+  box-sizing: border-box;
+  min-height: var(--spacing-8);
+  padding-block: 0;
+  text-decoration: none;
+}
+
+.button:focus-visible {
+  outline: none;
+  box-shadow: var(--shadow-focus);
+  border-color: var(--color-border-focus);
+}
+
+.fullWidth {
+  width: 100%;
+  justify-content: center;
+  min-height: var(--touch-target-min);
+}
+
+.icon {
+  flex: none;
+}
+
+.text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (pointer: coarse) {
+  .button {
+    min-height: var(--touch-target-min);
+  }
+}

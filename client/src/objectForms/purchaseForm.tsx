@@ -15,25 +15,36 @@ import { useAreas } from '../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
 import { fetchHouseholdItemCategories } from '../lib/householdItemCategoriesApi.js';
 import { createHouseholdItem } from '../lib/householdItemsApi.js';
-import { fetchVendors } from '../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors } from '../lib/vendorsApi.js';
+import { prefillFromSearch } from '../navigation/createQuery.js';
+import { useRealLocation } from '../navigation/realLocation.js';
+import { SearchPicker } from '../components/SearchPicker/SearchPicker.js';
 import { AreaField } from './AreaField.js';
+import { useCompanyFormSchema } from './companyForm.js';
+import type { CompanyOption } from './companyForm.js';
 
-interface VendorOption {
-  id: string;
-  name: string;
-}
+const NO_EXCLUDED: string[] = [];
 
 /** The New purchase form: a 1:1 port of the former create page. */
 export function usePurchaseFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('householdItems');
   const { t: tc } = useTranslation('common');
+  const { t: tb } = useTranslation('budget');
+  const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
+  // The pre-filled company, read once from the real location (the dialog route's own URL).
+  const realLocation = useRealLocation();
+  const [prefilledId] = useState(
+    () => prefillFromSearch(new URLSearchParams(realLocation.search)).companyId,
+  );
 
-  const [vendors, setVendors] = useState<VendorOption[]>([]);
+  const [vendors, setVendors] = useState<CompanyOption[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
+  // A company created from the picker's child step: its name shows until the user changes it.
+  const [createdCompany, setCreatedCompany] = useState<CompanyOption | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -44,7 +55,20 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
           fetchHouseholdItemCategories(),
         ]);
         if (cancelled) return;
-        setVendors(vendorsResponse.vendors);
+        let loaded: CompanyOption[] = vendorsResponse.vendors;
+        // A pre-filled company outside the first page is looked up on its own; only a company
+        // that does not exist (404) is left out, so ObjectForm then drops its id.
+        if (prefilledId && !loaded.some((v) => v.id === prefilledId)) {
+          try {
+            const found = await fetchVendor(prefilledId);
+            if (cancelled) return;
+            loaded = [...loaded, { id: found.id, name: found.name }];
+          } catch {
+            // Unknown company: not added to the options.
+          }
+        }
+        if (cancelled) return;
+        setVendors(loaded);
         setCategories(categoriesResponse.categories);
       } catch (err) {
         console.error('Failed to load data:', err);
@@ -57,7 +81,7 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [prefilledId]);
 
   return {
     id: 'purchase',
@@ -133,15 +157,56 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
       {
         name: 'vendorId',
         label: t('create.form.vendor.label'),
-        kind: 'select',
+        kind: 'custom',
         essential: true,
+        // Lets ObjectForm drop an unknown pre-filled company id once the companies have loaded (D12).
+        options: vendors.map((v) => ({ value: v.id, label: v.name })),
         optionsLoading: loading,
-        options: loading
-          ? []
-          : [
-              { value: '', label: t('create.form.vendor.placeholder') },
-              ...vendors.map((vendor) => ({ value: vendor.id, label: vendor.name })),
-            ],
+        render: (ctx) => {
+          const value = typeof ctx.value === 'string' ? ctx.value : '';
+          return (
+            <SearchPicker<CompanyOption>
+              id={ctx.id}
+              value={value}
+              onChange={ctx.setValue}
+              excludeIds={NO_EXCLUDED}
+              disabled={ctx.busy}
+              placeholder={t('create.form.vendor.placeholder')}
+              searchFn={async (query) => {
+                const res = await fetchVendors({ q: query, pageSize: 50 });
+                return res.vendors;
+              }}
+              renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
+              showItemsOnFocus
+              initialTitle={
+                createdCompany?.id === value
+                  ? createdCompany.name
+                  : vendors.find((v) => v.id === value)?.name
+              }
+              inputAriaProps={{
+                'aria-invalid': ctx.invalid || undefined,
+                'aria-describedby': ctx.describedBy,
+              }}
+              createAction={{
+                getLabel: (query) => tb('companies.picker.newNamed', { name: query }),
+                show: 'noExactMatch',
+                // The form continues in a child step (dialogs never stack); the new company
+                // is set on this field when it is saved.
+                onCreate: async (query) => {
+                  ctx.createChild({
+                    schema: companySchema,
+                    prefill: { name: query },
+                    onCreated: (result) => {
+                      setCreatedCompany({ id: result.id, name: result.label });
+                      ctx.setValue(result.id);
+                    },
+                  });
+                  return null;
+                },
+              }}
+            />
+          );
+        },
       },
       {
         name: 'description',

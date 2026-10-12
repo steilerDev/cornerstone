@@ -54,6 +54,10 @@
   composes: btnSecondary from '../../styles/shared.module.css';
 }
 
+.visuallyHidden {
+  composes: srOnly from '../../styles/shared.module.css';
+}
+
 .confirmButton {
   composes: btnDanger from '../../styles/shared.module.css';
 }

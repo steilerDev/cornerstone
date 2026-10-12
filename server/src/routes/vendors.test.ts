@@ -15,6 +15,7 @@ import {
   workItemBudgets,
   trades,
   vendorContacts,
+  diaryEntries,
 } from '../db/schema.js';
 
 describe('Vendor Routes', () => {
@@ -465,6 +466,111 @@ describe('Vendor Routes', () => {
       });
 
       expect(response.statusCode).toBe(400);
+    });
+
+    describe('companies list query (#2213)', () => {
+      const ids = (n: number) => Array.from({ length: n }, (_, i) => `t${i}`).join(',');
+
+      let listerCookie: string | undefined;
+      beforeEach(() => {
+        listerCookie = undefined;
+      });
+      async function list(query: string) {
+        listerCookie ??= (await createUserWithSession('lister@test.com', 'User', 'password'))
+          .cookie;
+        const cookie = listerCookie;
+        return app.inject({ method: 'GET', url: `/api/vendors?${query}`, headers: { cookie } });
+      }
+
+      it('accepts sortBy=last_on_site in both directions, nulls last, with contactCount and lastOnSite', async () => {
+        const seen = createTestVendor('Seen Co');
+        createTestVendor('Never Co');
+        const now = new Date().toISOString();
+        app.db
+          .insert(diaryEntries)
+          .values({
+            id: 'diary-1',
+            entryType: 'daily_log',
+            entryDate: '2026-03-04',
+            body: 'On site',
+            metadata: JSON.stringify({ vendorId: seen.id }),
+            status: 'saved',
+            isAutomatic: false,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .run();
+        app.db
+          .insert(vendorContacts)
+          .values({ id: 'vc-1', vendorId: seen.id, name: 'Sam', createdAt: now, updatedAt: now })
+          .run();
+
+        for (const order of ['asc', 'desc']) {
+          const res = await list(`sortBy=last_on_site&sortOrder=${order}`);
+          expect(res.statusCode).toBe(200);
+          const rows = res.json<{
+            vendors: Array<{ name: string; lastOnSite: string | null; contactCount: number }>;
+          }>().vendors;
+          expect(rows.map((v) => v.name)).toEqual(['Seen Co', 'Never Co']);
+          expect(rows[0]).toMatchObject({ lastOnSite: '2026-03-04', contactCount: 1 });
+          expect(rows[1]).toMatchObject({ lastOnSite: null, contactCount: 0 });
+        }
+      });
+
+      it('matches a folded umlaut query through the route', async () => {
+        createTestVendor('Müller Bau');
+        createTestVendor('Other Co');
+
+        const res = await list('q=mueller');
+        expect(res.json<{ vendors: Vendor[] }>().vendors.map((v) => v.name)).toEqual([
+          'Müller Bau',
+        ]);
+      });
+
+      it('widens a q match with tradeIds and ignores tradeIds without q', async () => {
+        const tile = createTestTrade('Fliesen');
+        createTestVendor('Alpha Co', { tradeId: tile.id });
+        createTestVendor('Beta Co');
+
+        const widened = await list(`q=tile&tradeIds=${tile.id},unknown`);
+        expect(widened.json<{ vendors: Vendor[] }>().vendors.map((v) => v.name)).toEqual([
+          'Alpha Co',
+        ]);
+        const noQ = await list(`tradeIds=${tile.id}`);
+        expect(noQ.json<{ vendors: Vendor[] }>().vendors).toHaveLength(2);
+      });
+
+      it('accepts exactly 50 ids', async () => {
+        expect((await list(`q=a&tradeIds=${ids(50)}`)).statusCode).toBe(200);
+      });
+
+      it('rejects more than 50 ids with VALIDATION_ERROR and details.tradeIds', async () => {
+        const res = await list(`q=a&tradeIds=${ids(51)}`);
+        expect(res.statusCode).toBe(400);
+        const body = res.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('VALIDATION_ERROR');
+        expect(body.error.details).toHaveProperty('tradeIds');
+      });
+
+      it('accepts a q of exactly 500 characters', async () => {
+        expect((await list(`q=${'a'.repeat(500)}`)).statusCode).toBe(200);
+      });
+
+      it('rejects a q of 501 characters with VALIDATION_ERROR', async () => {
+        const res = await list(`q=${'a'.repeat(501)}`);
+        expect(res.statusCode).toBe(400);
+        expect(res.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      });
+
+      it('rejects an id longer than 64 characters', async () => {
+        const res = await list(`q=a&tradeIds=${'x'.repeat(65)}`);
+        expect(res.statusCode).toBe(400);
+        expect(res.json<ApiErrorResponse>().error.details).toHaveProperty('tradeIds');
+      });
+
+      it('de-duplicates before counting', async () => {
+        expect((await list(`q=a&tradeIds=${ids(50)},${ids(10)}`)).statusCode).toBe(200);
+      });
     });
   });
 

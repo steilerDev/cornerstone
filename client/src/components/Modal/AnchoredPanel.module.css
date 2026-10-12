@@ -1,5 +1,6 @@
 .panel {
-  z-index: var(--z-overlay);
+  /* A popover stacks above any open dialog. */
+  z-index: calc(var(--z-modal) + 100);
   min-width: calc(var(--spacing-16) * 3);
   max-width: calc(100vw - 2 * var(--spacing-4));
   overflow-y: auto;

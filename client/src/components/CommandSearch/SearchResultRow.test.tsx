@@ -119,8 +119,10 @@ describe('SearchResultRow', () => {
       setup(vendor());
       const call = screen.getByTestId('command-search-call-v1');
       expect(call).toHaveAttribute('href', 'tel:+49301234');
-      expect(call).toHaveAttribute('aria-label', 'Call Acme Roofing');
+      expect(call).toHaveAttribute('aria-label', 'Call Acme Roofing on +49 (30) 12-34');
       expect(call).toHaveAttribute('tabindex', '-1');
+      expect(call.textContent).toBe('Call');
+      expect(call.id).toBe(`${screen.getByRole('option').id}-call`);
       expect(call.parentElement).toHaveAttribute('role', 'presentation');
       expect(screen.getByRole('option')).toHaveAttribute('aria-describedby', 'call-hint');
       expect(screen.getByRole('option').contains(call)).toBe(false);

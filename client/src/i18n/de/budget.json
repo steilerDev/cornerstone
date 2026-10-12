@@ -234,16 +234,10 @@
     "generateReportMenuAriaLabel": "Bericht für {{name}} erstellen"
   },
   "vendors": {
-    "title": "Auftragnehmer",
     "sectionTitle": "Auftragnehmer",
-    "addVendor": "Auftragnehmer Hinzufügen",
-    "addFirstVendor": "Ersten Auftragnehmer Hinzufügen",
     "loading": "Auftragnehmer werden geladen...",
     "error": "Fehler",
-    "errorMessage": "Auftragnehmer konnten nicht geladen werden. Bitte versuchen Sie es später erneut.",
     "retry": "Erneut versuchen",
-    "noVendorsTitle": "Noch keine Auftragnehmer",
-    "noVendorsDescription": "Fügen Sie Ihren ersten Auftragnehmer oder Unternehmer hinzu, um zu verfolgen, wer an Ihrem Projekt arbeitet.",
     "searchPlaceholder": "Auftragnehmer nach Name oder Fachrichtung suchen...",
     "sortBy": "Sortieren nach:",
     "sortAsc": "↑ Aufsteigend",
@@ -256,60 +250,20 @@
     "pagination": "Anzeige {{from}} bis {{to}} von {{total}} Auftragnehmern",
     "previous": "Zurück",
     "next": "Weiter",
-    "form": {
-      "name": "Name",
-      "specialty": "Fachrichtung",
-      "phone": "Telefon",
-      "email": "E-Mail",
-      "address": "Adresse",
-      "notes": "Notizen",
-      "trade": "Gewerk",
-      "required": "*",
-      "placeholders": {
-        "name": "z. B. Müller Klempner GmbH",
-        "specialty": "z. B. Sanitär, Elektrik, Dachdeckerei",
-        "phone": "z. B. +49 555-123-4567",
-        "email": "z. B. kontakt@mueller-klemner.de",
-        "address": "z. B. Hauptstr. 123, 12345 Musterstadt",
-        "notes": "Zusätzliche Notizen zu diesem Auftragnehmer...",
-        "trade": "Gewerk auswählen..."
-      }
-    },
     "validation": {
       "nameRequired": "Name des Auftragnehmers ist erforderlich.",
       "nameTooLong": "Name des Auftragnehmers darf maximal 200 Zeichen lang sein."
     },
     "buttons": {
-      "create": "Auftragnehmer Hinzufügen",
-      "creating": "Wird hinzugefügt...",
       "save": "Änderungen Speichern",
       "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
       "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "view": "Anzeigen",
       "viewDetails": "Details Anzeigen",
       "retry": "Erneut versuchen"
     },
-    "tableHeaders": {
-      "name": "Name",
-      "trade": "Gewerk",
-      "contactInfo": "Kontakt",
-      "address": "Adresse",
-      "notes": "Notizen",
-      "createdAt": "Hinzugefügt am",
-      "updatedAt": "Zuletzt aktualisiert"
-    },
     "searchAriaLabel": "Auftragnehmer durchsuchen",
-    "modal": {
-      "title": "Auftragnehmer Hinzufügen",
-      "description": "Fügen Sie einen Auftragnehmer oder Unternehmer hinzu, der an Ihrem Bauprojekt beteiligt ist.",
-      "deleteError": "Dieser Auftragnehmer kann nicht gelöscht werden, da er zugehörige Rechnungen oder Arbeitspakete hat. Entfernen Sie zuerst diese Verweise."
-    },
     "messages": {
-      "createError": "Auftragnehmer konnte nicht erstellt werden. Bitte versuchen Sie es später erneut.",
-      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut.",
-      "deleteError": "Auftragnehmer konnte nicht gelöscht werden. Bitte versuchen Sie es später erneut."
+      "updateError": "Auftragnehmer konnte nicht aktualisiert werden. Bitte versuchen Sie es später erneut."
     }
   },
   "budgetLine": {
@@ -1134,8 +1088,6 @@
     "vendor": "Auftragnehmer",
     "vendorPlaceholder": "Auftragnehmer suchen…",
     "vendorRequired": "Auftragnehmer ist erforderlich",
-    "addNewVendor": "Neuen Auftragnehmer hinzufügen",
-    "addNewVendorNamed": "Neuen Auftragnehmer „{{name}}“ hinzufügen",
     "budgetSource": "Budgetquelle",
     "budgetSourceNone": "Kein Standard",
     "budgetSourceApplied_one": "Budgetquelle „{{name}}“ auf {{count}} Position angewendet",
@@ -1470,5 +1422,47 @@
     "planned": "Geplant",
     "ariaLabel_one": "{{invoice}}: {{count}} Kostenposition für diesen Eintrag, {{amount}} {{amountLabel}}",
     "ariaLabel_other": "{{invoice}}: {{count}} Kostenpositionen für diesen Eintrag, {{amount}} {{amountLabel}}"
+  },
+  "companies": {
+    "list": {
+      "newCompany": "Neue Firma",
+      "trades": "Gewerke",
+      "allTrades": "Alle Gewerke",
+      "tradeFilterLabel": "Gewerk",
+      "actionsFor": "Aktionen für {{name}}",
+      "emptyTitle": "Noch keine Firmen",
+      "emptyDescription": "Fügen Sie Firmen hinzu, mit denen Sie arbeiten. Danach können Sie sie mit zwei Tipps anrufen.",
+      "loadError": "Firmen konnten nicht geladen werden. Versuchen Sie es erneut.",
+      "deleteBlocked": "Diese Firma kann nicht gelöscht werden, solange Rechnungen oder Kostenpositionen sie verwenden. Entfernen Sie diese zuerst.",
+      "deleteFailed": "Die Firma konnte nicht gelöscht werden. Versuchen Sie es erneut.",
+      "columns": {
+        "name": "Name",
+        "trade": "Gewerk",
+        "phone": "Telefon",
+        "contactPersons": "Ansprechpartner",
+        "lastOnSite": "Zuletzt vor Ort",
+        "email": "E-Mail",
+        "address": "Adresse",
+        "notes": "Notizen",
+        "createdAt": "Hinzugefügt am",
+        "updatedAt": "Zuletzt aktualisiert"
+      }
+    },
+    "form": {
+      "title": "Neue Firma",
+      "name": "Name",
+      "trade": "Gewerk",
+      "tradePlaceholder": "Gewerk auswählen",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "address": "Adresse",
+      "notes": "Notizen",
+      "nameRequired": "Geben Sie einen Namen ein.",
+      "nameTooLong": "Verwenden Sie höchstens 200 Zeichen.",
+      "emailInvalid": "Geben Sie eine gültige E-Mail-Adresse ein."
+    },
+    "picker": {
+      "newNamed": "Neue Firma „{{name}}“"
+    }
   }
 }

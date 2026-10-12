@@ -22,19 +22,26 @@ describe('navLabelKeyForRoute', () => {
     ['householdItems', 'navigation.purchases'],
     ['settingsManage', 'navigation.projectSetup'],
     ['settingsProfile', 'navigation.account'],
-    // Interim aliases: the served page stands in for the planned NavConfig route.
+    // Interim alias: the served page stands in for the planned NavConfig route.
     ['dashboard', 'navigation.home'],
-    ['vendors', 'navigation.companies'],
+    ['companies', 'navigation.companies'],
   ])('maps the view %s to %s', (id, key) => {
     expect(navLabelKeyForRoute(id)).toBe(key);
   });
 
-  it.each(['workItem', 'workItemNew', 'milestone', 'householdItem', 'vendor', 'login'])(
-    'gives the object or auth page %s no label',
-    (id) => {
-      expect(navLabelKeyForRoute(id)).toBeNull();
-    },
-  );
+  it.each([
+    'workItem',
+    'workItemNew',
+    'milestone',
+    'householdItem',
+    'vendor',
+    'vendors',
+    'company',
+    'companyNew',
+    'login',
+  ])('gives the object or auth page %s no label', (id) => {
+    expect(navLabelKeyForRoute(id)).toBeNull();
+  });
 
   it('returns null for an unknown route id', () => {
     expect(navLabelKeyForRoute('doesNotExist')).toBeNull();
@@ -81,19 +88,29 @@ describe('navLabelKeyForPath', () => {
 });
 
 describe('isNavView', () => {
-  it.each(['workItems', 'milestones', 'scheduleGantt', 'scheduleCalendar', 'dashboard', 'vendors'])(
-    'treats %s as a view',
-    (id) => {
-      expect(isNavView(id)).toBe(true);
-    },
-  );
+  it.each([
+    'workItems',
+    'milestones',
+    'scheduleGantt',
+    'scheduleCalendar',
+    'dashboard',
+    'companies',
+  ])('treats %s as a view', (id) => {
+    expect(isNavView(id)).toBe(true);
+  });
 
-  it.each(['workItem', 'workItemNew', 'milestone', 'vendor', 'householdItemEdit'])(
-    'treats %s as a non-view',
-    (id) => {
-      expect(isNavView(id)).toBe(false);
-    },
-  );
+  it.each([
+    'workItem',
+    'workItemNew',
+    'milestone',
+    'vendor',
+    'vendors',
+    'company',
+    'companyNew',
+    'householdItemEdit',
+  ])('treats %s as a non-view', (id) => {
+    expect(isNavView(id)).toBe(false);
+  });
 });
 
 describe('navSectionForRoute', () => {
@@ -102,6 +119,8 @@ describe('navSectionForRoute', () => {
     ['householdItemEdit', 'purchases'],
     ['scheduleGantt', 'tasks'],
     ['vendor', 'companies'],
+    ['company', 'companies'],
+    ['companyNew', 'companies'],
     ['settingsManage', 'settings'],
   ])('puts %s in the %s section', (id, section) => {
     expect(navSectionForRoute(id)?.id).toBe(section);

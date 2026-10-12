@@ -2,7 +2,7 @@
  * E2E test for the vendor list phone fallback (Story #2197, AC4).
  *
  * A vendor with no phone of its own shows the first contact person's phone in the
- * "Contact" column (as a tel: link). A vendor with its own phone keeps it and does not
+ * "Phone" column with a Call button (a tel: link, #2213). A vendor with its own phone keeps it and does not
  * show a contact person's number. Runs on desktop, tablet and mobile (card layout).
  *
  * All names and numbers are synthetic (555-01NN form).
@@ -58,14 +58,21 @@ test.describe('Vendor list phone fallback', { tag: '@responsive' }, () => {
       await vendorsPage.goto();
       await vendorsPage.search(testPrefix);
 
-      const drywallPhone = vendorsPage.phoneLink(drywallName);
-      await expect(drywallPhone).toHaveText('555-0101');
-      await expect(drywallPhone).toHaveAttribute('href', 'tel:555-0101');
+      // The Phone column shows the number and a Call button (a tel: link). Phone cards show one
+      // full-width "Call <number>" button instead (no separate number text).
+      const phoneVisible = (await page.viewportSize())!.width >= 768;
 
-      const roofingPhone = vendorsPage.phoneLink(roofingName);
-      await expect(roofingPhone).toHaveText('555-0102');
-      await expect(roofingPhone).toHaveAttribute('href', 'tel:555-0102');
-      await expect(vendorsPage.contactCell(roofingName)).not.toContainText('555-0103');
+      const drywallCall = vendorsPage.callLink(drywallName);
+      await expect(drywallCall).toHaveAttribute('href', 'tel:5550101');
+      await expect(drywallCall).toHaveAccessibleName(
+        phoneVisible ? `Call ${drywallName} on 555-0101` : `Call 555-0101, ${drywallName}`,
+      );
+      await expect(vendorsPage.row(drywallName)).toContainText('555-0101');
+
+      const roofingCall = vendorsPage.callLink(roofingName);
+      await expect(roofingCall).toHaveAttribute('href', 'tel:5550102');
+      await expect(vendorsPage.row(roofingName)).toContainText('555-0102');
+      await expect(vendorsPage.row(roofingName)).not.toContainText('555-0103');
     } finally {
       for (const id of vendorIds) {
         await page.request.delete(`${API.vendors}/${id}`);

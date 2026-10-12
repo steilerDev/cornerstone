@@ -190,3 +190,13 @@ validate correctness.
 - Confirm `docker ps -a` and `docker network ls` have no leftover test containers/networks —
   the suite's own `globalTeardown` (`e2e/containers/teardown.ts`) handles this on a normal run,
   but verify after any run that errored before reaching teardown.
+
+## Added 2026-10-11 (#2213): batching and image freshness
+
+- One container run allows 20 logins per 15 min: a single run over navigation + i18n + admin with many workers hit
+  `429 RATE_LIMIT_EXCEEDED` in every isolated-user spec (dashboard, new-menu-member, user-menu). Run folders in separate
+  invocations (each starts a fresh container) with `--workers=6`.
+- The image is a snapshot of the tree at build time: if the translator/frontend write files after `docker build` started
+  (check `ls -l --time-style=full-iso` on the changed files), rebuild before trusting German/locale results.
+- `pwrun.sh` must be `chmod +x` before the first run; wrap long chains in a script file written with the Write tool (the
+  shell hook refuses long heredoc/python one-liners in a worktree session).

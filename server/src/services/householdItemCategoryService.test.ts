@@ -717,4 +717,76 @@ describe('Household Item Category Service', () => {
       expect(result.translationKey).toBeNull();
     });
   });
+
+  // ─── rename rule (#2213) ───────────────────────────────────────────────────
+
+  describe('updateHouseholdItemCategory() rename rule (#2213)', () => {
+    const storedName = () =>
+      householdItemCategoryService.getHouseholdItemCategoryById(db, 'hic-appliances').name;
+
+    it('clears translationKey when the name changes', () => {
+      const result = householdItemCategoryService.updateHouseholdItemCategory(
+        db,
+        'hic-appliances',
+        { name: 'Renamed Item' },
+      );
+      expect(result.translationKey).toBeNull();
+      expect(
+        householdItemCategoryService.getHouseholdItemCategoryById(db, 'hic-appliances')
+          .translationKey,
+      ).toBeNull();
+    });
+
+    it('keeps translationKey when the name is unchanged', () => {
+      const before = householdItemCategoryService.getHouseholdItemCategoryById(
+        db,
+        'hic-appliances',
+      );
+      expect(before.translationKey).not.toBeNull();
+      const result = householdItemCategoryService.updateHouseholdItemCategory(
+        db,
+        'hic-appliances',
+        { name: before.name },
+      );
+      expect(result.translationKey).toBe(before.translationKey);
+    });
+
+    it('clears translationKey for a change in case only (case-sensitive comparison)', () => {
+      const swapped = storedName().toUpperCase();
+      expect(swapped).not.toBe(storedName());
+      expect(
+        householdItemCategoryService.updateHouseholdItemCategory(db, 'hic-appliances', {
+          name: swapped,
+        }).translationKey,
+      ).toBeNull();
+    });
+
+    it('keeps translationKey when surrounding spaces trim to the stored name', () => {
+      const name = storedName();
+      const result = householdItemCategoryService.updateHouseholdItemCategory(
+        db,
+        'hic-appliances',
+        { name: `  ${name}  ` },
+      );
+      expect(result.translationKey).not.toBeNull();
+      expect(result.name).toBe(name);
+    });
+
+    it('keeps translationKey for a PATCH without a name', () => {
+      const result = householdItemCategoryService.updateHouseholdItemCategory(
+        db,
+        'hic-appliances',
+        { color: '#112233' },
+      );
+      expect(result.translationKey).not.toBeNull();
+    });
+
+    it('leaves translationKey null for a renamed user-created category', () => {
+      const cat = createTestCategory('Custom Item');
+      const result = householdItemCategoryService.updateHouseholdItemCategory(db, cat.id, {
+        name: 'Custom Item 2',
+      });
+      expect(result.translationKey).toBeNull();
+    });
+  });
 });

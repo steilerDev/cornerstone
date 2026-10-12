@@ -253,7 +253,11 @@ function makeTradesHookResult(
   overrides: Partial<UseTradesTypes.UseTradesResult> = {},
 ): UseTradesTypes.UseTradesResult {
   return {
-    trades: [sampleTrade1, sampleTrade2],
+    trades: [
+      { ...sampleTrade1, vendorCount: 0 },
+      { ...sampleTrade2, vendorCount: 0 },
+    ],
+    isInitialLoading: false,
     isLoading: false,
     error: null,
     refetch: jest.fn(),
@@ -266,6 +270,7 @@ function makeTradesHookResult(
     deleteTrade: jest
       .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
       .mockResolvedValue(undefined),
+    mergeTrade: jest.fn<UseTradesTypes.UseTradesResult['mergeTrade']>(),
     ...overrides,
   };
 }
@@ -986,199 +991,47 @@ describe('ManagePage', () => {
 
   // ─── Trades tab content ────────────────────────────────────────────────────
 
-  describe('Trades tab', () => {
-    it('shows loading state while fetching trades', () => {
-      mockUseTrades.mockReturnValue(makeTradesHookResult({ isLoading: true, trades: [] }));
+  describe('Trades tab (a pointer to the Companies page since #2213)', () => {
+    it('shows the pointer text and a link to the Trades sheet', async () => {
       renderManagePage('/settings/manage?tab=trades');
-      // Skeleton renders (role="status" aria-busy="true") instead of the trade list
-      expect(screen.getByRole('status')).toBeInTheDocument();
+      expect(screen.getByText('Trades are managed on the Companies page.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Open Trades' })).toHaveAttribute(
+        'href',
+        '/companies?trades=1',
+      );
+    });
+
+    it('keeps the Trades tab selected for the old ?tab=trades bookmark', async () => {
+      renderManagePage('/settings/manage?tab=trades');
+      expect(screen.getByRole('tab', { name: 'Trades' })).toHaveAttribute('aria-selected', 'true');
+    });
+
+    it('renders no trade form, list or counter any more', async () => {
+      renderManagePage('/settings/manage?tab=trades');
+      expect(screen.queryByText('Create New Trade')).not.toBeInTheDocument();
+      expect(screen.queryByText(/Existing Trades/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('textbox', { name: 'Trade Name' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Create Trade' })).not.toBeInTheDocument();
       expect(screen.queryByText('Plumbing')).not.toBeInTheDocument();
     });
 
-    it('shows trade list after loading', async () => {
+    it('does not load trades on this page', async () => {
       renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByText('Plumbing')).toBeInTheDocument();
-      expect(screen.getByText('Electrical')).toBeInTheDocument();
+      expect(mockUseTrades).not.toHaveBeenCalled();
     });
 
-    it('shows Create New Trade section', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByText('Create New Trade')).toBeInTheDocument();
-    });
-
-    it('shows error state when loading trades fails', async () => {
-      mockUseTrades.mockReturnValue(
-        makeTradesHookResult({
-          isLoading: false,
-          trades: [],
-          error: 'An unexpected error occurred while loading trades.',
-        }),
+    it('follows the link to the Companies page with the sheet open (a push)', async () => {
+      const user = userEvent.setup();
+      const log = createRouterLog();
+      render(
+        <RecordingRouter entries={['/settings/manage?tab=trades']} log={log}>
+          <ManagePage />
+        </RecordingRouter>,
       );
-      renderManagePage('/settings/manage?tab=trades');
-      expect(
-        screen.getByText('An unexpected error occurred while loading trades.'),
-      ).toBeInTheDocument();
-    });
 
-    it('shows trade count in section heading', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(screen.getByText(/Existing Trades \(2\)/)).toBeInTheDocument();
-    });
+      await user.click(screen.getByRole('link', { name: 'Open Trades' }));
 
-    it('Create Trade button is disabled when name is empty', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      const createButton = screen.getByRole('button', { name: 'Create Trade' });
-      expect(createButton).toBeDisabled();
-    });
-
-    it('shows edit form when Edit button is clicked for a trade', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=trades');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
-    });
-
-    it('cancels edit and returns to view mode', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=trades');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-
-      await waitFor(() => {
-        expect(screen.getAllByRole('button', { name: 'Edit' })).toHaveLength(2);
-      });
-    });
-
-    it('successfully creates a new trade', async () => {
-      const user = userEvent.setup();
-      const newTrade: TradeResponse = {
-        id: 'trade-3',
-        name: 'Carpentry',
-        color: '#22C55E',
-        translationKey: null,
-        description: null,
-        sortOrder: 2,
-        createdAt: '2026-03-06T00:00:00.000Z',
-        updatedAt: '2026-03-06T00:00:00.000Z',
-      };
-      const mockCreateTrade = jest
-        .fn<UseTradesTypes.UseTradesResult['createTrade']>()
-        .mockResolvedValue(newTrade);
-      mockUseTrades.mockReturnValue(makeTradesHookResult({ createTrade: mockCreateTrade }));
-
-      renderManagePage('/settings/manage?tab=trades');
-
-      const nameInput = screen.getByRole('textbox', { name: 'Trade Name' });
-      await user.type(nameInput, 'Carpentry');
-
-      await user.click(screen.getByRole('button', { name: 'Create Trade' }));
-
-      await waitFor(() => {
-        expect(mockCreateTrade).toHaveBeenCalledWith(
-          expect.objectContaining({ name: 'Carpentry' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText('Trade "Carpentry" created successfully')).toBeInTheDocument();
-      });
-    });
-
-    it('successfully updates a trade', async () => {
-      const user = userEvent.setup();
-      const updatedTrade: TradeResponse = {
-        ...sampleTrade1,
-        name: 'Plumbing Updated',
-      };
-      const mockUpdateTrade = jest
-        .fn<UseTradesTypes.UseTradesResult['updateTrade']>()
-        .mockResolvedValue(updatedTrade);
-      mockUseTrades.mockReturnValue(makeTradesHookResult({ updateTrade: mockUpdateTrade }));
-
-      renderManagePage('/settings/manage?tab=trades');
-
-      const editButtons = screen.getAllByRole('button', { name: 'Edit' });
-      await user.click(editButtons[0]!);
-
-      const nameInputs = screen.getAllByRole('textbox', { name: 'Trade Name' });
-      const editNameInput = nameInputs[nameInputs.length - 1]!;
-      await user.clear(editNameInput);
-      await user.type(editNameInput, 'Plumbing Updated');
-
-      await user.click(screen.getByRole('button', { name: 'Save' }));
-
-      await waitFor(() => {
-        expect(mockUpdateTrade).toHaveBeenCalledWith(
-          'trade-1',
-          expect.objectContaining({ name: 'Plumbing Updated' }),
-        );
-      });
-
-      await waitFor(() => {
-        expect(
-          screen.getByText('Trade "Plumbing Updated" updated successfully'),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it('delete confirmation modal appears on Delete button click', async () => {
-      const user = userEvent.setup();
-      renderManagePage('/settings/manage?tab=trades');
-
-      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]!);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-      expect(screen.getByRole('alertdialog', { name: 'Delete Plumbing?' })).toBeInTheDocument();
-      expect(screen.getByTestId('trade-delete-cancel')).toHaveFocus();
-      expect(screen.getByText(enSettings.manage.trades.deleteWarning)).toBeInTheDocument();
-    });
-
-    it('successfully deletes a trade after confirming in modal', async () => {
-      const user = userEvent.setup();
-      const mockDeleteTrade = jest
-        .fn<UseTradesTypes.UseTradesResult['deleteTrade']>()
-        .mockResolvedValue(undefined);
-      mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: mockDeleteTrade }));
-
-      renderManagePage('/settings/manage?tab=trades');
-
-      const deleteButtons = screen.getAllByRole('button', { name: 'Delete' });
-      await user.click(deleteButtons[0]!);
-
-      await waitFor(() => {
-        expect(screen.getByRole('alertdialog')).toBeInTheDocument();
-      });
-
-      await user.click(await enabledConfirm('trade-delete'));
-
-      await waitFor(() => {
-        expect(mockDeleteTrade).toHaveBeenCalledWith('trade-1');
-      });
-
-      await waitFor(() => {
-        expect(screen.getByText(/Trade "Plumbing" deleted successfully/)).toBeInTheDocument();
-      });
-      // #2209: after a confirmed delete focus lands on the section heading (returnFocusRef), never <body>.
-      await waitFor(() => {
-        expect(document.activeElement?.tagName).toBe('H2');
-        expect(document.activeElement).toHaveAttribute('tabindex', '-1');
-        expect(document.activeElement).not.toHaveAttribute('data-testid');
-      });
-    });
-
-    it('calls useTrades hook when trades tab is active', async () => {
-      renderManagePage('/settings/manage?tab=trades');
-      expect(mockUseTrades).toHaveBeenCalled();
+      expect(log.actions).toEqual(['PUSH /companies?trades=1']);
     });
   });
 
@@ -1967,7 +1820,7 @@ describe('ManagePage', () => {
   // ─── Tab isolation ─────────────────────────────────────────────────────────
 
   describe('Tab isolation', () => {
-    it('does not call useTrades and does not show trade content when Areas tab is active', async () => {
+    it('does not show trade content on the Areas tab and never loads trades', async () => {
       renderManagePage('/settings/manage');
       expect(mockUseAreas).toHaveBeenCalled();
       expect(mockUseTrades).not.toHaveBeenCalled();
@@ -1977,7 +1830,6 @@ describe('ManagePage', () => {
 
     it('does not call useAreas and does not show area content when Trades tab is active', async () => {
       renderManagePage('/settings/manage?tab=trades');
-      expect(mockUseTrades).toHaveBeenCalled();
       expect(mockUseAreas).not.toHaveBeenCalled();
       expect(screen.queryByText('Kitchen')).not.toBeInTheDocument();
       expect(screen.queryByText('Bathroom')).not.toBeInTheDocument();
@@ -2002,16 +1854,16 @@ describe('ManagePage', () => {
 
     it('does not call fetchBudgetCategories when Trades tab is active', async () => {
       renderManagePage('/settings/manage?tab=trades');
-      await waitFor(() => {
-        expect(mockUseTrades).toHaveBeenCalled();
+      await act(async () => {
+        await Promise.resolve();
       });
       expect(mockFetchBudgetCategories).not.toHaveBeenCalled();
     });
 
     it('does not call fetchHouseholdItemCategories when Trades tab is active', async () => {
       renderManagePage('/settings/manage?tab=trades');
-      await waitFor(() => {
-        expect(mockUseTrades).toHaveBeenCalled();
+      await act(async () => {
+        await Promise.resolve();
       });
       expect(mockFetchHICCategories).not.toHaveBeenCalled();
     });
@@ -2373,18 +2225,6 @@ describe('ManagePage', () => {
         expectNoSentinel();
       });
 
-      it('trades', async () => {
-        const user = userEvent.setup();
-        mockUseTrades.mockReturnValue(makeTradesHookResult({ createTrade: rejecting(conflict()) }));
-        renderManagePage('/settings/manage?tab=trades');
-        await user.type(screen.getByRole('textbox', { name: 'Trade Name' }), 'Plumbing');
-        await user.click(screen.getByRole('button', { name: 'Create Trade' }));
-        expect(
-          await screen.findByText(enSettings.manage.trades.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
       it('orientations', async () => {
         const user = userEvent.setup();
         mockUseOrientations.mockReturnValue(
@@ -2426,18 +2266,6 @@ describe('ManagePage', () => {
         await user.click(screen.getByRole('button', { name: 'Save' }));
         expect(
           await screen.findByText(enSettings.manage.areas.messages.duplicateName),
-        ).toBeInTheDocument();
-        expectNoSentinel();
-      });
-
-      it('trades', async () => {
-        const user = userEvent.setup();
-        mockUseTrades.mockReturnValue(makeTradesHookResult({ updateTrade: rejecting(conflict()) }));
-        renderManagePage('/settings/manage?tab=trades');
-        await user.click(screen.getAllByRole('button', { name: 'Edit' })[0]!);
-        await user.click(screen.getByRole('button', { name: 'Save' }));
-        expect(
-          await screen.findByText(enSettings.manage.trades.messages.duplicateName),
         ).toBeInTheDocument();
         expectNoSentinel();
       });
@@ -2583,50 +2411,6 @@ describe('ManagePage', () => {
         expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
       });
 
-      it('trades: 409 shows deleteConflict', async () => {
-        mockUseTrades.mockReturnValue(
-          makeTradesHookResult({
-            deleteTrade: rejecting(
-              new ApiClientError(409, { code: 'TRADE_IN_USE', message: SENTINEL }),
-            ),
-          }),
-        );
-        const user = await openDelete('trades', 'Delete');
-        await user.click(await enabledConfirm('trade-delete'));
-        const text = enSettings.manage.trades.messages.deleteConflict;
-        await screen.findAllByText(text);
-        expectErrorBanner(text);
-        expectNoSentinel();
-      });
-
-      it('trades: plain Error shows the deleteError fallback', async () => {
-        mockUseTrades.mockReturnValue(
-          makeTradesHookResult({
-            deleteTrade: rejecting(new Error('RAW-LOCAL')),
-          }),
-        );
-        const user = await openDelete('trades', 'Delete');
-        await user.click(await enabledConfirm('trade-delete'));
-        const text = enSettings.manage.trades.messages.deleteError;
-        await screen.findAllByText(text);
-        expectErrorBanner(text);
-      });
-
-      it('trades: non-409 ApiClientError is translated by code', async () => {
-        mockUseTrades.mockReturnValue(
-          makeTradesHookResult({
-            deleteTrade: rejecting(
-              new ApiClientError(500, { code: 'INTERNAL_ERROR', message: SENTINEL }),
-            ),
-          }),
-        );
-        const user = await openDelete('trades', 'Delete');
-        await user.click(await enabledConfirm('trade-delete'));
-        await screen.findAllByText(enErrors.INTERNAL_ERROR);
-        expectErrorBanner(enErrors.INTERNAL_ERROR);
-        expectNoSentinel();
-      });
-
       it('orientations: ApiClientError is translated by code', async () => {
         mockUseOrientations.mockReturnValue(
           makeOrientationsHookResult({
@@ -2674,17 +2458,6 @@ describe('ManagePage', () => {
           arrange: (err: unknown) =>
             mockUseAreas.mockReturnValue(makeAreasHookResult({ deleteArea: rejecting(err) })),
           error: () => new ApiClientError(409, { code: 'AREA_IN_USE', message: SENTINEL }),
-        },
-        {
-          label: 'trades',
-          tab: 'trades',
-          open: 'Delete',
-          prefix: 'trade-delete',
-          expected: () => enSettings.manage.trades.messages.deleteConflict,
-          successPrefix: 'Trade "',
-          arrange: (err: unknown) =>
-            mockUseTrades.mockReturnValue(makeTradesHookResult({ deleteTrade: rejecting(err) })),
-          error: () => new ApiClientError(409, { code: 'TRADE_IN_USE', message: SENTINEL }),
         },
         {
           label: 'orientations',
@@ -2793,10 +2566,10 @@ describe('ManagePage', () => {
 
     let reloading = false;
 
-    // Areas, trades and orientations reload through their hook (isLoading goes true again after a
+    // Areas and orientations reload through their hook (isLoading goes true again after a
     // delete). The two category sections drop the row locally and do not refetch, so for them the
     // "reload" arrangement only proves the heading survives the delete; the skeleton regression is
-    // pinned by the first three.
+    // pinned by the first two.
     const cases: Case[] = [
       {
         label: 'areas',
@@ -2815,24 +2588,6 @@ describe('ManagePage', () => {
         },
         arrangeFirstLoad: () =>
           mockUseAreas.mockImplementation(() => makeAreasHookResult({ isLoading: true })),
-      },
-      {
-        label: 'trades',
-        path: '/settings/manage?tab=trades',
-        rowButton: 'Delete',
-        prefix: 'trade-delete',
-        arrange: () => {
-          mockUseTrades.mockImplementation(() =>
-            makeTradesHookResult({
-              isLoading: reloading,
-              deleteTrade: jest.fn(async () => {
-                reloading = true;
-              }),
-            }),
-          );
-        },
-        arrangeFirstLoad: () =>
-          mockUseTrades.mockImplementation(() => makeTradesHookResult({ isLoading: true })),
       },
       {
         label: 'orientations',

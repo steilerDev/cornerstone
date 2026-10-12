@@ -153,6 +153,10 @@ async function setDarkMode(page: Page): Promise<void> {
 }
 
 /** Matches a formatted amount like "250.00" / "250,00" regardless of locale/currency. */
+function escapeForRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function amountRegex(whole: number): RegExp {
   return new RegExp(`${whole}[.,]00`);
 }
@@ -509,9 +513,11 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       const modal = wi.invoiceLinkModal;
       await expect(modal).toBeVisible();
 
-      // Preselected: the first invoice that still has room (FULL is skipped)
+      // Preselected: the first invoice that still has room. Other workers create invoices dated
+      // in 2099 too, so the first row with room may be theirs: the check below compares the
+      // preselection with the list order instead of naming our own invoice.
       const search = modal.locator('#invoice-search');
-      await expect(search).toHaveValue(new RegExp(s.remInvoiceNumber));
+      await expect(search).not.toHaveValue('');
       await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
 
       // No warning styling on open
@@ -537,6 +543,29 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
         if (box!.y + box!.height <= listBox!.y + listBox!.height + 1) fullyVisible++;
       }
       expect(fullyVisible).toBeGreaterThan(2);
+
+      // The preselection is the first row of the list that still has room, never a full one
+      const allRows = await rows.all();
+      const optionIds: string[] = [];
+      let firstWithRoom = -1;
+      for (const [index, row] of allRows.entries()) {
+        optionIds.push((await row.getAttribute('data-testid')) ?? '');
+        const text = (await row.textContent()) ?? '';
+        if (firstWithRoom < 0 && !text.includes('Nothing left to link')) firstWithRoom = index;
+      }
+      expect(firstWithRoom, 'some invoice has room').toBeGreaterThanOrEqual(0);
+      const firstNumber = (
+        (await allRows[firstWithRoom]!.locator('[class*="dropdownItemNumber"]').textContent()) ?? ''
+      ).trim();
+      await expect(search).toHaveValue(new RegExp(escapeForRegExp(firstNumber)));
+      // Our own invoices keep their order: FULL (skipped) before REM before OTHER
+      const ours = [s.fullInvoiceId, s.remInvoiceId, s.otherInvoiceId].map((id) =>
+        optionIds.indexOf(`invoice-link-option-${id}`),
+      );
+      expect(ours.every((i) => i >= 0)).toBe(true);
+      expect(ours[0]).toBeLessThan(ours[1]!);
+      expect(ours[1]).toBeLessThan(ours[2]!);
+      expect(ours[0], 'FULL is not the preselected one').not.toBe(firstWithRoom);
 
       // The fully allocated row says so; the others show their remaining amount
       await expect(wi.invoiceLinkOption(s.fullInvoiceId)).toContainText('Nothing left to link');

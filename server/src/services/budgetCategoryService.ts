@@ -190,6 +190,10 @@ export function updateBudgetCategory(
     }
 
     updates.name = trimmedName;
+    // A typed name replaces the built-in one in every locale (#2213): drop the translation key.
+    if (trimmedName !== existing.name) {
+      updates.translationKey = null;
+    }
   }
 
   // Validate and add description if provided

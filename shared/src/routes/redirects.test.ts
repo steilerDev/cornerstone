@@ -17,8 +17,8 @@ import type { RouteMapEntry } from './types.js';
 /** The 26 plain redirects the router serves today, in route-map order (a set; order is incidental). */
 const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/', '/project/overview'],
-  ['/companies', '/settings/vendors'],
-  ['/companies/:id', '/settings/vendors/:id'],
+  ['/settings/vendors', '/companies'],
+  ['/settings/vendors/:id', '/companies/:id'],
   ['/project', '/project/overview'],
   ['/budget', '/budget/overview'],
   ['/budget/categories', '/settings/manage?tab=budget-categories'],
@@ -38,8 +38,8 @@ const FROZEN_LIVE_REDIRECTS: readonly (readonly [string, string])[] = [
   ['/tags', '/settings/manage'],
   ['/profile', '/settings/profile'],
   ['/admin/users', '/settings/users'],
-  ['/budget/vendors', '/settings/vendors'],
-  ['/budget/vendors/:id', '/settings/vendors/:id'],
+  ['/budget/vendors', '/companies'],
+  ['/budget/vendors/:id', '/companies/:id'],
   ['/schedule/milestones', '/project/milestones'],
   ['/schedule/milestones/:id', '/project/milestones/:id'],
 ];
@@ -64,6 +64,21 @@ describe('LIVE_REDIRECT_ROUTES', () => {
   it('equals the frozen 26-row table of today redirects', () => {
     expect(FROZEN_LIVE_REDIRECTS).toHaveLength(26);
     expect(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target])).toEqual(FROZEN_LIVE_REDIRECTS);
+  });
+
+  it('serves the old company URLs as live redirects straight to /companies (#2213)', () => {
+    const targets = new Map(LIVE_REDIRECT_ROUTES.map((r) => [r.from, r.target]));
+    expect(targets.get('/settings/vendors')).toBe('/companies');
+    expect(targets.get('/settings/vendors/:id')).toBe('/companies/:id');
+    expect(targets.get('/budget/vendors')).toBe('/companies');
+    expect(targets.get('/budget/vendors/:id')).toBe('/companies/:id');
+  });
+
+  it('no longer redirects the company pages themselves (#2213)', () => {
+    const froms = LIVE_REDIRECT_ROUTES.map((r) => r.from);
+    expect(froms).not.toContain('/companies');
+    expect(froms).not.toContain('/companies/:id');
+    expect(froms).not.toContain('/companies/new');
   });
 
   it('carries only from, target and queryMaps', () => {

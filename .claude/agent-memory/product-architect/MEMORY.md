@@ -14,6 +14,7 @@
 - [Plan checks vs the router](recurring-patterns.md) — a rule checked against resolveLocation can accept what the router never serves (page-base query maps, PR #2278)
 - [SQLite UDF re-runs after flattening](recurring-patterns.md) — layered comparisons on a JS function need MATERIALIZED + a call-count test (PR #2286)
 - ["Single helper" vs older copies](recurring-patterns.md) — grep older modules for a parallel normaliser (glossary findTermsByAlias, PR #2286)
+- [Rename vs translation_key](recurring-patterns.md) — renaming a seeded row must clear its translation_key; trades + both category types fixed #2213; translated names need client-resolved ids for search
 - [Re-runnable crash recovery](recurring-patterns.md) — flip the marker between a rollback's destructive and restoring loops; side effects before a fallible start step (ADR-037)
 - [Recovery steps on a full disk](recurring-patterns.md) — re-assert persisted state only when it differs; free regenerable space before any write (PR #2169)
 - [Dual-rail aggregation](dual-rail-aggregation.md) — Rail A/B tagged-deposit invariants (#1891/PR #1894), residual-denominator rule, isSplit UNION

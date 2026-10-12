@@ -14,7 +14,7 @@ import { _resetFilterTagCache } from '../services/paperlessService.js';
 import { SEARCH_RESULT_TYPES } from '@cornerstone/shared';
 import type { FastifyInstance } from 'fastify';
 import type { ApiErrorResponse, SearchResponse } from '@cornerstone/shared';
-import { vendors, workItems } from '../db/schema.js';
+import { trades, vendors, workItems } from '../db/schema.js';
 
 const mockFetch = jest.fn<typeof fetch>();
 const TOKEN = 'route-secret-token';
@@ -204,6 +204,71 @@ describe('Search Routes', () => {
 
     it('silently drops unknown query parameters', async () => {
       expect((await get('/api/search?q=roof&nope=1')).statusCode).toBe(200);
+    });
+  });
+
+  describe('tradeIds (#2213)', () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `t${i}`).join(',');
+
+    function seedTradedVendor(): string {
+      const now = new Date().toISOString();
+      app.db
+        .insert(trades)
+        .values({ id: 'trade-tile', name: 'Fliesen', sortOrder: 0, createdAt: now, updatedAt: now })
+        .run();
+      app.db
+        .insert(vendors)
+        .values({
+          id: 'v-tile',
+          name: 'Alpha GmbH',
+          tradeId: 'trade-tile',
+          createdAt: now,
+          updatedAt: now,
+        })
+        .run();
+      return 'v-tile';
+    }
+
+    it('widens the vendor group with the listed trade ids', async () => {
+      const id = seedTradedVendor();
+
+      const without = (await get('/api/search?q=tile&types=vendor')).json<SearchResponse>();
+      expect(without.groups.find((g) => g.type === 'vendor')?.total).toBe(0);
+
+      const res = await get('/api/search?q=tile&types=vendor&tradeIds=trade-tile,unknown');
+      expect(res.statusCode).toBe(200);
+      const group = res.json<SearchResponse>().groups.find((g) => g.type === 'vendor');
+      expect(group?.items.map((i) => i.id)).toEqual([id]);
+      expect(group?.items[0]?.matchedField).toBe('tradeName');
+    });
+
+    it('accepts exactly 50 ids and an id of exactly 64 characters', async () => {
+      expect((await get(`/api/search?q=roof&tradeIds=${ids(50)}`)).statusCode).toBe(200);
+      expect((await get(`/api/search?q=roof&tradeIds=${'x'.repeat(64)}`)).statusCode).toBe(200);
+    });
+
+    it('rejects more than 50 ids with details.tradeIds', async () => {
+      const res = await get(`/api/search?q=roof&tradeIds=${ids(51)}`);
+      expect(res.statusCode).toBe(400);
+      const body = res.json<ApiErrorResponse>();
+      expect(body.error.code).toBe('VALIDATION_ERROR');
+      expect(body.error.details).toHaveProperty('tradeIds');
+    });
+
+    it('rejects an id longer than 64 characters with details.tradeIds', async () => {
+      const res = await get(`/api/search?q=roof&tradeIds=${'x'.repeat(65)}`);
+      expect(res.statusCode).toBe(400);
+      expect(res.json<ApiErrorResponse>().error.details).toHaveProperty('tradeIds');
+    });
+
+    it('de-duplicates before counting', async () => {
+      const raw = `${ids(50)},${ids(10)}`;
+      expect((await get(`/api/search?q=roof&tradeIds=${raw}`)).statusCode).toBe(200);
+    });
+
+    it('treats an empty tradeIds as none', async () => {
+      seed();
+      expect((await get('/api/search?q=roof&tradeIds=')).statusCode).toBe(200);
     });
   });
 

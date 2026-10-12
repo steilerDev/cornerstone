@@ -864,7 +864,7 @@ export function HouseholdItemDetailPage() {
               <dd className={styles.infoValue}>
                 {item.vendor ? (
                   <Link
-                    to={routeUrl('vendor', { id: item.vendor.id })}
+                    to={routeUrl('company', { id: item.vendor.id })}
                     state={originState}
                     className={styles.infoLink}
                   >

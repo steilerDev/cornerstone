@@ -12,7 +12,7 @@
  * - Site diary  Site diary (plus the New slot below 1024px)
  * - Photos      Photos
  * - Money       Money, Invoices, Funding sources, Grants, Bank report
- * - Companies   Companies (lands on the interim vendors page)
+ * - Companies   Companies (served on /companies since #2213)
  * - Settings    Project setup, Account, Users, Backups (admin session)
  *
  * Each test: start on Home, navigate, check the final path, the visible h1, exactly one current
@@ -29,7 +29,7 @@ import { CreateMenu } from '../../pages/components/CreateMenu.js';
 
 interface Reach {
   readonly route: ServedRouteId;
-  /** Final route when the entry redirects (Home, Companies). */
+  /** Final route when the entry redirects (Home). */
   readonly landing?: ServedRouteId;
 }
 
@@ -57,7 +57,7 @@ const AREAS = [
       { route: 'bankReport' },
     ],
   },
-  { area: 'Companies', rows: [{ route: 'companies', landing: 'vendors' }] },
+  { area: 'Companies', rows: [{ route: 'companies' }] },
   {
     area: 'Settings',
     rows: [

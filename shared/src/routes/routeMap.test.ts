@@ -66,8 +66,8 @@ function instantiate(pattern: string): string {
 }
 
 describe('ROUTE_MAP invariants', () => {
-  it('has 89 entries', () => {
-    expect(ENTRIES).toHaveLength(89);
+  it('has 90 entries', () => {
+    expect(ENTRIES).toHaveLength(90);
   });
 
   it('has a unique from on every entry', () => {
@@ -77,7 +77,7 @@ describe('ROUTE_MAP invariants', () => {
 
   it('has a unique id on every entry that carries one', () => {
     const ids = ENTRIES.flatMap((e) => (e.id === undefined ? [] : [e.id]));
-    expect(ids).toHaveLength(52);
+    expect(ids).toHaveLength(53);
     expect(new Set(ids).size).toBe(ids.length);
   });
 

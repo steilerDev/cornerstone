@@ -1,18 +1,34 @@
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
-import type { TradeResponse, CreateTradeRequest, UpdateTradeRequest } from '@cornerstone/shared';
-import { fetchTrades, createTrade, updateTrade, deleteTrade } from '../lib/tradesApi.js';
+import type {
+  TradeResponse,
+  TradeListItem,
+  TradeMergeResponse,
+  CreateTradeRequest,
+  UpdateTradeRequest,
+} from '@cornerstone/shared';
+import {
+  fetchTrades,
+  createTrade,
+  updateTrade,
+  deleteTrade,
+  mergeTrade,
+} from '../lib/tradesApi.js';
 import { ApiClientError, NetworkError } from '../lib/apiClient.js';
 import { translateApiError } from '../lib/errorTranslation.js';
 
 export interface UseTradesResult {
-  trades: TradeResponse[];
+  trades: TradeListItem[];
+  /** True on every fetch, including refetches. */
   isLoading: boolean;
+  /** True only until the first response (success or failure) arrives; refetches keep the list mounted. */
+  isInitialLoading: boolean;
   error: string | null;
   refetch: () => void;
   createTrade: (data: CreateTradeRequest) => Promise<TradeResponse>;
   updateTrade: (id: string, data: UpdateTradeRequest) => Promise<TradeResponse>;
   deleteTrade: (id: string) => Promise<void>;
+  mergeTrade: (id: string, targetTradeId: string) => Promise<TradeMergeResponse>;
 }
 
 /**
@@ -24,8 +40,9 @@ export function useTrades(): UseTradesResult {
   const { t } = useTranslation('settings');
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
-  const [trades, setTrades] = useState<TradeResponse[]>([]);
+  const [trades, setTrades] = useState<TradeListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fetchCount, setFetchCount] = useState(0);
 
@@ -54,6 +71,7 @@ export function useTrades(): UseTradesResult {
       } finally {
         if (!cancelled) {
           setIsLoading(false);
+          setIsInitialLoading(false);
         }
       }
     }
@@ -86,13 +104,21 @@ export function useTrades(): UseTradesResult {
     refetch();
   }
 
+  async function handleMerge(id: string, targetTradeId: string): Promise<TradeMergeResponse> {
+    const result = await mergeTrade(id, targetTradeId);
+    refetch();
+    return result;
+  }
+
   return {
     trades,
     isLoading,
+    isInitialLoading,
     error,
     refetch,
     createTrade: handleCreate,
     updateTrade: handleUpdate,
     deleteTrade: handleDelete,
+    mergeTrade: handleMerge,
   };
 }

@@ -49,7 +49,7 @@ const SECTION_LANDINGS = [
   { id: 'diary', path: () => routeUrl('diary') },
   { id: 'photos', path: () => routeUrl('photos') },
   { id: 'money', path: () => routeUrl('budgetOverview') },
-  { id: 'companies', path: () => routeUrl('vendors') },
+  { id: 'companies', path: () => routeUrl('companies') },
   { id: 'settings', path: () => routeUrl('settingsManage') },
 ] as const;
 

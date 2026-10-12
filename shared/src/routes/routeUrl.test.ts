@@ -71,6 +71,13 @@ describe('routeUrl', () => {
     expect(routeUrl('company', { id: 'walk-1' })).toBe('/companies/walk-1');
   });
 
+  it('builds the company dialog and the Trades sheet URLs (#2213)', () => {
+    expect(routeUrl('companyNew')).toBe('/companies/new');
+    expect(routeUrl('companies')).toBe('/companies');
+    expect(routeUrl('companies', undefined, { trades: 1 })).toBe('/companies?trades=1');
+    expect(isRouteServed('companyNew')).toBe(true);
+  });
+
   it('builds the root URL and a login URL', () => {
     expect(routeUrl('home')).toBe('/');
     expect(routeUrl('login')).toBe('/login');

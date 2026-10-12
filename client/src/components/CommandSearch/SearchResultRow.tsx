@@ -5,9 +5,9 @@ import type { SearchResultType } from '@cornerstone/shared';
 import { useStatusBadgeVariants } from '../../hooks/useStatusBadgeVariants.js';
 import { NavAnchor } from '../../navigation/NavAnchor.js';
 import type { OriginState } from '../../navigation/origin.js';
-import sharedStyles from '../../styles/shared.module.css';
 import { AreaBreadcrumb } from '../AreaBreadcrumb/AreaBreadcrumb.js';
 import { Badge } from '../Badge/Badge.js';
+import { CallButton } from '../CallButton/CallButton.js';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
 import { line2Parts, optionDomId } from './commandSearchModel.js';
 import type { CommandOption, ModelDeps } from './commandSearchModel.js';
@@ -223,30 +223,14 @@ export function SearchResultRow(props: SearchResultRowProps): ReactNode {
   return (
     <div role="presentation" className={styles.rowWrap}>
       {row}
-      <a
-        id={`${domId}-call`}
-        href={`tel:${phone.replace(/[^\d+]/g, '')}`}
+      <CallButton
+        phone={phone}
+        name={option.title}
         tabIndex={-1}
-        className={`${sharedStyles.btnSecondary} ${styles.call}`}
-        aria-label={t('commandSearch.callAria', { name: option.title })}
+        id={`${domId}-call`}
+        testId={`command-search-call-${item.id}`}
         onClick={(event) => event.stopPropagation()}
-        data-testid={`command-search-call-${item.id}`}
-      >
-        <svg
-          width="14"
-          height="14"
-          viewBox="0 0 16 16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="M3 2.5h3l1 3-1.5 1a8 8 0 0 0 4 4l1-1.5 3 1v3a1.5 1.5 0 0 1-1.5 1.5A11 11 0 0 1 1.5 4 1.5 1.5 0 0 1 3 2.5z" />
-        </svg>
-        {t('commandSearch.call')}
-      </a>
+      />
     </div>
   );
 }

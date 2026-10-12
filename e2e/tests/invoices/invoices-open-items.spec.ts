@@ -36,6 +36,7 @@ import type { Page, Locator, Response as PwResponse } from '@playwright/test';
 import { InvoicesPage, INVOICES_ROUTE } from '../../pages/InvoicesPage.js';
 import { InvoiceDetailPage } from '../../pages/InvoiceDetailPage.js';
 import { API } from '../../fixtures/testData.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { createVendorViaApi } from '../../fixtures/apiHelpers.js';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -268,7 +269,7 @@ test.describe('Open items — toggle persists across reload and back navigation 
       await expect.poll(() => invoicesPage.getInvoiceNumbers()).toEqual(numbersBefore);
 
       // Navigate away and back via Back — same restoration.
-      await page.goto('/budget/vendors');
+      await page.goto(routeUrl('companies'));
       await page.goBack();
       await invoicesPage.heading.waitFor({ state: 'visible' });
       await expect(invoicesPage.openItemsToggle).toBeChecked();
@@ -519,6 +520,18 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
       return Number((text ?? '').replace(/[^0-9.]/g, ''));
     };
 
+    // A page load can issue more than one list request and other workers keep changing the total,
+    // so the tile may show the answer of a later request than the one a test waited for. It must
+    // match a total the server actually sent for this view.
+    const seenTotals: number[] = [];
+    page.on('response', (resp) => {
+      if (isInvoiceList(resp)) void readTotal(resp).then((total) => seenTotals.push(total));
+    });
+    const tileShowsServedTotal = async (): Promise<boolean> => {
+      const value = await tileValue();
+      return seenTotals.some((total) => Math.abs(total - value) < 0.005);
+    };
+
     try {
       vendorId = await createVendorViaApi(page, { name: `${testPrefix} GlobalTile Vendor` });
       otherVendorId = await createVendorViaApi(page, { name: `${testPrefix} GlobalTile Other` });
@@ -542,7 +555,7 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
       await invoicesPage.goto();
       await invoicesPage.waitForLoaded();
       const totalOff = await readTotal(await offResponse);
-      await expect.poll(tileValue).toBeCloseTo(totalOff, 2);
+      await expect.poll(tileShowsServedTotal).toBe(true);
       expect(totalOff).toBeGreaterThanOrEqual(ownMinimum);
 
       // 2. Toggle on
@@ -552,7 +565,7 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
       );
       await invoicesPage.setOpenItemsOnly(true);
       const totalOn = await readTotal(await onResponse);
-      await expect.poll(tileValue).toBeCloseTo(totalOn, 2);
+      await expect.poll(tileShowsServedTotal).toBe(true);
       expect(totalOn).toBeGreaterThanOrEqual(ownMinimum);
 
       // 3. Vendor filter: the tile still reflects the global total (includes the OTHER
@@ -565,7 +578,7 @@ test.describe('Open items — the "Still to pay" tile is global (Scenario 7, AC1
       await invoicesPage.heading.waitFor({ state: 'visible' });
       await invoicesPage.waitForLoaded();
       const totalFiltered = await readTotal(await filteredResponse);
-      await expect.poll(tileValue).toBeCloseTo(totalFiltered, 2);
+      await expect.poll(tileShowsServedTotal).toBe(true);
       expect(totalFiltered).toBeGreaterThanOrEqual(ownMinimum);
     } finally {
       if (vendorId) await deleteVendorWithInvoices(page, vendorId);

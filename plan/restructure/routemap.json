@@ -439,8 +439,20 @@
     "guard": "member",
     "gate": "none",
     "permanent": false,
-    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "group", "create"],
-    "note": "NEW path for the Companies list (moved from /settings/vendors); flat A–Z by default. #2212 (interim until 5.10b): ?create=1 opens the create-company modal on the list; the page then removes the key (replace)."
+    "carries": ["q", "sortBy", "sortOrder", "page", "pageSize", "filters", "create", "trades"],
+    "note": "Companies list (moved from /settings/vendors), flat A–Z. ?trades=1 opens the Trades sheet (Back closes it). ?create=1 is replaced by the New company dialog (/companies/new). #2213."
+  },
+  {
+    "from": "/companies/new",
+    "to": "/companies/new",
+    "kind": "page",
+    "change": "new",
+    "section": "Companies",
+    "guard": "member",
+    "gate": "none",
+    "permanent": false,
+    "carries": [],
+    "note": "Opens the New company dialog (ObjectForm) over the page you came from, or over the Companies list on a deep link. #2213."
   },
   {
     "from": "/companies/:id",
@@ -452,7 +464,7 @@
     "gate": "none",
     "permanent": true,
     "carries": ["tab"],
-    "note": "NEW Company page (Overview, Work, Payments, Site diary, History). **Permanent** once the vCard writer emits it (story 0.10)."
+    "note": "Company page (served since #2213; the redesign with Overview, Work, Payments, Site diary, History is 5.10b). Permanent (vCard URL)."
   },
   {
     "from": "/areas",

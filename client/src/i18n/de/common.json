@@ -430,6 +430,12 @@
       "photos": "Ebenfalls gelöschte Fotos:"
     }
   },
+  "callButton": {
+    "call": "Anrufen",
+    "callNumber": "{{number}} anrufen",
+    "aria": "Anrufen, {{name}}, {{number}}",
+    "ariaNumberFirst": "{{number}} anrufen, {{name}}"
+  },
   "commandSearch": {
     "title": "Überall suchen",
     "inputLabel": "Überall suchen",
@@ -476,8 +482,6 @@
       "invoice": "In der Rechnung {{label}}",
       "invoiceUnnamed": "In einer Rechnung ohne Nummer"
     },
-    "call": "Anrufen",
-    "callAria": "{{name}} anrufen",
     "callHint": "Drücken Sie Umschalt+Eingabetaste zum Anrufen",
     "opensInNewTab": "(öffnet in einem neuen Tab)",
     "cannotOpen": "Kann von hier nicht geöffnet werden",

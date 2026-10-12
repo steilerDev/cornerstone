@@ -47,4 +47,5 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Page identity specs](page-identity-specs.md) — title effect ordering (layout fallback + passive page hook), views never show Back, validate origin state, smoke title, capmap vs UX, stale auth post-login, `/\` redirect, tab-effect pushes, static-page origin labels
 - [Dialog route specs](dialog-route-specs.md) — background location w/o useBlocker, host outside Routes (real URL + shell baseline), title re-assert, shortcuts under modals, n fallback, menu-row opener
 - [Command search specs](command-search-specs.md) — apiClient wraps AbortError/no 401, stopPropagation vs document keys (capture), trap counts tabindex=-1, opener-first restore
+- [Object home move specs](object-home-move-specs.md) — ObjectForm raises page primaries (App-root provider), field names = API keys, stacked Modals, rename clears i18n key, label-in-name
 - [Search service specs](search-service-specs.md) — fold fn on every connection, fold-then-escape, Paperless timeout helper, no UI words from server, planned-route interim mapper, phone literals vs scan

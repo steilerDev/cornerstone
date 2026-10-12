@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { eq, asc, desc, sql, and } from 'drizzle-orm';
+import type { SQL } from 'drizzle-orm';
 import type { BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 import type * as schemaTypes from '../db/schema.js';
 import {
@@ -22,7 +23,7 @@ import type {
   TradeSummary,
 } from '@cornerstone/shared';
 import { NotFoundError, ValidationError, VendorInUseError } from '../errors/AppError.js';
-import { toLikeContainsPattern } from './shared/likePattern.js';
+import { vendorTextMatch } from './searchService.js';
 import * as vendorContactService from './vendorContactService.js';
 import { computeOpenAmounts } from './shared/depositAggregateUtils.js';
 import type { InvoiceDepositRow } from './shared/depositAggregateUtils.js';
@@ -137,6 +138,7 @@ function toVendorDetail(db: DbType, row: typeof vendors.$inferSelect): VendorDet
 export function listVendors(
   db: DbType,
   query: VendorListQuery,
+  tradeIds: readonly string[] = [],
 ): { vendors: VendorListItem[]; pagination: PaginationMeta } {
   const page = Math.max(1, query.page ?? 1);
   const pageSize = Math.min(100, Math.max(1, query.pageSize ?? 25));
@@ -146,11 +148,10 @@ export function listVendors(
   // Build WHERE conditions
   const conditions = [];
 
-  if (query.q) {
-    const pattern = toLikeContainsPattern(query.q);
-    conditions.push(
-      sql`(LOWER(${vendors.name}) LIKE LOWER(${pattern}) ESCAPE '\\' OR EXISTS (SELECT 1 FROM trades WHERE trades.id = ${vendors.tradeId} AND LOWER(trades.name) LIKE LOWER(${pattern}) ESCAPE '\\'))`!,
-    );
+  // Same matcher and field list as the vendor group of GET /api/search. Filters, never ranks.
+  const textMatch = vendorTextMatch(query.q ?? '', tradeIds);
+  if (textMatch) {
+    conditions.push(textMatch);
   }
 
   if (query.tradeId) {
@@ -168,35 +169,60 @@ export function listVendors(
   const totalItems = countResult?.count ?? 0;
   const totalPages = Math.ceil(totalItems / pageSize);
 
-  // Build ORDER BY
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Drizzle OrderByValue is union of sql/asc/desc returns, no exported union type
-  let orderByClause: any;
+  // Qualified by hand: drizzle renders ${vendors.id} unqualified inside a select-field subquery, where "id" would bind to vc.id.
+  const lastOnSiteExpr = sql`(
+    SELECT MAX(d.entry_date) FROM diary_entries d
+    WHERE d.entry_type = 'daily_log' AND d.status = 'saved' AND d.is_automatic = 0
+      AND json_extract(d.metadata, '$.vendorId') = "vendors"."id"
+  )`;
+
+  // Build ORDER BY. `direction` comes only from the validated sortOrder enum, never user text.
+  // Every sort breaks ties by name ASC, then id ASC.
+  const direction = sql.raw(sortOrder === 'asc' ? 'ASC' : 'DESC');
+  const tieBreak = [asc(vendors.name), asc(vendors.id)];
+  let orderByClause: SQL[];
   if (sortBy === 'trade') {
-    // Sort by trade name via subquery
-    const sortDirection = sortOrder === 'asc' ? 'ASC' : 'DESC';
-    orderByClause = sql`(SELECT COALESCE(${trades.name}, '') FROM ${trades} WHERE ${trades.id} = ${vendors.tradeId}) ${sql.raw(sortDirection)}`;
+    orderByClause = [
+      sql`(SELECT COALESCE(${trades.name}, '') FROM ${trades} WHERE ${trades.id} = ${vendors.tradeId}) ${direction}`,
+      ...tieBreak,
+    ];
+  } else if (sortBy === 'last_on_site') {
+    // The expression is repeated (not a select alias): an ORDER BY alias is not reliable inside
+    // drizzle's .orderBy(). Companies without a daily log come last in both directions.
+    orderByClause = [
+      sql`(${lastOnSiteExpr}) IS NULL ASC`,
+      sql`(${lastOnSiteExpr}) ${direction}`,
+      ...tieBreak,
+    ];
   } else if (sortBy === 'created_at') {
-    orderByClause = sortOrder === 'asc' ? asc(vendors.createdAt) : desc(vendors.createdAt);
+    orderByClause = [
+      sortOrder === 'asc' ? asc(vendors.createdAt) : desc(vendors.createdAt),
+      ...tieBreak,
+    ];
   } else if (sortBy === 'updated_at') {
-    orderByClause = sortOrder === 'asc' ? asc(vendors.updatedAt) : desc(vendors.updatedAt);
+    orderByClause = [
+      sortOrder === 'asc' ? asc(vendors.updatedAt) : desc(vendors.updatedAt),
+      ...tieBreak,
+    ];
   } else {
-    orderByClause = sortOrder === 'asc' ? asc(vendors.name) : desc(vendors.name);
+    orderByClause = [sortOrder === 'asc' ? asc(vendors.name) : desc(vendors.name), asc(vendors.id)];
   }
 
   // Fetch paginated items
   const offset = (page - 1) * pageSize;
-  // Qualified by hand: drizzle renders ${vendors.id} unqualified inside a select-field subquery, where "id" would bind to vc.id.
   const firstContactPhone = sql<string | null>`(
     SELECT vc.phone FROM vendor_contacts vc
     WHERE vc.vendor_id = "vendors"."id" AND TRIM(COALESCE(vc.phone, '')) <> ''
     ORDER BY vc.created_at ASC, vc.id ASC
     LIMIT 1
   )`;
+  const contactCount = sql<number>`(SELECT COUNT(*) FROM vendor_contacts vc WHERE vc.vendor_id = "vendors"."id")`;
+  const lastOnSite = sql<string | null>`${lastOnSiteExpr}`;
   const rows = db
-    .select({ vendor: vendors, firstContactPhone })
+    .select({ vendor: vendors, firstContactPhone, contactCount, lastOnSite })
     .from(vendors)
     .where(whereClause)
-    .orderBy(orderByClause)
+    .orderBy(...orderByClause)
     .limit(pageSize)
     .offset(offset)
     .all();
@@ -204,6 +230,8 @@ export function listVendors(
   const vendorList: VendorListItem[] = rows.map((r) => ({
     ...toVendor(db, r.vendor),
     firstContactPhone: r.firstContactPhone ?? null,
+    contactCount: Number(r.contactCount ?? 0),
+    lastOnSite: r.lastOnSite ?? null,
   }));
 
   return {

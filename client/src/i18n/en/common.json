@@ -391,6 +391,12 @@
       "photos": "Photos deleted with it:"
     }
   },
+  "callButton": {
+    "call": "Call",
+    "callNumber": "Call {{number}}",
+    "aria": "Call {{name}} on {{number}}",
+    "ariaNumberFirst": "Call {{number}}, {{name}}"
+  },
   "commandSearch": {
     "title": "Search everywhere",
     "inputLabel": "Search everywhere",
@@ -437,8 +443,6 @@
       "invoice": "In invoice {{label}}",
       "invoiceUnnamed": "In an invoice without a number"
     },
-    "call": "Call",
-    "callAria": "Call {{name}}",
     "callHint": "Press Shift+Enter to call",
     "opensInNewTab": "(opens in a new tab)",
     "cannotOpen": "Can't be opened from here",

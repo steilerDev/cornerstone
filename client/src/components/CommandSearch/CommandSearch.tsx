@@ -1,9 +1,12 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import type { RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { SearchResponse } from '@cornerstone/shared';
+import type { SearchResponse, TradeResponse } from '@cornerstone/shared';
 import { useAuth } from '../../contexts/AuthContext.js';
+import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { focusPageHeadingWhenReady } from '../../lib/focusPageHeading.js';
+import { matchTradeIds } from '../../lib/tradeSearch.js';
+import { fetchTrades } from '../../lib/tradesApi.js';
 import type { NavActive } from '../../navigation/navActive.js';
 import type { NavContext, NavSection } from '../../navigation/navConfig.js';
 import { useRealLocation } from '../../navigation/realLocation.js';
@@ -50,6 +53,7 @@ export function CommandSearch({
   active,
 }: CommandSearchProps) {
   const { t } = useTranslation('common');
+  const { t: tSettings } = useTranslation('settings');
   const { refreshAuth } = useAuth();
   const deps = useModelDeps();
   const location = useRealLocation();
@@ -68,9 +72,31 @@ export function CommandSearch({
 
   // Read lazily by the query hook when a response arrives.
   const latestRef = useRef<Omit<BuildInput, 'response' | 'expanded'> | null>(null);
+
+  // Trades load once while the palette is open, so a translated trade name finds its companies.
+  // A failure is silent: the search still works without it.
+  const tradesRef = useRef<TradeResponse[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    fetchTrades()
+      .then((data) => {
+        if (!cancelled) tradesRef.current = data.trades;
+      })
+      .catch(() => {
+        if (!cancelled) tradesRef.current = [];
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const query = useCommandSearchQuery({
     initialQuery,
     onUnauthorized: () => void refreshAuth(),
+    resolveTradeIds: (trimmedQuery) =>
+      matchTradeIds(trimmedQuery, tradesRef.current, (trade) =>
+        getCategoryDisplayName(tSettings, trade.name, trade.translationKey),
+      ),
     firstOptionId: (response: SearchResponse) => {
       const latest = latestRef.current;
       if (!latest) return null;

@@ -758,7 +758,7 @@ describe('HouseholdItemDetailPage — handler error translation (#2129)', () => 
 
       fireEvent.click(await screen.findByRole('link', { name: 'IKEA' }));
 
-      expect(probedPath()).toBe('/settings/vendors/vendor-1');
+      expect(probedPath()).toBe('/companies/vendor-1');
       expect(probedOrigin()).toEqual({
         to: '/project/household-items/item-1',
         name: 'Standing Desk',

@@ -255,8 +255,8 @@ export class AppShellPage {
   /**
    * Navigate through the shell the way a user does, to a section's entry route or one of its
    * views. Desktop: the sidebar entry, then the sidebar view. Below 1024px: the bottom-bar slot
-   * or the More sheet row, then the title menu. Redirecting entries (home -> dashboard,
-   * companies -> vendors) are followed. Parameter-free routes only; callers assert the final URL.
+   * or the More sheet row, then the title menu. Redirecting entries (home -> dashboard) are
+   * followed. Parameter-free routes only; callers assert the final URL.
    */
   async navigateTo(route: ServedRouteId): Promise<void> {
     const section = this.sectionOf(route);
@@ -275,7 +275,7 @@ export class AppShellPage {
     else if (isBarSection(section)) await this.tapBottomBar(section);
     else await this.openFromMoreSheet(section);
 
-    // Home and Companies redirect, so wait for the entry to be marked current, not for the URL.
+    // Home redirects, so wait for the entry to be marked current, not for the URL.
     // `attached`: the closed sheet row is hidden.
     await this.page
       .locator(`[data-testid="${testId}"][aria-current="page"]`)

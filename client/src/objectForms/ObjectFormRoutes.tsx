@@ -16,6 +16,7 @@ import {
 } from '../navigation/dialogRoutes.js';
 import type { DialogRouteId } from '../navigation/dialogRoutes.js';
 import { forwardOriginState, originHrefOr } from '../navigation/origin.js';
+import { useCompanyFormSchema } from './companyForm.js';
 import { useMilestoneFormSchema } from './milestoneForm.js';
 import { usePurchaseFormSchema } from './purchaseForm.js';
 import { useTaskFormSchema } from './taskForm.js';
@@ -99,6 +100,10 @@ function MilestoneDialog(props: Omit<DialogViewProps, 'schema'>) {
   return <DialogView {...props} schema={useMilestoneFormSchema()} />;
 }
 
+function CompanyDialog(props: Omit<DialogViewProps, 'schema'>) {
+  return <DialogView {...props} schema={useCompanyFormSchema()} />;
+}
+
 /**
  * Host of the object-form dialogs. Rendered at the router root so it sees the real location
  * (inside `<Routes location>` it would see the page behind). Browser Back out of a dirty form
@@ -152,6 +157,8 @@ export function ObjectFormRoutes() {
       return <PurchaseDialog key={shownId} {...props} />;
     case 'milestoneNew':
       return <MilestoneDialog key={shownId} {...props} />;
+    case 'companyNew':
+      return <CompanyDialog key={shownId} {...props} />;
   }
 }
 

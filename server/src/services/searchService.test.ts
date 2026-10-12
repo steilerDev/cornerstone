@@ -13,7 +13,7 @@ import type { SearchGroup, SearchResultType } from '@cornerstone/shared';
 import { runMigrations } from '../db/migrate.js';
 import { registerSqlFunctions } from '../db/sqlFunctions.js';
 import * as schema from '../db/schema.js';
-import { search, searchDatabase } from './searchService.js';
+import { search, searchDatabase, vendorTextMatch } from './searchService.js';
 import type { PaperlessSearchDeps } from './searchService.js';
 import { _resetFilterTagCache } from './paperlessService.js';
 
@@ -704,6 +704,136 @@ describe('searchService', () => {
     it('ignores non-phone text for digit matching when the query has too few digits', () => {
       vendor('Plain Co', { phone: '5-5-5' });
       expect(group('55', 'vendor').total).toBe(0);
+    });
+
+    describe('tradeIds (#2213)', () => {
+      function tradedVendors() {
+        const tile = nid('trade');
+        ins('trades', { id: tile, name: 'Fliesen' });
+        const wood = nid('trade');
+        ins('trades', { id: wood, name: 'Holz' });
+        return { tile, wood };
+      }
+
+      function groupWithIds(q: string, tradeIds: string[], limit = 20) {
+        return searchDatabase(db, { q, types: ['vendor'], limit, tradeIds })[0]!;
+      }
+
+      it("finds a company whose trade's stored name lacks the text when its trade id is listed", () => {
+        const { tile, wood } = tradedVendors();
+        const hit = vendor('Alpha GmbH', { trade_id: tile });
+        vendor('Beta GmbH', { trade_id: wood });
+
+        expect(groupWithIds('tile', []).total).toBe(0);
+        const g = groupWithIds('tile', [tile]);
+        expect(g.items.map((i) => i.id)).toEqual([hit]);
+        expect(g.items[0]!.matchedField).toBe('tradeName');
+        expect(g.total).toBe(1);
+      });
+
+      it('ranks an id-only match after label matches', () => {
+        const { tile } = tradedVendors();
+        const byId = vendor('Alpha GmbH', { trade_id: tile });
+        const contains = vendor('Mega Tile Depot');
+        const prefix = vendor('Tile Palace');
+
+        const g = groupWithIds('tile', [tile]);
+        expect(g.items.map((i) => i.id)).toEqual([prefix, contains, byId]);
+        expect(g.items.map((i) => i.matchedField)).toEqual(['name', 'name', 'tradeName']);
+        expect(g.total).toBe(3);
+      });
+
+      it('reports name when the name matches as well as the trade id', () => {
+        const { tile } = tradedVendors();
+        const v = vendor('Tile Works', { trade_id: tile });
+
+        const g = groupWithIds('tile', [tile]);
+        expect(g.items[0]).toMatchObject({ id: v, matchedField: 'name' });
+      });
+
+      it('ignores unknown ids and lists only matching companies', () => {
+        vendor('Alpha GmbH');
+        const g = groupWithIds('alpha', ['no-such-trade']);
+        expect(g.items).toHaveLength(1);
+        expect(groupWithIds('zzz', ['no-such-trade']).total).toBe(0);
+      });
+
+      it('widens nothing without q', () => {
+        const { tile } = tradedVendors();
+        vendor('Alpha GmbH', { trade_id: tile });
+
+        expect(groupWithIds('', [tile]).total).toBe(0);
+        expect(groupWithIds('   ', [tile]).total).toBe(0);
+      });
+
+      it('affects only the vendor group', () => {
+        const { tile } = tradedVendors();
+        vendor('Alpha GmbH', { trade_id: tile });
+        const w = workItem('Plain work item');
+
+        const groups = searchDatabase(db, {
+          q: 'tile',
+          types: ['vendor', 'work_item'],
+          limit: 20,
+          tradeIds: [tile],
+        });
+        expect(groups.find((g) => g.type === 'vendor')!.total).toBe(1);
+        expect(groups.find((g) => g.type === 'work_item')!.items.map((i) => i.id)).not.toContain(w);
+        expect(groups.find((g) => g.type === 'work_item')!.total).toBe(0);
+      });
+
+      it('binds ids as parameters: an id that looks like SQL matches nothing and breaks nothing', () => {
+        vendor('Alpha GmbH');
+        const g = groupWithIds('alpha', ["x') OR 1=1 --"]);
+        expect(g.total).toBe(1);
+        expect(sqlite.prepare('SELECT COUNT(*) AS n FROM vendors').get()).toEqual({ n: 1 });
+      });
+
+      it('searchDatabase without tradeIds behaves as before', () => {
+        const { tile } = tradedVendors();
+        vendor('Alpha GmbH', { trade_id: tile });
+        expect(searchDatabase(db, { q: 'tile', types: ['vendor'], limit: 5 })[0]!.total).toBe(0);
+      });
+    });
+  });
+
+  describe('vendorTextMatch (#2213)', () => {
+    function matchIds(q: string, tradeIds: string[] = []): string[] {
+      const pred = vendorTextMatch(q, tradeIds);
+      if (!pred) throw new Error('expected a predicate');
+      return db
+        .select({ id: schema.vendors.id })
+        .from(schema.vendors)
+        .where(pred)
+        .all()
+        .map((r) => r.id)
+        .sort();
+    }
+
+    it.each(['', '   ', '̈̈'])('returns null for the empty query %j', (q) => {
+      expect(vendorTextMatch(q, [])).toBeNull();
+    });
+
+    it('selects exactly the companies the vendor group lists', () => {
+      const a = vendor('Müller Bau', { phone: '555-0123' });
+      const b = vendor('Beta Co');
+      contact(b, 'Frau Mueller');
+      vendor('Unrelated');
+
+      for (const q of ['muller', '555 01', 'frau', 'unrelated', 'nothing']) {
+        const group = searchDatabase(db, { q, types: ['vendor'], limit: 50 })[0]!;
+        expect(matchIds(q)).toEqual(group.items.map((i) => i.id).sort());
+      }
+      expect(matchIds('muller')).toEqual([a, b].sort());
+    });
+
+    it('widens with the listed trade ids', () => {
+      const trade = nid('trade');
+      ins('trades', { id: trade, name: 'Fliesen' });
+      const v = vendor('Alpha GmbH', { trade_id: trade });
+      vendor('Beta GmbH');
+
+      expect(matchIds('tile', [trade])).toEqual([v]);
     });
   });
 

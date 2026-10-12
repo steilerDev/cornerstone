@@ -73,6 +73,7 @@
  */
 
 import { expect, type Page, type Locator } from '@playwright/test';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { PaperlessPickerModal } from './PaperlessPickerModal.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
 
@@ -149,7 +150,12 @@ export class InvoicesPage {
 
   // Create invoice modal
   readonly createModal: Locator;
+  /** The company picker's text input (#invoice-vendor; a SearchPicker since #2213). */
   readonly createVendorSelect: Locator;
+  /** The company picker control (input, dropdown, "New company ‹text›" row, clear button). */
+  readonly createVendorPicker: CompanyPickerControl;
+  /** The picker's selected-company chip, shown once a company is chosen (or pre-filled). */
+  readonly createVendorSelected: Locator;
   readonly createNumberInput: Locator;
   readonly createAmountInput: Locator;
   readonly createDateInput: Locator;
@@ -225,7 +231,13 @@ export class InvoicesPage {
 
     // Create invoice modal — Modal component renders with role="dialog" and a title heading
     this.createModal = page.getByRole('dialog', { name: /Invoice/i });
+    // A company SearchPicker since #2213: the text input (until a company is chosen)
     this.createVendorSelect = page.locator('#invoice-vendor');
+    this.createVendorPicker = new CompanyPickerControl(page, 'invoice-vendor', this.createModal);
+    this.createVendorSelected = this.createModal
+      .locator('label[for="invoice-vendor"]')
+      .locator('xpath=..')
+      .locator('[class*="selectedDisplay"]');
     this.createNumberInput = page.locator('#invoice-number');
     this.createAmountInput = page.locator('#invoice-amount');
     this.createDateInput = page.locator('#invoice-date');
@@ -320,6 +332,15 @@ export class InvoicesPage {
     await this.createModal.waitFor({ state: 'hidden' });
   }
 
+  /** Pick an existing company by its exact name in the create modal's company picker. */
+  async selectCreateVendor(vendorName: string): Promise<void> {
+    await this.createVendorSelect.fill(vendorName);
+    await this.createVendorPicker.dropdown
+      .getByRole('option', { name: vendorName, exact: true })
+      .click();
+    await expect(this.createVendorSelect).toBeHidden();
+  }
+
   /**
    * Fill the create invoice form and submit.
    * Vendor must be selected by visible name from the dropdown options.
@@ -329,7 +350,7 @@ export class InvoicesPage {
    */
   async createInvoice(data: CreateInvoiceData): Promise<void> {
     // Select vendor by visible label text
-    await this.createVendorSelect.selectOption({ label: data.vendorName });
+    await this.selectCreateVendor(data.vendorName);
 
     if (data.invoiceNumber !== undefined) {
       await this.createNumberInput.fill(data.invoiceNumber);

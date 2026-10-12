@@ -175,3 +175,99 @@ describe('getFocusableElements and tabindex="-1" (#2211)', () => {
     expect(screen.getByTestId('last')).toHaveFocus();
   });
 });
+
+describe('useFocusTrap stack (#2213)', () => {
+  function Two({
+    onLower,
+    onUpper,
+    upperActive = true,
+    lowerActive = true,
+  }: {
+    onLower: () => void;
+    onUpper: () => void;
+    upperActive?: boolean;
+    lowerActive?: boolean;
+  }) {
+    const lowerRef = useRef<HTMLDivElement>(null);
+    const upperRef = useRef<HTMLDivElement>(null);
+    useFocusTrap(lowerRef, { active: lowerActive, onEscape: onLower });
+    useFocusTrap(upperRef, { active: upperActive, onEscape: onUpper });
+    return (
+      <div>
+        <div ref={lowerRef}>
+          <button type="button">lower first</button>
+          <button type="button">lower last</button>
+        </div>
+        <div ref={upperRef}>
+          <button type="button">upper first</button>
+          <button type="button">upper last</button>
+        </div>
+      </div>
+    );
+  }
+
+  it('only the most recently activated trap handles Escape', async () => {
+    const onLower = jest.fn();
+    const onUpper = jest.fn();
+    render(<Two onLower={onLower} onUpper={onUpper} />);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(onUpper).toHaveBeenCalledTimes(1);
+    expect(onLower).not.toHaveBeenCalled();
+  });
+
+  it('only the top trap wraps Tab', async () => {
+    render(<Two onLower={() => {}} onUpper={() => {}} />);
+    screen.getByRole('button', { name: 'lower last' }).focus();
+
+    await userEvent.tab();
+
+    // The lower trap would have wrapped to "lower first"; it is not on top, so it does not.
+    expect(screen.getByRole('button', { name: 'lower first' })).not.toHaveFocus();
+  });
+
+  it('wraps Tab inside the top trap', async () => {
+    render(<Two onLower={() => {}} onUpper={() => {}} />);
+    screen.getByRole('button', { name: 'upper last' }).focus();
+
+    await userEvent.tab();
+
+    expect(screen.getByRole('button', { name: 'upper first' })).toHaveFocus();
+  });
+
+  it('the lower trap handles Escape again after the upper one deactivates', async () => {
+    const onLower = jest.fn();
+    const onUpper = jest.fn();
+    const { rerender } = render(<Two onLower={onLower} onUpper={onUpper} />);
+    rerender(<Two onLower={onLower} onUpper={onUpper} upperActive={false} />);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(onLower).toHaveBeenCalledTimes(1);
+    expect(onUpper).not.toHaveBeenCalled();
+  });
+
+  it('a trap that deactivates below the top leaves the top one in charge', async () => {
+    const onLower = jest.fn();
+    const onUpper = jest.fn();
+    const { rerender } = render(<Two onLower={onLower} onUpper={onUpper} />);
+    rerender(<Two onLower={onLower} onUpper={onUpper} lowerActive={false} />);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(onUpper).toHaveBeenCalledTimes(1);
+  });
+
+  it('a trap re-activated later goes on top', async () => {
+    const onLower = jest.fn();
+    const onUpper = jest.fn();
+    const { rerender } = render(<Two onLower={onLower} onUpper={onUpper} lowerActive={false} />);
+    rerender(<Two onLower={onLower} onUpper={onUpper} lowerActive />);
+
+    await userEvent.keyboard('{Escape}');
+
+    expect(onLower).toHaveBeenCalledTimes(1);
+    expect(onUpper).not.toHaveBeenCalled();
+  });
+});

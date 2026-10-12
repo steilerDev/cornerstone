@@ -61,6 +61,8 @@ import { MilestoneDetailPage } from '../../pages/MilestoneDetailPage.js';
 import { PhotoViewerPage } from '../../pages/PhotoViewerPage.js';
 import { ReportWizardPage } from '../../pages/ReportWizardPage.js';
 import { VendorDetailPage } from '../../pages/VendorDetailPage.js';
+import { VendorsPage } from '../../pages/VendorsPage.js';
+import { routeUrl } from '../../../shared/src/routes/index.js';
 import { WorkItemDetailPage } from '../../pages/WorkItemDetailPage.js';
 
 test.use({
@@ -648,7 +650,7 @@ test.describe('Visual defects — empty-state links (AC5)', { tag: '@responsive'
 test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@responsive' }, () => {
   async function openDeleteDialog(
     page: Page,
-    tab: 'areas' | 'trades',
+    tab: 'areas',
     name: string,
   ): Promise<{ dialog: Locator; confirm: Locator }> {
     await page.goto(`${ROUTES.manage}?tab=${tab}`);
@@ -661,7 +663,7 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     await button.waitFor({ state: 'visible' });
     await button.click();
     // #2209: the shared ConfirmDialog (alertdialog); test-id prefix is per host
-    const prefix = tab === 'areas' ? 'area-delete' : 'trade-delete';
+    const prefix = 'area-delete';
     const dialog = page.getByRole('alertdialog', { name: `Delete ${name}?` });
     await expect(dialog).toBeVisible();
     return { dialog, confirm: dialog.getByTestId(`${prefix}-confirm`) };
@@ -699,7 +701,7 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     expect(stillThere.ok()).toBe(true);
   });
 
-  test('Trade delete dialog shows the rewritten warning; a trade in use cannot be deleted', async ({
+  test('Trade delete (Trades sheet, #2213): a trade in use is blocked with the company count and offers Merge instead', async ({
     page,
     testPrefix,
   }) => {
@@ -717,23 +719,25 @@ test.describe('Visual defects — area and trade delete copy (AC6)', { tag: '@re
     const { vendor } = (await vendorResp.json()) as { vendor: { id: string } };
     cleanups.push(() => deleteVendorViaApi(page, vendor.id));
 
-    const { dialog, confirm } = await openDeleteDialog(page, 'trades', tradeName);
-    await expect(dialog).toContainText(i18nValue('en', 'settings', 'manage.trades.deleteWarning'));
+    // The Trades manager moved from Settings to the Companies page (#2213); a used trade is
+    // blocked up front, so no DELETE request is sent at all
+    const deleteRequests: string[] = [];
+    page.on('request', (request) => {
+      if (request.method() === 'DELETE' && request.url().includes('/api/trades/')) {
+        deleteRequests.push(request.url());
+      }
+    });
+    await page.goto(routeUrl('companies', undefined, { trades: 1 }));
+    const sheet = new VendorsPage(page).tradesSheet;
+    await sheet.waitForOpen();
+    await sheet.chooseAction(tradeName, 'Delete');
 
-    const deleteResponse = page.waitForResponse(
-      (resp) =>
-        resp.url().includes(`/api/trades/${trade.id}`) && resp.request().method() === 'DELETE',
+    await expect(sheet.deleteDialog.dialog).toContainText(
+      '1 company still uses this trade. Merge it into another trade instead, or change that company first.',
     );
-    await confirm.click();
-    expect((await deleteResponse).status()).toBe(409);
-
-    // The conflict message is shown inside the dialog and the Delete action is hidden (409)
-    await expect(
-      dialog.getByRole('alert').filter({
-        hasText: i18nValue('en', 'settings', 'manage.trades.messages.deleteConflict'),
-      }),
-    ).toBeVisible();
-    await expect(confirm).toBeHidden();
+    await expect(sheet.deleteDialog.confirmButton).toHaveCount(0);
+    await expect(sheet.mergeInsteadButton).toBeVisible();
+    expect(deleteRequests).toEqual([]);
     const stillThere = await page.request.get(`/api/trades/${trade.id}`);
     expect(stillThere.ok()).toBe(true);
   });

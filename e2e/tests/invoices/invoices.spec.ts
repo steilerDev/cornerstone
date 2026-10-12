@@ -219,7 +219,7 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
 
       // Fill required fields. Default status on the form is 'pending' (To pay, #2194); it is
       // still set explicitly so this test does not depend on the form default.
-      await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
+      await invoicesPage.selectCreateVendor(vendorName);
       await invoicesPage.createAmountInput.fill('1500.00');
       await invoicesPage.createDateInput.fill('2026-01-15');
       await invoicesPage.createStatusSelect.selectOption('pending');
@@ -270,7 +270,7 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
       await invoicesPage.openCreateModal();
       await expect(invoicesPage.createModal).toBeVisible();
 
-      await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
+      await invoicesPage.selectCreateVendor(vendorName);
       await invoicesPage.createNumberInput.fill(invoiceNumber);
       await invoicesPage.createAmountInput.fill('750.50');
       await invoicesPage.createDateInput.fill('2026-02-01');
@@ -293,9 +293,10 @@ test.describe('Create invoice (Scenarios 2 & 3)', { tag: '@responsive' }, () => 
 
       await invoicesPage.waitForLoaded();
 
-      // The invoice number should appear in the list
-      const numbers = await invoicesPage.getInvoiceNumbers();
-      expect(numbers).toContain(invoiceNumber);
+      // The invoice number should appear in the list. Search for it first: the shared database
+      // holds more invoices than one page, so an unfiltered first page may not show it.
+      await invoicesPage.typeSearch(invoiceNumber);
+      await expect.poll(() => invoicesPage.getInvoiceNumbers()).toContain(invoiceNumber);
     } finally {
       // No separate delete for invoice needed since deleting the vendor cascades
       if (vendorId) await deleteVendorViaApi(page, vendorId);
@@ -357,7 +358,7 @@ test.describe('Create invoice validation (Scenarios 4–6)', { tag: '@responsive
       await invoicesPage.openCreateModal();
 
       // Fill vendor and amount but not date
-      await invoicesPage.createVendorSelect.selectOption({ label: vendorName });
+      await invoicesPage.selectCreateVendor(vendorName);
       await invoicesPage.createAmountInput.fill('200.00');
       // Deliberately omit createDateInput
 

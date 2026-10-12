@@ -1,108 +1,65 @@
-.sectionTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0 0 var(--spacing-4) 0;
+/* ---- Page actions ---- */
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
 }
 
-/* ---- Actions menu ---- */
+/* ---- Cells ---- */
 
-.actionsMenu {
-  position: relative;
+.nameCell {
+  min-width: 0;
+  max-width: 20rem;
+}
+
+.nameLink {
   display: inline-block;
-}
-
-.menuButton {
-  background: none;
-  border: none;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-xl);
-  font-weight: var(--font-weight-bold);
-  cursor: pointer;
-  padding: var(--spacing-1) var(--spacing-2);
-  border-radius: var(--radius-sm);
-  transition: var(--transition-normal);
-}
-
-.menuButton:hover {
-  background-color: var(--color-bg-tertiary);
-  color: var(--color-text-primary);
-}
-
-.menuButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.menuDropdown {
-  position: absolute;
-  right: 0;
-  top: 100%;
-  margin-top: var(--spacing-1);
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-lg);
-  min-width: 120px;
-  z-index: var(--z-dropdown);
-}
-
-.menuItem {
-  display: block;
-  width: 100%;
-  padding: var(--spacing-2-5) var(--spacing-4);
-  text-align: left;
-  background: none;
-  border: none;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  cursor: pointer;
-  transition: var(--transition-normal);
-}
-
-.menuItem:hover {
-  background-color: var(--color-bg-tertiary);
-}
-
-.menuItem:focus-visible {
-  outline: none;
-  box-shadow: inset 0 0 0 2px var(--color-primary);
-}
-
-.menuItem:first-child {
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
-}
-
-.menuItem:last-child {
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-}
-
-.menuItemDanger {
-  color: var(--color-danger);
-}
-
-.menuItemDanger:hover {
-  background-color: var(--color-danger-bg-strong);
-}
-
-/* ---- Vendor link ---- */
-
-.vendorLink {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
   color: var(--color-primary);
   text-decoration: none;
   font-weight: var(--font-weight-medium);
 }
 
-.vendorLink:hover {
+.nameLink:hover {
   color: var(--color-primary-hover);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-.vendorLink:focus-visible {
+.nameLink:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
   border-radius: var(--radius-sm);
+}
+
+.phoneCell {
+  white-space: nowrap;
+}
+
+.phoneRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.phoneText {
+  color: var(--color-text-secondary);
+}
+
+.countCell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.countHeader {
+  text-align: right;
 }
 
 .contactLink {
@@ -117,50 +74,17 @@
 
 .contactLink:focus-visible {
   outline: none;
-  box-shadow: var(--shadow-focus);
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
   border-radius: var(--radius-sm);
 }
 
-/* ============================================================
- * RESPONSIVE — Mobile (max 767px)
- * ============================================================ */
-
-@media (max-width: 767px) {
-  .container {
-    padding: var(--spacing-4);
-  }
-
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-4);
-  }
-
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
-}
-
-/* ============================================================
- * RESPONSIVE — Tablet (768px – 1024px)
- * ============================================================ */
+/* ---- Tablet: the least important column gives way first ---- */
 
 @media (min-width: 768px) and (max-width: 1023px) {
-  .container {
-    padding: var(--spacing-6);
-  }
-}
-
-/* ============================================================
- * REDUCED MOTION
- * ============================================================ */
-
-@media (prefers-reduced-motion: reduce) {
-  .menuButton {
-    transition: none;
-  }
-
-  .menuItem {
-    transition: none;
+  .countCell,
+  .countHeader {
+    display: none;
   }
 }

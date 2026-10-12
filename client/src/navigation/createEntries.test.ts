@@ -35,9 +35,9 @@ describe('createEntries', () => {
     expect(visibleCreateEntries(true)).toEqual([...CREATE_MENU_ENTRY_IDS]);
   });
 
-  it('marks only the three ObjectForm targets as dialogs', () => {
+  it('marks only the four ObjectForm targets as dialogs', () => {
     const dialogs = CREATE_MENU_ENTRY_IDS.filter((id) => CREATE_TARGETS[id].dialog);
-    expect(dialogs).toEqual(['task', 'purchase', 'milestone']);
+    expect(dialogs).toEqual(['task', 'purchase', 'company', 'milestone']);
   });
 
   it('serves every target route and the route map carries every key the target sends', () => {
@@ -69,7 +69,7 @@ describe('createEntries', () => {
       expect(createHref('diaryEntry', all)).toBe(
         routeUrl('diaryEntryNew', undefined, { date: '2026-03-01' }),
       );
-      expect(createHref('company', all)).toBe(routeUrl('vendors', undefined, { create: '1' }));
+      expect(createHref('company', all)).toBe(routeUrl('companyNew'));
       expect(createHref('fundingSource', all)).toBe(
         routeUrl('budgetSources', undefined, { create: '1' }),
       );
@@ -86,6 +86,20 @@ describe('createEntries', () => {
         routeUrl('invoices', undefined, { create: '1', companyId: 'c1' }),
       );
       expect(createHref('invoice', {})).not.toContain('kind');
+    });
+
+    it('opens the Company row at /companies/new and sends no query, whatever the context (#2213)', () => {
+      expect(createHref('company', {})).toBe('/companies/new');
+      expect(createHref('company', { areaId: 'a1', companyId: 'c1', date: '2026-03-01' })).toBe(
+        '/companies/new',
+      );
+      expect(CREATE_TARGETS.company).toMatchObject({
+        route: 'companyNew',
+        query: {},
+        prefill: [],
+        moneyOnly: false,
+        dialog: true,
+      });
     });
 
     it('drops invalid pre-fill values', () => {

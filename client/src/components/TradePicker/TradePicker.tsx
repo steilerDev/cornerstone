@@ -9,10 +9,15 @@ export interface TradePickerProps extends Omit<
   'searchFn' | 'renderItem' | 'excludeIds'
 > {
   trades: TradeResponse[];
+  /** Trade ids that are not offered (e.g. the trade being merged away). */
+  excludeIds?: string[];
 }
+
+const NO_EXCLUDED: string[] = [];
 
 export function TradePicker({
   trades,
+  excludeIds = NO_EXCLUDED,
   value,
   onChange,
   onSelectItem,
@@ -27,10 +32,11 @@ export function TradePicker({
     const lowerQuery = query.toLowerCase();
     return trades.filter(
       (trade) =>
-        trade.name.toLowerCase().includes(lowerQuery) ||
-        getCategoryDisplayName(t, trade.name, trade.translationKey)
-          .toLowerCase()
-          .includes(lowerQuery),
+        !excludeIds.includes(trade.id) &&
+        (trade.name.toLowerCase().includes(lowerQuery) ||
+          getCategoryDisplayName(t, trade.name, trade.translationKey)
+            .toLowerCase()
+            .includes(lowerQuery)),
     );
   };
 
@@ -44,7 +50,7 @@ export function TradePicker({
       value={value}
       onChange={onChange}
       onSelectItem={onSelectItem}
-      excludeIds={[]}
+      excludeIds={excludeIds}
       disabled={disabled}
       placeholder={placeholder}
       searchFn={searchFn}

@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as vendorService from '../services/vendorService.js';
+import { parseTradeIds } from '../services/shared/tradeIdsParam.js';
+import { SEARCH_QUERY_RAW_MAX_LENGTH, VENDOR_SORT_FIELDS } from '@cornerstone/shared';
 import type {
   CreateVendorRequest,
   UpdateVendorRequest,
@@ -14,11 +16,13 @@ const listVendorsSchema = {
     properties: {
       page: { type: 'integer', minimum: 1 },
       pageSize: { type: 'integer', minimum: 1, maximum: 100 },
-      q: { type: 'string' },
+      q: { type: 'string', maxLength: SEARCH_QUERY_RAW_MAX_LENGTH },
+      // Count and id length limits are enforced by parseTradeIds; this only caps the raw string.
+      tradeIds: { type: 'string', maxLength: 8000 },
       tradeId: { type: 'string' },
       sortBy: {
         type: 'string',
-        enum: ['name', 'trade', 'created_at', 'updated_at'],
+        enum: [...VENDOR_SORT_FIELDS],
       },
       sortOrder: { type: 'string', enum: ['asc', 'desc'] },
     },
@@ -92,7 +96,11 @@ export default async function vendorRoutes(fastify: FastifyInstance) {
         throw new UnauthorizedError();
       }
 
-      const result = vendorService.listVendors(fastify.db, request.query);
+      const result = vendorService.listVendors(
+        fastify.db,
+        request.query,
+        parseTradeIds(request.query.tradeIds),
+      );
       return reply.status(200).send(result);
     },
   );

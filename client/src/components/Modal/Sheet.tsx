@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { getFocusableElements, useFocusTrap } from './useFocusTrap.js';
 import { lockScroll } from './scrollLock.js';
 import { useFocusRestore } from './useFocusRestore.js';
+import { dialogLayerStyle, useDialogLevel } from './dialogLayer.js';
 import sharedStyles from '../../styles/shared.module.css';
 import styles from './Sheet.module.css';
 
@@ -77,6 +78,9 @@ export function Sheet({
   const restoreRef = useRef(false);
   const wasOpenRef = useRef(false);
 
+  // A sheet opened over another dialog stacks above it; the first dialog keeps the stylesheet's layer.
+  const level = useDialogLevel(open);
+
   const dismiss = () => {
     if (!dismissible) return;
     restoreRef.current = true;
@@ -114,6 +118,7 @@ export function Sheet({
       <div
         className={cx(styles.backdrop, open && styles.backdropOpen)}
         aria-hidden="true"
+        style={dialogLayerStyle(level)}
         onClick={dismiss}
         data-testid={`${testId}-backdrop`}
       />
@@ -128,11 +133,12 @@ export function Sheet({
           variant === 'fullScreen' && styles.panelFullScreen,
           variant === 'fullScreen' && contentMaxWidth !== undefined && styles.panelContentWidth,
         )}
-        style={
-          variant === 'fullScreen' && contentMaxWidth !== undefined
+        style={{
+          ...dialogLayerStyle(level, 1),
+          ...(variant === 'fullScreen' && contentMaxWidth !== undefined
             ? ({ '--sheet-content-max-width': contentMaxWidth } as CSSProperties)
-            : undefined
-        }
+            : undefined),
+        }}
         data-open={open ? 'true' : 'false'}
         data-testid={testId}
       >

@@ -1,0 +1,164 @@
+.dialog {
+  /* Overrides the shared modal's 28rem cap (same way ObjectForm widens its dialog). */
+  width: min(32rem, calc(100vw - var(--spacing-8)));
+  max-width: none;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+}
+
+.newForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.newRow {
+  display: flex;
+  gap: var(--spacing-2);
+  align-items: stretch;
+}
+
+.label {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-secondary);
+}
+
+.srOnlyLabel {
+  composes: srOnly from '../../styles/shared.module.css';
+}
+
+.input {
+  composes: input from '../../styles/shared.module.css';
+  flex: 1;
+  min-width: 0;
+  font-size: var(--font-size-base);
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  padding-block: var(--spacing-2);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.rowText {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowName {
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text-primary);
+  overflow-wrap: anywhere;
+}
+
+.rowMeta {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.renameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+  width: 100%;
+}
+
+.renameActions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.hint {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+.textButton {
+  background: none;
+  border: none;
+  padding: var(--spacing-2);
+  min-height: var(--touch-target-min);
+  color: var(--color-primary);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.textButton:hover {
+  color: var(--color-primary-hover);
+}
+
+.textButton:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-primary),
+    0 0 0 4px var(--color-border-focus);
+  border-radius: var(--radius-sm);
+}
+
+.loadError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-2);
+}
+
+.empty {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.mergeField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-1);
+}
+
+.mergeStatus {
+  min-height: var(--spacing-5);
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.done {
+  min-width: var(--spacing-24);
+}
+
+@media (max-width: 1023px) {
+  .done,
+  .newRow button,
+  .renameActions button {
+    min-height: var(--touch-target-min);
+  }
+}
+
+@media (max-width: 479px) {
+  .newRow {
+    flex-direction: column;
+  }
+
+  .newRow button {
+    width: 100%;
+  }
+}

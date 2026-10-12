@@ -32,7 +32,31 @@ export interface TradeResponse {
  * Response for GET /api/trades (list of trades).
  */
 export interface TradeListResponse {
-  trades: TradeResponse[];
+  trades: TradeListItem[];
+}
+
+/** Maximum number of ids in a `tradeIds` query parameter (#2213). */
+export const TRADE_IDS_MAX = 50;
+/** Maximum length of one id in a `tradeIds` query parameter (#2213). */
+export const TRADE_ID_MAX_LENGTH = 64;
+
+/**
+ * Trade row as returned by GET /api/trades (list only).
+ */
+export interface TradeListItem extends TradeResponse {
+  /** Number of companies using this trade. */
+  vendorCount: number;
+}
+
+/** Request body for POST /api/trades/:id/merge. */
+export interface TradeMergeRequest {
+  targetTradeId: string;
+}
+
+/** Response for POST /api/trades/:id/merge. */
+export interface TradeMergeResponse {
+  trade: TradeListItem;
+  movedVendorCount: number;
 }
 
 /**

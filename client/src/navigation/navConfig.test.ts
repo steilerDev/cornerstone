@@ -366,7 +366,7 @@ describe('navSections', () => {
     }
   });
 
-  it('keeps companies, whose interim route is served', () => {
+  it('keeps companies, whose route is served', () => {
     expect(ids(navSections(ADMIN))).toContain('companies');
   });
 

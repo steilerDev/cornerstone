@@ -189,42 +189,9 @@
       }
     },
     "trades": {
-      "loading": "Gewerke werden geladen...",
-      "errorTitle": "Fehler",
-      "retry": "Erneut versuchen",
       "loadError": "Gewerke konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "createTitle": "Neues Gewerk erstellen",
-      "createDescription": "Gewerke stellen Arbeitsspezialisierungen dar (z. B. Sanitär, Elektrik, Tischlerei). Auftragnehmer werden Gewerken zugeordnet, um ihr Fachgebiet anzugeben.",
-      "nameLabel": "Gewerkname",
-      "namePlaceholder": "z. B. Sanitär, Elektrik, Tischlerei",
-      "colorLabel": "Farbe",
-      "descriptionLabel": "Beschreibung",
-      "descriptionPlaceholder": "Optionale Beschreibung",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "createButton": "Gewerk erstellen",
-      "creating": "Wird erstellt...",
-      "existingTitle": "Vorhandene Gewerke ({{count}})",
-      "emptyState": "Noch keine Gewerke. Erstellen Sie Ihr erstes Gewerk, um Ihre Auftragnehmer und Arbeitspakete zu organisieren.",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "cancel": "Abbrechen",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "deleteWarning": "Ein Gewerk, das eine Firma verwendet, kann nicht gelöscht werden. Ändern Sie zuerst das Gewerk dieser Firmen.",
-      "validation": {
-        "nameRequired": "Gewerkname ist erforderlich",
-        "nameTooLong": "Gewerkname darf maximal 100 Zeichen lang sein"
-      },
-      "messages": {
-        "created": "Gewerk „{{name}}“ erfolgreich erstellt",
-        "updated": "Gewerk „{{name}}“ erfolgreich aktualisiert",
-        "deleted": "Gewerk „{{name}}“ erfolgreich gelöscht",
-        "createError": "Gewerk konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateError": "Gewerk konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Gewerk konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Dieses Gewerk kann nicht gelöscht werden, da eine Firma es verwendet.",
-        "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits."
-      }
+      "movedText": "Gewerke werden auf der Seite Firmen verwaltet.",
+      "movedLink": "Gewerke öffnen"
     },
     "orientations": {
       "tabLabel": "Ausrichtungen",
@@ -482,6 +449,54 @@
         "createFailed": "Kontakt konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
         "updateFailed": "Kontakt konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut."
       }
+    }
+  },
+  "tradesManager": {
+    "title": "Gewerke",
+    "newLabel": "Neues Gewerk",
+    "add": "Hinzufügen",
+    "adding": "Wird hinzugefügt…",
+    "done": "Fertig",
+    "listLabel": "Gewerke",
+    "noCompanies": "Keine Firmen",
+    "companyCount_one": "{{count}} Firma",
+    "companyCount_other": "{{count}} Firmen",
+    "actionsFor": "Aktionen für {{name}}",
+    "rename": "Umbenennen",
+    "renameLabel": "Neuer Name für {{name}}",
+    "renameHint": "Beim Umbenennen wird die eingebaute Übersetzung ersetzt.",
+    "save": "Speichern",
+    "saving": "Wird gespeichert…",
+    "cancel": "Abbrechen",
+    "mergeDuplicates": "Doppelte zusammenführen…",
+    "deleteAction": "Löschen",
+    "duplicateName": "Ein Gewerk mit diesem Namen existiert bereits.",
+    "nameRequired": "Geben Sie einen Namen ein.",
+    "added": "{{name}} hinzugefügt",
+    "renamed": "{{name}} umbenannt",
+    "empty": "Noch keine Gewerke. Fügen Sie oben eines hinzu.",
+    "loadError": "Gewerke konnten nicht geladen werden.",
+    "tryAgain": "Erneut versuchen",
+    "merge": {
+      "title": "{{name}} in ein anderes Gewerk zusammenführen?",
+      "lead": "Wählen Sie das Gewerk aus, das bleibt. Die Firmen von {{name}} werden ihm zugeordnet, und {{name}} wird entfernt.",
+      "keepLabel": "Dieses Gewerk behalten",
+      "moveCount_one": "{{count}} Firma wird zu {{target}} verschoben",
+      "moveCount_other": "{{count}} Firmen werden zu {{target}} verschoben",
+      "noneMove": "Keine Firmen werden zu {{target}} verschoben",
+      "chooseFirst": "Wählen Sie das Gewerk aus, das bleibt",
+      "confirm": "Zusammenführen",
+      "busy": "Wird zusammengeführt…",
+      "done": "{{name}} wurde in {{target}} zusammengeführt"
+    },
+    "deleteDialog": {
+      "title": "{{name}} löschen?",
+      "blocked_one": "{{count}} Firma verwendet dieses Gewerk noch. Führen Sie es stattdessen mit einem anderen Gewerk zusammen oder ändern Sie zuerst diese Firma.",
+      "blocked_other": "{{count}} Firmen verwenden dieses Gewerk noch. Führen Sie es stattdessen mit einem anderen Gewerk zusammen oder ändern Sie zuerst diese Firmen.",
+      "mergeInstead": "Stattdessen zusammenführen",
+      "confirm": "Löschen",
+      "busy": "Wird gelöscht…",
+      "done": "{{name}} wurde gelöscht"
     }
   }
 }

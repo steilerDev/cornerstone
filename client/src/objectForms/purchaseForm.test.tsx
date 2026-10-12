@@ -5,6 +5,7 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ApiClientError } from '../lib/apiClient.js';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
 import { installMatchMedia } from '../test/matchMediaControl.js';
@@ -25,7 +26,16 @@ const mockFetchCategories = jest.fn<typeof CategoriesApiTypes.fetchHouseholdItem
 jest.unstable_mockModule('../lib/householdItemsApi.js', () => ({
   createHouseholdItem: mockCreateHouseholdItem,
 }));
-jest.unstable_mockModule('../lib/vendorsApi.js', () => ({ fetchVendors: mockFetchVendors }));
+const mockCreateVendor = jest.fn<typeof VendorsApiTypes.createVendor>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
+jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: mockFetchVendor,
+  createVendor: mockCreateVendor,
+}));
+jest.unstable_mockModule('../hooks/useTrades.js', () => ({
+  useTrades: () => ({ trades: [], isLoading: false, isInitialLoading: false, error: null }),
+}));
 jest.unstable_mockModule('../lib/householdItemCategoriesApi.js', () => ({
   fetchHouseholdItemCategories: mockFetchCategories,
 }));
@@ -78,6 +88,9 @@ describe('purchaseForm (ObjectForm schema)', () => {
   beforeEach(async () => {
     mockCreateHouseholdItem.mockReset();
     mockFetchVendors.mockReset();
+    mockCreateVendor.mockReset();
+    mockFetchVendor.mockReset();
+    mockFetchVendor.mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
     mockFetchCategories.mockReset();
     onCreated.mockReset();
     mockUseAreas.mockReturnValue({
@@ -126,7 +139,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
 
   const renderForm = (search?: string) =>
     render(
-      <MemoryRouter>
+      <MemoryRouter initialEntries={[`/project/household-items/new${search ?? ''}`]}>
         <Harness search={search} />
       </MemoryRouter>,
     );
@@ -187,22 +200,35 @@ describe('purchaseForm (ObjectForm schema)', () => {
     expect(screen.getByLabelText(/category/i)).toHaveAttribute('aria-required', 'true');
   });
 
-  it('offers the fetched vendors and categories (placeholder first)', async () => {
+  it('offers the categories (placeholder first) and searches companies as you type', async () => {
+    const user = userEvent.setup();
     renderForm();
+    await name();
     await waitFor(() =>
-      expect(screen.getByRole('option', { name: 'Acme Supply' })).toBeInTheDocument(),
+      expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe('hic-furniture'),
     );
-    const vendor = screen.getByLabelText(/vendor/i) as HTMLSelectElement;
-    expect(Array.from(vendor.options).map((o) => o.textContent)).toEqual([
-      'No vendor',
-      'Acme Supply',
-    ]);
     const category = screen.getByLabelText(/category/i) as HTMLSelectElement;
     expect(Array.from(category.options).map((o) => o.value)).toEqual([
       '',
       'hic-furniture',
       'hic-lighting',
     ]);
+
+    // The company is a text picker now: no <select>, the list loads from the search.
+    expect((await screen.findByLabelText(/vendor/i)).tagName).toBe('INPUT');
+    await user.click(await screen.findByLabelText(/vendor/i));
+    expect(await screen.findByRole('option', { name: 'Acme Supply' })).toBeInTheDocument();
+    expect(mockFetchVendors).toHaveBeenCalledWith({ q: '', pageSize: 50 });
+  });
+
+  it('sends the typed text to the company search', async () => {
+    const user = userEvent.setup();
+    renderForm();
+    await name();
+
+    await user.type(await screen.findByLabelText(/vendor/i), 'acm');
+
+    await waitFor(() => expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'acm', pageSize: 50 }));
   });
 
   it('defaults the category to the first option and the form stays clean', async () => {
@@ -215,20 +241,204 @@ describe('purchaseForm (ObjectForm schema)', () => {
   });
 
   describe('pre-fill', () => {
-    it('pre-selects a known area and company', async () => {
+    it('pre-selects a known area and company, showing the company name', async () => {
       renderForm('?areaId=a1&companyId=v1');
-      await waitFor(() =>
-        expect((screen.getByLabelText(/vendor/i) as HTMLSelectElement).value).toBe('v1'),
-      );
+      expect(await screen.findByText('Acme Supply')).toBeInTheDocument();
       expect((screen.getByLabelText('Area picker') as HTMLSelectElement).value).toBe('a1');
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
     });
 
-    it('clears an unknown company once the vendors have loaded', async () => {
-      renderForm('?companyId=gone');
+    async function submitNamed(user: ReturnType<typeof userEvent.setup>) {
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      await name();
       await waitFor(() =>
-        expect(screen.getByRole('option', { name: 'Acme Supply' })).toBeInTheDocument(),
+        expect((screen.getByLabelText(/category/i) as HTMLSelectElement).value).toBe(
+          'hic-furniture',
+        ),
       );
-      expect((screen.getByLabelText(/vendor/i) as HTMLSelectElement).value).toBe('');
+      await user.type(screen.getByLabelText(/^name/i), 'Chair');
+      await user.click(save());
+      await waitFor(() => expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1));
+    }
+
+    it('looks up an unknown pre-filled company, finds none, drops the id and never posts it', async () => {
+      const user = userEvent.setup();
+      renderForm('?companyId=gone');
+
+      await submitNamed(user);
+
+      expect(mockFetchVendor).toHaveBeenCalledWith('gone');
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: null }),
+      );
+    });
+
+    it('drops the id on any lookup failure, not only a 404', async () => {
+      const user = userEvent.setup();
+      mockFetchVendor.mockRejectedValue(new Error('offline'));
+      renderForm('?companyId=gone');
+
+      await submitNamed(user);
+
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: null }),
+      );
+    });
+
+    it('keeps a valid company beyond the first page, found by its own lookup, and posts it', async () => {
+      const user = userEvent.setup();
+      mockFetchVendor.mockResolvedValue({
+        id: 'v-far',
+        name: 'Far Away Co',
+      } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.fetchVendor>>);
+      renderForm('?companyId=v-far');
+
+      expect(await screen.findByText('Far Away Co')).toBeInTheDocument();
+      await submitNamed(user);
+
+      expect(mockFetchVendor).toHaveBeenCalledWith('v-far');
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: 'v-far' }),
+      );
+    });
+
+    it('does not look up a company that is already in the first page', async () => {
+      renderForm('?companyId=v1');
+      await screen.findByText('Acme Supply');
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+    });
+
+    it('does no lookup without a pre-filled company', async () => {
+      renderForm();
+      await name();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+    });
+
+    it('clears nothing while the lookup is pending, and keeps the id when it succeeds later', async () => {
+      let finish: (v: Awaited<ReturnType<typeof VendorsApiTypes.fetchVendor>>) => void = () => {};
+      mockFetchVendor.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+      renderForm('?companyId=v-far');
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-far'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+      // The form is still loading its options; the id has not been dropped.
+      expect(screen.queryByText('Far Away Co')).not.toBeInTheDocument();
+
+      await act(async () => {
+        finish({ id: 'v-far', name: 'Far Away Co' } as unknown as Awaited<
+          ReturnType<typeof VendorsApiTypes.fetchVendor>
+        >);
+      });
+
+      expect(await screen.findByText('Far Away Co')).toBeInTheDocument();
+    });
+  });
+
+  describe('company picker (#2213)', () => {
+    async function pickCompany(user: ReturnType<typeof userEvent.setup>, text: string) {
+      await name();
+      await user.type(await screen.findByLabelText(/vendor/i), text);
+    }
+
+    it('selects a found company and posts its id', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      renderForm();
+      await pickCompany(user, 'Acme');
+      await user.click(await screen.findByRole('option', { name: 'Acme Supply' }));
+      await user.type(screen.getByLabelText(/^name/i), 'Chair');
+      await user.click(save());
+
+      await waitFor(() => expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: 'v1' }),
+      );
+    });
+
+    it('posts no company when none was chosen', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Chair');
+      await user.click(save());
+
+      await waitFor(() => expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: null }),
+      );
+    });
+
+    it('offers "New company ‹text›" when no result equals the text', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await pickCompany(user, 'Brand New Co');
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
+    });
+
+    it('offers no create row when a result equals the text', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await pickCompany(user, 'acme supply');
+
+      await screen.findByRole('option', { name: 'Acme Supply' });
+      expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
+    });
+
+    it('continues in a child step with the typed name, then returns with the new company set', async () => {
+      const user = userEvent.setup();
+      mockCreateHouseholdItem.mockResolvedValue(CREATED);
+      mockCreateVendor.mockResolvedValue({
+        id: 'v-new',
+        name: 'Brand New Co',
+      } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.createVendor>>);
+      renderForm();
+      await name();
+      await user.type(screen.getByLabelText(/^name/i), 'Chair');
+      await pickCompany(user, 'Brand New Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+
+      // The child step shows the company form with the typed name; the dialog does not stack.
+      expect(screen.getAllByRole('dialog')).toHaveLength(1);
+      expect(screen.getByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+      expect((await screen.findByTestId('company-name-input')) as HTMLInputElement).toHaveValue(
+        'Brand New Co',
+      );
+      await user.click(save());
+
+      await waitFor(() =>
+        expect(mockCreateVendor).toHaveBeenCalledWith(
+          expect.objectContaining({ name: 'Brand New Co', tradeId: null }),
+        ),
+      );
+      // Back on the purchase step: the company shows its name and the typed purchase name stays.
+      expect(await screen.findByText('Brand New Co')).toBeInTheDocument();
+      expect(screen.getByRole('dialog', { name: 'New purchase' })).toBeInTheDocument();
+      expect((screen.getByLabelText(/^name/i) as HTMLInputElement).value).toBe('Chair');
+      expect(onCreated).not.toHaveBeenCalled();
+
+      await user.click(save());
+      await waitFor(() => expect(mockCreateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
+        expect.objectContaining({ vendorId: 'v-new', name: 'Chair' }),
+      );
+    });
+
+    it('selects nothing when the child step is cancelled', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await pickCompany(user, 'Brand New Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Brand New Co' }));
+      await screen.findByTestId('company-name-input');
+      await user.click(screen.getByTestId('object-form-cancel'));
+
+      expect(await screen.findByRole('dialog', { name: 'New purchase' })).toBeInTheDocument();
+      expect(mockCreateVendor).not.toHaveBeenCalled();
+      expect(screen.queryByText('Brand New Co')).not.toBeInTheDocument();
     });
   });
 
@@ -335,9 +545,7 @@ describe('purchaseForm (ObjectForm schema)', () => {
       const user = userEvent.setup();
       mockCreateHouseholdItem.mockResolvedValue(CREATED);
       renderForm('?areaId=a1&companyId=v1');
-      await waitFor(() =>
-        expect((screen.getByLabelText(/vendor/i) as HTMLSelectElement).value).toBe('v1'),
-      );
+      await screen.findByText('Acme Supply');
       await user.type(screen.getByLabelText(/^name/i), '  Kitchen Island  ');
       await user.click(screen.getByTestId('object-form-more'));
       await user.type(screen.getByLabelText(/description/i), 'Custom maple island');

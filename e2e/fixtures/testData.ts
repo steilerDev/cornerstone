@@ -30,7 +30,9 @@ export const ROUTES = {
   workItemsNew: routeUrl('workItemNew'),
   budget: routeUrl('budgetOverview'),
   budgetCategories: routeUrl('settingsManage', undefined, { tab: 'budget-categories' }),
-  settingsVendors: routeUrl('vendors'),
+  companies: routeUrl('companies'),
+  /** Kept for older specs: the Companies list (it left Settings in #2213). */
+  settingsVendors: routeUrl('companies'),
   budgetSources: routeUrl('budgetSources'),
   budgetSubsidies: routeUrl('budgetSubsidies'),
   budgetReports: routeUrl('bankReport'),
@@ -62,6 +64,7 @@ export const API = {
   profile: '/api/users/me',
   budgetCategories: '/api/budget-categories',
   vendors: '/api/vendors',
+  trades: '/api/trades',
   search: '/api/search',
   workItems: '/api/work-items',
   budgetSources: '/api/budget-sources',

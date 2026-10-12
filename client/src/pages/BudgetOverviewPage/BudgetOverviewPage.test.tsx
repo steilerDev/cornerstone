@@ -587,7 +587,7 @@ describe('BudgetOverviewPage', () => {
       expect(screen.getByTestId('location').textContent).toBe('/budget/invoices?create=1');
     });
 
-    it('clicking Add Vendor menu item navigates to /settings/vendors', async () => {
+    it('clicking Add Vendor menu item navigates to /companies', async () => {
       const user = userEvent.setup();
       mockFetchBudgetOverview.mockReturnValueOnce(new Promise(() => {}));
 
@@ -597,7 +597,7 @@ describe('BudgetOverviewPage', () => {
       await user.click(screen.getByTestId('budget-overview-add-button'));
       await user.click(screen.getByTestId('budget-overview-add-vendor'));
 
-      expect(screen.getByTestId('location')).toHaveTextContent('/settings/vendors');
+      expect(screen.getByTestId('location').textContent).toBe('/companies');
     });
   });
 

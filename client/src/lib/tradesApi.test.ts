@@ -1,5 +1,12 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { fetchTrades, fetchTrade, createTrade, updateTrade, deleteTrade } from './tradesApi.js';
+import {
+  fetchTrades,
+  fetchTrade,
+  createTrade,
+  updateTrade,
+  deleteTrade,
+  mergeTrade,
+} from './tradesApi.js';
 import type { TradeListResponse, TradeSingleResponse, TradeResponse } from '@cornerstone/shared';
 
 const makeTrade = (overrides?: Partial<TradeResponse>): TradeResponse => ({
@@ -64,7 +71,7 @@ describe('tradesApi', () => {
     });
 
     it('returns the trades list from the response', async () => {
-      const trade = makeTrade();
+      const trade = { ...makeTrade(), vendorCount: 2 };
       const mockResponse: TradeListResponse = { trades: [trade] };
       mockFetch.mockResolvedValueOnce({
         ok: true,
@@ -320,6 +327,41 @@ describe('tradesApi', () => {
       } as Response);
 
       await expect(deleteTrade('trade-1')).rejects.toThrow();
+    });
+  });
+
+  describe('mergeTrade (#2213)', () => {
+    it('POSTs { targetTradeId } to /api/trades/:id/merge and returns the body', async () => {
+      const body = {
+        trade: { ...makeTrade({ id: 'trade-2' }), vendorCount: 4 },
+        movedVendorCount: 3,
+      };
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => body,
+      } as Response);
+
+      const result = await mergeTrade('trade-1', 'trade-2');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/trades/trade-1/merge',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({ targetTradeId: 'trade-2' }),
+        }),
+      );
+      expect(result).toEqual(body);
+    });
+
+    it('rejects with the API error when the target is invalid (400)', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 400,
+        json: async () => ({ error: { code: 'VALIDATION_ERROR', message: 'bad target' } }),
+      } as Response);
+
+      await expect(mergeTrade('trade-1', 'trade-1')).rejects.toMatchObject({ statusCode: 400 });
     });
   });
 });

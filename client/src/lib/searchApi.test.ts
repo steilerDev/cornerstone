@@ -52,6 +52,16 @@ describe('searchApi', () => {
     expect(calledUrl().searchParams.get('limit')).toBe('12');
   });
 
+  it('joins tradeIds with a comma (#2213)', async () => {
+    await searchEverywhere({ q: 'tile', tradeIds: ['t1', 't2'] });
+    expect(calledUrl().searchParams.get('tradeIds')).toBe('t1,t2');
+  });
+
+  it.each([undefined, []])('omits tradeIds when it is %j', async (tradeIds) => {
+    await searchEverywhere({ q: 'tile', tradeIds });
+    expect(calledUrl().searchParams.has('tradeIds')).toBe(false);
+  });
+
   it('passes the abort signal to fetch', async () => {
     const controller = new AbortController();
     await searchEverywhere({ q: 'abc' }, controller.signal);

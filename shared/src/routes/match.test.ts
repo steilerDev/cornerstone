@@ -158,7 +158,33 @@ describe('resolveLocation', () => {
   });
 
   it('keeps interim pages as pages', () => {
-    expect(pageId(resolveLocation('/settings/vendors', ADMIN))).toBe('vendors');
+    expect(pageId(resolveLocation('/project/overview', ADMIN))).toBe('dashboard');
+  });
+
+  it.each([
+    ['/settings/vendors', '/companies'],
+    ['/settings/vendors/abc', '/companies/abc'],
+    ['/budget/vendors', '/companies'],
+    ['/budget/vendors/abc', '/companies/abc'],
+  ])('sends the old company URL %s to %s in one hop (#2213)', (from, to) => {
+    expect(resolveLocation(from, ADMIN)).toMatchObject({ kind: 'redirect', to });
+  });
+
+  it('carries the query and hash of an old company URL (#2213)', () => {
+    expect(resolveLocation('/settings/vendors/abc?tab=invoices&x=1#section', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/companies/abc?tab=invoices&x=1#section',
+    });
+    expect(resolveLocation('/budget/vendors?q=roof&page=2', ADMIN)).toMatchObject({
+      kind: 'redirect',
+      to: '/companies?q=roof&page=2',
+    });
+  });
+
+  it('serves the company pages without a hop (#2213)', () => {
+    expect(pageId(resolveLocation('/companies', MEMBER))).toBe('companies');
+    expect(pageId(resolveLocation('/companies/new', MEMBER))).toBe('companyNew');
+    expect(pageId(resolveLocation('/companies/abc', MEMBER))).toBe('company');
   });
 
   it('shows no access to a member on admin pages', () => {

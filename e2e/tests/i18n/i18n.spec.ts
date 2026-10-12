@@ -429,12 +429,10 @@ test.describe('i18n: German Locale — Responsive Layout', () => {
     // Given: Language is set to German
     await setLanguage(page, 'de');
 
-    // When: User navigates to vendors (moved to Settings in Story #1283)
-    await page.goto(ROUTES.settingsVendors);
-    // German heading is "Auftragnehmer" (plural form of Vendor)
-    await page
-      .getByRole('heading', { level: 1, name: 'Auftragnehmer' })
-      .waitFor({ state: 'visible' });
+    // When: User navigates to the Companies list (/companies since #2213)
+    await page.goto(ROUTES.companies);
+    // German heading is "Firmen" (the glossary canon for Companies)
+    await page.getByRole('heading', { level: 1, name: 'Firmen' }).waitFor({ state: 'visible' });
 
     // Then: the sidebar's Companies entry ("Firmen") is the highlighted one (#2205: the Settings
     // tab row is gone). It is the reliable indicator that the shell is in German and loaded.

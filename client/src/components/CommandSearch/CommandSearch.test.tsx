@@ -11,6 +11,7 @@ import { routeUrl } from '@cornerstone/shared';
 import type { PaperlessStatusResponse, SearchResponse } from '@cornerstone/shared';
 import type * as SearchApiTypes from '../../lib/searchApi.js';
 import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
+import type * as TradesApiTypes from '../../lib/tradesApi.js';
 import type * as CommandSearchTypes from './CommandSearch.js';
 import type * as ContextTypes from './CommandSearchContext.js';
 import type * as CreateMenuTypes from '../CreateMenu/CreateMenuContext.js';
@@ -25,6 +26,9 @@ import { makeGroup, makeItem, makeResponse } from '../../test/commandSearchFixtu
 
 const mockSearch = jest.fn<typeof SearchApiTypes.searchEverywhere>();
 jest.unstable_mockModule('../../lib/searchApi.js', () => ({ searchEverywhere: mockSearch }));
+
+const mockFetchTrades = jest.fn<typeof TradesApiTypes.fetchTrades>();
+jest.unstable_mockModule('../../lib/tradesApi.js', () => ({ fetchTrades: mockFetchTrades }));
 
 const mockStatus = jest.fn<typeof PaperlessApiTypes.getPaperlessStatus>();
 jest.unstable_mockModule('../../lib/paperlessApi.js', () => ({ getPaperlessStatus: mockStatus }));
@@ -70,6 +74,8 @@ let rafSpy: ReturnType<typeof jest.spyOn> | null = null;
 
 beforeEach(async () => {
   mockSearch.mockReset();
+  mockFetchTrades.mockReset();
+  mockFetchTrades.mockResolvedValue({ trades: [] });
   mockStatus.mockReset();
   mockRefreshAuth.mockReset();
   mockStatus.mockResolvedValue(UNCONFIGURED);
@@ -462,7 +468,7 @@ describe('rows', () => {
     const call = screen.getByTestId('command-search-call-v1');
     expect(call).toHaveAttribute('href', 'tel:+4930123456');
     expect(call).toHaveAttribute('tabindex', '-1');
-    expect(call).toHaveAttribute('aria-label', 'Call Acme Roofing');
+    expect(call).toHaveAttribute('aria-label', 'Call Acme Roofing on +49 (30) 123-456');
     expect(call.id).toBe(`${option('vendor', 'v1').id}-call`);
     const describedBy = option('vendor', 'v1').getAttribute('aria-describedby');
     expect(document.getElementById(describedBy!)?.textContent).toBe('Press Shift+Enter to call');
@@ -693,7 +699,7 @@ describe('keyboard', () => {
     expect(option('work_item', 'c')).toHaveAttribute('aria-selected', 'true');
     expect(closed).not.toHaveBeenCalled();
     expect(mockSearch).toHaveBeenLastCalledWith(
-      { q: 'zzq', types: ['work_item'], limit: 20 },
+      { q: 'zzq', types: ['work_item'], limit: 20, tradeIds: [] },
       expect.any(AbortSignal),
     );
     expect(screen.getByTestId('command-search-group-work_item').textContent).not.toContain('of 4');
@@ -1314,7 +1320,7 @@ describe('pointer and composition', () => {
     expect(input().value).toBe('ka');
     fireEvent.compositionEnd(input(), { currentTarget: input() });
     await waitFor(() => expect(mockSearch).toHaveBeenCalledTimes(1));
-    expect(mockSearch.mock.calls[0]?.[0]).toEqual({ q: 'ka' });
+    expect(mockSearch.mock.calls[0]?.[0]).toEqual({ q: 'ka', tradeIds: [] });
   });
 });
 
@@ -1505,5 +1511,126 @@ describe('focus handover when choosing a result', () => {
         `Page ${routeUrl('workItem', { id: 'w1' })}`,
       ),
     );
+  });
+});
+
+describe('CommandSearch trade names (#2213)', () => {
+  // The stored name is German; the English translation of trades.roofing is "Roofing".
+  const roofing = {
+    id: 't-roof',
+    name: 'Dachdecker',
+    translationKey: 'trades.roofing',
+    color: null,
+    description: null,
+    sortOrder: 0,
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    vendorCount: 0,
+  };
+  const custom = { ...roofing, id: 't-custom', name: 'Roofing Extras', translationKey: null };
+  const tiling = { ...roofing, id: 't-tile', name: 'Fliesen', translationKey: null };
+
+  it('loads the trades once when the palette opens, not per keystroke', async () => {
+    respondWith(full);
+    renderSearch({ startQuery: '' });
+    const user = userEvent.setup();
+    await user.type(input(), 'roof');
+    await settled();
+
+    expect(mockFetchTrades).toHaveBeenCalledTimes(1);
+  });
+
+  it('sends the ids of trades whose displayed name contains the query', async () => {
+    mockFetchTrades.mockResolvedValue({ trades: [roofing, custom, tiling] });
+    respondWith(full);
+    renderSearch({ startQuery: '' });
+    await waitFor(() => expect(mockFetchTrades).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+
+    await user.type(input(), 'roof');
+
+    await waitFor(() =>
+      expect(mockSearch).toHaveBeenLastCalledWith(
+        { q: 'roof', tradeIds: ['t-roof', 't-custom'] },
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it('matches the translated name, not the stored name', async () => {
+    mockFetchTrades.mockResolvedValue({ trades: [roofing] });
+    respondWith(full);
+    renderSearch({ startQuery: '' });
+    await waitFor(() => expect(mockFetchTrades).toHaveBeenCalled());
+    await act(async () => {
+      await Promise.resolve();
+    });
+    const user = userEvent.setup();
+
+    await user.type(input(), 'dachd');
+
+    await waitFor(() =>
+      expect(mockSearch).toHaveBeenLastCalledWith(
+        { q: 'dachd', tradeIds: [] },
+        expect.any(AbortSignal),
+      ),
+    );
+  });
+
+  it('sends the same tradeIds when a group is expanded', async () => {
+    mockFetchTrades.mockResolvedValue({ trades: [roofing] });
+    mockSearch.mockImplementation((params) =>
+      Promise.resolve(
+        makeResponse(params.q, {
+          work_item: makeGroup(
+            'work_item',
+            ['a', 'b', ...(params.types ? ['c'] : [])].map((id) => makeItem({ id })),
+            { total: 3 },
+          ),
+        }),
+      ),
+    );
+    renderSearch({ startQuery: 'roof' });
+    await settled();
+    fireEvent.click(screen.getByTestId('command-search-more-work_item'));
+    await waitFor(() => expect(option('work_item', 'c')).toBeInTheDocument());
+
+    expect(mockSearch).toHaveBeenLastCalledWith(
+      { q: 'roof', types: ['work_item'], limit: 20, tradeIds: ['t-roof'] },
+      expect.any(AbortSignal),
+    );
+  });
+
+  it('keeps searching, without tradeIds, when the trades cannot be loaded', async () => {
+    mockFetchTrades.mockRejectedValue(new NetworkError('offline', null));
+    respondWith(full);
+    renderSearch({ startQuery: 'roof' });
+    await settled();
+
+    expect(mockSearch).toHaveBeenCalled();
+    expect(mockSearch.mock.calls[0]![0]).toEqual({ q: 'roof', tradeIds: [] });
+    expect(option('vendor', 'v1')).toBeInTheDocument();
+  });
+
+  it('ignores trades that arrive after the palette closed (no state update, no error)', async () => {
+    let resolveTrades: (value: { trades: (typeof roofing)[] }) => void = () => {};
+    mockFetchTrades.mockImplementation(
+      () =>
+        new Promise((resolve) => (resolveTrades = resolve)) as ReturnType<typeof mockFetchTrades>,
+    );
+    respondWith(full);
+    const { unmount } = renderSearch({ startQuery: 'roof' });
+    await settled();
+    unmount();
+
+    await act(async () => {
+      resolveTrades({ trades: [roofing] });
+      await Promise.resolve();
+    });
+
+    expect(mockFetchTrades).toHaveBeenCalledTimes(1);
   });
 });

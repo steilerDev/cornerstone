@@ -45,7 +45,8 @@
 
 .menuFixed {
   position: fixed;
-  z-index: var(--z-overlay);
+  /* A portaled popover stacks above any open dialog. */
+  z-index: calc(var(--z-modal) + 100);
 }
 
 .menuBottom {

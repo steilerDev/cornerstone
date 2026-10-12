@@ -2016,3 +2016,14 @@ flakes.
 When a PR introduces "the single X" (here `foldSearchText`), grep the older modules that did the same
 job before. `glossary.ts` `findTermsByAlias` had its own normaliser and form-key list, so the documented
 API and the new search disagreed on the same query.
+
+## Renaming a seeded row with a `translation_key` is invisible (#2213 design)
+
+Trades, budget categories and household-item categories carry `translation_key` for seeded rows; the
+client shows `t(key)` with `name` only as fallback. Their PATCH services updated `name` but never cleared
+the key, so renaming a built-in row changed nothing on screen in any locale. #2213 specified "a changed
+`name` clears `translation_key`" for all three (fixed together in #2213). Server text search can't
+see translated seed names, so company search takes a client-resolved `tradeIds` OR-term. **Review step:** any rename path or new UI for a
+translated-seed entity must clear (or deliberately keep) the key; check all three services together.
+Related: delete-impact (contract 19) deliberately has no `trade` entry; blocked-delete counts come from
+the list's `vendorCount` and the 409 details.

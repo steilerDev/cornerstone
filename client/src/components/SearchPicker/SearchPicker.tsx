@@ -10,6 +10,7 @@ import {
   size,
   FloatingPortal,
 } from '@floating-ui/react';
+import { foldSearchText } from '@cornerstone/shared';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { useClickOutside } from '../../hooks/useClickOutside.js';
 
@@ -27,6 +28,18 @@ export interface SearchPickerCreateAction<T> {
    *  (focus moves to the clear button) or null when cancelled (focus returns to the input).
    *  A rejection is treated as null. */
   onCreate: (query: string) => Promise<T | null>;
+  /**
+   * 'always' (default): the row is always last.
+   * 'noExactMatch': only for a non-empty trimmed query, after loading, without an error, when no
+   * result's label equals the query (folded on both sides). With zero results it replaces the
+   * "No results" line.
+   */
+  show?: 'always' | 'noExactMatch';
+  /**
+   * With 'noExactMatch': also show the row while the query is empty (after loading, no error),
+   * labelled by `getLabel('')` and created with an empty query (e.g. a name the caller knows).
+   */
+  showWhenEmpty?: boolean;
 }
 
 export interface SearchPickerInputAriaProps {
@@ -208,6 +221,18 @@ export function SearchPicker<T>({
       setIsOpen(true);
     }
   };
+
+  const trimmedTerm = searchTerm.trim();
+  const showCreateRow =
+    createAction !== undefined &&
+    (createAction.show !== 'noExactMatch' ||
+      ((trimmedTerm !== '' || createAction.showWhenEmpty === true) &&
+        !isLoading &&
+        !error &&
+        !results.some(
+          (item) => foldSearchText(renderItem(item).label) === foldSearchText(trimmedTerm),
+        )));
+  const createLabel = createAction ? createAction.getLabel(trimmedTerm) : '';
 
   const getOptions = () =>
     Array.from(refs.floating.current?.querySelectorAll<HTMLElement>('[role="option"]') ?? []);
@@ -496,9 +521,13 @@ export function SearchPicker<T>({
                 );
               })}
 
-            {!isLoading && !error && results.length === 0 && searchTerm.trim() && (
-              <div className={styles.stateMessage}>{resolvedNoResults}</div>
-            )}
+            {!isLoading &&
+              !error &&
+              results.length === 0 &&
+              searchTerm.trim() &&
+              !(showCreateRow && createAction?.show === 'noExactMatch') && (
+                <div className={styles.stateMessage}>{resolvedNoResults}</div>
+              )}
 
             {!isLoading && !error && results.length === 0 && !searchTerm.trim() && emptyHint && (
               <div className={styles.stateMessage}>{emptyHint}</div>
@@ -511,19 +540,20 @@ export function SearchPicker<T>({
               (!specialOptions || specialOptions.length === 0) &&
               !emptyHint && <div className={styles.stateMessage}>{resolvedEmptyHint}</div>}
 
-            {createAction && (
+            {createAction && showCreateRow && (
               <button
                 type="button"
                 role="option"
                 aria-selected={false}
                 className={`${styles.resultOption} ${styles.createOption}`}
+                title={createLabel}
                 onClick={() => void handleCreate()}
               >
                 <span aria-hidden="true" className={styles.createOptionIcon}>
                   +
                 </span>
                 <span className={`${styles.resultTitle} ${styles.createOptionLabel}`}>
-                  {createAction.getLabel(searchTerm.trim())}
+                  {createLabel}
                 </span>
               </button>
             )}

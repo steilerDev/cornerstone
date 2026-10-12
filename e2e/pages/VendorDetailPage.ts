@@ -1,12 +1,12 @@
 /**
- * Page Object Model for the Vendor Detail page (/settings/vendors/:id)
+ * Page Object Model for the Vendor Detail page (/companies/:id)
  *
  * Vendors moved from Budget section to Settings section in Story #1283.
- * Legacy route /budget/vendors/:id redirects to /settings/vendors/:id via React Router.
+ * Legacy routes /settings/vendors/:id and /budget/vendors/:id redirect to /companies/:id.
  *
  * The page renders:
  * - A breadcrumb row (trail "Companies", optional origin Back) — "Back to Vendors" retired in #2203
- * - A page header with vendor name, trade subtitle (EPIC-18), and Edit/Delete buttons
+ * - A page header with vendor name, trade subtitle (EPIC-18), an Edit button and a ⋯ menu holding Delete (#2213)
  * - Stats cards: Total Invoices and Outstanding Balance
  * - An info card (dl/dt/dd list) with all vendor fields — read view
  * - An inline edit form inside the info card when isEditing is true
@@ -38,6 +38,9 @@ export class VendorDetailPage {
   // Page header
   readonly pageTitle: Locator;
   readonly editButton: Locator;
+  /** The header ⋯ menu trigger ("Actions for <name>"); Delete lives inside it (#2213). */
+  readonly actionsTrigger: Locator;
+  /** The Delete item of the header ⋯ menu; exists only while the menu is open. */
   readonly deleteButton: Locator;
 
   // Stats
@@ -116,7 +119,8 @@ export class VendorDetailPage {
     // Page header
     this.pageTitle = page.getByRole('heading', { level: 1 });
     this.editButton = page.getByRole('button', { name: 'Edit', exact: true });
-    this.deleteButton = page.getByRole('button', { name: 'Delete', exact: true });
+    this.actionsTrigger = page.getByTestId('company-header-actions');
+    this.deleteButton = page.getByTestId('company-header-delete');
 
     // Stats grid
     this.statsGrid = page.locator('[class*="statsGrid"]');
@@ -213,7 +217,7 @@ export class VendorDetailPage {
   }
 
   async goto(vendorId: string): Promise<void> {
-    await this.page.goto(routeUrl('vendor', { id: vendorId }));
+    await this.page.goto(routeUrl('company', { id: vendorId }));
     await this.pageTitle.waitFor({ state: 'visible' });
   }
 
@@ -224,7 +228,7 @@ export class VendorDetailPage {
     await this.breadcrumbs.trailLink('Companies').click();
     // Compare the path only: below 1024px Back restores the list through history, which keeps
     // the list's own query string (e.g. ?q=...), so a glob on the full URL would never match
-    await this.page.waitForURL((url) => url.pathname === routeUrl('vendors'));
+    await this.page.waitForURL((url) => url.pathname === routeUrl('companies'));
   }
 
   /**
@@ -277,12 +281,13 @@ export class VendorDetailPage {
    * Open the delete confirmation modal.
    */
   async openDeleteModal(): Promise<void> {
+    await this.actionsTrigger.click();
     await this.deleteButton.click();
     await this.deleteModal.waitFor({ state: 'visible' });
   }
 
   /**
-   * Confirm deletion in the modal. The page navigates away to /settings/vendors on success.
+   * Confirm deletion in the modal. The page navigates away to /companies on success.
    */
   async confirmDelete(): Promise<void> {
     await this.deleteConfirmButton.click();

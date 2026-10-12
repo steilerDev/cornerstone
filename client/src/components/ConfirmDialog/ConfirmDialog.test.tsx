@@ -508,4 +508,84 @@ describe('ConfirmDialog', () => {
       expect(opener).toHaveFocus();
     });
   });
+
+  describe('children and actionDisabledReason (#2213)', () => {
+    it('renders children after the description, outside the aria-describedby element', () => {
+      render(
+        <ConfirmDialog {...baseProps({ lead: 'Kitchen has no photos.' })}>
+          <label>
+            Pick one
+            <input data-testid="extra-picker" />
+          </label>
+        </ConfirmDialog>,
+      );
+      const dialog = screen.getByRole('alertdialog');
+      const description = document.getElementById(dialog.getAttribute('aria-describedby')!)!;
+      const extra = screen.getByTestId('extra-picker');
+
+      expect(dialog).toContainElement(extra);
+      expect(description).not.toContainElement(extra);
+      expect(description).not.toHaveTextContent('Pick one');
+      expect(
+        description.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it('renders children above the error banner', () => {
+      render(
+        <ConfirmDialog {...baseProps({ error: 'Server said no.' })}>
+          <div data-testid="extra">extra</div>
+        </ConfirmDialog>,
+      );
+      const extra = screen.getByTestId('extra');
+      const banner = screen.getByText('Server said no.');
+      expect(extra.compareDocumentPosition(banner) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('makes the action aria-disabled, described by the reason, and ignores clicks', () => {
+      const onConfirm = jest.fn();
+      render(
+        <ConfirmDialog
+          {...baseProps({ onConfirm, actionDisabledReason: 'Pick a trade to merge into' })}
+        />,
+      );
+      const action = screen.getByTestId('confirm-dialog-confirm');
+
+      expect(action).toHaveAttribute('aria-disabled', 'true');
+      expect(action).toHaveAccessibleDescription('Pick a trade to merge into');
+      fireEvent.click(action);
+      expect(onConfirm).not.toHaveBeenCalled();
+    });
+
+    it('enables the action and drops the description once the reason is gone', () => {
+      const onConfirm = jest.fn();
+      const { rerender } = render(
+        <ConfirmDialog {...baseProps({ onConfirm, actionDisabledReason: 'Pick a trade' })} />,
+      );
+      rerender(<ConfirmDialog {...baseProps({ onConfirm })} />);
+      const action = screen.getByTestId('confirm-dialog-confirm');
+
+      expect(action).not.toHaveAttribute('aria-disabled');
+      expect(action).not.toHaveAttribute('aria-describedby');
+      fireEvent.click(action);
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+
+    it('renders no reason text when the dialog is blocked (no action to describe)', () => {
+      render(
+        <ConfirmDialog
+          {...baseProps({ blocked: true, error: 'Still in use.', actionDisabledReason: 'Why not' })}
+        />,
+      );
+      expect(screen.queryByTestId('confirm-dialog-confirm')).toBeNull();
+      expect(screen.queryByText('Why not')).toBeNull();
+    });
+
+    it('keeps Cancel working while the action is disabled by a reason', () => {
+      const onCancel = jest.fn();
+      render(<ConfirmDialog {...baseProps({ onCancel, actionDisabledReason: 'Pick a trade' })} />);
+      fireEvent.click(screen.getByTestId('confirm-dialog-cancel'));
+      expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+  });
 });
