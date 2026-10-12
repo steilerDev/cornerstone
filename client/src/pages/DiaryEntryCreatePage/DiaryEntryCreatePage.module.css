@@ -95,7 +95,7 @@
 /* Responsive */
 @media (max-width: 767px) {
   .container {
-    padding: var(--spacing-4);
+    padding: 0;
   }
 
   .header {

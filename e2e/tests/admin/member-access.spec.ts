@@ -10,6 +10,8 @@
  *   E4. AC1 — the legacy /admin/users URL lands on /settings/users with the No-access page.
  *   E5. AC2 / D-23 — a member's sidebar Settings group has no Users / Backups entries (#2205:
  *             the check moved from the removed Settings tab row to the sidebar).
+ *   E5b. AC5 (#2214) — a member opens Account and sees all four sections (Your details, Calendar &
+ *             contacts sync, Preferences, Password).
  *   E6. The server still refuses a member (403 on backups list and user creation).
  *   E7. AC3/AC4 — computed colours in the real build: active sidebar view and primary button
  *             (light), page background and sidebar item (dark). Desktop only.
@@ -128,7 +130,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     ['Project setup', ROUTES.manage, ['Settings', 'Account']],
     ['Companies', ROUTES.settingsVendors, ['Settings']],
   ] as const) {
-    test(`E5 (D-23): member's sidebar Settings group on ${name} has no Users or Backups`, async ({
+    test(`E5 (D-23): member's sidebar Settings group on ${name} has no Users, Backups or Integrations`, async ({
       page,
     }) => {
       const shell = new AppShellPage(page);
@@ -148,6 +150,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
         }
         await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
         await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
+        await expect(shell.viewLink('settingsIntegrations')).toHaveCount(0);
         await expect(shell.viewMenu.getByRole('menuitem', { name: 'Users' })).toHaveCount(0);
         await expect(shell.viewMenu.getByRole('menuitem', { name: 'Backups' })).toHaveCount(0);
         return;
@@ -156,10 +159,25 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
       await expect(shell.settingsNav.getByRole('link')).toHaveText([...expected]);
       await expect(shell.viewLink('settingsUsers')).toHaveCount(0);
       await expect(shell.viewLink('settingsBackups')).toHaveCount(0);
+      await expect(shell.viewLink('settingsIntegrations')).toHaveCount(0);
       await expect(shell.settingsNav.getByRole('link', { name: 'Users' })).toHaveCount(0);
       await expect(shell.settingsNav.getByRole('link', { name: 'Backups' })).toHaveCount(0);
     });
   }
+
+  test('E5b (AC5): a member opens Account and sees the four sections', async ({ page }) => {
+    const profile = new ProfilePage(page);
+    await profile.goto();
+
+    await expect(page.locator('main h2')).toHaveText([
+      'Your details',
+      'Calendar & contacts sync',
+      'Preferences',
+      'Password',
+    ]);
+    await expect(profile.passwordSection.locator('#currentPassword')).toBeVisible();
+    await expect(profile.preferencesSection.locator('select')).toHaveCount(2);
+  });
 
   test('E6: the server still refuses a member on backups and user creation', async ({
     page,
@@ -201,7 +219,7 @@ test.describe('Member access to admin-only pages (Story #2200)', { tag: '@respon
     await expect.poll(() => styleOf(activeSettings, 'backgroundColor')).toBe('rgb(37, 99, 235)');
     await expect.poll(() => styleOf(activeSettings, 'color')).toBe('rgb(255, 255, 255)');
     await expect
-      .poll(() => styleOf(profile.changePasswordButton, 'backgroundColor'))
+      .poll(() => styleOf(profile.saveDisplayNameButton, 'backgroundColor'))
       .toBe('rgb(37, 99, 235)');
 
     // Dark theme

@@ -1,5 +1,9 @@
 /**
- * Page Object Model for the Profile page (/settings/profile)
+ * Page Object Model for the Account page (/settings/profile, #2214)
+ *
+ * Four sections in page order: Your details (the Profile section), Calendar & contacts sync,
+ * Preferences, Password. Each section carries a `data-testid` (account-profile,
+ * account-sync, account-preferences, account-password).
  */
 
 import type { Page, Locator } from '@playwright/test';
@@ -9,22 +13,31 @@ import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
 interface ProfileInfo {
   email: string;
   role: string;
-  authProvider: string;
+  /** "Sign-in method" value; null when the row is not shown (no single sign-on involved). */
+  signInMethod: string | null;
   memberSince: string;
 }
 
 export class ProfilePage {
   readonly page: Page;
   readonly heading: Locator;
-  readonly profileInfoSection: Locator;
-  readonly displayNameSection: Locator;
+
+  // Sections (in page order)
+  readonly profileSection: Locator;
+  readonly syncSection: Locator;
+  readonly preferencesSection: Locator;
   readonly passwordSection: Locator;
 
-  // Display name form
+  // Profile: display name form
   readonly displayNameInput: Locator;
+  readonly displayNameErrorField: Locator;
   readonly saveDisplayNameButton: Locator;
   readonly displayNameSuccessBanner: Locator;
   readonly displayNameErrorBanner: Locator;
+
+  // Preferences
+  readonly languageSelect: Locator;
+  readonly themeSelect: Locator;
 
   // Password form (local auth only)
   readonly currentPasswordInput: Locator;
@@ -34,14 +47,21 @@ export class ProfilePage {
   readonly passwordSuccessBanner: Locator;
   readonly passwordErrorBanner: Locator;
 
-  // OIDC message
+  // Single sign-on note (replaces the password form)
   readonly oidcMessage: Locator;
 
-  // DAV Access Card
-  readonly davSection: Locator;
+  // Calendar & contacts sync (rendered by DavAccessCard)
+  /** The section's h2 (`#calendar-sync`): the deep-link target and the dialog focus-return point. */
+  readonly syncHeading: Locator;
   readonly generateTokenButton: Locator;
   readonly regenerateTokenButton: Locator;
   readonly revokeTokenButton: Locator;
+  readonly copyButton: Locator;
+  readonly hideTokenButton: Locator;
+  /** Visually hidden "Token copied" live region (always mounted, not atomic). */
+  readonly copyStatus: Locator;
+  /** Regenerate confirmation (testid prefix dav-regenerate, role alertdialog). */
+  readonly regenerateDialog: ConfirmDialogControl;
   /** Revoke confirmation (testid prefix dav-revoke, role alertdialog). */
   readonly revokeDialog: ConfirmDialogControl;
   readonly tokenDisplay: Locator;
@@ -50,56 +70,50 @@ export class ProfilePage {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole('heading', { level: 1, name: 'Account', exact: true });
-    this.profileInfoSection = page
-      .getByRole('heading', { level: 2, name: 'Profile Information' })
-      .locator('..');
-    this.displayNameSection = page
-      .getByRole('heading', { level: 2, name: 'Display Name' })
-      .locator('..');
-    this.passwordSection = page
-      .getByRole('heading', { level: 2, name: /Password|Change Password/ })
-      .locator('..');
 
-    // Display name form
+    this.profileSection = page.getByTestId('account-profile');
+    this.syncSection = page.getByTestId('account-sync');
+    this.preferencesSection = page.getByTestId('account-preferences');
+    this.passwordSection = page.getByTestId('account-password');
+
+    // Profile: display name form
     this.displayNameInput = page.locator('#displayName');
-    this.saveDisplayNameButton = page.getByRole('button', { name: /Save Changes|Saving/ }).first();
-    this.displayNameSuccessBanner = this.displayNameSection
+    this.displayNameErrorField = page.locator('#displayName-error');
+    this.saveDisplayNameButton = page.getByTestId('account-display-name-save');
+    this.displayNameSuccessBanner = this.profileSection
       .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
-    this.displayNameErrorBanner = this.displayNameSection.locator('[role="alert"]');
+    this.displayNameErrorBanner = this.profileSection.locator('[role="alert"]');
+
+    // Preferences
+    this.languageSelect = page.locator('#languageSelect');
+    this.themeSelect = page.locator('#themeSelect');
 
     // Password form
     this.currentPasswordInput = page.locator('#currentPassword');
     this.newPasswordInput = page.locator('#newPassword');
     this.confirmPasswordInput = page.locator('#confirmPassword');
-    this.changePasswordButton = page.getByRole('button', {
-      name: /Change Password|Changing Password/,
-    });
+    this.changePasswordButton = page.getByTestId('account-password-submit');
     this.passwordSuccessBanner = this.passwordSection
       .locator('[role="status"]')
       .filter({ hasText: 'successfully' });
     this.passwordErrorBanner = this.passwordSection.locator('[role="alert"]');
 
-    // OIDC message
-    this.oidcMessage = page.getByText('Your credentials are managed by your identity provider.');
+    // Single sign-on note
+    this.oidcMessage = page.getByText('Your password is managed by your single sign-on provider.');
 
-    // DAV Access Card — rendered by DavAccessCard component
-    this.davSection = page
-      .getByRole('heading', { level: 2, name: 'DAV Access (Calendar & Contacts)' })
-      .locator('..');
-    this.generateTokenButton = page.getByRole('button', { name: 'Generate Token', exact: true });
-    this.regenerateTokenButton = page.getByRole('button', {
-      name: 'Regenerate Token',
-      exact: true,
-    });
-    this.revokeTokenButton = page.getByRole('button', { name: 'Revoke Token', exact: true });
+    // Calendar & contacts sync
+    this.syncHeading = page.locator('#calendar-sync');
+    this.generateTokenButton = page.getByTestId('account-sync-generate');
+    this.regenerateTokenButton = page.getByTestId('account-sync-regenerate');
+    this.revokeTokenButton = page.getByTestId('account-sync-revoke');
+    this.copyButton = page.getByTestId('account-sync-copy');
+    this.hideTokenButton = page.getByTestId('account-sync-hide');
+    this.copyStatus = page.getByTestId('account-sync-copy-status');
+    this.regenerateDialog = new ConfirmDialogControl(page, 'dav-regenerate');
     this.revokeDialog = new ConfirmDialogControl(page, 'dav-revoke');
-    // The token is shown in a <code> element inside the token display box
-    this.tokenDisplay = page.locator('[class*="tokenValue"]');
-    this.downloadProfileLink = page.getByRole('link', {
-      name: 'Download iOS/macOS Profile',
-      exact: true,
-    });
+    this.tokenDisplay = page.getByTestId('account-sync-token');
+    this.downloadProfileLink = page.getByTestId('account-sync-download');
   }
 
   async goto(): Promise<void> {
@@ -107,26 +121,20 @@ export class ProfilePage {
     await this.heading.waitFor({ state: 'visible', timeout: 15000 });
   }
 
+  /** The `dd` value of a fact row in the Profile section, by exact `dt` label (null if absent). */
+  async getFact(label: string): Promise<string | null> {
+    const term = this.profileSection.locator('dt').filter({ hasText: new RegExp(`^${label}$`) });
+    if ((await term.count()) === 0) return null;
+    return (await term.locator('xpath=following-sibling::dd[1]').textContent()) ?? '';
+  }
+
   async getProfileInfo(): Promise<ProfileInfo> {
-    // Extract info using text-based selectors (CSS module classes are hashed in production)
-    const section = this.profileInfoSection;
-
-    const getValueForLabel = async (labelText: string): Promise<string> => {
-      // Find the span containing the label text, then get its sibling span's text
-      const labelLocator = section.getByText(labelText, { exact: true });
-      // The value span is the next sibling of the label span within the same row div
-      const row = labelLocator.locator('..');
-      const spans = row.locator('span');
-      // The second span in the row is the value
-      const valueSpan = spans.nth(1);
-      return (await valueSpan.textContent()) ?? '';
-    };
-
+    await this.profileSection.waitFor({ state: 'visible' });
     return {
-      email: await getValueForLabel('Email'),
-      role: await getValueForLabel('Role'),
-      authProvider: await getValueForLabel('Authentication'),
-      memberSince: await getValueForLabel('Member Since'),
+      email: (await this.getFact('Email')) ?? '',
+      role: (await this.getFact('Role')) ?? '',
+      signInMethod: await this.getFact('Sign-in method'),
+      memberSince: (await this.getFact('Member since')) ?? '',
     };
   }
 
@@ -192,11 +200,11 @@ export class ProfilePage {
   }
 
   // ─────────────────────────────────────────────────────────────────────────
-  // DAV helpers
+  // Calendar & contacts sync helpers
   // ─────────────────────────────────────────────────────────────────────────
 
   /**
-   * Generate a new DAV token by clicking the "Generate Token" button.
+   * Generate a new token by clicking "Generate token".
    * Waits for the POST /api/users/me/dav/token response, then returns the
    * token text shown in the token display code element.
    */
@@ -211,21 +219,22 @@ export class ProfilePage {
   }
 
   /**
-   * Regenerate the DAV token by clicking "Regenerate Token".
-   * Waits for the API response and returns the new token text.
+   * Regenerate the token: click "Regenerate token", confirm "Create a new token?", wait for
+   * the POST and return the new token text.
    */
   async regenerateToken(): Promise<string> {
     const responsePromise = this.page.waitForResponse(
       (r) => r.url().includes('/api/users/me/dav/token') && r.request().method() === 'POST',
     );
     await this.regenerateTokenButton.click();
+    await this.regenerateDialog.confirm();
     await responsePromise;
     await this.tokenDisplay.waitFor({ state: 'visible' });
     return (await this.tokenDisplay.textContent()) ?? '';
   }
 
   /**
-   * Revoke the DAV token by clicking "Revoke Token" and confirming the ConfirmDialog
+   * Revoke the token by clicking "Revoke token" and confirming the ConfirmDialog
    * ("Revoke calendar access?", #2209 - no native window.confirm any more).
    * Waits for the DELETE /api/users/me/dav/token response.
    */
@@ -240,15 +249,54 @@ export class ProfilePage {
   }
 
   /**
-   * Returns true if the DAV token is currently active (the "Regenerate Token"
-   * button is visible, meaning status.hasToken is true).
+   * Mock the token endpoints so a test needs no real generation (POST is limited to 10 per
+   * hour). The GET status starts at `hasToken: false` and flips to an active token after the
+   * mocked POST. Returns the synthetic token and a counter of POSTs seen.
+   */
+  async mockTokenEndpoints(
+    token = 'e2e-synthetic-token-0001',
+    initiallyActive = false,
+  ): Promise<{ token: string; posts: () => number }> {
+    let active = initiallyActive;
+    let posts = 0;
+    await this.page.route('**/api/users/me/dav/token', async (route) => {
+      const method = route.request().method();
+      if (method === 'POST') {
+        posts += 1;
+        active = true;
+        await route.fulfill({
+          status: 201,
+          contentType: 'application/json',
+          body: JSON.stringify({ token }),
+        });
+      } else if (method === 'DELETE') {
+        active = false;
+        await route.fulfill({ status: 204 });
+      } else {
+        await route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(
+            active
+              ? { hasToken: true, createdAt: '2026-01-15T09:00:00.000Z' }
+              : { hasToken: false },
+          ),
+        });
+      }
+    });
+    return { token, posts: () => posts };
+  }
+
+  /**
+   * Returns true if a token is currently active (the "Regenerate token" button is visible,
+   * meaning status.hasToken is true).
    */
   async isDavTokenActive(): Promise<boolean> {
     return await this.regenerateTokenButton.isVisible();
   }
 
   /**
-   * Ensure no DAV token is active for the authenticated user.
+   * Ensure no token is active for the authenticated user.
    * Calls DELETE /api/users/me/dav/token directly via the API — used in test setup.
    */
   async clearDavTokenViaApi(): Promise<void> {

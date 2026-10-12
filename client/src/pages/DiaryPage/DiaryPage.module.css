@@ -72,7 +72,7 @@
 /* Responsive */
 @media (max-width: 767px) {
   .page {
-    padding: var(--spacing-4);
+    padding: 0;
     gap: var(--spacing-4);
   }
 

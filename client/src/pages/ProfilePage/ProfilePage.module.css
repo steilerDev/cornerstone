@@ -1,203 +1,175 @@
-.loading {
+.sections {
   display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-  font-size: 1rem;
-  color: var(--color-text-muted);
-}
-
-.errorCard {
-  background: var(--color-bg-primary);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow-sm);
-  padding: 2rem;
-  text-align: center;
-}
-
-.errorTitle {
-  font-size: 1.5rem;
-  font-weight: var(--font-weight-bold);
-  color: var(--color-danger);
-  margin-bottom: 1rem;
+  flex-direction: column;
+  gap: var(--spacing-6);
+  max-width: 40rem;
 }
 
 .card {
-  background: var(--color-bg-primary);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow-sm);
-  padding: 1.5rem;
+  composes: card from '../../styles/shared.module.css';
 }
 
 .cardTitle {
-  font-size: 1.25rem;
+  margin: 0 0 var(--spacing-2);
+  font-size: var(--font-size-xl);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 0.5rem 0;
 }
 
-.cardDescription {
-  font-size: 0.875rem;
+.description {
+  margin: 0 0 var(--spacing-4);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
-  margin: 0 0 1.5rem 0;
 }
 
-.infoGrid {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
+/* Facts */
+.facts {
+  margin: 0;
 }
 
-.infoRow {
+.factRow {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  padding: 0.75rem 0;
+  gap: var(--spacing-4);
+  padding-block: var(--spacing-3);
   border-bottom: 1px solid var(--color-border);
 }
 
-.infoRow:last-child {
+.factRow:last-child {
   border-bottom: none;
 }
 
-.infoLabel {
-  font-size: 0.875rem;
+.factLabel {
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
-.infoValue {
-  font-size: 0.875rem;
+.factValue {
+  margin: 0;
+  font-size: var(--font-size-sm);
   color: var(--color-text-primary);
+  overflow-wrap: anywhere;
   text-align: right;
 }
 
-.successBanner {
-  background-color: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  border-radius: 0.375rem;
-  color: var(--color-success-text-on-light);
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
-.errorBanner {
-  background-color: var(--color-danger-bg);
-  border: 1px solid var(--color-danger-border);
-  border-radius: 0.375rem;
-  color: var(--color-danger-active);
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
-.form {
+/* Forms */
+.nameForm {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-4);
+  border-top: 1px solid var(--color-border);
+  margin-top: var(--spacing-4);
+  padding-top: var(--spacing-4);
+}
+
+.form,
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
+  gap: var(--spacing-1);
 }
 
 .label {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-primary);
 }
 
 .input {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-.input:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.input:disabled {
-  background-color: var(--color-bg-secondary);
-  cursor: not-allowed;
+  composes: input from '../../styles/shared.module.css';
 }
 
 .input[aria-invalid='true'] {
   border-color: var(--color-danger-input-border);
 }
 
-.error {
-  font-size: 0.75rem;
+.select {
+  composes: select from '../../styles/shared.module.css';
+}
+
+.fieldError {
+  font-size: var(--font-size-xs);
   color: var(--color-danger);
 }
 
-.button {
-  margin-top: 0.5rem;
-  padding: 0.625rem 1rem;
-  background-color: var(--color-primary);
-  color: var(--color-primary-text);
-  font-size: 0.875rem;
-  font-weight: var(--font-weight-medium);
-  border: none;
-  border-radius: 0.375rem;
-  cursor: pointer;
-  transition:
-    background-color 0.15s ease,
-    box-shadow 0.15s ease;
+/* Buttons */
+.primaryButton {
+  composes: btnPrimary from '../../styles/shared.module.css';
   align-self: flex-start;
 }
 
-.button:hover:not(:disabled) {
-  background-color: var(--color-primary-hover);
+.secondaryButton {
+  composes: btnSecondary from '../../styles/shared.module.css';
+  align-self: flex-start;
 }
 
-.button:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.button:disabled {
-  background-color: var(--color-text-disabled);
+.primaryButton[aria-disabled='true'],
+.secondaryButton[aria-disabled='true'] {
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
-.oidcMessage {
-  font-size: 0.875rem;
-  color: var(--color-text-muted);
+button.primaryButton[aria-disabled='true']:hover {
+  background-color: var(--color-primary);
+}
+
+button.secondaryButton[aria-disabled='true']:hover {
+  background-color: var(--color-bg-tertiary);
+}
+
+/* Banners and note */
+.bannerSuccess {
+  composes: bannerSuccess from '../../styles/shared.module.css';
+  margin-bottom: var(--spacing-4);
+}
+
+.bannerError {
+  composes: bannerError from '../../styles/shared.module.css';
+  margin-bottom: var(--spacing-4);
+}
+
+.note {
   margin: 0;
-  padding: 1rem;
+  padding: var(--spacing-4);
+  border-radius: var(--radius-md);
   background-color: var(--color-bg-secondary);
-  border-radius: 0.375rem;
-  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  text-align: left;
 }
 
 @media (max-width: 767px) {
   .card {
-    padding: 1rem;
+    padding: var(--spacing-4);
   }
 
-  .infoRow {
+  .factRow {
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.25rem;
+    gap: var(--spacing-1);
   }
 
-  .infoValue {
+  .factValue {
     text-align: left;
   }
 
-  .button {
+  .primaryButton,
+  .secondaryButton {
     align-self: stretch;
+    width: 100%;
+  }
+
+  .input,
+  .select,
+  .primaryButton,
+  .secondaryButton {
+    min-height: var(--touch-target-min);
   }
 }

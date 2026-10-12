@@ -4,7 +4,7 @@
     "schemaVersion": 2,
     "glossaryVersion": "v1",
     "locales": ["de"],
-    "lastUpdated": "2026-10-10",
+    "lastUpdated": "2026-10-12",
     "approval": {
       "owner": {
         "decision": "Q12 (glossary v1) and the approved status and money vocabulary",
@@ -2237,6 +2237,47 @@
       "definition": "Open a date control to choose when a status change happened.",
       "doNotUse": [],
       "formerly": []
+    },
+    "Calendar & contacts sync": {
+      "groups": ["view"],
+      "en": {
+        "singular": "Calendar & contacts sync"
+      },
+      "de": {
+        "singular": "Kalender- & Kontaktsynchronisierung"
+      },
+      "deSource": "approved",
+      "definition": "Connects your calendar and contacts apps to the project with a personal token.",
+      "doNotUse": [],
+      "formerly": ["DAV access"]
+    },
+    "Sign-in method": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Sign-in method"
+      },
+      "de": {
+        "singular": "Anmeldeart"
+      },
+      "deSource": "approved",
+      "definition": "How you sign in: with email and password, single sign-on, or both.",
+      "doNotUse": [],
+      "formerly": ["Authentication"]
+    },
+    "Single sign-on": {
+      "groups": ["general"],
+      "en": {
+        "singular": "Single sign-on",
+        "sentence": "single sign-on"
+      },
+      "de": {
+        "singular": "Single Sign-on",
+        "sentence": "Single Sign-on"
+      },
+      "deSource": "approved",
+      "definition": "Signing in through an outside login service instead of a password here.",
+      "doNotUse": [],
+      "formerly": ["OIDC", "SSO"]
     }
   }
 }

@@ -515,7 +515,7 @@
 
 @media (max-width: 767px) {
   .container {
-    padding: 1rem;
+    padding: 0;
   }
 
   .headerTitle {

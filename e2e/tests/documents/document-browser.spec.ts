@@ -154,6 +154,17 @@ async function mockPaperlessConfigured(page: Page, documentCount = 3) {
       body: JSON.stringify({ documentLinks: [] }),
     });
   });
+
+  // System-wide linked ids: the picker hides them and, when it has any, words its empty state
+  // "No additional documents available to link." instead of "No documents found.". The real
+  // endpoint reads the shared server, where parallel linking specs create links, so pin it.
+  await page.route('**/api/document-links/linked-ids', async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ paperlessDocumentIds: [] }),
+    });
+  });
 }
 
 async function mockPaperlessUnreachable(page: Page) {
@@ -177,6 +188,7 @@ async function mockPaperlessUnreachable(page: Page) {
 async function cleanupPaperlessMocks(page: Page) {
   await page.unroute('**/api/paperless/**');
   await page.unroute('**/api/document-links?*');
+  await page.unroute('**/api/document-links/linked-ids');
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

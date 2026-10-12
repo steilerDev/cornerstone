@@ -33,6 +33,13 @@
   background-color: var(--color-bg-page);
 }
 
+/* Phones: the shell owns the one 16px side gutter; PageLayout adds none of its own. */
+@media (max-width: 767px) {
+  .pageContent {
+    padding: var(--spacing-4);
+  }
+}
+
 .loading {
   display: flex;
   align-items: center;

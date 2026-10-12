@@ -482,10 +482,6 @@
 /* ---- Responsive ---- */
 
 @media (max-width: 767px) {
-  .container {
-    padding: var(--spacing-4);
-  }
-
   .pageTitle {
     font-size: var(--font-size-2xl);
   }
@@ -546,10 +542,6 @@
 }
 
 @media (min-width: 768px) and (max-width: 1024px) {
-  .container {
-    padding: var(--spacing-6);
-  }
-
   .button,
   .saveButton,
   .cancelButton,

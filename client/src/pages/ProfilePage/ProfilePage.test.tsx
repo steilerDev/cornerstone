@@ -1,42 +1,67 @@
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { render, screen, waitFor, cleanup, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import type * as UsersApiTypes from '../../lib/usersApi.js';
 import type * as AuthContextTypes from '../../contexts/AuthContext.js';
+import type * as LocaleContextTypes from '../../contexts/LocaleContext.js';
+import type * as ThemeContextTypes from '../../contexts/ThemeContext.js';
 import type * as ProfilePageTypes from './ProfilePage.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { ownNavigations } from '../../test/navLandmarks.js';
 import enErrors from '../../i18n/en/errors.json';
-import enSettings from '../../i18n/en/settings.json';
 
 const mockUpdateProfile = jest.fn<typeof UsersApiTypes.updateProfile>();
 const mockChangePassword = jest.fn<typeof UsersApiTypes.changePassword>();
 const mockUseAuth = jest.fn<typeof AuthContextTypes.useAuth>();
+const mockSetLocale = jest.fn<(locale: LocaleContextTypes.LocalePreference) => void>();
+const mockSetTheme = jest.fn<(theme: ThemeContextTypes.ThemePreference) => void>();
+let localePreference: LocaleContextTypes.LocalePreference = 'en';
+let themePreference: ThemeContextTypes.ThemePreference = 'system';
 
-// Mock usersApi before importing the component
 jest.unstable_mockModule('../../lib/usersApi.js', () => ({
   updateProfile: mockUpdateProfile,
   changePassword: mockChangePassword,
 }));
 
-// Mock AuthContext
 jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   useAuth: mockUseAuth,
   AuthProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
-// ─── Mock: formatters — provides useFormatters() hook ────────────────────────
+jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
+  useLocale: () => ({
+    locale: localePreference,
+    resolvedLocale: 'en' as const,
+    vatRate: 0.19,
+    currency: 'EUR',
+    setLocale: mockSetLocale,
+    syncWithServer: jest.fn(),
+  }),
+  LocaleProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
+jest.unstable_mockModule('../../contexts/ThemeContext.js', () => ({
+  useTheme: () => ({
+    theme: themePreference,
+    resolvedTheme: 'light' as const,
+    setTheme: mockSetTheme,
+    syncWithServer: jest.fn(),
+  }),
+  ThemeProvider: ({ children }: { children: ReactNode }) => children,
+}));
+
+// The sync section has its own tests; here it only has to sit in the right place.
+jest.unstable_mockModule('../../components/DavAccessCard/DavAccessCard.js', () => ({
+  DavAccessCard: () => (
+    <section aria-labelledby="calendar-sync" data-testid="account-sync">
+      <h2 id="calendar-sync">Calendar &amp; contacts sync</h2>
+    </section>
+  ),
+}));
 
 jest.unstable_mockModule('../../lib/formatters.js', () => {
-  const fmtCurrency = (n: number) =>
-    new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'EUR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(n);
   const fmtDate = (d: string | null | undefined, fallback = '—') => {
     if (!d) return fallback;
     const [year, month, day] = d.slice(0, 10).split('-').map(Number);
@@ -47,42 +72,15 @@ jest.unstable_mockModule('../../lib/formatters.js', () => {
       day: 'numeric',
     });
   };
-  const fmtTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
-  const fmtDateTime = (ts: string | null | undefined, fallback = '—') => ts ?? fallback;
   return {
-    formatCurrency: fmtCurrency,
     formatDate: fmtDate,
-    formatTime: fmtTime,
-    formatDateTime: fmtDateTime,
-    formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    computeActualDuration: () => null,
-    useFormatters: () => ({
-      formatCurrency: fmtCurrency,
-      formatDate: fmtDate,
-      formatTime: fmtTime,
-      formatDateTime: fmtDateTime,
-      formatPercent: (n: number) => `${n.toFixed(2)}%`,
-    }),
+    useFormatters: () => ({ formatDate: fmtDate }),
   };
 });
-
-// Mock LocaleContext — ProfilePage uses useLocale() for the language selector
-jest.unstable_mockModule('../../contexts/LocaleContext.js', () => ({
-  useLocale: jest.fn(() => ({
-    locale: 'en' as const,
-    resolvedLocale: 'en' as const,
-    vatRate: 0.19,
-    currency: 'EUR',
-    setLocale: jest.fn(),
-    syncWithServer: jest.fn(),
-  })),
-  LocaleProvider: ({ children }: { children: ReactNode }) => children,
-}));
 
 describe('ProfilePage', () => {
   let ProfilePage: typeof ProfilePageTypes.ProfilePage;
 
-  // Mock user data
   const mockLocalUser = {
     id: 'user-123',
     email: 'local@example.com',
@@ -96,57 +94,71 @@ describe('ProfilePage', () => {
   };
 
   const mockOidcUser = {
+    ...mockLocalUser,
     id: 'user-456',
     email: 'oidc@example.com',
     displayName: 'OIDC User',
     role: 'admin' as const,
     authProvider: 'oidc' as const,
     oidcLinked: true,
-    createdAt: '2024-01-01T00:00:00.000Z',
-    updatedAt: '2024-01-01T00:00:00.000Z',
-    deactivatedAt: null,
   };
 
-  beforeEach(async () => {
-    // Dynamic import modules
-    if (!ProfilePage) {
-      const profilePageModule = await import('./ProfilePage.js');
-      ProfilePage = profilePageModule.ProfilePage;
-    }
+  const refreshAuth = jest.fn(async () => Promise.resolve());
 
-    // Reset mocks
-    mockUseAuth.mockReset();
-    mockUpdateProfile.mockReset();
-    mockChangePassword.mockReset();
-
-    // Default mock: return local user
-    mockUseAuth.mockReturnValue({
+  function setAuth(
+    overrides: Partial<ReturnType<typeof AuthContextTypes.useAuth>> = {},
+  ): ReturnType<typeof AuthContextTypes.useAuth> {
+    const value = {
       user: mockLocalUser,
       oidcEnabled: false,
       isLoading: false,
       error: null,
-      refreshAuth: jest.fn(async () => Promise.resolve()),
+      refreshAuth,
       logout: jest.fn(async () => Promise.resolve()),
-    });
+      ...overrides,
+    } as ReturnType<typeof AuthContextTypes.useAuth>;
+    mockUseAuth.mockReturnValue(value);
+    return value;
+  }
+
+  beforeEach(async () => {
+    if (!ProfilePage) {
+      ({ ProfilePage } = await import('./ProfilePage.js'));
+    }
+    mockUseAuth.mockReset();
+    mockUpdateProfile.mockReset();
+    mockChangePassword.mockReset();
+    mockSetLocale.mockReset();
+    mockSetTheme.mockReset();
+    refreshAuth.mockReset();
+    refreshAuth.mockResolvedValue(undefined);
+    localePreference = 'en';
+    themePreference = 'system';
+    setAuth();
   });
 
   afterEach(() => {
     cleanup();
   });
 
-  // The title hook reads the router location
-  function renderPage() {
-    return render(
+  function page() {
+    return (
       <MemoryRouter initialEntries={['/settings/profile']}>
         <ProfilePage />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
   }
 
-  describe('page identity (#2204)', () => {
-    it('renders exactly one level-1 heading, "Account", once profile data shows', () => {
-      renderPage();
+  function renderPage() {
+    return render(page());
+  }
 
+  const saveButton = () => screen.getByTestId('account-display-name-save');
+  const nameInput = () => screen.getByLabelText('Display name');
+
+  describe('page identity (#2204)', () => {
+    it('renders exactly one level-1 heading, "Account"', () => {
+      renderPage();
       const h1s = screen.getAllByRole('heading', { level: 1 });
       expect(h1s).toHaveLength(1);
       expect(h1s[0]).toHaveTextContent(/^Account$/);
@@ -154,711 +166,554 @@ describe('ProfilePage', () => {
 
     it('sets the tab title to "Account · Settings · Cornerstone"', () => {
       renderPage();
-
       expect(document.title).toBe('Account · Settings · Cornerstone');
     });
 
-    it('keeps the "Account" h1 while the profile is loading', () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        oidcEnabled: false,
-        isLoading: true,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
+    it('keeps the "Account" h1 while loading and in the load-error state', () => {
+      setAuth({ user: null, isLoading: true });
       renderPage();
-
-      const h1s = screen.getAllByRole('heading', { level: 1 });
-      expect(h1s).toHaveLength(1);
-      expect(h1s[0]).toHaveTextContent(/^Account$/);
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Account$/);
+      cleanup();
+      setAuth({ user: null, error: 'Failed' });
+      renderPage();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent(/^Account$/);
     });
 
-    it('keeps the "Account" h1 in the load-error state', () => {
-      mockUseAuth.mockReturnValue({
-        user: null,
-        oidcEnabled: false,
-        isLoading: false,
-        error: 'Failed',
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
+    it('shows no "You are here" trail, no Back link and no navigation of its own', () => {
       renderPage();
-
-      const h1s = screen.getAllByRole('heading', { level: 1 });
-      expect(h1s).toHaveLength(1);
-      expect(h1s[0]).toHaveTextContent(/^Account$/);
-    });
-
-    it('shows no "You are here" trail and none of the retired titles', () => {
-      renderPage();
-
       expect(screen.queryByRole('navigation', { name: 'You are here' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: /^Profile$/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /back/i })).not.toBeInTheDocument();
+      expect(ownNavigations(document.body)).toHaveLength(0);
     });
   });
 
-  describe('Loading and display', () => {
-    it('shows loading state initially', () => {
-      // Given: Auth is loading
-      mockUseAuth.mockReturnValue({
-        user: null,
-        oidcEnabled: false,
-        isLoading: true,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
+  describe('states', () => {
+    it('shows a skeleton and no sections while the user loads', () => {
+      setAuth({ user: null, isLoading: true });
       renderPage();
-
-      // Then: Loading state is shown
-      expect(screen.getByText(/loading profile/i)).toBeInTheDocument();
+      expect(screen.queryByTestId('account-profile')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 2 })).not.toBeInTheDocument();
+      expect(document.querySelector('[aria-busy="true"], [class*="skeleton" i]')).not.toBeNull();
     });
 
-    it('shows profile information after loading', async () => {
-      // Given: Auth loaded with user
-      mockUseAuth.mockReturnValue({
-        user: mockLocalUser,
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
+    it('shows the load error in a FormError and no sections', () => {
+      setAuth({ user: null, error: 'Could not load your account.' });
       renderPage();
-
-      // Then: Profile information is displayed
-      expect(screen.getByText('local@example.com')).toBeInTheDocument();
-      expect(screen.getByText('Member')).toBeInTheDocument();
-      expect(screen.getByText('Local Account')).toBeInTheDocument();
-      expect(screen.getByText('Jan 1, 2024')).toBeInTheDocument();
+      expect(screen.getByText('Could not load your account.')).toBeInTheDocument();
+      expect(screen.queryByTestId('account-profile')).not.toBeInTheDocument();
     });
 
-    it('displays email correctly', () => {
-      // Given: User profile (default in beforeEach)
-      // When: Rendering ProfilePage
+    it('renders nothing but the layout when there is no user and no error', () => {
+      setAuth({ user: null });
       renderPage();
+      expect(screen.queryByTestId('account-profile')).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { level: 1 })).not.toBeInTheDocument();
+    });
+  });
 
-      // Then: Email is shown
-      expect(screen.getByText('local@example.com')).toBeInTheDocument();
+  describe('section structure', () => {
+    it('shows the four sections in order: details, sync, preferences, password', () => {
+      renderPage();
+      const ids = ['account-profile', 'account-sync', 'account-preferences', 'account-password'];
+      const sections = ids.map((id) => screen.getByTestId(id));
+      for (let i = 0; i < sections.length - 1; i++) {
+        const current = sections[i];
+        const next = sections[i + 1];
+        if (!current || !next) throw new Error('missing section');
+        expect(
+          current.compareDocumentPosition(next) & Node.DOCUMENT_POSITION_FOLLOWING,
+        ).toBeTruthy();
+      }
+      const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+      expect(headings).toEqual([
+        'Your details',
+        'Calendar & contacts sync',
+        'Preferences',
+        'Password',
+      ]);
+      expect(headings[0]).toBe('Your details');
     });
 
-    it('displays role as "Administrator" for admin users', () => {
-      // Given: Admin user
-      mockUseAuth.mockReturnValue({
-        user: { ...mockLocalUser, role: 'admin' },
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
+    it('labels each own section by its h2', () => {
       renderPage();
+      for (const [testId, name] of [
+        ['account-profile', 'Your details'],
+        ['account-preferences', 'Preferences'],
+        ['account-password', 'Password'],
+      ] as const) {
+        expect(screen.getByTestId(testId)).toHaveAccessibleName(name);
+      }
+    });
 
-      // Then: Role is "Administrator"
+    it('lists the facts as dt/dd pairs, with Member since formatted', () => {
+      renderPage();
+      const facts = screen.getByTestId('account-profile').querySelector('dl');
+      expect(facts).not.toBeNull();
+      if (!facts) throw new Error('missing dl');
+      const terms = Array.from(facts.querySelectorAll('dt')).map((dt) => dt.textContent);
+      expect(terms).toEqual(['Email', 'Role', 'Member since']);
+      const values = Array.from(facts.querySelectorAll('dd')).map((dd) => dd.textContent);
+      expect(values).toEqual(['local@example.com', 'Member', 'Jan 1, 2024']);
+    });
+
+    it('shows the Administrator role for an admin', () => {
+      setAuth({ user: { ...mockLocalUser, role: 'admin' } });
+      renderPage();
       expect(screen.getByText('Administrator')).toBeInTheDocument();
     });
+  });
 
-    it('renders no tab row of its own: Settings views live in the sidebar (AC5)', () => {
-      const { container } = renderPage();
+  describe('Sign-in method row gate', () => {
+    const cases: [string, boolean, 'local' | 'oidc', boolean, string | null][] = [
+      ['hidden: SSO off, local, not linked', false, 'local', false, null],
+      ['"Email and password": SSO configured, local', true, 'local', false, 'Email and password'],
+      [
+        '"Email, password and single sign-on": local account linked to SSO',
+        false,
+        'local',
+        true,
+        'Email, password and single sign-on',
+      ],
+      ['"Single sign-on": SSO account, SSO now off', false, 'oidc', true, 'Single sign-on'],
+      ['"Single sign-on": SSO account not marked linked', false, 'oidc', false, 'Single sign-on'],
+    ];
 
-      expect(ownNavigations(container)).toEqual([]);
-    });
-
-    it('displays role as "Member" for member users', () => {
-      // Given: Member user (default in beforeEach)
-      // When: Rendering ProfilePage
+    it.each(cases)('%s', (_name, oidcEnabled, authProvider, oidcLinked, expected) => {
+      setAuth({ oidcEnabled, user: { ...mockLocalUser, authProvider, oidcLinked } });
       renderPage();
-
-      // Then: Role is "Member"
-      expect(screen.getByText('Member')).toBeInTheDocument();
-    });
-
-    it('displays auth provider as "Local Account" for local users', () => {
-      // Given: Local user (default in beforeEach)
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Auth provider is "Local Account"
-      expect(screen.getByText('Local Account')).toBeInTheDocument();
-    });
-
-    it('displays auth provider as "Local Account + Single Sign-On (OIDC)" for linked local users', () => {
-      // Given: Local user whose account is linked to an OIDC identity
-      mockUseAuth.mockReturnValue({
-        user: { ...mockLocalUser, oidcLinked: true },
-        oidcEnabled: true,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: The combined label is shown (not the plain local or OIDC label)
-      expect(screen.getByText('Local Account + Single Sign-On (OIDC)')).toBeInTheDocument();
-      expect(screen.queryByText('Local Account')).not.toBeInTheDocument();
-    });
-
-    it('displays auth provider as "Single Sign-On (OIDC)" for OIDC users', () => {
-      // Given: OIDC user
-      mockUseAuth.mockReturnValue({
-        user: mockOidcUser,
-        oidcEnabled: true,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Auth provider is "Single Sign-On (OIDC)"
-      expect(screen.getByText('Single Sign-On (OIDC)')).toBeInTheDocument();
-    });
-
-    it('displays member since date formatted', () => {
-      // Given: User with specific created date
-      mockUseAuth.mockReturnValue({
-        user: {
-          ...mockLocalUser,
-          createdAt: '2024-06-15T10:30:00.000Z',
-        },
-        oidcEnabled: false,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Date is formatted (exact format depends on locale, check for presence)
-      expect(screen.getByText(/2024/)).toBeInTheDocument();
-    });
-
-    it('shows error message when profile loading fails', () => {
-      // Given: Auth loading failed
-      mockUseAuth.mockReturnValue({
-        user: null,
-        oidcEnabled: false,
-        isLoading: false,
-        error: 'Failed to load profile',
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Error message is shown
-      expect(screen.getByText('Failed to load profile')).toBeInTheDocument();
-      expect(screen.getByRole('alert')).toBeInTheDocument();
-    });
-
-    it('shows generic error for non-ApiClientError failures', () => {
-      // Given: Generic error
-      mockUseAuth.mockReturnValue({
-        user: null,
-        oidcEnabled: false,
-        isLoading: false,
-        error: 'Network failure',
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Generic error message is shown
-      expect(screen.getByText('Network failure')).toBeInTheDocument();
+      if (expected === null) {
+        expect(screen.queryByText('Sign-in method')).not.toBeInTheDocument();
+      } else {
+        const term = screen.getByText('Sign-in method');
+        expect(term.tagName).toBe('DT');
+        expect(term.nextElementSibling).toHaveTextContent(new RegExp(`^${expected}$`));
+      }
     });
   });
 
-  describe('Display name form', () => {
-    it('pre-populates display name input with current value', async () => {
-      // Given: User profile
-      // User already mocked in beforeEach
-
-      // When: Rendering ProfilePage
+  describe('Password form versus single sign-on note', () => {
+    it('gives a local account the three fields and a Change password button', () => {
       renderPage();
-
-      // Then: Input is pre-filled
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      expect(input.value).toBe('Local User');
+      expect(screen.getByLabelText('Current password')).toBeInTheDocument();
+      expect(screen.getByLabelText('New password')).toBeInTheDocument();
+      expect(screen.getByLabelText('Confirm new password')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Change password' })).toBeInTheDocument();
+      expect(screen.getByText('Use at least 12 characters.')).toBeInTheDocument();
+      expect(
+        screen.queryByText('Your password is managed by your single sign-on provider.'),
+      ).not.toBeInTheDocument();
     });
 
-    it('allows editing display name', async () => {
-      // Given: User profile loaded
-      // User already mocked in beforeEach
-      const user = userEvent.setup();
-
+    it('gives an SSO-only account the note and no form', () => {
+      setAuth({ user: mockOidcUser, oidcEnabled: true });
       renderPage();
-
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-
-      // When: Typing new name
-      await user.clear(input);
-      await user.type(input, 'New Display Name');
-
-      // Then: Input value updates
-      expect(input.value).toBe('New Display Name');
+      expect(
+        screen.getByText('Your password is managed by your single sign-on provider.'),
+      ).toBeInTheDocument();
+      expect(document.getElementById('currentPassword')).toBeNull();
+      expect(screen.queryByRole('button', { name: 'Change password' })).not.toBeInTheDocument();
     });
 
-    it('submits display name update successfully', async () => {
-      // Given: Profile loaded and update succeeds
-      // User already mocked in beforeEach
-      mockUpdateProfile.mockResolvedValue({
-        ...mockLocalUser,
-        displayName: 'Updated Name',
-        updatedAt: '2024-06-10T15:00:00.000Z',
-      });
-
-      const user = userEvent.setup();
+    it('keeps the form for a local account linked to single sign-on', () => {
+      setAuth({ user: { ...mockLocalUser, oidcLinked: true }, oidcEnabled: true });
       renderPage();
-
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /save changes/i });
-
-      // When: Updating display name
-      await user.clear(input);
-      await user.type(input, 'Updated Name');
-      await user.click(button);
-
-      // Then: API is called
-      await waitFor(() => {
-        expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Updated Name' });
-      });
-
-      // And: Success message is shown
-      expect(await screen.findByText(/display name updated successfully/i)).toBeInTheDocument();
-      // The success banner is a polite status region, not an alert
-      expect(screen.getByRole('status')).toHaveTextContent(/display name updated successfully/i);
-      expect(screen.getByRole('status')).toHaveAttribute('aria-atomic', 'true');
+      expect(document.getElementById('currentPassword')).not.toBeNull();
+      expect(
+        screen.queryByText('Your password is managed by your single sign-on provider.'),
+      ).not.toBeInTheDocument();
     });
+  });
 
-    it('shows validation error for empty display name', async () => {
-      // Given: Profile loaded
-      // User already mocked in beforeEach
+  describe('Display name', () => {
+    it('shows the current name and a Save button that is aria-disabled when unchanged', async () => {
       const user = userEvent.setup();
-
       renderPage();
-
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /save changes/i });
-
-      // When: Submitting empty name
-      await user.clear(input);
-      await user.click(button);
-
-      // Then: Validation error is shown
-      await waitFor(() => {
-        expect(screen.getByText(/display name is required/i)).toBeInTheDocument();
-      });
-
-      // And: API is not called
+      expect(nameInput()).toHaveValue('Local User');
+      expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+      expect(saveButton()).not.toBeDisabled();
+      await user.click(saveButton());
       expect(mockUpdateProfile).not.toHaveBeenCalled();
     });
 
-    it('enforces maxLength of 100 chars on input field', async () => {
-      // Given: Profile loaded
-      // User already mocked in beforeEach
+    it('treats a whitespace-only change as unchanged', async () => {
       const user = userEvent.setup();
-
       renderPage();
-
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-
-      // Then: Input has maxLength attribute
-      expect(input).toHaveAttribute('maxLength', '100');
-
-      // And: Cannot type/paste more than 100 characters
-      await user.clear(input);
-      await user.type(input, 'A'.repeat(50));
-      expect(input.value).toHaveLength(50);
-
-      // When: Attempting to type more (input will truncate automatically)
-      await user.type(input, 'B'.repeat(60));
-      // Then: Only 100 total characters allowed
-      expect(input.value.length).toBeLessThanOrEqual(100);
+      await user.type(nameInput(), '  ');
+      expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+      await user.click(saveButton());
+      expect(mockUpdateProfile).not.toHaveBeenCalled();
     });
 
-    it('shows API error when display name update fails', async () => {
-      // Given: Profile loaded, update fails
-      // User already mocked in beforeEach
-      mockUpdateProfile.mockRejectedValue(
-        new ApiClientError(400, {
-          code: 'VALIDATION_ERROR',
-          message: 'RAW-SERVER-SENTINEL',
-        }),
+    it('enables Save on an edit, saves the trimmed name and keeps focus on Save', async () => {
+      const user = userEvent.setup();
+      mockUpdateProfile.mockResolvedValue({ ...mockLocalUser, displayName: 'Sam' });
+      renderPage();
+      await user.clear(nameInput());
+      await user.type(nameInput(), '  Sam Sample  ');
+      expect(saveButton()).not.toHaveAttribute('aria-disabled');
+
+      saveButton().focus();
+      await user.click(saveButton());
+
+      await waitFor(() =>
+        expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Sam Sample' }),
       );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /save changes/i });
-
-      // When: Submitting update
-      await user.clear(input);
-      await user.type(input, 'New Name');
-      await user.click(button);
-
-      // Then: Error message is shown
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.VALIDATION_ERROR)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+      expect(refreshAuth).toHaveBeenCalledTimes(1);
+      const banner = await screen.findByText('Display name updated successfully');
+      expect(banner).toHaveAttribute('role', 'status');
+      expect(saveButton()).toHaveFocus();
     });
 
-    it('shows the fallback (not the raw error) when display name update fails with a plain Error', async () => {
-      mockUpdateProfile.mockRejectedValue(new Error('RAW-LOCAL'));
-
+    it('shows a field error, marks the input invalid, focuses it and makes no API call when empty', async () => {
       const user = userEvent.setup();
       renderPage();
+      await user.clear(nameInput());
+      await user.click(saveButton());
 
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      await user.clear(input);
-      await user.type(input, 'New Name');
-      await user.click(screen.getByRole('button', { name: /save changes/i }));
+      const error = await screen.findByText('Display name is required');
+      expect(error).toHaveAttribute('role', 'alert');
+      expect(error).toHaveAttribute('id', 'displayName-error');
+      expect(nameInput()).toHaveAttribute('aria-invalid', 'true');
+      expect(nameInput()).toHaveAttribute('aria-describedby', 'displayName-error');
+      expect(nameInput()).toHaveFocus();
+      expect(mockUpdateProfile).not.toHaveBeenCalled();
+    });
 
+    it('rejects a name over 100 characters through the validator', async () => {
+      renderPage();
+      const input = nameInput();
+      input.removeAttribute('maxlength');
+      fireEvent.change(input, { target: { value: 'x'.repeat(101) } });
+      fireEvent.click(saveButton());
+      expect(await screen.findByText('Display name must be 100 characters or less')).toBeVisible();
+      expect(mockUpdateProfile).not.toHaveBeenCalled();
+    });
+
+    it('caps the input at 100 characters', () => {
+      renderPage();
+      expect(nameInput()).toHaveAttribute('maxlength', '100');
+    });
+
+    it('shows a translated alert banner for an API error', async () => {
+      const user = userEvent.setup();
+      mockUpdateProfile.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+      );
+      renderPage();
+      await user.type(nameInput(), ' B');
+      await user.click(saveButton());
+
+      const banner = await screen.findByText(enErrors.INTERNAL_ERROR);
+      expect(banner).toHaveAttribute('role', 'alert');
+      expect(screen.queryByText('RAW-SERVER-SENTINEL')).not.toBeInTheDocument();
+      expect(refreshAuth).not.toHaveBeenCalled();
+    });
+
+    it('shows the generic failure message for a non-API error', async () => {
+      const user = userEvent.setup();
+      mockUpdateProfile.mockRejectedValue(new Error('offline'));
+      renderPage();
+      await user.type(nameInput(), ' B');
+      await user.click(saveButton());
       expect(
-        await screen.findByText(enSettings.profile.displayNameUpdateFailed),
-      ).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+        await screen.findByText('Failed to update display name. Please try again.'),
+      ).toHaveAttribute('role', 'alert');
     });
 
-    it('disables button while update is in progress', async () => {
-      // Given: Profile loaded, update pending
-      // User already mocked in beforeEach
-      mockUpdateProfile.mockImplementation(() => new Promise(() => {}));
-
+    it('clears banners and the field error as soon as the user types', async () => {
       const user = userEvent.setup();
+      mockUpdateProfile.mockRejectedValue(new Error('offline'));
       renderPage();
+      await user.type(nameInput(), ' B');
+      await user.click(saveButton());
+      await screen.findByText('Failed to update display name. Please try again.');
 
-      const input = (await screen.findByLabelText(/display name/i)) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /save changes/i });
+      await user.type(nameInput(), 'x');
+      expect(
+        screen.queryByText('Failed to update display name. Please try again.'),
+      ).not.toBeInTheDocument();
 
-      // When: Submitting update
-      await user.clear(input);
-      await user.type(input, 'New Name');
-      await user.click(button);
+      await user.clear(nameInput());
+      await user.click(saveButton());
+      await screen.findByText('Display name is required');
+      await user.type(nameInput(), 'Q');
+      expect(screen.queryByText('Display name is required')).not.toBeInTheDocument();
+      expect(nameInput()).toHaveAttribute('aria-invalid', 'false');
+    });
 
-      // Then: Button is disabled and shows "Saving..."
-      await waitFor(() => {
-        expect(button).toBeDisabled();
-        expect(button).toHaveTextContent(/saving/i);
-      });
+    it('submits on Enter in the field', async () => {
+      const user = userEvent.setup();
+      mockUpdateProfile.mockResolvedValue({ ...mockLocalUser, displayName: 'Q' });
+      renderPage();
+      await user.type(nameInput(), 'Z{Enter}');
+      await waitFor(() =>
+        expect(mockUpdateProfile).toHaveBeenCalledWith({ displayName: 'Local UserZ' }),
+      );
+    });
+
+    it('is readOnly (not disabled), aria-disabled and does not double-submit while busy', async () => {
+      const user = userEvent.setup();
+      let resolve!: (value: Awaited<ReturnType<typeof UsersApiTypes.updateProfile>>) => void;
+      mockUpdateProfile.mockImplementation(() => new Promise((r) => (resolve = r)));
+      renderPage();
+      await user.type(nameInput(), 'Z');
+      await user.click(saveButton());
+
+      await waitFor(() => expect(nameInput()).toHaveAttribute('readonly'));
+      expect(nameInput()).not.toBeDisabled();
+      expect(saveButton()).toHaveAttribute('aria-disabled', 'true');
+      expect(saveButton()).toHaveTextContent('Saving...');
+      fireEvent.submit(nameInput().closest('form') as HTMLFormElement);
+      expect(mockUpdateProfile).toHaveBeenCalledTimes(1);
+
+      resolve({ ...mockLocalUser, displayName: 'Local UserZ' });
+      await waitFor(() => expect(nameInput()).not.toHaveAttribute('readonly'));
     });
   });
 
-  describe('Password form (local users)', () => {
-    it('shows password form for local users', () => {
-      // Given: Local user (default in beforeEach)
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Password form is visible
-      expect(screen.getByLabelText(/current password/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/^new password$/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/confirm new password/i)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: /change password/i })).toBeInTheDocument();
-    });
-
-    it('hides password form for OIDC users', () => {
-      // Given: OIDC user
-      mockUseAuth.mockReturnValue({
-        user: mockOidcUser,
-        oidcEnabled: true,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: Password form is hidden
-      expect(screen.queryByLabelText(/current password/i)).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/^new password$/i)).not.toBeInTheDocument();
-      expect(screen.queryByLabelText(/confirm new password/i)).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: /change password/i })).not.toBeInTheDocument();
-    });
-
-    it('shows identity provider message for OIDC users', () => {
-      // Given: OIDC user
-      mockUseAuth.mockReturnValue({
-        user: mockOidcUser,
-        oidcEnabled: true,
-        isLoading: false,
-        error: null,
-        refreshAuth: jest.fn(async () => Promise.resolve()),
-        logout: jest.fn(async () => Promise.resolve()),
-      });
-
-      // When: Rendering ProfilePage
-      renderPage();
-
-      // Then: OIDC message is shown
-      expect(
-        screen.getByText(/your credentials are managed by your identity provider/i),
-      ).toBeInTheDocument();
-    });
-
-    it('allows typing in all password fields', async () => {
-      // Given: Local user
-      // User already mocked in beforeEach
+  describe('Display name re-sync (D9)', () => {
+    it('keeps an unsaved edit when auth hands over a new user object with the same name', async () => {
       const user = userEvent.setup();
+      const utils = renderPage();
+      await user.type(nameInput(), ' edited');
 
-      renderPage();
+      setAuth({ user: { ...mockLocalUser, updatedAt: '2025-01-01T00:00:00.000Z' } });
+      utils.rerender(page());
 
-      // When: Typing in password fields
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const confirmPasswordInput = screen.getByLabelText(
-        /confirm new password/i,
-      ) as HTMLInputElement;
-
-      await user.type(currentPasswordInput, 'oldpassword123');
-      await user.type(newPasswordInput, 'newpassword456');
-      await user.type(confirmPasswordInput, 'newpassword456');
-
-      // Then: Values are updated
-      expect(currentPasswordInput.value).toBe('oldpassword123');
-      expect(newPasswordInput.value).toBe('newpassword456');
-      expect(confirmPasswordInput.value).toBe('newpassword456');
+      expect(nameInput()).toHaveValue('Local User edited');
     });
 
-    it('shows validation error for empty current password', async () => {
-      // Given: Local user
-      // User already mocked in beforeEach
+    it('keeps an unsaved edit across a language switch', async () => {
       const user = userEvent.setup();
+      const utils = renderPage();
+      await user.type(nameInput(), ' edited');
 
-      renderPage();
+      localePreference = 'de';
+      setAuth({ user: { ...mockLocalUser } });
+      utils.rerender(page());
 
-      await screen.findByLabelText(/current password/i);
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Submitting without current password
-      await user.click(button);
-
-      // Then: Validation error is shown
-      await waitFor(() => {
-        expect(screen.getByText(/current password is required/i)).toBeInTheDocument();
-      });
+      expect(nameInput()).toHaveValue('Local User edited');
     });
 
-    it('shows validation error for empty new password', async () => {
-      // Given: Local user
-      // User already mocked in beforeEach
+    it('resets the field when the saved name changes', async () => {
       const user = userEvent.setup();
+      const utils = renderPage();
+      await user.type(nameInput(), ' edited');
 
-      renderPage();
+      setAuth({ user: { ...mockLocalUser, displayName: 'Renamed Elsewhere' } });
+      utils.rerender(page());
 
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Submitting without new password
-      await user.type(currentPasswordInput, 'current123456');
-      await user.click(button);
-
-      // Then: Validation error is shown
-      await waitFor(() => {
-        expect(screen.getByText(/new password is required/i)).toBeInTheDocument();
-      });
+      expect(nameInput()).toHaveValue('Renamed Elsewhere');
     });
+  });
 
-    it('shows validation error for new password < 12 chars', async () => {
-      // Given: Local user
-      // User already mocked in beforeEach
+  describe('Password form', () => {
+    const current = () => screen.getByLabelText('Current password');
+    const next = () => screen.getByLabelText('New password');
+    const confirm = () => screen.getByLabelText('Confirm new password');
+    const submit = () => screen.getByTestId('account-password-submit');
+
+    it('requires every field, and focuses the first invalid one (current)', async () => {
       const user = userEvent.setup();
-
       renderPage();
+      await user.click(submit());
 
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Submitting with short password
-      await user.type(currentPasswordInput, 'current123456');
-      await user.type(newPasswordInput, 'short');
-      await user.click(button);
-
-      // Then: Validation error is shown (use describedby to find the right error)
-      await waitFor(() => {
-        const errorId = newPasswordInput.getAttribute('aria-describedby');
-        expect(errorId).toBe('newPassword-error');
-        const errorElement = document.getElementById(errorId!);
-        expect(errorElement).toHaveTextContent(/at least 12 characters/i);
-      });
+      expect(await screen.findByText('Current password is required')).toBeInTheDocument();
+      expect(screen.getByText('New password is required')).toBeInTheDocument();
+      expect(screen.getByText('Please confirm your new password')).toBeInTheDocument();
+      expect(current()).toHaveFocus();
+      expect(current()).toHaveAttribute('aria-invalid', 'true');
+      expect(current()).toHaveAttribute('aria-describedby', 'currentPassword-error');
+      expect(mockChangePassword).not.toHaveBeenCalled();
     });
 
-    it('shows validation error when passwords do not match', async () => {
-      // Given: Local user
-      // User already mocked in beforeEach
+    it('focuses the new password when only it is invalid (too short)', async () => {
       const user = userEvent.setup();
-
       renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'short');
+      await user.type(confirm(), 'short');
+      await user.click(submit());
 
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const confirmPasswordInput = screen.getByLabelText(
-        /confirm new password/i,
-      ) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Passwords don't match
-      await user.type(currentPasswordInput, 'current123456');
-      await user.type(newPasswordInput, 'newpassword123');
-      await user.type(confirmPasswordInput, 'differentpassword');
-      await user.click(button);
-
-      // Then: Validation error is shown
-      await waitFor(() => {
-        expect(screen.getByText(/passwords do not match/i)).toBeInTheDocument();
-      });
+      expect(await screen.findByText('New password must be at least 12 characters')).toBeVisible();
+      expect(next()).toHaveFocus();
+      expect(next()).toHaveAttribute('aria-describedby', 'newPassword-error');
     });
 
-    it('changes password successfully', async () => {
-      // Given: Local user, password change succeeds
-      // User already mocked in beforeEach
+    it('focuses the confirm field when only the confirmation mismatches', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'a-long-enough-password');
+      await user.type(confirm(), 'a-different-password');
+      await user.click(submit());
+
+      expect(await screen.findByText('Passwords do not match')).toBeVisible();
+      expect(confirm()).toHaveFocus();
+      expect(confirm()).toHaveAttribute('aria-describedby', 'confirmPassword-error');
+    });
+
+    it('requires a new password when only the current one is given', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.type(current(), 'old-password');
+      await user.click(submit());
+      expect(await screen.findByText('New password is required')).toBeVisible();
+      expect(next()).toHaveFocus();
+    });
+
+    it('changes the password, clears the fields, shows a banner and keeps focus on submit', async () => {
+      const user = userEvent.setup();
       mockChangePassword.mockResolvedValue(undefined);
-
-      const user = userEvent.setup();
       renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'a-long-enough-password');
+      await user.type(confirm(), 'a-long-enough-password');
+      submit().focus();
+      await user.click(submit());
 
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const confirmPasswordInput = screen.getByLabelText(
-        /confirm new password/i,
-      ) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Changing password
-      await user.type(currentPasswordInput, 'oldpassword123');
-      await user.type(newPasswordInput, 'newpassword123');
-      await user.type(confirmPasswordInput, 'newpassword123');
-      await user.click(button);
-
-      // Then: API is called
-      await waitFor(() => {
+      await waitFor(() =>
         expect(mockChangePassword).toHaveBeenCalledWith({
-          currentPassword: 'oldpassword123',
-          newPassword: 'newpassword123',
-        });
-      });
-
-      // And: Success message is shown
-      expect(await screen.findByText(/password changed successfully/i)).toBeInTheDocument();
-      expect(screen.getByRole('status')).toHaveTextContent(/password changed successfully/i);
-
-      // And: Form is cleared
-      expect(currentPasswordInput.value).toBe('');
-      expect(newPasswordInput.value).toBe('');
-      expect(confirmPasswordInput.value).toBe('');
-    });
-
-    it('shows API error when password change fails', async () => {
-      // Given: Local user, password change fails
-      // User already mocked in beforeEach
-      mockChangePassword.mockRejectedValue(
-        new ApiClientError(401, {
-          code: 'INVALID_CREDENTIALS',
-          message: 'RAW-SERVER-SENTINEL',
+          currentPassword: 'old-password',
+          newPassword: 'a-long-enough-password',
         }),
       );
-
-      const user = userEvent.setup();
-      renderPage();
-
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const confirmPasswordInput = screen.getByLabelText(
-        /confirm new password/i,
-      ) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
-
-      // When: Submitting with wrong current password
-      await user.type(currentPasswordInput, 'wrongpassword');
-      await user.type(newPasswordInput, 'newpassword123');
-      await user.type(confirmPasswordInput, 'newpassword123');
-      await user.click(button);
-
-      // Then: Error message is shown
-      await waitFor(() => {
-        expect(screen.getByText(enErrors.INVALID_CREDENTIALS)).toBeInTheDocument();
-      });
-      expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).not.toBeInTheDocument();
+      const banner = await screen.findByText('Password changed successfully');
+      expect(banner).toHaveAttribute('role', 'status');
+      expect(current()).toHaveValue('');
+      expect(next()).toHaveValue('');
+      expect(confirm()).toHaveValue('');
+      expect(submit()).toHaveFocus();
     });
 
-    it('shows the fallback (not the raw error) when password change fails with a plain Error', async () => {
-      mockChangePassword.mockRejectedValue(new Error('RAW-LOCAL'));
-
+    it('shows a translated alert banner for an API error and keeps the fields', async () => {
       const user = userEvent.setup();
+      mockChangePassword.mockRejectedValue(
+        new ApiClientError(401, { code: 'UNAUTHORIZED', message: 'Unauthorized' }),
+      );
       renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'a-long-enough-password');
+      await user.type(confirm(), 'a-long-enough-password');
+      await user.click(submit());
 
-      await user.type(await screen.findByLabelText(/current password/i), 'current123456');
-      await user.type(screen.getByLabelText(/^new password$/i), 'newpassword123');
-      await user.type(screen.getByLabelText(/confirm new password/i), 'newpassword123');
-      await user.click(screen.getByRole('button', { name: /change password/i }));
-
-      expect(await screen.findByText(enSettings.profile.passwordChangeFailed)).toBeInTheDocument();
-      expect(screen.queryByText(/RAW-LOCAL/)).not.toBeInTheDocument();
+      const banner = await screen.findByText(enErrors.UNAUTHORIZED);
+      expect(banner).toHaveAttribute('role', 'alert');
+      expect(current()).toHaveValue('old-password');
     });
 
-    it('disables button while password change is in progress', async () => {
-      // Given: Local user, password change pending
-      // User already mocked in beforeEach
-      mockChangePassword.mockImplementation(() => new Promise(() => {}));
+    it('shows the generic failure message for a non-API error, and typing clears it', async () => {
+      const user = userEvent.setup();
+      mockChangePassword.mockRejectedValue(new Error('offline'));
+      renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'a-long-enough-password');
+      await user.type(confirm(), 'a-long-enough-password');
+      await user.click(submit());
+      await screen.findByText('Failed to change password. Please try again.');
 
+      await user.type(current(), 'x');
+      expect(
+        screen.queryByText('Failed to change password. Please try again.'),
+      ).not.toBeInTheDocument();
+      await user.type(next(), 'y');
+      await user.type(confirm(), 'z');
+    });
+
+    it('is aria-disabled with readOnly fields (not disabled) while busy, and ignores re-submits', async () => {
+      const user = userEvent.setup();
+      let resolve!: () => void;
+      mockChangePassword.mockImplementation(() => new Promise<void>((r) => (resolve = r)));
+      renderPage();
+      await user.type(current(), 'old-password');
+      await user.type(next(), 'a-long-enough-password');
+      await user.type(confirm(), 'a-long-enough-password');
+      await user.click(submit());
+
+      await waitFor(() => expect(submit()).toHaveAttribute('aria-disabled', 'true'));
+      expect(submit()).not.toBeDisabled();
+      expect(submit()).toHaveTextContent('Changing password...');
+      for (const field of [current(), next(), confirm()]) {
+        expect(field).toHaveAttribute('readonly');
+        expect(field).not.toBeDisabled();
+      }
+      fireEvent.submit(current().closest('form') as HTMLFormElement);
+      expect(mockChangePassword).toHaveBeenCalledTimes(1);
+
+      resolve();
+      await waitFor(() => expect(submit()).not.toHaveAttribute('aria-disabled'));
+    });
+  });
+
+  describe('Preferences', () => {
+    const language = () => screen.getByLabelText('Language') as HTMLSelectElement;
+    const theme = () => screen.getByLabelText('Theme') as HTMLSelectElement;
+
+    it('reads Language and Theme from the preference, as .select controls', () => {
+      renderPage();
+      const prefs = screen.getByTestId('account-preferences');
+      expect(within(prefs).getByLabelText('Language').tagName).toBe('SELECT');
+      expect(language().className).toMatch(/select/);
+      expect(theme().className).toMatch(/select/);
+    });
+
+    it('lists the languages as endonyms with their lang attribute, then System', () => {
+      renderPage();
+      const options = Array.from(language().options);
+      expect(options.map((o) => [o.value, o.textContent, o.getAttribute('lang')])).toEqual([
+        ['en', 'English', 'en'],
+        ['de', 'Deutsch', 'de'],
+        ['system', 'System (browser language)', null],
+      ]);
+    });
+
+    it('shows "system" when the language preference is system', () => {
+      localePreference = 'system';
+      renderPage();
+      expect(language().value).toBe('system');
+    });
+
+    it('changing the language calls setLocale', async () => {
       const user = userEvent.setup();
       renderPage();
+      await user.selectOptions(language(), 'de');
+      expect(mockSetLocale).toHaveBeenCalledWith('de');
+    });
 
-      const currentPasswordInput = (await screen.findByLabelText(
-        /current password/i,
-      )) as HTMLInputElement;
-      const newPasswordInput = screen.getByLabelText(/^new password$/i) as HTMLInputElement;
-      const confirmPasswordInput = screen.getByLabelText(
-        /confirm new password/i,
-      ) as HTMLInputElement;
-      const button = screen.getByRole('button', { name: /change password/i });
+    it('ignores an unknown language value', () => {
+      renderPage();
+      fireEvent.change(language(), { target: { value: 'xx' } });
+      expect(mockSetLocale).not.toHaveBeenCalled();
+    });
 
-      // When: Submitting password change
-      await user.type(currentPasswordInput, 'current123456');
-      await user.type(newPasswordInput, 'newpassword123');
-      await user.type(confirmPasswordInput, 'newpassword123');
-      await user.click(button);
+    it('lists Light, Dark and System and shows the preference (not the resolved theme)', () => {
+      themePreference = 'system';
+      renderPage();
+      expect(Array.from(theme().options).map((o) => [o.value, o.textContent])).toEqual([
+        ['light', 'Light'],
+        ['dark', 'Dark'],
+        ['system', 'System'],
+      ]);
+      expect(theme().value).toBe('system');
+    });
 
-      // Then: Button is disabled and shows "Changing Password..."
-      await waitFor(() => {
-        expect(button).toBeDisabled();
-        expect(button).toHaveTextContent(/changing password/i);
-      });
+    it('shows an explicit theme preference', () => {
+      themePreference = 'dark';
+      renderPage();
+      expect(theme().value).toBe('dark');
+    });
+
+    it('changing the theme calls setTheme', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      await user.selectOptions(theme(), 'dark');
+      expect(mockSetTheme).toHaveBeenCalledWith('dark');
+    });
+
+    it('ignores an unknown theme value', () => {
+      renderPage();
+      fireEvent.change(theme(), { target: { value: 'sepia' } });
+      expect(mockSetTheme).not.toHaveBeenCalled();
     });
   });
 });
