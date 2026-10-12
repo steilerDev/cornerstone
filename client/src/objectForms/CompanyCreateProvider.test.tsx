@@ -234,6 +234,11 @@ describe('CompanyCreateProvider', () => {
           <button type="button" data-testid="go-other" onClick={() => void navigate('/other')} />
           <button
             type="button"
+            data-testid="go-origin"
+            onClick={() => void navigate('/diary/new')}
+          />
+          <button
+            type="button"
             data-testid="replace-query"
             onClick={() => void navigate('/diary/new?date=2026-03-01', { replace: true })}
           />
@@ -301,6 +306,31 @@ describe('CompanyCreateProvider', () => {
 
       expect(await screen.findByRole('dialog', { name: 'New company' })).toBeInTheDocument();
       expect(nameInput()).toHaveValue('Later Co');
+    });
+
+    it('returning to the original page does not bring the cancelled form back or settle it twice', async () => {
+      const user = userEvent.setup();
+      setupNav();
+      let resolutions = 0;
+      const { result } = open('Brand New Co');
+      void result.then(() => {
+        resolutions += 1;
+      });
+      await screen.findByRole('dialog');
+
+      await user.click(screen.getByTestId('go-other'));
+      await expect(result).resolves.toBeNull();
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      await user.click(screen.getByTestId('go-origin'));
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      expect(screen.getByTestId('where')).toHaveTextContent('/diary/new');
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(resolutions).toBe(1);
+      expect(mockSubmit).not.toHaveBeenCalled();
+      expect(screen.getByTestId('creating')).toHaveTextContent('false');
     });
 
     it('after the page change the form can be opened again on the new page', async () => {
