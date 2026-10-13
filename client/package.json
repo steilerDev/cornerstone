@@ -12,14 +12,14 @@
   "dependencies": {
     "@cornerstone/shared": "*",
     "@floating-ui/react": "0.27.20",
-    "i18next": "26.4.2",
-    "konva": "10.7.0",
-    "nanoid": "6.0.1",
+    "i18next": "26.4.3",
+    "konva": "10.7.1",
+    "nanoid": "6.0.2",
     "pdf-lib": "1.17.1",
     "pdfmake": "0.3.11",
     "react": "19.3.0",
     "react-dom": "19.3.0",
-    "react-i18next": "17.0.15",
+    "react-i18next": "17.0.16",
     "react-konva": "19.3.0",
     "react-router-dom": "7.18.4"
   },
