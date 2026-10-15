@@ -14,7 +14,7 @@
  */
 
 import type { Page } from '@playwright/test';
-import { test, expect } from '../../fixtures/auth.js';
+import { test, expect } from '../../fixtures/isolatedUser.js';
 import {
   createHouseholdItemViaApi,
   createVendorViaApi,
@@ -69,6 +69,10 @@ async function exerciseFilter(
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe('Company filter - Tasks (F1)', { tag: '@responsive' }, () => {
+  // Enabling the Vendor column writes `table.workItems.columns` on the user's preferences; on the
+  // shared admin that row is rewritten by every other spec that toggles a Tasks column.
+  test.use({ isolatedUserPerTest: { emailPrefix: 'filter-tasks' } });
+
   test('F1: filter tasks by company, reopen, clear, Escape', async ({ page, testPrefix }) => {
     skipOnPhone(page);
     const nameA = `${testPrefix} Filter Task Co A`;
