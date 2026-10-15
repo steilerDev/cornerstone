@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
@@ -154,6 +155,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
@@ -1525,7 +1527,9 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      expect(screen.getByTestId('dep-search-input')).toBeInTheDocument();
+      expect(
+        screen.getByLabelText(enHouseholdItems.detail.dependencies.search),
+      ).toBeInTheDocument();
     });
 
     it('clicking "×" remove button shows Confirm and Cancel actions', async () => {
@@ -1853,7 +1857,7 @@ describe('HouseholdItemDetailPage', () => {
       });
 
       // Type into the dep search input to open the dropdown
-      const depInput = screen.getByTestId('dep-search-input');
+      const depInput = screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
       await user.type(depInput, 'Elec');
 
       await waitFor(() => {
@@ -1900,7 +1904,7 @@ describe('HouseholdItemDetailPage', () => {
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument();
       });
 
-      const depInput = screen.getByTestId('dep-search-input');
+      const depInput = screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
       await user.type(depInput, 'Found');
 
       await waitFor(() => {
@@ -1953,8 +1957,8 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() =>
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
       );
-      await user.type(screen.getByTestId('dep-search-input'), 'Elec');
-      await user.click(await screen.findByRole('button', { name: /Electrical Rough-In/ }));
+      await user.type(screen.getByLabelText(enHouseholdItems.detail.dependencies.search), 'Elec');
+      await user.click(await screen.findByRole('option', { name: /Electrical Rough-In/ }));
     }
 
     it('add dependency 409 CIRCULAR_DEPENDENCY shows the circular copy, not the server text', async () => {
@@ -2012,8 +2016,8 @@ describe('HouseholdItemDetailPage', () => {
       await waitFor(() =>
         expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
       );
-      await user.type(screen.getByTestId('dep-search-input'), 'Elec');
-      await user.click(await screen.findByRole('button', { name: /Electrical Rough-In/ }));
+      await user.type(screen.getByLabelText(enHouseholdItems.detail.dependencies.search), 'Elec');
+      await user.click(await screen.findByRole('option', { name: /Electrical Rough-In/ }));
       await waitFor(() =>
         expect(mockShowToast).toHaveBeenCalledWith(
           'success',
@@ -2258,6 +2262,237 @@ describe('HouseholdItemDetailPage', () => {
       expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
         origin: { to: '/project/household-items/item-1', name: 'Standing Desk' },
       });
+    });
+  });
+
+  // ─── Dependency picker: server-searched tasks, folded milestones ─────────────
+
+  describe('dependency picker (server search)', () => {
+    const task = (id: string, title: string) => ({
+      id,
+      title,
+      status: 'not_started' as const,
+      startDate: null,
+      endDate: null,
+      projectedStartDate: null,
+      projectedEndDate: null,
+      isLate: false,
+      lateDays: null,
+      isHeldUp: false,
+      durationDays: null,
+      actualStartDate: null,
+      actualEndDate: null,
+      assignedUser: null,
+      assignedVendor: null,
+      area: null,
+      budgetLineCount: 0,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    });
+    const milestone = (id: number, title: string) => ({
+      id,
+      title,
+      description: null,
+      targetDate: '2026-12-01',
+      isCompleted: false,
+      completedAt: null,
+      color: null,
+      workItemCount: 0,
+      dependentWorkItemCount: 0,
+      createdBy: null,
+      createdAt: '2024-01-01T00:00:00Z',
+      updatedAt: '2024-01-01T00:00:00Z',
+    });
+    const page = (items: ReturnType<typeof task>[]) => ({
+      items,
+      pagination: { page: 1, pageSize: 50, totalItems: items.length, totalPages: 1 },
+    });
+    const searchInput = () => screen.getByLabelText(enHouseholdItems.detail.dependencies.search);
+
+    async function ready() {
+      await waitFor(() =>
+        expect(screen.getByRole('heading', { name: 'Standing Desk' })).toBeInTheDocument(),
+      );
+    }
+
+    it('loads no tasks and no companies on mount', async () => {
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      renderPage();
+      await ready();
+
+      expect(mockListWorkItems).not.toHaveBeenCalled();
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(mockListMilestones).toHaveBeenCalledTimes(1);
+    });
+
+    it('searches tasks on the server with the typed query, 50 per page and a signal', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([task('wi-250', 'Zeta Plastering')]));
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'zeta');
+
+      expect(await screen.findByRole('option', { name: /Zeta Plastering/ })).toBeInTheDocument();
+      expect(mockListWorkItems).toHaveBeenCalledWith(
+        { q: 'zeta', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
+    });
+
+    it('lists tasks first, then milestones matched with folding', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([task('wi-1', 'Rohbau Elektro')]));
+      mockListMilestones.mockResolvedValue([milestone(7, 'Rohbau Übergabe')]);
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'ubergabe');
+
+      const options = await screen.findAllByRole('option');
+      expect(options.map((o) => o.textContent)).toEqual([
+        expect.stringContaining('Rohbau Elektro'),
+        expect.stringContaining('Rohbau Übergabe'),
+      ]);
+    });
+
+    it('does not offer a milestone that does not match the query', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([]));
+      mockListMilestones.mockResolvedValue([milestone(7, 'Roof complete')]);
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'xyz');
+
+      expect(
+        await screen.findByText(enHouseholdItems.detail.dependencies.noMatches),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Roof complete/ })).not.toBeInTheDocument();
+    });
+
+    it('leaves out tasks and milestones that are already linked', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockFetchHouseholdItemDeps.mockResolvedValue([
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'work_item',
+          predecessorId: 'wi-1',
+          predecessor: { id: 'wi-1', title: 'Linked Task', status: 'in_progress', endDate: null },
+        } as HouseholdItemDepDetail,
+        {
+          householdItemId: 'item-1',
+          predecessorType: 'milestone',
+          predecessorId: '7',
+          predecessor: { id: '7', title: 'Linked Stone', status: 'in_progress', endDate: null },
+        } as unknown as HouseholdItemDepDetail,
+      ]);
+      mockListWorkItems.mockResolvedValue(
+        page([task('wi-1', 'Linked Task'), task('wi-2', 'Free Task')]),
+      );
+      mockListMilestones.mockResolvedValue([
+        milestone(7, 'Linked Stone'),
+        milestone(8, 'Free Stone'),
+      ]);
+      renderPage();
+      await ready();
+      await waitFor(() => expect(screen.getAllByText('Linked Task').length).toBeGreaterThan(0));
+
+      await user.type(searchInput(), 'e');
+
+      expect(await screen.findByRole('option', { name: /Free Task/ })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Free Stone/ })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Linked Task/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Linked Stone/ })).not.toBeInTheDocument();
+    });
+
+    it('adds a task with the work_item type and a milestone with the milestone type', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
+      mockListMilestones.mockResolvedValue([milestone(8, 'Free Stone')]);
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
+      expect(mockCreateHouseholdItemDep).toHaveBeenLastCalledWith('item-1', {
+        predecessorType: 'work_item',
+        predecessorId: 'wi-2',
+      });
+
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Stone/ }));
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(2));
+      expect(mockCreateHouseholdItemDep).toHaveBeenLastCalledWith('item-1', {
+        predecessorType: 'milestone',
+        predecessorId: '8',
+      });
+    });
+
+    it('ignores a second selection while an add is in flight', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(
+        page([task('wi-2', 'Free Task'), task('wi-3', 'Other Task')]),
+      );
+      let finish!: () => void;
+      mockCreateHouseholdItemDep.mockReturnValue(
+        new Promise((resolve) => {
+          finish = () => resolve({} as HouseholdItemDepDetail);
+        }),
+      );
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Other Task/ }));
+
+      expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        finish();
+      });
+    });
+
+    it('allows another add once the previous one finished with an error', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
+      mockCreateHouseholdItemDep.mockRejectedValueOnce(new Error('boom'));
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
+      await waitFor(() => expect(mockShowToast).toHaveBeenCalled());
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(2));
+    });
+
+    it('keeps focus on the input (not body) after an add', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(makeItem());
+      mockListWorkItems.mockResolvedValue(page([task('wi-2', 'Free Task')]));
+      renderPage();
+      await ready();
+
+      await user.type(searchInput(), 'e');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockCreateHouseholdItemDep).toHaveBeenCalledTimes(1));
+
+      expect(document.activeElement).toBe(searchInput());
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
     });
   });
 });

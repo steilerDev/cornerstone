@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
@@ -111,6 +112,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
@@ -829,9 +831,9 @@ describe('InvoiceBudgetLinesSection', () => {
       expect(screen.getByTestId('has-categories')).toBeInTheDocument();
     });
 
-    it('calls fetchVendors with pageSize:100 when create form opens', async () => {
+    it('does not preload companies when the create form opens (the picker searches on focus)', async () => {
       await openCreateFormForWorkItem();
-      expect(mockFetchVendors).toHaveBeenCalledWith({ pageSize: 100 });
+      expect(mockFetchVendors).not.toHaveBeenCalled();
     });
 
     it('shows BudgetLineForm without categories for household_item branch', async () => {

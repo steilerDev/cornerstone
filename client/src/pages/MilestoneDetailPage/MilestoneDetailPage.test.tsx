@@ -27,6 +27,19 @@ const mockAddDependentWorkItem = jest.fn<typeof MilestonesApiTypes.addDependentW
 const mockRemoveDependentWorkItem = jest.fn<typeof MilestonesApiTypes.removeDependentWorkItem>();
 const mockFetchMilestoneLinkedHouseholdItems =
   jest.fn<typeof MilestonesApiTypes.fetchMilestoneLinkedHouseholdItems>();
+const linkSearchInput = () =>
+  document.getElementById('milestone-link-search') as HTMLInputElement | null;
+const depSearchInput = () =>
+  document.getElementById('milestone-dependent-search') as HTMLInputElement | null;
+const findInput = (get: () => HTMLInputElement | null) =>
+  waitFor(() => {
+    const el = get();
+    if (!el) throw new Error('search input not rendered yet');
+    return el;
+  });
+const findLinkSearchInput = () => findInput(linkSearchInput);
+const findDepSearchInput = () => findInput(depSearchInput);
+
 const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListHouseholdItems = jest.fn<typeof HouseholdItemsApiTypes.listHouseholdItems>();
 const mockCreateHouseholdItemDep = jest.fn();
@@ -767,7 +780,7 @@ describe('MilestoneDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('item-search-input')).toBeInTheDocument();
+        expect(linkSearchInput()).not.toBeNull();
       });
     });
 
@@ -777,7 +790,7 @@ describe('MilestoneDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('dep-search-input')).toBeInTheDocument();
+        expect(depSearchInput()).not.toBeNull();
       });
     });
   });
@@ -1026,12 +1039,12 @@ describe('MilestoneDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('item-search-input')).toBeInTheDocument();
+        expect(linkSearchInput()).not.toBeNull();
       });
 
       // Type into the inline search to open dropdown
-      const searchInput = screen.getByTestId('item-search-input');
-      await user.type(searchInput, 'Roof');
+      const searchInput = linkSearchInput();
+      await user.type(searchInput!, 'Roof');
 
       // Dropdown should show the item with its breadcrumb
       await waitFor(() => {
@@ -1060,11 +1073,11 @@ describe('MilestoneDetailPage', () => {
       renderPage();
 
       await waitFor(() => {
-        expect(screen.getByTestId('item-search-input')).toBeInTheDocument();
+        expect(linkSearchInput()).not.toBeNull();
       });
 
-      const searchInput = screen.getByTestId('item-search-input');
-      await user.type(searchInput, 'Plumb');
+      const searchInput = linkSearchInput();
+      await user.type(searchInput!, 'Plumb');
 
       await waitFor(() => {
         expect(screen.getByText('Plumbing')).toBeInTheDocument();
@@ -1111,9 +1124,9 @@ describe('MilestoneDetailPage', () => {
       mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
       mockCreateHouseholdItemDep.mockRejectedValue(rejection as never);
       renderPage();
-      const input = await screen.findByTestId('item-search-input');
+      const input = await findLinkSearchInput();
       await user.type(input, 'Kitchen');
-      await user.click(await screen.findByRole('button', { name: /Kitchen Island/ }));
+      await user.click(await screen.findByRole('option', { name: /Kitchen Island/ }));
     }
 
     it('household item quick-link 409 CIRCULAR_DEPENDENCY shows the circular copy', async () => {
@@ -1162,11 +1175,12 @@ describe('MilestoneDetailPage', () => {
         mockLinkWorkItem.mockRejectedValueOnce(sentinelError());
         mockLinkWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
         renderPage();
-        const input = await screen.findByTestId('item-search-input');
+        const input = await findLinkSearchInput();
         await user.type(input, 'Install');
-        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await user.click(await screen.findByRole('option', { name: /Install Windows/ }));
         await expectAlertText(enErrors.INTERNAL_ERROR);
-        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await user.type(input, 'Install');
+        await user.click(await screen.findByRole('option', { name: /Install Windows/ }));
         await waitFor(() => {
           expect(screen.getByRole('alert')).toHaveTextContent(
             enSchedule.milestones.detail.failedLink,
@@ -1213,11 +1227,12 @@ describe('MilestoneDetailPage', () => {
         mockAddDependentWorkItem.mockRejectedValueOnce(sentinelError());
         mockAddDependentWorkItem.mockRejectedValueOnce(new Error('RAW-LOCAL'));
         renderPage();
-        const input = await screen.findByTestId('dep-search-input');
+        const input = await findDepSearchInput();
         await user.type(input, 'Install');
-        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await user.click(await screen.findByRole('option', { name: /Install Windows/ }));
         await expectAlertText(enErrors.INTERNAL_ERROR);
-        await user.click(await screen.findByRole('button', { name: /Install Windows/ }));
+        await user.type(input, 'Install');
+        await user.click(await screen.findByRole('option', { name: /Install Windows/ }));
         await waitFor(() => {
           expect(screen.getByRole('alert')).toHaveTextContent(
             enSchedule.milestones.detail.failedAddDependent,
@@ -1367,6 +1382,276 @@ describe('MilestoneDetailPage', () => {
       expect(JSON.parse(screen.getByTestId('location-state').textContent ?? 'null')).toEqual({
         origin: { to: '/project/milestones/1', name: 'Foundation Complete' },
       });
+    });
+  });
+
+  // ── Linked-item and dependent pickers: server search, no 100-item loads ──────
+
+  describe('item pickers (server search)', () => {
+    const task = (id: string, title: string): WorkItemSummary => ({
+      ...sampleWorkItemSummary,
+      id,
+      title,
+    });
+    const purchase = (id: string, name: string) =>
+      ({
+        id,
+        name,
+        description: null,
+        category: 'hic-furniture',
+        status: 'planned',
+        vendor: null,
+        area: null,
+        quantity: 1,
+        orderDate: null,
+        actualDeliveryDate: null,
+        earliestDeliveryDate: null,
+        latestDeliveryDate: null,
+        targetDeliveryDate: null,
+        isLate: false,
+        url: null,
+        budgetLineCount: 0,
+        totalPlannedAmount: 0,
+        budgetSummary: { totalPlanned: 0, totalActual: 0, subsidyReduction: 0, netCost: 0 },
+        createdBy: null,
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      }) as HouseholdItemSummary;
+    const tasksPage = (items: WorkItemSummary[]) => ({
+      items,
+      pagination: { page: 1, pageSize: 25, totalItems: items.length, totalPages: 1 },
+    });
+    const purchasesPage = (items: HouseholdItemSummary[]) => ({
+      items,
+      pagination: { page: 1, pageSize: 25, totalItems: items.length, totalPages: 1 },
+    });
+
+    beforeEach(() => {
+      makeDefaultListResponses();
+    });
+
+    it('loads no tasks or purchases when the page opens', async () => {
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      renderPage();
+      await findLinkSearchInput();
+
+      expect(mockListWorkItems).not.toHaveBeenCalled();
+      expect(mockListHouseholdItems).not.toHaveBeenCalled();
+    });
+
+    it('the link picker searches tasks and purchases in parallel, 25 each, with the same q', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      renderPage();
+      const input = await findLinkSearchInput();
+
+      await user.type(input, 'kit');
+
+      await waitFor(() => {
+        expect(mockListWorkItems).toHaveBeenCalledWith(
+          { q: 'kit', pageSize: 25 },
+          { signal: expect.any(AbortSignal) },
+        );
+        expect(mockListHouseholdItems).toHaveBeenCalledWith(
+          { q: 'kit', pageSize: 25 },
+          { signal: expect.any(AbortSignal) },
+        );
+      });
+    });
+
+    it('lists tasks first, then purchases', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(tasksPage([task('wi-1', 'Kitchen Fit-out')]));
+      mockListHouseholdItems.mockResolvedValue(purchasesPage([purchase('hi-1', 'Kitchen Island')]));
+      renderPage();
+
+      await user.type(await findLinkSearchInput(), 'kit');
+
+      const options = await screen.findAllByRole('option');
+      expect(options.map((o) => o.textContent)).toEqual([
+        expect.stringContaining('Kitchen Fit-out'),
+        expect.stringContaining('Kitchen Island'),
+      ]);
+    });
+
+    it('leaves out tasks and purchases that are already linked', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(sampleMilestoneDetail);
+      mockFetchMilestoneLinkedHouseholdItems.mockResolvedValue([
+        { id: 'hi-9', name: 'Linked Sofa', category: 'hic-furniture', status: 'planned' } as never,
+      ]);
+      mockListWorkItems.mockResolvedValue(
+        tasksPage([task('wi-100', 'Pour Foundation'), task('wi-2', 'Free Task')]),
+      );
+      mockListHouseholdItems.mockResolvedValue(
+        purchasesPage([purchase('hi-9', 'Linked Sofa'), purchase('hi-2', 'Free Chair')]),
+      );
+      renderPage();
+      await screen.findByTestId('unlink-household-item-hi-9');
+
+      await user.type(await findLinkSearchInput(), 'f');
+
+      expect(await screen.findByRole('option', { name: /Free Task/ })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: /Free Chair/ })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Pour Foundation/ })).not.toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /Linked Sofa/ })).not.toBeInTheDocument();
+    });
+
+    it('selecting a task links it with the work-item handler', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(tasksPage([task('wi-2', 'Free Task')]));
+      renderPage();
+
+      await user.type(await findLinkSearchInput(), 'free');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+
+      await waitFor(() => expect(mockLinkWorkItem).toHaveBeenCalledWith(1, 'wi-2'));
+      expect(mockCreateHouseholdItemDep).not.toHaveBeenCalled();
+    });
+
+    it('selecting a purchase links it with the household-item handler', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+      mockListHouseholdItems.mockResolvedValue(purchasesPage([purchase('hi-2', 'Free Chair')]));
+      renderPage();
+
+      await user.type(await findLinkSearchInput(), 'free');
+      await user.click(await screen.findByRole('option', { name: /Free Chair/ }));
+
+      await waitFor(() =>
+        expect(mockCreateHouseholdItemDep).toHaveBeenCalledWith('hi-2', {
+          predecessorType: 'milestone',
+          predecessorId: '1',
+        }),
+      );
+      expect(mockLinkWorkItem).not.toHaveBeenCalled();
+    });
+
+    it('ignores a second link while the first is still in flight', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(
+        tasksPage([task('wi-2', 'Free Task'), task('wi-3', 'Other Task')]),
+      );
+      let finish!: () => void;
+      mockLinkWorkItem.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }) as never,
+      );
+      renderPage();
+
+      const input = await findLinkSearchInput();
+      await user.type(input, 'task');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockLinkWorkItem).toHaveBeenCalledTimes(1));
+      await user.type(input, 'task');
+      await user.click(await screen.findByRole('option', { name: /Other Task/ }));
+
+      expect(mockLinkWorkItem).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        finish();
+      });
+    });
+
+    it('keeps focus on the link input after a link', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(tasksPage([task('wi-2', 'Free Task')]));
+      renderPage();
+
+      const input = await findLinkSearchInput();
+      await user.type(input, 'free');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockLinkWorkItem).toHaveBeenCalled());
+
+      expect(document.activeElement).toBe(input);
+    });
+
+    it('the dependent picker searches tasks with q and 50 per page', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce(emptyMilestoneDetail);
+      renderPage();
+
+      await user.type(await findDepSearchInput(), 'roof');
+
+      await waitFor(() =>
+        expect(mockListWorkItems).toHaveBeenCalledWith(
+          { q: 'roof', pageSize: 50 },
+          { signal: expect.any(AbortSignal) },
+        ),
+      );
+      expect(mockListHouseholdItems).not.toHaveBeenCalled();
+    });
+
+    it('the dependent picker excludes dependents and linked tasks', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValueOnce({
+        ...sampleMilestoneDetail,
+        dependentWorkItems: [task('wi-dep', 'Existing Dependent')],
+      });
+      mockListWorkItems.mockResolvedValue(
+        tasksPage([
+          task('wi-100', 'Pour Foundation'),
+          task('wi-dep', 'Existing Dependent'),
+          task('wi-free', 'Free Task'),
+        ]),
+      );
+      renderPage();
+
+      await user.type(await findDepSearchInput(), 'e');
+
+      expect(await screen.findByRole('option', { name: 'Free Task' })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'Pour Foundation' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'Existing Dependent' })).not.toBeInTheDocument();
+    });
+
+    it('selecting a dependent candidate adds it and ignores a second add in flight', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(emptyMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(
+        tasksPage([task('wi-2', 'Free Task'), task('wi-3', 'Other Task')]),
+      );
+      let finish!: () => void;
+      mockAddDependentWorkItem.mockReturnValue(
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }) as never,
+      );
+      renderPage();
+
+      const input = await findDepSearchInput();
+      await user.type(input, 'task');
+      await user.click(await screen.findByRole('option', { name: 'Free Task' }));
+      await waitFor(() => expect(mockAddDependentWorkItem).toHaveBeenCalledWith(1, 'wi-2'));
+      await user.type(input, 'task');
+      await user.click(await screen.findByRole('option', { name: 'Other Task' }));
+
+      expect(mockAddDependentWorkItem).toHaveBeenCalledTimes(1);
+      await act(async () => {
+        finish();
+      });
+    });
+
+    it('never loads 100 items on mount, link or unlink', async () => {
+      const user = userEvent.setup();
+      mockGetMilestone.mockResolvedValue(sampleMilestoneDetail);
+      mockListWorkItems.mockResolvedValue(tasksPage([task('wi-2', 'Free Task')]));
+      renderPage();
+      const input = await findLinkSearchInput();
+      await user.type(input, 'free');
+      await user.click(await screen.findByRole('option', { name: /Free Task/ }));
+      await waitFor(() => expect(mockLinkWorkItem).toHaveBeenCalled());
+      fireEvent.click(await screen.findByTestId('unlink-work-item-wi-100'));
+      await waitFor(() => expect(mockUnlinkWorkItem).toHaveBeenCalled());
+
+      const sizes = [...mockListWorkItems.mock.calls, ...mockListHouseholdItems.mock.calls].map(
+        (c) => c[0]?.pageSize,
+      );
+      expect(sizes.length).toBeGreaterThan(0);
+      expect(sizes.every((n) => n === 25 || n === 50)).toBe(true);
     });
   });
 });

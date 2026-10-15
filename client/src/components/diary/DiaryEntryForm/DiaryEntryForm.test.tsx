@@ -2,9 +2,11 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../../test/companySearchMock.js';
 import { render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { DiaryEntryFormProps } from './DiaryEntryForm.js';
+import { useState } from 'react';
 import type React from 'react';
 import type { ReactElement } from 'react';
 import { LocaleProvider } from '../../../contexts/LocaleContext.js';
@@ -21,14 +23,33 @@ function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
 }
 
 // Vendor search for the daily_log SearchPicker.
-const mockFetchVendors = jest.fn<(params?: unknown) => Promise<{ vendors: unknown[] }>>();
+const mockFetchVendors =
+  jest.fn<(params?: unknown, options?: unknown) => Promise<{ vendors: unknown[] }>>();
 jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(
+    mockFetchVendors as unknown as Parameters<typeof makeSearchCompanies>[0],
+  ),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
 }));
+
+/** The host owns the vendor id, as the pages do: a change is stored and fed back as the value. */
+function VendorOwningForm(props: DiaryEntryFormProps) {
+  const [vendorId, setVendorId] = useState<string | null>(props.dailyLogVendorId ?? null);
+  return (
+    <DiaryEntryForm
+      {...props}
+      dailyLogVendorId={vendorId}
+      onDailyLogVendorIdChange={(id) => {
+        setVendorId(id);
+        props.onDailyLogVendorIdChange?.(id);
+      }}
+    />
+  );
+}
 
 // DiaryEntryForm has no API deps — import directly after declaring module scope
 let DiaryEntryForm: React.ComponentType<DiaryEntryFormProps>;
@@ -1169,12 +1190,14 @@ describe('DiaryEntryForm', () => {
       const user = userEvent.setup();
       const onDailyLogVendorIdChange = jest.fn();
       render(
-        <DiaryEntryForm {...makeProps({ entryType: 'daily_log', onDailyLogVendorIdChange })} />,
+        <VendorOwningForm {...makeProps({ entryType: 'daily_log', onDailyLogVendorIdChange })} />,
       );
       await user.click(document.getElementById('daily-log-vendor')!);
       await user.click(await screen.findByRole('option', { name: 'Acme Concrete' }));
       expect(onDailyLogVendorIdChange).toHaveBeenCalledWith('v-1');
-      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }));
+      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }), {
+        signal: expect.any(AbortSignal),
+      });
 
       await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
       expect(onDailyLogVendorIdChange).toHaveBeenLastCalledWith(null);
@@ -1195,7 +1218,7 @@ describe('DiaryEntryForm', () => {
       ) {
         return render(
           <CompanyCreateContext value={request}>
-            <DiaryEntryForm {...makeProps({ entryType: 'daily_log', ...props })} />
+            <VendorOwningForm {...makeProps({ entryType: 'daily_log', ...props })} />
           </CompanyCreateContext>,
         );
       }

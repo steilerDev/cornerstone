@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type {
   HouseholdItemDetail,
   HouseholdItemListQuery,
@@ -13,6 +14,7 @@ import type {
  */
 export function listHouseholdItems(
   params?: HouseholdItemListQuery,
+  options?: RequestOptions,
 ): Promise<HouseholdItemListResponse> {
   const queryParams = new URLSearchParams();
 
@@ -65,7 +67,7 @@ export function listHouseholdItems(
   const queryString = queryParams.toString();
   const path = queryString ? `/household-items?${queryString}` : '/household-items';
 
-  return get<HouseholdItemListResponse>(path);
+  return get<HouseholdItemListResponse>(path, options);
 }
 
 /**

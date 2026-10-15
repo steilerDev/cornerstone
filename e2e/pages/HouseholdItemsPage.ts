@@ -45,6 +45,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CompanyFilterControl } from './components/CompanyFilterControl.js';
 
 export const HOUSEHOLD_ITEMS_ROUTE = routeUrl('householdItems');
 
@@ -62,6 +63,8 @@ export class HouseholdItemsPage {
   readonly areaFilterContainer: Locator;
   readonly statusFilter: Locator;
   readonly vendorFilter: Locator;
+  /** The Vendor column's company filter (entity filter, search the server). */
+  readonly companyFilter: CompanyFilterControl;
   readonly sortFilter: Locator;
   readonly sortOrderButton: Locator;
 
@@ -103,6 +106,7 @@ export class HouseholdItemsPage {
     this.categoryFilter = page.getByRole('button', { name: 'Filter by Category' });
     this.statusFilter = page.getByRole('button', { name: 'Filter by Status' });
     this.vendorFilter = page.getByRole('button', { name: 'Filter by Vendor' });
+    this.companyFilter = new CompanyFilterControl(page, 'vendorId');
 
     // Area column filter button — the Area column is filterable via DataTable enum filter.
     // areaFilterContainer: the Area column filter button (always present when Area col is visible).

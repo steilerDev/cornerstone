@@ -153,10 +153,6 @@ async function setDarkMode(page: Page): Promise<void> {
 }
 
 /** Matches a formatted amount like "250.00" / "250,00" regardless of locale/currency. */
-function escapeForRegExp(text: string): string {
-  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-}
-
 function amountRegex(whole: number): RegExp {
   return new RegExp(`${whole}[.,]00`);
 }
@@ -513,22 +509,27 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       const modal = wi.invoiceLinkModal;
       await expect(modal).toBeVisible();
 
-      // Preselected: the first invoice that still has room. Other workers create invoices dated
+      // Preselected: the first invoice that still has room, shown as the picker's selected chip
+      // (a SearchPicker with a value has no input to read). Other workers create invoices dated
       // in 2099 too, so the first row with room may be theirs: the check below compares the
       // preselection with the list order instead of naming our own invoice.
-      const search = modal.locator('#invoice-search');
-      await expect(search).not.toHaveValue('');
+      const picker = wi.invoiceLinkPicker;
+      await expect(wi.invoiceLinkSelected).toBeVisible();
+      await expect(wi.invoiceLinkSelected).toContainText('#');
+      const preselected = ((await wi.invoiceLinkSelected.textContent()) ?? '').trim();
       await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
 
       // No warning styling on open
       await expect(modal.locator('[class*="Warning"]')).toHaveCount(0);
 
-      // Open the list: rows are compact and several fit
-      await search.focus();
-      const list = modal.locator('[class*="dropdownList"]');
+      // Open the list: clearing the chip brings the input back, focusing it lists the invoices
+      await picker.clearButton.click();
+      await picker.input.click();
+      const list = wi.page.locator('[data-search-picker-dropdown]');
       await expect(list).toBeVisible();
-      const rows = list.locator('[data-testid^="invoice-link-option-"]');
+      const rows = list.locator('[role="option"]');
       await expect(rows.first()).toBeVisible();
+      await expect(wi.invoiceLinkOption(s.otherInvoiceId)).toBeVisible();
 
       const listBox = await list.boundingBox();
       expect(listBox).not.toBeNull();
@@ -555,9 +556,9 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       }
       expect(firstWithRoom, 'some invoice has room').toBeGreaterThanOrEqual(0);
       const firstNumber = (
-        (await allRows[firstWithRoom]!.locator('[class*="dropdownItemNumber"]').textContent()) ?? ''
+        (await allRows[firstWithRoom]!.locator('[class*="resultTitle"]').textContent()) ?? ''
       ).trim();
-      await expect(search).toHaveValue(new RegExp(escapeForRegExp(firstNumber)));
+      expect(preselected).toContain(firstNumber);
       // Our own invoices keep their order: FULL (skipped) before REM before OTHER
       const ours = [s.fullInvoiceId, s.remInvoiceId, s.otherInvoiceId].map((id) =>
         optionIds.indexOf(`invoice-link-option-${id}`),
@@ -575,21 +576,22 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
       // Row amount stays on the same line as the invoice number (no wrapping, also at 375px)
       const numberBox = await wi
         .invoiceLinkOption(s.remInvoiceId)
-        .locator('[class*="dropdownItemNumber"]')
+        .locator('[class*="resultTitle"]')
         .boundingBox();
       const amountBox = await wi
         .invoiceLinkOption(s.remInvoiceId)
-        .locator('[class*="dropdownItemAmount"]')
+        .locator('[class*="resultTrailing"]')
         .boundingBox();
       expect(numberBox).not.toBeNull();
       expect(amountBox).not.toBeNull();
-      const numberMid = numberBox!.y + numberBox!.height / 2;
-      const amountMid = amountBox!.y + amountBox!.height / 2;
-      expect(Math.abs(numberMid - amountMid)).toBeLessThanOrEqual(6);
+      // One line (a wrapped amount would be two lines tall), beside the number, not below it
+      expect(amountBox!.height).toBeLessThanOrEqual(28);
+      expect(amountBox!.x).toBeGreaterThan(numberBox!.x);
+      expect(amountBox!.y).toBeLessThan(numberBox!.y + numberBox!.height);
 
-      // Keyboard: Tab from the search lands on the first row button
-      await search.focus();
-      await page.keyboard.press('Tab');
+      // Keyboard: ArrowDown from the search input lands on the first row
+      await picker.input.focus();
+      await page.keyboard.press('ArrowDown');
       await expect(rows.first()).toBeFocused();
     },
   );
@@ -605,8 +607,11 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     const modal = wi.invoiceLinkModal;
     await expect(modal).toBeVisible();
 
-    await modal.locator('#invoice-search').focus();
+    // Clearing the preselection lists the invoices; the full one is picked from the list
+    await wi.invoiceLinkPicker.clearButton.click();
+    await wi.invoiceLinkPicker.input.click();
     await wi.invoiceLinkOption(s.fullInvoiceId).click();
+    await expect(wi.invoiceLinkSelected).toBeVisible();
 
     await expect(modal.getByText(/Fully allocated/)).toBeVisible();
     await expect(
@@ -614,6 +619,61 @@ test.describe('Money truth — Link to Invoice modal (AC7)', { tag: '@responsive
     ).toBeDisabled();
     // Neutral: neither the over-allocation warning nor the red amount indicator is present
     await expect(modal.locator('[class*="Warning"]')).toHaveCount(0);
+  });
+
+  test('An invoice beyond the first 50 is found by typing its number and can be linked', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.slow();
+    const stamp = Date.now();
+    const vendorId = await makeVendor(page, `${testPrefix} Far Co ${stamp}`);
+    // 51 invoices dated after the target push it out of the 50 the list shows by default
+    // (newest first). The shared database may hold more; it can only push the target further.
+    const fillerNumbers = Array.from({ length: 51 }, (_, i) => `${testPrefix}-FF${i}-${stamp}`);
+    for (let i = 0; i < fillerNumbers.length; i += 10) {
+      await Promise.all(
+        fillerNumbers
+          .slice(i, i + 10)
+          .map((invoiceNumber) =>
+            makeInvoice(page, vendorId, { invoiceNumber, amount: 1, date: '2098-06-01' }),
+          ),
+      );
+    }
+    const farNumber = `${testPrefix}-FAR-${stamp}`;
+    const farId = await makeInvoice(page, vendorId, {
+      invoiceNumber: farNumber,
+      amount: 500,
+      date: '1990-01-01',
+    });
+    const workItemId = await makeWorkItem(page, `${testPrefix} Far WI ${stamp}`);
+    await makeBudgetLine(page, workItemId, {
+      plannedAmount: 100,
+      includesVat: true,
+      description: 'Line to link far',
+    });
+
+    const wi = new WorkItemDetailPage(page);
+    await wi.goto(workItemId);
+    await wi.linkToInvoiceButton.click();
+    const modal = wi.invoiceLinkModal;
+    await expect(modal).toBeVisible();
+    const picker = wi.invoiceLinkPicker;
+
+    // The default list stops at 50 invoices: the far one is not in it
+    await picker.clearButton.click();
+    await picker.input.click();
+    await expect(picker.dropdown.getByRole('option').first()).toBeVisible();
+    await expect(wi.invoiceLinkOption(farId)).toHaveCount(0);
+
+    // Typing its number asks the server and finds it
+    await picker.pick(farNumber);
+    await expect(wi.invoiceLinkSelected).toContainText(farNumber);
+    await expect(modal.getByText(/available on this invoice/i)).toBeVisible();
+
+    await modal.getByRole('button', { name: 'Link to Invoice', exact: true }).click();
+    await expect(modal).toBeHidden();
+    await expect(wi.linkToInvoiceButton).toHaveCount(0);
   });
 });
 

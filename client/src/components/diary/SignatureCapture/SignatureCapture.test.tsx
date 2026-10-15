@@ -15,10 +15,12 @@
  * `ctx.fillText` calls can be exercised and asserted on directly.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import type { ReactElement } from 'react';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import type * as SignatureCaptureModule from './SignatureCapture.js';
+import type * as VendorsApiTypes from '../../../lib/vendorsApi.js';
 import { LocaleProvider } from '../../../contexts/LocaleContext.js';
 
 /**
@@ -29,6 +31,19 @@ import { LocaleProvider } from '../../../contexts/LocaleContext.js';
 function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
   return rtlRender(<LocaleProvider>{ui}</LocaleProvider>, options);
 }
+
+// ─── Company search (server) ────────────────────────────────────────────────
+
+const mockSearchCompanies = jest.fn<typeof VendorsApiTypes.searchCompanies>();
+
+jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
+  searchCompanies: mockSearchCompanies,
+}));
+
+const COMPANIES = [
+  { id: 'v-1', name: 'ACME Roofing' },
+  { id: 'v-2', name: 'BuildCo' },
+] as unknown as Awaited<ReturnType<typeof VendorsApiTypes.searchCompanies>>;
 
 // ─── Canvas 2D context stub ─────────────────────────────────────────────────
 
@@ -108,6 +123,8 @@ beforeEach(() => {
   })) as unknown as typeof Element.prototype.getBoundingClientRect;
 
   localStorage.clear();
+  mockSearchCompanies.mockReset();
+  mockSearchCompanies.mockResolvedValue(COMPANIES);
 });
 
 afterEach(() => {
@@ -142,6 +159,22 @@ function makeProps(
     signerType: 'self' as const,
     ...overrides,
   };
+}
+
+/** The company picker's input (labelled "Vendor"; the radio of the same name is not a textbox). */
+const companyInput = () => screen.getByRole('textbox', { name: 'Vendor' });
+
+/** Opens the company picker and chooses the "Other..." free-text entry. */
+async function chooseOther() {
+  await userEvent.click(companyInput());
+  await userEvent.click(await screen.findByRole('option', { name: 'Other...' }));
+  return screen.findByPlaceholderText('Enter vendor name');
+}
+
+/** Opens the company picker and chooses a searched company by name. */
+async function chooseCompany(name: string) {
+  await userEvent.click(companyInput());
+  await userEvent.click(await screen.findByRole('option', { name }));
 }
 
 /** Draws a short stroke on the canvas (mouseDown + mouseMove) to set hasStrokes=true. */
@@ -419,19 +452,18 @@ describe('SignatureCapture', () => {
       expect(labelText).toContain('Carla Vendor');
     });
 
-    it('vendor signer type composes displayName as "vendorName (signatoryName)"', () => {
+    it('vendor signer type composes displayName as "vendorName (signatoryName)"', async () => {
       const onSignatureChange = jest.fn();
       render(
         <SignatureCapture
           {...makeProps({
             onSignatureChange,
             signerType: 'vendor',
-            vendors: [],
           })}
         />,
       );
-      // No vendors provided → freeform vendor name input renders
-      const vendorInput = screen.getByPlaceholderText('Enter vendor name');
+      // The "Other..." entry reveals the free-text vendor name input
+      const vendorInput = await chooseOther();
       fireEvent.change(vendorInput, { target: { value: 'ACME Roofing' } });
       const signatoryInput = screen.getByPlaceholderText(
         'Name of person signing on behalf of vendor',
@@ -449,7 +481,7 @@ describe('SignatureCapture', () => {
     });
 
     it('Accept button stays disabled for vendor signer type until vendor + signatory names are filled', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
       const canvas = screen.getByLabelText('Signature canvas');
       drawStroke(canvas);
       // hasStrokes=true but vendor info missing → still disabled
@@ -503,77 +535,122 @@ describe('SignatureCapture', () => {
       expect(onSignerTypeChange).toHaveBeenCalledWith('vendor');
     });
 
-    it('resets vendor selection state when switching signer type', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
-      const vendorInput = screen.getByPlaceholderText('Enter vendor name');
+    it('resets vendor selection state when switching signer type', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      const vendorInput = await chooseOther();
       fireEvent.change(vendorInput, { target: { value: 'ACME' } });
       expect((vendorInput as HTMLInputElement).value).toBe('ACME');
 
       fireEvent.click(screen.getByRole('radio', { name: 'Self' }));
       // Switching away and back clears the local vendorName state
       fireEvent.click(screen.getByRole('radio', { name: 'Vendor' }));
-      const vendorInputAfter = screen.getByPlaceholderText('Enter vendor name') as HTMLInputElement;
+      // The picker is empty again and the free-text input is gone until "Other..." is chosen
+      expect(screen.queryByPlaceholderText('Enter vendor name')).not.toBeInTheDocument();
+      expect(companyInput()).toHaveValue('');
+      const vendorInputAfter = (await chooseOther()) as HTMLInputElement;
       expect(vendorInputAfter.value).toBe('');
     });
   });
 
-  // ── vendor select dropdown (existing vendors list) ────────────────────────
+  // ── company picker (server search) ────────────────────────────────────────
 
-  describe('vendor select dropdown', () => {
-    const vendors = [
-      { id: 'v-1', name: 'ACME Roofing' },
-      { id: 'v-2', name: 'BuildCo' },
-    ];
+  describe('company picker', () => {
+    it('lists companies from the server only once the picker is focused', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      expect(mockSearchCompanies).not.toHaveBeenCalled();
 
-    it('renders a select with vendor options plus "Other..." when vendors are provided', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors })} />);
-      const select = screen.getByRole('combobox') as HTMLSelectElement;
-      expect(select).toBeInTheDocument();
-      expect(screen.getByRole('option', { name: 'ACME Roofing' })).toBeInTheDocument();
+      await userEvent.click(companyInput());
+
+      expect(await screen.findByRole('option', { name: 'ACME Roofing' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'BuildCo' })).toBeInTheDocument();
       expect(screen.getByRole('option', { name: 'Other...' })).toBeInTheDocument();
+      expect(mockSearchCompanies).toHaveBeenCalledWith('', expect.any(AbortSignal));
     });
 
-    it('selecting a vendor from the list populates vendorName (no freeform input shown)', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors })} />);
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: 'v-1' } });
-      // No freeform "Enter vendor name" input appears for a selected known vendor
+    it('finds a company by typing (the query reaches the server)', async () => {
+      mockSearchCompanies.mockImplementation(async (q) =>
+        q === 'zeta'
+          ? ([{ id: 'v-250', name: 'Zeta Tiling' }] as unknown as typeof COMPANIES)
+          : COMPANIES,
+      );
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+
+      await userEvent.type(companyInput(), 'zeta');
+
+      expect(await screen.findByRole('option', { name: 'Zeta Tiling' })).toBeInTheDocument();
+      expect(mockSearchCompanies).toHaveBeenCalledWith('zeta', expect.any(AbortSignal));
+    });
+
+    it('selecting a company shows no free-text input and keeps focus on a control, not body', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+
+      await chooseCompany('ACME Roofing');
+
       expect(screen.queryByPlaceholderText('Enter vendor name')).not.toBeInTheDocument();
+      expect(screen.getByText('ACME Roofing')).toBeInTheDocument();
+      await waitFor(() => expect(document.activeElement).not.toBe(document.body));
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Clear selection' }));
     });
 
-    it('selecting "Other..." reveals the freeform vendor name input and accepts typed text', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors })} />);
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '__other__' } });
-      const freeform = screen.getByPlaceholderText('Enter vendor name') as HTMLInputElement;
-      expect(freeform).toBeInTheDocument();
+    it('"Other..." reveals the free-text input, labelled by its aria-label, and accepts text', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+
+      const freeform = (await chooseOther()) as HTMLInputElement;
+
+      expect(screen.getByLabelText('Enter vendor name')).toBe(freeform);
       fireEvent.change(freeform, { target: { value: 'Custom Vendor Co' } });
       expect(freeform.value).toBe('Custom Vendor Co');
     });
 
-    it('resetting the select to empty clears vendorName and hides the freeform input', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors })} />);
-      const select = screen.getByRole('combobox');
-      fireEvent.change(select, { target: { value: '__other__' } });
-      expect(screen.getByPlaceholderText('Enter vendor name')).toBeInTheDocument();
+    it('clearing the choice hides the free-text input and resets the names', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      const freeform = await chooseOther();
+      fireEvent.change(freeform, { target: { value: 'Custom Vendor Co' } });
+      fireEvent.change(screen.getByPlaceholderText('Name of person signing on behalf of vendor'), {
+        target: { value: 'Pat' },
+      });
 
-      fireEvent.change(select, { target: { value: '' } });
+      await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+
       expect(screen.queryByPlaceholderText('Enter vendor name')).not.toBeInTheDocument();
+      expect(
+        (
+          screen.getByPlaceholderText(
+            'Name of person signing on behalf of vendor',
+          ) as HTMLInputElement
+        ).value,
+      ).toBe('');
+      expect(companyInput()).toHaveValue('');
     });
 
-    it('completing a full vendor-from-list + signatory flow enables Accept and submits correctly', () => {
+    it('choosing another company clears the signatory name', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      await chooseCompany('ACME Roofing');
+      fireEvent.change(screen.getByPlaceholderText('Name of person signing on behalf of vendor'), {
+        target: { value: 'Pat' },
+      });
+
+      await userEvent.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await chooseCompany('BuildCo');
+
+      expect(
+        (
+          screen.getByPlaceholderText(
+            'Name of person signing on behalf of vendor',
+          ) as HTMLInputElement
+        ).value,
+      ).toBe('');
+    });
+
+    it('a full company-from-search + signatory flow enables Accept and composes "company (signatory)"', async () => {
       const onSignatureChange = jest.fn();
-      render(
-        <SignatureCapture {...makeProps({ signerType: 'vendor', vendors, onSignatureChange })} />,
-      );
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: 'v-2' } });
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', onSignatureChange })} />);
+      await chooseCompany('BuildCo');
       fireEvent.change(screen.getByPlaceholderText('Name of person signing on behalf of vendor'), {
         target: { value: 'Pat Signer' },
       });
 
-      const canvas = screen.getByLabelText('Signature canvas');
-      drawStroke(canvas);
+      drawStroke(screen.getByLabelText('Signature canvas'));
       expect(screen.getByRole('button', { name: 'Accept Signature' })).not.toBeDisabled();
 
       fireEvent.click(screen.getByRole('button', { name: 'Accept Signature' }));
@@ -582,11 +659,35 @@ describe('SignatureCapture', () => {
       expect(entry.signerName).toBe('BuildCo (Pat Signer)');
     });
 
+    it('Accept stays disabled until both company and signatory are set', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      drawStroke(screen.getByLabelText('Signature canvas'));
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+
+      await chooseCompany('BuildCo');
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).toBeDisabled();
+
+      fireEvent.change(screen.getByPlaceholderText('Name of person signing on behalf of vendor'), {
+        target: { value: 'Pat' },
+      });
+      expect(screen.getByRole('button', { name: 'Accept Signature' })).not.toBeDisabled();
+    });
+
+    it('the picker is disabled when the capture is disabled', () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor', disabled: true })} />);
+      expect(companyInput()).toBeDisabled();
+    });
+
     it('shows a validation hint when vendor info is missing after drawing a stroke', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors })} />);
-      const canvas = screen.getByLabelText('Signature canvas');
-      drawStroke(canvas);
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      drawStroke(screen.getByLabelText('Signature canvas'));
       expect(screen.getByText('Both vendor and signatory name are required')).toBeInTheDocument();
+    });
+
+    it('does not fetch companies for the "self" signer type', () => {
+      render(<SignatureCapture {...makeProps({ currentUserName: 'Dana Owner' })} />);
+      expect(screen.queryByRole('textbox', { name: 'Vendor' })).not.toBeInTheDocument();
+      expect(mockSearchCompanies).not.toHaveBeenCalled();
     });
   });
 
@@ -675,23 +776,14 @@ describe('SignatureCapture', () => {
     const signatory = () =>
       screen.getByPlaceholderText('Name of person signing on behalf of vendor') as HTMLInputElement;
 
-    it('the free-text vendor name input is capped at 200 characters', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
-      expect(screen.getByPlaceholderText('Enter vendor name')).toHaveAttribute('maxlength', '200');
+    it('the "Other..." vendor name input is capped at 200 characters', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      expect(await chooseOther()).toHaveAttribute('maxlength', '200');
     });
 
-    it('the "Other..." vendor name input is capped at 200 characters', () => {
-      render(
-        <SignatureCapture
-          {...makeProps({ signerType: 'vendor', vendors: [{ id: 'v1', name: 'Acme' }] })}
-        />,
-      );
-      fireEvent.change(screen.getByRole('combobox'), { target: { value: '__other__' } });
-      expect(screen.getByPlaceholderText('Enter vendor name')).toHaveAttribute('maxlength', '200');
-    });
-
-    it('the signatory name leaves room for the composed "vendor (signatory)" within 300', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+    it('the signatory name leaves room for the composed "vendor (signatory)" within 300', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      await chooseOther();
       // empty vendor: 300 - 0 - 3 (" (" + ")")
       expect(signatory()).toHaveAttribute('maxlength', '297');
       fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
@@ -700,16 +792,18 @@ describe('SignatureCapture', () => {
       expect(signatory()).toHaveAttribute('maxlength', String(300 - 12 - 3));
     });
 
-    it('a 200-character vendor name still leaves the signatory a maxLength of 97', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+    it('a 200-character vendor name still leaves the signatory a maxLength of 97', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      await chooseOther();
       fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
         target: { value: 'v'.repeat(200) },
       });
       expect(signatory()).toHaveAttribute('maxlength', '97');
     });
 
-    it('the signatory maxLength never drops below 1', () => {
-      render(<SignatureCapture {...makeProps({ signerType: 'vendor', vendors: [] })} />);
+    it('the signatory maxLength never drops below 1', async () => {
+      render(<SignatureCapture {...makeProps({ signerType: 'vendor' })} />);
+      await chooseOther();
       // fireEvent bypasses the input maxlength, so an over-long vendor name can occur
       fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
         target: { value: 'v'.repeat(400) },
@@ -717,13 +811,10 @@ describe('SignatureCapture', () => {
       expect(signatory()).toHaveAttribute('maxlength', '1');
     });
 
-    it('the composed name for the longest allowed inputs is exactly 300 characters', () => {
+    it('the composed name for the longest allowed inputs is exactly 300 characters', async () => {
       const onSignatureChange = jest.fn();
-      render(
-        <SignatureCapture
-          {...makeProps({ onSignatureChange, signerType: 'vendor', vendors: [] })}
-        />,
-      );
+      render(<SignatureCapture {...makeProps({ onSignatureChange, signerType: 'vendor' })} />);
+      await chooseOther();
       fireEvent.change(screen.getByPlaceholderText('Enter vendor name'), {
         target: { value: 'v'.repeat(200) },
       });

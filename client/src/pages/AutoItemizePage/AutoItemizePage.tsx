@@ -784,7 +784,6 @@ export function AutoItemizePage() {
                 tSettings={tSettings}
                 onInlineDraftChange={handlers.onInlineDraftChange}
                 confidenceLabels={CONFIDENCE_LABELS}
-                vendors={picker.pickerState.vendors ?? []}
                 budgetCategories={picker.pickerState.categories ?? []}
                 selectedRowIds={selectedRowIds}
                 onToggleSelect={onToggleSelect}

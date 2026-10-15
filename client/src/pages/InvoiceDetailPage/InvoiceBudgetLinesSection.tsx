@@ -821,7 +821,6 @@ export function InvoiceBudgetLinesSection({
                             isEditing={false}
                             confidenceLabels={CONFIDENCE_LABELS}
                             budgetSources={picker.pickerState.budgetSources ?? []}
-                            vendors={picker.pickerState.vendors ?? []}
                             budgetCategories={
                               picker.pickerState.type === 'work_item'
                                 ? (picker.pickerState.categories ?? [])
@@ -1085,7 +1084,6 @@ export function InvoiceBudgetLinesSection({
             isMutating={isBudgetLineMutating}
             focusParentPicker={openedWithFocusParentPicker}
             budgetSources={picker.pickerState.budgetSources ?? []}
-            vendors={picker.pickerState.vendors ?? []}
             budgetCategories={picker.pickerState.categories ?? undefined}
             modalTitle={t('invoiceDetail.budgetLines.modal.editTitle')}
           />
@@ -1153,7 +1151,6 @@ function UnassignedEditModal({
         isEditing={true}
         confidenceLabels={CONFIDENCE_LABELS}
         budgetSources={[]}
-        vendors={[]}
         budgetCategories={
           line.categoryName
             ? ([

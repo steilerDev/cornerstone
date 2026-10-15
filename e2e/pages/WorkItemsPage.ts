@@ -23,6 +23,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CompanyFilterControl } from './components/CompanyFilterControl.js';
 
 export const WORK_ITEMS_ROUTE = routeUrl('workItems');
 
@@ -39,6 +40,8 @@ export class WorkItemsPage {
   readonly userFilter: Locator;
   readonly tagFilter: Locator;
   readonly areaFilter: Locator;
+  /** The Vendor column's company filter (a hidden-by-default column: `enableColumn('Vendor')`). */
+  readonly companyFilter: CompanyFilterControl;
   readonly sortFilter: Locator;
   readonly sortOrderButton: Locator;
 
@@ -96,6 +99,7 @@ export class WorkItemsPage {
     this.areaFilter = page.getByRole('button', { name: /Filter by Area/i });
     // sortFilter and sortOrderButton do not exist in DataTable — no standalone sort controls.
     // Sorting is triggered by clicking sortable column headers.
+    this.companyFilter = new CompanyFilterControl(page, 'assignedVendorId');
     this.sortFilter = page.locator('[aria-label="Column settings"]');
     this.sortOrderButton = page.locator('[aria-label="Column settings"]');
 
@@ -465,6 +469,21 @@ export class WorkItemsPage {
     await this.page.keyboard.press('Escape');
     // Wait for Area filter button to appear in the header
     await this.areaFilter.waitFor({ state: 'visible' });
+  }
+
+  /**
+   * Enable a hidden-by-default column (e.g. "Vendor") via the column settings gear. Desktop and
+   * tablet only: the gear is hidden below 768px.
+   */
+  async enableColumn(label: string): Promise<void> {
+    const gear = this.page.getByRole('button', { name: 'Column settings', exact: true });
+    await gear.waitFor({ state: 'visible' });
+    await gear.click();
+    const checkbox = this.page.getByRole('checkbox', { name: label, exact: true });
+    await checkbox.waitFor({ state: 'visible' });
+    if (!(await checkbox.isChecked())) await checkbox.click();
+    await this.page.keyboard.press('Escape');
+    await checkbox.waitFor({ state: 'hidden' });
   }
 
   /**

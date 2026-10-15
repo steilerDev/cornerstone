@@ -85,7 +85,6 @@ function makePickerState(overrides: Partial<PickerState> = {}): PickerState {
     error: null,
     budgetLines: [],
     budgetSources: null,
-    vendors: null,
     categories: null,
     showCreateForm: false,
     createForm: undefined,
@@ -552,7 +551,7 @@ describe('BudgetLinePickerModal', () => {
   });
 
   it('create form renders with budgetSources from pickerState when non-null', () => {
-    // Lines 98-99: budgetSources ?? [] and vendors ?? [] — non-null paths
+    // budgetSources ?? [] — non-null path
     renderModal({
       step: 2,
       type: 'work_item',
@@ -566,7 +565,6 @@ describe('BudgetLinePickerModal', () => {
       budgetSources: [
         { id: 'src-1', name: 'Main Fund' },
       ] as unknown as PickerState['budgetSources'],
-      vendors: [{ id: 'v-1', name: 'Builder Corp' }] as unknown as PickerState['vendors'],
     });
     expect(screen.getByTestId('budget-line-form')).toBeInTheDocument();
   });

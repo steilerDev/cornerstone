@@ -20,8 +20,7 @@
   color: var(--color-text-primary);
 }
 
-.input,
-.searchInput {
+.input {
   padding: var(--spacing-2-5) var(--spacing-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
@@ -34,15 +33,13 @@
   box-sizing: border-box;
 }
 
-.input:focus-visible,
-.searchInput:focus-visible {
+.input:focus-visible {
   outline: none;
   border-color: var(--color-primary);
   box-shadow: inset 0 0 0 2px var(--color-focus-ring-subtle);
 }
 
-.input:disabled,
-.searchInput:disabled {
+.input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -56,111 +53,14 @@
   box-shadow: inset 0 0 0 2px var(--color-focus-ring-danger);
 }
 
-/* ─── Searchable Invoice Dropdown ──────────────────────────────────────── */
+/* ─── Invoice picker trailing status ───────────────────────────────────── */
 
-.searchWrapper {
-  position: relative;
-}
-
-.dropdownList {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border);
-  border-top: none;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  box-shadow: var(--shadow-md);
-  max-height: 264px;
-  overflow-y: auto;
-  z-index: var(--z-dropdown);
-}
-
-.dropdownItem {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-3);
-  min-height: 44px;
-  padding: var(--spacing-2) var(--spacing-3);
-  width: 100%;
-  border: none;
-  background: transparent;
-  color: var(--color-text-primary);
-  font-size: var(--font-size-sm);
-  text-align: left;
-  cursor: pointer;
-  transition: var(--transition-button);
-  border-bottom: 1px solid var(--color-border);
-}
-
-.dropdownItem:last-child {
-  border-bottom: none;
-}
-
-.dropdownItem:hover:not(.dropdownItemActive) {
-  background: var(--color-bg-secondary);
-}
-
-.dropdownItem:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-}
-
-.dropdownItemActive {
-  background: var(--color-primary);
-  color: var(--color-primary-text);
-}
-
-.dropdownItemMain {
-  display: flex;
-  align-items: baseline;
-  gap: var(--spacing-2);
-  min-width: 0;
-  flex: 1 1 auto;
-  overflow: hidden;
-  white-space: nowrap;
-}
-
-.dropdownItemNumber {
-  font-weight: var(--font-weight-semibold);
-  color: inherit;
-  flex-shrink: 0;
-}
-
-.dropdownItemVendor {
+/* The remaining amount stays on one line; the status phrase wraps inside the trailing slot. */
+.amountDone {
+  display: block;
   color: var(--color-text-muted);
-  font-size: var(--font-size-xs);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-}
-
-.dropdownItemAmount {
-  flex-shrink: 0;
-  font-size: var(--font-size-sm);
-  color: inherit;
-  font-variant-numeric: tabular-nums;
+  white-space: normal;
   text-align: right;
-  white-space: nowrap;
-}
-
-.dropdownItemDone .dropdownItemAmount {
-  color: var(--color-text-muted);
-}
-
-.dropdownItemActive .dropdownItemVendor,
-.dropdownItemActive .dropdownItemAmount {
-  color: var(--color-primary-text);
-}
-
-.dropdownEmpty {
-  padding: var(--spacing-4) var(--spacing-3);
-  text-align: center;
-  color: var(--color-text-muted);
-  font-size: var(--font-size-sm);
 }
 
 /* ─── Remaining Amount Info ───────────────────────────────────────────── */
@@ -261,9 +161,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dropdownItem,
   .input,
-  .searchInput,
   .cancelButton,
   .submitButton {
     transition: none;

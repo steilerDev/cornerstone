@@ -44,13 +44,20 @@ export function DataTableHeader<T>({
       const target = e.target as HTMLElement;
       if (
         !target.closest(`.${styles.filterPopover}`) &&
+        !target.closest('[data-search-picker-dropdown]') &&
         !target.closest(`.${styles.tableHeaderFilterButton}`)
       ) {
         setActiveFilterColumn(null);
       }
     };
     const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setActiveFilterColumn(null);
+      if (e.key !== 'Escape') return;
+      // Keep focus off <body>: return it to the column's filter button when it was inside the popover
+      const active = document.activeElement;
+      if (active instanceof HTMLElement && active.closest(`.${styles.filterPopover}`)) {
+        filterTriggerRef.current[activeFilterColumn]?.focus();
+      }
+      setActiveFilterColumn(null);
     };
     document.addEventListener('mousedown', handleClickOutside);
     document.addEventListener('keydown', handleEscape);

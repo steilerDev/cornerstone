@@ -1,5 +1,5 @@
 import { describe, it, expect, jest } from '@jest/globals';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ColumnDef, TableState } from './DataTable.js';
 import { DataTableHeader } from './DataTableHeader.js';
@@ -403,6 +403,112 @@ describe('DataTableHeader', () => {
       });
       const btn = screen.getByRole('button', { name: /filter by title/i });
       expect(btn).not.toBeDisabled();
+    });
+  });
+
+  describe('entity filter popover (server-searching picker)', () => {
+    const ENTITY_COLUMNS: ColumnDef<TestItem>[] = [
+      {
+        key: 'title',
+        label: 'Company',
+        filterable: true,
+        filterType: 'entity',
+        filterParamKey: 'vendorId',
+        entitySearchFn: async () => [{ id: 'v-1', name: 'Acme Roofing' }],
+        entityRenderItem: (item) => ({
+          id: (item as { id: string }).id,
+          label: (item as { name: string }).name,
+        }),
+        entitySelectedLabel: undefined,
+        render: (item) => item.title,
+      },
+    ];
+
+    async function openEntityFilter(onFilter = jest.fn()) {
+      const user = userEvent.setup();
+      renderHeader({
+        columns: ENTITY_COLUMNS,
+        visibleColumns: new Set(['title']),
+        onFilter,
+      });
+      const filterBtn = screen.getByRole('button', { name: /filter by company/i });
+      await user.click(filterBtn);
+      return { user, filterBtn, onFilter };
+    }
+
+    it('keeps the popover open when an option of the picker dropdown is clicked', async () => {
+      const { user, onFilter } = await openEntityFilter();
+
+      await user.click(within(screen.getByRole('dialog')).getByRole('textbox'));
+      await user.click(await screen.findByRole('option', { name: 'Acme Roofing' }));
+
+      expect(onFilter).toHaveBeenCalledWith('vendorId', 'v-1');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('closes the popover on a mousedown outside it and outside the picker dropdown', async () => {
+      const { user } = await openEntityFilter();
+      await user.click(within(screen.getByRole('dialog')).getByRole('textbox'));
+      await screen.findByRole('option', { name: 'Acme Roofing' });
+
+      await user.click(document.body);
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('Escape inside the popover closes it and focuses the column filter button', async () => {
+      const { user, filterBtn } = await openEntityFilter();
+      const input = within(screen.getByRole('dialog')).getByRole('textbox');
+      await user.click(input);
+      expect(document.activeElement).toBe(input);
+
+      // The first Escape closes the picker's own dropdown, the second closes the popover
+      fireEvent.keyDown(input, { key: 'Escape' });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      fireEvent.keyDown(input, { key: 'Escape' });
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(filterBtn);
+    });
+
+    it('Escape from an option of the open dropdown also returns focus to the filter button', async () => {
+      const { user, filterBtn } = await openEntityFilter();
+      await user.click(within(screen.getByRole('dialog')).getByRole('textbox'));
+      await screen.findByRole('option', { name: 'Acme Roofing' });
+
+      await user.keyboard('{ArrowDown}');
+      expect(document.activeElement).toBe(screen.getByRole('option', { name: 'Acme Roofing' }));
+      // The first Escape closes the dropdown and returns focus to the input, the second closes
+      // the popover
+      await user.keyboard('{Escape}');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(document.activeElement).not.toBe(document.body);
+      expect(document.activeElement).toBe(filterBtn);
+    });
+
+    it('Escape with focus outside the popover closes it without moving focus', async () => {
+      const { user } = await openEntityFilter();
+      const outside = document.createElement('button');
+      document.body.appendChild(outside);
+      outside.focus();
+
+      await user.keyboard('{Escape}');
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(outside);
+      outside.remove();
+    });
+
+    it('other keys do not close the popover', async () => {
+      await openEntityFilter();
+
+      fireEvent.keyDown(document, { key: 'a' });
+      fireEvent.keyDown(document, { key: 'Enter' });
+
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
   });
 });

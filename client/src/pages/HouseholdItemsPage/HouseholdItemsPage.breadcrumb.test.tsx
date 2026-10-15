@@ -10,6 +10,7 @@
  */
 
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { screen, waitFor, render } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
@@ -51,6 +52,7 @@ const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

@@ -5,7 +5,9 @@ import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Modal } from '../Modal/Modal.js';
-import { SearchPicker, type SearchPickerCreateAction } from './SearchPicker.js';
+import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
+import type { SearchPicker } from './SearchPicker.js';
+import { type SearchPickerCreateAction } from './SearchPicker.js';
 
 interface TestItem {
   id: string;
@@ -17,7 +19,8 @@ const sampleItems: TestItem[] = [
   { id: 'item-2', label: 'Beta Gadget' },
 ];
 
-const mockSearchFn = jest.fn<(query: string, excludeIds: string[]) => Promise<TestItem[]>>();
+const mockSearchFn =
+  jest.fn<(query: string, excludeIds: string[], signal: AbortSignal) => Promise<TestItem[]>>();
 const mockRenderItem = (item: TestItem) => ({ id: item.id, label: item.label });
 const mockOnChange = jest.fn<(id: string) => void>();
 const mockOnSelectItem = jest.fn<(item: { id: string; label: string }) => void>();
@@ -33,7 +36,7 @@ function renderPicker(
   withCreate = true,
 ) {
   return render(
-    <SearchPicker<TestItem>
+    <ControlledSearchPicker<TestItem>
       value=""
       onChange={mockOnChange}
       onSelectItem={mockOnSelectItem}
@@ -87,7 +90,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       await waitFor(() => {
         expect(screen.getByText('Alpha Widget')).toBeInTheDocument();
       });
-      expect(mockSearchFn).toHaveBeenCalledWith('', []);
+      expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
       const options = await screen.findAllByRole('option');
       expect(options).toHaveLength(3);
       expect(options[options.length - 1]).toHaveAccessibleName('Add new');
@@ -338,7 +341,7 @@ describe('SearchPicker createAction (Story #2148)', () => {
       onModalClose.mockReset();
       return render(
         <Modal title="Host" onClose={onModalClose}>
-          <SearchPicker<TestItem>
+          <ControlledSearchPicker<TestItem>
             value=""
             onChange={mockOnChange}
             excludeIds={[]}
@@ -458,7 +461,9 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
 
-      await waitFor(() => expect(mockSearchFn).toHaveBeenCalledWith('Gamma', []));
+      await waitFor(() =>
+        expect(mockSearchFn).toHaveBeenCalledWith('Gamma', [], expect.any(AbortSignal)),
+      );
       expect(createRow()).not.toBeInTheDocument();
     });
 
@@ -470,7 +475,9 @@ describe('SearchPicker createAction (Story #2148)', () => {
 
       await user.type(screen.getByPlaceholderText('Search...'), 'Gamma');
 
-      await waitFor(() => expect(mockSearchFn).toHaveBeenCalledWith('Gamma', []));
+      await waitFor(() =>
+        expect(mockSearchFn).toHaveBeenCalledWith('Gamma', [], expect.any(AbortSignal)),
+      );
       expect(await screen.findByText('Failed to search items')).toBeInTheDocument();
       expect(createRow()).not.toBeInTheDocument();
     });

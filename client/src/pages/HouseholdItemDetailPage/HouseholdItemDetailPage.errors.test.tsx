@@ -6,6 +6,7 @@
  * handlers can be invoked directly.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, waitFor, act, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { OriginProbe, probedOrigin, probedPath } from '../../test/originProbe.js';
@@ -171,6 +172,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

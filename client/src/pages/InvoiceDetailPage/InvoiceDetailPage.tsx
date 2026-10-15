@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import type { Invoice, InvoiceStatus } from '@cornerstone/shared';
 import { fetchInvoiceById, updateInvoice, deleteInvoice } from '../../lib/invoicesApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
+import { searchCompanies } from '../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { ApiClientError } from '../../lib/apiClient.js';
@@ -532,10 +532,7 @@ export function InvoiceDetailPage() {
                   excludeIds={[]}
                   disabled={isUpdating}
                   placeholder={t('invoiceDetail.form.placeholders.vendor')}
-                  searchFn={async (query) => {
-                    const res = await fetchVendors({ q: query, pageSize: 50 });
-                    return res.vendors;
-                  }}
+                  searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
                   renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   showItemsOnFocus
                   initialTitle={editForm.vendorName}

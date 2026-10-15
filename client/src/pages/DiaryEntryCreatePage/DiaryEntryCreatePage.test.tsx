@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -50,18 +51,24 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+const mockFetchVendors = jest
+  .fn<
+    (
+      params?: unknown,
+      options?: unknown,
+    ) => Promise<{
+      vendors: never[];
+      pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+    }>
+  >()
+  .mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
+  });
+
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest
-    .fn<
-      (params?: unknown) => Promise<{
-        vendors: unknown[];
-        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
-      }>
-    >()
-    .mockResolvedValue({
-      vendors: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    }),
+  fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

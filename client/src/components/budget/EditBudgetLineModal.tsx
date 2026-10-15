@@ -1,7 +1,8 @@
 import { type FormEvent } from 'react';
-import type { BudgetCategory, BudgetSource, ConfidenceLevel, Vendor } from '@cornerstone/shared';
+import type { BudgetCategory, BudgetSource, ConfidenceLevel } from '@cornerstone/shared';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import { BudgetLineForm } from './BudgetLineForm.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { Modal } from '../Modal/Modal.js';
 
 /**
@@ -39,7 +40,6 @@ export interface EditBudgetLineModalProps {
   isMutating: boolean;
   focusParentPicker?: boolean;
   budgetSources: BudgetSource[];
-  vendors: Vendor[];
   budgetCategories?: BudgetCategory[];
   confidenceLabels?: Record<ConfidenceLevel, string>;
   modalTitle: string;
@@ -58,11 +58,12 @@ export function EditBudgetLineModal({
   isMutating,
   focusParentPicker,
   budgetSources,
-  vendors,
   budgetCategories,
   confidenceLabels,
   modalTitle,
 }: EditBudgetLineModalProps) {
+  const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
+    useCompanyCreateAction();
   // tSettings is needed only if category label lookup is required
   // If categoryName is provided in line, we derive label locally; otherwise, we pass the label from parent
   const getCategoryLabel = (): string | undefined => {
@@ -75,7 +76,7 @@ export function EditBudgetLineModal({
   };
 
   return (
-    <Modal title={modalTitle} onClose={onClose}>
+    <Modal title={modalTitle} onClose={onClose} dismissible={!isCreatingCompany}>
       <BudgetLineForm
         form={fullForm}
         onSubmit={onSubmit}
@@ -93,7 +94,8 @@ export function EditBudgetLineModal({
           }
         }
         budgetSources={budgetSources}
-        vendors={vendors}
+        knownVendor={line.vendor}
+        companyCreateAction={companyCreateAction}
         budgetCategories={budgetCategories}
         staticCategoryLabel={getCategoryLabel()}
         currentParentType={line.parentItemType as 'work_item' | 'household_item' | undefined}

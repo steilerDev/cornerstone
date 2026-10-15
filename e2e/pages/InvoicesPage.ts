@@ -12,7 +12,7 @@
  *   independent figures — they do not change when the open-items toggle or any column
  *   filter is applied.
  * - A DataTable with search and per-column filters:
- *   - Filterable columns: Vendor (enum), Date (date), Amount (number), Due Date (date), Status (enum)
+ *   - Filterable columns: Vendor (company search), Date (date), Amount (number), Due Date (date), Status (enum)
  *   - The Status column filter trigger is disabled (aria-disabled) while the open-items
  *     toggle is ON (mutual exclusivity, Story #2046 AC7).
  * - A "Show only open items" toggle (data-testid="open-items-toggle") rendered via the
@@ -73,6 +73,7 @@
  */
 
 import { expect, type Page, type Locator } from '@playwright/test';
+import { CompanyFilterControl } from './components/CompanyFilterControl.js';
 import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { PaperlessPickerModal } from './PaperlessPickerModal.js';
 import { routeUrl } from '../../shared/src/routes/index.js';
@@ -154,6 +155,8 @@ export class InvoicesPage {
   readonly createVendorSelect: Locator;
   /** The company picker control (input, dropdown, "New company ‹text›" row, clear button). */
   readonly createVendorPicker: CompanyPickerControl;
+  /** The Vendor column's company filter (entity filter, search the server). */
+  readonly companyFilter: CompanyFilterControl;
   /** The picker's selected-company chip, shown once a company is chosen (or pre-filled). */
   readonly createVendorSelected: Locator;
   readonly createNumberInput: Locator;
@@ -232,6 +235,7 @@ export class InvoicesPage {
     // Create invoice modal — Modal component renders with role="dialog" and a title heading
     this.createModal = page.getByRole('dialog', { name: /Invoice/i });
     // A company SearchPicker since #2213: the text input (until a company is chosen)
+    this.companyFilter = new CompanyFilterControl(page, 'vendorId');
     this.createVendorSelect = page.locator('#invoice-vendor');
     this.createVendorPicker = new CompanyPickerControl(page, 'invoice-vendor', this.createModal);
     this.createVendorSelected = this.createModal

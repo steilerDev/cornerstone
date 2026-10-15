@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from 'react';
 import { useLocale } from '../../contexts/LocaleContext.js';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
-import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
+import type { BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import { Badge } from '../Badge/Badge.js';
 import badgeStyles from '../Badge/Badge.module.css';
 import { BudgetLineForm } from '../budget/BudgetLineForm.js';
@@ -29,7 +29,6 @@ interface AutoItemizeLineCardProps {
   onQueueNewBudgetLine?: (rowId: string) => void;
   onInlineDraftChange?: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
   confidenceLabels?: Record<string, string>;
-  vendors?: Vendor[];
   budgetCategories?: BudgetCategory[];
   // Merge selection props
   selected?: boolean;
@@ -52,7 +51,6 @@ export function AutoItemizeLineCard({
   onQueueNewBudgetLine: _onQueueNewBudgetLine,
   onInlineDraftChange,
   confidenceLabels,
-  vendors,
   budgetCategories,
   selected = false,
   selectable = false,
@@ -387,7 +385,6 @@ export function AutoItemizeLineCard({
       {line.inlineCreatedBudgetLineDraft &&
         onInlineDraftChange &&
         confidenceLabels &&
-        vendors &&
         budgetCategories !== undefined && (
           <div className={styles.inlineFormWrapper}>
             <BudgetLineForm
@@ -402,7 +399,6 @@ export function AutoItemizeLineCard({
               isEditing={false}
               confidenceLabels={confidenceLabels}
               budgetSources={budgetSources}
-              vendors={vendors}
               budgetCategories={budgetCategories}
               hideConfidenceField={line.inlineHideConfidence}
               hideVatField={line.assignedItemType === 'work_item'}

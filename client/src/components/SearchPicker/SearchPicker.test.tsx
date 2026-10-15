@@ -4,7 +4,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, act, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SearchPicker } from './SearchPicker.js';
+import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
+import type { SearchPicker } from './SearchPicker.js';
 
 interface TestItem {
   id: string;
@@ -18,7 +19,8 @@ const sampleItems: TestItem[] = [
   { id: 'item-3', label: 'Gamma Doohickey', status: 'active' },
 ];
 
-const mockSearchFn = jest.fn<(query: string, excludeIds: string[]) => Promise<TestItem[]>>();
+const mockSearchFn =
+  jest.fn<(query: string, excludeIds: string[], signal: AbortSignal) => Promise<TestItem[]>>();
 const mockRenderItem = (item: TestItem) => ({ id: item.id, label: item.label });
 
 function renderPicker(
@@ -29,7 +31,7 @@ function renderPicker(
   } = {},
 ) {
   return render(
-    <SearchPicker<TestItem>
+    <ControlledSearchPicker<TestItem>
       value={props.value ?? ''}
       onChange={props.onChange ?? jest.fn()}
       excludeIds={props.excludeIds ?? []}
@@ -97,7 +99,7 @@ describe('SearchPicker', () => {
       });
 
       await waitFor(() => {
-        expect(mockSearchFn).toHaveBeenCalledWith('A', []);
+        expect(mockSearchFn).toHaveBeenCalledWith('A', [], expect.any(AbortSignal));
       });
     });
 
@@ -135,7 +137,11 @@ describe('SearchPicker', () => {
       });
 
       await waitFor(() => {
-        expect(mockSearchFn).toHaveBeenCalledWith(expect.any(String), ['item-1', 'item-2']);
+        expect(mockSearchFn).toHaveBeenCalledWith(
+          expect.any(String),
+          ['item-1', 'item-2'],
+          expect.any(AbortSignal),
+        );
       });
     });
   });
@@ -196,7 +202,7 @@ describe('SearchPicker', () => {
         expect(screen.getByText('Gamma Doohickey')).toBeInTheDocument();
       });
 
-      expect(mockSearchFn).toHaveBeenCalledWith('', []);
+      expect(mockSearchFn).toHaveBeenCalledWith('', [], expect.any(AbortSignal));
     });
   });
 

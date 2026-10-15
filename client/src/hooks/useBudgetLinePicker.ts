@@ -3,7 +3,6 @@ import { useTranslation } from 'react-i18next';
 import type {
   WorkItemBudgetLine,
   HouseholdItemBudgetLine,
-  Vendor,
   BudgetCategory,
   CreateInvoiceBudgetLineRequest,
 } from '@cornerstone/shared';
@@ -15,7 +14,6 @@ import {
 } from '../lib/householdItemBudgetsApi.js';
 import { fetchBudgetCategories } from '../lib/budgetCategoriesApi.js';
 import { fetchBudgetSources } from '../lib/budgetSourcesApi.js';
-import { fetchVendors } from '../lib/vendorsApi.js';
 import { createInvoiceBudgetLine } from '../lib/invoiceBudgetLinesApi.js';
 import type { BudgetLineFormState } from './useBudgetSection.js';
 import type { BudgetSource } from '@cornerstone/shared';
@@ -35,7 +33,6 @@ export interface PickerState {
   error: string | null;
   budgetLines: (WorkItemBudgetLine | HouseholdItemBudgetLine)[];
   budgetSources: BudgetSource[] | null;
-  vendors: Vendor[] | null;
   categories: BudgetCategory[] | null;
   showCreateForm: boolean;
   createForm?: BudgetLineFormState;
@@ -85,7 +82,6 @@ export function useBudgetLinePicker({
     error: null,
     budgetLines: [],
     budgetSources: null,
-    vendors: null,
     categories: null,
     showCreateForm: false,
     createError: null,
@@ -135,7 +131,6 @@ export function useBudgetLinePicker({
         isLoading: true,
         error: null,
         budgetSources: pickerState.budgetSources,
-        vendors: pickerState.vendors,
         categories: pickerState.categories,
         showCreateForm: false,
         createError: null,
@@ -167,21 +162,19 @@ export function useBudgetLinePicker({
         }));
       }
     },
-    [pickerState.budgetSources, pickerState.vendors, pickerState.categories, t, tErrors],
+    [pickerState.budgetSources, pickerState.categories, t, tErrors],
   );
 
   const initializeStaticData = useCallback(async () => {
     try {
-      const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
+      const [categoriesResponse, sourcesResponse] = await Promise.all([
         fetchBudgetCategories(),
         fetchBudgetSources(),
-        fetchVendors({ pageSize: 100 }),
       ]);
       setPickerState((prev) => ({
         ...prev,
         categories: categoriesResponse.categories,
         budgetSources: sourcesResponse.budgetSources,
-        vendors: vendorsResponse.vendors,
       }));
     } catch (err) {
       // Non-fatal: page can still render; users will see empty selects until retried via picker
@@ -193,10 +186,9 @@ export function useBudgetLinePicker({
   const showCreateBudgetLineForm = useCallback(
     async (prefill?: Partial<BudgetLineFormState>) => {
       try {
-        const [categoriesResponse, sourcesResponse, vendorsResponse] = await Promise.all([
+        const [categoriesResponse, sourcesResponse] = await Promise.all([
           fetchBudgetCategories(),
           fetchBudgetSources(),
-          fetchVendors({ pageSize: 100 }),
         ]);
 
         const discretionaryId = sourcesResponse.budgetSources.find((s) => s.isDiscretionary)?.id;
@@ -222,7 +214,6 @@ export function useBudgetLinePicker({
           createForm: initialForm,
           categories: categoriesResponse.categories,
           budgetSources: sourcesResponse.budgetSources,
-          vendors: vendorsResponse.vendors,
           createError: null,
         }));
       } catch (err) {

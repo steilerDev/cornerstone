@@ -50,3 +50,4 @@ You operate in three modes: `[MODE: spec]`, `[MODE: review]`, `[MODE: commit]`. 
 - [Object home move specs](object-home-move-specs.md) — ObjectForm raises page primaries (App-root provider), field names = API keys, stacked Modals, rename clears i18n key, label-in-name
 - [Settings page re-layout specs](settings-page-relayout-specs.md) — atomic status around buttons, t()-keyed refetch, ConfirmDialog tone vs closure, `formerly` headings, rate-limited E2E, rAF hash focus
 - [Search service specs](search-service-specs.md) — fold fn on every connection, fold-then-escape, Paperless timeout helper, no UI words from server, planned-route interim mapper, phone literals vs scan
+- [Server-search picker specs](server-search-picker-specs.md) — capped-list → SearchPicker: focus-to-body on select, entity filter vs portaled listbox, enum vs eq, baseline sim

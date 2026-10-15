@@ -2,6 +2,8 @@ import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals
 import {
   fetchVendors,
   fetchVendor,
+  searchCompanies,
+  COMPANY_PICKER_PAGE_SIZE,
   createVendor,
   updateVendor,
   deleteVendor,
@@ -596,6 +598,81 @@ describe('vendorsApi', () => {
       } as Response);
 
       await expect(deleteVendor('vendor-1')).rejects.toThrow();
+    });
+  });
+
+  describe('fetchVendors request options', () => {
+    it('forwards the abort signal to fetch', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ vendors: [] }),
+      } as Response);
+      const controller = new AbortController();
+
+      await fetchVendors({ q: 'acme' }, { signal: controller.signal });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/vendors?q=acme',
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+  });
+
+  describe('searchCompanies', () => {
+    const response = {
+      vendors: [{ id: 'v-1', name: 'Acme Roofing' }],
+      pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+    };
+
+    it("sends no q and pageSize=50 for ''", async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+
+      const result = await searchCompanies('');
+
+      expect(mockFetch).toHaveBeenCalledTimes(1);
+      const url = mockFetch.mock.calls[0]![0] as string;
+      expect(url).toBe('/api/vendors?pageSize=50');
+      expect(url).not.toContain('q=');
+      expect(result).toEqual(response.vendors);
+    });
+
+    it('trims the query before sending it', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+
+      await searchCompanies(' x ');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/vendors?pageSize=50&q=x');
+    });
+
+    it('treats a whitespace-only query as empty', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+
+      await searchCompanies('   ');
+
+      expect(mockFetch.mock.calls[0]![0]).toBe('/api/vendors?pageSize=50');
+    });
+
+    it('forwards the abort signal to fetch', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+      const controller = new AbortController();
+
+      await searchCompanies('acme', controller.signal);
+
+      expect(mockFetch.mock.calls[0]![1]).toEqual(
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('sends no signal when none is given', async () => {
+      mockFetch.mockResolvedValueOnce({ ok: true, json: async () => response } as Response);
+
+      await searchCompanies('acme');
+
+      expect(mockFetch.mock.calls[0]![1]!.signal).toBeUndefined();
+    });
+
+    it('exposes the page size as 50', () => {
+      expect(COMPANY_PICKER_PAGE_SIZE).toBe(50);
     });
   });
 });

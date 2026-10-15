@@ -1,17 +1,20 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useId, useRef, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { DiarySignatureEntry } from '@cornerstone/shared';
 import { MAX_SIGNER_NAME_LENGTH } from '@cornerstone/shared';
 import { useFormatters } from '../../../lib/formatters.js';
+import { searchCompanies } from '../../../lib/vendorsApi.js';
+import type { CompanyOption } from '../../../objectForms/companyForm.js';
+import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
 import styles from './SignatureCapture.module.css';
 
 /** Max length of a typed vendor name; matches the server's vendor name cap (vendors.ts, maxLength: 200). */
 const MAX_VENDOR_NAME_INPUT_LENGTH = 200;
 
-export interface VendorOption {
-  id: string;
-  name: string;
-}
+/** Special option id of the free-text company entry. */
+const OTHER_COMPANY = '__other__';
+
+const NO_EXCLUDED: string[] = [];
 
 export interface SignatureCaptureProps {
   signature?: DiarySignatureEntry | null;
@@ -22,7 +25,6 @@ export interface SignatureCaptureProps {
   signerType?: 'self' | 'vendor';
   onSignerTypeChange?: (type: 'self' | 'vendor') => void;
   currentUserName?: string;
-  vendors?: VendorOption[];
 }
 
 export function SignatureCapture({
@@ -34,10 +36,10 @@ export function SignatureCapture({
   signerType = 'self',
   onSignerTypeChange,
   currentUserName,
-  vendors,
 }: SignatureCaptureProps) {
   const { t } = useTranslation('diary');
   const { formatDateTimeWithZone } = useFormatters();
+  const companyInputId = useId();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -350,21 +352,6 @@ export function SignatureCapture({
     // to avoid stale closure issues when both callbacks spread the same sig object
   };
 
-  const handleVendorSelect = (vendorId: string) => {
-    setSelectedVendorId(vendorId);
-    setSignatoryName('');
-    if (vendorId === '__other__') {
-      setVendorName('');
-    } else if (vendorId) {
-      const vendor = vendors?.find((v) => v.id === vendorId);
-      if (vendor) {
-        setVendorName(vendor.name);
-      }
-    } else {
-      setVendorName('');
-    }
-  };
-
   // Composed signerName is `${vendorName} (${signatoryName})`: keep it within the server cap.
   const signatoryMaxLength = Math.max(1, MAX_SIGNER_NAME_LENGTH - vendorName.length - 3);
 
@@ -404,10 +391,6 @@ export function SignatureCapture({
     );
   }
 
-  const _showVendorFreeform =
-    signerType === 'vendor' &&
-    (!vendors || vendors.length === 0 || selectedVendorId === '__other__');
-
   return (
     <div className={styles.container}>
       {/* Signer info section */}
@@ -441,28 +424,40 @@ export function SignatureCapture({
         </div>
 
         <div className={styles.formGroup}>
-          <label htmlFor="signer-name" className={styles.label}>
+          <label
+            htmlFor={signerType === 'vendor' ? companyInputId : undefined}
+            className={styles.label}
+          >
             {signerType === 'vendor' ? t('signature.vendorLabel') : t('signature.signerNameLabel')}
           </label>
           {signerType === 'self' ? (
             <div className={styles.readOnlyName}>{currentUserName || signerName || '—'}</div>
-          ) : vendors && vendors.length > 0 ? (
+          ) : (
             <>
-              <select
-                className={styles.select}
+              <SearchPicker<CompanyOption>
+                id={companyInputId}
                 value={selectedVendorId}
-                onChange={(e) => handleVendorSelect(e.target.value)}
+                onChange={(id) => {
+                  if (id === '') {
+                    setSelectedVendorId('');
+                    setVendorName('');
+                    setSignatoryName('');
+                  }
+                }}
+                onSelectItem={(item) => {
+                  setSelectedVendorId(item.id);
+                  setSignatoryName('');
+                  setVendorName(item.id === OTHER_COMPANY ? '' : item.label);
+                }}
+                excludeIds={NO_EXCLUDED}
                 disabled={disabled}
-              >
-                <option value="">{t('signature.selectVendor')}</option>
-                {vendors.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.name}
-                  </option>
-                ))}
-                <option value="__other__">{t('signature.otherVendor')}</option>
-              </select>
-              {selectedVendorId === '__other__' && (
+                placeholder={t('signature.selectVendor')}
+                searchFn={(q, _excluded, signal) => searchCompanies(q, signal)}
+                renderItem={(v) => ({ id: v.id, label: v.name })}
+                showItemsOnFocus
+                specialOptions={[{ id: OTHER_COMPANY, label: t('signature.otherVendor') }]}
+              />
+              {selectedVendorId === OTHER_COMPANY && (
                 <input
                   id="signer-name"
                   type="text"
@@ -472,20 +467,10 @@ export function SignatureCapture({
                   disabled={disabled}
                   maxLength={MAX_VENDOR_NAME_INPUT_LENGTH}
                   placeholder={t('signature.vendorNamePlaceholder')}
+                  aria-label={t('signature.vendorNamePlaceholder')}
                 />
               )}
             </>
-          ) : (
-            <input
-              id="signer-name"
-              type="text"
-              className={styles.input}
-              value={vendorName}
-              onChange={(e) => setVendorName(e.target.value)}
-              disabled={disabled}
-              maxLength={MAX_VENDOR_NAME_INPUT_LENGTH}
-              placeholder={t('signature.vendorNamePlaceholder')}
-            />
           )}
         </div>
 

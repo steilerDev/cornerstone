@@ -4,7 +4,6 @@ import { useLocale } from '../../contexts/LocaleContext.js';
 import type {
   BaseBudgetLine,
   BudgetSource,
-  Vendor,
   BudgetCategory,
   SubsidyProgram,
 } from '@cornerstone/shared';
@@ -23,6 +22,7 @@ import { SubsidyLinkSection } from './SubsidyLinkSection.js';
 import { BudgetCostOverview, type SubsidyPaybackData } from './BudgetCostOverview.js';
 import { InvoiceGroup } from './InvoiceGroup.js';
 import { EditBudgetLineModal } from './EditBudgetLineModal.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import styles from './BudgetSection.module.css';
 
 export interface BudgetSectionProps<T extends BaseBudgetLine> {
@@ -32,7 +32,6 @@ export interface BudgetSectionProps<T extends BaseBudgetLine> {
   availableSubsidies: SubsidyProgram[];
   budgetSectionHook: UseBudgetSectionReturn<T>;
   budgetSources: BudgetSource[];
-  vendors: Vendor[];
   budgetCategories?: BudgetCategory[];
   staticCategoryLabel?: string;
   onLinkSubsidy: () => void;
@@ -71,7 +70,6 @@ export function BudgetSection<T extends BaseBudgetLine>({
   availableSubsidies,
   budgetSectionHook,
   budgetSources,
-  vendors,
   budgetCategories,
   staticCategoryLabel,
   onLinkSubsidy,
@@ -96,6 +94,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
+  const { createAction: companyCreateAction } = useCompanyCreateAction();
 
   // Cost-line delete confirmation state
   const [isDeletingLine, setIsDeletingLine] = useState(false);
@@ -369,7 +368,8 @@ export function BudgetSection<T extends BaseBudgetLine>({
                 isEditing={true}
                 confidenceLabels={CONFIDENCE_LABELS}
                 budgetSources={budgetSources}
-                vendors={vendors}
+                knownVendor={line.vendor ?? null}
+                companyCreateAction={companyCreateAction}
                 budgetCategories={budgetCategories}
                 staticCategoryLabel={staticCategoryLabel}
                 currentParentType={budgetLineType ?? undefined}
@@ -419,7 +419,7 @@ export function BudgetSection<T extends BaseBudgetLine>({
           isEditing={false}
           confidenceLabels={CONFIDENCE_LABELS}
           budgetSources={budgetSources}
-          vendors={vendors}
+          companyCreateAction={companyCreateAction}
           budgetCategories={budgetCategories}
           staticCategoryLabel={staticCategoryLabel}
         />
@@ -457,7 +457,6 @@ export function BudgetSection<T extends BaseBudgetLine>({
           error={invoiceEditError}
           isMutating={invoiceEditMutating}
           budgetSources={budgetSources}
-          vendors={vendors}
           budgetCategories={budgetCategories}
           confidenceLabels={CONFIDENCE_LABELS}
           modalTitle={tBudget('invoiceDetail.budgetLines.modal.editTitle')}

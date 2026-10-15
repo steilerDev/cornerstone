@@ -10,6 +10,7 @@
 
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import React from 'react';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
@@ -55,6 +56,7 @@ const mockCreateVendor = jest.fn<typeof VendorsApiModule.createVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: mockFetchVendor,
   createVendor: mockCreateVendor,
   updateVendor: jest.fn(),
@@ -476,7 +478,10 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.change(input, { target: { value: 'oeko' } });
       expect(await screen.findByRole('option', { name: 'Öko Fenster' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'Other Co' })).not.toBeInTheDocument();
-      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'oeko', pageSize: 50 });
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'oeko', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
 
       fireEvent.change(input, { target: { value: 'müller' } });
       expect(await screen.findByRole('option', { name: 'MUELLER BAU' })).toBeInTheDocument();
@@ -498,7 +503,10 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.change(input, { target: { value: 'zeta far' } });
 
       expect(await screen.findByRole('option', { name: 'Zeta Far Away GmbH' })).toBeInTheDocument();
-      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'zeta far', pageSize: 50 });
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'zeta far', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
     });
 
     it('preselects a suggested company that is not on the first page, by id', async () => {

@@ -15,6 +15,7 @@
  */
 import { ApiClientError } from '../../lib/apiClient.js';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
@@ -155,6 +156,8 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
 }));
 
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({

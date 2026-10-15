@@ -7,6 +7,8 @@ export interface EntityFilterProps<T> {
   searchFn: SearchPickerProps<T>['searchFn'];
   renderItem: SearchPickerProps<T>['renderItem'];
   placeholder?: string;
+  /** Already-resolved label of the current value (SearchPicker initialTitle). */
+  selectedLabel?: string;
 }
 
 /**
@@ -19,6 +21,7 @@ export function EntityFilter<T>({
   searchFn,
   renderItem,
   placeholder,
+  selectedLabel,
 }: EntityFilterProps<T>) {
   const { t } = useTranslation('common');
 
@@ -31,6 +34,7 @@ export function EntityFilter<T>({
       renderItem={renderItem}
       placeholder={placeholder || t('dataTable.filter.searchPlaceholder')}
       showItemsOnFocus
+      initialTitle={selectedLabel}
     />
   );
 }

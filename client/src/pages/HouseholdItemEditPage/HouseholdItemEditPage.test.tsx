@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
@@ -15,6 +16,7 @@ import { ApiClientError } from '../../lib/apiClient.js';
 const mockGetHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.getHouseholdItem>();
 const mockUpdateHouseholdItem = jest.fn<typeof HouseholdItemsApiTypes.updateHouseholdItem>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 const mockFetchHouseholdItemCategories =
   jest.fn<typeof HouseholdItemCategoriesApiTypes.fetchHouseholdItemCategories>();
 
@@ -29,7 +31,8 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -131,6 +134,7 @@ describe('HouseholdItemEditPage', () => {
     mockGetHouseholdItem.mockReset();
     mockUpdateHouseholdItem.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
     mockFetchHouseholdItemCategories.mockReset();
 
     if (!HouseholdItemEditPageModule) {
@@ -236,13 +240,12 @@ describe('HouseholdItemEditPage', () => {
       });
     });
 
-    it('pre-populates vendor select with existing vendor', async () => {
+    it('shows the saved company as the title with no company request at all', async () => {
       renderPage();
 
-      await waitFor(() => {
-        const vendorSelect = screen.getByLabelText(/vendor/i) as HTMLSelectElement;
-        expect(vendorSelect.value).toBe('v-1');
-      });
+      expect(await screen.findByText('IKEA')).toBeInTheDocument();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+      expect(mockFetchVendors).not.toHaveBeenCalled();
     });
 
     // Story #467: Date and status fields moved to inline editing on the Detail page.
@@ -306,7 +309,7 @@ describe('HouseholdItemEditPage', () => {
 
       expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/category/i)).toBeInTheDocument();
-      expect(screen.getByLabelText(/vendor/i)).toBeInTheDocument();
+      expect(screen.getByText('Vendor', { selector: 'label' })).toBeInTheDocument();
       expect(screen.getByLabelText(/url/i)).toBeInTheDocument();
       // room field was removed in migration 0028 (areas_trades_rework)
       expect(screen.queryByLabelText(/^room/i)).not.toBeInTheDocument();
@@ -834,6 +837,87 @@ describe('HouseholdItemEditPage', () => {
 
       await screen.findByLabelText(/^name/i);
       expect(screen.queryByTestId('breadcrumbs-back')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('company picker (server search)', () => {
+    const noVendorItem = { ...mockItem, vendor: null };
+    const saveButton = () => screen.getByRole('button', { name: /save changes/i });
+
+    it('saves the id of a company found only by searching (beyond any preloaded list)', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(noVendorItem);
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      mockFetchVendors.mockImplementation(async (params) => ({
+        vendors:
+          params?.q === 'zeta'
+            ? ([{ id: 'v-250', name: 'Zeta Tiling', trade: null }] as never)
+            : [],
+        pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+      }));
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      await user.type(screen.getByLabelText('Vendor'), 'zeta');
+      await user.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
+      await user.click(saveButton());
+
+      await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({ vendorId: 'v-250' }),
+      );
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'zeta', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
+    });
+
+    it('saves vendorId: null after the company is cleared', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      renderPage();
+      await screen.findByText('IKEA');
+
+      await user.click(screen.getByRole('button', { name: 'Clear selection' }));
+      await user.click(saveButton());
+
+      await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({ vendorId: null }),
+      );
+    });
+
+    it('keeps the saved company id in the PATCH when it is left untouched', async () => {
+      const user = userEvent.setup();
+      mockUpdateHouseholdItem.mockResolvedValue(mockUpdatedItem);
+      renderPage();
+      await screen.findByText('IKEA');
+
+      await user.click(saveButton());
+
+      await waitFor(() => expect(mockUpdateHouseholdItem).toHaveBeenCalledTimes(1));
+      expect(mockUpdateHouseholdItem).toHaveBeenCalledWith(
+        'hi-001',
+        expect.objectContaining({ vendorId: 'v-1' }),
+      );
+    });
+
+    it('shows no create row outside a company-create provider', async () => {
+      const user = userEvent.setup();
+      mockGetHouseholdItem.mockResolvedValue(noVendorItem);
+      mockFetchVendors.mockResolvedValue({
+        vendors: [],
+        pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
+      });
+      renderPage();
+      await waitFor(() => expect(screen.getByLabelText(/^name/i)).toBeInTheDocument());
+
+      await user.type(screen.getByLabelText('Vendor'), 'Fresh Co');
+
+      expect(await screen.findByText('No matching items found')).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: /New company/ })).not.toBeInTheDocument();
     });
   });
 });

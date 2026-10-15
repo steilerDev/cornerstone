@@ -4,7 +4,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SearchPicker } from './SearchPicker.js';
+import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
+import type { SearchPicker } from './SearchPicker.js';
 
 interface TestItem {
   id: string;
@@ -18,7 +19,8 @@ const sampleItems: TestItem[] = [
   { id: 'item-3', label: 'Gamma Doohickey', status: 'active' },
 ];
 
-const mockSearchFn = jest.fn<(query: string, excludeIds: string[]) => Promise<TestItem[]>>();
+const mockSearchFn =
+  jest.fn<(query: string, excludeIds: string[], signal: AbortSignal) => Promise<TestItem[]>>();
 const mockRenderItem = (item: TestItem) => ({ id: item.id, label: item.label });
 
 function renderPicker(
@@ -29,7 +31,7 @@ function renderPicker(
   } = {},
 ) {
   return render(
-    <SearchPicker<TestItem>
+    <ControlledSearchPicker<TestItem>
       value={props.value ?? ''}
       onChange={props.onChange ?? jest.fn()}
       excludeIds={props.excludeIds ?? []}
@@ -117,7 +119,7 @@ describe('SearchPicker', () => {
       const specialOptions = [{ id: '__SPECIAL__', label: 'Special Choice' }];
 
       const { rerender } = render(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value=""
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}
@@ -130,7 +132,7 @@ describe('SearchPicker', () => {
 
       // Parent sets value to special option id
       rerender(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value="__SPECIAL__"
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}
@@ -243,7 +245,7 @@ describe('SearchPicker', () => {
       // Should return to input mode
       await waitFor(() => {
         expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
-        expect(screen.queryByText('All Areas')).not.toBeInTheDocument();
+        expect(screen.queryByRole('button', { name: /clear selection/i })).not.toBeInTheDocument();
       });
     });
 
@@ -317,7 +319,7 @@ describe('SearchPicker', () => {
       // Render directly in selected-display mode via initialTitle + value
       const onChange = jest.fn<(id: string) => void>();
       render(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value="item-existing"
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}

@@ -1,7 +1,7 @@
 .container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: var(--spacing-8);
 }
 
 .loading {
@@ -38,9 +38,9 @@
   position: relative;
   background: var(--color-danger-bg);
   border: 1px solid var(--color-danger-border);
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1rem;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-4);
+  margin-bottom: var(--spacing-4);
   color: var(--color-danger-active);
 }
 
@@ -50,18 +50,18 @@
 
 /* Header */
 .header {
-  margin-bottom: 2rem;
+  margin-bottom: var(--spacing-8);
 }
 
 .backButton {
   display: inline-flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
+  gap: var(--spacing-2);
+  padding: var(--spacing-2) var(--spacing-4);
   background: transparent;
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   cursor: pointer;
   transition: var(--transition-button-border);
@@ -79,7 +79,7 @@
 
 @media (max-width: 767px) {
   .backButton {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 }
 
@@ -87,7 +87,7 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 2rem;
+  gap: var(--spacing-8);
 }
 
 .titleSection {
@@ -100,8 +100,8 @@
   color: var(--color-text-primary);
   margin: 0;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.375rem;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
   transition: background 0.15s;
   overflow-wrap: anywhere;
 }
@@ -113,15 +113,15 @@
 .titleEdit {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .titleInput {
   font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-bold);
-  padding: 0.5rem;
+  padding: var(--spacing-2);
   border: 2px solid var(--color-primary);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
   font-family: inherit;
   width: 100%;
   background-color: var(--color-bg-primary);
@@ -137,7 +137,7 @@
 .descriptionEditActions,
 .noteEditActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .statusSection {
@@ -157,8 +157,8 @@
 .contentGrid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 2rem;
-  margin-bottom: 2rem;
+  gap: var(--spacing-8);
+  margin-bottom: var(--spacing-8);
 }
 
 .leftColumn,
@@ -166,22 +166,22 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: var(--spacing-6);
 }
 
 /* Section */
 .section {
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
-  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  padding: var(--spacing-6);
 }
 
 .sectionTitle {
-  font-size: 1.125rem;
+  font-size: var(--font-size-lg);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--spacing-4) 0;
 }
 
 /* Description */
@@ -191,8 +191,8 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   cursor: pointer;
-  padding: 0.5rem;
-  border-radius: 0.375rem;
+  padding: var(--spacing-2);
+  border-radius: var(--radius-md);
   transition: background 0.15s;
   min-height: 3rem;
 }
@@ -208,15 +208,15 @@
 .descriptionEdit {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .descriptionTextarea {
   width: 100%;
-  padding: 0.625rem;
+  padding: var(--spacing-2-5);
   border: 2px solid var(--color-primary);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   resize: vertical;
   min-height: 150px;
@@ -232,39 +232,39 @@
 .propertyGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
-  gap: 1rem;
+  gap: var(--spacing-4);
 }
 
 .property {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .propertyLabel {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   color: var(--color-text-muted);
 }
 
 .propertyValue {
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
-  padding: 0.625rem 0;
+  padding: var(--spacing-2-5) 0;
 }
 
 .sectionDescription {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
-  margin: -0.5rem 0 1rem 0;
+  margin: calc(-1 * var(--spacing-2)) 0 var(--spacing-4) 0;
   line-height: 1.5;
 }
 
 .propertyInput {
-  padding: 0.625rem;
+  padding: var(--spacing-2-5);
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   background: var(--color-bg-primary);
   transition: border-color 0.15s;
@@ -314,7 +314,7 @@
   font-size: var(--font-size-xs);
   font-weight: var(--font-weight-semibold);
   border-radius: var(--radius-full);
-  padding: 1px var(--spacing-1-5);
+  padding: var(--spacing-px) var(--spacing-1-5);
   line-height: 1.4;
   transition: opacity 0.2s;
 }
@@ -347,16 +347,16 @@
 .addNoteForm {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
 }
 
 .noteTextarea {
   width: 100%;
-  padding: 0.625rem;
+  padding: var(--spacing-2-5);
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   resize: vertical;
   background-color: var(--color-bg-primary);
@@ -376,21 +376,21 @@
 .notesList {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: var(--spacing-4);
 }
 
 .noteItem {
-  padding: 1rem;
+  padding: var(--spacing-4);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
 }
 
 .noteHeader {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
-  font-size: 0.875rem;
+  margin-bottom: var(--spacing-2);
+  font-size: var(--font-size-sm);
 }
 
 .noteAuthor {
@@ -406,33 +406,33 @@
   color: var(--color-text-secondary);
   line-height: 1.6;
   white-space: pre-wrap;
-  margin-bottom: 0.5rem;
+  margin-bottom: var(--spacing-2);
 }
 
 .noteEdit {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .noteActions {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 /* Subtasks */
 .addSubtaskForm {
   display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-4);
 }
 
 .subtaskInput {
   flex: 1;
-  padding: 0.625rem;
+  padding: var(--spacing-2-5);
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   background-color: var(--color-bg-primary);
 }
@@ -451,17 +451,17 @@
 .subtasksList {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
 }
 
 .subtaskItem {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
+  gap: var(--spacing-3);
+  padding: var(--spacing-3);
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: 0.375rem;
+  border-radius: var(--radius-md);
   transition: background 0.15s;
 }
 
@@ -479,7 +479,7 @@
 .subtaskTitle {
   flex: 1;
   cursor: pointer;
-  font-size: 0.875rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
 }
 
@@ -491,22 +491,22 @@
 .subtaskEdit {
   display: flex;
   flex: 1;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
   align-items: center;
 }
 
 .subtaskActions {
   display: flex;
-  gap: 0.25rem;
+  gap: var(--spacing-1);
   flex-shrink: 0;
 }
 
 .moveButton {
-  padding: 0.25rem 0.5rem;
+  padding: var(--spacing-1) var(--spacing-2);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.25rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
   cursor: pointer;
   transition:
     background-color var(--transition-normal),
@@ -525,8 +525,8 @@
 
 /* Constraints section subsections */
 .constraintSubsection {
-  margin-top: 1.25rem;
-  padding-top: 1.25rem;
+  margin-top: var(--spacing-5);
+  padding-top: var(--spacing-5);
   border-top: 1px solid var(--color-border);
 }
 
@@ -537,9 +537,9 @@
 }
 
 .constraintSubsectionDesc {
-  font-size: 0.8125rem;
+  font-size: var(--font-size-2xs);
   color: var(--color-text-muted);
-  margin: -0.25rem 0 0.75rem 0;
+  margin: calc(-1 * var(--spacing-1)) 0 var(--spacing-3) 0;
   line-height: 1.5;
 }
 
@@ -547,19 +547,19 @@
 .milestoneChips {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
+  gap: var(--spacing-2);
+  margin-bottom: var(--spacing-3);
 }
 
 .milestoneChip {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.3125rem 0.5rem 0.3125rem 0.75rem;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-1-5) var(--spacing-2) var(--spacing-1-5) var(--spacing-3);
   background: var(--color-primary-bg);
   border: 1px solid var(--color-primary-bg-hover);
-  border-radius: var(--radius-full, 9999px);
-  font-size: 0.8125rem;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-2xs);
   color: var(--color-primary-badge-text);
   max-width: 100%;
 }
@@ -580,7 +580,7 @@
 }
 
 .milestoneChipDate {
-  font-size: 0.75rem;
+  font-size: var(--font-size-xs);
   opacity: 0.8;
   flex-shrink: 0;
   white-space: nowrap;
@@ -590,11 +590,11 @@
   flex-shrink: 0;
   background: transparent;
   border: none;
-  font-size: 1rem;
+  font-size: var(--font-size-base);
   line-height: 1;
   cursor: pointer;
-  padding: 0.125rem 0.25rem;
-  border-radius: var(--radius-sm, 0.25rem);
+  padding: var(--spacing-0-5) var(--spacing-1);
+  border-radius: var(--radius-sm);
   color: inherit;
   opacity: 0.6;
   transition:
@@ -610,8 +610,8 @@
 
 /* Dependencies */
 .addDependencySection {
-  margin-top: 0.75rem;
-  padding-top: 0.75rem;
+  margin-top: var(--spacing-3);
+  padding-top: var(--spacing-3);
   border-top: 1px solid var(--color-border);
 }
 
@@ -621,9 +621,9 @@
 .editButton,
 .deleteButton,
 .cancelButton {
-  padding: 0.625rem 1rem;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  padding: var(--spacing-2-5) var(--spacing-4);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: var(--transition-button);
@@ -697,27 +697,27 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1.5rem;
+  padding: var(--spacing-6);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
 }
 
 .timestamps {
   display: flex;
   flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.875rem;
+  gap: var(--spacing-1);
+  font-size: var(--font-size-sm);
   color: var(--color-text-muted);
 }
 
 .deleteWorkItemButton {
-  padding: 0.625rem 1.5rem;
+  padding: var(--spacing-2-5) var(--spacing-6);
   background: var(--color-danger);
   color: var(--color-danger-text);
   border: none;
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   cursor: pointer;
   transition: background-color var(--transition-normal);
@@ -728,25 +728,25 @@
 }
 
 .subsectionTitle {
-  font-size: 0.9375rem;
+  font-size: var(--font-size-base);
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-secondary);
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 var(--spacing-3) 0;
 }
 
 /* Link picker row */
 .linkPickerRow {
   display: flex;
-  gap: 0.5rem;
+  gap: var(--spacing-2);
   align-items: center;
 }
 
 .linkPickerSelect {
   flex: 1;
-  padding: 0.5rem 0.625rem;
+  padding: var(--spacing-2) var(--spacing-2-5);
   border: 1px solid var(--color-border-strong);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   font-family: inherit;
   background: var(--color-bg-primary);
   color: var(--color-text-primary);
@@ -778,19 +778,19 @@
 
   .headerRow {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-4);
   }
 
   .title {
-    font-size: 1.5rem;
+    font-size: var(--font-size-2xl);
   }
 
   .titleInput {
-    font-size: 1.5rem;
+    font-size: var(--font-size-2xl);
   }
 
   .section {
-    padding: 1rem;
+    padding: var(--spacing-4);
   }
 
   .propertyGrid {
@@ -799,7 +799,7 @@
 
   .footer {
     flex-direction: column;
-    gap: 1rem;
+    gap: var(--spacing-4);
     align-items: flex-start;
   }
 

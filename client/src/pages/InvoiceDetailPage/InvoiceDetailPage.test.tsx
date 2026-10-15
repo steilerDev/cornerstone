@@ -23,6 +23,7 @@ import type * as PaperlessApiTypes from '../../lib/paperlessApi.js';
 import type * as ConfigApiTypes from '../../lib/configApi.js';
 import type * as InvoiceDetailPageTypes from './InvoiceDetailPage.js';
 import userEvent from '@testing-library/user-event';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
 import type { MatchMediaControl } from '../../test/matchMediaControl.js';
 import type * as ProviderTypes from '../../objectForms/CompanyCreateProvider.js';
@@ -243,6 +244,7 @@ jest.unstable_mockModule('../../lib/formatters.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendorById: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

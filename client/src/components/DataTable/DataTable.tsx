@@ -60,6 +60,8 @@ export interface ColumnDef<T> {
   entitySearchFn?: SearchPickerProps<unknown>['searchFn'];
   entityRenderItem?: SearchPickerProps<unknown>['renderItem'];
   entityPlaceholder?: string;
+  /** Already-resolved label of the active entity filter value (SearchPicker initialTitle). */
+  entitySelectedLabel?: string;
   numberMin?: number;
   numberMax?: number;
   numberStep?: number;

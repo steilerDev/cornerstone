@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Fix PR server-search choosers](fix-server-search-choosers-tests.md) (2026-10-15) — searchCompanies in factory mocks, controlled pickers, chip hides input, URL-written filters
 - [Story #2214 Account re-layout tests](story-2214-account-relayout-tests.md) (2026-10-12) — timer-count trap, opener focus, guard quirks
 - [Story #2211 command search tests](story-2211-command-search-tests.md) (2026-10-11) — rAF focus-steal between tests, provider-inside harness, 2 prod defects pinned with it.failing
 - [Story #2212 New menu / ObjectForm tests](story-2212-new-menu-object-form.md) (2026-10-11) — matchMedia helper, MemoryRouter vs RecordingRouter, mutation pattern, focus-switch defect

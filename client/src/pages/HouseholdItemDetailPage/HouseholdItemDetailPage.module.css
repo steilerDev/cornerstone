@@ -73,7 +73,7 @@
 }
 
 .pageTitle {
-  font-size: 2rem;
+  font-size: var(--font-size-4xl);
   font-weight: var(--font-weight-bold);
   color: var(--color-text-primary);
   margin: 0;
@@ -371,7 +371,7 @@
   .deleteButton {
     flex: 1;
     text-align: center;
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 
   .card {
@@ -403,8 +403,8 @@
   }
 
   .unlinkButton {
-    min-width: 44px;
-    min-height: 44px;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
   }
 }
 
@@ -563,7 +563,7 @@
   .secondaryButton,
   .editButton,
   .deleteButton {
-    min-height: 44px;
+    min-height: var(--touch-target-min);
   }
 }
 
@@ -638,8 +638,8 @@
   cursor: pointer;
   border-radius: var(--radius-sm);
   transition: color var(--transition-fast);
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--touch-target-min);
+  min-height: var(--touch-target-min);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -677,78 +677,7 @@
  * ============================================================ */
 
 .inlineSearch {
-  position: relative;
   margin-top: var(--spacing-3);
-}
-
-.searchInput {
-  width: 100%;
-  padding: var(--spacing-2-5) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  background-color: var(--color-bg-primary);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  transition: border-color var(--transition-normal);
-}
-
-.searchInput:focus {
-  outline: none;
-  border-color: var(--color-primary-hover);
-  box-shadow: var(--shadow-focus-subtle);
-}
-
-.searchInput:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.searchDropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 0;
-  max-height: 200px;
-  overflow-y: auto;
-  background-color: var(--color-bg-primary);
-  border: 1px solid var(--color-border-strong);
-  border-top: none;
-  border-radius: 0 0 var(--radius-md) var(--radius-md);
-  z-index: var(--z-dropdown);
-  box-shadow: var(--shadow-md);
-}
-
-.searchDropdownItem {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  width: 100%;
-  padding: var(--spacing-2) var(--spacing-3);
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  font-family: inherit;
-  transition: background-color var(--transition-fast);
-}
-
-.searchDropdownItem:hover:not(:disabled) {
-  background-color: var(--color-bg-tertiary);
-}
-
-.searchDropdownItem:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.searchDropdownEmpty {
-  padding: var(--spacing-3) var(--spacing-3);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  font-style: italic;
 }
 
 .itemTypeBadge {
@@ -773,10 +702,4 @@
   color: var(--color-warning-text-on-light);
   flex-shrink: 0;
   white-space: nowrap;
-}
-
-.workItemTitleCell {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
 }

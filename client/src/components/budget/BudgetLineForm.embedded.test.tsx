@@ -142,7 +142,6 @@ function buildProps(
     isEditing: false,
     confidenceLabels: CONFIDENCE_LABELS,
     budgetSources: [],
-    vendors: [],
     ...overrides,
   };
 }

@@ -158,7 +158,6 @@ function buildBaseProps(overrides?: Partial<BudgetLineFormProps>): BudgetLineFor
     isEditing: true,
     confidenceLabels: CONFIDENCE_LABELS,
     budgetSources: [],
-    vendors: [],
     ...overrides,
   };
 }

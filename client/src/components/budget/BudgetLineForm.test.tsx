@@ -2,11 +2,20 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { render as rtlRender, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import type { ReactElement, ReactNode } from 'react';
 import type { BudgetLineFormProps } from './BudgetLineForm.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
+import userEvent from '@testing-library/user-event';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
+import { ApiClientError } from '../../lib/apiClient.js';
+import type {
+  BudgetSource,
+  VendorDetail,
+  VendorListItem,
+  BudgetCategory,
+} from '@cornerstone/shared';
+import type * as VendorsApiTypes from '../../lib/vendorsApi.js';
 import type * as BudgetLineFormModule from './BudgetLineForm.js';
 import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 
@@ -57,6 +66,15 @@ jest.unstable_mockModule('../../lib/configApi.js', () => ({
 jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   listPreferences: jest.fn(() => Promise.resolve([])),
   upsertPreference: jest.fn(() => Promise.resolve()),
+}));
+
+const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: mockFetchVendor,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
 }));
 
 // ─── Dynamic import (required for jest.unstable_mockModule pattern) ───────────
@@ -128,7 +146,6 @@ function buildProps(
     isEditing: false,
     confidenceLabels: CONFIDENCE_LABELS,
     budgetSources: [],
-    vendors: [],
     ...overrides,
   };
 }
@@ -314,36 +331,163 @@ describe('BudgetLineForm — description, category, source, vendor fields', () =
     expect(onFormChange).toHaveBeenCalledWith({ budgetSourceId: 'src-1' });
   });
 
-  it('renders vendor select with "No vendor" option', () => {
+  it('renders the company picker with the "None" placeholder', () => {
     const props = buildProps(buildDirectForm());
     render(<BudgetLineForm {...props} />);
-    expect(screen.getByRole('combobox', { name: /Vendor/i })).toBeInTheDocument();
+    const input = screen.getByLabelText('Vendor');
+    expect(input).toHaveAttribute('placeholder', 'None');
+    expect(mockFetchVendors).not.toHaveBeenCalled();
+  });
+});
+
+describe('BudgetLineForm — company picker searches the server', () => {
+  function vendor(id: string, name: string, trade: VendorListItem['trade'] = null): VendorListItem {
+    return { id, name, trade } as VendorListItem;
+  }
+  function listOf(vendors: VendorListItem[]) {
+    return {
+      vendors,
+      pagination: { page: 1, pageSize: 50, totalItems: vendors.length, totalPages: 1 },
+    };
+  }
+
+  beforeEach(() => {
+    mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockFetchVendors.mockResolvedValue(listOf([vendor('v-1', 'Acme Roofing')]));
   });
 
-  it('vendor select onChange calls onFormChange with vendorId', () => {
+  it('lists the first page on focus and reports a picked company as vendorId', async () => {
     const onFormChange = jest.fn();
-    const vendors: Vendor[] = [
-      {
-        id: 'v-1',
-        name: 'Acme',
-        trade: null,
-        phone: null,
-        email: null,
-        address: null,
-        notes: null,
-        createdBy: null,
-        createdAt: '',
-        updatedAt: '',
-      },
-    ];
-    const props = buildProps(buildDirectForm(), { onFormChange, vendors });
-    render(<BudgetLineForm {...props} />);
-    fireEvent.change(screen.getByRole('combobox', { name: /Vendor/i }), {
-      target: { value: 'v-1' },
-    });
+    render(<BudgetLineForm {...buildProps(buildDirectForm(), { onFormChange })} />);
+
+    await userEvent.click(screen.getByLabelText('Vendor'));
+    await userEvent.click(await screen.findByRole('option', { name: 'Acme Roofing' }));
+
+    expect(mockFetchVendors).toHaveBeenCalledWith(
+      { pageSize: 50 },
+      { signal: expect.any(AbortSignal) },
+    );
     expect(onFormChange).toHaveBeenCalledWith({ vendorId: 'v-1' });
   });
 
+  it('finds a company beyond the first 100 by typing (q reaches the server)', async () => {
+    mockFetchVendors.mockImplementation(async (params) =>
+      listOf(params?.q === 'zeta' ? [vendor('v-250', 'Zeta Tiling')] : [vendor('v-1', 'Acme')]),
+    );
+    const onFormChange = jest.fn();
+    render(<BudgetLineForm {...buildProps(buildDirectForm(), { onFormChange })} />);
+
+    await userEvent.type(screen.getByLabelText('Vendor'), 'zeta');
+    await userEvent.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
+
+    expect(mockFetchVendors).toHaveBeenCalledWith(
+      { q: 'zeta', pageSize: 50 },
+      { signal: expect.any(AbortSignal) },
+    );
+    expect(onFormChange).toHaveBeenCalledWith({ vendorId: 'v-250' });
+  });
+
+  it('shows the known company as the title without any lookup', () => {
+    const form = buildDirectForm({ vendorId: 'v-7' });
+    render(
+      <BudgetLineForm
+        {...buildProps(form, { knownVendor: { id: 'v-7', name: 'Birch Plumbing' } })}
+      />,
+    );
+
+    expect(screen.getByText('Birch Plumbing')).toBeInTheDocument();
+    expect(mockFetchVendor).not.toHaveBeenCalled();
+    expect(mockFetchVendors).not.toHaveBeenCalled();
+  });
+
+  it('looks up an unknown vendorId and shows the fetched name', async () => {
+    mockFetchVendor.mockResolvedValue({ id: 'v-9', name: 'Cedar Glazing' } as VendorDetail);
+    const form = buildDirectForm({ vendorId: 'v-9' });
+    render(<BudgetLineForm {...buildProps(form)} />);
+
+    expect(await screen.findByText('Cedar Glazing')).toBeInTheDocument();
+    expect(mockFetchVendor).toHaveBeenCalledWith('v-9');
+  });
+
+  it('keeps the vendorId and does not clear it when the lookup fails', async () => {
+    mockFetchVendor.mockRejectedValue(new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }));
+    const onFormChange = jest.fn();
+    const form = buildDirectForm({ vendorId: 'v-gone' });
+    render(<BudgetLineForm {...buildProps(form, { onFormChange })} />);
+
+    await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByLabelText('Vendor')).not.toBeDisabled());
+
+    expect(onFormChange).not.toHaveBeenCalled();
+  });
+
+  it('disables the picker while a company is being resolved', async () => {
+    mockFetchVendor.mockReturnValue(new Promise(() => {}));
+    render(<BudgetLineForm {...buildProps(buildDirectForm({ vendorId: 'v-9' }))} />);
+
+    expect(screen.getByLabelText('Vendor')).toBeDisabled();
+  });
+
+  it('is disabled while saving', () => {
+    render(<BudgetLineForm {...buildProps(buildDirectForm(), { isSaving: true })} />);
+    expect(screen.getByLabelText('Vendor')).toBeDisabled();
+  });
+
+  it('is disabled for an unassigned line', () => {
+    render(<BudgetLineForm {...buildProps(buildDirectForm(), { isUnassigned: true })} />);
+    expect(screen.getByLabelText('Vendor')).toBeDisabled();
+  });
+
+  it('shows no create row without companyCreateAction', async () => {
+    render(<BudgetLineForm {...buildProps(buildDirectForm())} />);
+
+    await userEvent.click(screen.getByLabelText('Vendor'));
+    await screen.findByRole('option', { name: 'Acme Roofing' });
+
+    expect(within(screen.getByRole('listbox')).getAllByRole('option')).toHaveLength(1);
+  });
+
+  it('shows the create row with companyCreateAction and selects the created company', async () => {
+    const onCreate = jest.fn(async (_query: string) => ({ id: 'v-new', name: 'Fresh Co' }));
+    const onFormChange = jest.fn();
+    const companyCreateAction = {
+      getLabel: (q: string) => `New company ${q}`,
+      show: 'noExactMatch' as const,
+      onCreate,
+    };
+    render(
+      <BudgetLineForm {...buildProps(buildDirectForm(), { onFormChange, companyCreateAction })} />,
+    );
+
+    await userEvent.type(screen.getByLabelText('Vendor'), 'Fresh Co');
+    await userEvent.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
+
+    await waitFor(() => expect(onFormChange).toHaveBeenCalledWith({ vendorId: 'v-new' }));
+    expect(onCreate).toHaveBeenCalledWith('Fresh Co');
+  });
+
+  it('renders the trade as secondary text', async () => {
+    mockFetchVendors.mockResolvedValue(
+      listOf([
+        vendor('v-1', 'Acme Roofing', {
+          id: 't-1',
+          name: 'Roofing',
+          color: null,
+          translationKey: null,
+        } as VendorListItem['trade']),
+      ]),
+    );
+    render(<BudgetLineForm {...buildProps(buildDirectForm())} />);
+
+    await userEvent.click(screen.getByLabelText('Vendor'));
+    const option = await screen.findByRole('option', { name: /Acme Roofing/ });
+
+    expect(option).toHaveTextContent('Roofing');
+  });
+});
+
+describe('BudgetLineForm — static category and other fields', () => {
   it('renders static category label when staticCategoryLabel is provided', () => {
     const props = buildProps(buildDirectForm(), { staticCategoryLabel: 'Plumbing' });
     render(<BudgetLineForm {...props} />);

@@ -6,6 +6,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { ApiClientError } from '../lib/apiClient.js';
+import { makeSearchCompanies } from '../test/companySearchMock.js';
 import { HOUSEHOLD_ITEM_STATUSES } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
 import { installMatchMedia } from '../test/matchMediaControl.js';
@@ -30,6 +31,7 @@ const mockCreateVendor = jest.fn<typeof VendorsApiTypes.createVendor>();
 const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: mockFetchVendor,
   createVendor: mockCreateVendor,
 }));
@@ -218,7 +220,10 @@ describe('purchaseForm (ObjectForm schema)', () => {
     expect((await screen.findByLabelText(/vendor/i)).tagName).toBe('INPUT');
     await user.click(await screen.findByLabelText(/vendor/i));
     expect(await screen.findByRole('option', { name: 'Acme Supply' })).toBeInTheDocument();
-    expect(mockFetchVendors).toHaveBeenCalledWith({ q: '', pageSize: 50 });
+    expect(mockFetchVendors).toHaveBeenCalledWith(
+      { pageSize: 50 },
+      { signal: expect.any(AbortSignal) },
+    );
   });
 
   it('sends the typed text to the company search', async () => {
@@ -228,7 +233,12 @@ describe('purchaseForm (ObjectForm schema)', () => {
 
     await user.type(await screen.findByLabelText(/vendor/i), 'acm');
 
-    await waitFor(() => expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'acm', pageSize: 50 }));
+    await waitFor(() =>
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'acm', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      ),
+    );
   });
 
   it('defaults the category to the first option and the form stays clean', async () => {
@@ -273,16 +283,25 @@ describe('purchaseForm (ObjectForm schema)', () => {
       );
     });
 
-    it('drops the id on any lookup failure, not only a 404', async () => {
-      const user = userEvent.setup();
-      mockFetchVendor.mockRejectedValue(new Error('offline'));
-      renderForm('?companyId=gone');
+    it('shows the load error, not a silent drop, when the lookup fails with a server error (only a 404 drops it)', async () => {
+      const consoleSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+      try {
+        mockFetchVendor.mockRejectedValue(
+          new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
+        );
+        renderForm('?companyId=gone');
 
-      await submitNamed(user);
-
-      expect(mockCreateHouseholdItem).toHaveBeenCalledWith(
-        expect.objectContaining({ vendorId: null }),
-      );
+        expect(
+          await screen.findByText('Failed to load form data. Please try again.'),
+        ).toBeInTheDocument();
+        expect(mockFetchVendor).toHaveBeenCalledWith('gone');
+        expect(document.body.textContent).not.toContain('RAW-SERVER-SENTINEL');
+        expect(consoleSpy).toHaveBeenCalledTimes(1);
+        // nothing was posted: the company was neither dropped nor submitted
+        expect(mockCreateHouseholdItem).not.toHaveBeenCalled();
+      } finally {
+        consoleSpy.mockRestore();
+      }
     });
 
     it('keeps a valid company beyond the first page, found by its own lookup, and posts it', async () => {

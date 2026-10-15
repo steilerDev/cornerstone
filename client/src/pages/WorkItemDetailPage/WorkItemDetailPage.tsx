@@ -11,7 +11,6 @@ import type {
   DependencyResponse,
   BudgetCategory,
   BudgetSource,
-  Vendor,
   SubsidyProgram,
   WorkItemBudgetLine,
   CreateWorkItemBudgetRequest,
@@ -54,8 +53,8 @@ import { getDependencies, createDependency, deleteDependency } from '../../lib/d
 import { listUsers } from '../../lib/usersApi.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { fetchBudgetCategories } from '../../lib/budgetCategoriesApi.js';
+import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
 import {
@@ -135,6 +134,7 @@ export default function WorkItemDetailPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { t } = useTranslation('workItems');
+  const { createAction: companyCreateAction } = useCompanyCreateAction();
   const { t: tBudget } = useTranslation('budget');
   const { t: tCommon } = useTranslation('common');
   const { t: tErrors } = useTranslation('errors');
@@ -157,7 +157,6 @@ export default function WorkItemDetailPage() {
   const [budgetLines, setBudgetLines] = useState<WorkItemBudgetLine[]>([]);
   const [budgetCategories, setBudgetCategories] = useState<BudgetCategory[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
-  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
 
   // Invoice linking state
   const [showInvoiceLinkModal, setShowInvoiceLinkModal] = useState(false);
@@ -373,7 +372,6 @@ export default function WorkItemDetailPage() {
           usersData,
           categoriesData,
           sourcesData,
-          vendorsData,
           budgetLinesData,
           subsidiesData,
           linkedSubsidiesData,
@@ -389,7 +387,6 @@ export default function WorkItemDetailPage() {
           listUsers(),
           fetchBudgetCategories(),
           fetchBudgetSources(),
-          fetchVendors({ pageSize: 100 }),
           fetchWorkItemBudgets(id!),
           fetchSubsidyPrograms(),
           fetchWorkItemSubsidies(id!),
@@ -413,7 +410,6 @@ export default function WorkItemDetailPage() {
         setUsers(usersData.users.filter((u) => !u.deactivatedAt));
         setBudgetCategories(categoriesData.categories);
         setBudgetSources(sourcesData.budgetSources);
-        setAllVendors(vendorsData.vendors);
         setBudgetLines(budgetLinesData);
         setAllSubsidyPrograms(subsidiesData.subsidyPrograms);
         setLinkedSubsidies(linkedSubsidiesData);
@@ -1557,10 +1553,14 @@ export default function WorkItemDetailPage() {
           <section className={styles.section}>
             <h2 className={styles.sectionTitle}>{t('detail.sections.assignment')}</h2>
             <div className={styles.property}>
-              <label className={styles.propertyLabel}>{t('detail.assignment.assignedTo')}</label>
+              <label className={styles.propertyLabel} htmlFor="work-item-assignment">
+                {t('detail.assignment.assignedTo')}
+              </label>
               <AssignmentPicker
+                id="work-item-assignment"
                 users={users}
-                vendors={allVendors}
+                knownVendor={workItem.assignedVendor ?? null}
+                createAction={companyCreateAction}
                 value={encodeAssignment(workItem.assignedUser?.id, workItem.assignedVendor?.id)}
                 onChange={handleAssignmentChange}
               />
@@ -1577,7 +1577,6 @@ export default function WorkItemDetailPage() {
               availableSubsidies={availableSubsidies}
               budgetSectionHook={budgetSection}
               budgetSources={budgetSources}
-              vendors={allVendors}
               budgetCategories={budgetCategories}
               onLinkSubsidy={handleLinkSubsidy}
               onUnlinkSubsidy={handleUnlinkSubsidy}

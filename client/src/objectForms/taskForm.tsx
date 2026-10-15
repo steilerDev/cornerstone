@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { WORK_ITEM_STATUSES, routeUrl } from '@cornerstone/shared';
-import type { DependencyType, UserResponse, Vendor, WorkItemStatus } from '@cornerstone/shared';
+import type { DependencyType, UserResponse, WorkItemStatus } from '@cornerstone/shared';
 import {
   AssignmentPicker,
   decodeAssignment,
+  encodeAssignment,
 } from '../components/AssignmentPicker/AssignmentPicker.js';
 import {
   DependencySentenceBuilder,
@@ -22,9 +23,10 @@ import { useAreas } from '../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
 import { createDependency } from '../lib/dependenciesApi.js';
 import { listUsers } from '../lib/usersApi.js';
-import { fetchVendors } from '../lib/vendorsApi.js';
 import { createWorkItem } from '../lib/workItemsApi.js';
 import { AreaField } from './AreaField.js';
+import { useCompanyFormSchema } from './companyForm.js';
+import type { CompanyOption } from './companyForm.js';
 import styles from './objectForms.module.css';
 
 interface PendingDependency {
@@ -110,24 +112,22 @@ function DependenciesField({ ctx }: DependenciesFieldProps) {
 export function useTaskFormSchema(): ObjectFormSchema {
   const { t } = useTranslation('workItems');
   const { t: tc } = useTranslation('common');
+  const { t: tb } = useTranslation('budget');
+  const companySchema = useCompanyFormSchema();
   const statusVariants = useStatusBadgeVariants();
   const { areas, isLoading: areasLoading } = useAreas();
 
   const [users, setUsers] = useState<UserResponse[]>([]);
-  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [createdCompany, setCreatedCompany] = useState<CompanyOption | null>(null);
   const [dataState, setDataState] = useState<'loading' | 'ready' | 'failed'>('loading');
 
   useEffect(() => {
     let cancelled = false;
     async function loadData() {
       try {
-        const [usersResponse, vendorsResponse] = await Promise.all([
-          listUsers(),
-          fetchVendors({ pageSize: 100 }),
-        ]);
+        const usersResponse = await listUsers();
         if (cancelled) return;
         setUsers(usersResponse.users.filter((u) => !u.deactivatedAt));
-        setVendors(vendorsResponse.vendors);
         setDataState('ready');
       } catch (err) {
         if (cancelled) return;
@@ -189,10 +189,27 @@ export function useTaskFormSchema(): ObjectFormSchema {
             <AssignmentPicker
               id={ctx.id}
               users={users}
-              vendors={vendors}
+              knownVendor={createdCompany}
               value={typeof ctx.value === 'string' ? ctx.value : ''}
               onChange={ctx.setValue}
               disabled={ctx.busy}
+              createAction={{
+                getLabel: (query) => tb('companies.picker.newNamed', { name: query }),
+                show: 'noExactMatch',
+                // The form continues in a child step (dialogs never stack); the new company
+                // is set on this field when it is saved.
+                onCreate: async (query) => {
+                  ctx.createChild({
+                    schema: companySchema,
+                    prefill: { name: query },
+                    onCreated: (result) => {
+                      setCreatedCompany({ id: result.id, name: result.label });
+                      ctx.setValue(encodeAssignment(undefined, result.id));
+                    },
+                  });
+                  return null;
+                },
+              }}
             />
             <FormError
               variant="field"

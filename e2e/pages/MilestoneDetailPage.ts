@@ -11,7 +11,7 @@
  *   - Status badge: "Reached" or "Upcoming"
  *   - Edit button: data-testid="edit-milestone-button"
  *   - Fields: Target Date, Description (conditional), Completed At (conditional)
- *   - Linked Items section (list + search input: data-testid="item-search-input")
+ *   - Linked Items section (list + search input: #milestone-link-search)
  *   - Dependent Work Items section (data-testid="dependent-items-section")
  *   - Delete button: data-testid="delete-milestone-button", text t('milestones.detail.deleteButton') = "Delete Milestone"
  *
@@ -48,6 +48,7 @@ import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
+import { SearchPickerControl } from './components/SearchPickerControl.js';
 
 export class MilestoneDetailPage {
   readonly page: Page;
@@ -72,8 +73,10 @@ export class MilestoneDetailPage {
   readonly cancelEditButton: Locator; // "Cancel" in edit mode (class cancelButton)
 
   // Linked items
-  readonly itemSearchInput: Locator; // data-testid="item-search-input"
-  readonly depSearchInput: Locator; // data-testid="dep-search-input"
+  readonly itemSearchInput: Locator; // #milestone-link-search (SearchPicker, add mode)
+  readonly depSearchInput: Locator; // #milestone-dependent-search (SearchPicker, add mode)
+  readonly linkPicker: SearchPickerControl;
+  readonly dependentPicker: SearchPickerControl;
   readonly dependentItemsSection: Locator; // data-testid="dependent-items-section"
 
   // Delete confirmation (shared ConfirmDialog, role="alertdialog")
@@ -109,8 +112,10 @@ export class MilestoneDetailPage {
     this.cancelEditButton = page.locator('[class*="cancelButton"]').filter({ hasText: 'Cancel' });
 
     // Linked items search inputs
-    this.itemSearchInput = page.getByTestId('item-search-input');
-    this.depSearchInput = page.getByTestId('dep-search-input');
+    this.linkPicker = new SearchPickerControl(page, 'milestone-link-search');
+    this.dependentPicker = new SearchPickerControl(page, 'milestone-dependent-search');
+    this.itemSearchInput = this.linkPicker.input;
+    this.depSearchInput = this.dependentPicker.input;
     this.dependentItemsSection = page.getByTestId('dependent-items-section');
 
     // Delete confirmation: the shared ConfirmDialog (role="alertdialog", #2209)

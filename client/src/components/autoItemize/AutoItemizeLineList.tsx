@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import type { TFunction } from 'i18next';
 import type { BadgeVariantMap } from '../Badge/Badge.js';
-import type { BudgetSource, Vendor, BudgetCategory } from '@cornerstone/shared';
+import type { BudgetSource, BudgetCategory } from '@cornerstone/shared';
 import { AutoItemizeLineCard } from './AutoItemizeLineCard.js';
 import { MergingLineCard } from './MergingLineCard.js';
 import { Badge } from '../Badge/Badge.js';
@@ -32,7 +32,6 @@ interface AutoItemizeLineListProps {
   onQueueNewBudgetLine?: (rowId: string) => void;
   onInlineDraftChange?: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
   confidenceLabels?: Record<string, string>;
-  vendors?: Vendor[];
   budgetCategories?: BudgetCategory[];
   // Merge selection props
   selectedRowIds?: Set<string>;
@@ -62,7 +61,6 @@ export function AutoItemizeLineList({
   onQueueNewBudgetLine,
   onInlineDraftChange,
   confidenceLabels,
-  vendors,
   budgetCategories,
   selectedRowIds = new Set(),
   onToggleSelect,
@@ -203,7 +201,6 @@ export function AutoItemizeLineList({
                   onQueueNewBudgetLine={onQueueNewBudgetLine}
                   onInlineDraftChange={onInlineDraftChange}
                   confidenceLabels={confidenceLabels}
-                  vendors={vendors}
                   budgetCategories={budgetCategories}
                 />
               );

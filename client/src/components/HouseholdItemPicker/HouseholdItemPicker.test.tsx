@@ -4,6 +4,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { withControlledValue } from '../../test/withControlledValue.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
 
 // Mock the API module before any dynamic imports
@@ -109,7 +110,7 @@ describe('HouseholdItemPicker', () => {
   function renderPicker(
     props: Partial<React.ComponentProps<typeof HouseholdItemPickerModule.HouseholdItemPicker>> = {},
   ) {
-    const { HouseholdItemPicker } = HouseholdItemPickerModule;
+    const HouseholdItemPicker = withControlledValue(HouseholdItemPickerModule.HouseholdItemPicker);
     return render(<HouseholdItemPicker value="" onChange={jest.fn()} excludeIds={[]} {...props} />);
   }
 
@@ -283,7 +284,7 @@ describe('HouseholdItemPicker', () => {
 
   it('resets to search input when value is externally set to empty string', async () => {
     const onChange = jest.fn<(id: string) => void>();
-    const { HouseholdItemPicker } = HouseholdItemPickerModule;
+    const HouseholdItemPicker = withControlledValue(HouseholdItemPickerModule.HouseholdItemPicker);
 
     const { rerender } = render(
       <HouseholdItemPicker

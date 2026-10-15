@@ -21,6 +21,7 @@
 
 import { render, screen, waitFor, fireEvent, act, within } from '@testing-library/react';
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { RecordingRouter, createRouterLog } from '../../test/recordingRouter.js';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
@@ -71,6 +72,7 @@ const mockFetchVendor = jest.fn<typeof VendorsApiModule.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

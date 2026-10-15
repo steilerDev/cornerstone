@@ -1,8 +1,10 @@
 /**
  * @jest-environment jsdom
  */
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
+import { act, render, screen, waitFor, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { notifyObjectCreated } from '../../lib/objectCreatedEvents.js';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
@@ -31,6 +33,7 @@ const mockDeleteWorkItem = jest.fn<typeof WorkItemsApiTypes.deleteWorkItem>();
 const mockFetchDeleteImpact = jest.fn<typeof DeleteImpactApiTypes.fetchDeleteImpact>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/workItemsApi.js', () => ({
   listWorkItems: mockListWorkItems,
@@ -47,6 +50,8 @@ jest.unstable_mockModule('../../lib/usersApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  fetchVendor: mockFetchVendor,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
 }));
 
 // ─── preferencesApi mock — DataTable calls useColumnPreferences -> listPreferences ──
@@ -67,6 +72,7 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 // ─── useTableState mock — prevents infinite useEffect re-renders ─────────────
 
 const stableFilters = new Map<string, { value: string }>();
+const mockSetFilter = jest.fn<(key: string, value: string | null) => void>();
 jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
   useTableState: () => ({
     tableState: {
@@ -80,7 +86,7 @@ jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
     searchInput: '',
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
-    setFilter: jest.fn(),
+    setFilter: mockSetFilter,
   }),
 }));
 
@@ -174,6 +180,9 @@ describe('WorkItemsPage', () => {
     mockFetchDeleteImpact.mockResolvedValue({ entityType: 'work_item', id: 'wi-1', effects: [] });
     mockListUsers.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockSetFilter.mockReset();
+    stableFilters.clear();
     mockListPreferences.mockReset();
     mockListPreferences.mockResolvedValue([]);
     mockUseAreas.mockReset();
@@ -740,6 +749,89 @@ describe('WorkItemsPage', () => {
       fireEvent.click(links[0]!);
 
       expect(log.actions).toEqual(['PUSH /project/work-items/wi-1']);
+    });
+  });
+
+  // ── Company filter: entity filter resolved from the URL, never a 100-company load ──
+
+  describe('company filter (assignedVendorId)', () => {
+    afterEach(() => {
+      stableFilters.clear();
+    });
+
+    it('loads no companies on mount', async () => {
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await screen.findAllByRole('link', { name: /Lay Foundation/ });
+
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+    });
+
+    it('resolves the label of ?assignedVendorId=<id> with GET /vendors/:id and keeps the filter', async () => {
+      stableFilters.set('assignedVendorId', { value: 'v-250' });
+      mockFetchVendor.mockResolvedValue({ id: 'v-250', name: 'Zeta Tiling' } as never);
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-250'));
+      await screen.findAllByRole('link', { name: /Lay Foundation/ });
+
+      expect(mockFetchVendor).toHaveBeenCalledTimes(1);
+      expect(mockSetFilter).not.toHaveBeenCalled();
+    });
+
+    it('drops an unknown (404) company from the URL filter', async () => {
+      stableFilters.set('assignedVendorId', { value: 'v-gone' });
+      mockFetchVendor.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+      );
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await waitFor(() => expect(mockSetFilter).toHaveBeenCalledWith('assignedVendorId', null));
+      expect(mockSetFilter).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the filter when the lookup fails with a server error', async () => {
+      stableFilters.set('assignedVendorId', { value: 'v-1' });
+      mockFetchVendor.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+      await screen.findAllByRole('link', { name: /Lay Foundation/ });
+
+      expect(mockSetFilter).not.toHaveBeenCalled();
+    });
+
+    it('makes the company column an entity filter that searches the server', async () => {
+      const user = userEvent.setup();
+      mockListPreferences.mockResolvedValue([
+        {
+          key: 'table.workItems.columns',
+          value: JSON.stringify({ visible: ['title', 'vendor'] }),
+          updatedAt: '',
+        },
+      ] as never);
+      mockFetchVendors.mockResolvedValue({
+        vendors: [{ id: 'v-250', name: 'Zeta Tiling', trade: null }],
+        pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+      } as never);
+      mockListWorkItems.mockResolvedValue(makeListResponse([makeWorkItemSummary()]));
+      renderPage();
+
+      await user.click(await screen.findByRole('button', { name: /filter by vendor/i }));
+      await user.click(within(await screen.findByRole('dialog')).getByRole('textbox'));
+
+      expect(await screen.findByRole('option', { name: 'Zeta Tiling' })).toBeInTheDocument();
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
     });
   });
 });
