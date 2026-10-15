@@ -153,16 +153,6 @@
   .checkbox {
     margin-top: 0;
   }
-
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-4);
-  }
-
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

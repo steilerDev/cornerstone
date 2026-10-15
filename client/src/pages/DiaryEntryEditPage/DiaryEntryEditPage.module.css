@@ -184,9 +184,6 @@
     flex-direction: column;
   }
 
-  .deleteButton,
-  .cancelButton,
-  .submitButton,
   .backButton {
     width: 100%;
     min-height: 44px;
@@ -203,9 +200,6 @@
 
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .deleteButton,
-  .cancelButton,
-  .submitButton,
   .backButton {
     transition: none;
   }

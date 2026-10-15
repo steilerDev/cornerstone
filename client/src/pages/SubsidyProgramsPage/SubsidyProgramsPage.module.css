@@ -1,19 +1,5 @@
 /* ---- Section header (below sub-nav) ---- */
 
-.sectionHeader {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--spacing-4);
-}
-
-.sectionTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-semibold);
-  color: var(--color-text-primary);
-  margin: 0;
-}
-
 /* ---- Banners ---- */
 
 .successBanner {
@@ -88,14 +74,6 @@
 }
 
 .field {
-  display: flex;
-  flex-direction: column;
-  gap: var(--spacing-1);
-}
-
-/* Name / description stretches to fill available space */
-.fieldGrow {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: var(--spacing-1);
@@ -524,19 +502,8 @@
  * ============================================================ */
 
 @media (max-width: 767px) {
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
-
   .card {
     padding: var(--spacing-4);
-  }
-
-  /* Stack page header and section header vertically on mobile */
-  .pageHeader,
-  .sectionHeader {
-    flex-direction: column;
-    align-items: stretch;
   }
 
   .button {

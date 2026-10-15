@@ -36,12 +36,6 @@
   overflow-wrap: anywhere;
 }
 
-.pageSubtitle {
-  font-size: var(--font-size-lg);
-  color: var(--color-text-muted);
-  font-weight: var(--font-weight-normal);
-}
-
 .pageActions {
   display: flex;
   gap: var(--spacing-2);
@@ -166,21 +160,6 @@
 }
 
 /* ---- Coming soon placeholder (kept for reference, no longer used) ---- */
-
-.comingSoon {
-  padding: var(--spacing-8);
-  text-align: center;
-}
-
-.comingSoonText {
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-  margin: 0;
-  max-width: 40ch;
-  margin-left: auto;
-  margin-right: auto;
-  line-height: 1.6;
-}
 
 /* ---- Select element ---- */
 
@@ -566,13 +545,6 @@
   background-color: var(--color-bg-secondary);
   color: var(--color-text-disabled);
   cursor: not-allowed;
-}
-
-.budgetLinkNote {
-  font-size: var(--font-size-xs);
-  color: var(--color-text-muted);
-  margin: 0 0 var(--spacing-2) 0;
-  font-style: italic;
 }
 
 .formActions {

@@ -134,10 +134,6 @@
 }
 
 @media (max-width: 767px) {
-  .pageTitle {
-    font-size: var(--font-size-xl);
-  }
-
   .table {
     font-size: var(--font-size-xs);
   }

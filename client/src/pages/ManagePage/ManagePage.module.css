@@ -51,25 +51,8 @@
 }
 
 /* ---- Loading ---- */
-.loading {
-  composes: loading from '../../styles/shared.module.css';
-}
 
 /* ---- Error card ---- */
-.errorCard {
-  background: var(--color-bg-primary);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm);
-  padding: var(--spacing-8);
-  text-align: center;
-}
-
-.errorTitle {
-  font-size: var(--font-size-2xl);
-  font-weight: var(--font-weight-bold);
-  color: var(--color-danger);
-  margin: 0 0 var(--spacing-4) 0;
-}
 
 /* ---- Banners ---- */
 .successBanner {
@@ -472,20 +455,10 @@
 }
 
 /* ---- Empty state ---- */
-.emptyState {
-  padding: var(--spacing-8);
-  text-align: center;
-  font-size: var(--font-size-sm);
-  color: var(--color-text-muted);
-}
 
 /* ---- Responsive ---- */
 
 @media (max-width: 767px) {
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
-
   .card {
     padding: var(--spacing-4);
   }

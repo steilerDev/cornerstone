@@ -36,25 +36,6 @@
   align-self: center;
 }
 
-.controls {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-4);
-  justify-content: space-between;
-  flex-wrap: wrap;
-}
-
-.actionButtons {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-3);
-  flex-wrap: wrap;
-}
-
-.exportButton {
-  flex-shrink: 0;
-}
-
 .timeline {
   display: flex;
   flex-direction: column;
@@ -89,21 +70,6 @@
     width: 100%;
     min-height: 44px;
     align-self: stretch;
-  }
-
-  .controls {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .actionButtons {
-    flex-direction: column;
-    gap: var(--spacing-2);
-  }
-
-  .exportButton {
-    width: 100%;
-    min-height: 44px;
   }
 }
 
