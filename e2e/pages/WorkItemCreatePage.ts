@@ -19,6 +19,7 @@
 
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 import { ObjectFormDialog } from './components/ObjectFormDialog.js';
 
 export const WORK_ITEM_CREATE_ROUTE = routeUrl('workItemNew');
@@ -27,7 +28,8 @@ export interface WorkItemFormData {
   title?: string;
   description?: string;
   status?: string;
-  assignedUserId?: string;
+  /** Person or company to assign, picked by name through the assignment picker's search. */
+  assignedTo?: string;
   startDate?: string;
   endDate?: string;
   durationDays?: string;
@@ -49,7 +51,8 @@ export class WorkItemCreatePage {
   readonly titleInput: Locator;
   readonly descriptionInput: Locator;
   readonly statusSelect: Locator;
-  readonly assignedUserSelect: Locator;
+  /** The assignment picker (#assignment): people and companies, with a New company row. */
+  readonly assignmentPicker: CompanyPickerControl;
   readonly startDateInput: Locator;
   readonly endDateInput: Locator;
   readonly durationInput: Locator;
@@ -82,7 +85,7 @@ export class WorkItemCreatePage {
     this.titleInput = this.form.field('title');
     this.descriptionInput = this.form.field('description');
     this.statusSelect = this.form.field('status');
-    this.assignedUserSelect = this.form.field('assignment');
+    this.assignmentPicker = new CompanyPickerControl(page, 'assignment', this.dialog);
     this.startDateInput = this.form.field('startDate');
     this.endDateInput = this.form.field('endDate');
     this.durationInput = this.form.field('durationDays');
@@ -142,9 +145,7 @@ export class WorkItemCreatePage {
     if (data.title !== undefined) await this.titleInput.fill(data.title);
     if (data.description !== undefined) await this.descriptionInput.fill(data.description);
     if (data.status !== undefined) await this.statusSelect.selectOption(data.status);
-    if (data.assignedUserId !== undefined) {
-      await this.assignedUserSelect.selectOption(data.assignedUserId);
-    }
+    if (data.assignedTo !== undefined) await this.assignmentPicker.pick(data.assignedTo);
     if (data.startDate !== undefined) await this.startDateInput.fill(data.startDate);
     if (data.endDate !== undefined) await this.endDateInput.fill(data.endDate);
     if (data.durationDays !== undefined) await this.durationInput.fill(data.durationDays);

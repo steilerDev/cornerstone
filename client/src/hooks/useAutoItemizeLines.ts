@@ -6,6 +6,8 @@ import type {
   PaperlessDocumentSearchResult,
   ConfidenceLevel,
 } from '@cornerstone/shared';
+import { foldSearchText } from '@cornerstone/shared';
+import { searchCompanies } from '../lib/vendorsApi.js';
 import { useBudgetLinePicker } from './useBudgetLinePicker.js';
 import type { UseBudgetLinePickerReturn } from './useBudgetLinePicker.js';
 import type { LineWithInclude } from '../components/autoItemize/types.js';
@@ -56,7 +58,7 @@ export interface UseAutoItemizeLinesReturn {
     onFieldChange: (rowId: string, field: keyof LineWithInclude, value: unknown) => void;
     onAssign: (rowId: string) => void;
     onSelectBudgetLine: (line: WorkItemBudgetLine | HouseholdItemBudgetLine) => void;
-    onQueueNewBudgetLine: () => void;
+    onQueueNewBudgetLine: () => Promise<void>;
     onInlineDraftChange: (rowId: string, updates: Partial<BudgetLineFormState>) => void;
     onClearAssign: (rowId: string) => void;
   };
@@ -170,8 +172,10 @@ export function useAutoItemizeLines({
   // Keep picker function refs current every render.
   openPickerRef.current = picker.openPicker;
   closePickerRef.current = picker.closePicker;
+  const pickerStateRef = useRef(picker.pickerState);
+  pickerStateRef.current = picker.pickerState;
 
-  // Initialize categories, sources, and vendors once on mount.
+  // Initialize categories and sources once on mount.
   useEffect(() => {
     void picker.initializeStaticData();
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- initialize once on mount
@@ -296,22 +300,32 @@ export function useAutoItemizeLines({
     [],
   );
 
-  const onQueueNewBudgetLine = useCallback(() => {
+  const onQueueNewBudgetLine = useCallback(async () => {
     const rowId = activeRowIdRef.current;
     if (!rowId) return;
     const row = linesRef.current.find((l) => l.rowId === rowId);
     if (!row) return;
 
-    const ps = picker.pickerState;
-    const vendors = ps.vendors ?? [];
+    // Match the extracted company name on the server (folded equality), before the draft exists
+    // so no later write lands on a field the user is editing.
+    let vendorId: string | null = null;
+    if (row.vendorName) {
+      const wanted = foldSearchText(row.vendorName);
+      try {
+        const found = await searchCompanies(row.vendorName);
+        vendorId = found.find((v) => foldSearchText(v.name) === wanted)?.id ?? null;
+      } catch {
+        vendorId = null;
+      }
+      // The user may have closed the picker or switched rows meanwhile.
+      if (activeRowIdRef.current !== rowId) return;
+    }
+
+    const ps = pickerStateRef.current;
     const sources = ps.budgetSources ?? [];
     const discretionaryId = sources.find((s) => s.isDiscretionary)?.id;
     const budgetSourceId =
       defaultBudgetSourceIdRef.current || (row.budgetSourceId ?? discretionaryId ?? '');
-
-    const vendorId = row.vendorName
-      ? (vendors.find((v) => v.name.toLowerCase() === row.vendorName!.toLowerCase())?.id ?? null)
-      : null;
 
     // Derive confidence from Paperless document type when available (both flows),
     // falling back to the ML extraction score.
@@ -365,7 +379,7 @@ export function useAutoItemizeLines({
     onFieldsEditedRef.current?.();
     closePickerRef.current();
     activeRowIdRef.current = null;
-  }, [picker.pickerState]);
+  }, []);
 
   const onInlineDraftChange = useCallback(
     (rowId: string, updates: Partial<BudgetLineFormState>) => {

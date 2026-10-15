@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type {
   Invoice,
   InvoiceDetailResponse,
@@ -45,19 +46,22 @@ export function deleteInvoice(vendorId: string, invoiceId: string): Promise<void
 /**
  * Fetches all invoices across all vendors (paginated, filterable).
  */
-export function fetchAllInvoices(params?: {
-  page?: number;
-  pageSize?: number;
-  q?: string;
-  status?: 'pending' | 'paid' | 'claimed' | 'quotation';
-  vendorId?: string;
-  amount?: string;
-  date?: string;
-  dueDate?: string;
-  sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
-  openOnly?: boolean;
-}): Promise<InvoiceListPaginatedResponse> {
+export function fetchAllInvoices(
+  params?: {
+    page?: number;
+    pageSize?: number;
+    q?: string;
+    status?: 'pending' | 'paid' | 'claimed' | 'quotation';
+    vendorId?: string;
+    amount?: string;
+    date?: string;
+    dueDate?: string;
+    sortBy?: string;
+    sortOrder?: 'asc' | 'desc';
+    openOnly?: boolean;
+  },
+  options?: RequestOptions,
+): Promise<InvoiceListPaginatedResponse> {
   const queryParams = new URLSearchParams();
   if (params?.page !== undefined) queryParams.set('page', params.page.toString());
   if (params?.pageSize !== undefined) queryParams.set('pageSize', params.pageSize.toString());
@@ -73,7 +77,7 @@ export function fetchAllInvoices(params?: {
   if (params?.openOnly) queryParams.set('openOnly', 'true');
   const queryString = queryParams.toString();
   const path = queryString ? `/invoices?${queryString}` : '/invoices';
-  return get<InvoiceListPaginatedResponse>(path);
+  return get<InvoiceListPaginatedResponse>(path, options);
 }
 
 /**

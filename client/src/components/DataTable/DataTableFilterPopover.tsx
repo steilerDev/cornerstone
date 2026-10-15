@@ -99,6 +99,7 @@ export function DataTableFilterPopover<T>({
               searchFn={column.entitySearchFn}
               renderItem={column.entityRenderItem}
               placeholder={column.entityPlaceholder}
+              selectedLabel={column.entitySelectedLabel}
             />
           )
         );

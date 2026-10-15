@@ -4,6 +4,7 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { withControlledValue } from '../../test/withControlledValue.js';
 import type * as WorkItemsApiTypes from '../../lib/workItemsApi.js';
 
 /**
@@ -102,7 +103,7 @@ describe('WorkItemPicker', () => {
   function renderPicker(
     props: Partial<React.ComponentProps<typeof WorkItemPickerModule.WorkItemPicker>> = {},
   ) {
-    const { WorkItemPicker } = WorkItemPickerModule;
+    const WorkItemPicker = withControlledValue(WorkItemPickerModule.WorkItemPicker);
     return render(<WorkItemPicker value="" onChange={jest.fn()} excludeIds={[]} {...props} />);
   }
 

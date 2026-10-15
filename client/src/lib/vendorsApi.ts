@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type {
   Vendor,
   VendorListItem,
@@ -21,7 +22,10 @@ export interface VendorListResponse {
 /**
  * Fetches a paginated list of vendors with optional search and sorting.
  */
-export function fetchVendors(params?: VendorListQuery): Promise<VendorListResponse> {
+export function fetchVendors(
+  params?: VendorListQuery,
+  options?: RequestOptions,
+): Promise<VendorListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params?.page !== undefined) {
@@ -49,7 +53,19 @@ export function fetchVendors(params?: VendorListQuery): Promise<VendorListRespon
   const queryString = queryParams.toString();
   const path = queryString ? `/vendors?${queryString}` : '/vendors';
 
-  return get<VendorListResponse>(path);
+  return get<VendorListResponse>(path, options);
+}
+
+/** Page size of a company picker's server search (the API allows at most 100). */
+export const COMPANY_PICKER_PAGE_SIZE = 50;
+
+/** Server search for a company SearchPicker; '' lists the first page by name. */
+export function searchCompanies(query: string, signal?: AbortSignal): Promise<VendorListItem[]> {
+  const q = query.trim();
+  return fetchVendors(
+    { ...(q ? { q } : {}), pageSize: COMPANY_PICKER_PAGE_SIZE },
+    signal ? { signal } : undefined,
+  ).then((r) => r.vendors);
 }
 
 /**

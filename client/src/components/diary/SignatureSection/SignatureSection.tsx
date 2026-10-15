@@ -4,7 +4,6 @@ import type { DiarySignatureEntry } from '@cornerstone/shared';
 import { MAX_SIGNATURES_PER_ENTRY } from '@cornerstone/shared';
 import shared from '../../../styles/shared.module.css';
 import { SignatureCapture } from '../SignatureCapture/SignatureCapture.js';
-import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import styles from './SignatureSection.module.css';
 
 export interface SignatureSectionProps {
@@ -22,8 +21,6 @@ export interface SignatureSectionProps {
   label?: string;
   /** Current user's display name */
   currentUserName?: string;
-  /** Available vendors for vendor signature type */
-  vendors?: VendorOption[];
 }
 
 export function SignatureSection({
@@ -34,7 +31,6 @@ export function SignatureSection({
   disabled = false,
   label,
   currentUserName,
-  vendors,
 }: SignatureSectionProps) {
   const { t } = useTranslation('diary');
   const limitHintId = useId();
@@ -85,7 +81,6 @@ export function SignatureSection({
                 }}
                 disabled={disabled}
                 currentUserName={currentUserName}
-                vendors={vendors}
               />
             </div>
           ))}

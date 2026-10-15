@@ -46,8 +46,22 @@ jest.unstable_mockModule('./BudgetLineCard.js', () => ({
 }));
 
 jest.unstable_mockModule('./BudgetLineForm.js', () => ({
-  BudgetLineForm: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="budget-line-form">{children}</div>
+  BudgetLineForm: ({
+    children,
+    knownVendor,
+    companyCreateAction,
+  }: {
+    children?: React.ReactNode;
+    knownVendor?: { id: string; name: string } | null;
+    companyCreateAction?: unknown;
+  }) => (
+    <div
+      data-testid="budget-line-form"
+      data-known-vendor={knownVendor?.name ?? ''}
+      data-has-create={String(companyCreateAction !== undefined)}
+    >
+      {children}
+    </div>
   ),
 }));
 
@@ -200,7 +214,6 @@ function buildProps(
     availableSubsidies: [],
     budgetSectionHook: buildHookReturn(),
     budgetSources: [],
-    vendors: [],
     onLinkSubsidy: jest.fn(),
     onUnlinkSubsidy: jest.fn(),
     onConfirmDeleteBudgetLine: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),
@@ -215,6 +228,29 @@ describe('BudgetSection', () => {
     jest.clearAllMocks();
     const module = await import('./BudgetSection.js');
     BudgetSection = module.BudgetSection;
+  });
+
+  it('passes the edited line company to its form as the known company', () => {
+    const line = {
+      ...buildLine('line-1'),
+      vendor: { id: 'v-1', name: 'Acme Roofing', trade: null },
+    };
+    const hook = buildHookReturn({ editingBudgetId: 'line-1', showBudgetForm: true });
+
+    render(<BudgetSection {...buildProps([line], { budgetSectionHook: hook })} />);
+
+    const form = screen.getByTestId('budget-line-form');
+    expect(form).toHaveAttribute('data-known-vendor', 'Acme Roofing');
+    // no CompanyCreateProvider is mounted in this test, so there is no create row
+    expect(form).toHaveAttribute('data-has-create', 'false');
+  });
+
+  it('passes no known company to the add form', () => {
+    const hook = buildHookReturn({ showBudgetForm: true });
+
+    render(<BudgetSection {...buildProps([], { budgetSectionHook: hook })} />);
+
+    expect(screen.getByTestId('budget-line-form')).toHaveAttribute('data-known-vendor', '');
   });
 
   it('lines with same invoiceId are grouped into a single InvoiceGroup', () => {

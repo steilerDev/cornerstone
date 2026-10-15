@@ -35,7 +35,6 @@ jest.unstable_mockModule('./useBudgetLinePicker.js', () => ({
         error: null,
         budgetLines: [],
         budgetSources: [{ id: 'src-1', name: 'Main', isDiscretionary: true }],
-        vendors: [{ id: 'v-1', name: 'Builder Co', trade: null }],
         categories: [{ id: 'cat-1', name: 'Cat 1' }],
         showCreateForm: false,
         createError: null,
@@ -82,6 +81,14 @@ jest.unstable_mockModule('../lib/invoiceAutoItemizeApi.js', () => ({
   mergeLines: mockMergeLines,
 }));
 
+// ─── Mock: vendorsApi (server company search) ────────────────────────────────
+
+const mockSearchCompanies = jest.fn<(query: string) => Promise<{ id: string; name: string }[]>>();
+
+jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
+  searchCompanies: mockSearchCompanies,
+}));
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -125,6 +132,7 @@ describe('useAutoItemizeLines', () => {
     mockPickerStateOverride = {};
     capturedOnLineCreated = null;
     mockMergeLines.mockReset();
+    mockSearchCompanies.mockReset();
     ({ useAutoItemizeLines } = await import('./useAutoItemizeLines.js'));
   });
 
@@ -1487,5 +1495,111 @@ describe('useAutoItemizeLines — a budget line is never linked twice (picker ex
     });
 
     expect(offeredIds(result)).toEqual(['wib-A']);
+  });
+
+  // ─── Company match on the server ────────────────────────────────────────────
+
+  describe('onQueueNewBudgetLine company match', () => {
+    async function queue(result: {
+      current: {
+        handlers: { onAssign: (id: string) => void; onQueueNewBudgetLine: () => Promise<void> };
+      };
+    }) {
+      act(() => {
+        result.current.handlers.onAssign('r1');
+      });
+      await act(async () => {
+        await result.current.handlers.onQueueNewBudgetLine();
+      });
+    }
+
+    it('matches the extracted name with folded equality (accents and case)', async () => {
+      mockSearchCompanies.mockResolvedValue([
+        { id: 'v-other', name: 'Zoe Bau GmbH' },
+        { id: 'v-7', name: 'Zoë Bau' },
+      ]);
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ vendorName: 'ZOE BAU' })]);
+      });
+
+      await queue(result);
+
+      expect(mockSearchCompanies).toHaveBeenCalledWith('ZOE BAU');
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('v-7');
+    });
+
+    it('leaves vendorId empty when the server has no equal name', async () => {
+      mockSearchCompanies.mockResolvedValue([{ id: 'v-1', name: 'Zoe Bau GmbH' }]);
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ vendorName: 'Zoe Bau' })]);
+      });
+
+      await queue(result);
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
+    });
+
+    it('leaves vendorId empty and still creates the draft when the search fails', async () => {
+      mockSearchCompanies.mockRejectedValue(new Error('offline'));
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ vendorName: 'Zoe Bau' })]);
+      });
+
+      await queue(result);
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft).toBeDefined();
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
+    });
+
+    it('does not search when the line has no extracted company name', async () => {
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions()));
+      act(() => {
+        result.current.setLines([makeLine({ vendorName: null })]);
+      });
+
+      await queue(result);
+
+      expect(mockSearchCompanies).not.toHaveBeenCalled();
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft?.vendorId).toBe('');
+    });
+
+    it('sets no draft when the user moved to another row during the search', async () => {
+      let resolveSearch!: (v: { id: string; name: string }[]) => void;
+      mockSearchCompanies.mockReturnValue(
+        new Promise((resolve) => {
+          resolveSearch = resolve;
+        }),
+      );
+      const onFieldsEdited = jest.fn();
+      const { result } = renderHook(() => useAutoItemizeLines(makeOptions({ onFieldsEdited })));
+      act(() => {
+        result.current.setLines([
+          makeLine({ vendorName: 'Zoe Bau' }),
+          makeLine({ rowId: 'r2', vendorName: null }),
+        ]);
+      });
+      act(() => {
+        result.current.handlers.onAssign('r1');
+      });
+
+      let pending!: Promise<void>;
+      act(() => {
+        pending = result.current.handlers.onQueueNewBudgetLine();
+      });
+      act(() => {
+        result.current.handlers.onAssign('r2');
+      });
+      await act(async () => {
+        resolveSearch([{ id: 'v-7', name: 'Zoe Bau' }]);
+        await pending;
+      });
+
+      expect(result.current.lines[0]?.inlineCreatedBudgetLineDraft).toBeUndefined();
+      expect(result.current.lines[1]?.inlineCreatedBudgetLineDraft).toBeUndefined();
+      expect(onFieldsEdited).not.toHaveBeenCalled();
+    });
   });
 });

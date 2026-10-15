@@ -52,3 +52,4 @@
 - [story-2213-companies-trades.md](story-2213-companies-trades.md) — #2213 Companies list/Trades sheet/company pickers: POMs, `localeUser` fixture, 6 live-run defects, patched-image verification trick.
 - [story-2209-grammar-foundations.md](story-2209-grammar-foundations.md) — #2209 StatusMenu/UndoToast/ConfirmDialog: component POMs, test-id conventions, disabled-fallback focus hazard, sandbox python-heredoc quirk.
 - [story-2214-account-relayout.md](story-2214-account-relayout.md) — #2214 Account POM/testids, token+preference mocking, aria-disabled assertion traps, DAV lock, phone gutter defect.
+- [fix-search-capped-choosers.md](fix-search-capped-choosers.md) — SearchPicker-chooser fix PR: SearchPickerControl/CompanyFilterControl POMs, settle-then-ArrowDown pick helper, focus-on-body defects A/B/C.

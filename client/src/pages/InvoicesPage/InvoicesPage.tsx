@@ -41,7 +41,8 @@ import { createReservedParams, useCreateQuery } from '../../hooks/useCreateQuery
 import type { CreateRequest } from '../../hooks/useCreateQuery.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
-import { fetchVendor, fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchVendors, searchCompanies } from '../../lib/vendorsApi.js';
+import { useCompanyName } from '../../hooks/useCompanyName.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { getPaperlessStatus } from '../../lib/paperlessApi.js';
@@ -214,27 +215,32 @@ export function InvoicesPage() {
   const [hasOverdue, setHasOverdue] = useState(false);
 
   // Table state management with URL sync
-  const { tableState, toApiParams } = useTableState({
+  const { tableState, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
     reservedParams: INVOICE_RESERVED,
+  });
+  const companyFilterId = tableState.filters.get('vendorId')?.value ?? '';
+  // A company id that no longer exists (link, reload, old multi-select value) is dropped.
+  const companyFilter = useCompanyName(companyFilterId, {
+    onUnknown: () => setFilter('vendorId', null),
   });
   const [searchParams, setSearchParams] = useSearchParams();
   const openOnly = searchParams.get('openOnly') === 'true';
   const today = useMemo(() => todayIso(), []);
 
-  // Vendor list for filter dropdown + create modal
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
-
   // Create invoice modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createForm, setCreateForm] = useState<InvoiceFormState>(EMPTY_FORM);
   const [isCreating, setIsCreating] = useState(false);
-  const [vendorsLoaded, setVendorsLoaded] = useState(false);
-  const [verifyingVendor, setVerifyingVendor] = useState(false);
   // The New company form stacks over the create modal, which stays put meanwhile.
   const { createAction: companyCreateAction, isCreating: isCreatingCompany } =
     useCompanyCreateAction();
   const [createError, setCreateError] = useState<string>('');
+  // A pre-selected company is looked up on its own; one that does not exist (404) is dropped,
+  // never submitted. The picker stays disabled meanwhile.
+  const createCompany = useCompanyName(createForm.vendorId, {
+    onUnknown: () => setCreateForm((f) => ({ ...f, vendorId: '' })),
+  });
 
   // Paperless picker modal state
   const [showPaperlessPickerModal, setShowPaperlessPickerModal] = useState(false);
@@ -288,34 +294,6 @@ export function InvoicesPage() {
     tableState.filters,
     openOnly,
   ]);
-
-  // Load vendors on mount
-  useEffect(() => {
-    void fetchVendors({ pageSize: 100 }).then((res) => {
-      const loaded = res.vendors.map((v) => ({ id: v.id, name: v.name }));
-      setVendors(loaded);
-      setVendorsLoaded(true);
-    });
-  }, []);
-
-  // A pre-selected company outside the first page is looked up on its own and added; one that
-  // does not exist (404) is dropped, never submitted. The picker stays disabled meanwhile.
-  const checkedVendorIdsRef = useRef(new Set<string>());
-  useEffect(() => {
-    const id = createForm.vendorId;
-    if (!vendorsLoaded || !id || vendors.some((v) => v.id === id)) return;
-    if (checkedVendorIdsRef.current.has(id)) return;
-    checkedVendorIdsRef.current.add(id);
-    /* eslint-disable @eslint-react/set-state-in-effect -- flag of the lookup this effect starts */
-    setVerifyingVendor(true);
-    /* eslint-enable @eslint-react/set-state-in-effect */
-    fetchVendor(id)
-      .then((found) => setVendors((prev) => [...prev, { id: found.id, name: found.name }]))
-      .catch(() =>
-        setCreateForm((form) => (form.vendorId === id ? { ...form, vendorId: '' } : form)),
-      )
-      .finally(() => setVerifyingVendor(false));
-  }, [vendorsLoaded, createForm.vendorId, vendors]);
 
   // Resolution handler for the status load (an Effect Event, so the mount-only effect below needs no
   // extra dependencies).
@@ -587,9 +565,14 @@ export function InvoicesPage() {
         sortKey: 'vendor_name',
         defaultVisible: true,
         filterable: true,
-        filterType: 'enum',
+        filterType: 'entity',
         filterParamKey: 'vendorId',
-        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
+        entitySearchFn: (q, _excluded, signal) => searchCompanies(q, signal),
+        entityRenderItem: (item) => {
+          const v = item as CompanyOption;
+          return { id: v.id, label: v.name };
+        },
+        entitySelectedLabel: companyFilter.name,
         render: (inv) => (
           <Link
             to={routeUrl('company', { id: inv.vendorId })}
@@ -720,7 +703,7 @@ export function InvoicesPage() {
       formatCurrency,
       statusVariants,
       flagVariants,
-      vendors,
+      companyFilter.name,
       openOnly,
       today,
       originState,
@@ -1072,7 +1055,11 @@ export function InvoicesPage() {
                 className={sharedStyles.btnPrimary}
                 onClick={() => formRef.current?.requestSubmit()}
                 disabled={
-                  isCreating || !createForm.vendorId || !createForm.amount || !createForm.date
+                  isCreating ||
+                  createCompany.isResolving ||
+                  !createForm.vendorId ||
+                  !createForm.amount ||
+                  !createForm.date
                 }
               >
                 {isCreating ? t('invoices.buttons.creating') : t('invoices.buttons.create')}
@@ -1099,7 +1086,8 @@ export function InvoicesPage() {
                 value={createForm.vendorId}
                 onChange={(id) => setCreateForm((form) => ({ ...form, vendorId: id }))}
                 excludeIds={[]}
-                disabled={isCreating || verifyingVendor}
+                onSelectItem={createCompany.remember}
+                disabled={isCreating || createCompany.isResolving}
                 placeholder={t('invoices.form.placeholders.vendor')}
                 searchFn={async (query) => {
                   const res = await fetchVendors({ q: query, pageSize: 50 });
@@ -1107,18 +1095,9 @@ export function InvoicesPage() {
                 }}
                 renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                 showItemsOnFocus
-                initialTitle={vendors.find((v) => v.id === createForm.vendorId)?.name}
+                initialTitle={createCompany.name}
                 inputAriaProps={{ 'aria-required': true }}
-                createAction={
-                  companyCreateAction && {
-                    ...companyCreateAction,
-                    onCreate: async (query) => {
-                      const company = await companyCreateAction.onCreate(query);
-                      if (company) setVendors((prev) => [...prev, company]);
-                      return company;
-                    },
-                  }
-                }
+                createAction={companyCreateAction}
               />
             </div>
 

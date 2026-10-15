@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
@@ -46,6 +46,8 @@ export interface SearchPickerInputAriaProps {
   'aria-required'?: boolean;
   'aria-invalid'?: boolean;
   'aria-describedby'?: string;
+  /** For inputs that have no visible label. */
+  'aria-label'?: string;
 }
 
 export interface SearchPickerProps<T> {
@@ -56,7 +58,7 @@ export interface SearchPickerProps<T> {
   excludeIds: string[];
   disabled?: boolean;
   placeholder?: string;
-  searchFn: (query: string, excludeIds: string[]) => Promise<T[]>;
+  searchFn: (query: string, excludeIds: string[], signal: AbortSignal) => Promise<T[]>;
   renderItem: (item: T) => { id: string; label: string };
   renderSecondary?: (item: T) => ReactNode;
   renderSelectedLabel?: (item: T) => string;
@@ -70,6 +72,15 @@ export interface SearchPickerProps<T> {
   searchErrorMessage?: string;
   createAction?: SearchPickerCreateAction<T>;
   inputAriaProps?: SearchPickerInputAriaProps;
+  /** Same-line, right-aligned text after the title (e.g. an amount). */
+  renderTrailing?: (item: T) => ReactNode;
+  /** data-testid of a result option row. */
+  getOptionTestId?: (item: T) => string;
+  /**
+   * Add mode: a selection (or a created item) calls onChange/onSelectItem but never shows a
+   * selected display — the input stays, empties and keeps focus (quietly; no reopen).
+   */
+  clearOnSelect?: boolean;
 }
 
 export function SearchPicker<T>({
@@ -94,6 +105,9 @@ export function SearchPicker<T>({
   searchErrorMessage,
   createAction,
   inputAriaProps,
+  renderTrailing,
+  getOptionTestId,
+  clearOnSelect = false,
 }: SearchPickerProps<T>) {
   const { t } = useTranslation('common');
   const resolvedPlaceholder = placeholder ?? t('search.placeholder');
@@ -123,8 +137,13 @@ export function SearchPicker<T>({
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const clearButtonRef = useRef<HTMLButtonElement>(null);
-  const pendingClearFocusRef = useRef(false);
+  // Where focus is headed once the picker has re-rendered: the selection chip's Clear button
+  // (after a selection) or the input (after Clear). Kept until that element has mounted, so a
+  // parent that updates `value` asynchronously still gets the focus.
+  const pendingFocusRef = useRef<'clear' | 'input' | null>(null);
+  const pendingFocusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const suppressFocusOpenRef = useRef(false);
+  const searchControllerRef = useRef<AbortController | null>(null);
 
   const { refs, floatingStyles, isPositioned } = useFloating({
     open: isOpen,
@@ -163,17 +182,30 @@ export function SearchPicker<T>({
     /* eslint-enable @eslint-react/set-state-in-effect */
   }, [value, specialOptions]);
 
+  // Abort the in-flight search when the picker unmounts
+  useEffect(
+    () => () => {
+      searchControllerRef.current?.abort();
+    },
+    [],
+  );
+
   const fetchInitialResults = useCallback(async () => {
+    searchControllerRef.current?.abort();
+    const controller = new AbortController();
+    searchControllerRef.current = controller;
     setIsLoading(true);
     setError(null);
     try {
-      const response = await searchFn('', excludeIds);
+      const response = await searchFn('', excludeIds, controller.signal);
+      if (searchControllerRef.current !== controller) return;
       setResults(response);
     } catch {
+      if (searchControllerRef.current !== controller) return;
       setError(resolvedLoadError);
       setResults([]);
     } finally {
-      setIsLoading(false);
+      if (searchControllerRef.current === controller) setIsLoading(false);
     }
   }, [excludeIds, searchFn, resolvedLoadError]);
 
@@ -185,17 +217,22 @@ export function SearchPicker<T>({
         return;
       }
 
+      searchControllerRef.current?.abort();
+      const controller = new AbortController();
+      searchControllerRef.current = controller;
       setIsLoading(true);
       setError(null);
 
       try {
-        const response = await searchFn(query, excludeIds);
+        const response = await searchFn(query, excludeIds, controller.signal);
+        if (searchControllerRef.current !== controller) return;
         setResults(response);
       } catch {
+        if (searchControllerRef.current !== controller) return;
         setError(resolvedSearchError);
         setResults([]);
       } finally {
-        setIsLoading(false);
+        if (searchControllerRef.current === controller) setIsLoading(false);
       }
     },
     [excludeIds, fetchInitialResults, searchFn, resolvedSearchError],
@@ -303,11 +340,39 @@ export function SearchPicker<T>({
     }
   };
 
+  // Bounded: a parent that never accepts the value must not steal focus later.
+  const armPendingFocus = (target: 'clear' | 'input') => {
+    pendingFocusRef.current = target;
+    if (pendingFocusTimerRef.current) clearTimeout(pendingFocusTimerRef.current);
+    pendingFocusTimerRef.current = setTimeout(() => {
+      pendingFocusRef.current = null;
+      pendingFocusTimerRef.current = null;
+    }, 3000);
+  };
+
+  const abortSearch = () => {
+    debouncedSearch.cancel();
+    searchControllerRef.current?.abort();
+    searchControllerRef.current = null;
+    setIsLoading(false);
+  };
+
   const handleSelect = (item: T) => {
     const rendered = renderItem(item);
+    abortSearch();
+    if (clearOnSelect) {
+      onChange(rendered.id);
+      onSelectItem?.({ id: rendered.id, label: rendered.label });
+      setIsOpen(false);
+      setSearchTerm('');
+      setResults([]);
+      focusInputQuietly();
+      return;
+    }
     setSelectedItem(item);
     // Once the user selects an item, the pre-populated initialTitle is no longer the source of truth
     setInitialTitleCleared(true);
+    armPendingFocus('clear');
     onChange(rendered.id);
     onSelectItem?.({ id: rendered.id, label: rendered.label });
     setIsOpen(false);
@@ -316,6 +381,8 @@ export function SearchPicker<T>({
   };
 
   const handleSelectSpecial = (opt: SpecialOption) => {
+    abortSearch();
+    armPendingFocus('clear');
     setSelectedItem(null); // clear any real item selection
     setSpecialSelected(true);
     onChange(opt.id);
@@ -329,10 +396,9 @@ export function SearchPicker<T>({
     if (!createAction) return;
     const query = searchTerm.trim();
     setIsOpen(false);
-    debouncedSearch.cancel();
+    abortSearch();
     const created = await createAction.onCreate(query).catch(() => null);
     if (created) {
-      pendingClearFocusRef.current = true;
       handleSelect(created);
     } else {
       suppressFocusOpenRef.current = true;
@@ -340,22 +406,48 @@ export function SearchPicker<T>({
     }
   };
 
-  // Move focus to the clear button once the created item is rendered as selected
-  useEffect(() => {
-    if (pendingClearFocusRef.current && clearButtonRef.current) {
+  // Land pending focus as soon as its target exists. While the chip has not rendered yet (the
+  // parent updates `value` later, or never), focus stays on the input so it never falls to <body>.
+  useLayoutEffect(() => {
+    const target = pendingFocusRef.current;
+    if (!target) return;
+    const done = () => {
+      pendingFocusRef.current = null;
+      if (pendingFocusTimerRef.current) clearTimeout(pendingFocusTimerRef.current);
+      pendingFocusTimerRef.current = null;
+    };
+    if (target === 'clear' && clearButtonRef.current) {
       clearButtonRef.current.focus();
-      pendingClearFocusRef.current = false;
+      done();
+    } else if (target === 'input' && inputRef.current) {
+      inputRef.current.focus();
+      done();
+    } else if (
+      target === 'clear' &&
+      inputRef.current &&
+      (document.activeElement === document.body || document.activeElement === null)
+    ) {
+      focusInputQuietly();
     }
   });
 
+  useEffect(
+    () => () => {
+      if (pendingFocusTimerRef.current) clearTimeout(pendingFocusTimerRef.current);
+    },
+    [],
+  );
+
   const handleClear = () => {
+    abortSearch();
     setSelectedItem(null);
     setInitialTitleCleared(true);
     setSpecialSelected(false);
     onChange('');
     setSearchTerm('');
     setResults([]);
-    inputRef.current?.focus();
+    // The input is not mounted yet; focus it (opening the list as a normal focus does) after the re-render
+    armPendingFocus('input');
   };
 
   const setInputRef = useCallback(
@@ -375,6 +467,7 @@ export function SearchPicker<T>({
             {selectedSpecial.label}
           </span>
           <button
+            ref={clearButtonRef}
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
@@ -395,6 +488,7 @@ export function SearchPicker<T>({
         <div className={styles.selectedDisplay}>
           <span className={styles.selectedTitle}>{initialTitle}</span>
           <button
+            ref={clearButtonRef}
             type="button"
             className={styles.clearButton}
             onClick={handleClear}
@@ -408,7 +502,7 @@ export function SearchPicker<T>({
     );
   }
 
-  if (selectedItem) {
+  if (selectedItem && value !== '') {
     const borderColor = getStatusBorderColor?.(selectedItem);
     const label = renderSelectedLabel
       ? renderSelectedLabel(selectedItem)
@@ -495,13 +589,19 @@ export function SearchPicker<T>({
               results.map((item) => {
                 const rendered = renderItem(item);
                 const secondary = renderSecondary?.(item);
+                const trailing = renderTrailing?.(item);
                 return (
                   <button
                     key={rendered.id}
                     type="button"
                     role="option"
                     aria-selected={false}
-                    className={styles.resultOption}
+                    className={`${styles.resultOption} ${
+                      secondary !== undefined && secondary !== null
+                        ? styles.resultOptionTwoLine
+                        : ''
+                    }`}
+                    data-testid={getOptionTestId?.(item)}
                     onClick={() => handleSelect(item)}
                   >
                     {secondary !== undefined && secondary !== null ? (
@@ -516,6 +616,9 @@ export function SearchPicker<T>({
                       </span>
                     ) : (
                       <span className={styles.resultTitle}>{rendered.label}</span>
+                    )}
+                    {trailing !== undefined && trailing !== null && (
+                      <span className={styles.resultTrailing}>{trailing}</span>
                     )}
                   </button>
                 );

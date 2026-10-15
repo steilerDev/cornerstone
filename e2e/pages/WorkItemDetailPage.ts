@@ -9,7 +9,7 @@
  * - Left column sections:
  *   - h2 "Description" (click body to inline-edit)
  *   - h2 "Schedule" (Start Date, End Date inputs)
- *   - h2 "Assignment" (Assigned To select)
+ *   - h2 "Assignment" (Assigned To picker: people and companies, server search)
  *   - h2 "Tags" (TagPicker)
  *   - h2 "Budget":
  *     - "+ Add Line" button (aria-label="Add budget line") in section header
@@ -49,6 +49,8 @@ import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
+import { SearchPickerControl } from './components/SearchPickerControl.js';
 
 export class WorkItemDetailPage {
   readonly page: Page;
@@ -77,6 +79,10 @@ export class WorkItemDetailPage {
 
   // Budget lines
   readonly addBudgetLineButton: Locator;
+  /** Assignment picker (#work-item-assignment): people and companies, server search. */
+  readonly assignmentPicker: CompanyPickerControl;
+  /** Company picker of the cost line form (#budget-vendor). */
+  readonly budgetVendorPicker: CompanyPickerControl;
 
   // Subsidy linking
   readonly subsidyPicker: Locator;
@@ -151,6 +157,12 @@ export class WorkItemDetailPage {
 
     // Budget lines
     this.addBudgetLineButton = page.getByRole('button', { name: 'Add budget line' });
+    this.assignmentPicker = new CompanyPickerControl(
+      page,
+      'work-item-assignment',
+      this.assignmentSection,
+    );
+    this.budgetVendorPicker = new CompanyPickerControl(page, 'budget-vendor');
 
     // Subsidy picker (only present when unlinked subsidies exist)
     this.subsidyPicker = page.getByLabel('Select subsidy program to link');
@@ -387,6 +399,16 @@ export class WorkItemDetailPage {
   /** The Link to Invoice modal. */
   get invoiceLinkModal(): Locator {
     return this.page.getByRole('dialog', { name: 'Link to Invoice' });
+  }
+
+  /** The invoice picker of the Link to Invoice modal (#invoice-search, server search). */
+  get invoiceLinkPicker(): SearchPickerControl {
+    return new SearchPickerControl(this.page, 'invoice-search', this.invoiceLinkModal);
+  }
+
+  /** The selected invoice chip of the modal (a preselection shows here, not in the input). */
+  get invoiceLinkSelected(): Locator {
+    return this.invoiceLinkModal.locator('[class*="selectedDisplay"]');
   }
 
   /** Invoice option row in the modal's dropdown (testid invoice-link-option-<id>). */

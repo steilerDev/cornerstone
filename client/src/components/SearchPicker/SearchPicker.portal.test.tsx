@@ -4,7 +4,8 @@
 import { describe, it, expect, jest, beforeEach, afterEach } from '@jest/globals';
 import { render, screen, act, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { SearchPicker } from './SearchPicker.js';
+import { ControlledSearchPicker } from '../../test/ControlledSearchPicker.js';
+import type { SearchPicker } from './SearchPicker.js';
 
 interface TestItem {
   id: string;
@@ -18,7 +19,8 @@ const sampleItems: TestItem[] = [
   { id: 'item-3', label: 'Gamma Doohickey', status: 'active' },
 ];
 
-const mockSearchFn = jest.fn<(query: string, excludeIds: string[]) => Promise<TestItem[]>>();
+const mockSearchFn =
+  jest.fn<(query: string, excludeIds: string[], signal: AbortSignal) => Promise<TestItem[]>>();
 const mockRenderItem = (item: TestItem) => ({ id: item.id, label: item.label });
 
 function renderPicker(
@@ -29,7 +31,7 @@ function renderPicker(
   } = {},
 ) {
   return render(
-    <SearchPicker<TestItem>
+    <ControlledSearchPicker<TestItem>
       value={props.value ?? ''}
       onChange={props.onChange ?? jest.fn()}
       excludeIds={props.excludeIds ?? []}
@@ -142,7 +144,7 @@ describe('SearchPicker', () => {
       const onChange = jest.fn<(id: string) => void>();
 
       const { rerender } = render(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value=""
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}
@@ -164,7 +166,7 @@ describe('SearchPicker', () => {
 
       // Parent reflects selected value (simulating controlled component)
       rerender(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value="1"
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}
@@ -177,7 +179,7 @@ describe('SearchPicker', () => {
 
       // Parent resets value to empty (e.g. form submission)
       rerender(
-        <SearchPicker<TestItem>
+        <ControlledSearchPicker<TestItem>
           value=""
           onChange={onChange as ReturnType<typeof jest.fn>}
           excludeIds={[]}

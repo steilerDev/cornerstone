@@ -21,7 +21,9 @@ import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listWorkItems, deleteWorkItem } from '../../lib/workItemsApi.js';
 import { listUsers } from '../../lib/usersApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
+import { searchCompanies } from '../../lib/vendorsApi.js';
+import { useCompanyName } from '../../hooks/useCompanyName.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { useAreas } from '../../hooks/useAreas.js';
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts.js';
 import type { KeyboardShortcut } from '../../hooks/useKeyboardShortcuts.js';
@@ -47,7 +49,6 @@ export function WorkItemsPage() {
   // Data state
   const [workItems, setWorkItems] = useState<WorkItemSummary[]>([]);
   const [users, setUsers] = useState<Array<{ id: string; displayName: string }>>([]);
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
   const [filterMeta, setFilterMeta] = useState<FilterMeta>({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string>('');
@@ -55,8 +56,13 @@ export function WorkItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams } = useTableState({
+  const { tableState, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
+  });
+  const companyFilterId = tableState.filters.get('assignedVendorId')?.value ?? '';
+  // A company id that no longer exists (link, reload, old multi-select value) is dropped.
+  const companyFilter = useCompanyName(companyFilterId, {
+    onUnknown: () => setFilter('assignedVendorId', null),
   });
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -74,14 +80,11 @@ export function WorkItemsPage() {
   const registry = useShortcutRegistry();
   const [helpShortcuts, setHelpShortcuts] = useState<KeyboardShortcut[] | null>(null);
 
-  // Load users, vendors, and areas on mount
+  // Load users on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [usersResponse, vendorsResponse] = await Promise.all([
-          listUsers(),
-          fetchVendors({ pageSize: 100 }),
-        ]);
+        const usersResponse = await listUsers();
         setUsers(
           usersResponse.users
             .filter((u) => !u.deactivatedAt)
@@ -90,9 +93,8 @@ export function WorkItemsPage() {
               displayName: u.displayName,
             })),
         );
-        setVendors(vendorsResponse.vendors.map((v) => ({ id: v.id, name: v.name })));
       } catch (err) {
-        console.error('Failed to load vendors or users:', err);
+        console.error('Failed to load users:', err);
       }
     };
     loadData();
@@ -283,9 +285,14 @@ export function WorkItemsPage() {
         sortable: false,
         defaultVisible: false,
         filterable: true,
-        filterType: 'enum',
+        filterType: 'entity',
         filterParamKey: 'assignedVendorId',
-        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
+        entitySearchFn: (q, _excluded, signal) => searchCompanies(q, signal),
+        entityRenderItem: (item) => {
+          const v = item as CompanyOption;
+          return { id: v.id, label: v.name };
+        },
+        entitySelectedLabel: companyFilter.name,
         render: (item) => item.assignedVendor?.name || '—',
       },
       {
@@ -338,7 +345,7 @@ export function WorkItemsPage() {
         render: (item) => item.budgetLineCount,
       },
     ],
-    [t, tCommon, formatDate, statusVariants, users, vendors, areas],
+    [t, tCommon, formatDate, statusVariants, users, companyFilter.name, areas],
   );
 
   // Close action menu on outside click and Escape key

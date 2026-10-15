@@ -11,7 +11,6 @@ import type {
 import _shared from '../../../styles/shared.module.css';
 import { DIARY_ISSUE_RESOLUTIONS } from '@cornerstone/shared';
 import { SignatureSection } from '../SignatureSection/index.js';
-import type { VendorOption } from '../SignatureCapture/SignatureCapture.js';
 import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
 import { fetchVendors } from '../../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../../objectForms/useCompanyCreateAction.js';
@@ -70,7 +69,6 @@ export interface DiaryEntryFormProps {
   onIssueSignaturesChange?: (sigs: DiarySignatureEntry[] | null) => void;
   /** Signature UX enhancements */
   currentUserName?: string;
-  vendors?: VendorOption[];
 }
 
 // These will be built dynamically based on translations
@@ -178,7 +176,6 @@ export function DiaryEntryForm({
   onIssueSignaturesChange,
   // signature enhancements
   currentUserName,
-  vendors,
 }: DiaryEntryFormProps) {
   const { t } = useTranslation('diary');
   const { formatHours } = useFormatters();
@@ -465,7 +462,6 @@ export function DiaryEntryForm({
             disabled={disabled}
             label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
-            vendors={vendors}
           />
           {validationErrors.dailyLogSignatures && (
             <div id="daily-log-signatures-error" className={styles.errorText} role="alert">
@@ -566,7 +562,6 @@ export function DiaryEntryForm({
             disabled={disabled}
             label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
-            vendors={vendors}
           />
           {validationErrors.siteVisitSignatures && (
             <div id="site-visit-signatures-error" className={styles.errorText} role="alert">
@@ -748,7 +743,6 @@ export function DiaryEntryForm({
             disabled={disabled}
             label={t('signature.signaturesLabel')}
             currentUserName={currentUserName}
-            vendors={vendors}
           />
           {validationErrors.issueSignatures && (
             <div id="issue-signatures-error" className={styles.errorText} role="alert">

@@ -670,4 +670,32 @@ describe('householdItemsApi', () => {
       await expect(deleteHouseholdItem('hi-1')).rejects.toThrow();
     });
   });
+
+  describe('listHouseholdItems request options', () => {
+    it('forwards the abort signal to fetch for a search', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+      const controller = new AbortController();
+
+      await listHouseholdItems({ q: 'sofa', pageSize: 50 }, { signal: controller.signal });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/household-items?pageSize=50&q=sofa',
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('sends no signal when no options are given', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+
+      await listHouseholdItems();
+
+      expect(mockFetch.mock.calls[0]![1]!.signal).toBeUndefined();
+    });
+  });
 });

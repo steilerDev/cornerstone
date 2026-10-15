@@ -33,11 +33,19 @@ import { useUndoableStatusChange } from '../../hooks/useUndoableStatusChange.js'
 import { changeMilestoneStatus, milestoneStatusBody } from '../../lib/statusChangeApi.js';
 import { milestoneDisplayStatus, milestoneStatusLabel } from '../../lib/milestoneStatusLabel.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './MilestoneDetailPage.module.css';
 import { routeUrl } from '@cornerstone/shared';
+
+interface LinkableItem {
+  readonly key: string;
+  readonly title: string;
+  readonly kind: 'work_item' | 'household_item';
+  readonly area: WorkItemSummary['area'] | null;
+}
 
 export function MilestoneDetailPage() {
   const {
@@ -81,25 +89,15 @@ export function MilestoneDetailPage() {
   const { run: runStatusChange } = useUndoableStatusChange();
 
   // Linked items management
-  const [itemSearchInput, setItemSearchInput] = useState('');
-  const [showItemDropdown, setShowItemDropdown] = useState(false);
-  const [availableWorkItems, setAvailableWorkItems] = useState<WorkItemSummary[]>([]);
-  const [availableHouseholdItems, setAvailableHouseholdItems] = useState<
-    WorkItemLinkedHouseholdItemSummary[]
-  >([]);
   const [linkedHouseholdItems, setLinkedHouseholdItems] = useState<
     WorkItemLinkedHouseholdItemSummary[]
   >([]);
-  const [isLinkingItem, setIsLinkingItem] = useState(false);
+  const linkingItemRef = useRef(false);
   const [isUnlinkingItem, setIsUnlinkingItem] = useState<Record<string, boolean>>({});
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Dependent work items management
-  const [depSearchInput, setDepSearchInput] = useState('');
-  const [showDepDropdown, setShowDepDropdown] = useState(false);
-  const [isManagingDeps, setIsManagingDeps] = useState(false);
+  const managingDepsRef = useRef(false);
   const [isRemovingDep, setIsRemovingDep] = useState<Record<string, boolean>>({});
-  const depDropdownRef = useRef<HTMLDivElement>(null);
 
   // Compute projected date from linked work items
   const projectedDate = useMemo(() => {
@@ -159,7 +157,7 @@ export function MilestoneDetailPage() {
     loadMilestone();
   }, [milestoneId, t, tErrors]);
 
-  // Load available work items and household items, and linked household items
+  // Load the linked household items
   useEffect(() => {
     if (!milestone) {
       return;
@@ -167,22 +165,6 @@ export function MilestoneDetailPage() {
 
     const loadItems = async () => {
       try {
-        // Load available work items
-        const workItemsResponse = await listWorkItems({ pageSize: 100 });
-        const linkedWorkItemIds = new Set(milestone.workItems.map((wi) => wi.id));
-        const availableWI = workItemsResponse.items.filter(
-          (item) => !linkedWorkItemIds.has(item.id),
-        );
-        setAvailableWorkItems(availableWI);
-
-        // Load available household items
-        const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
-        const linkedHouseholdItemIds = new Set(linkedHouseholdItems.map((hi) => hi.id));
-        const availableHI = householdItemsResponse.items.filter(
-          (item) => !linkedHouseholdItemIds.has(item.id),
-        );
-        setAvailableHouseholdItems(availableHI);
-
         // Load linked household items
         const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
         setLinkedHouseholdItems(linkedHI);
@@ -192,27 +174,19 @@ export function MilestoneDetailPage() {
     };
 
     loadItems();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- linkedHouseholdItems is loaded inside the effect; including it would cause an infinite re-fetch loop since it's updated by the same effect
   }, [milestone]);
 
   const handleQuickLinkWorkItem = async (workItemId: string) => {
-    if (!milestone) return;
+    if (!milestone || linkingItemRef.current) return;
 
-    setIsLinkingItem(true);
+    linkingItemRef.current = true;
     setError('');
 
     try {
       await linkWorkItem(milestone.id, workItemId);
-      // Reload milestone and available items
+      // Reload milestone
       const updated = await getMilestone(milestone.id);
       setMilestone(updated);
-      setItemSearchInput('');
-      setShowItemDropdown(false);
-      // Reload available items and linked household items
-      const workItemsResponse = await listWorkItems({ pageSize: 100 });
-      const linkedWorkItemIds = new Set(updated.workItems.map((wi) => wi.id));
-      const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
-      setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -220,14 +194,14 @@ export function MilestoneDetailPage() {
         setError(t('milestones.detail.failedLink'));
       }
     } finally {
-      setIsLinkingItem(false);
+      linkingItemRef.current = false;
     }
   };
 
   const handleQuickLinkHouseholdItem = async (householdItemId: string) => {
-    if (!milestone) return;
+    if (!milestone || linkingItemRef.current) return;
 
-    setIsLinkingItem(true);
+    linkingItemRef.current = true;
     setError('');
 
     try {
@@ -235,17 +209,9 @@ export function MilestoneDetailPage() {
         predecessorType: 'milestone',
         predecessorId: milestone.id.toString(),
       });
-      setItemSearchInput('');
-      setShowItemDropdown(false);
-      // Reload linked household items and available items
+      // Reload linked household items
       const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
       setLinkedHouseholdItems(linkedHI);
-      const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
-      const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
-      const availableHI = householdItemsResponse.items.filter(
-        (item) => !linkedHouseholdItemIds.has(item.id),
-      );
-      setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -253,7 +219,7 @@ export function MilestoneDetailPage() {
         setError(t('milestones.detail.failedLink'));
       }
     } finally {
-      setIsLinkingItem(false);
+      linkingItemRef.current = false;
     }
   };
 
@@ -268,11 +234,6 @@ export function MilestoneDetailPage() {
       // Reload milestone to get updated work items
       const updated = await getMilestone(milestone.id);
       setMilestone(updated);
-      // Reload available work items
-      const workItemsResponse = await listWorkItems({ pageSize: 100 });
-      const linkedWorkItemIds = new Set(updated.workItems.map((wi) => wi.id));
-      const availableWI = workItemsResponse.items.filter((item) => !linkedWorkItemIds.has(item.id));
-      setAvailableWorkItems(availableWI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -292,15 +253,9 @@ export function MilestoneDetailPage() {
 
     try {
       await deleteHouseholdItemDep(householdItemId, 'milestone', milestone.id.toString());
-      // Reload linked household items and available items
+      // Reload linked household items
       const linkedHI = await fetchMilestoneLinkedHouseholdItems(milestone.id);
       setLinkedHouseholdItems(linkedHI);
-      const householdItemsResponse = await listHouseholdItems({ pageSize: 100 });
-      const linkedHouseholdItemIds = new Set(linkedHI.map((hi) => hi.id));
-      const availableHI = householdItemsResponse.items.filter(
-        (item) => !linkedHouseholdItemIds.has(item.id),
-      );
-      setAvailableHouseholdItems(availableHI);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -313,9 +268,9 @@ export function MilestoneDetailPage() {
   };
 
   const handleAddDependentWorkItem = async (workItemId: string) => {
-    if (!milestone) return;
+    if (!milestone || managingDepsRef.current) return;
 
-    setIsManagingDeps(true);
+    managingDepsRef.current = true;
     setError('');
 
     try {
@@ -323,8 +278,6 @@ export function MilestoneDetailPage() {
       // Reload milestone to get updated dependent work items
       const updated = await getMilestone(milestone.id);
       setMilestone(updated);
-      setDepSearchInput('');
-      setShowDepDropdown(false);
     } catch (err) {
       if (err instanceof ApiClientError) {
         setError(translateApiError(err.error.code, tErrors));
@@ -332,7 +285,7 @@ export function MilestoneDetailPage() {
         setError(t('milestones.detail.failedAddDependent'));
       }
     } finally {
-      setIsManagingDeps(false);
+      managingDepsRef.current = false;
     }
   };
 
@@ -358,39 +311,50 @@ export function MilestoneDetailPage() {
     }
   };
 
-  // Handle click outside dropdown to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setShowItemDropdown(false);
-      }
-    };
+  const addLinkedItem = (key: string) => {
+    const id = key.slice(key.indexOf(':') + 1);
+    if (key.startsWith('household_item:')) void handleQuickLinkHouseholdItem(id);
+    else void handleQuickLinkWorkItem(id);
+  };
 
-    if (showItemDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-    return undefined;
-  }, [showItemDropdown]);
+  const searchLinkableItems = async (
+    query: string,
+    excluded: string[],
+    signal: AbortSignal,
+  ): Promise<LinkableItem[]> => {
+    const q = query.trim() || undefined;
+    const [workItems, householdItems] = await Promise.all([
+      listWorkItems({ q, pageSize: 25 }, { signal }),
+      listHouseholdItems({ q, pageSize: 25 }, { signal }),
+    ]);
+    const options: LinkableItem[] = [
+      ...workItems.items.map((w): LinkableItem => ({
+        key: `work_item:${w.id}`,
+        title: w.title,
+        kind: 'work_item',
+        area: w.area ?? null,
+      })),
+      ...householdItems.items.map((h): LinkableItem => ({
+        key: `household_item:${h.id}`,
+        title: h.name,
+        kind: 'household_item',
+        area: null,
+      })),
+    ];
+    return options.filter((o) => !excluded.includes(o.key));
+  };
 
-  // Handle click outside dependent items dropdown to close it
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (depDropdownRef.current && !depDropdownRef.current.contains(event.target as Node)) {
-        setShowDepDropdown(false);
-      }
-    };
-
-    if (showDepDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => {
-        document.removeEventListener('mousedown', handleClickOutside);
-      };
-    }
-    return undefined;
-  }, [showDepDropdown]);
+  const searchDependentCandidates = async (
+    query: string,
+    excluded: string[],
+    signal: AbortSignal,
+  ): Promise<WorkItemSummary[]> => {
+    const { items } = await listWorkItems(
+      { q: query.trim() || undefined, pageSize: 50 },
+      { signal },
+    );
+    return items.filter((item) => !excluded.includes(item.id));
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -689,76 +653,34 @@ export function MilestoneDetailPage() {
                 </ul>
               )}
 
-              {/* Inline search to add items */}
-              <div className={styles.inlineSearch} ref={dropdownRef}>
-                <input
-                  type="text"
+              {/* Inline search to add items (server search) */}
+              <div className={styles.inlineSearch}>
+                <SearchPicker<LinkableItem>
+                  id="milestone-link-search"
+                  value=""
+                  onChange={() => {}}
+                  onSelectItem={(option) => addLinkedItem(option.id)}
+                  clearOnSelect
+                  excludeIds={[
+                    ...milestone.workItems.map((w) => `work_item:${w.id}`),
+                    ...linkedHouseholdItems.map((h) => `household_item:${h.id}`),
+                  ]}
                   placeholder={t('milestones.detail.searchPlaceholder')}
-                  value={itemSearchInput}
-                  onChange={(e) => {
-                    setItemSearchInput(e.target.value);
-                    setShowItemDropdown(true);
-                  }}
-                  onFocus={() => setShowItemDropdown(true)}
-                  className={styles.searchInput}
-                  data-testid="item-search-input"
-                  disabled={isLinkingItem}
+                  inputAriaProps={{ 'aria-label': t('milestones.detail.searchPlaceholder') }}
+                  noResultsMessage={t('milestones.detail.noMatches')}
+                  searchFn={searchLinkableItems}
+                  renderItem={(o) => ({ id: o.key, label: o.title })}
+                  renderSecondary={(o) => (
+                    <>
+                      <span className={styles.itemTypeBadge}>
+                        {o.kind === 'work_item'
+                          ? t('milestones.detail.workItem')
+                          : t('milestones.detail.householdItem')}
+                      </span>
+                      {o.kind === 'work_item' && <AreaBreadcrumb area={o.area} variant="compact" />}
+                    </>
+                  )}
                 />
-                {showItemDropdown && itemSearchInput.trim() && (
-                  <div className={styles.searchDropdown}>
-                    {/* Filter and show matching work items */}
-                    {availableWorkItems
-                      .filter((item) =>
-                        item.title.toLowerCase().includes(itemSearchInput.toLowerCase()),
-                      )
-                      .map((item) => (
-                        <button
-                          key={`wi-${item.id}`}
-                          type="button"
-                          className={styles.searchDropdownItem}
-                          onClick={() => handleQuickLinkWorkItem(item.id)}
-                          disabled={isLinkingItem}
-                        >
-                          <span className={styles.itemTypeBadge}>
-                            {t('milestones.detail.workItem')}
-                          </span>
-                          <div className={styles.workItemTitleCell}>
-                            <span>{item.title}</span>
-                            <AreaBreadcrumb area={item.area ?? null} variant="compact" />
-                          </div>
-                        </button>
-                      ))}
-                    {/* Filter and show matching household items */}
-                    {availableHouseholdItems
-                      .filter((item) =>
-                        item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
-                      )
-                      .map((item) => (
-                        <button
-                          key={`hi-${item.id}`}
-                          type="button"
-                          className={styles.searchDropdownItem}
-                          onClick={() => handleQuickLinkHouseholdItem(item.id)}
-                          disabled={isLinkingItem}
-                        >
-                          <span className={styles.itemTypeBadge}>
-                            {t('milestones.detail.householdItem')}
-                          </span>
-                          <span>{item.name}</span>
-                        </button>
-                      ))}
-                    {availableWorkItems.filter((item) =>
-                      item.title.toLowerCase().includes(itemSearchInput.toLowerCase()),
-                    ).length === 0 &&
-                      availableHouseholdItems.filter((item) =>
-                        item.name.toLowerCase().includes(itemSearchInput.toLowerCase()),
-                      ).length === 0 && (
-                        <div className={styles.searchDropdownEmpty}>
-                          {t('milestones.detail.noMatches')}
-                        </div>
-                      )}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -793,54 +715,24 @@ export function MilestoneDetailPage() {
                 <p className={styles.emptyMessage}>{t('milestones.detail.noDependentItems')}</p>
               )}
 
-              {/* Inline search to add dependent work items */}
-              <div className={styles.inlineSearch} ref={depDropdownRef}>
-                <input
-                  type="text"
+              {/* Inline search to add dependent work items (server search) */}
+              <div className={styles.inlineSearch}>
+                <SearchPicker<WorkItemSummary>
+                  id="milestone-dependent-search"
+                  value=""
+                  onChange={() => {}}
+                  onSelectItem={(option) => void handleAddDependentWorkItem(option.id)}
+                  clearOnSelect
+                  excludeIds={[
+                    ...milestone.dependentWorkItems.map((d) => d.id),
+                    ...milestone.workItems.map((w) => w.id),
+                  ]}
                   placeholder={t('milestones.detail.depSearchPlaceholder')}
-                  value={depSearchInput}
-                  onChange={(e) => {
-                    setDepSearchInput(e.target.value);
-                    setShowDepDropdown(true);
-                  }}
-                  onFocus={() => setShowDepDropdown(true)}
-                  className={styles.searchInput}
-                  data-testid="dep-search-input"
-                  disabled={isManagingDeps}
+                  inputAriaProps={{ 'aria-label': t('milestones.detail.depSearchPlaceholder') }}
+                  noResultsMessage={t('milestones.detail.noDepMatches')}
+                  searchFn={searchDependentCandidates}
+                  renderItem={(item) => ({ id: item.id, label: item.title })}
                 />
-                {showDepDropdown && depSearchInput.trim() && (
-                  <div className={styles.searchDropdown}>
-                    {availableWorkItems
-                      .filter((item) =>
-                        item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
-                      )
-                      .filter(
-                        (item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id),
-                      )
-                      .map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          className={styles.searchDropdownItem}
-                          onClick={() => handleAddDependentWorkItem(item.id)}
-                          disabled={isManagingDeps}
-                        >
-                          <span>{item.title}</span>
-                        </button>
-                      ))}
-                    {availableWorkItems
-                      .filter((item) =>
-                        item.title.toLowerCase().includes(depSearchInput.toLowerCase()),
-                      )
-                      .filter(
-                        (item) => !milestone.dependentWorkItems.find((dep) => dep.id === item.id),
-                      ).length === 0 && (
-                      <div className={styles.searchDropdownEmpty}>
-                        {t('milestones.detail.noDepMatches')}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>

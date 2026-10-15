@@ -3,7 +3,10 @@
  *
  * Used for the Paperless review (`#vendor-picker`), the invoice edit modal (`#edit-vendor`), the
  * diary daily log (`#daily-log-vendor`), the invoice create modal (`#invoice-vendor`) and the
- * purchase form (`#vendorId`). The dropdown is portaled to the body (`[data-search-picker-dropdown]`),
+ * purchase form and purchase edit page (`#vendorId`), the cost line form (`#budget-vendor`), the
+ * task detail assignment (`#work-item-assignment`) and the New task dialog (`#assignment`, which
+ * also lists people). `pick(name)` chooses an existing company by keyboard. The dropdown is
+ * portaled to the body (`[data-search-picker-dropdown]`),
  * the create row is the last `role="option"` and appears only when no result's label equals the
  * typed text (folded). The created company opens in the shared ObjectForm (test id
  * `company-create-form`) with its name prefilled; Save selects the company and focuses the
@@ -13,24 +16,14 @@
 import type { Page, Locator } from '@playwright/test';
 import { expect } from '@playwright/test';
 import { ObjectFormDialog } from './ObjectFormDialog.js';
+import { SearchPickerControl } from './SearchPickerControl.js';
 
-export class CompanyPickerControl {
-  readonly page: Page;
-  readonly input: Locator;
-  readonly dropdown: Locator;
-  /** The "Clear selection" button; scope it to the picker's host when the page has several. */
-  readonly clearButton: Locator;
+export class CompanyPickerControl extends SearchPickerControl {
   /** The New company form opened by the create row (not the `/companies/new` route dialog). */
   readonly form: ObjectFormDialog;
 
   constructor(page: Page, inputId: string, scope?: Locator) {
-    this.page = page;
-    this.input = page.locator(`#${inputId}`);
-    this.dropdown = page.locator('[data-search-picker-dropdown]');
-    this.clearButton = (scope ?? page).getByRole('button', {
-      name: 'Clear selection',
-      exact: true,
-    });
+    super(page, inputId, scope);
     this.form = new ObjectFormDialog(page, 'New company', 'company-create-form');
   }
 
@@ -38,16 +31,6 @@ export class CompanyPickerControl {
   createOption(text?: string): Locator {
     const name = text === undefined ? /New company/ : new RegExp(`New company ${escape(text)}$`);
     return this.dropdown.getByRole('option', { name });
-  }
-
-  /**
-   * Type into the picker and wait for its dropdown. The field is emptied first: filling the text
-   * it already holds fires no input event, so a closed dropdown would never reopen.
-   */
-  async type(text: string): Promise<void> {
-    await this.input.fill('');
-    await this.input.fill(text);
-    await this.dropdown.waitFor({ state: 'visible' });
   }
 
   /**

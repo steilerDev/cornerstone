@@ -791,4 +791,32 @@ describe('invoicesApi', () => {
       });
     });
   });
+
+  describe('fetchAllInvoices request options', () => {
+    it('forwards the abort signal to fetch for a search', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+      const controller = new AbortController();
+
+      await fetchAllInvoices({ q: 'INV', pageSize: 50 }, { signal: controller.signal });
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/invoices?pageSize=50&q=INV',
+        expect.objectContaining({ signal: controller.signal }),
+      );
+    });
+
+    it('sends no signal when no options are given', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({}),
+      } as Response);
+
+      await fetchAllInvoices();
+
+      expect(mockFetch.mock.calls[0]![1]!.signal).toBeUndefined();
+    });
+  });
 });

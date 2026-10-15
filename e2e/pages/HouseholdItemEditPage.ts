@@ -30,6 +30,7 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { CompanyPickerControl } from './components/CompanyPickerControl.js';
 
 export class HouseholdItemEditPage {
   readonly page: Page;
@@ -48,7 +49,8 @@ export class HouseholdItemEditPage {
   readonly descriptionInput: Locator;
   readonly categorySelect: Locator;
   readonly quantityInput: Locator;
-  readonly vendorSelect: Locator;
+  /** The company picker (#vendorId, a server-searching SearchPicker). */
+  readonly vendorPicker: CompanyPickerControl;
   readonly urlInput: Locator;
 
   // Validation error messages per field
@@ -85,7 +87,11 @@ export class HouseholdItemEditPage {
     this.quantityInput = page.locator('#quantity');
     // Area picker uses AreaPicker component — no plain #area id; not a standard select.
     // Tests should use URL-based navigation or interact with AreaPicker via role/text.
-    this.vendorSelect = page.locator('#vendorId');
+    this.vendorPicker = new CompanyPickerControl(
+      page,
+      'vendorId',
+      page.locator('label[for="vendorId"]').locator('xpath=..'),
+    );
     this.urlInput = page.locator('#url');
 
     // Field-level validation errors — each has role="alert"
@@ -117,14 +123,14 @@ export class HouseholdItemEditPage {
   /**
    * Fill the edit form. Only provided fields are updated.
    * Category must be the option value (category ID from HouseholdItemCategoryEntity).
-   * Vendor must be the option value (vendor ID) or empty string to clear.
+   * Vendor is chosen by company name through the picker's search (`vendorName`).
    */
   async fillForm(data: {
     name?: string;
     description?: string;
     categoryId?: string;
     quantity?: number;
-    vendorId?: string;
+    vendorName?: string;
     url?: string;
   }): Promise<void> {
     if (data.name !== undefined) {
@@ -141,8 +147,8 @@ export class HouseholdItemEditPage {
     if (data.quantity !== undefined) {
       await this.quantityInput.fill(String(data.quantity));
     }
-    if (data.vendorId !== undefined) {
-      await this.vendorSelect.selectOption(data.vendorId);
+    if (data.vendorName !== undefined) {
+      await this.vendorPicker.pick(data.vendorName);
     }
     if (data.url !== undefined) {
       await this.urlInput.clear();

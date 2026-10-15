@@ -5,6 +5,7 @@
  * Story #467: Inline date and dependency editing on Household Item Detail Page.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import enHouseholdItems from '../../i18n/en/householdItems.json';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -152,6 +153,7 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

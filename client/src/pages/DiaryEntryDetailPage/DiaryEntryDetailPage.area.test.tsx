@@ -9,6 +9,7 @@
  * entries with no sourceEntityType.
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { screen, waitFor, render } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import type * as DiaryApiTypes from '../../lib/diaryApi.js';
@@ -51,18 +52,24 @@ jest.unstable_mockModule('../../contexts/AuthContext.js', () => ({
   AuthProvider: ({ children }: { children: unknown }) => children,
 }));
 
+const mockFetchVendors = jest
+  .fn<
+    (
+      params?: unknown,
+      options?: unknown,
+    ) => Promise<{
+      vendors: never[];
+      pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
+    }>
+  >()
+  .mockResolvedValue({
+    vendors: [],
+    pagination: { page: 1, pageSize: 50, totalItems: 0, totalPages: 0 },
+  });
+
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
-  fetchVendors: jest
-    .fn<
-      (params?: unknown) => Promise<{
-        vendors: unknown[];
-        pagination: { page: number; pageSize: number; totalItems: number; totalPages: number };
-      }>
-    >()
-    .mockResolvedValue({
-      vendors: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    }),
+  fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

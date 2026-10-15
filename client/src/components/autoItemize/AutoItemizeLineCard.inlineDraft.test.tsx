@@ -84,7 +84,7 @@ import { render as rtlRender, screen, fireEvent } from '@testing-library/react';
 import type * as AutoItemizeLineCardModule from './AutoItemizeLineCard.js';
 import type { LineWithInclude } from './types.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
-import type { BudgetCategory, BudgetSource, Vendor } from '@cornerstone/shared';
+import type { BudgetCategory, BudgetSource } from '@cornerstone/shared';
 import type * as LocaleContextModule from '../../contexts/LocaleContext.js';
 
 let AutoItemizeLineCard: (typeof AutoItemizeLineCardModule)['AutoItemizeLineCard'];
@@ -160,7 +160,6 @@ const budgetCategories: BudgetCategory[] = [
     updatedAt: '2026-01-01T00:00:00Z',
   },
 ];
-const vendors = [{ id: 'v-1', name: 'Builder Co', trade: null }] as unknown as Vendor[];
 const confidenceLabels: Record<string, string> = {
   own_estimate: 'Own Estimate',
   professional_estimate: 'Professional Estimate',
@@ -209,7 +208,6 @@ function renderCard(
         ((rowId: string, updates: Partial<BudgetLineFormState>) => void) | undefined,
       onQueueNewBudgetLine: callbacks.onQueueNewBudgetLine as ((rowId: string) => void) | undefined,
       confidenceLabels,
-      vendors,
       budgetCategories,
     }),
   );

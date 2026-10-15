@@ -688,7 +688,6 @@ export function PaperlessInvoiceReviewPage() {
               createdFromExtractionVariants={createdFromExtractionVariants}
               formatCurrency={formatCurrency}
               confidenceLabels={CONFIDENCE_LABELS}
-              vendors={picker.pickerState.vendors ?? []}
               budgetCategories={picker.pickerState.categories ?? []}
               t={t}
               tSettings={tSettings}

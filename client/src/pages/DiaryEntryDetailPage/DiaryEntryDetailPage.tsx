@@ -13,8 +13,6 @@ import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
-import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { DiaryEntryTypeBadge } from '../../components/diary/DiaryEntryTypeBadge/DiaryEntryTypeBadge.js';
@@ -55,17 +53,6 @@ export default function DiaryEntryDetailPage() {
   const statusVariants = useStatusBadgeVariants();
   const { run: runStatusChange } = useUndoableStatusChange();
   const { user: _user } = useAuth();
-  const [_vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
-
-  useEffect(() => {
-    void fetchVendors({ pageSize: 100 })
-      .then((res) => {
-        setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
-      })
-      .catch(() => {
-        // Vendors are optional — gracefully degrade
-      });
-  }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);

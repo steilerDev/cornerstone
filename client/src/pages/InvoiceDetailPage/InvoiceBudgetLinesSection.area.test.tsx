@@ -8,6 +8,7 @@
  * for work_item budget lines, and is absent for household_item budget lines.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import type * as InvoiceBudgetLinesApiTypes from '../../lib/invoiceBudgetLinesApi.js';
@@ -87,6 +88,8 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),

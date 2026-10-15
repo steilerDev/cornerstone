@@ -5,8 +5,10 @@
  * Component tests for HouseholdItemsPage.tsx
  */
 
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { screen, waitFor, render, fireEvent } from '@testing-library/react';
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
+import { screen, waitFor, render, fireEvent, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, useLocation, useNavigationType } from 'react-router-dom';
 import { ToastProvider } from '../../components/Toast/ToastContext.js';
 import type * as HouseholdItemsApiTypes from '../../lib/householdItemsApi.js';
@@ -58,10 +60,12 @@ jest.unstable_mockModule('../../lib/householdItemsApi.js', () => ({
 }));
 
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -84,7 +88,8 @@ jest.unstable_mockModule('../../hooks/useAreas.js', () => ({
 }));
 
 // Mock useTableState — use a stable Map reference to prevent infinite useEffect re-renders.
-const stableFiltersHI = new Map();
+const stableFiltersHI = new Map<string, { value: string }>();
+const mockSetFilterHI = jest.fn<(key: string, value: string | null) => void>();
 jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
   useTableState: () => ({
     tableState: {
@@ -98,7 +103,7 @@ jest.unstable_mockModule('../../hooks/useTableState.js', () => ({
     searchInput: '',
     setSearch: jest.fn(),
     toApiParams: jest.fn(() => ({})),
-    setFilter: jest.fn(),
+    setFilter: mockSetFilterHI,
   }),
 }));
 
@@ -204,6 +209,9 @@ describe('HouseholdItemsPage', () => {
       effects: [],
     });
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockSetFilterHI.mockReset();
+    stableFiltersHI.clear();
     mockFetchHouseholdItemCategories.mockReset();
     mockListPreferencesHI.mockReset();
     mockListPreferencesHI.mockResolvedValue([]);
@@ -327,12 +335,15 @@ describe('HouseholdItemsPage', () => {
       });
     });
 
-    it('calls fetchVendors on mount to populate vendor filter options', async () => {
+    it('loads no companies on mount (the company filter searches the server instead)', async () => {
       renderPage();
 
       await waitFor(() => {
-        expect(mockFetchVendors).toHaveBeenCalledWith({ pageSize: 100 });
+        expect(mockListHouseholdItems).toHaveBeenCalled();
       });
+
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
     });
 
     it('calls fetchHouseholdItemCategories on mount to populate category filter options', async () => {
@@ -743,6 +754,89 @@ describe('HouseholdItemsPage', () => {
 
       await waitFor(() => expect(screen.getByTestId('probe-search')).toHaveTextContent('status='));
       expect(screen.getByTestId('probe-type')).toHaveTextContent('REPLACE');
+    });
+  });
+
+  describe('company filter (entity filter, server search)', () => {
+    afterEach(() => {
+      stableFiltersHI.clear();
+    });
+
+    const openVendorFilter = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(await screen.findByRole('button', { name: /filter by vendor/i }));
+      return within(await screen.findByRole('dialog'));
+    };
+
+    it('searches companies on the server when the filter picker is used', async () => {
+      const user = userEvent.setup();
+      mockFetchVendors.mockImplementation(async (params) => ({
+        vendors:
+          params?.q === 'zeta'
+            ? ([{ id: 'v-250', name: 'Zeta Tiling', trade: null }] as never)
+            : [],
+        pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+      }));
+      let search = '';
+      function Probe() {
+        search = useLocation().search;
+        return null;
+      }
+      render(
+        <ToastProvider>
+          <MemoryRouter initialEntries={['/project/household-items']}>
+            <HouseholdItemsPage />
+            <Probe />
+          </MemoryRouter>
+        </ToastProvider>,
+      );
+      const dialog = await openVendorFilter(user);
+
+      await user.type(dialog.getByRole('textbox'), 'zeta');
+      await user.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
+
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'zeta', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
+      expect(new URLSearchParams(search).get('vendorId')).toBe('v-250');
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('resolves the label of ?vendorId=<id> with GET /vendors/:id', async () => {
+      const user = userEvent.setup();
+      stableFiltersHI.set('vendorId', { value: 'v-250' });
+      mockFetchVendor.mockResolvedValue({ id: 'v-250', name: 'Zeta Tiling' } as never);
+      renderPage();
+
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-250'));
+      const dialog = await openVendorFilter(user);
+
+      expect(await dialog.findByText('Zeta Tiling')).toBeInTheDocument();
+      expect(mockSetFilterHI).not.toHaveBeenCalled();
+    });
+
+    it('drops an unknown (404) company from the URL filter', async () => {
+      stableFiltersHI.set('vendorId', { value: 'v-gone' });
+      mockFetchVendor.mockRejectedValue(
+        new ApiClientError(404, { code: 'NOT_FOUND', message: 'x' }),
+      );
+      renderPage();
+
+      await waitFor(() => expect(mockSetFilterHI).toHaveBeenCalledWith('vendorId', null));
+      expect(mockSetFilterHI).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the URL filter when the company lookup fails with a server error', async () => {
+      stableFiltersHI.set('vendorId', { value: 'v-1' });
+      mockFetchVendor.mockRejectedValue(
+        new ApiClientError(500, { code: 'INTERNAL_ERROR', message: 'x' }),
+      );
+      renderPage();
+
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledTimes(1));
+      await Promise.resolve();
+
+      expect(mockSetFilterHI).not.toHaveBeenCalled();
     });
   });
 });

@@ -92,7 +92,6 @@ export function BudgetLinePickerModal({
                   isEditing={false}
                   confidenceLabels={CONFIDENCE_LABELS}
                   budgetSources={pickerState.budgetSources ?? []}
-                  vendors={pickerState.vendors ?? []}
                   budgetCategories={
                     pickerState.type === 'work_item' ? (pickerState.categories ?? []) : undefined
                   }

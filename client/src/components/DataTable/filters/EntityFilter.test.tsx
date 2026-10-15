@@ -15,10 +15,14 @@ jest.unstable_mockModule('../../SearchPicker/SearchPicker.js', () => ({
     value,
     onChange,
     placeholder,
+    initialTitle,
+    showItemsOnFocus,
   }: {
     value: string;
     onChange: (id: string) => void;
     placeholder?: string;
+    initialTitle?: string;
+    showItemsOnFocus?: boolean;
   }) => {
     // Keep a ref to onChange so tests can trigger it
     mockSearchPickerOnChange.mockImplementation(onChange);
@@ -27,6 +31,8 @@ jest.unstable_mockModule('../../SearchPicker/SearchPicker.js', () => ({
         data-testid="mock-search-picker"
         defaultValue={value}
         placeholder={placeholder}
+        data-initial-title={initialTitle ?? ''}
+        data-show-on-focus={String(showItemsOnFocus === true)}
         onChange={(e) => onChange(e.target.value)}
       />
     );
@@ -117,5 +123,45 @@ describe('EntityFilter', () => {
     // Simulate direct invocation of the onChange prop
     mockSearchPickerOnChange('entity-999');
     expect(mockOnChange).toHaveBeenCalledWith('entity-999');
+  });
+
+  it('passes the resolved selected label to SearchPicker as its initial title', () => {
+    render(
+      <EntityFilter
+        value="v-1"
+        selectedLabel="Acme Roofing"
+        onChange={jest.fn()}
+        searchFn={mockSearchFn}
+        renderItem={mockRenderItem}
+      />,
+    );
+    expect(screen.getByTestId('mock-search-picker')).toHaveAttribute(
+      'data-initial-title',
+      'Acme Roofing',
+    );
+  });
+
+  it('passes no initial title when no label is resolved', () => {
+    render(
+      <EntityFilter
+        value=""
+        onChange={jest.fn()}
+        searchFn={mockSearchFn}
+        renderItem={mockRenderItem}
+      />,
+    );
+    expect(screen.getByTestId('mock-search-picker')).toHaveAttribute('data-initial-title', '');
+  });
+
+  it('lists the first results as soon as it is focused', () => {
+    render(
+      <EntityFilter
+        value=""
+        onChange={jest.fn()}
+        searchFn={mockSearchFn}
+        renderItem={mockRenderItem}
+      />,
+    );
+    expect(screen.getByTestId('mock-search-picker')).toHaveAttribute('data-show-on-focus', 'true');
   });
 });

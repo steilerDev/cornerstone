@@ -1,14 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { routeUrl } from '@cornerstone/shared';
+import { foldSearchText, routeUrl } from '@cornerstone/shared';
 import type {
   HouseholdItemDetail,
   HouseholdItemStatus,
   HouseholdItemBudgetLine,
   SubsidyProgram,
   BudgetSource,
-  Vendor,
   HouseholdItemSubsidyPaybackResponse,
   WorkItemSummary,
   HouseholdItemDepDetail,
@@ -43,7 +42,6 @@ import {
   deleteHouseholdItemDep,
 } from '../../lib/householdItemDepsApi.js';
 import { fetchBudgetSources } from '../../lib/budgetSourcesApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
 import { fetchSubsidyPrograms } from '../../lib/subsidyProgramsApi.js';
 import { listWorkItems } from '../../lib/workItemsApi.js';
 import { listMilestones } from '../../lib/milestonesApi.js';
@@ -72,10 +70,18 @@ import { changeHouseholdItemStatus, householdItemStatusBody } from '../../lib/st
 import { InvoiceLinkModal } from '../../components/budget/InvoiceLinkModal.js';
 import { AreaPicker } from '../../components/AreaPicker/AreaPicker.js';
 import { AreaBreadcrumb } from '../../components/AreaBreadcrumb/index.js';
+import { SearchPicker } from '../../components/SearchPicker/SearchPicker.js';
 import { PageBreadcrumbs } from '../../navigation/PageBreadcrumbs.js';
 import { useOriginState } from '../../navigation/useOriginState.js';
 import { useDocumentTitle } from '../../hooks/useDocumentTitle.js';
 import styles from './HouseholdItemDetailPage.module.css';
+
+interface PredecessorOption {
+  readonly key: string;
+  readonly title: string;
+  readonly kind: 'work_item' | 'milestone';
+  readonly area: WorkItemSummary['area'] | null;
+}
 
 function MilestoneIconSvg() {
   return (
@@ -126,13 +132,10 @@ export function HouseholdItemDetailPage() {
   );
 
   // Add Dependency inline search
-  const depDropdownRef = useRef<HTMLDivElement>(null);
-  const depSearchRef = useRef<HTMLInputElement>(null);
 
   // Budget lines state
   const [budgetLines, setBudgetLines] = useState<HouseholdItemBudgetLine[]>([]);
   const [budgetSources, setBudgetSources] = useState<BudgetSource[]>([]);
-  const [allVendors, setAllVendors] = useState<Vendor[]>([]);
   const [categories, setCategories] = useState<HouseholdItemCategoryEntity[]>([]);
 
   // Invoice linking state
@@ -151,15 +154,11 @@ export function HouseholdItemDetailPage() {
 
   // Dependency state
   const [dependencies, setDependencies] = useState<HouseholdItemDepDetail[]>([]);
-  const [depSearchInput, setDepSearchInput] = useState('');
-  const [showDepDropdown, setShowDepDropdown] = useState(false);
   const [depError, setDepError] = useState<string | null>(null);
-  const [isAddingDep, setIsAddingDep] = useState(false);
   const [removingDep, setRemovingDep] = useState<HouseholdItemDepDetail | null>(null);
   const [isRemovingDep, setIsRemovingDep] = useState(false);
   const [removeDepError, setRemoveDepError] = useState<string | null>(null);
   // For inline search results
-  const [allWorkItems, setAllWorkItems] = useState<WorkItemSummary[]>([]);
   const [allMilestones, setAllMilestones] = useState<MilestoneSummary[]>([]);
 
   // Inline error for budget/subsidy/dependency operations
@@ -277,14 +276,10 @@ export function HouseholdItemDetailPage() {
   }, [item?.id]);
 
   // Add Dependency modal: focus trap and Escape key handler
-  // Load work items and milestones on component mount (not just when opening modal)
+  // Milestones are unpaginated, so the full list is loaded once; tasks are searched on the server
   useEffect(() => {
     const loadPredecessors = async () => {
       try {
-        if (allWorkItems.length === 0) {
-          const wis = await listWorkItems({ pageSize: 100 });
-          setAllWorkItems(wis.items);
-        }
         if (allMilestones.length === 0) {
           const ms = await listMilestones();
           setAllMilestones(ms);
@@ -294,23 +289,7 @@ export function HouseholdItemDetailPage() {
       }
     };
     void loadPredecessors();
-    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only predecessor load; intentionally does not re-run when allWorkItems/allMilestones change
-  }, []);
-
-  // Handle click outside the dependency dropdown
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        depDropdownRef.current &&
-        depSearchRef.current &&
-        !depDropdownRef.current.contains(e.target as Node) &&
-        !depSearchRef.current.contains(e.target as Node)
-      ) {
-        setShowDepDropdown(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+    // eslint-disable-next-line @eslint-react/exhaustive-deps -- mount-only milestone load; intentionally does not re-run when allMilestones changes
   }, []);
 
   const loadItem = async () => {
@@ -343,13 +322,12 @@ export function HouseholdItemDetailPage() {
 
   const loadBudgetData = async (itemId: string) => {
     try {
-      const [budgets, subsidies, payback, sources, vendors, programs, depsData, categoriesData] =
+      const [budgets, subsidies, payback, sources, programs, depsData, categoriesData] =
         await Promise.all([
           fetchHouseholdItemBudgets(itemId),
           fetchHouseholdItemSubsidies(itemId),
           fetchHouseholdItemSubsidyPayback(itemId),
           fetchBudgetSources(),
-          fetchVendors({ pageSize: 100 }),
           fetchSubsidyPrograms(),
           fetchHouseholdItemDeps(itemId),
           fetchHouseholdItemCategories(),
@@ -358,7 +336,6 @@ export function HouseholdItemDetailPage() {
       setLinkedSubsidies(subsidies);
       setSubsidyPayback(payback);
       setBudgetSources(sources.budgetSources);
-      setAllVendors(vendors.vendors);
       setAllSubsidyPrograms(programs.subsidyPrograms);
       setDependencies(depsData);
       setCategories(categoriesData.categories);
@@ -375,7 +352,6 @@ export function HouseholdItemDetailPage() {
     predecessorId: string,
   ) => {
     if (!id) return;
-    setIsAddingDep(true);
     setDepError(null);
     try {
       await createHouseholdItemDep(id, {
@@ -386,8 +362,6 @@ export function HouseholdItemDetailPage() {
       setDependencies(updated);
       const newItem = await getHouseholdItem(id);
       setItem(newItem);
-      setDepSearchInput('');
-      setShowDepDropdown(false);
       showToast('success', t('detail.dependencies.addedSuccess'));
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -395,9 +369,49 @@ export function HouseholdItemDetailPage() {
       } else {
         showToast('error', t('detail.dependencies.failedAdd'));
       }
-    } finally {
-      setIsAddingDep(false);
     }
+  };
+
+  const addingDepRef = useRef(false);
+  const addPredecessor = async (key: string) => {
+    if (addingDepRef.current) return;
+    const sep = key.indexOf(':');
+    const type = key.slice(0, sep) as 'work_item' | 'milestone';
+    addingDepRef.current = true;
+    try {
+      await handleAddDepInline(type, key.slice(sep + 1));
+    } finally {
+      addingDepRef.current = false;
+    }
+  };
+
+  const linkedKeys = dependencies.map((d) => `${d.predecessorType}:${d.predecessorId}`);
+
+  const searchPredecessors = async (
+    query: string,
+    excluded: string[],
+    signal: AbortSignal,
+  ): Promise<PredecessorOption[]> => {
+    const wanted = foldSearchText(query);
+    const milestones: PredecessorOption[] = allMilestones
+      .filter((m) => foldSearchText(m.title).includes(wanted))
+      .map((m) => ({
+        key: `milestone:${m.id}`,
+        title: m.title,
+        kind: 'milestone',
+        area: null,
+      }));
+    const { items } = await listWorkItems(
+      { q: query.trim() || undefined, pageSize: 50 },
+      { signal },
+    );
+    const tasks: PredecessorOption[] = items.map((w) => ({
+      key: `work_item:${w.id}`,
+      title: w.title,
+      kind: 'work_item',
+      area: w.area ?? null,
+    }));
+    return [...tasks, ...milestones].filter((o) => !excluded.includes(o.key));
   };
 
   const handleRemoveDep = async () => {
@@ -1225,98 +1239,35 @@ export function HouseholdItemDetailPage() {
             </ul>
           )}
 
-          {/* Inline dependency search */}
-          <div className={styles.inlineSearch} ref={depDropdownRef}>
-            <input
-              ref={depSearchRef}
-              type="text"
+          {/* Inline dependency search (server search for tasks; milestones are the full list) */}
+          <div className={styles.inlineSearch}>
+            <SearchPicker<PredecessorOption>
+              id="household-item-dependency-search"
+              value=""
+              onChange={() => {}}
+              onSelectItem={(option) => void addPredecessor(option.id)}
+              clearOnSelect
+              excludeIds={linkedKeys}
               placeholder={t('detail.dependencies.search')}
-              value={depSearchInput}
-              onChange={(e) => {
-                setDepSearchInput(e.target.value);
-                setShowDepDropdown(true);
-              }}
-              onFocus={() => setShowDepDropdown(true)}
-              className={styles.searchInput}
-              disabled={isAddingDep}
-              data-testid="dep-search-input"
-              aria-label={t('detail.dependencies.search')}
+              inputAriaProps={{ 'aria-label': t('detail.dependencies.search') }}
+              noResultsMessage={t('detail.dependencies.noMatches')}
+              searchFn={searchPredecessors}
+              renderItem={(o) => ({ id: o.key, label: o.title })}
+              renderSecondary={(o) => (
+                <>
+                  <span
+                    className={
+                      o.kind === 'milestone' ? styles.itemTypeBadgeMilestone : styles.itemTypeBadge
+                    }
+                  >
+                    {o.kind === 'milestone'
+                      ? t('detail.dependencies.milestone')
+                      : t('detail.dependencies.workItem')}
+                  </span>
+                  {o.kind === 'work_item' && <AreaBreadcrumb area={o.area} variant="compact" />}
+                </>
+              )}
             />
-            {showDepDropdown && depSearchInput.trim() && (
-              <div className={styles.searchDropdown}>
-                {/* Work items that match */}
-                {allWorkItems
-                  .filter((wi) => {
-                    const alreadyLinked = dependencies.some(
-                      (d) => d.predecessorType === 'work_item' && d.predecessorId === wi.id,
-                    );
-                    return (
-                      !alreadyLinked &&
-                      wi.title.toLowerCase().includes(depSearchInput.toLowerCase())
-                    );
-                  })
-                  .map((wi) => (
-                    <button
-                      key={`wi-${wi.id}`}
-                      type="button"
-                      className={styles.searchDropdownItem}
-                      onClick={() => void handleAddDepInline('work_item', wi.id)}
-                      disabled={isAddingDep}
-                    >
-                      <span className={styles.itemTypeBadge}>
-                        {t('detail.dependencies.workItem')}
-                      </span>
-                      <div className={styles.workItemTitleCell}>
-                        <span>{wi.title}</span>
-                        <AreaBreadcrumb area={wi.area ?? null} variant="compact" />
-                      </div>
-                    </button>
-                  ))}
-                {/* Milestones that match */}
-                {allMilestones
-                  .filter((ms) => {
-                    const alreadyLinked = dependencies.some(
-                      (d) => d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
-                    );
-                    return (
-                      !alreadyLinked &&
-                      ms.title.toLowerCase().includes(depSearchInput.toLowerCase())
-                    );
-                  })
-                  .map((ms) => (
-                    <button
-                      key={`ms-${ms.id}`}
-                      type="button"
-                      className={styles.searchDropdownItem}
-                      onClick={() => void handleAddDepInline('milestone', String(ms.id))}
-                      disabled={isAddingDep}
-                    >
-                      <span className={styles.itemTypeBadgeMilestone}>
-                        {t('detail.dependencies.milestone')}
-                      </span>
-                      <span>{ms.title}</span>
-                    </button>
-                  ))}
-                {/* Empty state */}
-                {allWorkItems.filter(
-                  (wi) =>
-                    !dependencies.some(
-                      (d) => d.predecessorType === 'work_item' && d.predecessorId === wi.id,
-                    ) && wi.title.toLowerCase().includes(depSearchInput.toLowerCase()),
-                ).length === 0 &&
-                  allMilestones.filter(
-                    (ms) =>
-                      !dependencies.some(
-                        (d) =>
-                          d.predecessorType === 'milestone' && d.predecessorId === String(ms.id),
-                      ) && ms.title.toLowerCase().includes(depSearchInput.toLowerCase()),
-                  ).length === 0 && (
-                    <div className={styles.searchDropdownEmpty}>
-                      {t('detail.dependencies.noMatches')}
-                    </div>
-                  )}
-              </div>
-            )}
             {depError && (
               <div role="alert" className={`${styles.errorBanner} ${styles.errorBannerSpacingTop}`}>
                 {depError}
@@ -1335,7 +1286,6 @@ export function HouseholdItemDetailPage() {
             availableSubsidies={availableSubsidies}
             budgetSectionHook={budgetSection}
             budgetSources={budgetSources}
-            vendors={allVendors}
             staticCategoryLabel="Household Items"
             onLinkSubsidy={handleLinkSubsidy}
             onUnlinkSubsidy={handleUnlinkSubsidy}

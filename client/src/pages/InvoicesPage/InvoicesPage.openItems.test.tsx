@@ -8,6 +8,7 @@
  * behavior (no toggle, plain rows) lives in InvoicesPage.test.tsx.
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, within, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -24,6 +25,7 @@ import { findDuplicateTestIds } from '../../test/findDuplicateTestIds.js';
 const mockFetchAllInvoices = jest.fn<typeof InvoicesApiTypes.fetchAllInvoices>();
 const mockCreateInvoice = jest.fn<typeof InvoicesApiTypes.createInvoice>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   fetchAllInvoices: mockFetchAllInvoices,
@@ -36,7 +38,8 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -365,6 +368,8 @@ describe('InvoicesPage — "Show only open items" (Story #2046)', () => {
     mockFetchAllInvoices.mockReset();
     mockCreateInvoice.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockFetchVendor.mockResolvedValue({ id: 'v-1', name: 'ACME Construction' } as never);
     mockGetPaperlessStatus.mockReset();
     mockFetchConfig.mockReset();
 

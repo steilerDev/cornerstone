@@ -51,6 +51,7 @@
 import type { Page, Locator } from '@playwright/test';
 import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
+import { pickByKeyboard } from './components/SearchPickerControl.js';
 
 export const DIARY_EDIT_ROUTE = routeUrl('diary');
 
@@ -93,6 +94,15 @@ export class DiaryEntryEditPage {
   // daily_log signatures (#2088)
   readonly addSignatureButton: Locator;
   readonly vendorSignerRadio: Locator;
+  /** Signer block of the pending signature (signer type, company, signatory). */
+  readonly signerSection: Locator;
+  /** The company search input of a vendor signature (gone once a company is chosen). */
+  readonly signatureCompanyInput: Locator;
+  /** The chosen company chip of a vendor signature. */
+  readonly signatureCompanyChip: Locator;
+  /** The free-text company name field shown after choosing "Other...". */
+  readonly signatureOtherCompanyInput: Locator;
+  readonly signatoryNameInput: Locator;
   readonly removePendingSignatureButton: Locator;
   readonly signatureValidationError: Locator;
 
@@ -174,6 +184,19 @@ export class DiaryEntryEditPage {
     // daily_log signatures (#2088)
     this.addSignatureButton = page.getByRole('button', { name: /add signature/i });
     this.vendorSignerRadio = page.getByRole('radio', { name: 'Vendor' });
+    this.signerSection = page.locator('[class*="signerSection"]');
+    this.signatureCompanyInput = this.signerSection.getByRole('textbox', {
+      name: 'Vendor',
+      exact: true,
+    });
+    this.signatureCompanyChip = this.signerSection.locator('[class*="selectedDisplay"]');
+    this.signatureOtherCompanyInput = this.signerSection.getByRole('textbox', {
+      name: 'Enter vendor name',
+      exact: true,
+    });
+    this.signatoryNameInput = this.signerSection.getByPlaceholder(
+      'Name of person signing on behalf of vendor',
+    );
     this.removePendingSignatureButton = page.getByRole('button', { name: 'Remove Signature' });
     this.signatureValidationError = page.locator('#daily-log-signatures-error');
 
@@ -293,12 +316,25 @@ export class DiaryEntryEditPage {
   }
 
   /**
+   * Choose a company for the pending vendor signature through the picker's search (keyboard path:
+   * ArrowDown to the row, Enter) or, with `'Other...'`, the free-text entry.
+   */
+  async chooseSignatureCompany(name: string): Promise<void> {
+    await this.signatureCompanyInput.fill('');
+    await this.signatureCompanyInput.fill(name);
+    await this.page.locator('[data-search-picker-dropdown]').waitFor({ state: 'visible' });
+    // "Other..." is always listed first, so it is not an extra row to wait out
+    await pickByKeyboard(this.page, this.signatureCompanyInput, name, /Other\.\.\./);
+  }
+
+  /**
    * Draw a stroke on the nth signature canvas (mouse down/move/up inside its bounding box)
    * and accept it. Uses the canvas's own bounding box (see flake-patterns.md).
    */
   async drawSignature(index = 0): Promise<void> {
     const canvas = this.signatureCanvas.nth(index);
-    await canvas.scrollIntoViewIfNeeded();
+    // Centred, so a fixed bottom bar (phone) never covers the strokes
+    await canvas.evaluate((el) => el.scrollIntoView({ block: 'center' }));
     const box = await canvas.boundingBox();
     if (!box) throw new Error('Signature canvas has no bounding box');
     await this.page.mouse.move(box.x + box.width * 0.2, box.y + box.height * 0.5);

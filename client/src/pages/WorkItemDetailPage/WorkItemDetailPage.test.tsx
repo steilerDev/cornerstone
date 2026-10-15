@@ -2,6 +2,7 @@
  * @jest-environment jsdom
  */
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import { render, screen, waitFor, fireEvent, within, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation, useNavigationType } from 'react-router-dom';
@@ -196,6 +197,8 @@ jest.unstable_mockModule('../../lib/budgetSourcesApi.js', () => ({
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
 }));
 
 jest.unstable_mockModule('../../lib/subsidyProgramsApi.js', () => ({
@@ -2054,10 +2057,10 @@ describe('WorkItemDetailPage', () => {
       });
       mockUpdateWorkItem.mockRejectedValue(new Error('RAW-LOCAL'));
       await renderLoaded();
-      await screen.findByRole('option', { name: 'Assigned User' });
-      fireEvent.change(screen.getByRole('combobox', { name: enCommon.aria.selectAssignment }), {
-        target: { value: '' },
-      });
+      const section = (
+        await screen.findByRole('heading', { name: enWorkItems.detail.sections.assignment })
+      ).closest('section')!;
+      fireEvent.click(within(section).getByRole('button', { name: 'Clear selection' }));
       await expectInlineError(ie.updateAssignment);
     });
 

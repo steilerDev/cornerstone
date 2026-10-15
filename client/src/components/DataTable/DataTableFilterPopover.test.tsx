@@ -220,4 +220,50 @@ describe('DataTableFilterPopover', () => {
       );
     });
   });
+
+  describe('entity filter', () => {
+    it('shows the resolved label of the active value as the selected entity', () => {
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({
+            filterType: 'entity',
+            entitySearchFn: async () => [],
+            entityRenderItem: (item) => ({
+              id: (item as TestItem).id,
+              label: (item as TestItem).name,
+            }),
+            entitySelectedLabel: 'Acme Roofing',
+          })}
+          value="v-1"
+          onApply={jest.fn()}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+
+      expect(screen.getByText('Acme Roofing')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+    });
+
+    it('shows the search input when no value is active', () => {
+      render(
+        <DataTableFilterPopover
+          column={makeColumn({
+            filterType: 'entity',
+            entitySearchFn: async () => [],
+            entityRenderItem: (item) => ({
+              id: (item as TestItem).id,
+              label: (item as TestItem).name,
+            }),
+            entitySelectedLabel: undefined,
+          })}
+          value=""
+          onApply={jest.fn()}
+          triggerRect={makeTriggerRect()}
+        />,
+      );
+
+      expect(screen.queryByRole('button', { name: 'Clear selection' })).not.toBeInTheDocument();
+      expect(screen.getByRole('textbox')).toBeInTheDocument();
+    });
+  });
 });

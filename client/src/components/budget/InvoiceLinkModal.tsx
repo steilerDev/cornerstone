@@ -10,7 +10,13 @@ import { roundMoney } from '../../lib/money.js';
 import { useToast } from '../Toast/ToastContext.js';
 import { Modal } from '../Modal/index.js';
 import { FormError } from '../FormError/index.js';
+import { SearchPicker } from '../SearchPicker/SearchPicker.js';
 import styles from './InvoiceLinkModal.module.css';
+
+const NO_EXCLUDED: string[] = [];
+
+/** Invoices the mount load and a search return (the API allows at most 100). */
+const INVOICE_PAGE_SIZE = 50;
 
 export interface InvoiceLinkModalProps {
   budgetLineId: string;
@@ -38,9 +44,9 @@ export function InvoiceLinkModal({
   const { t: tErrors } = useTranslation('errors');
   const { t: tCommon } = useTranslation('common');
   const { formatCurrency, formatDate: _formatDate } = useFormatters();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
-  const [filteredInvoices, setFilteredInvoices] = useState<Invoice[]>([]);
-  const [searchInput, setSearchInput] = useState<string>('');
+  const [hasInvoices, setHasInvoices] = useState(false);
+  // Every invoice a load or search returned, so a picked id resolves to its invoice
+  const knownRef = useRef(new Map<string, Invoice>());
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('');
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [itemizedAmount, setItemizedAmount] = useState<string>(defaultAmount.toString());
@@ -48,9 +54,6 @@ export function InvoiceLinkModal({
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<InvoiceLinkError | null>(null);
-  const [showDropdown, setShowDropdown] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
   const { showToast } = useToast();
 
   // Load invoices on mount
@@ -59,11 +62,11 @@ export function InvoiceLinkModal({
       try {
         setIsLoading(true);
         const response = await fetchAllInvoices({
-          pageSize: 100,
+          pageSize: INVOICE_PAGE_SIZE,
           ...(vendorId && { vendorId }),
         });
-        setInvoices(response.invoices);
-        setFilteredInvoices(response.invoices);
+        for (const inv of response.invoices) knownRef.current.set(inv.id, inv);
+        setHasInvoices(response.pagination.totalItems > 0);
         if (response.invoices.length > 0) {
           // Prefer an invoice that still has room, so the modal never opens on a dead end
           const initial =
@@ -85,52 +88,34 @@ export function InvoiceLinkModal({
     loadInvoices();
   }, [vendorId, t]);
 
-  // Handle invoice search input
-  const handleSearchChange = (value: string) => {
-    setSearchInput(value);
-    // Strip leading '#' so users can paste/type "#INV-001" and still match "INV-001"
-    const normalizedValue = value.replace(/^#/, '');
-    const filtered = invoices.filter((inv) => {
-      const invoiceNumber = inv.invoiceNumber || `Invoice ${inv.id.slice(0, 8)}`;
-      const searchLower = normalizedValue.toLowerCase();
-      return (
-        invoiceNumber.toLowerCase().includes(searchLower) ||
-        (inv.notes && inv.notes.toLowerCase().includes(searchLower)) ||
-        (inv.vendorName && inv.vendorName.toLowerCase().includes(searchLower))
-      );
-    });
-    setFilteredInvoices(filtered);
-    setShowDropdown(true);
+  const invoiceNumberLabel = (inv: Invoice) =>
+    inv.invoiceNumber
+      ? `#${inv.invoiceNumber}`
+      : t('invoiceLinkModal.invoiceFallbackLabel', { id: inv.id.slice(0, 8) });
+
+  const invoiceSelectedLabel = (inv: Invoice) =>
+    `${invoiceNumberLabel(inv)}${inv.vendorName ? ` \u2014 ${inv.vendorName}` : ''}`;
+
+  const searchInvoices = async (query: string, _excluded: string[], signal: AbortSignal) => {
+    // Strip a leading '#' so "#INV-001" still matches "INV-001"
+    const term = query.trim().replace(/^#/, '');
+    const res = await fetchAllInvoices(
+      { ...(term && { q: term }), pageSize: INVOICE_PAGE_SIZE, ...(vendorId && { vendorId }) },
+      { signal },
+    );
+    for (const inv of res.invoices) knownRef.current.set(inv.id, inv);
+    return res.invoices;
   };
 
-  // Handle invoice selection from dropdown
-  const handleSelectInvoice = (invoice: Invoice) => {
-    setSelectedInvoiceId(invoice.id);
+  const handleInvoiceChange = (id: string) => {
+    const invoice = id ? (knownRef.current.get(id) ?? null) : null;
+    setSelectedInvoiceId(id);
     setSelectedInvoice(invoice);
-    setSearchInput('');
-    setShowDropdown(false);
+    setRemainingAmount(invoice ? roundMoney(invoice.remainingAmount) : 0);
     if (error?.field === 'invoice') {
       setError(null);
     }
-    setRemainingAmount(roundMoney(invoice.remainingAmount));
   };
-
-  // Close dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        searchInputRef.current &&
-        !dropdownRef.current.contains(e.target as Node) &&
-        !searchInputRef.current.contains(e.target as Node)
-      ) {
-        setShowDropdown(false);
-      }
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -203,8 +188,7 @@ export function InvoiceLinkModal({
   const overAllocated = remainingAmount < 0;
   const exceedsRemaining = !isNaN(parsedAmount) && parsedAmount > remainingAmount;
   // Every disabled cause has a visible reason: the allocation note or the red indicator
-  const linkDisabled =
-    isSaving || invoices.length === 0 || remainingAmount <= 0 || exceedsRemaining;
+  const linkDisabled = isSaving || !hasInvoices || remainingAmount <= 0 || exceedsRemaining;
   const amountIndicator =
     selectedInvoice && remainingAmount > 0 && !isNaN(parsedAmount) ? (
       <div
@@ -255,62 +239,36 @@ export function InvoiceLinkModal({
           </label>
           {isLoading ? (
             <div className={styles.loading}>{t('invoiceLinkModal.loading')}</div>
-          ) : invoices.length === 0 ? (
+          ) : !hasInvoices ? (
             <div className={styles.emptyState}>{t('invoiceLinkModal.emptyState')}</div>
           ) : (
             <>
-              <div className={styles.searchWrapper} ref={dropdownRef}>
-                <input
-                  id="invoice-search"
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder={t('invoiceLinkModal.searchPlaceholder')}
-                  value={
-                    selectedInvoice && !searchInput
-                      ? `#${selectedInvoice.invoiceNumber || selectedInvoice.id.slice(0, 8)}${selectedInvoice.vendorName ? ` — ${selectedInvoice.vendorName}` : ''}`
-                      : searchInput
-                  }
-                  onChange={(e) => handleSearchChange(e.target.value)}
-                  onFocus={() => setShowDropdown(true)}
-                  className={`${styles.searchInput} ${error?.field === 'invoice' ? styles.inputError : ''}`}
-                  disabled={isSaving}
-                />
-                {showDropdown && filteredInvoices.length > 0 && (
-                  <div className={styles.dropdownList}>
-                    {filteredInvoices.map((inv) => (
-                      <button
-                        key={inv.id}
-                        type="button"
-                        className={`${styles.dropdownItem} ${selectedInvoiceId === inv.id ? styles.dropdownItemActive : ''} ${roundMoney(inv.remainingAmount) <= 0 ? styles.dropdownItemDone : ''}`}
-                        title={inv.notes ?? undefined}
-                        data-testid={`invoice-link-option-${inv.id}`}
-                        onClick={() => handleSelectInvoice(inv)}
-                      >
-                        <span className={styles.dropdownItemMain}>
-                          <span className={styles.dropdownItemNumber}>
-                            {inv.invoiceNumber
-                              ? `#${inv.invoiceNumber}`
-                              : t('invoiceLinkModal.invoiceFallbackLabel', {
-                                  id: inv.id.slice(0, 8),
-                                })}
-                          </span>
-                          {inv.vendorName && (
-                            <span className={styles.dropdownItemVendor}>{inv.vendorName}</span>
-                          )}
-                        </span>
-                        <span className={styles.dropdownItemAmount}>
-                          {roundMoney(inv.remainingAmount) > 0
-                            ? formatCurrency(roundMoney(inv.remainingAmount))
-                            : t('invoiceLinkModal.nothingLeftToLink')}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {showDropdown && searchInput && filteredInvoices.length === 0 && (
-                  <div className={styles.dropdownEmpty}>{t('invoiceLinkModal.noMatches')}</div>
-                )}
-              </div>
+              <SearchPicker<Invoice>
+                id="invoice-search"
+                value={selectedInvoiceId}
+                onChange={handleInvoiceChange}
+                excludeIds={NO_EXCLUDED}
+                disabled={isSaving}
+                placeholder={t('invoiceLinkModal.searchPlaceholder')}
+                noResultsMessage={t('invoiceLinkModal.noMatches')}
+                showItemsOnFocus
+                searchFn={searchInvoices}
+                renderItem={(inv) => ({ id: inv.id, label: invoiceNumberLabel(inv) })}
+                renderSelectedLabel={invoiceSelectedLabel}
+                renderSecondary={(inv) => inv.vendorName ?? null}
+                renderTrailing={(inv) =>
+                  roundMoney(inv.remainingAmount) > 0 ? (
+                    formatCurrency(roundMoney(inv.remainingAmount))
+                  ) : (
+                    <span className={styles.amountDone}>
+                      {t('invoiceLinkModal.nothingLeftToLink')}
+                    </span>
+                  )
+                }
+                getOptionTestId={(inv) => `invoice-link-option-${inv.id}`}
+                initialTitle={selectedInvoice ? invoiceSelectedLabel(selectedInvoice) : undefined}
+                inputAriaProps={{ 'aria-invalid': error?.field === 'invoice' || undefined }}
+              />
               {error?.field === 'invoice' && <FormError message={error.message} variant="field" />}
               {selectedInvoice && (
                 <div

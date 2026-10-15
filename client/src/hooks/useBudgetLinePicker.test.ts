@@ -82,6 +82,7 @@ const mockFetchVendors = jest.fn<typeof VendorsApiModule.fetchVendors>();
 
 jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  fetchVendor: jest.fn(),
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -367,14 +368,44 @@ describe('useBudgetLinePicker', () => {
     });
   });
 
+  describe('companies are not preloaded', () => {
+    it('initializeStaticData loads categories and sources but no companies', async () => {
+      mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.initializeStaticData();
+      });
+
+      expect(mockFetchBudgetCategories).toHaveBeenCalledTimes(1);
+      expect(mockFetchBudgetSources).toHaveBeenCalledTimes(1);
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(result.current.pickerState).not.toHaveProperty('vendors');
+    });
+
+    it('showCreateBudgetLineForm and handleSelectItem load no companies either', async () => {
+      mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
+      mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
+      mockFetchWorkItemBudgets.mockResolvedValue([]);
+      const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
+
+      await act(async () => {
+        await result.current.handleSelectItem('wi-42', 'work_item');
+      });
+      await act(async () => {
+        await result.current.showCreateBudgetLineForm();
+      });
+
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(result.current.pickerState).not.toHaveProperty('vendors');
+    });
+  });
+
   describe('showCreateBudgetLineForm', () => {
     it('sets showCreateForm to true after showCreateBudgetLineForm()', async () => {
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
       await act(async () => {
@@ -387,10 +418,6 @@ describe('useBudgetLinePicker', () => {
     it('initializes createForm with default values', async () => {
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
       await act(async () => {
@@ -414,10 +441,6 @@ describe('useBudgetLinePicker', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         budgetSources: minimalSources as any,
       });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
       await act(async () => {
@@ -430,10 +453,6 @@ describe('useBudgetLinePicker', () => {
     it('clears createError when opening create form', async () => {
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
       await act(async () => {
@@ -451,10 +470,6 @@ describe('useBudgetLinePicker', () => {
 
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockResolvedValue({
         budgetLine: {
@@ -516,10 +531,6 @@ describe('useBudgetLinePicker', () => {
     it('sets createError when API call fails with generic error', async () => {
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockCreateWorkItemBudget.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
@@ -564,10 +575,6 @@ describe('useBudgetLinePicker', () => {
       const onLineCreated = jest.fn();
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockCreateWorkItemBudget.mockRejectedValue(new Error('Network error'));
 
       const { result } = renderHook(() =>
@@ -751,10 +758,6 @@ describe('useBudgetLinePicker', () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       // createWorkItemBudget succeeds
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       // createInvoiceBudgetLine fails with ITEMIZED_SUM_EXCEEDS_INVOICE
@@ -811,10 +814,6 @@ describe('useBudgetLinePicker', () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       // Return wib with plannedAmount that would be set from qty * price = 2 * 50 = 100
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, plannedAmount: 100, invoiceLink: null });
 
@@ -880,10 +879,6 @@ describe('useBudgetLinePicker', () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockRejectedValue(
         new MockApiClientError(409, { code: 'CONFLICT', message: 'RAW-SERVER-SENTINEL' }),
@@ -929,10 +924,6 @@ describe('useBudgetLinePicker', () => {
       const wib = makeWib('new-wib-1');
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockCreateWorkItemBudget.mockResolvedValue({ ...wib, invoiceLink: null });
       mockCreateInvoiceBudgetLine.mockRejectedValue(
         new MockApiClientError(409, {
@@ -1014,10 +1005,6 @@ describe('useBudgetLinePicker', () => {
         new MockApiClientError(500, { code: 'INTERNAL_ERROR', message: 'RAW-SERVER-SENTINEL' }),
       );
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
 
       const { result } = renderHook(() => useBudgetLinePicker(defaultOptions()));
 
@@ -1090,10 +1077,6 @@ describe('useBudgetLinePicker', () => {
             updatedAt: '',
           },
         ],
-      });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
       });
     }
 
@@ -1241,10 +1224,6 @@ describe('useBudgetLinePicker', () => {
 
       mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
       mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-      mockFetchVendors.mockResolvedValue({
-        vendors: [],
-        pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-      });
       mockFetchWorkItemBudgets.mockResolvedValue([]);
       mockCreateWorkItemBudget.mockResolvedValue(wib);
       mockCreateInvoiceBudgetLine.mockResolvedValue({
@@ -1463,10 +1442,6 @@ describe('useBudgetLinePicker — configured VAT rate (vatRate=0.2)', () => {
     };
     mockFetchBudgetCategories.mockResolvedValue({ categories: [] });
     mockFetchBudgetSources.mockResolvedValue({ budgetSources: [] });
-    mockFetchVendors.mockResolvedValue({
-      vendors: [],
-      pagination: { page: 1, pageSize: 100, totalItems: 0, totalPages: 0 },
-    });
     mockFetchWorkItemBudgets.mockResolvedValue([]);
     mockCreateWorkItemBudget.mockResolvedValue(netWib);
     mockCreateInvoiceBudgetLine.mockResolvedValue({

@@ -104,6 +104,7 @@ const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
 jest.unstable_mockModule('./lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
   fetchVendor: mockFetchVendor,
+  searchCompanies: jest.fn(async () => []),
   createVendor: jest.fn<typeof VendorsApiTypes.createVendor>(),
   updateVendor: jest.fn<typeof VendorsApiTypes.updateVendor>(),
   deleteVendor: jest.fn<typeof VendorsApiTypes.deleteVendor>(),

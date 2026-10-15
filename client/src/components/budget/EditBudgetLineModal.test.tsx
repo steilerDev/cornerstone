@@ -14,8 +14,11 @@
  */
 import { jest, describe, it, expect, beforeEach } from '@jest/globals';
 import React from 'react';
-import { render as rtlRender, screen, fireEvent, act } from '@testing-library/react';
-import type { BudgetSource, Vendor, BudgetCategory, ConfidenceLevel } from '@cornerstone/shared';
+import { render as rtlRender, screen, fireEvent, act, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import type { BudgetSource, BudgetCategory, ConfidenceLevel } from '@cornerstone/shared';
+import { CompanyCreateContext } from '../../objectForms/companyCreateContext.js';
+import type { RequestCompanyCreate } from '../../objectForms/companyCreateContext.js';
 import type { EditBudgetLineModalProps, EditableBudgetLine } from './EditBudgetLineModal.js';
 import type { BudgetLineFormState } from '../../hooks/useBudgetSection.js';
 import type * as EditBudgetLineModalModule from './EditBudgetLineModal.js';
@@ -32,6 +35,11 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
   upsertPreference: jest.fn(() => Promise.resolve()),
 }));
 
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  fetchVendor: jest.fn(() => Promise.resolve({ id: 'v-1', name: 'Acme' })),
+  searchCompanies: jest.fn(() => Promise.resolve([])),
+}));
+
 // ─── Import component under test ──────────────────────────────────────────────
 
 let EditBudgetLineModal: (typeof EditBudgetLineModalModule)['EditBudgetLineModal'];
@@ -39,8 +47,12 @@ let LocaleProvider: (typeof LocaleContextModule)['LocaleProvider'];
 
 // `render` wraps in the real LocaleProvider so BudgetLineForm's useLocale()/
 // useFormatters() calls resolve without throwing.
-function render(ui: React.ReactElement) {
-  return rtlRender(<LocaleProvider>{ui}</LocaleProvider>);
+function render(ui: React.ReactElement, requestCompany: RequestCompanyCreate | null = null) {
+  return rtlRender(
+    <LocaleProvider>
+      <CompanyCreateContext value={requestCompany}>{ui}</CompanyCreateContext>
+    </LocaleProvider>,
+  );
 }
 
 // ─── Type factory helpers ──────────────────────────────────────────────────────
@@ -53,21 +65,6 @@ function makeCategory(name = 'Flooring'): BudgetCategory {
     color: null,
     translationKey: null,
     sortOrder: 0,
-    createdAt: '',
-    updatedAt: '',
-  };
-}
-
-function makeVendor(): Vendor {
-  return {
-    id: 'v-1',
-    name: 'Acme',
-    trade: null,
-    phone: null,
-    email: null,
-    address: null,
-    notes: null,
-    createdBy: null,
     createdAt: '',
     updatedAt: '',
   };
@@ -164,7 +161,6 @@ function buildProps(overrides?: Partial<EditBudgetLineModalProps>): EditBudgetLi
     error: '',
     isMutating: false,
     budgetSources: [makeBudgetSource()],
-    vendors: [makeVendor()],
     confidenceLabels: CONFIDENCE_LABELS,
     modalTitle: 'Edit Budget Line',
     ...overrides,
@@ -484,5 +480,60 @@ describe('EditBudgetLineModal', () => {
     // BudgetLineForm renders a "Change" button to open the parent picker
     const changeBtn = screen.queryByRole('button', { name: /^Change$/i });
     expect(changeBtn).toBeTruthy();
+  });
+
+  // ─── Company creation in flight ───────────────────────────────────────────
+
+  describe('while a new company is being created', () => {
+    it('cannot be dismissed with Escape or the close button until creation settles', async () => {
+      let finish!: (company: { id: string; name: string } | null) => void;
+      const request = jest.fn<RequestCompanyCreate>(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      );
+      const onClose = jest.fn();
+      render(
+        <EditBudgetLineModal
+          {...buildProps({
+            onClose,
+            line: buildLine({ vendor: null }),
+            fullForm: buildForm({ vendorId: '' }),
+          })}
+        />,
+        request,
+      );
+
+      await userEvent.type(screen.getByLabelText('Vendor'), 'Fresh Co');
+      await userEvent.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
+      await waitFor(() => expect(request).toHaveBeenCalledWith('Fresh Co'));
+
+      await userEvent.keyboard('{Escape}');
+      await userEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+      expect(onClose).not.toHaveBeenCalled();
+
+      await act(async () => {
+        finish(null);
+      });
+      await userEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+      expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows no create row when no company provider is mounted', async () => {
+      render(
+        <EditBudgetLineModal
+          {...buildProps({
+            line: buildLine({ vendor: null }),
+            fullForm: buildForm({ vendorId: '' }),
+          })}
+        />,
+      );
+
+      await userEvent.type(screen.getByLabelText('Vendor'), 'Fresh Co');
+
+      await waitFor(() => expect(screen.queryByText('Searching...')).not.toBeInTheDocument());
+      expect(screen.queryByRole('option', { name: /New company/ })).not.toBeInTheDocument();
+    });
   });
 });

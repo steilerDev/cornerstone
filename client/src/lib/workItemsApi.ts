@@ -1,4 +1,5 @@
 import { get, post, patch, del } from './apiClient.js';
+import type { RequestOptions } from './apiClient.js';
 import type {
   WorkItemListResponse,
   WorkItemListQuery,
@@ -12,7 +13,10 @@ import type {
 /**
  * Fetches a paginated list of work items with optional filters, search, and sorting.
  */
-export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListResponse> {
+export function listWorkItems(
+  params?: WorkItemListQuery,
+  options?: RequestOptions,
+): Promise<WorkItemListResponse> {
   const queryParams = new URLSearchParams();
 
   if (params?.page !== undefined) {
@@ -56,7 +60,7 @@ export function listWorkItems(params?: WorkItemListQuery): Promise<WorkItemListR
   const queryString = queryParams.toString();
   const path = queryString ? `/work-items?${queryString}` : '/work-items';
 
-  return get<WorkItemListResponse>(path);
+  return get<WorkItemListResponse>(path, options);
 }
 
 /**

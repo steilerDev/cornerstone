@@ -22,6 +22,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--spacing-1);
+  min-width: 0;
 }
 
 .label {
@@ -84,22 +85,6 @@
 
 .signerType {
   color: var(--color-text-muted);
-}
-
-.select {
-  padding: var(--spacing-2) var(--spacing-3);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  font-size: var(--font-size-sm);
-  color: var(--color-text-primary);
-  background-color: var(--color-bg-primary);
-  width: 100%;
-}
-
-.select:focus-visible {
-  outline: none;
-  border-color: var(--color-primary);
-  box-shadow: var(--shadow-focus-subtle);
 }
 
 .readOnlyName {
@@ -276,6 +261,10 @@
  * ============================================================ */
 
 @media (max-width: 767px) {
+  .signerSection {
+    grid-template-columns: 1fr;
+  }
+
   .canvasWrapper {
     aspect-ratio: 2 / 1;
   }

@@ -27,8 +27,6 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { useDebouncedCallback } from '../../hooks/useDebouncedCallback.js';
 import { useToast } from '../../components/Toast/ToastContext.js';
 import { useAuth } from '../../contexts/AuthContext.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
-import type { VendorOption } from '../../components/diary/SignatureCapture/SignatureCapture.js';
 import { usePhotos } from '../../hooks/usePhotos.js';
 import { Badge } from '../../components/Badge/Badge.js';
 import badgeStyles from '../../components/Badge/Badge.module.css';
@@ -73,17 +71,6 @@ export default function DiaryEntryEditPage() {
   const { showToast } = useToast();
   const { user } = useAuth();
   const currentUserName = user ? user.displayName.trim() || user.email : undefined;
-  const [vendorOptions, setVendorOptions] = useState<VendorOption[]>([]);
-
-  useEffect(() => {
-    void fetchVendors({ pageSize: 100 })
-      .then((res) => {
-        setVendorOptions(res.vendors.map((v) => ({ id: v.id, name: v.name })));
-      })
-      .catch(() => {
-        // Vendors are optional — gracefully degrade
-      });
-  }, []);
 
   const [entry, setEntry] = useState<DiaryEntryDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -694,7 +681,6 @@ export default function DiaryEntryEditPage() {
           onIssueSignaturesChange={setIssueSignatures}
           // signature enhancements
           currentUserName={currentUserName}
-          vendors={vendorOptions}
         />
 
         <div className={styles.formActions}>

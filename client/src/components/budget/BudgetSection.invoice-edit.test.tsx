@@ -23,7 +23,6 @@ import type {
   BaseBudgetLine,
   BudgetLineInvoiceLink,
   BudgetSource,
-  Vendor,
   BudgetCategory,
 } from '@cornerstone/shared';
 import { ApiClientError, NetworkError } from '../../lib/apiClient.js';
@@ -197,21 +196,6 @@ function makeCategory(): BudgetCategory {
   };
 }
 
-function makeVendor(): Vendor {
-  return {
-    id: 'v-1',
-    name: 'Acme',
-    trade: null,
-    phone: null,
-    email: null,
-    address: null,
-    notes: null,
-    createdBy: null,
-    createdAt: '',
-    updatedAt: '',
-  };
-}
-
 function makeBudgetSource(): BudgetSource {
   return {
     id: 'src-1',
@@ -338,7 +322,6 @@ function buildProps(
     availableSubsidies: [],
     budgetSectionHook: buildHookReturn(),
     budgetSources: [makeBudgetSource()],
-    vendors: [makeVendor()],
     onLinkSubsidy: jest.fn(),
     onUnlinkSubsidy: jest.fn(),
     onConfirmDeleteBudgetLine: jest.fn<() => Promise<void>>().mockResolvedValue(undefined),

@@ -39,6 +39,16 @@ jest.unstable_mockModule('../../lib/invoicesApi.js', () => ({
   deleteInvoice: jest.fn(),
 }));
 
+// ─── Mock: vendorsApi (server company search + lookup) ────────────────────────
+
+const mockSearchCompanies = jest.fn<(query: string) => Promise<{ id: string; name: string }[]>>();
+const mockFetchVendor = jest.fn<(id: string) => Promise<{ id: string; name: string }>>();
+
+jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
+  searchCompanies: mockSearchCompanies,
+  fetchVendor: mockFetchVendor,
+}));
+
 // ─── Mock: invoiceAutoItemizeApi ───────────────────────────────────────────────
 
 const mockAutoItemize = jest.fn<typeof InvoiceAutoItemizeApiModule.autoItemize>();
@@ -131,7 +141,6 @@ jest.unstable_mockModule('../../hooks/useBudgetLinePicker.js', () => ({
         error: null,
         budgetLines: [],
         budgetSources: null,
-        vendors: null,
         categories: null,
         showCreateForm: false,
         createError: null,
@@ -239,6 +248,9 @@ beforeEach(async () => {
 
   mockFetchInvoiceById.mockReset();
   mockAutoItemize.mockReset();
+  mockSearchCompanies.mockReset();
+  mockSearchCompanies.mockResolvedValue([]);
+  mockFetchVendor.mockReset();
   mockMergeLines.mockReset();
   mockGetPaperlessDocument.mockReset();
   mockGetDocumentThumbnailUrl.mockImplementation((id) => `/thumb/${id}`);
@@ -865,7 +877,7 @@ describe('AutoItemizePage', () => {
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValueOnce(makeDryRunResponse(dryRunLines));
 
-      // A picker mock with non-empty vendors/budgetSources so the "Create Budget Line"
+      // A picker mock with non-empty budgetSources so the "Create Budget Line"
       // button in step 2 is always clickable, mirroring AutoItemizePage.queueSave.test.tsx.
       mockPickerStateOverride = {
         isOpen: true,
@@ -878,7 +890,6 @@ describe('AutoItemizePage', () => {
         budgetLines: [],
         showCreateForm: false,
         createError: null,
-        vendors: [{ id: 'v-1', name: 'Builder Co', trade: null }],
         budgetSources: [{ id: 'src-1', name: 'Main Fund', isDiscretionary: true }],
         categories: [],
       };
@@ -2663,9 +2674,15 @@ describe('AutoItemizePage', () => {
       }>,
       pickerOverride: {
         type?: 'work_item' | 'household_item';
-        vendors?: Array<{ id: string; name: string }>;
       } = {},
+      serverCompanies: Array<{ id: string; name: string }> = [],
     ) {
+      mockSearchCompanies.mockResolvedValue(serverCompanies);
+      mockFetchVendor.mockImplementation(async (id) => {
+        const found = serverCompanies.find((c) => c.id === id);
+        if (!found) throw new Error('unknown company');
+        return found;
+      });
       mockFetchInvoiceById.mockResolvedValue(makeInvoice({ amount: 1000 }));
       mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());
       mockAutoItemize.mockResolvedValue({
@@ -2695,19 +2712,6 @@ describe('AutoItemizePage', () => {
         budgetLines: [],
         showCreateForm: false,
         createError: null,
-        vendors: pickerOverride.vendors
-          ? pickerOverride.vendors.map((v) => ({
-              id: v.id,
-              name: v.name,
-              email: null,
-              phone: null,
-              website: null,
-              address: null,
-              notes: null,
-              createdAt: '2026-01-01T00:00:00Z',
-              updatedAt: '2026-01-01T00:00:00Z',
-            }))
-          : [],
         budgetSources: [],
         categories: [],
       };
@@ -2821,10 +2825,11 @@ describe('AutoItemizePage', () => {
       expect(confidenceSelect?.value).toBe('own_estimate');
     });
 
-    it('test 21: vendorName matches a loaded vendor → inline draft has vendor select with value "v-1"', async () => {
+    it('test 21: vendorName matches a company on the server → inline draft shows that company', async () => {
       const { createBtn } = await setupPageWithLineAndOpenPicker(
         { vendorName: 'Vendor A', confidence: 0.9 },
-        { vendors: [{ id: 'v-1', name: 'Vendor A' }] },
+        {},
+        [{ id: 'v-1', name: 'Vendor A' }],
       );
       if (!createBtn) return;
 
@@ -2837,17 +2842,23 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      // The vendor select is populated from the picker's vendors list and prefilled to v-1
-      const vendorSelect = document.querySelector(
-        '[id$="budget-vendor"]',
-      ) as HTMLSelectElement | null;
-      expect(vendorSelect?.value).toBe('v-1');
+      // The extracted name is matched on the server; the company picker shows the match
+      await waitFor(() => {
+        expect(
+          within(document.querySelector('form[aria-label="New budget line details"]')!).getByText(
+            'Vendor A',
+          ),
+        ).toBeInTheDocument();
+      });
+      expect(mockSearchCompanies).toHaveBeenCalledWith('Vendor A');
+      expect(mockFetchVendor).toHaveBeenCalledWith('v-1');
     });
 
-    it('test 22: unknown vendorName → inline draft vendor select is empty (no error)', async () => {
+    it('test 22: unknown vendorName → inline draft company picker is empty (no error)', async () => {
       const { createBtn } = await setupPageWithLineAndOpenPicker(
         { vendorName: 'Unknown Vendor Co', confidence: 0.9 },
-        { vendors: [{ id: 'v-1', name: 'Vendor A' }] },
+        {},
+        [{ id: 'v-1', name: 'Vendor A' }],
       );
       if (!createBtn) return;
 
@@ -2860,17 +2871,19 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      // No match found → vendorId in draft is '' → select shows empty option
-      const vendorSelect = document.querySelector(
+      // No equal name on the server → vendorId in draft is '' → the picker input is empty
+      const vendorInput = document.querySelector(
         '[id$="budget-vendor"]',
-      ) as HTMLSelectElement | null;
-      expect(vendorSelect?.value).toBe('');
+      ) as HTMLInputElement | null;
+      expect(vendorInput?.value).toBe('');
+      expect(mockSearchCompanies).toHaveBeenCalledWith('Unknown Vendor Co');
     });
 
-    it('test 23: undefined vendorName → inline draft vendor select is empty', async () => {
+    it('test 23: undefined vendorName → no company search and the inline draft company picker is empty', async () => {
       const { createBtn } = await setupPageWithLineAndOpenPicker(
         { vendorName: null, confidence: 0.9 },
-        { vendors: [{ id: 'v-1', name: 'Vendor A' }] },
+        {},
+        [{ id: 'v-1', name: 'Vendor A' }],
       );
       if (!createBtn) return;
 
@@ -2883,10 +2896,11 @@ describe('AutoItemizePage', () => {
         expect(inlineForm).not.toBeNull();
       });
 
-      const vendorSelect = document.querySelector(
+      const vendorInput = document.querySelector(
         '[id$="budget-vendor"]',
-      ) as HTMLSelectElement | null;
-      expect(vendorSelect?.value).toBe('');
+      ) as HTMLInputElement | null;
+      expect(vendorInput?.value).toBe('');
+      expect(mockSearchCompanies).not.toHaveBeenCalled();
     });
 
     it('test 24: parent type household_item → inline draft budgetCategoryId prefilled as "" (cleared)', async () => {
@@ -3070,7 +3084,6 @@ describe('AutoItemizePage', () => {
         budgetLines: [],
         showCreateForm: false,
         createError: null,
-        vendors: [],
         budgetSources: [],
         categories: [],
       };
@@ -3331,7 +3344,6 @@ describe('AutoItemizePage', () => {
         budgetLines: [existing],
         showCreateForm: false,
         createError: null,
-        vendors: [],
         budgetSources: [],
         categories: [],
       };

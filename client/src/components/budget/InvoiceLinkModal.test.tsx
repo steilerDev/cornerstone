@@ -151,6 +151,20 @@ function buildProps(overrides?: Partial<InvoiceLinkModalProps>): InvoiceLinkModa
   };
 }
 
+/**
+ * The selected invoice is a chip that hides the input. Clearing it focuses the input, which lists
+ * the invoices (showItemsOnFocus); with no chip the input is focused directly.
+ */
+async function openInvoiceList() {
+  await waitFor(() => {
+    expect(screen.queryByText('Loading invoices...')).toBeNull();
+  });
+  const clear = screen.queryByRole('button', { name: 'Clear selection' });
+  if (clear) fireEvent.click(clear);
+  else fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+  await screen.findByRole('listbox');
+}
+
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
 describe('InvoiceLinkModal', () => {
@@ -167,7 +181,7 @@ describe('InvoiceLinkModal', () => {
 
     await waitFor(() => {
       expect(mockFetchAllInvoices).toHaveBeenCalledWith(
-        expect.objectContaining({ pageSize: 100, vendorId: 'vendor-42' }),
+        expect.objectContaining({ pageSize: 50, vendorId: 'vendor-42' }),
       );
     });
   });
@@ -178,7 +192,7 @@ describe('InvoiceLinkModal', () => {
     render(<InvoiceLinkModal {...buildProps()} />);
 
     await waitFor(() => {
-      expect(mockFetchAllInvoices).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 100 }));
+      expect(mockFetchAllInvoices).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }));
       // vendorId should NOT be in the call
       const callArg = mockFetchAllInvoices.mock.calls[0]?.[0];
       expect(callArg).not.toHaveProperty('vendorId');
@@ -191,10 +205,9 @@ describe('InvoiceLinkModal', () => {
 
     render(<InvoiceLinkModal {...buildProps()} />);
 
-    await waitFor(() => {
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
-      expect(searchInput.value).toContain('#INV-001');
-    });
+    expect(await screen.findByText(/#INV-001/)).toBeInTheDocument();
+    expect(screen.getByText(/available on this invoice/)).toBeInTheDocument();
+    expect(screen.queryByText(/#INV-002/)).not.toBeInTheDocument();
   });
 
   it('amount input defaults to defaultAmount', async () => {
@@ -408,7 +421,6 @@ describe('InvoiceLinkModal', () => {
       expect(screen.getByText('This budget line is already linked to an invoice')).toBeTruthy();
     });
     // Field-level error on the invoice picker, not the amount input and not the generic banner
-    expect(screen.getByPlaceholderText(/search by invoice/i).className).toContain('inputError');
     expect(screen.getByLabelText(/itemized amount/i).className).not.toContain('inputError');
     expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
@@ -436,7 +448,7 @@ describe('InvoiceLinkModal', () => {
     });
     // Field-level error on the amount input, not the invoice picker
     expect(screen.getByLabelText(/itemized amount/i).className).toContain('inputError');
-    expect(screen.getByPlaceholderText(/search by invoice/i).className).not.toContain('inputError');
+    expect(screen.queryByText('This budget line is already linked to an invoice')).toBeNull();
     expect(screen.queryByText(/RAW-SERVER-SENTINEL/)).toBeNull();
   });
 
@@ -545,95 +557,66 @@ describe('InvoiceLinkModal', () => {
   // ─── Vendor name display (#1372) ──────────────────────────────────────────
 
   describe('vendor name display in invoice picker (#1372)', () => {
+    const acme = () => [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
+
     it('shows vendor name in the dropdown item', async () => {
-      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(acme()));
 
       render(<InvoiceLinkModal {...buildProps()} />);
+      await openInvoiceList();
 
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
-      });
-
-      // Open the dropdown
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
-      fireEvent.focus(searchInput);
-
-      await waitFor(() => {
-        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      });
+      expect(await screen.findByText('Acme Corp')).toBeInTheDocument();
     });
 
     it('shows vendor name alongside invoice number in the dropdown', async () => {
-      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(acme()));
 
       render(<InvoiceLinkModal {...buildProps()} />);
+      await openInvoiceList();
 
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
-      });
-
-      // Open the dropdown
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
-      fireEvent.focus(searchInput);
-
-      await waitFor(() => {
-        // Both invoice number and vendor name should be present
-        expect(screen.getByText('#INV-001')).toBeInTheDocument();
-        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-      });
+      const row = await screen.findByTestId('invoice-link-option-inv-1');
+      expect(row).toHaveTextContent('#INV-001');
+      expect(row).toHaveTextContent('Acme Corp');
     });
 
     it('shows vendor name in the selected invoice display value', async () => {
-      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(acme()));
 
       render(<InvoiceLinkModal {...buildProps()} />);
 
-      await waitFor(() => {
-        // After auto-select of first invoice, the input shows the invoice+vendor
-        const searchInput = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
-        expect(searchInput.value).toContain('#INV-001');
-        expect(searchInput.value).toContain('Acme Corp');
-      });
+      expect(await screen.findByText('#INV-001 \u2014 Acme Corp')).toBeInTheDocument();
     });
 
-    it('vendor name search matches invoice — typing vendor name shows the invoice', async () => {
-      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+    it('typing sends the query to the server and lists what it returns', async () => {
+      mockFetchAllInvoices.mockImplementation(async (params) =>
+        buildPaginatedResponse(params?.q === 'Acme' ? acme() : [buildInvoice('inv-9', 'INV-009')]),
+      );
 
       render(<InvoiceLinkModal {...buildProps()} />);
-
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      await openInvoiceList();
+      fireEvent.change(screen.getByPlaceholderText(/search by invoice/i), {
+        target: { value: 'Acme' },
       });
 
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
-      fireEvent.change(searchInput, { target: { value: 'Acme' } });
-
-      await waitFor(() => {
-        expect(screen.getByText('Acme Corp')).toBeInTheDocument();
-        expect(screen.getByText('#INV-001')).toBeInTheDocument();
-      });
+      expect(await screen.findByTestId('invoice-link-option-inv-1')).toHaveTextContent('Acme Corp');
+      expect(mockFetchAllInvoices).toHaveBeenCalledWith(
+        { q: 'Acme', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
     });
 
-    it('typing a string matching neither invoice number nor vendor name shows empty dropdown', async () => {
-      const invoices = [{ ...buildInvoice('inv-1', 'INV-001'), vendorName: 'Acme Corp' }];
-      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
+    it('typing a string the server matches to nothing shows the empty message', async () => {
+      mockFetchAllInvoices.mockImplementation(async (params) =>
+        buildPaginatedResponse(params?.q ? [] : acme()),
+      );
 
       render(<InvoiceLinkModal {...buildProps()} />);
-
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
+      await openInvoiceList();
+      fireEvent.change(screen.getByPlaceholderText(/search by invoice/i), {
+        target: { value: 'ZZZNOMATCH' },
       });
 
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
-      fireEvent.change(searchInput, { target: { value: 'ZZZNOMATCH' } });
-
-      await waitFor(() => {
-        expect(screen.getByText('No invoices match your search')).toBeInTheDocument();
-      });
+      expect(await screen.findByText('No invoices match your search')).toBeInTheDocument();
     });
 
     it('selected invoice display includes both invoice number and vendor name', async () => {
@@ -644,28 +627,10 @@ describe('InvoiceLinkModal', () => {
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
 
       render(<InvoiceLinkModal {...buildProps()} />);
+      await openInvoiceList();
+      fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
 
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
-      });
-
-      // Open dropdown and select inv-2
-      const searchInput = screen.getByPlaceholderText(/search by invoice/i);
-      fireEvent.focus(searchInput);
-
-      await waitFor(() => {
-        expect(screen.getByText('Beta Ltd')).toBeInTheDocument();
-      });
-
-      const inv2Button = screen.getByText('Beta Ltd').closest('button');
-      expect(inv2Button).toBeTruthy();
-      fireEvent.click(inv2Button!);
-
-      await waitFor(() => {
-        const input = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
-        expect(input.value).toContain('#INV-002');
-        expect(input.value).toContain('Beta Ltd');
-      });
+      expect(await screen.findByText('#INV-002 \u2014 Beta Ltd')).toBeInTheDocument();
     });
   });
 
@@ -869,16 +834,9 @@ describe('InvoiceLinkModal', () => {
       mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse(invoices));
 
       render(<InvoiceLinkModal {...buildProps()} />);
+      await openInvoiceList();
 
-      await waitFor(() => {
-        expect(screen.queryByText('Loading invoices...')).toBeNull();
-      });
-
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
-
-      await waitFor(() => {
-        expect(screen.getByText(`Invoice ${'inv-2'.slice(0, 8)}`)).toBeInTheDocument();
-      });
+      expect(await screen.findByText(`Invoice ${'inv-2'.slice(0, 8)}`)).toBeInTheDocument();
     });
 
     it('clears the "invoice" field error when a different invoice is selected after an alreadyLinked error', async () => {
@@ -905,17 +863,13 @@ describe('InvoiceLinkModal', () => {
         ).toBeInTheDocument();
       });
 
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
-      await waitFor(() => {
-        expect(screen.getByText('Beta Ltd')).toBeInTheDocument();
-      });
-      fireEvent.click(screen.getByText('Beta Ltd').closest('button')!);
+      await openInvoiceList();
+      fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
 
-      await waitFor(() => {
-        expect(
-          screen.queryByText('This budget line is already linked to an invoice'),
-        ).not.toBeInTheDocument();
-      });
+      expect(await screen.findByText('#INV-002 \u2014 Beta Ltd')).toBeInTheDocument();
+      expect(
+        screen.queryByText('This budget line is already linked to an invoice'),
+      ).not.toBeInTheDocument();
     });
 
     it('shows the success toast message when linking succeeds', async () => {
@@ -980,10 +934,8 @@ describe('InvoiceLinkModal', () => {
         expect(screen.queryByText('Loading invoices...')).toBeNull();
       });
 
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
-      await waitFor(() => {
-        expect(screen.getByText('Beta Ltd')).toBeInTheDocument();
-      });
+      await openInvoiceList();
+      expect(await screen.findByText('Beta Ltd')).toBeInTheDocument();
 
       fireEvent.mouseDown(document.body);
 
@@ -1030,10 +982,8 @@ describe('InvoiceLinkModal', () => {
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 200 })} />);
 
-      await waitFor(() => {
-        const search = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
-        expect(search.value).toContain('#INV-002');
-      });
+      expect(await screen.findByText(/#INV-002/)).toBeInTheDocument();
+      expect(screen.queryByText(/#INV-001/)).not.toBeInTheDocument();
       noInvoiceLevelRed();
       expect(screen.getByRole('button', { name: /link to invoice/i })).toBeEnabled();
     });
@@ -1115,7 +1065,7 @@ describe('InvoiceLinkModal', () => {
       expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
     });
 
-    it('(f) a row with nothing left says "Nothing left to link", stays selectable, notes in title', async () => {
+    it('(f) a row with nothing left says "Nothing left to link" in the trailing slot and stays selectable', async () => {
       mockFetchAllInvoices.mockResolvedValue(
         buildPaginatedResponse([
           buildInvoice('inv-1', 'INV-001', 300),
@@ -1125,12 +1075,12 @@ describe('InvoiceLinkModal', () => {
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
 
-      await waitLoaded();
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      await openInvoiceList();
 
       const row = await screen.findByTestId('invoice-link-option-inv-2');
       expect(row).toHaveTextContent('Nothing left to link');
-      expect(row).toHaveAttribute('title', 'Roof deposit');
+      // the notes tooltip is gone
+      expect(row).not.toHaveAttribute('title');
       expect(screen.getByTestId('invoice-link-option-inv-1')).not.toHaveAttribute('title');
       expect(screen.getByTestId('invoice-link-option-inv-1')).toHaveTextContent(/300\.00/);
 
@@ -1148,14 +1098,16 @@ describe('InvoiceLinkModal', () => {
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
 
-      await waitLoaded();
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      await openInvoiceList();
       const row = await screen.findByTestId('invoice-link-option-inv-1');
 
-      expect(row.children).toHaveLength(2);
-      expect(row.children[0]).toHaveTextContent('#INV-001');
-      expect(row.children[0]).toHaveTextContent('Acme Corp');
-      expect(row.children[1]).toHaveTextContent(/300\.00/);
+      const trailing = row.querySelector('[class*="resultTrailing"]');
+      expect(trailing).not.toBeNull();
+      expect(trailing).toHaveTextContent(/300\.00/);
+      expect(row.firstElementChild).toHaveTextContent('#INV-001');
+      expect(row.firstElementChild).toHaveTextContent('Acme Corp');
+      expect(row.firstElementChild).not.toHaveTextContent(/300\.00/);
+      expect(row.lastElementChild).toBe(trailing);
     });
 
     // Float residue (e.g. 1e-13 left after summing cents) must read as fully allocated.
@@ -1177,11 +1129,8 @@ describe('InvoiceLinkModal', () => {
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
 
-      await waitFor(() => {
-        const search = screen.getByPlaceholderText(/search by invoice/i) as HTMLInputElement;
-        expect(search.value).toContain('#INV-002');
-      });
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      expect(await screen.findByText(/#INV-002/)).toBeInTheDocument();
+      await openInvoiceList();
       expect(await screen.findByTestId('invoice-link-option-inv-1')).toHaveTextContent(
         'Nothing left to link',
       );
@@ -1226,7 +1175,7 @@ describe('InvoiceLinkModal', () => {
       await waitFor(() => {
         expect(screen.getByText(/available on this invoice/)).toBeInTheDocument();
       });
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      await openInvoiceList();
       fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
 
       await waitFor(() => {
@@ -1259,14 +1208,103 @@ describe('InvoiceLinkModal', () => {
 
       render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
 
-      await waitLoaded();
-      fireEvent.focus(screen.getByPlaceholderText(/search by invoice/i));
+      await openInvoiceList();
       fireEvent.click(await screen.findByTestId('invoice-link-option-inv-2'));
 
       await waitFor(() => {
         expect(screen.getByText(/777\.00 available on this invoice/)).toBeInTheDocument();
       });
       expect(mockFetchInvoiceBudgetLines).not.toHaveBeenCalled();
+    });
+    it('an empty list (totalItems 0) shows the empty state and no picker', async () => {
+      mockFetchAllInvoices.mockResolvedValue(buildPaginatedResponse([]));
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+
+      expect(await screen.findByText('No invoices available')).toBeInTheDocument();
+      expect(screen.queryByPlaceholderText(/search by invoice/i)).not.toBeInTheDocument();
+    });
+
+    it('a search for #INV sends q=INV (the leading # is stripped)', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ vendorId: 'vendor-1' })} />);
+      await openInvoiceList();
+      fireEvent.change(screen.getByPlaceholderText(/search by invoice/i), {
+        target: { value: '#INV' },
+      });
+
+      await waitFor(() =>
+        expect(mockFetchAllInvoices).toHaveBeenCalledWith(
+          { q: 'INV', pageSize: 50, vendorId: 'vendor-1' },
+          { signal: expect.any(AbortSignal) },
+        ),
+      );
+    });
+
+    it('links an invoice found only by search, with its remaining note and id', async () => {
+      mockFetchAllInvoices.mockImplementation(async (params) =>
+        buildPaginatedResponse(
+          params?.q
+            ? [buildInvoice('inv-far', 'INV-FAR', 640)]
+            : [buildInvoice('inv-1', 'INV-001', 300)],
+        ),
+      );
+      mockCreateInvoiceBudgetLine.mockResolvedValue({
+        budgetLine: { id: 'ibl-1' },
+        remainingAmount: 0,
+      } as never);
+      const onSuccess = jest.fn();
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100, onSuccess })} />);
+      await openInvoiceList();
+      fireEvent.change(screen.getByPlaceholderText(/search by invoice/i), {
+        target: { value: 'FAR' },
+      });
+      fireEvent.click(await screen.findByTestId('invoice-link-option-inv-far'));
+
+      expect(await screen.findByText(/640\.00 available on this invoice/)).toBeInTheDocument();
+      fireEvent.click(screen.getByRole('button', { name: /link to invoice/i }));
+
+      await waitFor(() =>
+        expect(mockCreateInvoiceBudgetLine).toHaveBeenCalledWith(
+          'inv-far',
+          expect.objectContaining({ invoiceId: 'inv-far', itemizedAmount: 100 }),
+        ),
+      );
+      await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    });
+
+    it('clearing the choice deselects it, and submitting reports "select an invoice"', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([buildInvoice('inv-1', 'INV-001', 300)]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps({ defaultAmount: 100 })} />);
+      await openInvoiceList();
+
+      expect(screen.queryByText(/available on this invoice/)).not.toBeInTheDocument();
+      fireEvent.submit(document.getElementById('invoice-link-form')!);
+
+      expect(await screen.findByText('Please select an invoice')).toBeInTheDocument();
+      expect(mockCreateInvoiceBudgetLine).not.toHaveBeenCalled();
+    });
+
+    it('option test ids are invoice-link-option-<id>', async () => {
+      mockFetchAllInvoices.mockResolvedValue(
+        buildPaginatedResponse([
+          buildInvoice('inv-1', 'INV-001'),
+          buildInvoice('inv-2', 'INV-002'),
+        ]),
+      );
+
+      render(<InvoiceLinkModal {...buildProps()} />);
+      await openInvoiceList();
+
+      expect(await screen.findByTestId('invoice-link-option-inv-1')).toBeInTheDocument();
+      expect(screen.getByTestId('invoice-link-option-inv-2')).toBeInTheDocument();
     });
   });
 });

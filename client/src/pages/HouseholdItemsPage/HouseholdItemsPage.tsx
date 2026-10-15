@@ -18,7 +18,9 @@ import { PageLayout } from '../../components/PageLayout/PageLayout.js';
 import { useTableState } from '../../hooks/useTableState.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { listHouseholdItems, deleteHouseholdItem } from '../../lib/householdItemsApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
+import { searchCompanies } from '../../lib/vendorsApi.js';
+import { useCompanyName } from '../../hooks/useCompanyName.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { fetchHouseholdItemCategories } from '../../lib/householdItemCategoriesApi.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useAreas } from '../../hooks/useAreas.js';
@@ -53,7 +55,6 @@ export function HouseholdItemsPage() {
 
   // Data state
   const [householdItems, setHouseholdItems] = useState<HouseholdItemSummary[]>([]);
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
   const [categories, setCategories] = useState<
     Array<{ id: string; name: string; translationKey: string | null }>
   >([]);
@@ -64,8 +65,13 @@ export function HouseholdItemsPage() {
   const [totalPages, setTotalPages] = useState(1);
 
   // Table state management with URL sync
-  const { tableState, toApiParams } = useTableState({
+  const { tableState, toApiParams, setFilter } = useTableState({
     defaultPageSize: 25,
+  });
+  const companyFilterId = tableState.filters.get('vendorId')?.value ?? '';
+  // A company id that no longer exists (link, reload, old multi-select value) is dropped.
+  const companyFilter = useCompanyName(companyFilterId, {
+    onUnknown: () => setFilter('vendorId', null),
   });
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -79,15 +85,11 @@ export function HouseholdItemsPage() {
   // Actions menu state
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  // Load vendors, categories, and areas on mount
+  // Load categories on mount
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [vendorsResponse, categoriesResponse] = await Promise.all([
-          fetchVendors({ pageSize: 100 }),
-          fetchHouseholdItemCategories(),
-        ]);
-        setVendors(vendorsResponse.vendors.map((v) => ({ id: v.id, name: v.name })));
+        const categoriesResponse = await fetchHouseholdItemCategories();
         setCategories(
           categoriesResponse.categories.map((c) => ({
             id: c.id,
@@ -96,7 +98,7 @@ export function HouseholdItemsPage() {
           })),
         );
       } catch (err) {
-        console.error('Failed to load vendors or categories:', err);
+        console.error('Failed to load categories:', err);
       }
     };
     loadData();
@@ -296,9 +298,14 @@ export function HouseholdItemsPage() {
         sortable: false,
         defaultVisible: true,
         filterable: true,
-        filterType: 'enum',
+        filterType: 'entity',
         filterParamKey: 'vendorId',
-        enumOptions: vendors.map((v) => ({ value: v.id, label: v.name })),
+        entitySearchFn: (q, _excluded, signal) => searchCompanies(q, signal),
+        entityRenderItem: (item) => {
+          const v = item as CompanyOption;
+          return { id: v.id, label: v.name };
+        },
+        entitySelectedLabel: companyFilter.name,
         render: (item) => item.vendor?.name || '—',
       },
       {
@@ -393,7 +400,7 @@ export function HouseholdItemsPage() {
       },
     ],
     // eslint-disable-next-line @eslint-react/exhaustive-deps -- tSettings is a stable i18n function
-    [t, tCommon, categories, formatCurrency, formatDate, statusVariants, vendors, areas],
+    [t, tCommon, categories, formatCurrency, formatDate, statusVariants, companyFilter.name, areas],
   );
 
   // Close action menu on outside click and Escape key

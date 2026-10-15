@@ -2,7 +2,7 @@ import { type FormEvent, type ReactNode, useState, useEffect, useRef } from 'rea
 import { useTranslation } from 'react-i18next';
 import type {
   ConfidenceLevel,
-  Vendor,
+  VendorListItem,
   BudgetSource,
   BudgetCategory,
   // TODO: BudgetLineAssignRequest exported by backend-developer in shared types
@@ -16,9 +16,17 @@ import { translateApiError } from '../../lib/errorTranslation.js';
 import { getCategoryDisplayName } from '../../lib/categoryUtils.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { useLocale } from '../../contexts/LocaleContext.js';
+import { useCompanyName } from '../../hooks/useCompanyName.js';
+import { searchCompanies } from '../../lib/vendorsApi.js';
+import type { CompanyOption } from '../../objectForms/companyForm.js';
 import { FormError } from '../FormError/index.js';
 import { ParentPicker } from '../ParentPicker/index.js';
+import { SearchPicker, type SearchPickerCreateAction } from '../SearchPicker/SearchPicker.js';
 import styles from './BudgetLineForm.module.css';
+
+type CompanyPickItem = CompanyOption & { readonly trade?: VendorListItem['trade'] };
+
+const NO_EXCLUDED: string[] = [];
 
 export interface BudgetLineFormProps {
   form: BudgetLineFormState;
@@ -30,7 +38,10 @@ export interface BudgetLineFormProps {
   isEditing: boolean;
   confidenceLabels: Record<ConfidenceLevel, string>;
   budgetSources: BudgetSource[];
-  vendors: Vendor[];
+  /** The saved company of the line being edited, when the caller has it. */
+  knownVendor?: { id: string; name: string } | null;
+  /** Opt-in "New company ‹text›" row. */
+  companyCreateAction?: SearchPickerCreateAction<CompanyOption>;
   budgetCategories?: BudgetCategory[];
   staticCategoryLabel?: string;
   isUnassigned?: boolean;
@@ -65,7 +76,8 @@ export function BudgetLineForm({
   isEditing,
   confidenceLabels,
   budgetSources,
-  vendors,
+  knownVendor,
+  companyCreateAction,
   budgetCategories,
   staticCategoryLabel,
   isUnassigned,
@@ -91,6 +103,7 @@ export function BudgetLineForm({
   const { formatCurrency, getCurrencySymbol } = useFormatters();
   const { vatRate } = useLocale();
   const prefix = idPrefix ?? '';
+  const company = useCompanyName(form.vendorId, { known: knownVendor });
 
   // Parent picker state
   const [selectedParentType, setSelectedParentType] = useState<'work_item' | 'household_item'>(
@@ -431,23 +444,25 @@ export function BudgetLineForm({
           <label className={styles.label} htmlFor={`${prefix}budget-vendor`}>
             {t('budgetLineForm.vendorLabel')}
           </label>
-          <select
+          <SearchPicker<CompanyPickItem>
             id={`${prefix}budget-vendor`}
-            className={styles.select}
             value={form.vendorId}
-            onChange={(e) => onFormChange({ vendorId: e.target.value })}
-            disabled={isSaving}
-          >
-            <option value="">{t('budgetLineForm.vendorNone')}</option>
-            {vendors.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.name}
-                {v.trade?.name
-                  ? ` — ${getCategoryDisplayName(tSettings, v.trade.name, v.trade.translationKey)}`
-                  : ''}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => onFormChange({ vendorId: id })}
+            onSelectItem={company.remember}
+            excludeIds={NO_EXCLUDED}
+            disabled={isSaving || isUnassigned === true || company.isResolving}
+            placeholder={t('budgetLineForm.vendorNone')}
+            searchFn={(q, _excluded, signal) => searchCompanies(q, signal)}
+            renderItem={(v) => ({ id: v.id, label: v.name })}
+            renderSecondary={(v) =>
+              v.trade
+                ? getCategoryDisplayName(tSettings, v.trade.name, v.trade.translationKey)
+                : null
+            }
+            showItemsOnFocus
+            initialTitle={company.name}
+            createAction={companyCreateAction}
+          />
         </div>
 
         {children}

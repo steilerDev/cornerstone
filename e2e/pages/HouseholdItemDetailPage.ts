@@ -30,6 +30,7 @@ import { routeUrl } from '../../shared/src/routes/index.js';
 import { BreadcrumbsBar } from './BreadcrumbsBar.js';
 import { StatusMenuControl } from './components/StatusMenuControl.js';
 import { ConfirmDialogControl } from './components/ConfirmDialogControl.js';
+import { SearchPickerControl } from './components/SearchPickerControl.js';
 
 export class HouseholdItemDetailPage {
   readonly page: Page;
@@ -58,6 +59,8 @@ export class HouseholdItemDetailPage {
   // #2209: the header status chip (StatusMenu) and the dependency-removal ConfirmDialog
   readonly statusMenu: StatusMenuControl;
   readonly dependencyRemoveDialog: ConfirmDialogControl;
+  /** The dependency picker (#household-item-dependency-search, add mode, server search). */
+  readonly dependencyPicker: SearchPickerControl;
 
   constructor(page: Page) {
     this.page = page;
@@ -96,6 +99,7 @@ export class HouseholdItemDetailPage {
     this.deleteCancelButton = this.deleteModal.getByTestId('purchase-delete-cancel');
     this.statusMenu = new StatusMenuControl(page, 'purchase-status');
     this.dependencyRemoveDialog = new ConfirmDialogControl(page, 'purchase-dependency-remove');
+    this.dependencyPicker = new SearchPickerControl(page, 'household-item-dependency-search');
   }
 
   /**

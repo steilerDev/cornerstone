@@ -18,6 +18,7 @@
 // ─── Mocks (must precede all static imports) ───────────────────────────────────
 
 import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import { makeSearchCompanies } from '../../test/companySearchMock.js';
 import type * as PaperlessApiModule from '../../lib/paperlessApi.js';
 import type * as InvoiceAutoItemizeApiModule from '../../lib/invoiceAutoItemizeApi.js';
 import type * as WorkItemBudgetsApiModule from '../../lib/workItemBudgetsApi.js';
@@ -69,6 +70,7 @@ const mockFetchVendor = jest.fn<typeof VendorsApiModule.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
   fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),

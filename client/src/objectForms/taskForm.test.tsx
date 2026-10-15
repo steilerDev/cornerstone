@@ -9,6 +9,7 @@ import { WORK_ITEM_STATUSES } from '@cornerstone/shared';
 import type { UserResponse } from '@cornerstone/shared';
 import enCommon from '../i18n/en/common.json';
 import { installMatchMedia } from '../test/matchMediaControl.js';
+import { makeSearchCompanies } from '../test/companySearchMock.js';
 import type { MatchMediaControl } from '../test/matchMediaControl.js';
 import type { ObjectFormResult } from '../components/ObjectForm/types.js';
 import type * as WorkItemsApiTypes from '../lib/workItemsApi.js';
@@ -25,6 +26,8 @@ const mockListWorkItems = jest.fn<typeof WorkItemsApiTypes.listWorkItems>();
 const mockListUsers = jest.fn<typeof UsersApiTypes.listUsers>();
 const mockCreateDependency = jest.fn<typeof DependenciesApiTypes.createDependency>();
 const mockFetchVendors = jest.fn<typeof VendorsApiTypes.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiTypes.fetchVendor>();
+const mockCreateVendor = jest.fn<typeof VendorsApiTypes.createVendor>();
 
 jest.unstable_mockModule('../lib/workItemsApi.js', () => ({
   createWorkItem: mockCreateWorkItem,
@@ -34,7 +37,15 @@ jest.unstable_mockModule('../lib/usersApi.js', () => ({ listUsers: mockListUsers
 jest.unstable_mockModule('../lib/dependenciesApi.js', () => ({
   createDependency: mockCreateDependency,
 }));
-jest.unstable_mockModule('../lib/vendorsApi.js', () => ({ fetchVendors: mockFetchVendors }));
+jest.unstable_mockModule('../lib/vendorsApi.js', () => ({
+  fetchVendors: mockFetchVendors,
+  fetchVendor: mockFetchVendor,
+  searchCompanies: makeSearchCompanies(mockFetchVendors),
+  createVendor: mockCreateVendor,
+}));
+jest.unstable_mockModule('../hooks/useTrades.js', () => ({
+  useTrades: () => ({ trades: [], isLoading: false, isInitialLoading: false, error: null }),
+}));
 
 type AreaRow = {
   id: string;
@@ -150,6 +161,8 @@ describe('taskForm (ObjectForm schema)', () => {
     mockListUsers.mockReset();
     mockCreateDependency.mockReset();
     mockFetchVendors.mockReset();
+    mockFetchVendor.mockReset();
+    mockCreateVendor.mockReset();
     onCreated.mockReset();
     setAreas([]);
     mockListUsers.mockResolvedValue({ users });
@@ -275,17 +288,32 @@ describe('taskForm (ObjectForm schema)', () => {
       expect(select.value).toBe('not_started');
     });
 
-    it('filters deactivated users out of the assignment dropdown', async () => {
+    it('lists active people and companies, never deactivated users, when the picker opens', async () => {
+      const user = userEvent.setup();
+      mockFetchVendors.mockResolvedValue({
+        vendors: [{ id: 'v-1', name: 'Acme Roofing', trade: null }],
+        pagination: { page: 1, pageSize: 50, totalItems: 1, totalPages: 1 },
+      } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.fetchVendors>>);
       renderForm();
       await ready();
-      const options = Array.from(
-        (screen.getByLabelText(/assigned to/i) as HTMLSelectElement).options,
-      ).map((o) => o.textContent);
+
+      await user.click(screen.getByLabelText(/assigned to/i));
+
+      const options = (await screen.findAllByRole('option')).map((o) => o.textContent);
       expect(options).toContain('Active User');
+      expect(options).toContain('Acme Roofing');
       expect(options).not.toContain('Deactivated User');
     });
 
-    it('shows the translated loadFailed message when users/vendors fail to load (never the raw error)', async () => {
+    it('loads no companies when the form opens (the picker searches on focus)', async () => {
+      renderForm();
+      await ready();
+
+      expect(mockFetchVendors).not.toHaveBeenCalled();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+    });
+
+    it('shows the translated loadFailed message when the users fail to load (never the raw error)', async () => {
       const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
       mockListUsers.mockRejectedValue(new Error('SQLITE_BUSY: raw detail'));
       renderForm();
@@ -422,7 +450,8 @@ describe('taskForm (ObjectForm schema)', () => {
       await ready();
       await user.type(screen.getByLabelText(/^title/i), 'Cabinets');
       fireEvent.change(screen.getByTestId('area-picker-mock'), { target: { value: 'a1' } });
-      await user.selectOptions(screen.getByLabelText(/assigned to/i), 'Active User');
+      await user.click(screen.getByLabelText(/assigned to/i));
+      await user.click(await screen.findByRole('option', { name: 'Active User' }));
       await openMore(user);
       await user.type(screen.getByLabelText(/description/i), 'Install all');
       await user.selectOptions(screen.getByLabelText(/^status/i), 'in_progress');
@@ -636,6 +665,74 @@ describe('taskForm (ObjectForm schema)', () => {
       });
       await waitFor(() => expect(screen.getByText('No area')).toBeInTheDocument());
       expect(screen.queryByRole('navigation', { name: /area path/i })).toBeNull();
+    });
+  });
+
+  describe('assignment: companies beyond the first page and creating one', () => {
+    it('finds a company by typing and sends it as assignedVendorId', async () => {
+      const user = userEvent.setup();
+      mockFetchVendors.mockImplementation(async (params) => {
+        const vendors =
+          params?.q === 'zeta' ? [{ id: 'v-250', name: 'Zeta Tiling', trade: null }] : [];
+        return {
+          vendors,
+          pagination: { page: 1, pageSize: 50, totalItems: vendors.length, totalPages: 1 },
+        } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.fetchVendors>>;
+      });
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-9' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Tiles');
+
+      await user.type(screen.getByLabelText(/assigned to/i), 'zeta');
+      await user.click(await screen.findByRole('option', { name: 'Zeta Tiling' }));
+      await user.click(save());
+
+      await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'zeta', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
+      expect(mockCreateWorkItem).toHaveBeenCalledWith(
+        expect.objectContaining({ assignedVendorId: 'v-250', assignedUserId: null }),
+      );
+    });
+
+    it('offers "New company ‹text›" that opens the company form prefilled with the typed name', async () => {
+      const user = userEvent.setup();
+      renderForm();
+      await ready();
+
+      await user.type(screen.getByLabelText(/assigned to/i), 'Fresh Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
+
+      expect(await screen.findByRole('dialog', { name: 'New company' })).toBeInTheDocument();
+      expect((screen.getByTestId('company-name-input') as HTMLInputElement).value).toBe('Fresh Co');
+    });
+
+    it('sets the created company on the field, shows its name and sends it on Save', async () => {
+      const user = userEvent.setup();
+      mockCreateVendor.mockResolvedValue({
+        id: 'v-new',
+        name: 'Fresh Co',
+      } as unknown as Awaited<ReturnType<typeof VendorsApiTypes.createVendor>>);
+      mockCreateWorkItem.mockResolvedValue({ id: 'work-10' } as never);
+      renderForm();
+      await ready();
+      await user.type(screen.getByLabelText(/^title/i), 'Fence');
+
+      await user.type(screen.getByLabelText(/assigned to/i), 'Fresh Co');
+      await user.click(await screen.findByRole('option', { name: 'New company Fresh Co' }));
+      await screen.findByRole('dialog', { name: 'New company' });
+      await user.click(save());
+
+      expect(await screen.findByText('Fresh Co')).toBeInTheDocument();
+      expect(mockFetchVendor).not.toHaveBeenCalled();
+      await user.click(save());
+      await waitFor(() => expect(mockCreateWorkItem).toHaveBeenCalledTimes(1));
+      expect(mockCreateWorkItem).toHaveBeenCalledWith(
+        expect.objectContaining({ assignedVendorId: 'v-new', title: 'Fence' }),
+      );
     });
   });
 });
