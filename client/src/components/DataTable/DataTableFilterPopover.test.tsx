@@ -322,6 +322,20 @@ describe('DataTableFilterPopover', () => {
       expect(renderAt(120).style.left).toBe('16px');
     });
 
+    it('caps maxWidth to the viewport minus both gutters, so a 320px viewport keeps the right edge inside 304px', () => {
+      setViewport(320, 300);
+      const dialog = renderAt(150);
+
+      expect(dialog.style.left).toBe('16px');
+      expect(dialog.style.maxWidth).toBe('min(300px, calc(100vw - 32px))');
+      // jsdom does not lay out: resolve the cap by hand (min(300px, 320px - 32px) = 288px)
+      const cap = Math.min(300, 320 - 2 * 16);
+      expect(cap).toBe(288);
+      expect(parseFloat(dialog.style.left) + Math.min(offsetWidth, cap)).toBeLessThanOrEqual(
+        320 - 16,
+      );
+    });
+
     it('re-clamps when the window is resized', () => {
       setViewport(1200, 300);
       const dialog = renderAt(700);

@@ -68,7 +68,7 @@ export function DataTableFilterPopover<T>({
     position: 'fixed' as const,
     top: `${triggerRect.bottom + 4}px`,
     left: `${Math.max(VIEWPORT_GUTTER_PX, triggerLeft)}px`,
-    maxWidth: '300px',
+    maxWidth: `min(300px, calc(100vw - ${2 * VIEWPORT_GUTTER_PX}px))`,
     zIndex: 1000,
   };
 
