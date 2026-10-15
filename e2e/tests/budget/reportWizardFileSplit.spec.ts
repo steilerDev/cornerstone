@@ -251,7 +251,7 @@ test.describe('Report wizard file split — happy path (Scenario 1)', { tag: '@r
     try {
       await reachStep4(wizard, fixture.sourceId);
       await wizard.setMaxFileSize('1');
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
 
       await expect(wizard.generatedFilesList).toBeVisible();
       await expect(wizard.generatedFilesList.getByRole('heading')).toHaveText('Generated files');
@@ -330,7 +330,7 @@ test.describe(
 
         await reachStep4(wizard, fixture.sourceId);
         await wizard.setMaxFileSize('1');
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
         await expect(wizard.generatedFilesList).toBeVisible();
 
         await expect(wizard.uploadAllButton).toHaveText(/Upload all \(3\) to Paperless/);
@@ -381,7 +381,7 @@ test.describe(
       try {
         await reachStep4(wizard, fixture.sourceId);
         await wizard.setMaxFileSize('1');
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
 
         await expect(wizard.partWarnings).toHaveCount(1);
         await expect(wizard.partWarnings.first()).toContainText(fixture.vendorName);
@@ -480,7 +480,7 @@ test.describe(
       try {
         await reachStep4(wizard, fixture.sourceId);
         await expect(wizard.maxFileSizeInput).toHaveValue('');
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
 
         await expect(wizard.downloadButton).toBeVisible();
         await expect(wizard.generatedFilesList).toHaveCount(0);
@@ -518,7 +518,7 @@ test.describe(
       try {
         await reachStep4(wizard, fixture.sourceId);
         await wizard.setMaxFileSize('1');
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
         await expect(wizard.generatedFilesList).toBeVisible();
 
         await wizard.openPdfPreviewModal();

@@ -1325,11 +1325,16 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       searchHit: null,
     };
     const mockInvoiceId = `mock-pf-attach-${testPrefix}`;
+    // The review page's vendor picker filters only the FIRST 100 companies by name (it loads
+    // `GET /api/vendors?pageSize=100` once and has no server-side search), so on a shared server
+    // that has accumulated more than 100 companies a vendor named "E2E-..." is not offered at
+    // all. A leading "!" sorts this vendor first, so it is always inside that window.
+    const vendorName = `!${testPrefix} PF Attach Vendor`;
 
     let vendorId = '';
     try {
       const vendorResp = await page.request.post(API.vendors, {
-        data: { name: `${testPrefix} PF Attach Vendor` },
+        data: { name: vendorName },
       });
       expect(vendorResp.ok()).toBeTruthy();
       vendorId = ((await vendorResp.json()) as { vendor: { id: string } }).vendor.id;
@@ -1454,7 +1459,7 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
               status: 'pending',
               notes: null,
               vendorId,
-              vendor: { id: vendorId, name: `${testPrefix} PF Attach Vendor` },
+              vendor: { id: vendorId, name: vendorName },
               createdAt: '2026-06-15T00:00:00.000Z',
               updatedAt: '2026-06-15T00:00:00.000Z',
             },
@@ -1477,8 +1482,8 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
               status: 'pending',
               notes: null,
               vendorId,
-              vendorName: `${testPrefix} PF Attach Vendor`,
-              vendor: { id: vendorId, name: `${testPrefix} PF Attach Vendor` },
+              vendorName: vendorName,
+              vendor: { id: vendorId, name: vendorName },
               deposits: [],
               finalPaymentAmount: 500,
               createdBy: null,
@@ -1545,7 +1550,7 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       await expect(page.locator('#picker-attachment-type')).toHaveCount(0);
       await expect(page.locator('select[id^="attachment-type-"]')).toHaveCount(0);
 
-      await reviewPage.setVendor(`${testPrefix} PF Attach Vendor`);
+      await reviewPage.setVendor(vendorName);
 
       const commitResponsePromise = page.waitForResponse(
         (resp) => resp.url().includes('/auto-itemize/commit') && resp.request().method() === 'POST',
@@ -1557,7 +1562,7 @@ test.describe('Attachment-type tagging — Paperless-first invoice flow (Scenari
       await expect(
         page.getByRole('heading', {
           level: 1,
-          name: `${testPrefix} PF Attach Vendor · PF-ATTACH-001`,
+          name: `${vendorName} · PF-ATTACH-001`,
         }),
       ).toBeVisible();
 

@@ -53,42 +53,6 @@
   justify-content: flex-end;
 }
 
-/* Toolbar button — outline variant */
-.toolbarButton {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--spacing-2);
-  padding: var(--spacing-1-5) var(--spacing-3);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  color: var(--color-text-secondary);
-  background: var(--color-bg-primary);
-  border: 1px solid var(--color-border-strong);
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition-button-border);
-  min-height: 36px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.toolbarButton:hover:not(:disabled) {
-  background: var(--color-bg-hover);
-  color: var(--color-text-primary);
-}
-
-.toolbarButton:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.toolbarButton:focus-visible {
-  outline: none;
-  box-shadow: var(--shadow-focus);
-  position: relative;
-  z-index: var(--z-raised);
-}
-
 /* Arrows toggle — icon-only button */
 .arrowsToggle {
   display: inline-flex;
@@ -477,10 +441,6 @@
     height: 44px;
   }
 
-  .toolbarButton {
-    min-height: 44px;
-  }
-
   .entityFilterButton {
     min-height: 44px;
   }
@@ -509,10 +469,6 @@
     min-height: 44px;
     padding: var(--spacing-2) var(--spacing-3);
     font-size: var(--font-size-xs);
-  }
-
-  .toolbarButton {
-    min-height: 44px;
   }
 
   .entityFilterButton {

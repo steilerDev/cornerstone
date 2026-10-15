@@ -213,8 +213,11 @@ export class WorkItemDetailPage {
    * the error state to appear (load failure / 404).
    */
   async goto(id: string): Promise<void> {
-    await this.page.goto(routeUrl('workItem', { id }));
-    // No explicit timeout — uses project-level actionTimeout (15s for WebKit).
+    // `domcontentloaded`, not the default `load`: the heading/error wait below is the real
+    // readiness signal, and `load` also waits for every subresource, which under 6-worker load
+    // exceeded the 10s navigation timeout on WebKit.
+    await this.page.goto(routeUrl('workItem', { id }), { waitUntil: 'domcontentloaded' });
+    // No explicit timeout — uses the project-level actionTimeout.
     await Promise.race([
       this.heading.waitFor({ state: 'visible' }),
       this.errorState.waitFor({ state: 'visible' }),

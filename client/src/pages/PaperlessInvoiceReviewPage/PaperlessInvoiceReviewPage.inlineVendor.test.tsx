@@ -50,11 +50,12 @@ jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
 }));
 
 const mockFetchVendors = jest.fn<typeof VendorsApiModule.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiModule.fetchVendor>();
 const mockCreateVendor = jest.fn<typeof VendorsApiModule.createVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  fetchVendor: mockFetchVendor,
   createVendor: mockCreateVendor,
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -163,6 +164,7 @@ jest.unstable_mockModule('../../lib/preferencesApi.js', () => ({
 
 // ─── Dynamic import ────────────────────────────────────────────────────────────
 
+import { foldSearchText } from '@cornerstone/shared';
 import type * as PageModule from './PaperlessInvoiceReviewPage.js';
 import type * as ProviderModule from '../../objectForms/CompanyCreateProvider.js';
 import { installMatchMedia } from '../../test/matchMediaControl.js';
@@ -183,6 +185,14 @@ beforeEach(async () => {
   mockPreviewAutoItemize.mockReset();
   mockCommitAutoItemizeCreate.mockReset();
   mockFetchVendors.mockReset();
+  mockFetchVendor.mockReset();
+  // By default a company is found by id in whatever the vendor list mock serves.
+  mockFetchVendor.mockImplementation(async (id: string) => {
+    const res = await mockFetchVendors({});
+    const found = res.vendors.find((v) => v.id === id);
+    if (!found) throw new Error('not found');
+    return found as Awaited<ReturnType<typeof VendorsApiModule.fetchVendor>>;
+  });
   mockCreateVendor.mockReset();
   mockUseTrades.mockReset();
   mockUseTrades.mockReturnValue({
@@ -263,6 +273,26 @@ function makeVendorsResponse(vendors: Array<{ id: string; name: string }> = []) 
     })),
     pagination: { page: 1, pageSize: 100, totalItems: vendors.length, totalPages: 1 },
   };
+}
+
+/**
+ * A server stand-in: GET /api/vendors filters by the folded query (like the real matcher), and the
+ * "first page" is whatever `firstPage` lists for an empty query. Created companies join it.
+ */
+function serverBacked(
+  all: Array<{ id: string; name: string }>,
+  firstPage = Number.POSITIVE_INFINITY,
+) {
+  const store = [...all];
+  mockFetchVendors.mockImplementation(async (params) => {
+    const q = foldSearchText(params?.q ?? '');
+    const hits =
+      q === ''
+        ? store.slice(0, firstPage)
+        : store.filter((v) => foldSearchText(v.name).includes(q));
+    return makeVendorsResponse(hits);
+  });
+  return store;
 }
 
 function makeVendor(id: string, name: string): Vendor {
@@ -435,22 +465,202 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
     });
 
-    it('searches the loaded companies with both sides folded (umlaut, digraph, case)', async () => {
-      mockFetchVendors.mockResolvedValue(
-        makeVendorsResponse([
-          { id: 'v-1', name: 'Öko Fenster' },
-          { id: 'v-2', name: 'MUELLER BAU' },
-          { id: 'v-3', name: 'Other Co' },
-        ]),
-      );
+    it('searches the server with the typed text, folded by the server (umlaut, digraph, case)', async () => {
+      serverBacked([
+        { id: 'v-1', name: 'Öko Fenster' },
+        { id: 'v-2', name: 'MUELLER BAU' },
+        { id: 'v-3', name: 'Other Co' },
+      ]);
       const input = await renderReady();
 
       fireEvent.change(input, { target: { value: 'oeko' } });
       expect(await screen.findByRole('option', { name: 'Öko Fenster' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'Other Co' })).not.toBeInTheDocument();
+      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'oeko', pageSize: 50 });
 
       fireEvent.change(input, { target: { value: 'müller' } });
       expect(await screen.findByRole('option', { name: 'MUELLER BAU' })).toBeInTheDocument();
+    });
+
+    it('finds a company outside the first page by typing', async () => {
+      serverBacked(
+        [
+          { id: 'v-1', name: 'Alpha Co' },
+          { id: 'v-far', name: 'Zeta Far Away GmbH' },
+        ],
+        1,
+      );
+      const input = await renderReady();
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Alpha Co' });
+      expect(screen.queryByRole('option', { name: 'Zeta Far Away GmbH' })).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: 'zeta far' } });
+
+      expect(await screen.findByRole('option', { name: 'Zeta Far Away GmbH' })).toBeInTheDocument();
+      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'zeta far', pageSize: 50 });
+    });
+
+    it('preselects a suggested company that is not on the first page, by id', async () => {
+      serverBacked([{ id: 'v-1', name: 'Alpha Co' }]);
+      mockFetchVendor.mockResolvedValue(
+        makeVendor('v-far', 'Far Away Co') as Awaited<
+          ReturnType<typeof VendorsApiModule.fetchVendor>
+        >,
+      );
+      mockCommitAutoItemizeCreate.mockResolvedValue(makeCommitResponse());
+      await renderReady({ suggestedVendorId: 'v-far' });
+
+      expect((await screen.findAllByText('Far Away Co')).length).toBeGreaterThan(0);
+      expect(screen.getByRole('button', { name: 'Clear selection' })).toBeInTheDocument();
+      expect(mockFetchVendor).toHaveBeenCalledWith('v-far');
+      fireEvent.click(screen.getByRole('button', { name: /Create Invoice/i }));
+      await waitFor(() => expect(mockCommitAutoItemizeCreate).toHaveBeenCalledTimes(1));
+      expect(mockCommitAutoItemizeCreate.mock.calls[0]?.[0]).toEqual(
+        expect.objectContaining({ vendorId: 'v-far' }),
+      );
+    });
+
+    it('shows no title for a suggested company that cannot be looked up, but keeps the id', async () => {
+      serverBacked([]);
+      mockFetchVendor.mockRejectedValue(new Error('offline'));
+      await renderReady({ suggestedVendorId: 'v-far' });
+
+      await waitFor(() => expect(mockFetchVendor).toHaveBeenCalledWith('v-far'));
+      expect(screen.queryByText('Far Away Co')).not.toBeInTheDocument();
+    });
+
+    it('asks the server whether the extracted name exists, with the name as the query', async () => {
+      serverBacked([]);
+      await renderReady({ extractedVendorName: 'Neue Firma' });
+
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+    });
+
+    it('an extracted name that exists on the server (other spelling) gets no create row', async () => {
+      serverBacked([{ id: 'v-1', name: 'Öko Fenster' }]);
+      const input = await renderReady({ extractedVendorName: 'OEKO FENSTER' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'OEKO FENSTER', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Öko Fenster' });
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('a server hit that only contains the extracted name does not count as existing', async () => {
+      serverBacked([{ id: 'v-1', name: 'Neue Firma Holding' }]);
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Neue Firma' }),
+      ).toBeInTheDocument();
+    });
+
+    it('an extracted name that does not exist gets the prefilled create row on an empty field', async () => {
+      serverBacked([{ id: 'v-1', name: 'Alpha Co' }]);
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+
+      const dialog = await openCreateDialog(input, 'New company Neue Firma');
+
+      expect(dialogNameInput(dialog).value).toBe('Neue Firma');
+    });
+
+    it('a truncated existence lookup (50 of 51, no exact match) is unknown: no empty-field row, typed text still gets one', async () => {
+      const fifty = Array.from({ length: 50 }, (_, i) => ({
+        id: `v-${i}`,
+        name: `Other Company ${i}`,
+      }));
+      mockFetchVendors.mockImplementation(async (params) => {
+        if (params?.q === 'Neue Firma') {
+          return {
+            ...makeVendorsResponse(fifty),
+            pagination: { page: 1, pageSize: 50, totalItems: 51, totalPages: 2 },
+          };
+        }
+        return makeVendorsResponse(fifty.slice(0, 3));
+      });
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Other Company 0' });
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: 'Brand New Co' } });
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
+    });
+
+    it('a complete existence lookup with no exact match (50 of 50) still offers the row', async () => {
+      const fifty = Array.from({ length: 50 }, (_, i) => ({
+        id: `v-${i}`,
+        name: `Other Company ${i}`,
+      }));
+      mockFetchVendors.mockImplementation(async (params) =>
+        params?.q === 'Neue Firma'
+          ? makeVendorsResponse(fifty)
+          : makeVendorsResponse(fifty.slice(0, 3)),
+      );
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Neue Firma' }),
+      ).toBeInTheDocument();
+    });
+
+    it('a failed existence lookup shows no empty-field row', async () => {
+      serverBacked([{ id: 'v-1', name: 'Alpha Co' }]);
+      const normal = mockFetchVendors.getMockImplementation()!;
+      mockFetchVendors.mockImplementation(async (params) => {
+        if (params?.q === 'Neue Firma') throw new Error('offline');
+        return normal(params);
+      });
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Alpha Co' });
+
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+    });
+
+    it('typed text still gets a create row after a failed existence lookup', async () => {
+      serverBacked([]);
+      const normal = mockFetchVendors.getMockImplementation()!;
+      mockFetchVendors.mockImplementation(async (params) => {
+        if (params?.q === 'Neue Firma') throw new Error('offline');
+        return normal(params);
+      });
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.change(input, { target: { value: 'Brand New Co' } });
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
     });
 
     it('still offers a row for typed text that matches no company, even when the extracted name matches one', async () => {
@@ -503,9 +713,17 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       );
     });
 
-    it('makes the new company available in subsequent searches', async () => {
-      mockCreateVendor.mockResolvedValue(makeVendor('vendor-new', 'Neue Firma'));
+    it('after creating the extracted company the empty-field row is gone and the server lists it', async () => {
+      const store = serverBacked([]);
+      mockCreateVendor.mockImplementation(async () => {
+        const created = makeVendor('vendor-new', 'Neue Firma');
+        store.push({ id: created.id, name: created.name });
+        return created;
+      });
       const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
       const dialog = await openCreateDialog(input);
       saveCompany(dialog);
       await screen.findByRole('button', { name: 'Clear selection' });
@@ -515,7 +733,6 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.focus(freshInput);
 
       expect(await screen.findByRole('option', { name: 'Neue Firma' })).toBeInTheDocument();
-      // The created company now matches the extracted name, so the always-on row is gone.
       expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
     });
 

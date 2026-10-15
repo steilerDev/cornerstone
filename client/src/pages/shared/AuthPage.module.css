@@ -54,16 +54,6 @@
   outline: none;
 }
 
-.successBanner {
-  background-color: var(--color-success-bg);
-  border: 1px solid var(--color-success-border);
-  border-radius: 0.375rem;
-  color: var(--color-success-text-on-light);
-  padding: 0.75rem;
-  margin-bottom: 1rem;
-  font-size: 0.875rem;
-}
-
 .form {
   display: flex;
   flex-direction: column;

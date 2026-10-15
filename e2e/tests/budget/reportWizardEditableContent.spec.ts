@@ -425,7 +425,7 @@ async function reachStep5(
   await wizard.selectSource(sourceId);
   await wizard.goNextFromStep2();
   await wizard.goNextFromStep3();
-  await wizard.step4NextButton.click();
+  await wizard.goNextFromStep4();
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -750,7 +750,7 @@ test.describe('Report wizard editable content — discard-confirm modal (Scenari
 
       // The edit survived the whole detour — going forward again shows it unchanged.
       await wizard.goNextFromStep3();
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
       await expect(subject).toHaveValue('Edit that must survive a cancelled navigation');
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
@@ -767,7 +767,7 @@ test.describe('Report wizard editable content — discard-confirm modal (Scenari
 
       // The edit is GONE — the field is back to its generated baseline.
       await wizard.goNextFromStep3();
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
       await expect(subject).toHaveValue(baseline);
       expect(await wizard.hasEditedIndicator(subject)).toBe(false);
     } finally {
@@ -1140,7 +1140,7 @@ test.describe('Report wizard editable content — mark-claimed warning regressio
         .click();
 
       await wizard.goNextFromStep3();
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
 
       // Edit a content field — proves the two features (line exclusion + content overrides)
       // coexist without interfering with each other.
@@ -1505,7 +1505,7 @@ test.describe('Report wizard editable content — report-language guard (Scenari
       await expect(wizard.discardConfirmModal).not.toBeVisible();
       await expect(wizard.reportLanguageRadio('en')).toBeChecked();
 
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
       await expect(subject).toHaveValue(dirtiedValue);
       expect(await wizard.hasEditedIndicator(subject)).toBe(true);
 
@@ -1518,7 +1518,7 @@ test.describe('Report wizard editable content — report-language guard (Scenari
       await expect(wizard.discardConfirmModal).not.toBeVisible();
       await expect(wizard.reportLanguageRadio('de')).toBeChecked();
 
-      await wizard.step4NextButton.click();
+      await wizard.goNextFromStep4();
       // Not asserting an exact baseline value here (unlike Scenario 4): the regenerated
       // content is now in German, so the pre-edit English baseline string no longer applies —
       // clearing of the override (and the dirtied English text being gone) is enough proof.
@@ -2847,7 +2847,7 @@ test.describe(
         await wizard.goBack(); // step 5 -> step 4 (Settings)
         await wizard.toggleAttachDocuments();
         await expect(wizard.attachDocumentsCheckbox).not.toBeChecked();
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
         await expect(wizard.columnToggleGroup.getByLabel('Usage')).not.toBeChecked();
         await expect(wizard.usageHiddenAttachmentsWarning).toHaveCount(0);
 
@@ -2919,7 +2919,7 @@ test.describe(
         await wizard.selectSource(sourceId);
         await wizard.goNextFromStep2();
         await wizard.goNextFromStep3();
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
 
         // Full base set for the NEW use case (7 columns incl. Status, not the old 6) — every
         // checkbox checked, including the one that was hidden before the use-case switch.
@@ -2984,7 +2984,7 @@ test.describe(
         await wizard.goNextFromStep1();
         await wizard.goNextFromStep2();
         await wizard.goNextFromStep3();
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
 
         await wizard.columnToggleGroup.getByLabel('Vendor').uncheck();
         await expect(wizard.columnToggleGroup.getByLabel('Vendor')).not.toBeChecked();
@@ -2996,7 +2996,7 @@ test.describe(
         await wizard.goNextFromStep1();
         await wizard.goNextFromStep2();
         await wizard.goNextFromStep3();
-        await wizard.step4NextButton.click();
+        await wizard.goNextFromStep4();
 
         const checkboxes = wizard.columnToggleGroup.getByRole('checkbox');
         await expect(checkboxes).toHaveCount(6);
@@ -3056,7 +3056,7 @@ test.describe('Report wizard editable content — lang attribute on thead when r
       await wizard.goNextFromStep2();
       await wizard.goNextFromStep3(); // now on step 4 (Settings)
       await wizard.selectReportLanguage('de');
-      await wizard.step4NextButton.click(); // now on step 5
+      await wizard.goNextFromStep4(); // now on step 5
 
       // Under Option A, lang is placed on the <thead> of the report table — the element
       // that carries the translated column headings — rather than on the outer container
@@ -3113,7 +3113,7 @@ test.describe('Report wizard editable content — thead carries report lang, h3 
       await wizard.goNextFromStep2();
       await wizard.goNextFromStep3(); // now on step 4 (Settings)
       await wizard.selectReportLanguage('de');
-      await wizard.step4NextButton.click(); // now on step 5
+      await wizard.goNextFromStep4(); // now on step 5
 
       const container = wizard.reportContentContainer();
       await expect(container).toBeVisible();

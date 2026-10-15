@@ -180,16 +180,6 @@
  * ============================================================ */
 
 @media (max-width: 767px) {
-  .pageHeader {
-    flex-direction: column;
-    align-items: stretch;
-    justify-content: flex-start;
-  }
-
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
-
   .addButton {
     min-height: 44px;
     width: 100%;

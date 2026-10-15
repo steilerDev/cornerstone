@@ -76,19 +76,6 @@
   background-color: var(--color-danger-bg-strong);
 }
 
-/* Responsive */
-@media (max-width: 767px) {
-  .header {
-    flex-direction: column;
-    align-items: stretch;
-    gap: var(--spacing-4);
-  }
-
-  .pageTitle {
-    font-size: var(--font-size-2xl);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .menuButton {
     transition: none;

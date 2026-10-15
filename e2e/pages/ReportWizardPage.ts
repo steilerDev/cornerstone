@@ -736,10 +736,13 @@ export class ReportWizardPage {
   }
 
   async selectUseCase(useCase: SourceReportUseCase): Promise<void> {
-    // Clicking the (visually-hidden) radio input directly toggles it and fires onChange
-    // (the enclosing <label class*="useCaseCard"> also intercepts clicks anywhere in the
-    // card, but targeting the input is unambiguous regardless of card layout).
-    await this.useCaseCard(useCase).click({ force: true });
+    // Click the enclosing <label class*="useCaseCard"> (it toggles the visually-hidden radio and
+    // fires onChange). Never `force` the hidden input: a forced click lands on the input's own
+    // centre, which on phones can sit under the fixed bottom bar and hit "Home" instead.
+    await this.page
+      .locator('label')
+      .filter({ has: this.useCaseCard(useCase) })
+      .click();
   }
 
   // ─── Step 2 ──────────────────────────────────────────────────────────────
@@ -755,7 +758,13 @@ export class ReportWizardPage {
   }
 
   async selectSource(sourceId: string): Promise<void> {
-    await this.sourceRow(sourceId).click({ force: true });
+    // Click the enclosing <label class*="sourceRow">, not the hidden input with `force`: Playwright
+    // then scrolls the row clear of the phone's fixed bottom bar. A forced click on the input's
+    // centre landed on the bar's "Home" link once other specs' sources pushed the row down.
+    await this.page
+      .locator('label[class*="sourceRow"]')
+      .filter({ has: this.sourceRow(sourceId) })
+      .click();
   }
 
   // ─── Step 3 ──────────────────────────────────────────────────────────────
@@ -926,16 +935,36 @@ export class ReportWizardPage {
     return (await item.locator('button').count()) > 0;
   }
 
+  /**
+   * Wait until the wizard has moved focus to the new step's heading. On every step change
+   * `ReportWizardPage` focuses the step heading in a `requestAnimationFrame`; under load that
+   * frame can land AFTER a test's next `fill()`, stealing focus from the field mid-edit and
+   * losing the value (the max-file-size input never applied; the Subject edit reverted).
+   * Waiting for the heading focus makes the next interaction deterministic.
+   */
+  async waitForStepSettled(): Promise<void> {
+    await expect(this.page.locator('[tabindex="-1"]:focus')).toHaveCount(1);
+  }
+
   async goNextFromStep1(): Promise<void> {
     await this.step1NextButton.click();
+    await this.waitForStepSettled();
   }
 
   async goNextFromStep2(): Promise<void> {
     await this.step2NextButton.click();
+    await this.waitForStepSettled();
   }
 
   async goNextFromStep3(): Promise<void> {
     await this.step3NextButton.click();
+    await this.waitForStepSettled();
+  }
+
+  /** Step 4 (Settings) -> step 5 (Preview & Export, or the sizing phase first). */
+  async goNextFromStep4(): Promise<void> {
+    await this.step4NextButton.click();
+    await this.waitForStepSettled();
   }
 
   async goBack(): Promise<void> {
