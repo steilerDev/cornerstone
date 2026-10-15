@@ -177,7 +177,10 @@ export function PaperlessInvoiceReviewPage() {
       .then((res) => {
         if (cancelled) return;
         const wanted = foldSearchText(extractedVendorName);
-        setExtractedMatched(res.vendors.some((v) => foldSearchText(v.name) === wanted));
+        const found = res.vendors.some((v) => foldSearchText(v.name) === wanted);
+        // Not among the first results of a longer list is unknown, not absent: no create row.
+        const truncated = res.pagination.totalItems > res.vendors.length;
+        setExtractedMatched(found ? true : truncated ? null : false);
       })
       .catch(() => {
         if (!cancelled) setExtractedMatched(null);

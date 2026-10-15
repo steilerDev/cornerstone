@@ -575,6 +575,57 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       expect(dialogNameInput(dialog).value).toBe('Neue Firma');
     });
 
+    it('a truncated existence lookup (50 of 51, no exact match) is unknown: no empty-field row, typed text still gets one', async () => {
+      const fifty = Array.from({ length: 50 }, (_, i) => ({
+        id: `v-${i}`,
+        name: `Other Company ${i}`,
+      }));
+      mockFetchVendors.mockImplementation(async (params) => {
+        if (params?.q === 'Neue Firma') {
+          return {
+            ...makeVendorsResponse(fifty),
+            pagination: { page: 1, pageSize: 50, totalItems: 51, totalPages: 2 },
+          };
+        }
+        return makeVendorsResponse(fifty.slice(0, 3));
+      });
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+      await screen.findByRole('option', { name: 'Other Company 0' });
+      expect(screen.queryByRole('option', { name: createRowName })).not.toBeInTheDocument();
+
+      fireEvent.change(input, { target: { value: 'Brand New Co' } });
+      expect(
+        await screen.findByRole('option', { name: 'New company Brand New Co' }),
+      ).toBeInTheDocument();
+    });
+
+    it('a complete existence lookup with no exact match (50 of 50) still offers the row', async () => {
+      const fifty = Array.from({ length: 50 }, (_, i) => ({
+        id: `v-${i}`,
+        name: `Other Company ${i}`,
+      }));
+      mockFetchVendors.mockImplementation(async (params) =>
+        params?.q === 'Neue Firma'
+          ? makeVendorsResponse(fifty)
+          : makeVendorsResponse(fifty.slice(0, 3)),
+      );
+      const input = await renderReady({ extractedVendorName: 'Neue Firma' });
+      await waitFor(() =>
+        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Neue Firma', pageSize: 50 }),
+      );
+
+      fireEvent.focus(input);
+
+      expect(
+        await screen.findByRole('option', { name: 'New company Neue Firma' }),
+      ).toBeInTheDocument();
+    });
+
     it('a failed existence lookup shows no empty-field row', async () => {
       serverBacked([{ id: 'v-1', name: 'Alpha Co' }]);
       const normal = mockFetchVendors.getMockImplementation()!;
