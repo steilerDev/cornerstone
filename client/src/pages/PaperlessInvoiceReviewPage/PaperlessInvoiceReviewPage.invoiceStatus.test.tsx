@@ -54,10 +54,11 @@ jest.unstable_mockModule('../../lib/invoiceAutoItemizeApi.js', () => ({
 // ─── Mock: vendorsApi ──────────────────────────────────────────────────────────
 
 const mockFetchVendors = jest.fn<typeof VendorsApiModule.fetchVendors>();
+const mockFetchVendor = jest.fn<typeof VendorsApiModule.fetchVendor>();
 
 jest.unstable_mockModule('../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
-  fetchVendor: jest.fn(),
+  fetchVendor: mockFetchVendor,
   createVendor: jest.fn(),
   updateVendor: jest.fn(),
   deleteVendor: jest.fn(),
@@ -238,6 +239,14 @@ beforeEach(async () => {
   mockPreviewAutoItemize.mockReset();
   mockCommitAutoItemizeCreate.mockReset();
   mockFetchVendors.mockReset();
+  mockFetchVendor.mockReset();
+  // By default a company is found by id in whatever the vendor list mock serves.
+  mockFetchVendor.mockImplementation(async (id: string) => {
+    const res = await mockFetchVendors({});
+    const found = res.vendors.find((v) => v.id === id);
+    if (!found) throw new Error('not found');
+    return found as Awaited<ReturnType<typeof VendorsApiModule.fetchVendor>>;
+  });
 
   // Safe defaults so tests that don't override still reach ready state
   mockGetPaperlessDocument.mockResolvedValue(makePaperlessDoc());

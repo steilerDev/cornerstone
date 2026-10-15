@@ -21,7 +21,7 @@ import {
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
-import { fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors } from '../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -114,7 +114,8 @@ export function PaperlessInvoiceReviewPage() {
   const [extractedVendorName, setExtractedVendorName] = useState<string | null>(null);
   const [suggestedVendorName, setSuggestedVendorName] = useState<string | null>(null);
   const [vendorError, setVendorError] = useState<string | null>(null);
-  const [vendors, setVendors] = useState<Array<{ id: string; name: string }>>([]);
+  // Whether a company with the extracted name exists (looked up on the server); null until known.
+  const [extractedMatched, setExtractedMatched] = useState<boolean | null>(null);
 
   const [announceMessage, setAnnounceMessage] = useState('');
   const [defaultBudgetSourceId, setDefaultBudgetSourceId] = useState('');
@@ -152,21 +153,39 @@ export function PaperlessInvoiceReviewPage() {
     setAnnounceMessage(t('autoItemize.budgetSourceApplied', { count: appliedCount, name }));
   };
 
-  // Load vendors for the SearchPicker on mount.
+  // Look up the suggested company by id, so it is found even outside the first page of results.
   useEffect(() => {
-    void fetchVendors({ pageSize: 100 }).then((res) =>
-      setVendors(res.vendors.map((v) => ({ id: v.id, name: v.name }))),
-    );
-  }, []);
+    if (!suggestedVendorId) return;
+    let cancelled = false;
+    fetchVendor(suggestedVendorId)
+      .then((found) => {
+        if (!cancelled) setSuggestedVendorName(found.name);
+      })
+      .catch(() => {
+        // Unknown company: the picker shows no title.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [suggestedVendorId]);
 
-  // Back-fill suggested vendor name from loaded vendors.
+  // Ask the server whether a company with the extracted name exists (same folded matcher as the picker).
   useEffect(() => {
-    if (suggestedVendorId && vendors.length > 0 && !suggestedVendorName) {
-      const match = vendors.find((v) => v.id === suggestedVendorId);
-      // eslint-disable-next-line @eslint-react/set-state-in-effect
-      if (match) setSuggestedVendorName(match.name);
-    }
-  }, [vendors, suggestedVendorId, suggestedVendorName]);
+    if (extractedVendorName === null) return;
+    let cancelled = false;
+    fetchVendors({ q: extractedVendorName, pageSize: 50 })
+      .then((res) => {
+        if (cancelled) return;
+        const wanted = foldSearchText(extractedVendorName);
+        setExtractedMatched(res.vendors.some((v) => foldSearchText(v.name) === wanted));
+      })
+      .catch(() => {
+        if (!cancelled) setExtractedMatched(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [extractedVendorName]);
 
   // Load document and run preview on mount
   useEffect(() => {
@@ -256,12 +275,9 @@ export function PaperlessInvoiceReviewPage() {
     navigate(originHrefOr(location.state, routeUrl('invoices')), { replace: true });
   }, [navigate, location.state]);
 
-  // A company created from the picker joins the local list, so the client-side search finds it later.
   // An extracted company name that matches no company stays offered as a create row, prefilled
   // with that name while the field is empty.
-  const extractedUnmatched =
-    extractedVendorName !== null &&
-    !vendors.some((v) => foldSearchText(v.name) === foldSearchText(extractedVendorName));
+  const extractedUnmatched = extractedVendorName !== null && extractedMatched === false;
   const vendorCreateAction = companyCreateAction && {
     ...companyCreateAction,
     show: 'noExactMatch' as const,
@@ -270,7 +286,12 @@ export function PaperlessInvoiceReviewPage() {
     onCreate: async (query: string) => {
       const company = await companyCreateAction.onCreate(query || extractedVendorName || '');
       if (company) {
-        setVendors((prev) => [...prev, company]);
+        if (
+          extractedVendorName !== null &&
+          foldSearchText(company.name) === foldSearchText(extractedVendorName)
+        ) {
+          setExtractedMatched(true);
+        }
         setAnnounceMessage(t('autoItemize.vendorCreatedAnnounce', { name: company.name }));
       }
       return company;
@@ -488,9 +509,11 @@ export function PaperlessInvoiceReviewPage() {
                     setVendorError(null);
                   }}
                   excludeIds={[]}
-                  searchFn={async (query) =>
-                    vendors.filter((v) => foldSearchText(v.name).includes(foldSearchText(query)))
-                  }
+                  searchFn={async (query) => {
+                    const res = await fetchVendors({ q: query, pageSize: 50 });
+                    return res.vendors;
+                  }}
+                  showItemsOnFocus
                   renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   placeholder={t('autoItemize.vendorPlaceholder')}
                   initialTitle={suggestedVendorName ?? undefined}
