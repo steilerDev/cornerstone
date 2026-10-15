@@ -1792,7 +1792,10 @@ describe('InvoicesPage', () => {
       await user.type(dialog.getByLabelText(/vendor/i), 'Brand New Co');
 
       await waitFor(() =>
-        expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'Brand New Co', pageSize: 50 }),
+        expect(mockFetchVendors).toHaveBeenCalledWith(
+          { q: 'Brand New Co', pageSize: 50 },
+          { signal: expect.any(AbortSignal) },
+        ),
       );
       expect(screen.queryByRole('option', { name: /^New company/ })).not.toBeInTheDocument();
     });

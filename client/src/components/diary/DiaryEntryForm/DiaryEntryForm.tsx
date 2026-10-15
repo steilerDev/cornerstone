@@ -12,7 +12,7 @@ import _shared from '../../../styles/shared.module.css';
 import { DIARY_ISSUE_RESOLUTIONS } from '@cornerstone/shared';
 import { SignatureSection } from '../SignatureSection/index.js';
 import { SearchPicker } from '../../SearchPicker/SearchPicker.js';
-import { fetchVendors } from '../../../lib/vendorsApi.js';
+import { searchCompanies } from '../../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../../objectForms/useCompanyCreateAction.js';
 import type { CompanyOption } from '../../../objectForms/companyForm.js';
 import { computeWorkDuration, useFormatters } from '../../../lib/formatters.js';
@@ -365,10 +365,7 @@ export function DiaryEntryForm({
               excludeIds={[]}
               disabled={disabled}
               placeholder={t('form.dailyLogVendorPlaceholder')}
-              searchFn={async (query) => {
-                const res = await fetchVendors({ q: query, pageSize: 50 });
-                return res.vendors;
-              }}
+              searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
               renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
               showItemsOnFocus
               initialTitle={dailyLogVendorName ?? undefined}

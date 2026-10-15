@@ -478,7 +478,10 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.change(input, { target: { value: 'oeko' } });
       expect(await screen.findByRole('option', { name: 'Öko Fenster' })).toBeInTheDocument();
       expect(screen.queryByRole('option', { name: 'Other Co' })).not.toBeInTheDocument();
-      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'oeko', pageSize: 50 });
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'oeko', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
 
       fireEvent.change(input, { target: { value: 'müller' } });
       expect(await screen.findByRole('option', { name: 'MUELLER BAU' })).toBeInTheDocument();
@@ -500,7 +503,10 @@ describe('PaperlessInvoiceReviewPage — inline company creation (Story #2148, #
       fireEvent.change(input, { target: { value: 'zeta far' } });
 
       expect(await screen.findByRole('option', { name: 'Zeta Far Away GmbH' })).toBeInTheDocument();
-      expect(mockFetchVendors).toHaveBeenCalledWith({ q: 'zeta far', pageSize: 50 });
+      expect(mockFetchVendors).toHaveBeenCalledWith(
+        { q: 'zeta far', pageSize: 50 },
+        { signal: expect.any(AbortSignal) },
+      );
     });
 
     it('preselects a suggested company that is not on the first page, by id', async () => {

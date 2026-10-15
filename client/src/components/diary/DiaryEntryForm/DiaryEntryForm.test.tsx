@@ -1194,7 +1194,9 @@ describe('DiaryEntryForm', () => {
       await user.click(document.getElementById('daily-log-vendor')!);
       await user.click(await screen.findByRole('option', { name: 'Acme Concrete' }));
       expect(onDailyLogVendorIdChange).toHaveBeenCalledWith('v-1');
-      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }));
+      expect(mockFetchVendors).toHaveBeenCalledWith(expect.objectContaining({ pageSize: 50 }), {
+        signal: expect.any(AbortSignal),
+      });
 
       await user.click(await screen.findByRole('button', { name: 'Clear selection' }));
       expect(onDailyLogVendorIdChange).toHaveBeenLastCalledWith(null);

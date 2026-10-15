@@ -13,9 +13,10 @@ import type {
 } from '../components/ObjectForm/types.js';
 import { useAreas } from '../hooks/useAreas.js';
 import { useStatusBadgeVariants } from '../hooks/useStatusBadgeVariants.js';
+import { ApiClientError } from '../lib/apiClient.js';
 import { fetchHouseholdItemCategories } from '../lib/householdItemCategoriesApi.js';
 import { createHouseholdItem } from '../lib/householdItemsApi.js';
-import { fetchVendor, fetchVendors } from '../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors, searchCompanies } from '../lib/vendorsApi.js';
 import { prefillFromSearch } from '../navigation/createQuery.js';
 import { useRealLocation } from '../navigation/realLocation.js';
 import { SearchPicker } from '../components/SearchPicker/SearchPicker.js';
@@ -63,8 +64,9 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
             const found = await fetchVendor(prefilledId);
             if (cancelled) return;
             loaded = [...loaded, { id: found.id, name: found.name }];
-          } catch {
-            // Unknown company: not added to the options.
+          } catch (err) {
+            // Only a company that does not exist is dropped; any other failure shows the load error.
+            if (!(err instanceof ApiClientError && err.statusCode === 404)) throw err;
           }
         }
         if (cancelled) return;
@@ -172,10 +174,7 @@ export function usePurchaseFormSchema(): ObjectFormSchema {
               excludeIds={NO_EXCLUDED}
               disabled={ctx.busy}
               placeholder={t('create.form.vendor.placeholder')}
-              searchFn={async (query) => {
-                const res = await fetchVendors({ q: query, pageSize: 50 });
-                return res.vendors;
-              }}
+              searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
               renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
               showItemsOnFocus
               initialTitle={

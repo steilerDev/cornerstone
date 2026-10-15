@@ -21,7 +21,7 @@ import {
 import type { BadgeVariantMap } from '../../components/Badge/Badge.js';
 import { getPaperlessDocument, getPaperlessStatus } from '../../lib/paperlessApi.js';
 import { previewAutoItemize, commitAutoItemizeCreate } from '../../lib/invoiceAutoItemizeApi.js';
-import { fetchVendor, fetchVendors } from '../../lib/vendorsApi.js';
+import { fetchVendor, fetchVendors, searchCompanies } from '../../lib/vendorsApi.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import { ApiClientError } from '../../lib/apiClient.js';
 import { translateApiError } from '../../lib/errorTranslation.js';
@@ -512,10 +512,7 @@ export function PaperlessInvoiceReviewPage() {
                     setVendorError(null);
                   }}
                   excludeIds={[]}
-                  searchFn={async (query) => {
-                    const res = await fetchVendors({ q: query, pageSize: 50 });
-                    return res.vendors;
-                  }}
+                  searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
                   showItemsOnFocus
                   renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                   placeholder={t('autoItemize.vendorPlaceholder')}

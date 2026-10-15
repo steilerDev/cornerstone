@@ -41,7 +41,7 @@ import { createReservedParams, useCreateQuery } from '../../hooks/useCreateQuery
 import type { CreateRequest } from '../../hooks/useCreateQuery.js';
 import { useFormatters } from '../../lib/formatters.js';
 import { fetchAllInvoices, createInvoice } from '../../lib/invoicesApi.js';
-import { fetchVendors, searchCompanies } from '../../lib/vendorsApi.js';
+import { searchCompanies } from '../../lib/vendorsApi.js';
 import { useCompanyName } from '../../hooks/useCompanyName.js';
 import { useCompanyCreateAction } from '../../objectForms/useCompanyCreateAction.js';
 import type { CompanyOption } from '../../objectForms/companyForm.js';
@@ -1089,10 +1089,7 @@ export function InvoicesPage() {
                 onSelectItem={createCompany.remember}
                 disabled={isCreating || createCompany.isResolving}
                 placeholder={t('invoices.form.placeholders.vendor')}
-                searchFn={async (query) => {
-                  const res = await fetchVendors({ q: query, pageSize: 50 });
-                  return res.vendors;
-                }}
+                searchFn={(query, _excluded, signal) => searchCompanies(query, signal)}
                 renderItem={(vendor) => ({ id: vendor.id, label: vendor.name })}
                 showItemsOnFocus
                 initialTitle={createCompany.name}
