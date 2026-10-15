@@ -23,7 +23,8 @@ function render(ui: ReactElement, options?: Parameters<typeof rtlRender>[1]) {
 }
 
 // Vendor search for the daily_log SearchPicker.
-const mockFetchVendors = jest.fn<(params?: unknown) => Promise<{ vendors: unknown[] }>>();
+const mockFetchVendors =
+  jest.fn<(params?: unknown, options?: unknown) => Promise<{ vendors: unknown[] }>>();
 jest.unstable_mockModule('../../../lib/vendorsApi.js', () => ({
   fetchVendors: mockFetchVendors,
   searchCompanies: makeSearchCompanies(
