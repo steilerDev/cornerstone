@@ -12,6 +12,7 @@
 
 ## Stories and bugs, newest first
 
+- [Story #2215 Project setup tests](story-2215-project-setup-tests.md) (2026-10-15) — AJV coercion on reorder, navHref stage-mock trap, delete-impact fallback defect
 - [Fix PR server-search choosers](fix-server-search-choosers-tests.md) (2026-10-15) — searchCompanies in factory mocks, controlled pickers, chip hides input, URL-written filters
 - [Story #2214 Account re-layout tests](story-2214-account-relayout-tests.md) (2026-10-12) — timer-count trap, opener focus, guard quirks
 - [Story #2211 command search tests](story-2211-command-search-tests.md) (2026-10-11) — rAF focus-steal between tests, provider-inside harness, 2 prod defects pinned with it.failing

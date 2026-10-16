@@ -1,58 +1,48 @@
 /**
- * E2E tests for the Settings/Manage page tab navigation
+ * E2E tests for Settings > Project setup (#2215, EPIC-21; formerly the six-tab Manage page)
  *
- * The ManagePage (/settings/manage) has six tabs (Household added first, Story #1877):
- *   - Household (?tab=household) — household-wide name/address, feeds bank report cover letters
- *   - Areas  (?tab=areas)  — create/edit/delete areas for organizing work items
- *   - Trades (?tab=trades) — a pointer to the Trades sheet on the Companies page (#2213)
- *   - Orientations (?tab=orientations) — tag photos with a direction
- *   - Budget Categories (?tab=budget-categories) — managed by budget-categories.spec.ts
- *   - Household Item Categories (?tab=hi-categories) — household item classification
+ * /settings/manage is one page of sections, in this order: House, Cost categories, Purchase
+ * categories, Photo orientations, [the interim Areas card while `areas` is unserved], then
+ * "Managed on other pages" (Trades). Each section is a `#anchor`; the six old `?tab=` links
+ * land on their section by history replace.
  *
  * This file covers:
- * - Smoke: Page loads, h1 "Project setup" heading, default tab (Areas) renders
- * - Tab navigation: clicking each tab renders its panel
- * - URL sync: ?tab= query param sets the correct active tab on load
- * - Areas tab: create area happy path, area appears in list, delete area
- * - Trades tab: the pointer panel and its link to /companies?trades=1
- * - HI Categories tab: create HI category, category appears in list, delete it
- * - Household tab (Story #1877): singleton settings form — load, dirty-gated save,
- *   persistence across reload, clearing fields, error banner on save failure
- * - Responsive layout (@responsive)
- * - Dark mode
+ * - AC1 layout: h1, sections in order, no tab row, no breadcrumb trail, no Back link
+ * - Pointers: Trades opens the Trades sheet on Companies; the Areas card (interim)
+ * - AC3 `?tab=` links: anchor, `tab` removed, heading focused, Back leaves in one step
+ * - House (singleton settings): load, dirty-gated save, persistence, clearing, save failure
+ * - AC4 'Language of your entries': value from the API, no write on load, persists, restored
+ * - Interim Areas card CRUD (the old manager, unchanged; #2218 deletes it)
+ * - AC5 responsive sizes (UX spec section 10, Style Guide P1-P10) and dark mode
  *
- * Budget Categories tab already has comprehensive coverage in
- * e2e/tests/budget/budget-categories.spec.ts — this file does not duplicate it.
+ * List behaviour of the three reference lists (create, edit, delete, reorder) lives in
+ * budget/budget-categories.spec.ts (cost and purchase categories) and orientations.spec.ts.
  *
- * Household tab data-isolation note: /api/settings is a household-wide SINGLETON
- * (unlike Areas/Trades/HI-Categories, which are independently-named per-test entities).
- * Mutating tests snapshot the pre-test values via GET and restore them via PATCH in a
- * `finally` block, and the whole "Household tab — settings persistence" describe block
- * runs in serial mode (test.describe.configure({ mode: 'serial' })) for in-project ordering,
- * and holds the Playwright `lock: 'household-settings'` — the cross-project/cross-worker
- * guard that serial mode never provided (serial does not stop the desktop/tablet/mobile
- * projects racing on the same singleton row).
+ * Data isolation: /api/settings is a household-wide SINGLETON. The House describe holds the
+ * Playwright `lock: 'household-settings'` (cross-project, cross-worker) and snapshots and
+ * restores the values in `finally`. Areas are independently named per test (`testPrefix`).
  */
 
 import { test, expect } from '../../fixtures/auth.js';
-import { routeUrl } from '../../../shared/src/routes/index.js';
 import type { Page } from '@playwright/test';
+import { isRouteServed, routeUrl } from '../../../shared/src/routes/index.js';
+import { createAreaViaApi, deleteAreaViaApi } from '../../fixtures/apiHelpers.js';
 import { AppShellPage } from '../../pages/AppShellPage.js';
-import { BudgetCategoriesPage } from '../../pages/BudgetCategoriesPage.js';
+import { BreadcrumbsBar } from '../../pages/BreadcrumbsBar.js';
+import { ProfilePage } from '../../pages/ProfilePage.js';
+import { ProjectSetupPage } from '../../pages/ProjectSetupPage.js';
+import { VendorsPage } from '../../pages/VendorsPage.js';
 
-const MANAGE_ROUTE = '/settings/manage';
-const HOUSEHOLD_PANEL_ID = 'household-panel';
-const AREAS_PANEL_ID = 'areas-panel';
-const TRADES_PANEL_ID = 'trades-panel';
-const HI_CATEGORIES_PANEL_ID = 'hi-categories-panel';
+const AREAS_SERVED = isRouteServed('areas');
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Household settings API helpers (Story #1877)
+// Household settings API helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface HouseholdSettingsApiData {
   householdName: string | null;
   householdAddress: string | null;
+  entriesLanguage: 'de' | 'en';
 }
 
 async function fetchHouseholdSettingsViaApi(page: Page): Promise<HouseholdSettingsApiData> {
@@ -70,280 +60,209 @@ async function patchHouseholdSettingsViaApi(
   if (!response.ok()) throw new Error(`PATCH /api/settings returned ${response.status()}`);
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// API helpers
-// ─────────────────────────────────────────────────────────────────────────────
-
-async function createAreaViaApi(page: Page, name: string): Promise<string> {
-  const response = await page.request.post('/api/areas', { data: { name } });
-  if (!response.ok()) throw new Error(`POST /api/areas returned ${response.status()}`);
-  // Server returns { area: { id, name, ... } }
-  const body = (await response.json()) as { area: { id: string } };
-  return body.area.id;
-}
-
-async function deleteAreaViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`/api/areas/${id}`);
-}
-
-async function createHICategoryViaApi(page: Page, name: string): Promise<string> {
-  const response = await page.request.post('/api/household-item-categories', { data: { name } });
-  if (!response.ok())
-    throw new Error(`POST /api/household-item-categories returned ${response.status()}`);
-  // Server returns the category entity directly (not wrapped): { id, name, ... }
-  const body = (await response.json()) as { id: string };
-  return body.id;
-}
-
-async function deleteHICategoryViaApi(page: Page, id: string): Promise<void> {
-  await page.request.delete(`/api/household-item-categories/${id}`);
+/** Restore the snapshot (the language is only sent when it differs, as the app does). */
+async function restoreHouseholdSettings(
+  page: Page,
+  original: HouseholdSettingsApiData,
+): Promise<void> {
+  await patchHouseholdSettingsViaApi(page, original);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Smoke: Page load and heading
+// AC1: layout
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Settings/Manage page — smoke test', { tag: '@responsive' }, () => {
+test.describe('Project setup — layout (AC1)', { tag: '@responsive' }, () => {
   test(
-    'Manage page loads with "Project setup" heading and Areas tab visible',
+    'Project setup loads with the "Project setup" heading and every section',
     { tag: '@smoke' },
     async ({ page }) => {
-      await page.goto(MANAGE_ROUTE);
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
 
-      // h1 "Project setup" from PageLayout
-      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-      await expect(heading).toBeVisible();
-
-      // Default tab is Areas — its tab button should be selected
-      const areasTab = page.getByRole('tab', { name: 'Areas' });
-      await expect(areasTab).toBeVisible();
-      await expect(areasTab).toHaveAttribute('aria-selected', 'true');
-
-      // The Areas create form heading is visible in the active panel
+      await expect(setup.heading).toBeVisible();
+      await expect(setup.house).toBeVisible();
+      await expect(setup.costCategories.section).toBeVisible();
+      await expect(setup.purchaseCategories.section).toBeVisible();
+      await expect(setup.orientations.section).toBeVisible();
+      await expect(setup.pointers).toBeVisible();
       await expect(
-        page.getByRole('heading', { level: 2, name: 'Create New Area', exact: true }),
+        page.getByRole('heading', { level: 2, name: 'Cost categories', exact: true }),
       ).toBeVisible();
     },
   );
 
-  test('Settings sidebar group lists Settings and its views and the page has no tab row', async ({
+  test('Sections are in order, with no tab row, no breadcrumb trail and no Back link', async ({
     page,
   }) => {
-    const appShell = new AppShellPage(page);
-    await page.goto(MANAGE_ROUTE);
-    await page
-      .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
-      .waitFor({ state: 'visible' });
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
 
-    // #2205: the Settings landmark in the sidebar replaces the old in-page tab row.
-    // Project setup is the Settings entry itself, so it is the highlighted one.
+    // House < Cost < Purchase < Photo orientations < [Areas card] < pointers, by vertical position
+    const ys: number[] = [];
+    for (const section of setup.sectionsInOrder(!AREAS_SERVED)) {
+      const box = await section.boundingBox();
+      if (!box) throw new Error('a section has no box');
+      ys.push(box.y);
+    }
+    for (let i = 1; i < ys.length; i++) {
+      expect(ys[i], `section ${i} starts below section ${i - 1}`).toBeGreaterThan(ys[i - 1]!);
+    }
+
+    await expect(page.getByRole('tablist')).toHaveCount(0);
+    await expect(page.locator('nav[aria-label="You are here"]')).toHaveCount(0);
+    const breadcrumbs = new BreadcrumbsBar(page);
+    await breadcrumbs.expectNoTrail();
+    await expect(breadcrumbs.backLink).toHaveCount(0);
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1);
+  });
+
+  test('The Settings sidebar group lists Settings and its views', async ({ page }) => {
+    const appShell = new AppShellPage(page);
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
+
+    // #2205: Project setup is the Settings entry itself, so it is the highlighted one
     await expect(appShell.sectionLink('settings')).toHaveText('Settings');
     await expect(appShell.sectionLink('settings')).toHaveAttribute('aria-current', 'page');
     // Below 1024px the Account view lives in the title menu: open it first (no-op on desktop)
     await appShell.revealViews();
     await expect(appShell.viewLink('settingsProfile')).toHaveCount(1);
     await expect(appShell.viewLink('settingsProfile')).toContainText('Account');
-    await expect(page.locator('main').getByRole('navigation')).toHaveCount(0);
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tab navigation — click each tab to activate
+// Pointers (Managed on other pages) and the interim Areas card
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Tab navigation', { tag: '@responsive' }, () => {
-  test('Clicking Household tab shows the Household Information form', async ({ page }) => {
-    // Start on trades tab then navigate to household
-    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-    await heading.waitFor({ state: 'visible' });
+test.describe('Project setup — pointers', { tag: '@responsive' }, () => {
+  test('The Trades pointer opens the Trades sheet on the Companies page', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
 
-    await page.getByRole('tab', { name: 'Household', exact: true }).click();
+    await expect(setup.pointerTrades).toContainText('Trades');
+    await expect(setup.pointerTrades).toContainText('Managed on Companies');
+    await expect(setup.pointerTrades).toHaveAttribute(
+      'href',
+      routeUrl('companies', undefined, { trades: 1 }),
+    );
 
-    // Household card heading appears
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
-    ).toBeVisible();
-
-    // URL param updated
-    await expect(page).toHaveURL(/\?tab=household/);
+    await setup.pointerTrades.click();
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('companies') && url.searchParams.get('trades') === '1',
+    );
+    await new VendorsPage(page).tradesSheet.waitForOpen();
   });
 
-  test('Clicking Areas tab shows the Areas create form', async ({ page }) => {
-    // Start on trades tab then navigate to areas
-    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-    await heading.waitFor({ state: 'visible' });
+  test('Areas: the interim card is shown while Areas has no page of its own', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
 
-    await page.getByRole('tab', { name: 'Areas' }).click();
-
-    // Areas create form heading appears
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Area', exact: true }),
-    ).toBeVisible();
-
-    // URL param updated
-    await expect(page).toHaveURL(/\?tab=areas/);
-  });
-
-  test('Clicking Trades tab shows the pointer to the Trades sheet', async ({ page }) => {
-    await page.goto(MANAGE_ROUTE);
-    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-    await heading.waitFor({ state: 'visible' });
-
-    await page.getByRole('tab', { name: 'Trades' }).click();
-
-    // The Trades tab is a pointer to the Companies page since #2213
-    await expect(page.getByTestId('manage-trades-open')).toBeVisible();
-
-    await expect(page).toHaveURL(/\?tab=trades/);
-  });
-
-  test('Clicking Budget Categories tab shows the create form', async ({ page }) => {
-    await page.goto(MANAGE_ROUTE);
-    const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-    await heading.waitFor({ state: 'visible' });
-
-    await page.getByRole('tab', { name: 'Budget Categories' }).click();
-
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Budget Category', exact: true }),
-    ).toBeVisible();
-
-    await expect(page).toHaveURL(/\?tab=budget-categories/);
-  });
-
-  test(
-    'Clicking Household Item Categories tab shows the create form',
-    { tag: '@smoke' },
-    async ({ page }) => {
-      await page.goto(MANAGE_ROUTE);
-      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-      await heading.waitFor({ state: 'visible' });
-
-      await page.getByRole('tab', { name: 'Household Item Categories' }).click();
-
+    if (AREAS_SERVED) {
+      await expect(setup.areasCard).toHaveCount(0);
+      await expect(setup.pointerAreas).toBeVisible();
+    } else {
+      await expect(setup.pointerAreas).toHaveCount(0);
+      await expect(setup.areasCard).toBeVisible();
       await expect(
-        page.getByRole('heading', {
-          level: 2,
-          name: 'Create New Household Item Category',
-          exact: true,
-        }),
+        setup.areasCard.getByRole('heading', { level: 2, name: 'Areas', exact: true }),
       ).toBeVisible();
-
-      await expect(page).toHaveURL(/\?tab=hi-categories/);
-    },
-  );
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// URL sync — deep linking into specific tabs
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('URL tab deep-linking', { tag: '@responsive' }, () => {
-  test('?tab=household loads the Household tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=household`);
-
-    const householdTab = page.getByRole('tab', { name: 'Household', exact: true });
-    await expect(householdTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
-    ).toBeVisible();
+    }
   });
 
-  test('?tab=areas loads the Areas tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=areas`);
+  test('The House section links to the app language in Account', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
 
-    const areasTab = page.getByRole('tab', { name: 'Areas' });
-    await expect(areasTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Area', exact: true }),
-    ).toBeVisible();
-  });
-
-  test('?tab=trades loads the Trades tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-
-    const tradesTab = page.getByRole('tab', { name: 'Trades' });
-    await expect(tradesTab).toHaveAttribute('aria-selected', 'true');
-    await expect(page.getByTestId('manage-trades-open')).toBeVisible();
-  });
-
-  test('?tab=budget-categories loads the Budget Categories tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=budget-categories`);
-
-    const budgetCatTab = page.getByRole('tab', { name: 'Budget Categories' });
-    await expect(budgetCatTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create New Budget Category', exact: true }),
-    ).toBeVisible();
-  });
-
-  test('?tab=hi-categories loads the HI Categories tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-
-    const hiCatTab = page.getByRole('tab', { name: 'Household Item Categories' });
-    await expect(hiCatTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', {
-        level: 2,
-        name: 'Create New Household Item Category',
-        exact: true,
-      }),
-    ).toBeVisible();
-  });
-
-  test('?tab=orientations loads the Orientations tab as active', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=orientations`);
-
-    const orientationsTab = page.getByRole('tab', { name: 'Orientations', exact: true });
-    await expect(orientationsTab).toHaveAttribute('aria-selected', 'true');
-    await expect(
-      page.getByRole('heading', { level: 2, name: 'Create orientation', exact: true }),
-    ).toBeVisible();
+    await expect(setup.appLanguageLink).toHaveText('Set the app language in Account');
+    await setup.appLanguageLink.click();
+    await expect(page).toHaveURL((url) => url.pathname === routeUrl('settingsProfile'));
+    await expect(new ProfilePage(page).profileSection).toBeVisible();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Household tab — settings persistence (Story #1877)
-//
-// /api/settings is a household-wide SINGLETON (one row for the whole install), unlike
-// Areas/Trades/HI-Categories which are independently-named per-test entities. Each
-// mutating test snapshots the pre-test values via GET and restores them via PATCH in a
-// `finally` block, mirroring the existing "Discretionary Funding" system-source pattern
-// in budget-sources.spec.ts (also a global singleton mutated by tests).
+// AC3: the old ?tab= links
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe(
-  'Household tab — settings persistence',
-  { tag: '@responsive', lock: 'household-settings' },
-  () => {
-    // /api/settings is a global singleton — multiple tests in this block PATCH it.
-    // Serial mode only orders tests within one project's worker; it does NOT stop the
-    // desktop/tablet/mobile projects (or the other worker) from running this block
-    // concurrently. The `household-settings` lock is the cross-project/cross-worker guard:
-    // tests sharing a lock never run concurrently across files, workers and projects.
-    test.describe.configure({ mode: 'serial' });
+/** `?tab=` value, the anchor it lands on, and the element that takes focus. */
+const TAB_LINKS: ReadonlyArray<readonly [string, string, string]> = [
+  ['household', '#house', 'house-heading'],
+  ['budget-categories', '#cost-categories', 'cost-categories-heading'],
+  ['hi-categories', '#purchase-categories', 'purchase-categories-heading'],
+  ['orientations', '#orientations', 'orientations-heading'],
+  ['trades', '#trades', 'trades'],
+  ['areas', '#areas', 'areas-heading'],
+];
 
+test.describe('Project setup — old ?tab= links (AC3)', { tag: '@responsive' }, () => {
+  for (const [tab, anchor, focusId] of TAB_LINKS) {
+    test(`?tab=${tab} lands on ${anchor}, focuses it, and Back leaves in one step`, async ({
+      page,
+    }) => {
+      // The page before Project setup, so one Back has somewhere to go
+      await page.goto(routeUrl('dashboard'));
+      // Let the app finish booting: leaving mid-boot aborts its session check and bounces to /login
+      await expect(page.getByRole('main')).toBeVisible();
+      await page.goto(routeUrl('settingsManage', undefined, { tab }));
+      await new ProjectSetupPage(page).heading.waitFor({ state: 'visible' });
+
+      await expect(page).toHaveURL(
+        (url) =>
+          url.pathname === routeUrl('settingsManage') &&
+          url.hash === anchor &&
+          !url.searchParams.has('tab'),
+      );
+      await expect(page.locator(`#${focusId}`)).toBeFocused();
+      await expect(page.locator(`#${focusId}`)).toBeInViewport();
+
+      // The rewrite replaced the entry: one step back is the page before
+      await page.goBack();
+      await expect(page).not.toHaveURL((url) => url.pathname === routeUrl('settingsManage'));
+    });
+  }
+
+  test('An unknown ?tab=foo is dropped and the page stays at the top', async ({ page }) => {
+    await page.goto(routeUrl('settingsManage', undefined, { tab: 'foo' }));
+    const setup = new ProjectSetupPage(page);
+    await setup.heading.waitFor({ state: 'visible' });
+
+    await expect(page).toHaveURL(
+      (url) => url.pathname === routeUrl('settingsManage') && url.search === '' && url.hash === '',
+    );
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+  });
+
+  test('A section hash scrolls that section into view', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto('orientations');
+    await expect(setup.orientations.heading).toBeFocused();
+    await expect(setup.orientations.heading).toBeInViewport();
+  });
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// House (name, address) — singleton settings
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Serial mode only orders tests within one project's worker; the lock stops the
+// desktop/tablet/mobile projects and other workers racing on the singleton row.
+test.describe('Project setup — House', { tag: '@responsive', lock: 'household-settings' }, () => {
+  test.describe.configure({ mode: 'serial' });
+
+  test.describe('settings persistence', () => {
     test('Fill name and address, save, reload — values persist', async ({ page, testPrefix }) => {
       const original = await fetchHouseholdSettingsViaApi(page);
-      const name = `${testPrefix} Household`;
-      const address = `${testPrefix} 123 Main Street, Springfield`;
+      const name = `${testPrefix} House`;
+      const address = `${testPrefix} 123 Sample Street, Springfield`;
+      const setup = new ProjectSetupPage(page);
 
       try {
-        await page.goto(`${MANAGE_ROUTE}?tab=household`);
-        const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-          state: 'visible',
-        });
-
-        const nameInput = panel.locator('#householdName');
-        const addressInput = panel.locator('#householdAddress');
-        await nameInput.fill(name);
-        await addressInput.fill(address);
-
-        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-        await expect(saveButton).toBeEnabled();
+        await setup.goto();
+        await setup.houseName.fill(name);
+        await setup.houseAddress.fill(address);
+        await expect(setup.houseSave).not.toHaveAttribute('aria-disabled', 'true');
 
         const responsePromise = page.waitForResponse(
           (resp) =>
@@ -351,202 +270,223 @@ test.describe(
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        await saveButton.click();
+        await setup.houseSave.click();
         await responsePromise;
 
-        // Success banner appears
-        const successBanner = panel.locator('[class*="successBanner"][role="status"]');
-        await expect(successBanner).toBeVisible();
+        await expect(setup.houseSaved).toHaveText('House details saved.');
+        // Saved values match the form again: Save is inert until the next edit
+        await expect(setup.houseSave).toHaveAttribute('aria-disabled', 'true');
 
-        // Save button becomes disabled again once saved values match the form (no longer dirty)
-        await expect(saveButton).toBeDisabled();
-
-        // Reload the page — values must persist (re-fetched from the server)
         await page.reload();
-        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-          state: 'visible',
-        });
-        await expect(page.locator('#householdName')).toHaveValue(name);
-        await expect(page.locator('#householdAddress')).toHaveValue(address);
+        await setup.house.waitFor({ state: 'visible' });
+        await expect(setup.houseName).toHaveValue(name);
+        await expect(setup.houseAddress).toHaveValue(address);
       } finally {
-        await patchHouseholdSettingsViaApi(page, original);
+        await restoreHouseholdSettings(page, original);
       }
     });
 
     test('Clear both fields, save, reload — values are empty', async ({ page, testPrefix }) => {
       const original = await fetchHouseholdSettingsViaApi(page);
+      const setup = new ProjectSetupPage(page);
 
       try {
-        // Seed non-empty values first so clearing has an observable effect
         await patchHouseholdSettingsViaApi(page, {
           householdName: `${testPrefix} Pre-clear Name`,
           householdAddress: `${testPrefix} Pre-clear Address`,
         });
 
-        await page.goto(`${MANAGE_ROUTE}?tab=household`);
-        const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-        const nameInput = panel.locator('#householdName');
-        const addressInput = panel.locator('#householdAddress');
-        await expect(nameInput).toHaveValue(`${testPrefix} Pre-clear Name`);
+        await setup.goto();
+        await expect(setup.houseName).toHaveValue(`${testPrefix} Pre-clear Name`);
 
-        await nameInput.fill('');
-        await addressInput.fill('');
-
-        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
+        await setup.houseName.fill('');
+        await setup.houseAddress.fill('');
         const responsePromise = page.waitForResponse(
           (resp) =>
             resp.url().includes('/api/settings') &&
             resp.request().method() === 'PATCH' &&
             resp.status() === 200,
         );
-        await saveButton.click();
+        await setup.houseSave.click();
         await responsePromise;
+        await expect(setup.houseSaved).toBeVisible();
 
-        const successBanner = panel.locator('[class*="successBanner"][role="status"]');
-        await expect(successBanner).toBeVisible();
-
-        // Reload — both fields must be empty
         await page.reload();
-        await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-          state: 'visible',
-        });
-        await expect(page.locator('#householdName')).toHaveValue('');
-        await expect(page.locator('#householdAddress')).toHaveValue('');
+        await setup.house.waitFor({ state: 'visible' });
+        await expect(setup.houseName).toHaveValue('');
+        await expect(setup.houseAddress).toHaveValue('');
       } finally {
-        await patchHouseholdSettingsViaApi(page, original);
+        await restoreHouseholdSettings(page, original);
       }
     });
 
-    test('Save button is disabled until a field is edited (dirty-gated)', async ({ page }) => {
-      await page.goto(`${MANAGE_ROUTE}?tab=household`);
-      const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-        state: 'visible',
-      });
+    test('Save is inert until a field is edited (dirty-gated)', async ({ page }) => {
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
 
-      const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-      // No edits yet — form matches saved state, button disabled
-      await expect(saveButton).toBeDisabled();
-
-      // Edit the name field — button becomes enabled
-      await panel.locator('#householdName').fill('Temporary Dirty Value');
-      await expect(saveButton).toBeEnabled();
+      await expect(setup.houseSave).toHaveAttribute('aria-disabled', 'true');
+      await setup.houseName.fill('Temporary dirty value');
+      await expect(setup.houseSave).not.toHaveAttribute('aria-disabled', 'true');
     });
 
     test('Save failure shows an error banner and keeps the entered values', async ({
       page,
       testPrefix,
     }) => {
-      await page.goto(`${MANAGE_ROUTE}?tab=household`);
-      const panel = page.locator(`#${HOUSEHOLD_PANEL_ID}`);
-      await panel.getByRole('heading', { level: 2, name: 'Household Information' }).waitFor({
-        state: 'visible',
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+
+      await page.route('**/api/settings', async (route) => {
+        if (route.request().method() === 'PATCH') {
+          await route.fulfill({
+            status: 500,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
+            }),
+          });
+        } else {
+          await route.continue();
+        }
       });
 
+      const failName = `${testPrefix} Should Not Persist`;
+      await setup.houseName.fill(failName);
+      await setup.houseSave.click();
+
+      await expect(setup.houseSaveError).toBeVisible();
+      await expect(setup.houseName).toHaveValue(failName);
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // AC4: Language of your entries
+  // ───────────────────────────────────────────────────────────────────────────
+
+  test.describe('Language of your entries (AC4)', () => {
+    test('Shows the value from the API and loading the page writes nothing', async ({ page }) => {
+      const writes: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes('/api/settings') && request.method() !== 'GET') {
+          writes.push(`${request.method()} ${request.url()}`);
+        }
+      });
+      await page.route('**/api/settings', async (route) => {
+        if (route.request().method() === 'GET') {
+          await route.fulfill({
+            status: 200,
+            contentType: 'application/json',
+            body: JSON.stringify({
+              settings: { householdName: null, householdAddress: null, entriesLanguage: 'de' },
+            }),
+          });
+        } else {
+          await route.continue();
+        }
+      });
+
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+
+      await expect(setup.languageSelect).toHaveValue('de');
+      await expect(page.getByLabel('Language of your entries')).toBeVisible();
+      // Give a stray write time to show up, then assert none happened
+      await expect(setup.houseSave).toHaveAttribute('aria-disabled', 'true');
+      expect(writes, 'loading Project setup must not PATCH the settings').toEqual([]);
+    });
+
+    test('Change the language, save, reload — it is kept; restored at the end', async ({
+      page,
+      testPrefix,
+    }) => {
+      const original = await fetchHouseholdSettingsViaApi(page);
+      const other = original.entriesLanguage === 'de' ? 'en' : 'de';
+      const setup = new ProjectSetupPage(page);
+      const orientationName = `${testPrefix} Language Probe`;
+      const orientationResponse = await page.request.post('/api/orientations', {
+        data: { name: orientationName },
+      });
+      expect(orientationResponse.ok(), 'POST orientation').toBeTruthy();
+      const orientationId = ((await orientationResponse.json()) as { orientation: { id: string } })
+        .orientation.id;
+
       try {
-        await page.route('**/api/settings', async (route) => {
-          if (route.request().method() === 'PATCH') {
-            await route.fulfill({
-              status: 500,
-              contentType: 'application/json',
-              body: JSON.stringify({
-                error: { code: 'INTERNAL_ERROR', message: 'Internal server error' },
-              }),
-            });
-          } else {
-            await route.continue();
-          }
-        });
+        await setup.goto();
+        await setup.languageSelect.selectOption(other);
+        const responsePromise = page.waitForResponse(
+          (resp) =>
+            resp.url().includes('/api/settings') &&
+            resp.request().method() === 'PATCH' &&
+            resp.status() === 200,
+        );
+        await setup.houseSave.click();
+        const response = await responsePromise;
+        expect(response.request().postDataJSON()).toMatchObject({ entriesLanguage: other });
+        await expect(setup.houseSaved).toBeVisible();
 
-        const failName = `${testPrefix} Should Not Persist`;
-        await panel.locator('#householdName').fill(failName);
+        // Your own entries now carry the language (hyphenation); the app language is untouched
+        await expect(
+          setup.orientations.row(orientationName).locator(`[lang="${other}"]`),
+        ).toBeVisible();
 
-        const saveButton = panel.getByRole('button', { name: /Save Changes|Saving\.\.\./ });
-        await saveButton.click();
-
-        const errorBanner = panel.locator('[class*="errorBanner"][role="alert"]');
-        await expect(errorBanner).toBeVisible();
-
-        // The entered value remains in the input (not reset on failure)
-        await expect(panel.locator('#householdName')).toHaveValue(failName);
+        await page.goto(page.url());
+        await setup.waitForLoaded();
+        await expect(setup.languageSelect).toHaveValue(other);
       } finally {
-        await page.unroute('**/api/settings');
+        await restoreHouseholdSettings(page, original);
+        await page.request.delete(`/api/orientations/${orientationId}`);
       }
     });
-  },
-);
+  });
+});
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Areas tab: CRUD
+// Interim Areas card (#2218 deletes it once Areas has its own page)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
+test.describe('Project setup — Areas card (interim)', { tag: '@responsive' }, () => {
+  test.beforeEach(() => {
+    test.skip(AREAS_SERVED, 'Areas has its own page; the interim card is gone');
+  });
+
   test('Create area — area appears in the Existing Areas list', async ({ page, testPrefix }) => {
     const areaName = `${testPrefix} Test Area`;
     let areaId = '';
+    const setup = new ProjectSetupPage(page);
 
     try {
-      await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-      await heading.waitFor({ state: 'visible' });
+      await setup.goto('areas');
+      await expect(setup.areasCard.getByRole('heading', { name: 'Create New Area' })).toBeVisible();
 
-      // Wait for the create form
-      const createHeading = page.getByRole('heading', {
-        level: 2,
-        name: 'Create New Area',
-        exact: true,
-      });
-      await expect(createHeading).toBeVisible();
-
-      // Fill the create form
-      const nameInput = page.locator('#areaName');
-      await nameInput.fill(areaName);
-
-      // Register response BEFORE click
+      await setup.areasCard.locator('#areaName').fill(areaName);
       const responsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes('/api/areas') &&
           resp.request().method() === 'POST' &&
           resp.status() === 201,
       );
-      await page.getByRole('button', { name: 'Create Area', exact: true }).click();
+      await setup.areasCard.getByRole('button', { name: 'Create Area', exact: true }).click();
       const response = await responsePromise;
-      // Server returns { area: { id, name, ... } }
-      const body = (await response.json()) as { area: { id: string } };
-      areaId = body.area.id;
+      areaId = ((await response.json()) as { area: { id: string } }).area.id;
 
-      // Success banner visible
-      const successBanner = page.locator('[class*="successBanner"][role="status"]');
-      await expect(successBanner).toBeVisible();
-
-      // Area appears in the "Existing Areas" list
-      const panel = page.locator(`#${AREAS_PANEL_ID}`);
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).toContain(areaName);
+      await expect(setup.areasCard.locator('[role="status"]').first()).toBeVisible();
+      await expect(
+        setup.areasCard.locator('[class*="itemName"]').filter({ hasText: areaName }),
+      ).toBeVisible();
     } finally {
       if (areaId) await deleteAreaViaApi(page, areaId);
     }
   });
 
-  test('Existing Areas list shows at least one item (default areas or created)', async ({
-    page,
-    testPrefix,
-  }) => {
+  test('Existing Areas heading is shown', async ({ page, testPrefix }) => {
     let areaId = '';
-
     try {
-      // Create an area to guarantee at least one exists
-      areaId = await createAreaViaApi(page, `${testPrefix} Existing Area`);
-
-      await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
-
-      const panel = page.locator(`#${AREAS_PANEL_ID}`);
-      // Either list items are present, or the list count heading shows > 0
-      const existingHeading = panel.getByRole('heading', { level: 2, name: /Existing Areas/ });
-      await expect(existingHeading).toBeVisible();
+      areaId = await createAreaViaApi(page, { name: `${testPrefix} Existing Area` });
+      const setup = new ProjectSetupPage(page);
+      await setup.goto('areas');
+      await expect(
+        setup.areasCard.getByRole('heading', { level: 3, name: /Existing Areas/ }),
+      ).toBeVisible();
     } finally {
       if (areaId) await deleteAreaViaApi(page, areaId);
     }
@@ -555,258 +495,130 @@ test.describe('Areas tab — CRUD', { tag: '@responsive' }, () => {
   test('Delete area — area removed from list after confirmation', async ({ page, testPrefix }) => {
     const areaName = `${testPrefix} Delete Area`;
     let areaId = '';
+    const setup = new ProjectSetupPage(page);
 
     try {
-      areaId = await createAreaViaApi(page, areaName);
+      areaId = await createAreaViaApi(page, { name: areaName });
+      await setup.goto('areas');
 
-      await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
+      const itemRow = setup.areasCard.locator('[class*="itemRow"]').filter({ hasText: areaName });
+      await itemRow.getByRole('button', { name: 'Delete', exact: true }).click();
 
-      const panel = page.locator(`#${AREAS_PANEL_ID}`);
-
-      // Area delete buttons only have text "Delete" (no aria-label with the name).
-      // Scope to the itemRow containing the area name to target the right button.
-      const itemRow = panel.locator('[class*="itemRow"]').filter({ hasText: areaName });
-      const deleteButton = itemRow.getByRole('button', { name: 'Delete', exact: true });
-      await deleteButton.waitFor({ state: 'visible' });
-      await deleteButton.click();
-
-      // A confirmation modal appears
       const modal = page.getByRole('alertdialog').filter({
         has: page.getByTestId('area-delete-cancel'),
       });
       await modal.waitFor({ state: 'visible' });
 
-      // Confirm deletion
       const responsePromise = page.waitForResponse(
         (resp) =>
           resp.url().includes(`/api/areas/${areaId}`) && resp.request().method() === 'DELETE',
       );
-      const confirmButton = modal.getByTestId('area-delete-confirm');
-      await confirmButton.click();
+      await modal.getByTestId('area-delete-confirm').click();
       await responsePromise;
-
-      // Modal closes
       await modal.waitFor({ state: 'hidden' });
 
-      // Area no longer in the list
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).not.toContain(areaName);
-
-      // areaId is now deleted; clear to skip cleanup
+      await expect(
+        setup.areasCard.locator('[class*="itemName"]').filter({ hasText: areaName }),
+      ).toHaveCount(0);
       areaId = '';
     } finally {
       if (areaId) await deleteAreaViaApi(page, areaId);
     }
   });
 
-  test('Create area fails — empty name shows validation error', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=areas`);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    // The create button is disabled when name is empty (no text filled)
-    const createButton = page.getByRole('button', { name: 'Create Area', exact: true });
-    await expect(createButton).toBeDisabled();
+  test('Create area is disabled while the name is empty', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto('areas');
+    await expect(
+      setup.areasCard.getByRole('button', { name: 'Create Area', exact: true }),
+    ).toBeDisabled();
   });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Trades tab: a pointer to the Trades sheet on the Companies page (#2213)
-// Trade CRUD, merge and translation checks live in companies/companies-trades-sheet.spec.ts.
+// AC5: responsive sizes (UX spec section 10, Style Guide P1-P10)
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Trades tab — pointer to the Companies page', { tag: '@responsive' }, () => {
-  test('The panel says where Trades live and the link opens the Trades sheet', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=trades`);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    const panel = page.locator(`#${TRADES_PANEL_ID}`);
-    await expect(panel).toContainText('Trades are managed on the Companies page.');
-    // No create form, list or delete buttons remain on the tab
-    await expect(panel.getByRole('button')).toHaveCount(0);
-    await expect(panel.locator('#tradeName')).toHaveCount(0);
-
-    const link = page.getByTestId('manage-trades-open');
-    await expect(link).toHaveText('Open Trades');
-    await link.click();
-
-    await expect(page).toHaveURL(
-      (url) => url.pathname === routeUrl('companies') && url.searchParams.get('trades') === '1',
+test.describe('Project setup — responsive', { tag: '@responsive' }, () => {
+  test('Renders without horizontal overflow at the current viewport', async ({ page }) => {
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth > document.documentElement.clientWidth,
     );
-    await expect(page.getByRole('dialog', { name: 'Trades', exact: true })).toBeVisible();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Budget Categories tab — covered fully in budget-categories.spec.ts
-// These are minimal tab-activation smoke tests only.
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Budget Categories tab — activation check', { tag: '@responsive' }, () => {
-  test('Budget Categories tab shows create form on load', { tag: '@smoke' }, async ({ page }) => {
-    const categoriesPage = new BudgetCategoriesPage(page);
-    await categoriesPage.goto();
-
-    await expect(categoriesPage.heading).toBeVisible();
-    await expect(categoriesPage.createFormHeading).toBeVisible();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Household Item Categories tab: CRUD
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Household Item Categories tab — CRUD', { tag: '@responsive' }, () => {
-  test('Create HI category — category appears in the Categories list', async ({
-    page,
-    testPrefix,
-  }) => {
-    const catName = `${testPrefix} HI Cat`;
-    let catId = '';
-
-    try {
-      await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
-
-      const createHeading = page.getByRole('heading', {
-        level: 2,
-        name: 'Create New Household Item Category',
-        exact: true,
-      });
-      await expect(createHeading).toBeVisible();
-
-      // HI Categories tab uses id="categoryName" (same as Budget Categories tab —
-      // but only one tab is active at a time, so no conflict)
-      const nameInput = page.locator('#categoryName');
-      await nameInput.fill(catName);
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes('/api/household-item-categories') &&
-          resp.request().method() === 'POST' &&
-          resp.status() === 201,
-      );
-      await page.getByRole('button', { name: 'Create Category', exact: true }).first().click();
-      const response = await responsePromise;
-      // Server returns the entity directly: { id, name, color, ... }
-      const body = (await response.json()) as { id: string };
-      catId = body.id;
-
-      // Success banner
-      const successBanner = page.locator('[class*="successBanner"][role="status"]');
-      await expect(successBanner).toBeVisible();
-
-      // Category appears in list
-      const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).toContain(catName);
-    } finally {
-      if (catId) await deleteHICategoryViaApi(page, catId);
-    }
-  });
-
-  test('HI Categories list shows seeded categories', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
-    // Either list items visible, or the "Categories (N)" heading is visible
-    const listHeading = panel.getByRole('heading', { level: 2, name: /^Categories \(/ });
-    await expect(listHeading).toBeVisible();
-  });
-
-  test('Delete HI category — category removed from list', async ({ page, testPrefix }) => {
-    const catName = `${testPrefix} Del HI Cat`;
-    let catId = '';
-
-    try {
-      catId = await createHICategoryViaApi(page, catName);
-
-      await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-      await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-        state: 'visible',
-      });
-
-      const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
-      const deleteButton = panel.getByRole('button', { name: `Delete ${catName}` });
-      await deleteButton.waitFor({ state: 'visible' });
-      await deleteButton.click();
-
-      const modal = page.getByRole('alertdialog').filter({
-        has: page.getByTestId('hi-category-delete-cancel'),
-      });
-      await modal.waitFor({ state: 'visible' });
-
-      const responsePromise = page.waitForResponse(
-        (resp) =>
-          resp.url().includes(`/api/household-item-categories/${catId}`) &&
-          resp.request().method() === 'DELETE',
-      );
-      await modal.getByTestId('hi-category-delete-confirm').click();
-      await responsePromise;
-      await modal.waitFor({ state: 'hidden' });
-
-      const itemNames = await panel.locator('[class*="itemName"]').allTextContents();
-      expect(itemNames.map((n) => n.trim())).not.toContain(catName);
-      catId = '';
-    } finally {
-      if (catId) await deleteHICategoryViaApi(page, catId);
-    }
-  });
-
-  test('Create HI category fails — empty name disables the create button', async ({ page }) => {
-    await page.goto(`${MANAGE_ROUTE}?tab=hi-categories`);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    // Find the Create Category button scoped to the HI categories panel
-    // There may be multiple "Create Category" buttons on the page (budget + HI tabs)
-    // Only the visible one (for the active panel) should be targeted
-    const panel = page.locator(`#${HI_CATEGORIES_PANEL_ID}`);
-    const createButton = panel.getByRole('button', { name: 'Create Category', exact: true });
-    await expect(createButton).toBeDisabled();
-  });
-});
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Responsive layout
-// ─────────────────────────────────────────────────────────────────────────────
-
-test.describe('Responsive layout', { tag: '@responsive' }, () => {
-  test('Manage page renders without horizontal overflow', async ({ page }) => {
-    await page.goto(MANAGE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
-
-    const overflow = await page.evaluate(() => {
-      return document.documentElement.scrollWidth > document.documentElement.clientWidth;
-    });
     expect(overflow).toBe(false);
   });
 
-  test('All six tabs are accessible/scrollable on all viewports', async ({ page }) => {
-    await page.goto(MANAGE_ROUTE);
-    await page.getByRole('heading', { level: 1, name: 'Project setup', exact: true }).waitFor({
-      state: 'visible',
-    });
+  test('Phone 375px: no sideways scroll, the sections column is 343px wide', async ({ page }) => {
+    test.skip(test.info().project.name !== 'mobile', 'explicit phone widths run once');
+    await page.setViewportSize({ width: 375, height: 800 });
+    const setup = new ProjectSetupPage(page);
+    await setup.goto();
 
-    // All tab buttons must be present in the DOM (even if scrollable on mobile).
-    // Story #1674 added the Orientations tab (5 total); Story #1877 added the
-    // Household tab as the first tab — now 6 total.
-    const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(6);
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+      'scrollWidth <= clientWidth',
+    ).toBe(true);
+    const column = setup.house.locator('..');
+    const box = await column.boundingBox();
+    if (!box) throw new Error('sections column has no box');
+    expect(Math.abs(box.width - 343), `column width ${box.width}`).toBeLessThanOrEqual(1);
+    for (const section of setup.sectionsInOrder(!AREAS_SERVED)) {
+      const sectionBox = await section.boundingBox();
+      if (!sectionBox) throw new Error('section has no box');
+      expect(Math.abs(sectionBox.width - box.width)).toBeLessThanOrEqual(1);
+    }
+  });
+
+  test('Phone 320px: no sideways scroll', async ({ browser }) => {
+    test.skip(test.info().project.name !== 'mobile', 'explicit phone widths run once');
+    const context = await browser.newContext({
+      viewport: { width: 320, height: 640 },
+      storageState: 'test-results/.auth/admin.json',
+    });
+    const page = await context.newPage();
+    try {
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+      expect(
+        await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+        'scrollWidth <= clientWidth',
+      ).toBe(true);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('Phone: handle and ⋯ are 44x44, a row is at least 52px, New is at least 44px tall', async ({
+    page,
+    testPrefix,
+  }) => {
+    test.skip(test.info().project.name !== 'mobile', 'explicit phone widths run once');
+    await page.setViewportSize({ width: 375, height: 800 });
+    const name = `${testPrefix} Size Probe`;
+    const created = await page.request.post('/api/orientations', { data: { name } });
+    expect(created.ok(), 'POST orientation').toBeTruthy();
+    const id = ((await created.json()) as { orientation: { id: string } }).orientation.id;
+
+    try {
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+      const list = setup.orientations;
+      await list.row(name).scrollIntoViewIfNeeded();
+
+      for (const control of [list.handle(name), list.menuTrigger(name)]) {
+        const box = await control.boundingBox();
+        if (!box) throw new Error('control has no box');
+        expect(Math.round(box.width), 'touch target width').toBe(44);
+        expect(Math.round(box.height), 'touch target height').toBe(44);
+      }
+      const rowBox = await list.row(name).boundingBox();
+      expect(rowBox!.height, 'row height').toBeGreaterThanOrEqual(52);
+      const newBox = await list.newButton.boundingBox();
+      expect(newBox!.height, 'New button height').toBeGreaterThanOrEqual(44);
+    } finally {
+      await page.request.delete(`/api/orientations/${id}`);
+    }
   });
 });
 
@@ -814,8 +626,10 @@ test.describe('Responsive layout', { tag: '@responsive' }, () => {
 // Dark mode
 // ─────────────────────────────────────────────────────────────────────────────
 
-test.describe('Dark mode', () => {
-  test('Manage page renders in dark mode without visible errors', async ({ browser }) => {
+test.describe('Project setup — dark mode', () => {
+  test('Rows and swatches have a visible edge against the card in dark mode', async ({
+    browser,
+  }) => {
     const context = await browser.newContext({
       colorScheme: 'dark',
       storageState: 'test-results/.auth/admin.json',
@@ -823,23 +637,28 @@ test.describe('Dark mode', () => {
     const page = await context.newPage();
 
     try {
-      await page.goto(MANAGE_ROUTE);
-      const heading = page.getByRole('heading', { level: 1, name: 'Project setup', exact: true });
-      await expect(heading).toBeVisible();
+      const setup = new ProjectSetupPage(page);
+      await setup.goto();
+      await setup.costCategories.items.first().waitFor({ state: 'visible' });
 
-      // Navigate through each tab in dark mode
-      await page.getByRole('tab', { name: 'Household', exact: true }).click();
-      await expect(
-        page.getByRole('heading', { level: 2, name: 'Household Information', exact: true }),
-      ).toBeVisible();
-
-      await page.getByRole('tab', { name: 'Trades' }).click();
-      await expect(page.getByTestId('manage-trades-open')).toBeVisible();
-
-      await page.getByRole('tab', { name: 'Areas' }).click();
-      await expect(
-        page.getByRole('heading', { level: 2, name: 'Create New Area', exact: true }),
-      ).toBeVisible();
+      const colors = await setup.costCategories.section.evaluate((section) => {
+        const row = section.querySelector('li') as HTMLElement;
+        const swatch = row.querySelector('[aria-hidden="true"][data-color], span[class*="swatch"]');
+        const rowStyle = getComputedStyle(row);
+        const swatchStyle = swatch ? getComputedStyle(swatch) : null;
+        return {
+          card: getComputedStyle(section).backgroundColor,
+          rowBorder: rowStyle.borderTopColor,
+          rowBackground: rowStyle.backgroundColor,
+          swatchBorder: swatchStyle?.borderTopColor ?? null,
+        };
+      });
+      expect(colors.rowBorder, 'row border differs from the card').not.toBe(colors.card);
+      expect(colors.swatchBorder, 'swatch has an edge').not.toBeNull();
+      expect(colors.swatchBorder, 'swatch edge differs from the row').not.toBe(
+        colors.rowBackground,
+      );
+      await expect(setup.house).toBeVisible();
     } finally {
       await context.close();
     }

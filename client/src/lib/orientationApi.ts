@@ -6,6 +6,7 @@ import type {
   CreateOrientationRequest,
   UpdateOrientationRequest,
   OrientationListQuery,
+  ReorderReferenceListRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -54,4 +55,14 @@ export function updateOrientation(
  */
 export function deleteOrientation(id: string): Promise<void> {
   return del<void>(`/orientations/${id}`);
+}
+
+/**
+ * Atomically reorders the whole list: `ids` is every orientation id exactly once, in the new order.
+ * @throws {ApiClientError} with code REORDER_SET_MISMATCH (409) when the set of ids is stale.
+ */
+export async function reorderOrientations(ids: string[]): Promise<OrientationResponse[]> {
+  const body: ReorderReferenceListRequest = { ids };
+  const response = await patch<OrientationListResponse>('/orientations/reorder', body);
+  return response.orientations;
 }

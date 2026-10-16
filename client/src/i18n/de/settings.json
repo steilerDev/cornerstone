@@ -125,27 +125,6 @@
     }
   },
   "manage": {
-    "tabs": {
-      "household": "Haushalt",
-      "areas": "Bereiche",
-      "trades": "Gewerke",
-      "orientations": "Ausrichtungen",
-      "budgetCategories": "Budgetkategorien",
-      "householdItemCategories": "Haushaltsartikel-Kategorien"
-    },
-    "household": {
-      "title": "Haushaltsinformationen",
-      "description": "Wird als Absendername und -adresse auf Berichts-Anschreiben verwendet.",
-      "nameLabel": "Haushaltsname",
-      "namePlaceholder": "z. B. Familie Schmidt",
-      "addressLabel": "Haushaltsadresse",
-      "addressPlaceholder": "z. B. Musterstraße 1, 12345 Musterstadt",
-      "save": "Änderungen speichern",
-      "saving": "Wird gespeichert...",
-      "saveSuccess": "Haushaltsinformationen erfolgreich aktualisiert",
-      "saveFailed": "Haushaltsinformationen konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
-      "loadError": "Haushaltsinformationen konnten nicht geladen werden. Bitte versuchen Sie es erneut."
-    },
     "areas": {
       "loading": "Bereiche werden geladen...",
       "errorTitle": "Fehler",
@@ -186,120 +165,72 @@
       }
     },
     "trades": {
-      "loadError": "Gewerke konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "movedText": "Gewerke werden auf der Seite Firmen verwaltet.",
-      "movedLink": "Gewerke öffnen"
+      "loadError": "Gewerke konnten nicht geladen werden. Bitte versuchen Sie es erneut."
     },
     "orientations": {
-      "tabLabel": "Ausrichtungen",
-      "createTitle": "Ausrichtung erstellen",
-      "createDescription": "Fügen Sie eine Ausrichtung hinzu, um festzuhalten, wohin ein Foto zeigt (z. B. Süd – Straße, Decke).",
-      "nameLabel": "Name",
-      "namePlaceholder": "z. B. Süd",
-      "descriptionLabel": "Beschreibung",
-      "descriptionPlaceholder": "z. B. Straßenseite",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "createButton": "Ausrichtung erstellen",
-      "creating": "Wird erstellt…",
-      "existingTitle": "Ausrichtungen ({{count}})",
-      "emptyState": "Noch keine Ausrichtungen. Erstellen Sie oben eine, um festzuhalten, wohin Ihre Fotos zeigen.",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "save": "Speichern",
-      "saving": "Wird gespeichert…",
-      "cancel": "Abbrechen",
-      "validation": {
-        "nameRequired": "Name ist erforderlich.",
-        "nameTooLong": "Name darf maximal 100 Zeichen lang sein."
-      },
       "messages": {
-        "created": "Ausrichtung „{{name}}“ erstellt.",
-        "updated": "Ausrichtung „{{name}}“ aktualisiert.",
-        "deleted": "Ausrichtung „{{name}}“ gelöscht.",
-        "createError": "Ausrichtung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateError": "Ausrichtung konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Ausrichtung konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "loadError": "Ausrichtungen konnten nicht geladen werden.",
-        "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
+        "loadError": "Ausrichtungen konnten nicht geladen werden."
       }
+    }
+  },
+  "projectSetup": {
+    "house": {
+      "title": "Haus",
+      "nameLabel": "Hausname",
+      "nameHint": "Wird oben in der Seitenleiste und im Browser-Tab angezeigt.",
+      "addressLabel": "Hausadresse",
+      "addressHint": "Wird als Absender auf Bankberichten verwendet.",
+      "entriesLanguageLabel": "Sprache Ihrer Texte",
+      "entriesLanguageHint": "Wird für die Silbentrennung langer Wörter am Zeilenende in Ihren Notizen und Beschreibungen verwendet. Dies ist nicht die Sprache der App.",
+      "appLanguageLink": "Sprache der App im Konto festlegen",
+      "saved": "Hausdaten gespeichert.",
+      "saveFailed": "Hausdaten konnten nicht gespeichert werden. Bitte versuchen Sie es erneut.",
+      "loadFailed": "Hausdaten konnten nicht geladen werden."
     },
-    "budgetCategories": {
-      "loading": "Budgetkategorien werden geladen...",
-      "errorTitle": "Fehler",
-      "retry": "Erneut versuchen",
-      "loadError": "Budgetkategorien konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "createTitle": "Neue Budgetkategorie erstellen",
-      "createDescription": "Budgetkategorien gruppieren Ihre Baukosten (z. B. Materialien, Arbeit, Genehmigungen).",
-      "nameLabel": "Name",
-      "nameRequired": "*",
-      "namePlaceholder": "z. B. Materialien, Arbeit, Genehmigungen",
-      "colorLabel": "Farbe",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "descriptionLabel": "Beschreibung",
-      "descriptionPlaceholder": "Optionale Beschreibung",
-      "createButton": "Kategorie erstellen",
-      "creating": "Wird erstellt...",
-      "cancel": "Abbrechen",
-      "addButton": "Kategorie hinzufügen",
-      "listTitle": "Kategorien ({{count}})",
-      "emptyState": "Noch keine Budgetkategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihr Projektbudget zu organisieren.",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "sortOrderTitle": "Sortierreihenfolge",
-      "validation": {
-        "nameRequired": "Kategoriename ist erforderlich",
-        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
-      },
-      "messages": {
-        "created": "Kategorie „{{name}}“ erfolgreich erstellt",
-        "updated": "Kategorie „{{name}}“ erfolgreich aktualisiert",
-        "deleted": "Kategorie „{{name}}“ erfolgreich gelöscht",
-        "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Budgeteinträgen verwendet wird.",
-        "duplicateName": "Eine Budgetkategorie mit diesem Namen existiert bereits."
-      }
+    "costCategories": {
+      "title": "Kostenkategorien",
+      "description": "Gruppieren Sie Kosten bei Aufgaben, Rechnungen und Angeboten.",
+      "item": "Kostenkategorie",
+      "items": "Kostenkategorien",
+      "newItem": "Neue {{item}}",
+      "editItem": "{{item}} bearbeiten",
+      "empty": "Noch keine {{items}}.",
+      "loadFailed": "Die {{items}} konnten nicht geladen werden.",
+      "duplicateName": "Eine Kostenkategorie mit diesem Namen existiert bereits.",
+      "deleteBlocked": "{{name}} wird noch von Kostenpositionen oder Förderprogrammen verwendet und kann daher nicht gelöscht werden."
     },
-    "householdItemCategories": {
-      "loading": "Haushaltsartikel-Kategorien werden geladen...",
-      "errorTitle": "Fehler",
-      "retry": "Erneut versuchen",
-      "loadError": "Haushaltsartikel-Kategorien konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
-      "createTitle": "Neue Haushaltsartikel-Kategorie erstellen",
-      "createDescription": "Kategorien organisieren Ihre Haushaltsartikel und Möbelkäufe (z. B. Möbel, Geräte, Einbauten).",
-      "nameLabel": "Name",
-      "nameRequired": "*",
-      "namePlaceholder": "z. B. Möbel, Geräte, Einbauten",
-      "colorLabel": "Farbe",
-      "sortOrderLabel": "Sortierreihenfolge",
-      "createButton": "Kategorie erstellen",
-      "creating": "Wird erstellt...",
-      "cancel": "Abbrechen",
-      "addButton": "Kategorie hinzufügen",
-      "listTitle": "Kategorien ({{count}})",
-      "emptyState": "Noch keine Haushaltsartikel-Kategorien. Fügen Sie Ihre erste Kategorie hinzu, um Ihre Möbel und Geräte zu organisieren.",
-      "save": "Speichern",
-      "saving": "Wird gespeichert...",
-      "edit": "Bearbeiten",
-      "delete": "Löschen",
-      "sortOrderTitle": "Sortierreihenfolge",
-      "validation": {
-        "nameRequired": "Kategoriename ist erforderlich",
-        "nameTooLong": "Kategoriename darf maximal 100 Zeichen lang sein"
-      },
-      "messages": {
-        "created": "Kategorie „{{name}}“ erfolgreich erstellt",
-        "updated": "Kategorie „{{name}}“ erfolgreich aktualisiert",
-        "deleted": "Kategorie „{{name}}“ erfolgreich gelöscht",
-        "createError": "Kategorie konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
-        "updateError": "Kategorie konnte nicht aktualisiert werden. Bitte versuchen Sie es erneut.",
-        "deleteError": "Kategorie konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
-        "deleteConflict": "Diese Kategorie kann nicht gelöscht werden, da sie derzeit von einem oder mehreren Haushaltsartikeln verwendet wird.",
-        "duplicateName": "Eine Haushaltsartikel-Kategorie mit diesem Namen existiert bereits."
-      }
+    "purchaseCategories": {
+      "title": "Anschaffungskategorien",
+      "description": "Gruppieren Sie Ihre Anschaffungen nach Art.",
+      "item": "Anschaffungskategorie",
+      "items": "Anschaffungskategorien",
+      "newItem": "Neue {{item}}",
+      "editItem": "{{item}} bearbeiten",
+      "empty": "Noch keine {{items}}.",
+      "loadFailed": "Die {{items}} konnten nicht geladen werden.",
+      "duplicateName": "Eine Anschaffungskategorie mit diesem Namen existiert bereits.",
+      "deleteBlocked": "{{name}} wird noch von Anschaffungen verwendet und kann daher nicht gelöscht werden."
+    },
+    "orientations": {
+      "title": "Fotoausrichtungen",
+      "description": "Benennen Sie die Ausrichtungen, mit denen Sie Fotos kennzeichnen.",
+      "item": "Ausrichtung",
+      "items": "Ausrichtungen",
+      "newItem": "Neue {{item}}",
+      "editItem": "{{item}} bearbeiten",
+      "empty": "Noch keine {{items}}.",
+      "loadFailed": "Die {{items}} konnten nicht geladen werden.",
+      "duplicateName": "Eine Ausrichtung mit diesem Namen existiert bereits."
+    },
+    "areas": {
+      "title": "Bereiche"
+    },
+    "pointers": {
+      "title": "Auf anderen Seiten",
+      "trades": "Gewerke",
+      "tradesHint": "Zu finden auf der Seite Firmen",
+      "areas": "Bereiche",
+      "areasHint": "Zu finden auf der Seite Bereiche"
     }
   },
   "dav": {

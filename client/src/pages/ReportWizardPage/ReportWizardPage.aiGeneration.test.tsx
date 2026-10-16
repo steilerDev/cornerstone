@@ -126,7 +126,11 @@ beforeEach(async () => {
     autoItemizeEnabled: true,
     llmEnabled: true,
   });
-  mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
+  mockFetchHouseholdSettings.mockResolvedValue({
+    householdName: null,
+    householdAddress: null,
+    entriesLanguage: 'en',
+  });
   mockUseAuth.mockReturnValue({
     user: null,
     oidcEnabled: false,

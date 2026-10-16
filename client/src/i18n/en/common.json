@@ -477,5 +477,27 @@
   },
   "statusHints": {
     "submitted": "Paid or due, and included in a draw-down request to the bank"
+  },
+  "referenceList": {
+    "new": "New",
+    "nameLabel": "Name",
+    "descriptionLabel": "Description",
+    "colorLabel": "Color",
+    "noColor": "No color",
+    "nameRequired": "Enter a name.",
+    "translatedHint": "This name is translated. If you change it, your text is shown in every language.",
+    "actionsFor": "Actions for {{name}}",
+    "reorderHandle": "Reorder {{name}}",
+    "reorderInstructions": "Press Space to pick up. Use the arrow keys to move, Space to drop, Escape to cancel.",
+    "pickedUp": "{{name}} picked up. Position {{position}} of {{total}}.",
+    "position": "{{name}}, position {{position}} of {{total}}.",
+    "dropped": "{{name}} moved to position {{position}} of {{total}}.",
+    "reorderCanceled": "Reorder canceled. {{name}} is back at position {{position}}.",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "reorderFailed": "Couldn't save the new order. Try again.",
+    "added": "{{name}} added.",
+    "saved": "{{name}} saved.",
+    "deleted": "{{name}} deleted."
   }
 }

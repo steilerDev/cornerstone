@@ -4,6 +4,7 @@ import {
   createBudgetCategory,
   updateBudgetCategory,
   deleteBudgetCategory,
+  reorderBudgetCategories,
 } from './budgetCategoriesApi.js';
 import type { BudgetCategory, BudgetCategoryListResponse } from '@cornerstone/shared';
 
@@ -403,6 +404,43 @@ describe('budgetCategoriesApi', () => {
       } as Response);
 
       await expect(deleteBudgetCategory('cat-in-use')).rejects.toThrow();
+    });
+  });
+
+  describe('reorderBudgetCategories', () => {
+    it('PATCHes /api/budget-categories/reorder with the full id list and returns the rows', async () => {
+      const rows = [{ id: 'b' }, { id: 'a' }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ categories: rows }),
+      } as Response);
+
+      const result = await reorderBudgetCategories(['b', 'a']);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/budget-categories/reorder',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ ids: ['b', 'a'] }) }),
+      );
+      expect(result).toEqual(rows);
+    });
+
+    it('rejects with REORDER_SET_MISMATCH details on 409', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'REORDER_SET_MISMATCH',
+            message: 'The ids are not exactly the current list',
+            details: { missingIds: ['a'], unknownIds: [] },
+          },
+        }),
+      } as Response);
+
+      await expect(reorderBudgetCategories(['b'])).rejects.toMatchObject({
+        statusCode: 409,
+        error: { code: 'REORDER_SET_MISMATCH', details: { missingIds: ['a'] } },
+      });
     });
   });
 });

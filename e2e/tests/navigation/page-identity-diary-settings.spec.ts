@@ -99,7 +99,9 @@ async function mockHouseName(page: Page): Promise<void> {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ settings: { householdName: HOUSE, householdAddress: null } }),
+      body: JSON.stringify({
+        settings: { householdName: HOUSE, householdAddress: null, entriesLanguage: 'en' },
+      }),
     });
   });
 }
@@ -422,7 +424,7 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
     // E5 — Project setup tabs (D-10)
     // ─────────────────────────────────────────────────────────────────────────
 
-    test('E5: Project setup writes nothing on load, tab changes replace history, Back leaves the page', async ({
+    test('E5: Project setup writes nothing on load, a legacy tab link is replaced by its anchor, Back leaves the page', async ({
       page,
     }) => {
       await installRouteLog(page);
@@ -432,32 +434,33 @@ test.describe('Page identity: Site diary, Photos, Settings (#2204)', () => {
       await expectOneH1(page, 'Site diary');
       await page.goto(ROUTES.manage);
       await expectOneH1(page, 'Project setup');
-      await expect(page.getByRole('tab', { name: 'Areas' })).toHaveAttribute(
-        'aria-selected',
-        'true',
-      );
+      await expect(page.getByTestId('project-setup-house')).toBeVisible();
 
-      // Nothing was pushed or replaced on load, and the URL gained no ?tab=
+      // Nothing was pushed or replaced on load, and the URL gained neither ?tab= nor a hash
       expect(await readRouteLog(page)).toEqual([]);
       expect(new URL(page.url()).search).toBe('');
+      expect(new URL(page.url()).hash).toBe('');
 
-      for (const tab of ['Trades', 'Orientations', 'Household']) {
-        await page.getByRole('tab', { name: tab, exact: true }).click();
-        await expect(page.getByRole('tab', { name: tab, exact: true })).toHaveAttribute(
-          'aria-selected',
-          'true',
-        );
-      }
-      await expect(page).toHaveURL(/\?tab=household$/);
+      // D-10: a legacy ?tab=household link becomes #house with one replaceState, never a push
+      await page.goto(routeUrl('settingsManage', undefined, { tab: 'household' }));
+      await expectOneH1(page, 'Project setup');
+      await expect(page).toHaveURL(
+        (url) => url.pathname === routeUrl('settingsManage') && url.hash === '#house',
+      );
+      expect(new URL(page.url()).searchParams.has('tab')).toBe(false);
 
       const log = await readRouteLog(page);
-      expect(log.length).toBeGreaterThanOrEqual(3);
+      expect(log.length).toBeGreaterThanOrEqual(1);
       expect(
         log.filter((entry) => entry.kind !== 'replaceState'),
-        'tab changes must replace, never push',
+        'the tab-to-anchor rewrite must replace, never push',
       ).toEqual([]);
 
-      // One step back leaves the page for the previous one
+      // One step back leaves the page for the one before it (the rewrite added no entry)
+      await page.goBack();
+      await expect(page).toHaveURL(
+        (url) => url.pathname === routeUrl('settingsManage') && url.hash === '',
+      );
       await page.goBack();
       await expect(page).toHaveURL(/\/diary$/);
     });

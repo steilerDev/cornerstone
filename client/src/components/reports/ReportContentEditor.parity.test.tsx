@@ -392,7 +392,11 @@ describe.each([
       formattersFor(localeStr),
       {
         includeCoverLetter: true,
-        household: { householdName: 'The Smiths', householdAddress: '1 Main St' },
+        household: {
+          householdName: 'The Smiths',
+          householdAddress: '1 Main St',
+          entriesLanguage: 'en',
+        },
       },
     );
   }

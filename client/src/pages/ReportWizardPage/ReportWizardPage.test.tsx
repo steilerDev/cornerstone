@@ -157,7 +157,11 @@ beforeEach(async () => {
     autoItemizeEnabled: false,
     llmEnabled: false,
   });
-  mockFetchHouseholdSettings.mockResolvedValue({ householdName: null, householdAddress: null });
+  mockFetchHouseholdSettings.mockResolvedValue({
+    householdName: null,
+    householdAddress: null,
+    entriesLanguage: 'en',
+  });
   // Default: no logged-in user, matching the pre-#1932 household-only fixture above (sender []
   // stays empty unless a test explicitly opts in). Individual tests override with a real
   // displayName to exercise AC 3.1 (see 'threads the mocked user displayName...' below).
@@ -861,6 +865,7 @@ describe('ReportWizardPage', () => {
       mockFetchHouseholdSettings.mockResolvedValue({
         householdName: 'The Smiths',
         householdAddress: '456 Home Ave',
+        entriesLanguage: 'en',
       });
       mockUseAuth.mockReturnValue({
         user: {

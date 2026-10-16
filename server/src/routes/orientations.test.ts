@@ -549,4 +549,221 @@ describe('Orientation Routes', () => {
       expect(body.error.code).toBe('NOT_FOUND');
     });
   });
+
+  // ─── PATCH /api/orientations/reorder (#2215) ──────────────────────────────
+
+  describe('PATCH /api/orientations/reorder (#2215)', () => {
+    const STAMP = '2026-01-01T00:00:00.000Z';
+    const URL = '/api/orientations/reorder';
+
+    function seedRows(rows: Array<[string, string, number]>): void {
+      app.db.delete(orientations).run();
+      for (const [id, name, sortOrder] of rows) {
+        app.db
+          .insert(orientations)
+          .values({ id, name, sortOrder, createdAt: STAMP, updatedAt: STAMP })
+          .run();
+      }
+    }
+
+    const readRows = () =>
+      app.db
+        .select()
+        .from(orientations)
+        .all()
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+    const SEED: Array<[string, string, number]> = [
+      ['a', 'Alpha', 0],
+      ['b', 'Bravo', 1],
+      ['c', 'Charlie', 2],
+    ];
+
+    async function reorder(cookie: string | undefined, payload: unknown) {
+      return app.inject({
+        method: 'PATCH',
+        url: URL,
+        headers: cookie ? { cookie } : {},
+        payload: payload as Record<string, unknown>,
+      });
+    }
+
+    async function login(): Promise<string> {
+      const { cookie } = await createUserWithSession('user@example.com', 'Test User', 'password');
+      return cookie;
+    }
+
+    it('returns 200 with the list under "orientations" in the new order', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await reorder(cookie, { ids: ['c', 'a', 'b'] });
+
+      expect(response.statusCode).toBe(200);
+      const body = response.json<{ orientations: Array<{ id: string; sortOrder: number }> }>();
+      expect(body.orientations.map((r) => r.id)).toEqual(['c', 'a', 'b']);
+      expect(body.orientations.map((r) => r.sortOrder)).toEqual([0, 1, 2]);
+      expect(readRows().map((r) => [r.id, r.sortOrder])).toEqual([
+        ['a', 1],
+        ['b', 2],
+        ['c', 0],
+      ]);
+    });
+
+    it('writes only the rows whose position changed', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      await reorder(cookie, { ids: ['a', 'c', 'b'] });
+
+      const rows = readRows();
+      expect(rows.find((r) => r.id === 'a')?.updatedAt).toBe(STAMP);
+      expect(rows.find((r) => r.id === 'b')?.updatedAt).not.toBe(STAMP);
+      expect(rows.find((r) => r.id === 'c')?.updatedAt).not.toBe(STAMP);
+    });
+
+    it('lets a member reorder (no admin gate)', async () => {
+      seedRows(SEED);
+      const { cookie } = await createUserWithSession(
+        'm@example.com',
+        'Member',
+        'password',
+        'member',
+      );
+
+      const response = await reorder(cookie, { ids: ['b', 'a', 'c'] });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it.each([
+      ['a missing id', ['a', 'b'], { missingIds: ['c'], unknownIds: [] }],
+      ['an unknown id', ['a', 'b', 'c', 'zzz'], { missingIds: [], unknownIds: ['zzz'] }],
+      [
+        'a missing and an unknown id',
+        ['a', 'b', 'zzz'],
+        { missingIds: ['c'], unknownIds: ['zzz'] },
+      ],
+    ])(
+      'returns 409 REORDER_SET_MISMATCH with details for %s and writes nothing',
+      async (_n, ids, details) => {
+        seedRows(SEED);
+        const before = readRows();
+        const cookie = await login();
+
+        const response = await reorder(cookie, { ids });
+
+        expect(response.statusCode).toBe(409);
+        const body = response.json<ApiErrorResponse>();
+        expect(body.error.code).toBe('REORDER_SET_MISMATCH');
+        expect(body.error.details).toEqual(details);
+        expect(readRows()).toEqual(before);
+      },
+    );
+
+    it.each([
+      ['an empty list', { ids: [] }],
+      ['a missing ids field', {}],
+      ['a duplicate id', { ids: ['a', 'a', 'b', 'c'] }],
+      ['an empty-string id', { ids: ['a', '', 'c'] }],
+      ['an id longer than 64 characters', { ids: ['a', 'x'.repeat(65), 'c'] }],
+      ['more than 500 ids', { ids: Array.from({ length: 501 }, (_v, i) => `id-${i}`) }],
+    ])('returns 400 VALIDATION_ERROR for %s and writes nothing', async (_n, payload) => {
+      seedRows(SEED);
+      const before = readRows();
+      const cookie = await login();
+
+      const response = await reorder(cookie, payload);
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('VALIDATION_ERROR');
+      expect(readRows()).toEqual(before);
+    });
+
+    it('coerces scalar and numeric ids (server-wide AJV coercion) and rejects them as unknown', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const scalar = await reorder(cookie, { ids: 'a' });
+      const numeric = await reorder(cookie, { ids: ['a', 2, 'c'] });
+
+      expect(scalar.statusCode).toBe(409);
+      expect(numeric.statusCode).toBe(409);
+      expect(numeric.json<ApiErrorResponse>().error.details).toEqual({
+        missingIds: ['b'],
+        unknownIds: ['2'],
+      });
+    });
+
+    it('strips unknown body properties (server-wide AJV removeAdditional) and still reorders', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await reorder(cookie, { ids: ['c', 'b', 'a'], extra: true });
+
+      expect(response.statusCode).toBe(200);
+    });
+
+    it('accepts an id of exactly 64 characters (then 409 as it is unknown)', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await reorder(cookie, { ids: ['x'.repeat(64)] });
+
+      expect(response.statusCode).toBe(409);
+    });
+
+    it('accepts exactly 500 ids in shape (then 409 as they are unknown)', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await reorder(cookie, {
+        ids: Array.from({ length: 500 }, (_v, i) => `id-${i}`),
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect(response.json<ApiErrorResponse>().error.details).toMatchObject({
+        missingIds: ['a', 'b', 'c'],
+      });
+    });
+
+    it('returns 401 without a session', async () => {
+      seedRows(SEED);
+
+      const response = await reorder(undefined, { ids: ['a', 'b', 'c'] });
+
+      expect(response.statusCode).toBe(401);
+      expect(response.json<ApiErrorResponse>().error.code).toBe('UNAUTHORIZED');
+    });
+
+    it('does not shadow PATCH /:id (static route wins only for "reorder")', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await app.inject({
+        method: 'PATCH',
+        url: '/api/orientations/b',
+        headers: { cookie },
+        payload: { name: 'Bravo Renamed' },
+      });
+
+      expect(response.statusCode).toBe(200);
+      expect(readRows().find((r) => r.id === 'b')?.name).toBe('Bravo Renamed');
+    });
+
+    it('appends a created entry without sortOrder after the current last one', async () => {
+      seedRows(SEED);
+      const cookie = await login();
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/orientations',
+        headers: { cookie },
+        payload: { name: 'Delta' },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(readRows().find((r) => r.name === 'Delta')?.sortOrder).toBe(3);
+    });
+  });
 });

@@ -557,6 +557,7 @@ async function makeMixedReport(): Promise<{
 const household: HouseholdSettings = {
   householdName: 'The Smiths',
   householdAddress: '123 Main St',
+  entriesLanguage: 'en',
 };
 
 describe('report PDF pipeline — real, unmocked end-to-end render', () => {

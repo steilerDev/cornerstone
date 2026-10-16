@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { ReorderReferenceListRequest } from '@cornerstone/shared';
 import { UnauthorizedError } from '../errors/AppError.js';
+import { buildReorderSchema } from '../services/referenceListOrder.js';
 import * as orientationService from '../services/orientationService.js';
 import type { CreateOrientationRequest, UpdateOrientationRequest } from '@cornerstone/shared';
 
@@ -91,6 +93,27 @@ export default async function orientationRoutes(fastify: FastifyInstance) {
 
       const orientation = orientationService.createOrientation(fastify.db, request.body);
       return reply.status(201).send({ orientation });
+    },
+  );
+
+  /**
+   * PATCH /api/orientations/reorder
+   *
+   * Atomically reorder the whole list. Body `{ ids }` must be exactly the current
+   * set of ids (409 REORDER_SET_MISMATCH otherwise). Returns the reordered list.
+   *
+   * Auth required: Yes (any authenticated user)
+   */
+  fastify.patch<{ Body: ReorderReferenceListRequest }>(
+    '/reorder',
+    { schema: buildReorderSchema() },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const orientations = orientationService.reorderOrientations(fastify.db, request.body.ids);
+      return reply.status(200).send({ orientations });
     },
   );
 

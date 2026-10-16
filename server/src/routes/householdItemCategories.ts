@@ -1,5 +1,7 @@
 import type { FastifyInstance } from 'fastify';
+import type { ReorderReferenceListRequest } from '@cornerstone/shared';
 import { UnauthorizedError } from '../errors/AppError.js';
+import { buildReorderSchema } from '../services/referenceListOrder.js';
 import * as householdItemCategoryService from '../services/householdItemCategoryService.js';
 import type {
   CreateHouseholdItemCategoryRequest,
@@ -85,6 +87,30 @@ export default async function householdItemCategoryRoutes(fastify: FastifyInstan
         request.body,
       );
       return reply.status(201).send(category);
+    },
+  );
+
+  /**
+   * PATCH /api/household-item-categories/reorder
+   *
+   * Atomically reorder the whole list. Body `{ ids }` must be exactly the current
+   * set of ids (409 REORDER_SET_MISMATCH otherwise). Returns the reordered list.
+   *
+   * Auth required: Yes (any authenticated user)
+   */
+  fastify.patch<{ Body: ReorderReferenceListRequest }>(
+    '/reorder',
+    { schema: buildReorderSchema() },
+    async (request, reply) => {
+      if (!request.user) {
+        throw new UnauthorizedError();
+      }
+
+      const categories = householdItemCategoryService.reorderHouseholdItemCategories(
+        fastify.db,
+        request.body.ids,
+      );
+      return reply.status(200).send({ categories });
     },
   );
 

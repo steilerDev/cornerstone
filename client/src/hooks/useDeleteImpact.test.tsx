@@ -17,7 +17,7 @@ beforeEach(async () => {
   if (!useDeleteImpact) ({ useDeleteImpact } = await import('./useDeleteImpact.js'));
 });
 
-function render(entityType: DeleteImpactEntityType, id: string | number | null) {
+function render(entityType: DeleteImpactEntityType | null, id: string | number | null) {
   return renderHook(({ t, i }) => useDeleteImpact(t, i), {
     initialProps: { t: entityType, i: id },
   });
@@ -28,6 +28,24 @@ describe('useDeleteImpact', () => {
     const { result } = render('area', null);
     expect(mockFetch).not.toHaveBeenCalled();
     expect(result.current).toEqual({ status: 'loading' });
+  });
+
+  it('stays idle (no request) while the entity type is null, even with an id', () => {
+    const { result } = render(null, 'x');
+    expect(mockFetch).not.toHaveBeenCalled();
+    expect(result.current).toEqual({ status: 'loading' });
+  });
+
+  it('fetches once when the entity type becomes non-null', async () => {
+    mockFetch.mockResolvedValue({ entityType: 'orientation', id: 'x', effects: [] });
+    const { result, rerender } = render(null, 'x');
+    expect(mockFetch).not.toHaveBeenCalled();
+
+    rerender({ t: 'orientation', i: 'x' });
+
+    await waitFor(() => expect(result.current.status).toBe('ready'));
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    expect(mockFetch).toHaveBeenCalledWith('orientation', 'x');
   });
 
   it('fetches when the id becomes non-null and exposes translated labels with counts', async () => {

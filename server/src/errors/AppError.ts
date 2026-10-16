@@ -313,6 +313,13 @@ export class StaleOwnershipError extends AppError {
   }
 }
 
+export class ReorderSetMismatchError extends AppError {
+  constructor(details: { missingIds: string[]; unknownIds: string[] }) {
+    super('REORDER_SET_MISMATCH', 409, 'The ids are not exactly the current list', details);
+    this.name = 'ReorderSetMismatchError';
+  }
+}
+
 export class InvoicesNotClaimableError extends AppError {
   constructor(
     message = 'One or more invoices are not in a claimable state',

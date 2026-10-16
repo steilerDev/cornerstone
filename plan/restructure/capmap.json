@@ -3945,11 +3945,11 @@
   "PLT-091": {
     "name": "Switch between the reference-data tabs on the Manage page (deep-linkable)",
     "from": "/settings/manage > inner tabs: Household | Areas (default) | Trades | Orientations | Budget Categories | Household Item Categories (URL ?tab=household|areas|trades|orientations|budget-categories|hi-categories)",
-    "to": "Settings > Project setup (/settings/manage, URL kept; one page with sections House, Trades, Cost categories, Purchase categories, Photo orientations and an 'Areas' row that opens /areas; no index column; ?tab=x scrolls to #x, ?tab=areas -> /areas; no third tab level)",
+    "to": "Settings > Project setup (/settings/manage, URL kept; one page with sections House, Cost categories, Purchase categories, Photo orientations and 'Managed on other pages' rows for Trades and Areas (Areas row opens /areas once served; until then an interim Areas card); no index column; ?tab=x scrolls to #x, ?tab=areas -> /areas once served; no third tab level)",
     "change": "merged",
     "gate": "none",
     "acceptance": "Project setup sections reachable by ?tab= anchors; areas via /areas.",
-    "note": "Manage's inner tab row and Back trap retired (D-10, P17). #2196: Manage tab row scrolls instead of overflowing, with arrow-key navigation. #2204: tab changes use history replace and loading the page writes nothing to the URL (D-10 Back trap fixed)."
+    "note": "Manage's inner tab row and Back trap retired (D-10, P17). #2196: Manage tab row scrolls instead of overflowing, with arrow-key navigation. #2204: tab changes use history replace and loading the page writes nothing to the URL (D-10 Back trap fixed). #2215: tab row removed; legacy ?tab= replaced by the section anchor (history replace)."
   },
   "PLT-092": {
     "name": "Set the household name and address",
@@ -3957,7 +3957,7 @@
     "to": "Settings > Project setup > House (name, address — bank-report sender — and 'Language of your entries'); the name shows in the sidebar header and the browser title",
     "change": "promoted",
     "gate": "none",
-    "note": "The project gets an identity (GLB-04). Project setup > House also holds the 'Language of your entries' setting (default Deutsch for this household) used for lang + hyphenation of user content (no schema change: app_settings). #2202: the house name shows in the browser title (‹page› · ‹section› · ‹house›)."
+    "note": "The project gets an identity (GLB-04). Project setup > House also holds the 'Language of your entries' setting used for lang + hyphenation of user content (no schema change: app_settings). #2202: the house name shows in the browser title (‹page› · ‹section› · ‹house›). #2215: 'Language of your entries' (entriesLanguage) stored in app_settings; unset value follows the founder's locale, else English."
   },
   "PLT-093": {
     "name": "Create an area (room/zone) with colour, sort order, optional parent and description",
@@ -3966,7 +3966,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index 'New area'; inline 'New area' in pickers; Project setup 'Areas' row.",
-    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement)."
+    "note": "One home for browsing and managing areas (P16). The Settings pointer row answers the capability judge's 'someone renaming a room looks in Settings' (PLT-093/095/097 placement). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
   },
   "PLT-094": {
     "name": "View the area hierarchy",
@@ -3975,7 +3975,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Areas index tree with counts; Area page sections with roll-up rules.",
-    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags."
+    "note": "House graft: descendants are counted, items booked on an ancestor show as context and are never added, diary entries and photos attach through photo tags. #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
   },
   "PLT-095": {
     "name": "Edit an area inline (name, colour, sort order, description)",
@@ -3984,7 +3984,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page section Edit; Areas index row ⋯ > Edit.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
   },
   "PLT-096": {
     "name": "Move an area under a different parent area",
@@ -3993,7 +3993,7 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page section Edit > Parent area.",
-    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use)."
+    "note": "Moves to Areas, the one home of its object (principle 2); the old URL keeps working (rare use). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
   },
   "PLT-097": {
     "name": "Delete an area together with its sub-areas",
@@ -4002,34 +4002,34 @@
     "change": "moved",
     "gate": "none",
     "acceptance": "Area page ⋯ > Delete with consequences modal.",
-    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts)."
+    "note": "Copy matches server behaviour (PAT-21); photo untagging stated. #2196: area delete copy matches the server rules (in-use refusal, sub-areas, photos). #2209: Settings › Project setup › Areas › row Delete (ConfirmDialog with counts). #2215: until /areas is served (#2218) the old Areas manager is an interim card on Settings > Project setup."
   },
   "PLT-098": {
     "name": "Create a trade (craft/specialty) with colour, sort order and description",
     "from": "/settings/manage?tab=trades > \"Create New Trade\": Trade Name, Color, Sort Order, Description > \"Create Trade\" | Settings > Manage > Trades tab",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
     "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them.",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
   },
   "PLT-099": {
     "name": "Edit a trade inline",
     "from": "/settings/manage?tab=trades > row \"Edit\" > inline form > \"Save\"",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
     "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Edit is now Rename (name only).",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
   },
   "PLT-100": {
     "name": "Delete a trade",
     "from": "/settings/manage?tab=trades > row \"Delete\" > dialog > \"Delete Trade\"",
-    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > Trades tab keeps a pointer (P1.9 replaces it with a pointer row)",
+    "to": "Companies > Companies list > Trades sheet (/companies?trades=1): list with company counts; New, Rename, Merge duplicates, Delete. Settings > Project setup > 'Trades' row (Managed on other pages) points there",
     "change": "moved",
     "gate": "none",
     "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2196: trade delete copy matches the server rule (refused while a company uses it). #2209: Settings › Project setup › Trades › row Delete (ConfirmDialog). #2213: moved out of Settings. Colour, description and sort order stay in the data and API; no view renders colour or description (Architecture › Areas & Trades), so the sheet no longer edits them. Delete is blocked while companies use the trade, with 'Merge instead'.",
-    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the old Settings tab points there."
+    "acceptance": "Same control and behaviour on its new home (Companies > Trades sheet); the Project setup 'Trades' row points there."
   },
   "PLT-101": {
     "name": "See predefined trades and categories in the interface language",
@@ -4045,7 +4045,7 @@
     "to": "Settings > Project setup > Photo orientations > New; inline 'New orientation' in the photo tag picker",
     "change": "same",
     "gate": "none",
-    "note": "Inline create removes the Settings detour for photos (J05 prerequisite)."
+    "note": "Inline create removes the Settings detour for photos (J05 prerequisite). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-103": {
     "name": "Edit an orientation inline",
@@ -4053,7 +4053,7 @@
     "to": "Settings > Project setup > Photo orientations > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-104": {
     "name": "Delete an orientation",
@@ -4061,7 +4061,7 @@
     "to": "Settings > Project setup > Photo orientations > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Photo orientations › row Delete (ConfirmDialog with counts)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Photo orientations › row Delete (ConfirmDialog with counts). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-105": {
     "name": "Create a budget category with colour, sort order and description",
@@ -4069,7 +4069,7 @@
     "to": "Settings > Project setup > Cost categories > New; inline in the cost line form",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-106": {
     "name": "Edit a budget category inline",
@@ -4077,7 +4077,7 @@
     "to": "Settings > Project setup > Cost categories > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-107": {
     "name": "Delete a budget category",
@@ -4085,7 +4085,7 @@
     "to": "Settings > Project setup > Cost categories > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Cost categories › row Delete (ConfirmDialog)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Cost categories › row Delete (ConfirmDialog). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-108": {
     "name": "Create a household-item category with colour and sort order",
@@ -4093,7 +4093,7 @@
     "to": "Settings > Project setup > Purchase categories > New",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (setup-once use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-109": {
     "name": "Edit a household-item category inline",
@@ -4101,7 +4101,7 @@
     "to": "Settings > Project setup > Purchase categories > row ⋯ > Edit",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-110": {
     "name": "Delete a household-item category",
@@ -4109,12 +4109,12 @@
     "to": "Settings > Project setup > Purchase categories > row ⋯ > Delete (modal)",
     "change": "same",
     "gate": "none",
-    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Purchase categories › row Delete (ConfirmDialog)."
+    "note": "Kept as it works today, inside Settings; only the shared page template, the words and the navigation around it change (rare use). #2209: Settings › Project setup › Purchase categories › row Delete (ConfirmDialog). #2215: ReferenceList (New dialog, row ⋯ Edit / Move up / Move down / Delete)."
   },
   "PLT-111": {
     "name": "Control the order of areas, trades, orientations and categories with a sort number",
     "from": "/settings/manage > every tab > \"Sort Order\" number field (create + inline edit); shown as \"#N\" on each row",
-    "to": "Areas > Areas index and Settings > Project setup lists > drag to reorder (sort number kept, '#N' no longer shown) — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
+    "to": "Areas > Areas index and Settings > Project setup lists > drag to reorder, or row ⋯ > Move up / Move down (sort number kept, '#N' no longer shown) — trades themselves: Companies > Trades sheet (owner, 7 Oct)",
     "change": "same",
     "gate": "none",
     "note": "Kept as it works today, inside Areas; only the shared page template, the words and the navigation around it change (rare use)."

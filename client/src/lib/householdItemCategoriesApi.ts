@@ -3,6 +3,7 @@ import type {
   HouseholdItemCategoryEntity,
   CreateHouseholdItemCategoryRequest,
   UpdateHouseholdItemCategoryRequest,
+  ReorderReferenceListRequest,
 } from '@cornerstone/shared';
 
 /**
@@ -39,4 +40,19 @@ export function updateHouseholdItemCategory(
  */
 export function deleteHouseholdItemCategory(id: string): Promise<void> {
   return del<void>(`/household-item-categories/${id}`);
+}
+
+/**
+ * Atomically reorders the whole list: `ids` is every category id exactly once, in the new order.
+ * @throws {ApiClientError} with code REORDER_SET_MISMATCH (409) when the set of ids is stale.
+ */
+export async function reorderHouseholdItemCategories(
+  ids: string[],
+): Promise<HouseholdItemCategoryEntity[]> {
+  const body: ReorderReferenceListRequest = { ids };
+  const response = await patch<{ categories: HouseholdItemCategoryEntity[] }>(
+    '/household-item-categories/reorder',
+    body,
+  );
+  return response.categories;
 }

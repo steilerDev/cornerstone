@@ -12,10 +12,10 @@ type ImpactState =
 
 /**
  * Loads what a delete would also change, shaped for `ConfirmDialog`'s `consequences` prop.
- * Fetches when `id` becomes non-null (open the dialog by setting the id); `null` stays idle.
+ * Fetches when `id` becomes non-null (open the dialog by setting the id); `null` stays idle (as does a `null` entity type).
  */
 export function useDeleteImpact(
-  entityType: DeleteImpactEntityType,
+  entityType: DeleteImpactEntityType | null,
   id: string | number | null,
 ): ConfirmDialogConsequences {
   const { t } = useTranslation('common');
@@ -23,7 +23,7 @@ export function useDeleteImpact(
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (id === null) return;
+    if (id === null || entityType === null) return;
     let cancelled = false;
     /* eslint-disable @eslint-react/set-state-in-effect -- (re)loading state when the target changes */
     setState({ status: 'loading' });

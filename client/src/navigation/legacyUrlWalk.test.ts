@@ -2,7 +2,13 @@ import { describe, it, expect } from '@jest/globals';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { ROUTE_MAP, baseFrom, queryMatches, resolveLocation } from '@cornerstone/shared';
+import {
+  LIVE_REDIRECT_ROUTES,
+  ROUTE_MAP,
+  baseFrom,
+  queryMatches,
+  resolveLocation,
+} from '@cornerstone/shared';
 import type { RouteContext, RouteMapEntry } from '@cornerstone/shared';
 
 /**
@@ -234,7 +240,12 @@ describe('legacy URL walk (AC5/AC6)', () => {
             if (consumed.has(key)) continue;
             expect(got.getAll(key)).toContain(value);
           }
-          if (hash) expect(final.hash).toBe(hash);
+          // A target that names its own section anchor wins over the incoming fragment.
+          const targetHash = LIVE_REDIRECT_ROUTES.find((r) => r.from === legacy)?.target.split(
+            '#',
+          )[1];
+          if (targetHash) expect(final.hash).toBe(`#${targetHash}`);
+          else if (hash) expect(final.hash).toBe(hash);
         });
       }
     }

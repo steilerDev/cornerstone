@@ -9,6 +9,7 @@
 import type { FastifyInstance } from 'fastify';
 import { UnauthorizedError } from '../errors/AppError.js';
 import * as appSettingsService from '../services/appSettingsService.js';
+import { ENTRIES_LANGUAGES } from '@cornerstone/shared';
 import type {
   UpdateHouseholdSettingsRequest,
   HouseholdSettingsResponse,
@@ -24,6 +25,7 @@ const updateSettingsSchema = {
     properties: {
       householdName: { type: ['string', 'null'], maxLength: 200 },
       householdAddress: { type: ['string', 'null'], maxLength: 500 },
+      entriesLanguage: { type: 'string', enum: [...ENTRIES_LANGUAGES] },
     },
     additionalProperties: false,
     minProperties: 1,
@@ -36,7 +38,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   /**
    * GET /api/settings
    *
-   * Retrieve current application settings (household name and address).
+   * Retrieve current application settings (household name, address and entries language).
    * Returns nulls before any values have been set.
    *
    * Auth required: Yes
@@ -57,7 +59,7 @@ export default async function settingsRoutes(fastify: FastifyInstance) {
   /**
    * PATCH /api/settings
    *
-   * Update application settings (household name and/or address).
+   * Update application settings (household name, address and/or entries language).
    * Fields omitted from the request are not modified (partial update).
    * Setting a field to null clears it.
    *

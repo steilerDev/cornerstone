@@ -50,6 +50,7 @@ jest.unstable_mockModule('./lib/budgetCategoriesApi.js', () => ({
   createBudgetCategory: mockCreateBudgetCategory,
   updateBudgetCategory: mockUpdateBudgetCategory,
   deleteBudgetCategory: mockDeleteBudgetCategory,
+  reorderBudgetCategories: jest.fn<typeof BudgetCategoriesApiTypes.reorderBudgetCategories>(),
 }));
 
 // TimelinePage uses useMilestones which calls listMilestones on mount.
@@ -166,6 +167,8 @@ jest.unstable_mockModule('./lib/householdItemCategoriesApi.js', () => ({
     jest.fn<typeof HouseholdItemCategoriesApiTypes.updateHouseholdItemCategory>(),
   deleteHouseholdItemCategory:
     jest.fn<typeof HouseholdItemCategoriesApiTypes.deleteHouseholdItemCategory>(),
+  reorderHouseholdItemCategories:
+    jest.fn<typeof HouseholdItemCategoriesApiTypes.reorderHouseholdItemCategories>(),
 }));
 
 // DashboardPage calls fetchBudgetOverview on mount.
@@ -279,6 +282,7 @@ describe('App', () => {
     mockFetchHouseholdSettings.mockResolvedValue({
       householdName: 'Synthetic House',
       householdAddress: null,
+      entriesLanguage: 'en',
     });
 
     // Default: DashboardPage data sources
@@ -450,15 +454,22 @@ describe('App', () => {
     await waitFor(() => expect(document.title).toBe('Tasks \u00B7 Synthetic House'));
   }, 15000);
 
-  it('navigates to Manage page when /budget/categories path is accessed (redirect)', async () => {
+  it('redirects /budget/categories to the Cost categories section of Project setup', async () => {
     window.history.pushState({}, 'Budget Categories', '/budget/categories');
     render(<App />);
 
-    // /budget/categories now redirects to /settings/manage?tab=budget-categories
-    // ManagePage no longer renders an h1 heading — verify by the presence of the tab buttons
-    // Extended timeout: requires lazy-load of ManagePage after redirect from /budget/categories
-    const tab = await screen.findByRole('tab', { name: 'Budget Categories' }, { timeout: 5000 });
-    expect(tab).toBeInTheDocument();
+    // The redirect is final (route map stage "done"): the page is Project setup, not a tab.
+    // Extended timeout: requires lazy-load of ManagePage after the redirect.
+    const heading = await screen.findByRole(
+      'heading',
+      { level: 2, name: 'Cost categories' },
+      { timeout: 5000 },
+    );
+    expect(heading).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Budget Categories' })).not.toBeInTheDocument();
+    expect(window.location.pathname).toBe('/settings/manage');
+    expect(window.location.hash).toBe('#cost-categories');
+    expect(window.location.search).toBe('');
   });
 
   it('navigates to Schedule page when /schedule/gantt path is accessed', async () => {

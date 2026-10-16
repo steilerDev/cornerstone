@@ -51,6 +51,7 @@
   "TRADE_IN_USE": "Dieses Gewerk wird verwendet und kann nicht gelöscht werden.",
   "BACKUP_FAILED": "Die Sicherung konnte nicht erstellt werden. Bitte versuchen Sie es erneut.",
   "SAME_SOURCE": "Quelle und Ziel müssen unterschiedliche Budgetquellen sein.",
+  "REORDER_SET_MISMATCH": "Die Liste wurde inzwischen geändert. Aktualisieren Sie die Seite und versuchen Sie es erneut.",
   "STALE_OWNERSHIP": "Eine oder mehrere Budgetpositionen gehören nicht mehr zu dieser Quelle. Bitte aktualisieren Sie die Seite und versuchen Sie es erneut.",
   "INVALID_DEPOSIT_STATUS_TRANSITION": "Diese Statusänderung ist für die Abschlagszahlung nicht zulässig.",
   "INVALID_DEPOSIT_DATE_FOR_STATUS": "Dieses Datum kann für den aktuellen Status der Abschlagszahlung nicht festgelegt werden.",

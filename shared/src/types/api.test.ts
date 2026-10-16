@@ -134,5 +134,9 @@ describe('ErrorCode type', () => {
       expect(ERROR_CODES).toContain('DUPLICATE_DEPENDENCY');
       expect(ERROR_CODES).toContain('CIRCULAR_DEPENDENCY');
     });
+
+    it('includes REORDER_SET_MISMATCH for the reference-list reorder endpoints (#2215)', () => {
+      expect(ERROR_CODES).toContain('REORDER_SET_MISMATCH');
+    });
   });
 });

@@ -97,16 +97,14 @@ test.describe('Companies URL moves (AC2)', () => {
     await expect(page).toHaveURL((url) => !url.searchParams.has('create'));
   });
 
-  test('R4: the old Trades bookmark /settings/manage?tab=trades shows a pointer that opens the sheet', async ({
+  test('R4: the old Trades bookmark /settings/manage?tab=trades lands on the Trades pointer row that opens the sheet', async ({
     page,
   }) => {
     await page.goto(routeUrl('settingsManage', undefined, { tab: 'trades' }));
-    const pointer = page.getByTestId('manage-trades-open');
+    const pointer = page.getByTestId('project-setup-pointer-trades');
     await expect(pointer).toBeVisible();
-    await expect(page.locator('#trades-panel')).toContainText(
-      'Trades are managed on the Companies page.',
-    );
-    await expect(pointer).toHaveText('Open Trades');
+    await expect(pointer).toContainText('Trades');
+    await expect(pointer).toContainText('Managed on Companies');
     await expect(pointer).toHaveAttribute('href', routeUrl('companies', undefined, { trades: 1 }));
 
     await pointer.click();

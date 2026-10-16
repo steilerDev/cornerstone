@@ -125,27 +125,6 @@
     }
   },
   "manage": {
-    "tabs": {
-      "household": "Household",
-      "areas": "Areas",
-      "trades": "Trades",
-      "orientations": "Orientations",
-      "budgetCategories": "Budget Categories",
-      "householdItemCategories": "Household Item Categories"
-    },
-    "household": {
-      "title": "Household Information",
-      "description": "Used as the sender name and address on report cover letters.",
-      "nameLabel": "Household Name",
-      "namePlaceholder": "e.g., Smith Family",
-      "addressLabel": "Household Address",
-      "addressPlaceholder": "e.g., 123 Main Street, City, State ZIP",
-      "save": "Save Changes",
-      "saving": "Saving...",
-      "saveSuccess": "Household information updated successfully",
-      "saveFailed": "Failed to save household information. Please try again.",
-      "loadError": "Failed to load household information. Please try again."
-    },
     "areas": {
       "loading": "Loading areas...",
       "errorTitle": "Error",
@@ -186,120 +165,72 @@
       }
     },
     "trades": {
-      "loadError": "Failed to load trades. Please try again.",
-      "movedText": "Trades are managed on the Companies page.",
-      "movedLink": "Open Trades"
+      "loadError": "Failed to load trades. Please try again."
     },
     "orientations": {
-      "tabLabel": "Orientations",
-      "createTitle": "Create orientation",
-      "createDescription": "Add an orientation to tag photos with a direction (e.g. South – Street).",
-      "nameLabel": "Name",
-      "namePlaceholder": "e.g. South",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "e.g. Street-facing",
-      "sortOrderLabel": "Sort order",
-      "createButton": "Create orientation",
-      "creating": "Creating…",
-      "existingTitle": "Orientations ({{count}})",
-      "emptyState": "No orientations yet. Create one above to tag your photos with a direction.",
-      "edit": "Edit",
-      "delete": "Delete",
-      "save": "Save",
-      "saving": "Saving…",
-      "cancel": "Cancel",
-      "validation": {
-        "nameRequired": "Name is required.",
-        "nameTooLong": "Name must be 100 characters or fewer."
-      },
       "messages": {
-        "created": "Orientation \"{{name}}\" created.",
-        "updated": "Orientation \"{{name}}\" updated.",
-        "deleted": "Orientation \"{{name}}\" deleted.",
-        "createError": "Failed to create orientation. Please try again.",
-        "updateError": "Failed to update orientation. Please try again.",
-        "deleteError": "Failed to delete orientation. Please try again.",
-        "loadError": "Failed to load orientations.",
-        "duplicateName": "An orientation with this name already exists."
+        "loadError": "Failed to load orientations."
       }
+    }
+  },
+  "projectSetup": {
+    "house": {
+      "title": "House",
+      "nameLabel": "House name",
+      "nameHint": "Shown at the top of the sidebar and in the browser tab.",
+      "addressLabel": "House address",
+      "addressHint": "Used as the sender on bank reports.",
+      "entriesLanguageLabel": "Language of your entries",
+      "entriesLanguageHint": "Used to split long words at the end of a line in your notes and descriptions. This is not the app language.",
+      "appLanguageLink": "Set the app language in Account",
+      "saved": "House details saved.",
+      "saveFailed": "Couldn't save the house details. Try again.",
+      "loadFailed": "Couldn't load the house details."
     },
-    "budgetCategories": {
-      "loading": "Loading budget categories...",
-      "errorTitle": "Error",
-      "retry": "Retry",
-      "loadError": "Failed to load budget categories. Please try again.",
-      "createTitle": "Create New Budget Category",
-      "createDescription": "Budget categories group your construction costs (e.g., Materials, Labor, Permits).",
-      "nameLabel": "Name",
-      "nameRequired": "*",
-      "namePlaceholder": "e.g., Materials, Labor, Permits",
-      "colorLabel": "Color",
-      "sortOrderLabel": "Sort Order",
-      "descriptionLabel": "Description",
-      "descriptionPlaceholder": "Optional description",
-      "createButton": "Create Category",
-      "creating": "Creating...",
-      "cancel": "Cancel",
-      "addButton": "Add Category",
-      "listTitle": "Categories ({{count}})",
-      "emptyState": "No budget categories yet. Add your first category to start organizing your project budget.",
-      "save": "Save",
-      "saving": "Saving...",
-      "edit": "Edit",
-      "delete": "Delete",
-      "sortOrderTitle": "Sort order",
-      "validation": {
-        "nameRequired": "Category name is required",
-        "nameTooLong": "Category name must be 100 characters or less"
-      },
-      "messages": {
-        "created": "Category \"{{name}}\" created successfully",
-        "updated": "Category \"{{name}}\" updated successfully",
-        "deleted": "Category \"{{name}}\" deleted successfully",
-        "createError": "Failed to create category. Please try again.",
-        "updateError": "Failed to update category. Please try again.",
-        "deleteError": "Failed to delete category. Please try again.",
-        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more budget entries.",
-        "duplicateName": "A budget category with this name already exists."
-      }
+    "costCategories": {
+      "title": "Cost categories",
+      "description": "Group costs on tasks, invoices and offers.",
+      "item": "cost category",
+      "items": "cost categories",
+      "newItem": "New {{item}}",
+      "editItem": "Edit {{item}}",
+      "empty": "No {{items}} yet.",
+      "loadFailed": "Couldn't load the {{items}}.",
+      "duplicateName": "A cost category with this name already exists.",
+      "deleteBlocked": "{{name}} is still used by cost lines or grants, so it can't be deleted."
     },
-    "householdItemCategories": {
-      "loading": "Loading household item categories...",
-      "errorTitle": "Error",
-      "retry": "Retry",
-      "loadError": "Failed to load household item categories. Please try again.",
-      "createTitle": "Create New Household Item Category",
-      "createDescription": "Categories organize your household items and furniture purchases (e.g., Furniture, Appliances, Fixtures).",
-      "nameLabel": "Name",
-      "nameRequired": "*",
-      "namePlaceholder": "e.g., Furniture, Appliances, Fixtures",
-      "colorLabel": "Color",
-      "sortOrderLabel": "Sort Order",
-      "createButton": "Create Category",
-      "cancel": "Cancel",
-      "creating": "Creating...",
-      "addButton": "Add Category",
-      "listTitle": "Categories ({{count}})",
-      "emptyState": "No household item categories yet. Add your first category to start organizing your furniture and appliances.",
-      "save": "Save",
-      "saving": "Saving...",
-      "edit": "Edit",
-      "delete": "Delete",
-      "sortOrderTitle": "Sort order",
-      "validation": {
-        "nameRequired": "Category name is required",
-        "nameTooLong": "Category name must be 100 characters or less"
-      },
-      "messages": {
-        "created": "Category \"{{name}}\" created successfully",
-        "updated": "Category \"{{name}}\" updated successfully",
-        "deleted": "Category \"{{name}}\" deleted successfully",
-        "createError": "Failed to create category. Please try again.",
-        "updateError": "Failed to update category. Please try again.",
-        "deleteError": "Failed to delete category. Please try again.",
-        "deleteConflict": "This category cannot be deleted because it is currently in use by one or more household items.",
-        "duplicateName": "A household item category with this name already exists."
-      }
+    "purchaseCategories": {
+      "title": "Purchase categories",
+      "description": "Group your purchases by type.",
+      "item": "purchase category",
+      "items": "purchase categories",
+      "newItem": "New {{item}}",
+      "editItem": "Edit {{item}}",
+      "empty": "No {{items}} yet.",
+      "loadFailed": "Couldn't load the {{items}}.",
+      "duplicateName": "A purchase category with this name already exists.",
+      "deleteBlocked": "{{name}} is still used by purchases, so it can't be deleted."
+    },
+    "orientations": {
+      "title": "Photo orientations",
+      "description": "Name the viewing directions you tag photos with.",
+      "item": "orientation",
+      "items": "orientations",
+      "newItem": "New {{item}}",
+      "editItem": "Edit {{item}}",
+      "empty": "No {{items}} yet.",
+      "loadFailed": "Couldn't load the {{items}}.",
+      "duplicateName": "An orientation with this name already exists."
+    },
+    "areas": {
+      "title": "Areas"
+    },
+    "pointers": {
+      "title": "Managed on other pages",
+      "trades": "Trades",
+      "tradesHint": "Managed on Companies",
+      "areas": "Areas",
+      "areasHint": "Managed on the Areas page"
     }
   },
   "dav": {

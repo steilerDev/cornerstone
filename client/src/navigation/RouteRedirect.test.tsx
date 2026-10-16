@@ -81,7 +81,9 @@ describe('RouteRedirect', () => {
       const { unmount } = renderAt(url, rule);
       const text = screen.getByTestId('where').textContent ?? '';
       expect(text).toContain('keep=1');
-      expect(text.endsWith('#frag')).toBe(true);
+      // The target hash wins over the incoming one (a section anchor such as #cost-categories).
+      const targetAt = rule.target.indexOf('#');
+      expect(text.endsWith(targetAt >= 0 ? rule.target.slice(targetAt) : '#frag')).toBe(true);
       unmount();
     }
   });

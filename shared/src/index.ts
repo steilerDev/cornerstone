@@ -466,7 +466,10 @@ export type {
 } from './types/backup.js';
 
 // App Settings
+export { ENTRIES_LANGUAGES, FALLBACK_ENTRIES_LANGUAGE } from './types/settings.js';
+export type { ReorderReferenceListRequest } from './types/referenceList.js';
 export type {
+  EntriesLanguage,
   HouseholdSettings,
   UpdateHouseholdSettingsRequest,
   HouseholdSettingsResponse,

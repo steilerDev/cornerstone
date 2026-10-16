@@ -8,7 +8,7 @@
       "path": "/budget/categories",
       "guard": "member",
       "kind": "redirect",
-      "target": "/settings/manage?tab=budget-categories"
+      "target": "/settings/manage#cost-categories"
     },
     { "path": "/budget/invoices", "guard": "member", "kind": "page", "element": "InvoicesPage" },
     {

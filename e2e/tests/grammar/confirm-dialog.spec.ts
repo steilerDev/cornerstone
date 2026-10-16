@@ -61,7 +61,7 @@ async function clickAreaDelete(page: Page, areaName: string): Promise<void> {
     .getByRole('heading', { level: 1, name: 'Project setup', exact: true })
     .waitFor({ state: 'visible' });
   const row = page
-    .locator('#areas-panel')
+    .getByTestId('project-setup-areas')
     .locator('[class*="itemRow"]')
     .filter({ hasText: areaName });
   await row.getByRole('button', { name: 'Delete', exact: true }).click();

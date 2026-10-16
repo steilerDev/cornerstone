@@ -105,11 +105,19 @@ describe('buildReportContent — partTexts is opt-in', () => {
   it('does not change any other ReportContent field', () => {
     const base = buildReportContent(report, included, 'claim', echoT, echoFormatters, {
       includeCoverLetter: true,
-      household: { householdName: 'The Smiths', householdAddress: '123 Main St' },
+      household: {
+        householdName: 'The Smiths',
+        householdAddress: '123 Main St',
+        entriesLanguage: 'en',
+      },
     });
     const withTexts = buildReportContent(report, included, 'claim', echoT, echoFormatters, {
       includeCoverLetter: true,
-      household: { householdName: 'The Smiths', householdAddress: '123 Main St' },
+      household: {
+        householdName: 'The Smiths',
+        householdAddress: '123 Main St',
+        entriesLanguage: 'en',
+      },
       includePartTexts: true,
     });
     const { partTexts, ...rest } = withTexts;

@@ -4,6 +4,7 @@ import {
   createHouseholdItemCategory,
   updateHouseholdItemCategory,
   deleteHouseholdItemCategory,
+  reorderHouseholdItemCategories,
 } from './householdItemCategoriesApi.js';
 import type { HouseholdItemCategoryEntity } from '@cornerstone/shared';
 
@@ -383,6 +384,43 @@ describe('householdItemCategoriesApi', () => {
       } as Response);
 
       await expect(deleteHouseholdItemCategory('hic-in-use')).rejects.toThrow();
+    });
+  });
+
+  describe('reorderHouseholdItemCategories', () => {
+    it('PATCHes /api/household-item-categories/reorder with the full id list and returns the rows', async () => {
+      const rows = [{ id: 'b' }, { id: 'a' }];
+      mockFetch.mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ categories: rows }),
+      } as Response);
+
+      const result = await reorderHouseholdItemCategories(['b', 'a']);
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/household-item-categories/reorder',
+        expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ ids: ['b', 'a'] }) }),
+      );
+      expect(result).toEqual(rows);
+    });
+
+    it('rejects with REORDER_SET_MISMATCH details on 409', async () => {
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 409,
+        json: async () => ({
+          error: {
+            code: 'REORDER_SET_MISMATCH',
+            message: 'The ids are not exactly the current list',
+            details: { missingIds: ['a'], unknownIds: [] },
+          },
+        }),
+      } as Response);
+
+      await expect(reorderHouseholdItemCategories(['b'])).rejects.toMatchObject({
+        statusCode: 409,
+        error: { code: 'REORDER_SET_MISMATCH', details: { missingIds: ['a'] } },
+      });
     });
   });
 });
